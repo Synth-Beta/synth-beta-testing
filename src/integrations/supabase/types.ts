@@ -14,50 +14,250 @@ export type Database = {
   }
   public: {
     Tables: {
-      "Concerts Try 2": {
+      chats: {
         Row: {
-          "Event Name": string
-          Location: string | null
+          created_at: string
+          id: string
+          match_id: string
+          updated_at: string
         }
         Insert: {
-          "Event Name": string
-          Location?: string | null
+          created_at?: string
+          id?: string
+          match_id: string
+          updated_at?: string
         }
         Update: {
-          "Event Name"?: string
-          Location?: string | null
+          created_at?: string
+          id?: string
+          match_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "Concerts Try 2_Event Name_fkey"
-            columns: ["Event Name"]
-            isOneToOne: true
-            referencedRelation: "Concerts Upload"
-            referencedColumns: ["Event Name"]
+            foreignKeyName: "chats_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
           },
         ]
       }
-      "Concerts Upload": {
+      concerts: {
         Row: {
-          "Event Name": string
-          Location: string
+          artist: string
+          id: number
+          venue: string
         }
         Insert: {
-          "Event Name": string
-          Location: string
+          artist: string
+          id?: number
+          venue: string
         }
         Update: {
-          "Event Name"?: string
-          Location?: string
+          artist?: string
+          id?: number
+          venue?: string
         }
         Relationships: []
+      }
+      event_interests: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_interests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          created_at: string
+          datetime: string
+          description: string | null
+          id: string
+          title: string
+          updated_at: string
+          venue: string
+        }
+        Insert: {
+          created_at?: string
+          datetime: string
+          description?: string | null
+          id?: string
+          title: string
+          updated_at?: string
+          venue: string
+        }
+        Update: {
+          created_at?: string
+          datetime?: string
+          description?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+          venue?: string
+        }
+        Relationships: []
+      }
+      matches: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          user1_id: string
+          user2_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          user1_id: string
+          user2_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          user1_id?: string
+          user2_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matches_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          chat_id: string
+          content: string
+          created_at: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          chat_id: string
+          content: string
+          created_at?: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          chat_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_swipes: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          is_interested: boolean
+          swiped_user_id: string
+          swiper_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          is_interested: boolean
+          swiped_user_id: string
+          swiper_user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          is_interested?: boolean
+          swiped_user_id?: string
+          swiper_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_swipes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      populate_events_from_concerts: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
