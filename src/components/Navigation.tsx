@@ -1,16 +1,14 @@
-import { useState } from 'react';
 import { Heart, List, User, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface NavigationProps {
-  currentView: 'swipe' | 'list' | 'profile' | 'settings';
-  onViewChange: (view: 'swipe' | 'list' | 'profile' | 'settings') => void;
+  currentView: 'events' | 'profile' | 'settings';
+  onViewChange: (view: 'events' | 'profile' | 'settings') => void;
 }
 
 export const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
   const navItems = [
-    { id: 'swipe', icon: Heart, label: 'Discover' },
-    { id: 'list', icon: List, label: 'Browse' },
+    { id: 'events', icon: Heart, label: 'Events' },
     { id: 'profile', icon: User, label: 'Profile' },
     { id: 'settings', icon: Settings, label: 'Settings' }
   ];
