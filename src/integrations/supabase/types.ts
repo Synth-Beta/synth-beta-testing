@@ -43,24 +43,6 @@ export type Database = {
           },
         ]
       }
-      concerts: {
-        Row: {
-          artist: string
-          id: number
-          venue: string
-        }
-        Insert: {
-          artist: string
-          id?: number
-          venue: string
-        }
-        Update: {
-          artist?: string
-          id?: number
-          venue?: string
-        }
-        Relationships: []
-      }
       event_interests: {
         Row: {
           created_at: string
@@ -80,43 +62,32 @@ export type Database = {
           id?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "event_interests_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       events: {
         Row: {
-          created_at: string
-          datetime: string
-          description: string | null
-          id: string
-          title: string
-          updated_at: string
-          venue: string
+          event_date: string
+          event_name: string
+          event_time: string
+          id: number
+          location: string
+          url: string
         }
         Insert: {
-          created_at?: string
-          datetime: string
-          description?: string | null
-          id?: string
-          title: string
-          updated_at?: string
-          venue: string
+          event_date: string
+          event_name: string
+          event_time: string
+          id?: number
+          location: string
+          url: string
         }
         Update: {
-          created_at?: string
-          datetime?: string
-          description?: string | null
-          id?: string
-          title?: string
-          updated_at?: string
-          venue?: string
+          event_date?: string
+          event_name?: string
+          event_time?: string
+          id?: number
+          location?: string
+          url?: string
         }
         Relationships: []
       }
@@ -142,15 +113,7 @@ export type Database = {
           user1_id?: string
           user2_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "matches_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       messages: {
         Row: {
@@ -239,15 +202,7 @@ export type Database = {
           swiped_user_id?: string
           swiper_user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_swipes_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
