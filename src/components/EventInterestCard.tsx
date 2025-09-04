@@ -8,8 +8,8 @@ import { format, parseISO } from 'date-fns';
 interface EventInterestCardProps {
   event: DBEvent;
   isInterested: boolean;
-  onToggleInterest: (eventId: string) => void;
-  onViewUsers: (eventId: string) => void;
+  onToggleInterest: (eventId: number) => void;
+  onViewUsers: (eventId: number) => void;
   interestedCount: number;
 }
 
@@ -20,14 +20,14 @@ export const EventInterestCard = ({
   onViewUsers,
   interestedCount 
 }: EventInterestCardProps) => {
-  const eventDate = parseISO(event.datetime);
+  const eventDateTime = parseISO(`${event.event_date}T${event.event_time}`);
   
   return (
     <Card className="card-hover overflow-hidden">
       <div className="aspect-video bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
         <div className="text-center">
-          <h3 className="text-xl font-bold text-primary">{event.title}</h3>
-          <p className="text-muted-foreground">{event.venue}</p>
+          <h3 className="text-xl font-bold text-primary">{event.event_name}</h3>
+          <p className="text-muted-foreground">{event.location}</p>
         </div>
       </div>
       
@@ -35,21 +35,15 @@ export const EventInterestCard = ({
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4" />
-            {format(eventDate, 'MMM d, yyyy')}
+            {format(eventDateTime, 'MMM d, yyyy')}
             <Clock className="w-4 h-4 ml-2" />
-            {format(eventDate, 'h:mm a')}
+            {format(eventDateTime, 'h:mm a')}
           </div>
           
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="w-4 h-4" />
-            {event.venue}
+            {event.location}
           </div>
-          
-          {event.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {event.description}
-            </p>
-          )}
           
           <div className="flex items-center justify-between pt-2">
             <Badge variant="secondary">

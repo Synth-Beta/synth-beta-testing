@@ -1,11 +1,10 @@
 export interface DBEvent {
-  id: string;
-  title: string;
-  venue: string;
-  datetime: string;
-  description: string | null;
-  created_at: string;
-  updated_at: string;
+  id: number;
+  event_name: string;
+  location: string;
+  event_date: string;
+  event_time: string;
+  url: string;
 }
 
 export interface Profile {

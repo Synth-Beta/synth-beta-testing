@@ -48,7 +48,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
           user_id,
           profiles(*)
         `)
-        .eq('event_id', event.id)
+        .eq('event_id', event.id.toString())
         .neq('user_id', currentUserId);
 
       if (interestsError) throw interestsError;
@@ -58,7 +58,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         .from('user_swipes')
         .select('swiped_user_id, is_interested')
         .eq('swiper_user_id', currentUserId)
-        .eq('event_id', event.id);
+        .eq('event_id', event.id.toString());
 
       if (swipesError) throw swipesError;
 
@@ -66,7 +66,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
       const { data: matches, error: matchesError } = await supabase
         .from('matches')
         .select('user1_id, user2_id')
-        .eq('event_id', event.id)
+        .eq('event_id', event.id.toString())
         .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
 
       if (matchesError) throw matchesError;
@@ -122,7 +122,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         .insert({
           swiper_user_id: currentUserId,
           swiped_user_id: targetUser.user_id,
-          event_id: event.id,
+          event_id: event.id.toString(),
           is_interested: direction === 'like'
         });
 
@@ -135,21 +135,21 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
           .select('is_interested')
           .eq('swiper_user_id', targetUser.user_id)
           .eq('swiped_user_id', currentUserId)
-          .eq('event_id', event.id)
+          .eq('event_id', event.id.toString())
           .eq('is_interested', true)
           .maybeSingle();
 
         if (existingSwipe) {
           toast({
             title: "It's a match! 🎉",
-            description: `You and ${targetUser.name} both want to connect at ${event.title}!`,
+            description: `You and ${targetUser.name} both want to connect at ${event.event_name}!`,
           });
           
           // Get the chat for this match
           const { data: match } = await supabase
             .from('matches')
             .select('chats(id)')
-            .eq('event_id', event.id)
+            .eq('event_id', event.id.toString())
             .or(`and(user1_id.eq.${currentUserId},user2_id.eq.${targetUser.user_id}),and(user1_id.eq.${targetUser.user_id},user2_id.eq.${currentUserId})`)
             .maybeSingle();
 
@@ -225,8 +225,8 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex-1">
-            <h1 className="font-bold text-lg">{event.title}</h1>
-            <p className="text-sm text-muted-foreground">{event.venue}</p>
+            <h1 className="font-bold text-lg">{event.event_name}</h1>
+            <p className="text-sm text-muted-foreground">{event.location}</p>
           </div>
         </div>
 
@@ -264,7 +264,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                 )}
                 
                 <Badge className="mb-6">
-                  Also interested in {event.title}
+                  Also interested in {event.event_name}
                 </Badge>
               </div>
             </CardContent>

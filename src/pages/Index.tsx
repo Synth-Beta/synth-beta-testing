@@ -15,8 +15,8 @@ type ViewType = 'welcome' | 'events' | 'event-users' | 'profile' | 'settings';
 const Index = () => {
   const [currentView, setCurrentView] = useState<ViewType>('welcome');
   const [events, setEvents] = useState<DBEvent[]>([]);
-  const [userInterests, setUserInterests] = useState<string[]>([]);
-  const [interestCounts, setInterestCounts] = useState<Record<string, number>>({});
+  const [userInterests, setUserInterests] = useState<number[]>([]);
+  const [interestCounts, setInterestCounts] = useState<Record<number, number>>({});
   const [selectedEvent, setSelectedEvent] = useState<DBEvent | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -34,19 +34,20 @@ const Index = () => {
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .order('datetime', { ascending: true });
+        .order('event_date', { ascending: true });
 
       if (error) throw error;
-      setEvents(data || []);
+      setEvents((data as any) || []);
       
       // Fetch interest counts for all events
       const { data: counts, error: countsError } = await supabase
         .from('event_interests')
         .select('event_id')
         .then(({ data }) => {
-          const countMap: Record<string, number> = {};
+          const countMap: Record<number, number> = {};
           data?.forEach(interest => {
-            countMap[interest.event_id] = (countMap[interest.event_id] || 0) + 1;
+            const eventId = parseInt(interest.event_id);
+            countMap[eventId] = (countMap[eventId] || 0) + 1;
           });
           return { data: countMap, error: null };
         });
@@ -76,7 +77,7 @@ const Index = () => {
         .eq('user_id', user.id);
 
       if (error) throw error;
-      setUserInterests(data?.map(interest => interest.event_id) || []);
+      setUserInterests(data?.map(interest => parseInt(interest.event_id)) || []);
     } catch (error) {
       console.error('Error fetching user interests:', error);
     }
@@ -86,7 +87,7 @@ const Index = () => {
     setCurrentView('events');
   };
 
-  const handleToggleInterest = async (eventId: string) => {
+  const handleToggleInterest = async (eventId: number) => {
     if (!user) return;
 
     const isCurrentlyInterested = userInterests.includes(eventId);
@@ -97,7 +98,7 @@ const Index = () => {
           .from('event_interests')
           .delete()
           .eq('user_id', user.id)
-          .eq('event_id', eventId);
+          .eq('event_id', eventId.toString());
 
         if (error) throw error;
 
@@ -116,7 +117,7 @@ const Index = () => {
           .from('event_interests')
           .insert({
             user_id: user.id,
-            event_id: eventId
+            event_id: eventId.toString()
           });
 
         if (error) throw error;
@@ -130,7 +131,7 @@ const Index = () => {
         const event = events.find(e => e.id === eventId);
         toast({
           title: "Great choice!",
-          description: `You're now interested in "${event?.title}"`,
+          description: `You're now interested in "${event?.event_name}"`,
         });
       }
     } catch (error) {
@@ -143,7 +144,7 @@ const Index = () => {
     }
   };
 
-  const handleViewUsers = (eventId: string) => {
+  const handleViewUsers = (eventId: number) => {
     const event = events.find(e => e.id === eventId);
     if (event) {
       setSelectedEvent(event);
