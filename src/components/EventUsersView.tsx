@@ -44,14 +44,19 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
       // Get all users interested in this event (excluding current user)
       const { data: interests, error: interestsError } = await supabase
         .from('event_interests')
-        .select(`
-          user_id,
-          profiles(*)
-        `)
+        .select('user_id')
         .eq('event_id', event.id)
         .neq('user_id', currentUserId);
 
       if (interestsError) throw interestsError;
+
+      const interestedUserIds = (interests || []).map(i => i.user_id);
+
+      // Early exit if nobody else is interested
+      if (interestedUserIds.length === 0) {
+        setUsers([]);
+        return;
+      }
 
       // Get swipe data for current user
       const { data: swipes, error: swipesError } = await supabase
@@ -76,24 +81,27 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         m.user1_id === currentUserId ? m.user2_id : m.user1_id
       ) || []);
 
-      const usersWithData: UserWithProfile[] = [];
-      
-      interests?.forEach(interest => {
-        const profile = interest.profiles;
-        if (profile && !swipeMap.has(interest.user_id)) {
-          usersWithData.push({
-            id: (profile as any).id,
-            user_id: (profile as any).user_id,
-            name: (profile as any).name,
-            avatar_url: (profile as any).avatar_url,
-            bio: (profile as any).bio,
-            created_at: (profile as any).created_at,
-            updated_at: (profile as any).updated_at,
-            hasSwipedRight: swipeMap.get(interest.user_id) === true,
-            isMatch: matchSet.has(interest.user_id)
-          });
-        }
-      });
+      // Fetch profiles for those interested users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, user_id, name, avatar_url, bio, created_at, updated_at')
+        .in('user_id', interestedUserIds);
+
+      if (profilesError) throw profilesError;
+
+      const usersWithData: UserWithProfile[] = (profiles || [])
+        .filter(p => !swipeMap.has(p.user_id))
+        .map(p => ({
+          id: p.id,
+          user_id: p.user_id,
+          name: p.name,
+          avatar_url: p.avatar_url,
+          bio: p.bio,
+          created_at: p.created_at,
+          updated_at: p.updated_at,
+          hasSwipedRight: swipeMap.get(p.user_id) === true,
+          isMatch: matchSet.has(p.user_id)
+        }));
 
       setUsers(usersWithData);
     } catch (error) {
