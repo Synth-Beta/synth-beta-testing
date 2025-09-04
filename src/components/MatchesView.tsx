@@ -1,0 +1,309 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, MessageCircle, Heart, MapPin, Calendar, Instagram, Camera, ExternalLink } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { format, parseISO } from 'date-fns';
+
+interface MatchesViewProps {
+  currentUserId: string;
+  onBack: () => void;
+  onOpenChat: (chatId: string) => void;
+}
+
+interface MatchWithChat {
+  id: string;
+  user1_id: string;
+  user2_id: string;
+  event_id: string;
+  created_at: string;
+  event: {
+    event_name: string;
+    location: string;
+    event_date: string;
+    event_time: string;
+  };
+  chats: {
+    id: string;
+    created_at: string;
+    updated_at: string;
+  }[];
+  other_user: {
+    id: string;
+    user_id: string;
+    name: string;
+    avatar_url: string | null;
+    bio: string | null;
+    instagram_handle: string | null;
+    snapchat_handle: string | null;
+  };
+  other_user_events: {
+    id: string;
+    event_name: string;
+    location: string;
+    event_date: string;
+    event_time: string;
+  }[];
+}
+
+export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewProps) => {
+  const [matches, setMatches] = useState<MatchWithChat[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchMatches();
+  }, [currentUserId]);
+
+  const fetchMatches = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('matches')
+        .select(`
+          id,
+          user1_id,
+          user2_id,
+          event_id,
+          created_at,
+          event:events(
+            event_name,
+            location,
+            event_date,
+            event_time
+          ),
+          chats(
+            id,
+            created_at,
+            updated_at
+          )
+        `)
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Get the other user's profile and their events for each match
+      const matchesWithProfiles = await Promise.all(
+        (data || []).map(async (match) => {
+          const otherUserId = match.user1_id === currentUserId 
+            ? match.user2_id 
+            : match.user1_id;
+
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('id, user_id, name, avatar_url, bio, instagram_handle, snapchat_handle')
+            .eq('user_id', otherUserId)
+            .single();
+
+          if (profileError) {
+            console.error('Error fetching profile for user:', otherUserId, profileError);
+            return null;
+          }
+
+          // Get other user's event interests
+          const { data: userEvents, error: eventsError } = await supabase
+            .from('event_interests')
+            .select(`
+              event:events(
+                id,
+                event_name,
+                location,
+                event_date,
+                event_time
+              )
+            `)
+            .eq('user_id', otherUserId)
+            .order('created_at', { ascending: false })
+            .limit(5); // Show up to 5 recent events
+
+          const otherUserEvents = userEvents?.map(item => item.event).filter(Boolean) || [];
+
+          return {
+            ...match,
+            other_user: profile,
+            other_user_events: otherUserEvents
+          };
+        })
+      );
+
+      setMatches(matchesWithProfiles.filter(Boolean) as MatchWithChat[]);
+    } catch (error) {
+      console.error('Error fetching matches:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load matches",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading matches...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-4">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold">Your Matches</h1>
+            <p className="text-muted-foreground">People you've connected with at events</p>
+          </div>
+        </div>
+
+        {/* Matches List */}
+        <div className="space-y-4">
+          {matches.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Heart className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No matches yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Start swiping on people interested in events to make connections!
+                </p>
+                <Button onClick={onBack}>
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Browse Events
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            matches.map((match) => {
+              const eventDateTime = parseISO(`${match.event.event_date}T${match.event.event_time}`);
+              const chat = match.chats[0]; // Should only be one chat per match
+
+              return (
+                <Card key={match.id} className="overflow-hidden">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-4">
+                      <Avatar className="w-12 h-12">
+                        <AvatarImage src={match.other_user.avatar_url || undefined} />
+                        <AvatarFallback>
+                          {match.other_user.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="font-semibold text-lg">{match.other_user.name}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Matched {format(new Date(match.created_at), 'MMM d, yyyy')}
+                            </p>
+                          </div>
+                          <Badge variant="secondary">
+                            <Heart className="w-3 h-3 mr-1" />
+                            Match
+                          </Badge>
+                        </div>
+
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Calendar className="w-4 h-4" />
+                            <span>{format(eventDateTime, 'MMM d, yyyy')} at {format(eventDateTime, 'h:mm a')}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <MapPin className="w-4 h-4" />
+                            <span>{match.event.location}</span>
+                          </div>
+                        </div>
+
+                        {/* Social Media Links */}
+                        {(match.other_user.instagram_handle || match.other_user.snapchat_handle) && (
+                          <div className="flex items-center gap-3 mb-3">
+                            {match.other_user.instagram_handle && (
+                              <a
+                                href={`https://instagram.com/${match.other_user.instagram_handle}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-pink-600 hover:text-pink-700 transition-colors text-sm"
+                              >
+                                <Instagram className="w-3 h-3" />
+                                <span>@{match.other_user.instagram_handle}</span>
+                                <ExternalLink className="w-2 h-2" />
+                              </a>
+                            )}
+                            {match.other_user.snapchat_handle && (
+                              <a
+                                href={`https://snapchat.com/add/${match.other_user.snapchat_handle}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-yellow-600 hover:text-yellow-700 transition-colors text-sm"
+                              >
+                                <Camera className="w-3 h-3" />
+                                <span>@{match.other_user.snapchat_handle}</span>
+                                <ExternalLink className="w-2 h-2" />
+                              </a>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm">
+                            <p className="font-medium text-primary">{match.event.event_name}</p>
+                            {match.other_user.bio && (
+                              <p className="text-muted-foreground line-clamp-1">
+                                {match.other_user.bio}
+                              </p>
+                            )}
+                          </div>
+                          
+                          {chat && (
+                            <Button 
+                              onClick={() => onOpenChat(chat.id)}
+                              className="btn-swipe-like"
+                            >
+                              <MessageCircle className="w-4 h-4 mr-2" />
+                              Chat
+                            </Button>
+                          )}
+                        </div>
+
+                        {/* Other User's Event Interests */}
+                        {match.other_user_events.length > 0 && (
+                          <div className="mt-4 pt-3 border-t">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">
+                              Also interested in:
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {match.other_user_events.slice(0, 3).map((event) => (
+                                <Badge key={event.id} variant="outline" className="text-xs">
+                                  {event.event_name}
+                                </Badge>
+                              ))}
+                              {match.other_user_events.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{match.other_user_events.length - 3} more
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

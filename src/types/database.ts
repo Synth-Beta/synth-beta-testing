@@ -13,6 +13,8 @@ export interface Profile {
   name: string;
   avatar_url: string | null;
   bio: string | null;
+  instagram_handle: string | null;
+  snapchat_handle: string | null;
   created_at: string;
   updated_at: string;
 }

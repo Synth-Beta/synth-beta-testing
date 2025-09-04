@@ -5,12 +5,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { EventInterestCard } from "@/components/EventInterestCard";
 import { EventUsersView } from "@/components/EventUsersView";
+import { MatchesView } from "@/components/MatchesView";
+import { ChatView } from "@/components/ChatView";
+import { ProfileView } from "@/components/ProfileView";
+import { ProfileEdit } from "@/components/ProfileEdit";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import Auth from "@/pages/Auth";
 import { DBEvent } from "@/types/database";
 
-type ViewType = 'welcome' | 'events' | 'event-users' | 'profile' | 'settings';
+type ViewType = 'welcome' | 'events' | 'event-users' | 'matches' | 'chat' | 'profile' | 'profile-edit' | 'settings';
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<ViewType>('welcome');
@@ -18,6 +22,7 @@ const Index = () => {
   const [userInterests, setUserInterests] = useState<number[]>([]);
   const [interestCounts, setInterestCounts] = useState<Record<number, number>>({});
   const [selectedEvent, setSelectedEvent] = useState<DBEvent | null>(null);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -153,12 +158,22 @@ const Index = () => {
   };
 
   const handleChatCreated = (chatId: string) => {
-    // For now, just show success message
-    // In a full implementation, this would navigate to the chat
+    setCurrentChatId(chatId);
+    setCurrentView('chat');
     toast({
       title: "Chat created!",
       description: "You can now message your match",
     });
+  };
+
+  const handleOpenChat = (chatId: string) => {
+    setCurrentChatId(chatId);
+    setCurrentView('chat');
+  };
+
+  const handleBackFromChat = () => {
+    setCurrentChatId(null);
+    setCurrentView('matches');
   };
 
   if (authLoading) {
@@ -229,18 +244,38 @@ const Index = () => {
             onChatCreated={handleChatCreated}
           />
         ) : null;
+      case 'matches':
+        return user ? (
+          <MatchesView
+            currentUserId={user.id}
+            onBack={() => setCurrentView('events')}
+            onOpenChat={handleOpenChat}
+          />
+        ) : null;
+      case 'chat':
+        return currentChatId && user ? (
+          <ChatView
+            chatId={currentChatId}
+            currentUserId={user.id}
+            onBack={handleBackFromChat}
+          />
+        ) : null;
       case 'profile':
-        return (
-          <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold mb-4">Profile</h2>
-              <p className="text-muted-foreground mb-4">Profile management coming soon!</p>
-              <Button variant="outline" onClick={signOut}>
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        );
+        return user ? (
+          <ProfileView
+            currentUserId={user.id}
+            onBack={() => setCurrentView('events')}
+            onEdit={() => setCurrentView('profile-edit')}
+          />
+        ) : null;
+      case 'profile-edit':
+        return user ? (
+          <ProfileEdit
+            currentUserId={user.id}
+            onBack={() => setCurrentView('profile')}
+            onSave={() => setCurrentView('profile')}
+          />
+        ) : null;
       case 'settings':
         return (
           <div className="min-h-screen flex items-center justify-center p-4">
@@ -261,7 +296,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {renderCurrentView()}
-      {currentView !== 'welcome' && currentView !== 'event-users' && (
+      {currentView !== 'welcome' && currentView !== 'event-users' && currentView !== 'chat' && currentView !== 'profile-edit' && (
         <Navigation 
           currentView={currentView as any}
           onViewChange={(view) => setCurrentView(view as ViewType)}
