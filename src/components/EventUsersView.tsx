@@ -48,7 +48,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
           user_id,
           profiles(*)
         `)
-        .eq('event_id', event.id.toString())
+        .eq('event_id', event.id)
         .neq('user_id', currentUserId);
 
       if (interestsError) throw interestsError;
@@ -58,7 +58,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         .from('user_swipes')
         .select('swiped_user_id, is_interested')
         .eq('swiper_user_id', currentUserId)
-        .eq('event_id', event.id.toString());
+        .eq('event_id', event.id);
 
       if (swipesError) throw swipesError;
 
@@ -66,7 +66,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
       const { data: matches, error: matchesError } = await supabase
         .from('matches')
         .select('user1_id, user2_id')
-        .eq('event_id', event.id.toString())
+        .eq('event_id', event.id)
         .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
 
       if (matchesError) throw matchesError;
@@ -122,7 +122,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         .insert({
           swiper_user_id: currentUserId,
           swiped_user_id: targetUser.user_id,
-          event_id: event.id.toString(),
+          event_id: event.id,
           is_interested: direction === 'like'
         });
 
@@ -135,7 +135,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
           .select('is_interested')
           .eq('swiper_user_id', targetUser.user_id)
           .eq('swiped_user_id', currentUserId)
-          .eq('event_id', event.id.toString())
+          .eq('event_id', event.id)
           .eq('is_interested', true)
           .maybeSingle();
 
@@ -149,7 +149,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
           const { data: match } = await supabase
             .from('matches')
             .select('chats(id)')
-            .eq('event_id', event.id.toString())
+            .eq('event_id', event.id)
             .or(`and(user1_id.eq.${currentUserId},user2_id.eq.${targetUser.user_id}),and(user1_id.eq.${targetUser.user_id},user2_id.eq.${currentUserId})`)
             .maybeSingle();
 

@@ -46,7 +46,7 @@ const Index = () => {
         .then(({ data }) => {
           const countMap: Record<number, number> = {};
           data?.forEach(interest => {
-            const eventId = parseInt(interest.event_id);
+            const eventId = interest.event_id;
             countMap[eventId] = (countMap[eventId] || 0) + 1;
           });
           return { data: countMap, error: null };
@@ -77,7 +77,7 @@ const Index = () => {
         .eq('user_id', user.id);
 
       if (error) throw error;
-      setUserInterests(data?.map(interest => parseInt(interest.event_id)) || []);
+      setUserInterests(data?.map(interest => interest.event_id) || []);
     } catch (error) {
       console.error('Error fetching user interests:', error);
     }
@@ -98,7 +98,7 @@ const Index = () => {
           .from('event_interests')
           .delete()
           .eq('user_id', user.id)
-          .eq('event_id', eventId.toString());
+          .eq('event_id', eventId);
 
         if (error) throw error;
 
@@ -117,7 +117,7 @@ const Index = () => {
           .from('event_interests')
           .insert({
             user_id: user.id,
-            event_id: eventId.toString()
+            event_id: eventId
           });
 
         if (error) throw error;
