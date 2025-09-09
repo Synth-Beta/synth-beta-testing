@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, Camera, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, Camera, ExternalLink, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -12,6 +12,7 @@ interface ProfileViewProps {
   currentUserId: string;
   onBack: () => void;
   onEdit: () => void;
+  onSettings: () => void;
 }
 
 interface UserProfile {
@@ -35,7 +36,7 @@ interface UserEvent {
   created_at: string;
 }
 
-export const ProfileView = ({ currentUserId, onBack, onEdit }: ProfileViewProps) => {
+export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings }: ProfileViewProps) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<UserEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,17 +133,19 @@ export const ProfileView = ({ currentUserId, onBack, onEdit }: ProfileViewProps)
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
           <div className="flex-1">
             <h1 className="text-2xl font-bold">Your Profile</h1>
             <p className="text-muted-foreground">Manage your profile and view your activity</p>
           </div>
-          <Button onClick={onEdit} variant="outline">
-            <Edit className="w-4 h-4 mr-2" />
-            Edit
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={onSettings} variant="ghost" size="icon">
+              <Settings className="w-4 h-4" />
+            </Button>
+            <Button onClick={onEdit} variant="outline">
+              <Edit className="w-4 h-4 mr-2" />
+              Edit
+            </Button>
+          </div>
         </div>
 
         {/* Profile Card */}

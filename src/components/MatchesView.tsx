@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, MessageCircle, Heart, MapPin, Calendar, Instagram, Camera, ExternalLink } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Heart, MapPin, Calendar, Instagram, Camera, ExternalLink, X } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -18,7 +18,7 @@ interface MatchWithChat {
   id: string;
   user1_id: string;
   user2_id: string;
-  event_id: string;
+  event_id: number;
   created_at: string;
   event: {
     event_name: string;
@@ -41,7 +41,7 @@ interface MatchWithChat {
     snapchat_handle: string | null;
   };
   other_user_events: {
-    id: string;
+    id: number;
     event_name: string;
     location: string;
     event_date: string;
@@ -49,13 +49,37 @@ interface MatchWithChat {
   }[];
 }
 
+interface PendingInvitation {
+  id: string;
+  swiper_user_id: string;
+  swiped_user_id: string;
+  event_id: number;
+  created_at: string;
+  event: {
+    event_name: string;
+    location: string;
+    event_date: string;
+    event_time: string;
+  };
+  swiper_user: {
+    id: string;
+    user_id: string;
+    name: string;
+    avatar_url: string | null;
+    bio: string | null;
+  };
+}
+
 export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewProps) => {
   const [matches, setMatches] = useState<MatchWithChat[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
+  const [showRequests, setShowRequests] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchMatches();
+    fetchPendingInvitations();
   }, [currentUserId]);
 
   const fetchMatches = async () => {
@@ -142,6 +166,145 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
     }
   };
 
+  const fetchPendingInvitations = async () => {
+    try {
+      // Get swipes where someone swiped right on the current user, but there's no match yet
+      const { data: swipes, error: swipesError } = await supabase
+        .from('user_swipes')
+        .select(`
+          id,
+          swiper_user_id,
+          swiped_user_id,
+          event_id,
+          created_at,
+          event:events(
+            event_name,
+            location,
+            event_date,
+            event_time
+          )
+        `)
+        .eq('swiped_user_id', currentUserId)
+        .eq('is_interested', true);
+
+      if (swipesError) throw swipesError;
+
+      // Filter out swipes that already have matches
+      const { data: existingMatches, error: matchesError } = await supabase
+        .from('matches')
+        .select('user1_id, user2_id, event_id')
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
+
+      if (matchesError) throw matchesError;
+
+      const matchSet = new Set(
+        existingMatches?.map(m => `${m.user1_id}-${m.user2_id}-${m.event_id}`) || []
+      );
+
+      const pendingSwipes = (swipes || []).filter(swipe => {
+        const matchKey = `${swipe.swiper_user_id}-${swipe.swiped_user_id}-${swipe.event_id}`;
+        const reverseMatchKey = `${swipe.swiped_user_id}-${swipe.swiper_user_id}-${swipe.event_id}`;
+        return !matchSet.has(matchKey) && !matchSet.has(reverseMatchKey);
+      });
+
+      // Get profiles for the swipers
+      const swiperIds = pendingSwipes.map(swipe => swipe.swiper_user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, user_id, name, avatar_url, bio')
+        .in('user_id', swiperIds);
+
+      if (profilesError) throw profilesError;
+
+      const invitationsWithProfiles: PendingInvitation[] = pendingSwipes.map(swipe => {
+        const profile = profiles?.find(p => p.user_id === swipe.swiper_user_id);
+        return {
+          id: swipe.id,
+          swiper_user_id: swipe.swiper_user_id,
+          swiped_user_id: swipe.swiped_user_id,
+          event_id: swipe.event_id,
+          created_at: swipe.created_at,
+          event: swipe.event,
+          swiper_user: profile || {
+            id: '',
+            user_id: swipe.swiper_user_id,
+            name: 'Unknown User',
+            avatar_url: null,
+            bio: null
+          }
+        };
+      });
+
+      setPendingInvitations(invitationsWithProfiles);
+    } catch (error) {
+      console.error('Error fetching pending invitations:', error);
+    }
+  };
+
+  const handleAcceptInvitation = async (invitation: PendingInvitation) => {
+    try {
+      // Create a swipe back from current user to the swiper
+      const { error: swipeError } = await supabase
+        .from('user_swipes')
+        .insert({
+          swiper_user_id: currentUserId,
+          swiped_user_id: invitation.swiper_user_id,
+          event_id: invitation.event_id,
+          is_interested: true
+        });
+
+      if (swipeError) throw swipeError;
+
+      // The match and chat will be created automatically by the trigger
+      toast({
+        title: "Invitation accepted! 🎉",
+        description: `You and ${invitation.swiper_user.name} are now matched for ${invitation.event.event_name}!`,
+      });
+
+      // Refresh data
+      fetchMatches();
+      fetchPendingInvitations();
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to accept invitation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRejectInvitation = async (invitation: PendingInvitation) => {
+    try {
+      // Create a swipe back from current user to the swiper (as not interested)
+      const { error: swipeError } = await supabase
+        .from('user_swipes')
+        .insert({
+          swiper_user_id: currentUserId,
+          swiped_user_id: invitation.swiper_user_id,
+          event_id: invitation.event_id,
+          is_interested: false
+        });
+
+      if (swipeError) throw swipeError;
+
+      toast({
+        title: "Invitation declined",
+        description: "You've declined this invitation",
+      });
+
+      // Refresh data
+      fetchPendingInvitations();
+    } catch (error) {
+      console.error('Error rejecting invitation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reject invitation",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -158,17 +321,104 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
           <div className="flex-1">
             <h1 className="text-2xl font-bold">Your Matches</h1>
             <p className="text-muted-foreground">People you've connected with at events</p>
           </div>
+          <Button
+            variant="outline"
+            onClick={() => setShowRequests(!showRequests)}
+            className="relative"
+          >
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Requests
+            {pendingInvitations.length > 0 && (
+              <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                {pendingInvitations.length}
+              </Badge>
+            )}
+          </Button>
         </div>
+
+        {/* Pending Invitations - Only show when button is clicked */}
+        {showRequests && pendingInvitations.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold mb-4">Pending Invitations</h2>
+            <div className="space-y-4">
+              {pendingInvitations.map((invitation) => {
+                const eventDateTime = parseISO(`${invitation.event.event_date}T${invitation.event.event_time}`);
+                return (
+                  <Card key={invitation.id} className="border-orange-200 bg-orange-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-4">
+                        <Avatar className="w-12 h-12">
+                          <AvatarImage src={invitation.swiper_user.avatar_url || undefined} />
+                          <AvatarFallback>
+                            {invitation.swiper_user.name.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <h3 className="font-semibold text-lg">{invitation.swiper_user.name}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                Wants to connect at {invitation.event.event_name}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="bg-orange-100 text-orange-800">
+                              Pending
+                            </Badge>
+                          </div>
+
+                          <div className="space-y-2 mb-4">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Calendar className="w-4 h-4" />
+                              <span>{format(eventDateTime, 'MMM d, yyyy')} at {format(eventDateTime, 'h:mm a')}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <MapPin className="w-4 h-4" />
+                              <span>{invitation.event.location}</span>
+                            </div>
+                          </div>
+
+                          {invitation.swiper_user.bio && (
+                            <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                              {invitation.swiper_user.bio}
+                            </p>
+                          )}
+
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleAcceptInvitation(invitation)}
+                              className="btn-swipe-like"
+                            >
+                              <Heart className="w-4 h-4 mr-2" />
+                              Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRejectInvitation(invitation)}
+                            >
+                              <X className="w-4 h-4 mr-2" />
+                              Decline
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Matches List */}
         <div className="space-y-4">
+          <h2 className="text-lg font-semibold mb-4">Your Matches</h2>
           {matches.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">

@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowRight, Users, Heart, Calendar } from 'lucide-react';
+import { ArrowRight, Users, Heart, Music, Star } from 'lucide-react';
 import heroImage from '@/assets/hero-events.jpg';
 
 interface WelcomeScreenProps {
@@ -20,7 +20,7 @@ export const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
             PlusOne
           </h1>
           <p className="text-lg text-muted-foreground">
-            Never go to events alone again
+            Find friends for local events
           </p>
         </div>
 
@@ -37,10 +37,20 @@ export const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
         <div className="space-y-4 mb-8">
           <Card className="p-4 bg-card/60 backdrop-blur-sm border-border/50">
             <div className="flex items-start gap-3">
-              <Calendar className="w-6 h-6 text-primary mt-1" />
+              <Star className="w-6 h-6 text-primary mt-1" />
               <div>
-                <h3 className="font-semibold text-card-foreground mb-1">Discover Events</h3>
-                <p className="text-sm text-muted-foreground">Swipe through local events that match your interests</p>
+                <h3 className="font-semibold text-card-foreground mb-1">Review Events You've Been</h3>
+                <p className="text-sm text-muted-foreground">Rank and review your past concert experiences</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-card/60 backdrop-blur-sm border-border/50">
+            <div className="flex items-start gap-3">
+              <Music className="w-6 h-6 text-primary mt-1" />
+              <div>
+                <h3 className="font-semibold text-card-foreground mb-1">Discover Future Events</h3>
+                <p className="text-sm text-muted-foreground">Find upcoming concerts and events in your area</p>
               </div>
             </div>
           </Card>
@@ -49,18 +59,8 @@ export const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
             <div className="flex items-start gap-3">
               <Users className="w-6 h-6 text-primary mt-1" />
               <div>
-                <h3 className="font-semibold text-card-foreground mb-1">Find Your Crew</h3>
-                <p className="text-sm text-muted-foreground">Match with others who want to attend the same events</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4 bg-card/60 backdrop-blur-sm border-border/50">
-            <div className="flex items-start gap-3">
-              <Heart className="w-6 h-6 text-primary mt-1" />
-              <div>
-                <h3 className="font-semibold text-card-foreground mb-1">Go Together</h3>
-                <p className="text-sm text-muted-foreground">Chat, plan, and experience amazing events with new friends</p>
+                <h3 className="font-semibold text-card-foreground mb-1">Match with New People</h3>
+                <p className="text-sm text-muted-foreground">Connect with others who share your music taste</p>
               </div>
             </div>
           </Card>
@@ -72,12 +72,12 @@ export const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
           size="lg"
           className="w-full btn-swipe-like text-lg py-6 animate-pulse-glow"
         >
-          Get Started
+          I'm Ready to Go Into the App
           <ArrowRight className="w-5 h-5 ml-2" />
         </Button>
 
         <p className="text-center text-xs text-muted-foreground mt-4">
-          Join the community and never miss out on great events
+          Start ranking concerts and finding your music crew
         </p>
       </div>
     </div>

@@ -9,15 +9,17 @@ import { MatchesView } from "@/components/MatchesView";
 import { ChatView } from "@/components/ChatView";
 import { ProfileView } from "@/components/ProfileView";
 import { ProfileEdit } from "@/components/ProfileEdit";
+import { ConcertRanking } from "@/components/ConcertRanking";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import Auth from "@/pages/Auth";
 import { DBEvent } from "@/types/database";
 
-type ViewType = 'welcome' | 'events' | 'event-users' | 'matches' | 'chat' | 'profile' | 'profile-edit' | 'settings';
+type ViewType = 'welcome' | 'events' | 'event-users' | 'matches' | 'chat' | 'profile' | 'profile-edit' | 'settings' | 'concerts';
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<ViewType>('welcome');
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
   const [events, setEvents] = useState<DBEvent[]>([]);
   const [userInterests, setUserInterests] = useState<number[]>([]);
   const [interestCounts, setInterestCounts] = useState<Record<number, number>>({});
@@ -29,6 +31,13 @@ const Index = () => {
 
   useEffect(() => {
     if (user) {
+      // Check if user has seen welcome screen before
+      const hasSeenWelcomeBefore = localStorage.getItem(`hasSeenWelcome_${user.id}`);
+      if (hasSeenWelcomeBefore) {
+        setHasSeenWelcome(true);
+        setCurrentView('concerts'); // Go directly to concerts for returning users
+      }
+      
       fetchEvents();
       fetchUserInterests();
     }
@@ -39,6 +48,7 @@ const Index = () => {
       const { data, error } = await supabase
         .from('events')
         .select('*')
+        .gte('event_date', new Date().toISOString().split('T')[0])
         .order('event_date', { ascending: true });
 
       if (error) throw error;
@@ -89,7 +99,12 @@ const Index = () => {
   };
 
   const handleGetStarted = () => {
-    setCurrentView('events');
+    if (user) {
+      // Mark that user has seen welcome screen
+      localStorage.setItem(`hasSeenWelcome_${user.id}`, 'true');
+      setHasSeenWelcome(true);
+    }
+    setCurrentView('concerts');
   };
 
   const handleToggleInterest = async (eventId: number) => {
@@ -188,6 +203,11 @@ const Index = () => {
     return <Auth onAuthSuccess={() => setCurrentView('welcome')} />;
   }
 
+  // Show welcome screen only for new users
+  if (!hasSeenWelcome) {
+    return <WelcomeScreen onGetStarted={handleGetStarted} />;
+  }
+
   const renderCurrentView = () => {
     switch (currentView) {
       case 'welcome':
@@ -248,7 +268,7 @@ const Index = () => {
         return user ? (
           <MatchesView
             currentUserId={user.id}
-            onBack={() => setCurrentView('events')}
+            onBack={() => {}}
             onOpenChat={handleOpenChat}
           />
         ) : null;
@@ -264,8 +284,9 @@ const Index = () => {
         return user ? (
           <ProfileView
             currentUserId={user.id}
-            onBack={() => setCurrentView('events')}
+            onBack={() => {}}
             onEdit={() => setCurrentView('profile-edit')}
+            onSettings={() => setCurrentView('settings')}
           />
         ) : null;
       case 'profile-edit':
@@ -288,6 +309,13 @@ const Index = () => {
             </div>
           </div>
         );
+      case 'concerts':
+        return user ? (
+          <ConcertRanking
+            currentUserId={user.id}
+            onBack={() => {}}
+          />
+        ) : null;
       default:
         return <WelcomeScreen onGetStarted={handleGetStarted} />;
     }

@@ -5,6 +5,7 @@ export interface DBEvent {
   event_date: string;
   event_time: string;
   url: string;
+  event_price: string;
 }
 
 export interface Profile {
@@ -22,7 +23,7 @@ export interface Profile {
 export interface EventInterest {
   id: string;
   user_id: string;
-  event_id: string;
+  event_id: number;
   created_at: string;
 }
 
@@ -30,7 +31,7 @@ export interface UserSwipe {
   id: string;
   swiper_user_id: string;
   swiped_user_id: string;
-  event_id: string;
+  event_id: number;
   is_interested: boolean;
   created_at: string;
 }
@@ -39,7 +40,7 @@ export interface Match {
   id: string;
   user1_id: string;
   user2_id: string;
-  event_id: string;
+  event_id: number;
   created_at: string;
 }
 
