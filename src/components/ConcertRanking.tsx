@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, ThumbsUp, ThumbsDown, Minus, Plus, Edit3, X, Music } from 'lucide-react';
+import { ArrowLeft, ThumbsUp, ThumbsDown, Minus, Plus, Edit3, X, Music, Search } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -183,6 +183,7 @@ class ReviewRankingSystem {
 interface ConcertRankingProps {
   currentUserId: string;
   onBack: () => void;
+  onSearch?: () => void;
 }
 
 interface ConcertReview {
@@ -205,7 +206,7 @@ interface ConcertReview {
   };
 }
 
-export const ConcertRanking = ({ currentUserId, onBack }: ConcertRankingProps) => {
+export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRankingProps) => {
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddReview, setShowAddReview] = useState(false);
@@ -614,10 +615,22 @@ export const ConcertRanking = ({ currentUserId, onBack }: ConcertRankingProps) =
             <h1 className="text-3xl font-bold text-gray-900">My Concert Rankings</h1>
             <p className="text-gray-600 mt-2">Rank and review your concert experiences</p>
           </div>
-          <Button onClick={() => setShowAddReview(true)} className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Review
-          </Button>
+          <div className="flex gap-2">
+            {onSearch && (
+              <Button 
+                variant="outline" 
+                onClick={onSearch}
+                className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+              >
+                <Search className="w-4 h-4 mr-2" />
+                Search Concerts
+              </Button>
+            )}
+            <Button onClick={() => setShowAddReview(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Review
+            </Button>
+          </div>
         </div>
 
         {reviews.length === 0 ? (

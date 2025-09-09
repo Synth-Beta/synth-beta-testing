@@ -10,12 +10,13 @@ import { ChatView } from "@/components/ChatView";
 import { ProfileView } from "@/components/ProfileView";
 import { ProfileEdit } from "@/components/ProfileEdit";
 import { ConcertRanking } from "@/components/ConcertRanking";
+import { ConcertSearch } from "@/components/ConcertSearch";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import Auth from "@/pages/Auth";
 import { DBEvent } from "@/types/database";
 
-type ViewType = 'welcome' | 'events' | 'event-users' | 'matches' | 'chat' | 'profile' | 'profile-edit' | 'settings' | 'concerts';
+type ViewType = 'welcome' | 'events' | 'event-users' | 'matches' | 'chat' | 'profile' | 'profile-edit' | 'settings' | 'concerts' | 'concert-search';
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<ViewType>('welcome');
@@ -314,6 +315,18 @@ const Index = () => {
           <ConcertRanking
             currentUserId={user.id}
             onBack={() => {}}
+            onSearch={() => setCurrentView('concert-search')}
+          />
+        ) : null;
+      case 'concert-search':
+        return user ? (
+          <ConcertSearch
+            currentUserId={user.id}
+            onBack={() => setCurrentView('concerts')}
+            onSelectConcert={(concert) => {
+              // Handle concert selection - you can add logic here
+              console.log('Selected concert:', concert);
+            }}
           />
         ) : null;
       default:
@@ -324,7 +337,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {renderCurrentView()}
-      {currentView !== 'welcome' && currentView !== 'event-users' && currentView !== 'chat' && currentView !== 'profile-edit' && (
+      {currentView !== 'welcome' && currentView !== 'event-users' && currentView !== 'chat' && currentView !== 'profile-edit' && currentView !== 'concert-search' && (
         <Navigation 
           currentView={currentView as any}
           onViewChange={(view) => setCurrentView(view as ViewType)}
