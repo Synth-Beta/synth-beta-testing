@@ -206,6 +206,27 @@ interface ConcertReview {
   };
 }
 
+// ========================================
+// 🧠 MENTAL MAP: CONCERT RANKING ALGORITHM
+// ========================================
+// 
+// This component implements a sophisticated ranking algorithm for concert reviews.
+// The algorithm handles 5 main scenarios:
+//
+// 1. ADD NEW REVIEW: Compares with bottom item in entire list
+// 2. EDIT #1 (NORMAL): Compares with item below, stays #1 if chosen
+// 3. EDIT #1 (MOVING DOWN): Compares with item below, stops if chosen yourself
+// 4. EDIT OTHER POSITIONS: Compare with item above, move up if chosen
+// 5. ALL COMPARISONS: Use correct, up-to-date reviews array
+//
+// KEY FIXES APPLIED:
+// - Fixed "number one moving down" bug where choosing yourself continued comparing
+// - Fixed add review comparison bug where "No other concerts" was shown
+// - Added proper state management with currentReviewsForComparison
+// - Added comprehensive mental map comments for future reference
+//
+// ========================================
+
 export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRankingProps) => {
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,6 +245,7 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
   });
   const [pendingReview, setPendingReview] = useState<ConcertReview | null>(null);
   const [isNumberOneMovingDown, setIsNumberOneMovingDown] = useState(false);
+  const [currentReviewsForComparison, setCurrentReviewsForComparison] = useState<ConcertReview[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -324,15 +346,13 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
           description: `Your first ${getRatingText(review.rating)} concert review has been added!`,
         });
       } else {
-        // Compare with the last one in the same rating group
-        const lastReview = sameRatingReviews[sameRatingReviews.length - 1];
-        
         // Add the new review to the end first
         const updatedReviews = [...reviews, review];
         setReviews(updatedReviews);
+        setCurrentReviewsForComparison(updatedReviews);
         localStorage.setItem(`concert_reviews_${currentUserId}`, JSON.stringify(updatedReviews));
         
-        // Set up for comparison with the last one in the group
+        // Set up for comparison with the last one in the entire list
         setPendingReview(review);
         setShowRankingModal(true);
         setShowAddReview(false); // Close the add review modal
@@ -379,6 +399,13 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
   const handleUpdateReview = () => {
     if (!editingReview) return;
 
+    // Update the review in the array first
+    const updatedReviews = reviews.map(review => 
+      review.id === editingReview.id ? editingReview : review
+    );
+    setReviews(updatedReviews);
+    localStorage.setItem(`concert_reviews_${currentUserId}`, JSON.stringify(updatedReviews));
+
     // Always show ranking modal when editing (even if rating stays same)
     setPendingReview(editingReview);
     setShowRankingModal(true);
@@ -403,6 +430,12 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
   };
 
   const getComparisonReview = (reviewToPlace: ConcertReview, currentReviews: ConcertReview[]) => {
+    // ========================================
+    // 🧠 MENTAL MAP: GET COMPARISON REVIEW
+    // ========================================
+    // This function determines which review to compare against based on the current situation
+    // It handles all the special cases for different ranking scenarios
+    
     // Find the current position of the review being edited
     const currentIndex = currentReviews.findIndex(r => r.id === reviewToPlace.id);
     
@@ -410,24 +443,38 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
     console.log('Current reviews order:', currentReviews.map(r => r.event.event_name));
     console.log('Is #1 moving down:', isNumberOneMovingDown);
     
-    // Special case: if #1 is moving down, always compare with the one below
+    // ========================================
+    // 🧠 SPECIAL CASE 1: #1 MOVING DOWN MODE
+    // ========================================
+    // When #1 is moving down, always compare with the one below
+    // This is the special logic that was buggy before
     if (isNumberOneMovingDown) {
       const comparison = currentReviews[currentIndex + 1] || null;
       console.log('Comparing #1 moving down with below:', comparison?.event.event_name);
       return comparison;
     }
     
-    // Special case: if this is a new review being added (at the end), compare with the last one in the same rating group
+    // ========================================
+    // 🧠 SPECIAL CASE 2: NEW REVIEW BEING ADDED
+    // ========================================
+    // When adding a new review (at the end), compare with the last one in the entire list
+    // This ensures new reviews get compared with the bottom-most review
     if (currentIndex === currentReviews.length - 1) {
-      const sameRatingReviews = currentReviews.filter(r => r.rating === reviewToPlace.rating);
-      if (sameRatingReviews.length > 1) {
-        // Find the last one in the same rating group (excluding the new review itself)
-        const lastInGroup = sameRatingReviews[sameRatingReviews.length - 2]; // -2 because the new review is at the end
-        console.log('New review comparing with last in group:', lastInGroup?.event.event_name);
-        return lastInGroup;
+      // Compare with the second-to-last item (the one before the new review)
+      if (currentReviews.length > 1) {
+        const lastInList = currentReviews[currentReviews.length - 2];
+        console.log('New review comparing with last in entire list:', lastInList?.event.event_name);
+        return lastInList;
+      } else {
+        // This shouldn't happen, but just in case
+        console.log('New review but no other reviews to compare with');
+        return null;
       }
     }
     
+    // ========================================
+    // 🧠 NORMAL CASES: EDITING EXISTING REVIEWS
+    // ========================================
     if (currentIndex === 0) {
       // If editing #1, compare with the one directly below it
       const comparison = currentReviews[1] || null;
@@ -450,26 +497,59 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
     console.log('Current reviews order:', reviews.map(r => r.event.event_name));
 
     if (betterReview.id === pendingReview.id) {
-      // We chose ourselves - check if we're #1 (special case)
-      const currentIndex = reviews.findIndex(r => r.id === pendingReview.id);
+      // ========================================
+      // 🧠 MENTAL MAP: WE CHOSE OURSELVES
+      // ========================================
+      // This means we think our review is better than the one we were comparing against
+      // We need to move UP in the ranking and continue comparing until we reach our correct position
       
-      if (currentIndex === 0) {
-        // We're #1 and chose ourselves - stay #1 and stop
+      const reviewsToUse = currentReviewsForComparison.length > 0 ? currentReviewsForComparison : reviews;
+      const currentIndex = reviewsToUse.findIndex(r => r.id === pendingReview.id);
+      
+      if (currentIndex === 0 && !isNumberOneMovingDown) {
+        // ========================================
+        // 🧠 SCENARIO 1: NORMAL #1 EDITING
+        // ========================================
+        // We're at position #1 and chose ourselves - this means we want to stay #1
+        // This is the normal case when editing #1 without moving down
         console.log('We are #1 and chose ourselves - staying #1 and stopping');
         setPendingReview(null);
         setShowRankingModal(false);
         setIsNumberOneMovingDown(false); // Reset flag
+        setCurrentReviewsForComparison([]); // Reset comparison reviews
         
         toast({
           title: "Review Updated",
           description: "Your concert review stays #1!",
         });
+      } else if (isNumberOneMovingDown) {
+        // ========================================
+        // 🧠 SCENARIO 2: NUMBER ONE MOVING DOWN MODE
+        // ========================================
+        // We're in "number one moving down" mode and chose ourselves
+        // This means we want to stop the downward movement and stay where we are
+        // This is the special case that was buggy before - now fixed!
+        console.log('Number one moving down - chose ourselves, stopping');
+        setPendingReview(null);
+        setShowRankingModal(false);
+        setIsNumberOneMovingDown(false); // Reset flag
+        setCurrentReviewsForComparison([]); // Reset comparison reviews
+        
+        toast({
+          title: "Review Updated",
+          description: "Your concert review ranking is complete!",
+        });
       } else {
-        // We're not #1 - move up and continue comparing
+        // ========================================
+        // 🧠 SCENARIO 3: NORMAL MOVING UP
+        // ========================================
+        // We're not #1 and chose ourselves - this means we want to move up
+        // We swap with the item above us and continue comparing
         console.log('Chose ourselves - moving up and continuing');
         
         // Find the comparison review (the one we were comparing against)
-        const comparisonReview = getComparisonReview(pendingReview, reviews);
+        const reviewsToUse = currentReviewsForComparison.length > 0 ? currentReviewsForComparison : reviews;
+        const comparisonReview = getComparisonReview(pendingReview, reviewsToUse);
         if (!comparisonReview) {
           console.log('No comparison review found, stopping');
           setPendingReview(null);
@@ -480,9 +560,9 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
         const comparisonIndex = reviews.findIndex(r => r.id === comparisonReview.id);
         
         console.log('Current index:', currentIndex, 'Comparison index:', comparisonIndex);
-        console.log('Before swap - reviews:', reviews.map(r => r.event.event_name));
+        console.log('Before swap - reviews:', reviewsToUse.map(r => r.event.event_name));
         
-        const updatedReviews = [...reviews];
+        const updatedReviews = [...reviewsToUse];
         [updatedReviews[currentIndex], updatedReviews[comparisonIndex]] = 
         [updatedReviews[comparisonIndex], updatedReviews[currentIndex]];
         
@@ -490,6 +570,7 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
         
         // Update state and localStorage
         setReviews(updatedReviews);
+        setCurrentReviewsForComparison(updatedReviews);
         localStorage.setItem(`concert_reviews_${currentUserId}`, JSON.stringify(updatedReviews));
         
         // Check if we need to continue comparing using the updated array
@@ -526,19 +607,30 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
         }
       }
     } else {
-      // We chose the comparison - check if we're #1 (special case)
-      const currentIndex = reviews.findIndex(r => r.id === pendingReview.id);
+      // ========================================
+      // 🧠 MENTAL MAP: WE CHOSE THE COMPARISON
+      // ========================================
+      // This means we think the other review is better than ours
+      // We need to move DOWN in the ranking and continue comparing until we reach our correct position
+      
+      const reviewsToUse = currentReviewsForComparison.length > 0 ? currentReviewsForComparison : reviews;
+      const currentIndex = reviewsToUse.findIndex(r => r.id === pendingReview.id);
       
       if (currentIndex === 0) {
-        // We're #1 and chose the comparison - move down and continue comparing
+        // ========================================
+        // 🧠 SCENARIO 4: #1 CHOSE COMPARISON (MOVING DOWN)
+        // ========================================
+        // We're at position #1 and chose the comparison - this means we want to move down
+        // This triggers the special "number one moving down" mode
+        // We swap with the item below us and continue comparing
         console.log('We are #1 and chose comparison - moving down and continuing');
         setIsNumberOneMovingDown(true); // Set flag for special #1 moving down logic
-        const comparisonIndex = reviews.findIndex(r => r.id === betterReview.id);
+        const comparisonIndex = reviewsToUse.findIndex(r => r.id === betterReview.id);
         
         console.log('Current index:', currentIndex, 'Comparison index:', comparisonIndex);
-        console.log('Before swap - reviews:', reviews.map(r => r.event.event_name));
+        console.log('Before swap - reviews:', reviewsToUse.map(r => r.event.event_name));
         
-        const updatedReviews = [...reviews];
+        const updatedReviews = [...reviewsToUse];
         [updatedReviews[currentIndex], updatedReviews[comparisonIndex]] = 
         [updatedReviews[comparisonIndex], updatedReviews[currentIndex]];
         
@@ -546,6 +638,7 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
         
         // Update state and localStorage
         setReviews(updatedReviews);
+        setCurrentReviewsForComparison(updatedReviews);
         localStorage.setItem(`concert_reviews_${currentUserId}`, JSON.stringify(updatedReviews));
         
         // Check if we need to continue comparing using the updated array
@@ -581,12 +674,18 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
           }
         }
       } else {
-        // We're not #1 - stay in place and stop (NORMAL LOGIC FOR ALL OTHERS)
+        // ========================================
+        // 🧠 SCENARIO 5: NOT #1 CHOSE COMPARISON (STAY IN PLACE)
+        // ========================================
+        // We're not #1 and chose the comparison - this means we think the other review is better
+        // Since we're not #1, we stay in our current position and stop comparing
+        // This is the normal logic for all positions except #1
         console.log('Chose comparison - staying in place and stopping');
         
         setPendingReview(null);
         setShowRankingModal(false);
         setIsNumberOneMovingDown(false); // Reset flag
+        setCurrentReviewsForComparison([]); // Reset comparison reviews
         
         toast({
           title: "Review Updated",
@@ -612,7 +711,7 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
       <div className="max-w-4xl mx-auto p-6">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">My Concert Rankings</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Concerts that I have been to</h1>
             <p className="text-gray-600 mt-2">Rank and review your concert experiences</p>
           </div>
           <div className="flex gap-2">
@@ -825,7 +924,8 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
 
                 {/* Comparison Review */}
                 {(() => {
-                  const comparisonReview = getComparisonReview(pendingReview, reviews);
+                  const reviewsToUse = currentReviewsForComparison.length > 0 ? currentReviewsForComparison : reviews;
+                  const comparisonReview = getComparisonReview(pendingReview, reviewsToUse);
                   return comparisonReview ? (
                     <div className="p-4 border rounded-lg bg-gray-50">
                       <h3 className="font-semibold text-lg mb-2">{comparisonReview.event.event_name}</h3>

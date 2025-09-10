@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      concerts: {
+        Row: {
+          id: string
+          artist: string
+          venue: string
+          date: string
+          profile_pic: string | null
+          tour: string | null
+          setlist: string[] | null
+          venue_location: string | null
+          source: string
+          confidence: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          artist: string
+          venue: string
+          date: string
+          profile_pic?: string | null
+          tour?: string | null
+          setlist?: string[] | null
+          venue_location?: string | null
+          source?: string
+          confidence?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          artist?: string
+          venue?: string
+          date?: string
+          profile_pic?: string | null
+          tour?: string | null
+          setlist?: string[] | null
+          venue_location?: string | null
+          source?: string
+          confidence?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chats: {
         Row: {
           created_at: string

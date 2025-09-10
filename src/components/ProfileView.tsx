@@ -3,16 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, Camera, ExternalLink, Settings } from 'lucide-react';
+import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, Camera, ExternalLink, Settings, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { ConcertRanking } from './ConcertRanking';
 
 interface ProfileViewProps {
   currentUserId: string;
   onBack: () => void;
   onEdit: () => void;
   onSettings: () => void;
+  onSignOut?: () => void;
 }
 
 interface UserProfile {
@@ -36,10 +38,11 @@ interface UserEvent {
   created_at: string;
 }
 
-export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings }: ProfileViewProps) => {
+export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignOut }: ProfileViewProps) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<UserEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showConcertRankings, setShowConcertRankings] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -49,21 +52,86 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings }: Profi
 
   const fetchProfile = async () => {
     try {
+      console.log('Fetching profile for user:', currentUserId);
+      
+      // First try to get the profile
       const { data, error } = await supabase
         .from('profiles')
         .select('id, user_id, name, avatar_url, bio, instagram_handle, snapchat_handle, created_at, updated_at')
         .eq('user_id', currentUserId)
         .single();
 
-      if (error) throw error;
-      setProfile(data);
+      if (error) {
+        console.error('Profile query error:', error);
+        
+        // Handle API key errors specifically
+        if (error.message?.includes('invalid') || error.message?.includes('API key') || error.message?.includes('JWT')) {
+          console.error('API key error in ProfileView, signing out:', error);
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Please sign in again.",
+            variant: "destructive",
+          });
+          // Don't sign out from here, let the parent handle it
+          return;
+        }
+        
+        // If no profile exists, create a default one
+        if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
+          console.log('No profile found, creating default profile');
+          
+          const { data: newProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              user_id: currentUserId,
+              name: 'New User',
+              bio: null,
+              instagram_handle: null,
+              snapchat_handle: null
+            })
+            .select()
+            .single();
+          
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+            // If we can't create a profile, show a fallback
+            setProfile({
+              id: 'temp',
+              user_id: currentUserId,
+              name: 'New User',
+              avatar_url: null,
+              bio: null,
+              instagram_handle: null,
+              snapchat_handle: null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+          } else {
+            setProfile(newProfile);
+          }
+        } else {
+          throw error;
+        }
+      } else {
+        console.log('Profile found:', data);
+        setProfile(data);
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load profile",
-        variant: "destructive",
+      // Show a fallback profile instead of error
+      setProfile({
+        id: 'temp',
+        user_id: currentUserId,
+        name: 'New User',
+        avatar_url: null,
+        bio: null,
+        instagram_handle: null,
+        snapchat_handle: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -128,6 +196,16 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings }: Profi
     );
   }
 
+  // Show concert rankings if requested
+  if (showConcertRankings) {
+    return (
+      <ConcertRanking
+        currentUserId={currentUserId}
+        onBack={() => setShowConcertRankings(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen p-4">
       <div className="max-w-2xl mx-auto">
@@ -141,10 +219,19 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings }: Profi
             <Button onClick={onSettings} variant="ghost" size="icon">
               <Settings className="w-4 h-4" />
             </Button>
+            <Button onClick={() => setShowConcertRankings(true)} variant="outline">
+              <Music className="w-4 h-4 mr-2" />
+              My Concerts
+            </Button>
             <Button onClick={onEdit} variant="outline">
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </Button>
+            {onSignOut && (
+              <Button onClick={onSignOut} variant="destructive">
+                Sign Out
+              </Button>
+            )}
           </div>
         </div>
 

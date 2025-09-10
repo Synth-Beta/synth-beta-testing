@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { EventInterestCard } from "@/components/EventInterestCard";
 import { EventUsersView } from "@/components/EventUsersView";
@@ -9,14 +10,14 @@ import { MatchesView } from "@/components/MatchesView";
 import { ChatView } from "@/components/ChatView";
 import { ProfileView } from "@/components/ProfileView";
 import { ProfileEdit } from "@/components/ProfileEdit";
-import { ConcertRanking } from "@/components/ConcertRanking";
 import { ConcertSearch } from "@/components/ConcertSearch";
+import { ConcertFeed } from "@/components/ConcertFeed";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import Auth from "@/pages/Auth";
 import { DBEvent } from "@/types/database";
 
-type ViewType = 'welcome' | 'events' | 'event-users' | 'matches' | 'chat' | 'profile' | 'profile-edit' | 'settings' | 'concerts' | 'concert-search';
+type ViewType = 'welcome' | 'events' | 'event-users' | 'matches' | 'chat' | 'profile' | 'profile-edit' | 'settings' | 'search' | 'concert-feed';
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<ViewType>('welcome');
@@ -29,6 +30,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { user, session, loading: authLoading, signOut } = useAuth();
+  const { isOnline, isReconnecting } = useNetworkStatus();
 
   useEffect(() => {
     if (user) {
@@ -36,7 +38,7 @@ const Index = () => {
       const hasSeenWelcomeBefore = localStorage.getItem(`hasSeenWelcome_${user.id}`);
       if (hasSeenWelcomeBefore) {
         setHasSeenWelcome(true);
-        setCurrentView('concerts'); // Go directly to concerts for returning users
+        setCurrentView('concert-feed'); // Go directly to concert feed for returning users
       }
       
       fetchEvents();
@@ -46,13 +48,37 @@ const Index = () => {
 
   const fetchEvents = async () => {
     try {
+      // Check if offline
+      if (!isOnline) {
+        toast({
+          title: "Offline",
+          description: "You're currently offline. Please check your connection.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data, error } = await supabase
         .from('events')
         .select('*')
         .gte('event_date', new Date().toISOString().split('T')[0])
         .order('event_date', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        // Handle API key errors specifically
+        if (error.message?.includes('invalid') || error.message?.includes('API key') || error.message?.includes('JWT')) {
+          console.error('API key error, signing out:', error);
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Please sign in again.",
+            variant: "destructive",
+          });
+          await signOut();
+          return;
+        }
+        throw error;
+      }
+      
       setEvents((data as any) || []);
       
       // Fetch interest counts for all events
@@ -73,11 +99,21 @@ const Index = () => {
       }
     } catch (error) {
       console.error('Error fetching events:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load events",
-        variant: "destructive",
-      });
+      
+      // Check if it's a network error
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast({
+          title: "Network Error",
+          description: "Please check your internet connection and try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load events",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -87,12 +123,26 @@ const Index = () => {
     if (!user) return;
 
     try {
+      // Check if offline
+      if (!isOnline) {
+        return;
+      }
+
       const { data, error } = await supabase
         .from('event_interests')
         .select('event_id')
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        // Handle API key errors specifically
+        if (error.message?.includes('invalid') || error.message?.includes('API key') || error.message?.includes('JWT')) {
+          console.error('API key error in fetchUserInterests, signing out:', error);
+          await signOut();
+          return;
+        }
+        throw error;
+      }
+      
       setUserInterests(data?.map(interest => interest.event_id) || []);
     } catch (error) {
       console.error('Error fetching user interests:', error);
@@ -105,8 +155,9 @@ const Index = () => {
       localStorage.setItem(`hasSeenWelcome_${user.id}`, 'true');
       setHasSeenWelcome(true);
     }
-    setCurrentView('concerts');
+    setCurrentView('concert-feed');
   };
+
 
   const handleToggleInterest = async (eventId: number) => {
     if (!user) return;
@@ -288,6 +339,7 @@ const Index = () => {
             onBack={() => {}}
             onEdit={() => setCurrentView('profile-edit')}
             onSettings={() => setCurrentView('settings')}
+            onSignOut={signOut}
           />
         ) : null;
       case 'profile-edit':
@@ -310,23 +362,21 @@ const Index = () => {
             </div>
           </div>
         );
-      case 'concerts':
-        return user ? (
-          <ConcertRanking
-            currentUserId={user.id}
-            onBack={() => {}}
-            onSearch={() => setCurrentView('concert-search')}
-          />
-        ) : null;
-      case 'concert-search':
+      case 'search':
         return user ? (
           <ConcertSearch
             currentUserId={user.id}
-            onBack={() => setCurrentView('concerts')}
             onSelectConcert={(concert) => {
               // Handle concert selection - you can add logic here
               console.log('Selected concert:', concert);
             }}
+          />
+        ) : null;
+      case 'concert-feed':
+        return user ? (
+          <ConcertFeed
+            currentUserId={user.id}
+            onBack={() => setCurrentView('events')}
           />
         ) : null;
       default:
@@ -336,8 +386,28 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Offline Indicator */}
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 bg-red-500 text-white text-center py-2 z-50">
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium">You're offline. Please check your connection.</span>
+          </div>
+        </div>
+      )}
+      
+      {/* Reconnecting Indicator */}
+      {isReconnecting && (
+        <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-2 z-50">
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium">Reconnecting...</span>
+          </div>
+        </div>
+      )}
+
       {renderCurrentView()}
-      {currentView !== 'welcome' && currentView !== 'event-users' && currentView !== 'chat' && currentView !== 'profile-edit' && currentView !== 'concert-search' && (
+      {currentView !== 'welcome' && currentView !== 'event-users' && currentView !== 'chat' && currentView !== 'profile-edit' && (
         <Navigation 
           currentView={currentView as any}
           onViewChange={(view) => setCurrentView(view as ViewType)}

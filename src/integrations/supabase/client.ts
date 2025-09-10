@@ -1,27 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// Mock Supabase client that doesn't actually connect
-const SUPABASE_URL = "https://mock.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "mock-key";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://your-project.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "your-anon-key";
 
-export const supabase = {
-  auth: {
-    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-    getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-    signOut: () => Promise.resolve({ error: null })
-  },
-  from: () => ({
-    select: () => ({
-      eq: () => ({
-        gte: () => ({
-          order: () => Promise.resolve({ data: [], error: null })
-        })
-      })
-    }),
-    insert: () => Promise.resolve({ data: [], error: null }),
-    delete: () => ({
-      eq: () => Promise.resolve({ error: null })
-    })
-  })
-} as any;
+// Debug logging
+console.log('Supabase URL:', SUPABASE_URL);
+console.log('Supabase Key (first 20 chars):', SUPABASE_PUBLISHABLE_KEY.substring(0, 20) + '...');
+
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
