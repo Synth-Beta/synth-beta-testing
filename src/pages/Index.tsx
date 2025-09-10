@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import Auth from "@/pages/Auth";
 import { DBEvent } from "@/types/database";
 
-type ViewType = 'welcome' | 'events' | 'event-users' | 'matches' | 'chat' | 'profile' | 'profile-edit' | 'settings' | 'search' | 'concert-feed';
+type ViewType = 'welcome' | 'events' | 'event-users' | 'chat' | 'profile' | 'profile-edit' | 'settings' | 'search' | 'concert-feed';
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<ViewType>('welcome');
@@ -240,7 +240,7 @@ const Index = () => {
 
   const handleBackFromChat = () => {
     setCurrentChatId(null);
-    setCurrentView('matches');
+    setCurrentView('chat');
   };
 
   if (authLoading) {
@@ -316,21 +316,35 @@ const Index = () => {
             onChatCreated={handleChatCreated}
           />
         ) : null;
-      case 'matches':
-        return user ? (
-          <MatchesView
-            currentUserId={user.id}
-            onBack={() => {}}
-            onOpenChat={handleOpenChat}
-          />
-        ) : null;
       case 'chat':
-        return currentChatId && user ? (
-          <ChatView
-            chatId={currentChatId}
-            currentUserId={user.id}
-            onBack={handleBackFromChat}
-          />
+        return user ? (
+          <div className="min-h-screen bg-background">
+            {/* Header with back button */}
+            <div className="sticky top-0 z-40 bg-background border-b border-border p-4">
+              <div className="flex items-center gap-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCurrentView('concert-feed')}
+                  className="flex items-center gap-2"
+                >
+                  ← Back to Feed
+                </Button>
+                <div>
+                  <h1 className="text-xl font-semibold text-gray-900">Chat & Friends</h1>
+                  <p className="text-sm text-gray-600">Your conversations and connections</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Chat content */}
+            <div className="p-4">
+              <MatchesView
+                currentUserId={user.id}
+                onBack={() => setCurrentView('concert-feed')}
+                onOpenChat={handleOpenChat}
+              />
+            </div>
+          </div>
         ) : null;
       case 'profile':
         return user ? (
@@ -377,6 +391,8 @@ const Index = () => {
           <ConcertFeed
             currentUserId={user.id}
             onBack={() => setCurrentView('events')}
+            onNavigateToChat={() => setCurrentView('chat')}
+            onNavigateToNotifications={() => setCurrentView('chat')}
           />
         ) : null;
       default:

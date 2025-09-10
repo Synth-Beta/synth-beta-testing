@@ -15,11 +15,15 @@ import {
   Star,
   TrendingUp,
   Users,
-  Globe
+  Globe,
+  Search,
+  UserPlus,
+  Bell
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
+import { MatchesView } from '@/components/MatchesView';
 
 interface ConcertReview {
   id: string;
@@ -47,19 +51,38 @@ interface ConcertReview {
 interface ConcertFeedProps {
   currentUserId: string;
   onBack: () => void;
+  onNavigateToChat?: () => void;
+  onNavigateToNotifications?: () => void;
 }
 
-export const ConcertFeed = ({ currentUserId, onBack }: ConcertFeedProps) => {
+export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigateToNotifications }: ConcertFeedProps) => {
   const [activeTab, setActiveTab] = useState('friends-recommended');
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [friends, setFriends] = useState<any[]>([]);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchFriends();
     fetchReviews();
+    fetchNotifications();
   }, [currentUserId, activeTab]);
+
+  const fetchNotifications = async () => {
+    try {
+      // TODO: Fetch actual notifications from database
+      // For now, return empty array - no fake notifications
+      setNotifications([]);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
 
   const fetchFriends = async () => {
     try {
@@ -167,6 +190,69 @@ export const ConcertFeed = ({ currentUserId, onBack }: ConcertFeedProps) => {
     }
   };
 
+  const searchUsers = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      
+      // Search for users by email or username
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .or(`email.ilike.%${query}%,username.ilike.%${query}%,name.ilike.%${query}%`)
+        .limit(10);
+
+      if (error) {
+        console.error('Error searching users:', error);
+        toast({
+          title: "Search Error",
+          description: "Failed to search users. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSearchResults(profiles || []);
+    } catch (error) {
+      console.error('Error searching users:', error);
+      toast({
+        title: "Search Error",
+        description: "Failed to search users. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleUserSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setUserSearchQuery(query);
+    searchUsers(query);
+  };
+
+  const sendFriendRequest = async (userId: string) => {
+    try {
+      // TODO: Implement friend request functionality
+      console.log('Sending friend request to:', userId);
+      toast({
+        title: "Friend Request Sent",
+        description: "Friend request sent successfully!",
+      });
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send friend request. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getRatingText = (rating: 'good' | 'okay' | 'bad') => {
     switch (rating) {
       case 'good': return 'Good';
@@ -212,6 +298,33 @@ export const ConcertFeed = ({ currentUserId, onBack }: ConcertFeedProps) => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Concert Feed</h1>
             <p className="text-gray-600 mt-2">Discover concerts and reviews from friends and the community</p>
+          </div>
+          
+          {/* Right side icons */}
+          <div className="flex items-center gap-3">
+            {/* Notifications button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="relative p-2"
+              onClick={() => setShowNotificationsModal(true)}
+            >
+              <Bell className="w-5 h-5" />
+              {/* Notification badge */}
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {notifications.length}
+              </span>
+            </Button>
+            
+            {/* Chat button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="p-2"
+              onClick={() => setShowChatModal(true)}
+            >
+              <MessageCircle className="w-5 h-5" />
+            </Button>
           </div>
         </div>
 
@@ -339,6 +452,7 @@ export const ConcertFeed = ({ currentUserId, onBack }: ConcertFeedProps) => {
                   </div>
                 </div>
               </div>
+
             </div>
           </TabsContent>
 
@@ -518,6 +632,157 @@ export const ConcertFeed = ({ currentUserId, onBack }: ConcertFeedProps) => {
 
         </Tabs>
       </div>
+
+      {/* Chat Modal - Full Page */}
+      {showChatModal && (
+        <div className="fixed inset-0 bg-background z-50">
+          {/* Header with back button */}
+          <div className="sticky top-0 z-40 bg-background border-b border-border p-4">
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowChatModal(false)}
+                className="flex items-center gap-2"
+              >
+                ← Back to Feed
+              </Button>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">Your Chats</h1>
+                <p className="text-sm text-gray-600">All your conversations</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Chat content - just conversations, no requests */}
+          <div className="p-4">
+            <div className="text-center py-12">
+              <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Conversations Yet</h3>
+              <p className="text-gray-600">Start chatting with your matches!</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notifications Modal - Full Page */}
+      {showNotificationsModal && (
+        <div className="fixed inset-0 bg-background z-50">
+          {/* Header with back button */}
+          <div className="sticky top-0 z-40 bg-background border-b border-border p-4">
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowNotificationsModal(false)}
+                className="flex items-center gap-2"
+              >
+                ← Back to Feed
+              </Button>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">Notifications & Search</h1>
+                <p className="text-sm text-gray-600">Find users and see your matches</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Combined Search and Notifications - One Page */}
+          <div className="p-4 space-y-6">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search by email or username..."
+                value={userSearchQuery}
+                onChange={handleUserSearch}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+              />
+            </div>
+
+            {/* Search Results - Above Notifications */}
+            {searchLoading ? (
+              <div className="text-center py-6">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
+                <p className="text-gray-600 mt-2 text-sm">Searching...</p>
+              </div>
+            ) : searchResults.length > 0 ? (
+              <div className="space-y-3">
+                {searchResults.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={user.avatar_url || undefined} />
+                        <AvatarFallback>
+                          {user.name ? user.name.split(' ').map(n => n[0]).join('') : 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{user.name || 'Unknown User'}</h3>
+                        <p className="text-sm text-gray-600">@{user.username || user.email}</p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => sendFriendRequest(user.id)}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 text-sm"
+                    >
+                      <UserPlus className="w-4 h-4 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : userSearchQuery ? (
+              <div className="text-center py-6 bg-gray-50 rounded-lg">
+                <Search className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                <h3 className="font-semibold text-gray-900 mb-1">No Users Found</h3>
+                <p className="text-sm text-gray-600">Try searching with a different email or username</p>
+              </div>
+            ) : null}
+
+            {/* Notifications Section */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Bell className="w-5 h-5 text-blue-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Notifications ({notifications.length})</h2>
+              </div>
+              
+              {notifications.length > 0 ? (
+                <div className="space-y-3">
+                  {notifications.map((notification) => (
+                    <div key={notification.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={notification.user.avatar_url || undefined} />
+                        <AvatarFallback>
+                          {notification.user.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900">{notification.user.name}</h3>
+                        <p className="text-sm text-gray-600">{notification.message}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {format(parseISO(notification.created_at), 'MMM d, h:mm a')}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 text-sm"
+                      >
+                        View
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 bg-gray-50 rounded-lg">
+                  <Bell className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                  <h3 className="font-semibold text-gray-900 mb-1">No Notifications</h3>
+                  <p className="text-sm text-gray-600">You'll see matches and friend requests here</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
