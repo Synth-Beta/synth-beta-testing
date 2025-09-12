@@ -13,7 +13,7 @@ import type {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
-const JAMBASE_BASE_URL = 'https://www.jambase.com/jb-api/v1';
+const JAMBASE_BASE_URL = 'https://api.jambase.com';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -44,7 +44,7 @@ class ConcertSearchService {
   // Search JamBase if no event in Supabase
   async searchJamBase(params: EventSearchParams): Promise<Event> {
     const url = new URL(`${JAMBASE_BASE_URL}/events`);
-    url.searchParams.append('apikey', JAMBASE_API_KEY);
+    url.searchParams.append('api_key', JAMBASE_API_KEY);
     if (params.artist) url.searchParams.append('artistName', params.artist);
     if (params.venue) url.searchParams.append('venueName', params.venue);
     if (params.date) {
@@ -52,12 +52,17 @@ class ConcertSearchService {
       url.searchParams.append('eventDateTo', params.date);
     }
 
+    console.log('JamBase API URL:', url.toString());
+
     const res = await fetch(url.toString());
     if (!res.ok) {
-      throw new Error(`JamBase API error: ${res.status} ${res.statusText}`);
+      const errorText = await res.text();
+      console.error('JamBase API Error Response:', errorText);
+      throw new Error(`JamBase API error: ${res.status} ${res.statusText} - ${errorText}`);
     }
     
     const json = await res.json();
+    console.log('JamBase API Response:', json);
     const event = json.events?.[0];
 
     if (!event) {
@@ -139,16 +144,20 @@ class ConcertSearchService {
   // Search artists on JamBase (for autocomplete)
   async searchJamBaseArtists(artistName: string): Promise<any[]> {
     const searchUrl = new URL(`${JAMBASE_BASE_URL}/artists`);
-    searchUrl.searchParams.append('apikey', JAMBASE_API_KEY);
+    searchUrl.searchParams.append('api_key', JAMBASE_API_KEY);
     searchUrl.searchParams.append('artistName', artistName);
     searchUrl.searchParams.append('limit', '10');
 
     try {
+      console.log('JamBase Artists API URL:', searchUrl.toString());
       const response = await fetch(searchUrl.toString());
       if (!response.ok) {
-        throw new Error(`JamBase API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('JamBase Artists API Error Response:', errorText);
+        throw new Error(`JamBase API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
       const data = await response.json();
+      console.log('JamBase Artists API Response:', data);
       return data.artists || [];
     } catch (error) {
       console.error('JamBase Artists API Error:', error);
@@ -159,16 +168,20 @@ class ConcertSearchService {
   // Search venues on JamBase (for autocomplete)
   async searchJamBaseVenues(venueName: string): Promise<any[]> {
     const searchUrl = new URL(`${JAMBASE_BASE_URL}/venues`);
-    searchUrl.searchParams.append('apikey', JAMBASE_API_KEY);
+    searchUrl.searchParams.append('api_key', JAMBASE_API_KEY);
     searchUrl.searchParams.append('venueName', venueName);
     searchUrl.searchParams.append('limit', '10');
 
     try {
+      console.log('JamBase Venues API URL:', searchUrl.toString());
       const response = await fetch(searchUrl.toString());
       if (!response.ok) {
-        throw new Error(`JamBase API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('JamBase Venues API Error Response:', errorText);
+        throw new Error(`JamBase API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
       const data = await response.json();
+      console.log('JamBase Venues API Response:', data);
       return data.venues || [];
     } catch (error) {
       console.error('JamBase Venues API Error:', error);
