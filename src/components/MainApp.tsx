@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navigation } from './Navigation';
 import { ConcertFeed } from './ConcertFeed';
-import { ConcertSearch } from './ConcertSearch';
+import { UnifiedSearch } from './UnifiedSearch';
 import { ProfileView } from './ProfileView';
 import { SwipeView } from './SwipeView';
 import { ConcertEvents } from './ConcertEvents';
@@ -11,14 +11,14 @@ import { EventSeeder } from './EventSeeder';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-type ViewType = 'concert-feed' | 'search' | 'events' | 'profile' | 'seed';
+type ViewType = 'feed' | 'search' | 'profile';
 
 interface MainAppProps {
   onSignOut?: () => void;
 }
 
 export const MainApp = ({ onSignOut }: MainAppProps) => {
-  const [currentView, setCurrentView] = useState<ViewType>('concert-feed');
+  const [currentView, setCurrentView] = useState<ViewType>('feed');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<EventCardEvent[]>([]);
@@ -124,7 +124,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   const handleBack = () => {
-    setCurrentView('concert-feed');
+    setCurrentView('feed');
   };
 
   if (loading) {
@@ -141,7 +141,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   const renderCurrentView = () => {
     switch (currentView) {
-      case 'concert-feed':
+      case 'feed':
         return (
           <ConcertFeed 
             currentUserId={currentUserId}
@@ -150,16 +150,17 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         );
       case 'search':
         return (
-          <ConcertSearch 
-            userId={currentUserId}
-          />
-        );
-      case 'events':
-        return (
-          <ConcertEvents 
-            currentUserId={currentUserId}
-            onBack={handleBack}
-          />
+          <div className="min-h-screen bg-background p-4 pb-20">
+            <div className="max-w-4xl mx-auto">
+              <div className="mb-6">
+                <h1 className="text-3xl font-bold text-gray-900">Search</h1>
+                <p className="text-gray-600 mt-2">Find events and connect with other music lovers</p>
+              </div>
+              <UnifiedSearch 
+                userId={currentUserId}
+              />
+            </div>
+          </div>
         );
       case 'profile':
         return (
@@ -170,23 +171,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onSettings={handleProfileSettings}
             onSignOut={onSignOut}
           />
-        );
-      case 'seed':
-        return (
-          <div className="min-h-screen bg-background p-4">
-            <div className="max-w-4xl mx-auto">
-              <div className="mb-6">
-                <Button
-                  variant="outline"
-                  onClick={handleBack}
-                  className="mb-4"
-                >
-                  ← Back to Feed
-                </Button>
-              </div>
-              <EventSeeder />
-            </div>
-          </div>
         );
       default:
         return (

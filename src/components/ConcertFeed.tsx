@@ -119,9 +119,26 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   const fetchFriendsAndRecommendedReviews = async () => {
     try {
-      // Fetch friends' reviews and recommended reviews
-      // For now, return empty array - will be implemented with real data
-      setReviews([]);
+      // For now, fetch user's own reviews and show them as feed content
+      // In a real implementation, this would fetch friends' reviews from the database
+      const storedReviews = localStorage.getItem(`concert_reviews_${currentUserId}`);
+      if (storedReviews) {
+        const userReviews = JSON.parse(storedReviews);
+        // Transform to match the expected interface
+        const transformedReviews = userReviews.map((review: any) => ({
+          ...review,
+          user: {
+            name: 'You',
+            avatar_url: null,
+            username: 'you'
+          },
+          likes_count: Math.floor(Math.random() * 10),
+          is_liked: false
+        }));
+        setReviews(transformedReviews);
+      } else {
+        setReviews([]);
+      }
     } catch (error) {
       console.error('Error fetching friends and recommended reviews:', error);
       setReviews([]);
@@ -141,9 +158,28 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   const fetchPublicReviews = async () => {
     try {
-      // Fetch all public reviews
-      // For now, return empty array - will be implemented with real data
-      setReviews([]);
+      // Fetch all public reviews from localStorage
+      // In a real implementation, this would fetch from the database
+      const storedReviews = localStorage.getItem(`concert_reviews_${currentUserId}`);
+      if (storedReviews) {
+        const userReviews = JSON.parse(storedReviews);
+        // Only show public reviews
+        const publicReviews = userReviews
+          .filter((review: any) => review.is_public)
+          .map((review: any) => ({
+            ...review,
+            user: {
+              name: 'You',
+              avatar_url: null,
+              username: 'you'
+            },
+            likes_count: Math.floor(Math.random() * 20),
+            is_liked: false
+          }));
+        setReviews(publicReviews);
+      } else {
+        setReviews([]);
+      }
     } catch (error) {
       console.error('Error fetching public reviews:', error);
       setReviews([]);
