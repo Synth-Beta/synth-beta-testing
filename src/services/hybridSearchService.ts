@@ -87,7 +87,18 @@ class HybridSearchService {
 
       const url = new URL(`${JAMBASE_BASE_URL}/events`);
       url.searchParams.append('api_key', JAMBASE_API_KEY);
-      url.searchParams.append('artistName', query);
+      
+      // Try different search parameters
+      if (query.includes(' at ')) {
+        // If query contains " at ", split into artist and venue
+        const [artist, venue] = query.split(' at ');
+        url.searchParams.append('artistName', artist.trim());
+        url.searchParams.append('venueName', venue.trim());
+      } else {
+        // Default to artist search
+        url.searchParams.append('artistName', query);
+      }
+      
       if (date) {
         url.searchParams.append('eventDateFrom', date);
         url.searchParams.append('eventDateTo', date);
