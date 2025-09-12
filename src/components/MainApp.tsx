@@ -56,12 +56,12 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         // No user - show welcome screen first, then auth when they click
         console.log('No authenticated user');
         setCurrentUserId(null);
+        setLoading(false); // Only set loading false if no user
       }
     } catch (error) {
       console.error('Error checking auth:', error);
       setCurrentUserId(null);
-    } finally {
-      setLoading(false);
+      setLoading(false); // Set loading false on error
     }
   };
 
@@ -105,6 +105,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         description: "Failed to load events",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false); // Make sure loading is set to false
     }
   };
 
