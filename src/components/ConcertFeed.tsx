@@ -464,7 +464,13 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                               </Button>
                             </div>
                             <span className="text-xs text-gray-500">
-                              {format(parseISO(review.created_at), 'MMM d')}
+                              {(() => {
+                                try {
+                                  return format(parseISO(review.created_at), 'MMM d');
+                                } catch {
+                                  return review.created_at;
+                                }
+                              })()}
                             </span>
                           </div>
                         </CardContent>
@@ -534,7 +540,13 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                           {review.event.event_name}
                         </h4>
                         <p className="text-sm text-gray-600 mb-2">
-                          {review.event.location} • {format(parseISO(review.event.event_date), 'MMM d, yyyy')}
+                          {review.event.location} • {(() => {
+                            try {
+                              return format(parseISO(review.event.event_date), 'MMM d, yyyy');
+                            } catch {
+                              return review.event.event_date;
+                            }
+                          })()}
                         </p>
                         {review.review_text && (
                           <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">
@@ -621,7 +633,13 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                           {review.event.event_name}
                         </h4>
                         <p className="text-sm text-gray-600 mb-2">
-                          {review.event.location} • {format(parseISO(review.event.event_date), 'MMM d, yyyy')}
+                          {review.event.location} • {(() => {
+                            try {
+                              return format(parseISO(review.event.event_date), 'MMM d, yyyy');
+                            } catch {
+                              return review.event.event_date;
+                            }
+                          })()}
                         </p>
                         {review.review_text && (
                           <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">
@@ -796,7 +814,13 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                         <h3 className="font-semibold text-gray-900">{notification.user.name}</h3>
                         <p className="text-sm text-gray-600">{notification.message}</p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {format(parseISO(notification.created_at), 'MMM d, h:mm a')}
+                          {(() => {
+                            try {
+                              return format(parseISO(notification.created_at), 'MMM d, h:mm a');
+                            } catch {
+                              return notification.created_at;
+                            }
+                          })()}
                         </p>
                       </div>
                       <Button

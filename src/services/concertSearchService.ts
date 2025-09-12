@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import type { 
   Event, 
   EventSearchParams, 
@@ -10,12 +10,8 @@ import type {
   ConcertStats
 } from '@/types/concertSearch';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
 const JAMBASE_BASE_URL = 'https://api.jambase.com';
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 class ConcertSearchService {
   // Check Supabase for existing event

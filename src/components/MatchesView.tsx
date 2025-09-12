@@ -92,11 +92,11 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
           user2_id,
           event_id,
           created_at,
-          event:events(
-            event_name,
-            location,
-            event_date,
-            event_time
+          event:jambase_events(
+            title,
+            venue_city,
+            venue_state,
+            event_date
           ),
           chats(
             id,
@@ -131,12 +131,12 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
           const { data: userEvents, error: eventsError } = await supabase
             .from('event_interests')
             .select(`
-              event:events(
+              event:jambase_events(
                 id,
-                event_name,
-                location,
-                event_date,
-                event_time
+                title,
+                venue_city,
+                venue_state,
+                event_date
               )
             `)
             .eq('user_id', otherUserId)
@@ -177,11 +177,11 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
           swiped_user_id,
           event_id,
           created_at,
-          event:events(
-            event_name,
-            location,
-            event_date,
-            event_time
+          event:jambase_events(
+            title,
+            venue_city,
+            venue_state,
+            event_date
           )
         `)
         .eq('swiped_user_id', currentUserId)

@@ -130,12 +130,12 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
       const { data: userEvents, error } = await supabase
         .from('event_interests')
         .select(`
-          event:events(
+          event:jambase_events(
             id,
-            event_name,
-            location,
-            event_date,
-            event_time
+            title,
+            venue_city,
+            venue_state,
+            event_date
           )
         `)
         .eq('user_id', userId)

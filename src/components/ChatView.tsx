@@ -31,10 +31,11 @@ interface ChatWithMatch {
     user1_id: string;
     user2_id: string;
     event_id: string;
-    event: {
-      event_name: string;
-      location: string;
-    };
+  event: {
+    title: string;
+    venue_city: string;
+    venue_state: string;
+  };
   };
 }
 
@@ -82,9 +83,10 @@ export const ChatView = ({ chatId, currentUserId, onBack }: ChatViewProps) => {
             user1_id,
             user2_id,
             event_id,
-            event:events(
-              event_name,
-              location
+            event:jambase_events(
+              title,
+              venue_city,
+              venue_state
             )
           )
         `)
@@ -226,7 +228,7 @@ export const ChatView = ({ chatId, currentUserId, onBack }: ChatViewProps) => {
           <div>
             <h1 className="font-bold">{otherUser.name}</h1>
             <p className="text-sm text-muted-foreground">
-              {chatInfo.match.event.event_name}
+              {chatInfo.match.event.title}
             </p>
           </div>
         </div>
@@ -239,7 +241,7 @@ export const ChatView = ({ chatId, currentUserId, onBack }: ChatViewProps) => {
             <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">Start a conversation!</p>
             <p className="text-sm text-muted-foreground">
-              You both matched for {chatInfo.match.event.event_name}
+              You both matched for {chatInfo.match.event.title}
             </p>
           </div>
         ) : (
