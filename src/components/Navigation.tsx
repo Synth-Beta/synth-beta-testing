@@ -7,7 +7,7 @@ interface NavigationProps {
 }
 
 export const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
-  const navItems = [
+  const navItems: Array<{ id: 'feed' | 'search' | 'profile', icon: any, label: string }> = [
     { id: 'feed', icon: Users, label: 'Feed' },
     { id: 'search', icon: Search, label: 'Search' },
     { id: 'profile', icon: User, label: 'Profile' }
@@ -21,7 +21,7 @@ export const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
             key={id}
             variant={currentView === id ? 'default' : 'ghost'}
             size="sm"
-            onClick={() => onViewChange(id as any)}
+            onClick={() => onViewChange(id)}
             className={`flex-col h-auto py-2 px-3 ${
               currentView === id 
                 ? 'bg-primary text-primary-foreground' 
