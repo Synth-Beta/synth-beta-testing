@@ -12,7 +12,7 @@
   ],
   "env": {
     "VITE_SUPABASE_URL": "@vite_supabase_url",
-    "VITE_SUPABASE_PUBLISHABLE_KEY": "@vite_supabase_publishable_key",
+    "VITE_SUPABASE_ANON_KEY": "@vite_supabase_publishable_key",
     "VITE_JAMBASE_API_KEY": "@vite_jambase_api_key"
   }
 }
