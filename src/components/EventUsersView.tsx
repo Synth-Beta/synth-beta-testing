@@ -50,9 +50,9 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
     try {
       // Get all users interested in this event (excluding current user)
       const { data: interests, error: interestsError } = await supabase
-        .from('event_interests')
+        .from('user_jambase_events')
         .select('user_id')
-        .eq('event_id', event.id)
+        .eq('jambase_event_id', event.id)
         .neq('user_id', currentUserId);
 
       if (interestsError) throw interestsError;
@@ -128,9 +128,9 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
   const fetchOtherEvents = async (userId: string) => {
     try {
       const { data: userEvents, error } = await supabase
-        .from('event_interests')
+        .from('user_jambase_events')
         .select(`
-          event:jambase_events(
+          jambase_events:jambase_events(
             id,
             title,
             venue_city,
@@ -142,7 +142,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      const events = userEvents?.map(item => item.event).filter(Boolean) || [];
+      const events = userEvents?.map(item => item.jambase_events).filter(Boolean) || [];
       setOtherEvents(events);
     } catch (error) {
       console.error('Error fetching other events:', error);
@@ -436,10 +436,10 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                     <Calendar className="w-4 h-4" />
                     <span>{(() => {
                       try {
-                        const dateTime = parseISO(`${event.event_date}T${event.event_time}`);
+                        const dateTime = parseISO(`${event.event_date}T${event.event_time || '00:00'}`);
                         return `${format(dateTime, 'MMM d, yyyy')} at ${format(dateTime, 'h:mm a')}`;
                       } catch {
-                        return `${event.event_date} at ${event.event_time}`;
+                        return `${event.event_date} at ${event.event_time || 'TBD'}`;
                       }
                     })()}</span>
                   </div>

@@ -123,10 +123,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       if (direction === 'like') {
         // Add to user's interested events
         const { error } = await supabase
-          .from('event_interests')
+          .from('user_jambase_events')
           .insert({
             user_id: currentUserId,
-            event_id: eventId
+            jambase_event_id: eventId
           });
 
         if (error) throw error;

@@ -8,7 +8,7 @@ export type Match = Tables<'matches'>;
 export type Chat = Tables<'chats'>;
 export type Message = Tables<'messages'>;
 export type UserSwipe = Tables<'user_swipes'>;
-export type EventInterest = Tables<'event_interests'>;
+export type EventInterest = Tables<'user_jambase_events'>;
 
 export class SupabaseService {
   // ===== PROFILES =====
@@ -95,10 +95,10 @@ export class SupabaseService {
   // ===== EVENT INTERESTS =====
   static async getUserEventInterests(userId: string) {
     const { data, error } = await supabase
-      .from('event_interests')
+      .from('user_jambase_events')
       .select(`
         created_at,
-        event:jambase_events(
+        jambase_events:jambase_events(
           id,
           title,
           artist_name,
@@ -116,12 +116,12 @@ export class SupabaseService {
     return data;
   }
 
-  static async addEventInterest(userId: string, eventId: number) {
+  static async addEventInterest(userId: string, eventId: string) {
     const { data, error } = await supabase
-      .from('event_interests')
+      .from('user_jambase_events')
       .insert({
         user_id: userId,
-        event_id: eventId
+        jambase_event_id: eventId
       })
       .select()
       .single();
@@ -130,12 +130,12 @@ export class SupabaseService {
     return data;
   }
 
-  static async removeEventInterest(userId: string, eventId: number) {
+  static async removeEventInterest(userId: string, eventId: string) {
     const { error } = await supabase
-      .from('event_interests')
+      .from('user_jambase_events')
       .delete()
       .eq('user_id', userId)
-      .eq('event_id', eventId);
+      .eq('jambase_event_id', eventId);
 
     if (error) throw error;
   }
@@ -342,12 +342,12 @@ export class SupabaseService {
   }
 
   // ===== UTILITY METHODS =====
-  static async isUserInterestedInEvent(userId: string, eventId: number) {
+  static async isUserInterestedInEvent(userId: string, eventId: string) {
     const { data, error } = await supabase
-      .from('event_interests')
+      .from('user_jambase_events')
       .select('id')
       .eq('user_id', userId)
-      .eq('event_id', eventId)
+      .eq('jambase_event_id', eventId)
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
@@ -367,13 +367,13 @@ export class SupabaseService {
     return !!data;
   }
 
-  static async getUsersForEvent(eventId: number, excludeUserId?: string) {
+  static async getUsersForEvent(eventId: string, excludeUserId?: string) {
     let query = supabase
-      .from('event_interests')
+      .from('user_jambase_events')
       .select(`
         user_id,
         created_at,
-        user:profiles!event_interests_user_id_fkey(
+        profiles:profiles(
           id,
           name,
           avatar_url,
@@ -382,7 +382,7 @@ export class SupabaseService {
           snapchat_handle
         )
       `)
-      .eq('event_id', eventId)
+      .eq('jambase_event_id', eventId)
       .order('created_at', { ascending: false });
 
     if (excludeUserId) {

@@ -129,9 +129,9 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
 
           // Get other user's event interests
           const { data: userEvents, error: eventsError } = await supabase
-            .from('event_interests')
+            .from('user_jambase_events')
             .select(`
-              event:jambase_events(
+              jambase_events:jambase_events(
                 id,
                 title,
                 venue_city,
@@ -143,7 +143,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
             .order('created_at', { ascending: false })
             .limit(5); // Show up to 5 recent events
 
-          const otherUserEvents = userEvents?.map(item => item.event).filter(Boolean) || [];
+          const otherUserEvents = userEvents?.map(item => item.jambase_events).filter(Boolean) || [];
 
           return {
             ...match,
@@ -443,7 +443,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
             matches.map((match) => {
               const eventDateTime = (() => {
                 try {
-                  return parseISO(`${match.event.event_date}T${match.event.event_time}`);
+                  return parseISO(`${match.event.event_date}T${match.event.event_time || '00:00'}`);
                 } catch {
                   return new Date();
                 }
@@ -468,7 +468,9 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
                             <p className="text-sm text-muted-foreground">
                               Matched {(() => {
                                 try {
-                                  return format(new Date(match.created_at), 'MMM d, yyyy');
+                                  const matchDate = new Date(match.created_at);
+                                  if (isNaN(matchDate.getTime())) return 'recently';
+                                  return format(matchDate, 'MMM d, yyyy');
                                 } catch {
                                   return 'recently';
                                 }
