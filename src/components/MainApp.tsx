@@ -7,10 +7,11 @@ import { SwipeView } from './SwipeView';
 import { ConcertEvents } from './ConcertEvents';
 import { Event as EventCardEvent } from './EventCard';
 import { WelcomeScreen } from './WelcomeScreen';
+import { EventSeeder } from './EventSeeder';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-type ViewType = 'concert-feed' | 'search' | 'events' | 'profile';
+type ViewType = 'concert-feed' | 'search' | 'events' | 'profile' | 'seed';
 
 interface MainAppProps {
   onSignOut?: () => void;
@@ -169,6 +170,23 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onSettings={handleProfileSettings}
             onSignOut={onSignOut}
           />
+        );
+      case 'seed':
+        return (
+          <div className="min-h-screen bg-background p-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="mb-6">
+                <Button
+                  variant="outline"
+                  onClick={handleBack}
+                  className="mb-4"
+                >
+                  ← Back to Feed
+                </Button>
+              </div>
+              <EventSeeder />
+            </div>
+          </div>
         );
       default:
         return (
