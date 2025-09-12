@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ConcertRanking } from './ConcertRanking';
+import { JamBaseService } from '@/services/jambaseService';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -140,26 +141,8 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
   const fetchUserEvents = async () => {
     try {
-      const { data, error } = await supabase
-        .from('user_jambase_events')
-        .select(`
-          created_at,
-          jambase_event:jambase_events(
-            id,
-            title,
-            artist_name,
-            venue_name,
-            venue_city,
-            venue_state,
-            event_date,
-            doors_time
-          )
-        `)
-        .eq('user_id', currentUserId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
+      const data = await JamBaseService.getUserEvents(currentUserId);
+      
       const events = data?.map(item => ({
         id: item.jambase_event.id,
         title: item.jambase_event.title,
@@ -175,6 +158,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       setUserEvents(events);
     } catch (error) {
       console.error('Error fetching user events:', error);
+      setUserEvents([]);
     } finally {
       setLoading(false);
     }

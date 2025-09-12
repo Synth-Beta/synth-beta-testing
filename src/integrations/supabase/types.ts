@@ -101,33 +101,6 @@ export type Database = {
         }
         Relationships: []
       }
-      events: {
-        Row: {
-          event_date: string
-          event_name: string
-          event_time: string
-          id: number
-          location: string
-          url: string
-        }
-        Insert: {
-          event_date: string
-          event_name: string
-          event_time: string
-          id?: number
-          location: string
-          url: string
-        }
-        Update: {
-          event_date?: string
-          event_name?: string
-          event_time?: string
-          id?: number
-          location?: string
-          url?: string
-        }
-        Relationships: []
-      }
       matches: {
         Row: {
           created_at: string
@@ -185,6 +158,8 @@ export type Database = {
           name: string
           updated_at: string
           user_id: string
+          instagram_handle: string | null
+          snapchat_handle: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -194,6 +169,8 @@ export type Database = {
           name: string
           updated_at?: string
           user_id: string
+          instagram_handle?: string | null
+          snapchat_handle?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -203,6 +180,8 @@ export type Database = {
           name?: string
           updated_at?: string
           user_id?: string
+          instagram_handle?: string | null
+          snapchat_handle?: string | null
         }
         Relationships: []
       }
@@ -232,6 +211,123 @@ export type Database = {
           swiper_user_id?: string
         }
         Relationships: []
+      }
+      jambase_events: {
+        Row: {
+          id: string
+          jambase_event_id: string | null
+          title: string
+          artist_name: string
+          artist_id: string | null
+          venue_name: string
+          venue_id: string | null
+          event_date: string
+          doors_time: string | null
+          description: string | null
+          genres: string[] | null
+          venue_address: string | null
+          venue_city: string | null
+          venue_state: string | null
+          venue_zip: string | null
+          latitude: number | null
+          longitude: number | null
+          ticket_available: boolean
+          price_range: string | null
+          ticket_urls: string[] | null
+          setlist: Json | null
+          tour_name: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          jambase_event_id?: string | null
+          title: string
+          artist_name: string
+          artist_id?: string | null
+          venue_name: string
+          venue_id?: string | null
+          event_date: string
+          doors_time?: string | null
+          description?: string | null
+          genres?: string[] | null
+          venue_address?: string | null
+          venue_city?: string | null
+          venue_state?: string | null
+          venue_zip?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          ticket_available?: boolean
+          price_range?: string | null
+          ticket_urls?: string[] | null
+          setlist?: Json | null
+          tour_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          jambase_event_id?: string | null
+          title?: string
+          artist_name?: string
+          artist_id?: string | null
+          venue_name?: string
+          venue_id?: string | null
+          event_date?: string
+          doors_time?: string | null
+          description?: string | null
+          genres?: string[] | null
+          venue_address?: string | null
+          venue_city?: string | null
+          venue_state?: string | null
+          venue_zip?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          ticket_available?: boolean
+          price_range?: string | null
+          ticket_urls?: string[] | null
+          setlist?: Json | null
+          tour_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_jambase_events: {
+        Row: {
+          id: string
+          user_id: string
+          jambase_event_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          jambase_event_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          jambase_event_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_jambase_events_jambase_event_id_fkey"
+            columns: ["jambase_event_id"]
+            isOneToOne: false
+            referencedRelation: "jambase_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_jambase_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {

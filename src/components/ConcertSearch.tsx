@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ConcertSearchForm } from './ConcertSearchForm';
+import { UnifiedEventSearch } from './UnifiedEventSearch';
 import { ConcertSearchResults } from './ConcertSearchResults';
 import { concertSearchService } from '@/services/concertSearchService';
 import type { Event } from '@/types/concertSearch';
+import type { EventSelectionResult } from '@/services/hybridSearchService';
 import { Music, Calendar, MapPin } from 'lucide-react';
 
 interface ConcertSearchProps {
@@ -37,17 +38,15 @@ export function ConcertSearch({ userId }: ConcertSearchProps) {
     }
   };
 
-  const handleEventFound = (event: Event, isNewEvent: boolean) => {
+  const handleEventSelected = (result: EventSelectionResult) => {
     setSearchResults({
-      event,
-      isNewEvent,
-      source: event.jambase_event_id ? 'jambase_api' : 'database'
+      event: result.event,
+      isNewEvent: result.isNewEvent,
+      source: result.source
     });
     
     // Reload user events to show the new one
-    if (event) {
-      loadUserEvents();
-    }
+    loadUserEvents();
   };
 
   const formatEventDate = (dateString: string, timeString?: string) => {
@@ -76,8 +75,8 @@ export function ConcertSearch({ userId }: ConcertSearchProps) {
 
   return (
     <div className="space-y-6">
-      {/* Search Form */}
-      <ConcertSearchForm onEventFound={handleEventFound} userId={userId} />
+      {/* Unified Search */}
+      <UnifiedEventSearch onEventSelected={handleEventSelected} userId={userId} />
 
       {/* Search Results */}
       {searchResults && (

@@ -8,7 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ArrowLeft, Save, Instagram, Camera, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Profile } from '@/types/database';
+import { Tables } from '@/integrations/supabase/types';
 
 interface ProfileEditProps {
   currentUserId: string;
@@ -17,7 +17,7 @@ interface ProfileEditProps {
 }
 
 export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps) => {
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Tables<'profiles'> | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({

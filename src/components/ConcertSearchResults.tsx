@@ -75,10 +75,10 @@ export function ConcertSearchResults({ event, isNewEvent, source }: ConcertSearc
             </div>
             <div className="flex gap-2">
               <Badge variant={isNewEvent ? "default" : "secondary"}>
-                {isNewEvent ? "New Event" : "Existing Event"}
+                {isNewEvent ? "Added to Database" : "Found in Database"}
               </Badge>
               <Badge variant="outline">
-                {source === 'jambase_api' ? 'JamBase' : 'Database'}
+                {source === 'jambase' ? 'JamBase' : 'Database'}
               </Badge>
             </div>
           </div>

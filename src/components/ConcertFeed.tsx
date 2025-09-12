@@ -199,11 +199,11 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     try {
       setSearchLoading(true);
       
-      // Search for users by email or username
+      // Search for users by name (profiles table doesn't have email or username columns)
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('*')
-        .or(`email.ilike.%${query}%,username.ilike.%${query}%,name.ilike.%${query}%`)
+        .ilike('name', `%${query}%`)
         .limit(10);
 
       if (error) {
