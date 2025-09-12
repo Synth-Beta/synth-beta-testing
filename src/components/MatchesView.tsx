@@ -346,7 +346,13 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
             <h2 className="text-lg font-semibold mb-4">Pending Invitations</h2>
             <div className="space-y-4">
               {pendingInvitations.map((invitation) => {
-                const eventDateTime = parseISO(`${invitation.event.event_date}T${invitation.event.event_time}`);
+                const eventDateTime = (() => {
+                  try {
+                    return parseISO(`${invitation.event.event_date}T${invitation.event.event_time}`);
+                  } catch {
+                    return new Date();
+                  }
+                })();
                 return (
                   <Card key={invitation.id} className="border-orange-200 bg-orange-50">
                     <CardContent className="p-4">
@@ -435,7 +441,13 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
             </Card>
           ) : (
             matches.map((match) => {
-              const eventDateTime = parseISO(`${match.event.event_date}T${match.event.event_time}`);
+              const eventDateTime = (() => {
+                try {
+                  return parseISO(`${match.event.event_date}T${match.event.event_time}`);
+                } catch {
+                  return new Date();
+                }
+              })();
               const chat = match.chats[0]; // Should only be one chat per match
 
               return (

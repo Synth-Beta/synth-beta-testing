@@ -20,7 +20,13 @@ export const EventInterestCard = ({
   onViewUsers,
   interestedCount 
 }: EventInterestCardProps) => {
-  const eventDateTime = parseISO(`${event.event_date}T${event.event_time}`);
+  const eventDateTime = (() => {
+    try {
+      return parseISO(`${event.event_date}T${event.event_time}`);
+    } catch {
+      return new Date();
+    }
+  })();
   
   return (
     <Card className="card-hover overflow-hidden">

@@ -429,7 +429,13 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                               {review.event.event_name}
                             </h4>
                             <p className="text-sm text-gray-600 mb-2">
-                              {review.event.location} • {format(parseISO(review.event.event_date), 'MMM d, yyyy')}
+                              {review.event.location} • {(() => {
+                                try {
+                                  return format(parseISO(review.event.event_date), 'MMM d, yyyy');
+                                } catch {
+                                  return review.event.event_date;
+                                }
+                              })()}
                             </p>
                             {review.review_text && (
                               <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">
@@ -580,9 +586,15 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                             Share
                           </Button>
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {format(parseISO(review.created_at), 'MMM d')}
-                        </span>
+                            <span className="text-xs text-gray-500">
+                              {(() => {
+                                try {
+                                  return format(parseISO(review.created_at), 'MMM d');
+                                } catch {
+                                  return review.created_at;
+                                }
+                              })()}
+                            </span>
                       </div>
                     </CardContent>
                   </Card>
@@ -673,9 +685,15 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                             Share
                           </Button>
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {format(parseISO(review.created_at), 'MMM d')}
-                        </span>
+                            <span className="text-xs text-gray-500">
+                              {(() => {
+                                try {
+                                  return format(parseISO(review.created_at), 'MMM d');
+                                } catch {
+                                  return review.created_at;
+                                }
+                              })()}
+                            </span>
                       </div>
                     </CardContent>
                   </Card>

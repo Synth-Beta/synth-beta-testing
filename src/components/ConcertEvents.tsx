@@ -287,7 +287,13 @@ export const ConcertEvents = ({ currentUserId, onBack }: ConcertEventsProps) => 
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Calendar className="w-3 h-3 flex-shrink-0" />
                     <span className="line-clamp-1">
-                      {format(parseISO(concert.event_date), 'MMM d, yyyy')}
+                      {(() => {
+                        try {
+                          return format(parseISO(concert.event_date), 'MMM d, yyyy');
+                        } catch {
+                          return concert.event_date;
+                        }
+                      })()}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">

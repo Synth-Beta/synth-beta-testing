@@ -434,7 +434,14 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                 <div className="p-4 rounded-lg border bg-blue-50">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                     <Calendar className="w-4 h-4" />
-                    <span>{format(parseISO(`${event.event_date}T${event.event_time}`), 'MMM d, yyyy')} at {format(parseISO(`${event.event_date}T${event.event_time}`), 'h:mm a')}</span>
+                    <span>{(() => {
+                      try {
+                        const dateTime = parseISO(`${event.event_date}T${event.event_time}`);
+                        return `${format(dateTime, 'MMM d, yyyy')} at ${format(dateTime, 'h:mm a')}`;
+                      } catch {
+                        return `${event.event_date} at ${event.event_time}`;
+                      }
+                    })()}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                     <MapPin className="w-4 h-4" />
@@ -455,7 +462,13 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                       <div key={otherEvent.id} className="p-3 rounded-lg border bg-gray-50">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                           <Calendar className="w-4 h-4" />
-                          <span>{format(parseISO(`${otherEvent.event_date}T${otherEvent.event_time}`), 'MMM d, yyyy')}</span>
+                          <span>{(() => {
+                            try {
+                              return format(parseISO(`${otherEvent.event_date}T${otherEvent.event_time}`), 'MMM d, yyyy');
+                            } catch {
+                              return otherEvent.event_date;
+                            }
+                          })()}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                           <MapPin className="w-4 h-4" />
