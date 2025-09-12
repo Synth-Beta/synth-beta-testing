@@ -27,12 +27,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('🚀 MainApp useEffect starting...');
     checkAuth();
     loadEvents();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('🔐 Auth state change:', event, session?.user?.id);
         if (event === 'SIGNED_IN' && session) {
           setCurrentUserId(session.user.id);
           setShowAuth(false);
@@ -47,8 +49,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   }, []);
 
   const checkAuth = async () => {
+    console.log('🔍 Checking auth...');
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      console.log('👤 User data:', user?.id ? 'Found user' : 'No user');
       if (user) {
         setCurrentUserId(user.id);
         setShowAuth(false);
@@ -59,7 +63,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         setLoading(false); // Only set loading false if no user
       }
     } catch (error) {
-      console.error('Error checking auth:', error);
+      console.error('❌ Error checking auth:', error);
       setCurrentUserId(null);
       setLoading(false); // Set loading false on error
     }
@@ -75,6 +79,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   const loadEvents = async () => {
+    console.log('📅 Loading events...');
     try {
       const { data, error } = await supabase
         .from('events')
@@ -82,6 +87,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         .order('event_date', { ascending: true });
 
       if (error) throw error;
+      console.log('✅ Events loaded:', data?.length || 0, 'events');
       
       // Transform database events to EventCard format
       const transformedEvents: EventCardEvent[] = (data || []).map((event: any) => ({
