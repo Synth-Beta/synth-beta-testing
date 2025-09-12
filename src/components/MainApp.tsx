@@ -4,7 +4,7 @@ import { ConcertFeed } from './ConcertFeed';
 import { ConcertSearch } from './ConcertSearch';
 import { ProfileView } from './ProfileView';
 import { SwipeView } from './SwipeView';
-import { EventList } from './EventList';
+import { ConcertEvents } from './ConcertEvents';
 import { Event as EventCardEvent } from './EventCard';
 import { WelcomeScreen } from './WelcomeScreen';
 import { supabase } from '@/integrations/supabase/client';
@@ -155,15 +155,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         );
       case 'events':
         return (
-          <div className="min-h-screen p-4 pb-20">
-            <div className="max-w-md mx-auto">
-              <h1 className="text-2xl font-bold mb-6">Your Events</h1>
-              <EventList 
-                events={events}
-                onEventLike={(eventId) => handleEventSwipe(eventId, 'like')}
-              />
-            </div>
-          </div>
+          <ConcertEvents 
+            currentUserId={currentUserId}
+            onBack={handleBack}
+          />
         );
       case 'profile':
         return (

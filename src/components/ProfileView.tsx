@@ -31,10 +31,13 @@ interface UserProfile {
 
 interface UserEvent {
   id: string;
-  event_name: string;
-  location: string;
+  title: string;
+  artist_name: string;
+  venue_name: string;
+  venue_city: string;
+  venue_state: string;
   event_date: string;
-  event_time: string;
+  doors_time?: string;
   created_at: string;
 }
 
@@ -138,15 +141,18 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const fetchUserEvents = async () => {
     try {
       const { data, error } = await supabase
-        .from('event_interests')
+        .from('user_jambase_events')
         .select(`
           created_at,
-          event:events(
+          jambase_event:jambase_events(
             id,
-            event_name,
-            location,
+            title,
+            artist_name,
+            venue_name,
+            venue_city,
+            venue_state,
             event_date,
-            event_time
+            doors_time
           )
         `)
         .eq('user_id', currentUserId)
@@ -155,11 +161,14 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       if (error) throw error;
 
       const events = data?.map(item => ({
-        id: item.event.id,
-        event_name: item.event.event_name,
-        location: item.event.location,
-        event_date: item.event.event_date,
-        event_time: item.event.event_time,
+        id: item.jambase_event.id,
+        title: item.jambase_event.title,
+        artist_name: item.jambase_event.artist_name,
+        venue_name: item.jambase_event.venue_name,
+        venue_city: item.jambase_event.venue_city,
+        venue_state: item.jambase_event.venue_state,
+        event_date: item.jambase_event.event_date,
+        doors_time: item.jambase_event.doors_time,
         created_at: item.created_at
       })) || [];
 
@@ -291,40 +300,41 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
           </CardContent>
         </Card>
 
-        {/* Events Interested In */}
+        {/* Concerts Interested In */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Heart className="w-5 h-5" />
-              Events You're Interested In
+              Concerts You're Interested In
             </CardTitle>
           </CardHeader>
           <CardContent>
             {userEvents.length === 0 ? (
               <div className="text-center py-8">
                 <Heart className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No events yet</p>
+                <p className="text-muted-foreground">No concerts yet</p>
                 <p className="text-sm text-muted-foreground">
-                  Start exploring events to build your profile!
+                  Start exploring concerts to build your profile!
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
                 {userEvents.map((event) => {
-                  const eventDateTime = new Date(`${event.event_date}T${event.event_time}`);
+                  const eventDateTime = new Date(event.event_date);
                   
                   return (
                     <div key={event.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold truncate">{event.event_name}</h4>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <h4 className="font-semibold truncate">{event.title}</h4>
+                        <p className="text-sm text-muted-foreground truncate">{event.artist_name}</p>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             <span>{format(eventDateTime, 'MMM d, yyyy')}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            <span className="truncate">{event.location}</span>
+                            <span className="truncate">{event.venue_name}, {event.venue_city}</span>
                           </div>
                         </div>
                       </div>

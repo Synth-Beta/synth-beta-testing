@@ -113,11 +113,11 @@ export const EventCard = ({ event, onSwipe, className = '' }: EventCardProps) =>
           <Button
             onClick={() => handleSwipe('like')}
             size="lg"
-            className="flex-1 btn-swipe-like"
+            variant="ghost"
+            className="flex-1 btn-swipe-like p-0 h-12 w-12 rounded-full"
             disabled={isAnimating}
           >
-            <Heart className="w-5 h-5 mr-2" />
-            I'm In!
+            <Heart className="w-6 h-6" />
           </Button>
         </div>
       </div>
