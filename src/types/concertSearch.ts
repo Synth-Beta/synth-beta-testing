@@ -2,21 +2,15 @@
 // Comprehensive type definitions for the concert search functionality
 
 export interface Event {
-  id: number;
-  location: string;
-  event_name: string;
-  event_date: string;
-  event_time: string;
-  url: string;
-  event_price?: string;
-  // JamBase fields
+  id: string; // UUID from jambase_events table
   jambase_event_id?: string;
-  title?: string;
-  artist_name?: string;
+  title: string;
+  artist_name: string;
   artist_id?: string;
-  venue_name?: string;
+  venue_name: string;
   venue_id?: string;
-  doors_time?: string;
+  event_date: string; // TIMESTAMPTZ
+  doors_time?: string; // TIMESTAMPTZ
   description?: string;
   genres?: string[];
   venue_address?: string;
@@ -32,6 +26,12 @@ export interface Event {
   tour_name?: string;
   created_at?: string;
   updated_at?: string;
+  // Legacy fields for backward compatibility
+  location?: string;
+  event_name?: string;
+  event_time?: string;
+  url?: string;
+  event_price?: string;
 }
 
 export interface EventSearchParams {
