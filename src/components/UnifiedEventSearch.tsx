@@ -110,7 +110,7 @@ export function UnifiedEventSearch({ onEventSelected, userId }: UnifiedEventSear
           Search Events
         </CardTitle>
         <CardDescription>
-          Search for events by artist, venue, or event name. We'll check our database first, then search JamBase for new events.
+          Search for events by artist, venue, or event name. We'll find existing events in our community and discover new ones from JamBase.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -243,7 +243,7 @@ export function UnifiedEventSearch({ onEventSelected, userId }: UnifiedEventSear
             <Music className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No events found matching your search.</p>
             <p className="text-sm text-gray-500 mt-2">
-              Try different search terms or check the date filter.
+              Try searching for popular artists like "Taylor Swift" or "Drake", or remove the date filter to see more results.
             </p>
           </div>
         )}

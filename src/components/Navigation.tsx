@@ -1,9 +1,9 @@
-import { Heart, MessageCircle, User, Music, Search, Users, Bug } from 'lucide-react';
+import { Heart, MessageCircle, User, Music, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface NavigationProps {
-  currentView: 'events' | 'profile' | 'search' | 'concert-feed' | 'debug';
-  onViewChange: (view: 'events' | 'profile' | 'search' | 'concert-feed' | 'debug') => void;
+  currentView: 'events' | 'profile' | 'search' | 'concert-feed';
+  onViewChange: (view: 'events' | 'profile' | 'search' | 'concert-feed') => void;
 }
 
 export const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
@@ -11,8 +11,7 @@ export const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
     { id: 'concert-feed', icon: Users, label: 'Feed' },
     { id: 'search', icon: Search, label: 'Search' },
     { id: 'events', icon: Heart, label: 'Events' },
-    { id: 'profile', icon: User, label: 'Profile' },
-    { id: 'debug', icon: Bug, label: 'Debug' }
+    { id: 'profile', icon: User, label: 'Profile' }
   ];
 
   return (

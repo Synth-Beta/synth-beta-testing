@@ -7,11 +7,10 @@ import { SwipeView } from './SwipeView';
 import { ConcertEvents } from './ConcertEvents';
 import { Event as EventCardEvent } from './EventCard';
 import { WelcomeScreen } from './WelcomeScreen';
-import { SearchDebug } from './SearchDebug';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-type ViewType = 'concert-feed' | 'search' | 'events' | 'profile' | 'debug';
+type ViewType = 'concert-feed' | 'search' | 'events' | 'profile';
 
 interface MainAppProps {
   onSignOut?: () => void;
@@ -171,8 +170,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onSignOut={onSignOut}
           />
         );
-      case 'debug':
-        return <SearchDebug />;
       default:
         return (
           <ConcertFeed 
