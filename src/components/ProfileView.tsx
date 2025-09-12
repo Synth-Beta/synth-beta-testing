@@ -399,7 +399,13 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               )}
               
               <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-                <span>Member since {format(new Date(profile.created_at), 'MMM yyyy')}</span>
+                <span>Member since {(() => {
+                  try {
+                    return format(new Date(profile.created_at), 'MMM yyyy');
+                  } catch {
+                    return 'Recently';
+                  }
+                })()}</span>
               </div>
             </div>
           </CardContent>
@@ -506,7 +512,13 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                               <p className="text-sm text-muted-foreground">{review.event.location}</p>
                             )}
                             <p className="text-xs text-muted-foreground">
-                              {format(new Date(review.event.event_date), 'MMM d, yyyy')}
+                              {(() => {
+                                try {
+                                  return format(new Date(review.event.event_date), 'MMM d, yyyy');
+                                } catch {
+                                  return review.event.event_date;
+                                }
+                              })()}
                             </p>
                           </div>
                           <Badge className={`${getRatingColor(review.rating)} border`}>
@@ -520,7 +532,13 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                           </p>
                         )}
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{format(new Date(review.created_at), 'MMM d, yyyy')}</span>
+                          <span>{(() => {
+                            try {
+                              return format(new Date(review.created_at), 'MMM d, yyyy');
+                            } catch {
+                              return review.created_at;
+                            }
+                          })()}</span>
                           <Badge variant="outline" className="text-xs">
                             {review.is_public ? 'Public' : 'Private'}
                           </Badge>

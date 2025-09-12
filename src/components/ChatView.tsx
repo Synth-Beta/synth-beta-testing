@@ -263,7 +263,13 @@ export const ChatView = ({ chatId, currentUserId, onBack }: ChatViewProps) => {
                     ? 'text-primary-foreground/70'
                     : 'text-muted-foreground'
                 }`}>
-                  {format(new Date(message.created_at), 'h:mm a')}
+                  {(() => {
+                    try {
+                      return format(new Date(message.created_at), 'h:mm a');
+                    } catch {
+                      return 'now';
+                    }
+                  })()}
                 </p>
               </div>
             </div>

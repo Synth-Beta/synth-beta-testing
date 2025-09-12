@@ -466,7 +466,13 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
                           <div>
                             <h3 className="font-semibold text-lg">{match.other_user.name}</h3>
                             <p className="text-sm text-muted-foreground">
-                              Matched {format(new Date(match.created_at), 'MMM d, yyyy')}
+                              Matched {(() => {
+                                try {
+                                  return format(new Date(match.created_at), 'MMM d, yyyy');
+                                } catch {
+                                  return 'recently';
+                                }
+                              })()}
                             </p>
                           </div>
                           <Badge variant="secondary">
