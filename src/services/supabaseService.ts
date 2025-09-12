@@ -342,7 +342,7 @@ export class SupabaseService {
   }
 
   // ===== UTILITY METHODS =====
-  static async isUserInterestedInEvent(userId: string, eventId: string) {
+  static async isUserInterestedInEvent(userId: string, eventId: number) {
     const { data, error } = await supabase
       .from('event_interests')
       .select('id')
