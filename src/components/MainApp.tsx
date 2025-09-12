@@ -7,6 +7,7 @@ import { SwipeView } from './SwipeView';
 import { ConcertEvents } from './ConcertEvents';
 import { Event as EventCardEvent } from './EventCard';
 import { WelcomeScreen } from './WelcomeScreen';
+import Auth from '@/pages/Auth';
 import { EventSeeder } from './EventSeeder';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -21,12 +22,28 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [currentView, setCurrentView] = useState<ViewType>('feed');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAuth, setShowAuth] = useState(false);
   const [events, setEvents] = useState<EventCardEvent[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     checkAuth();
     loadEvents();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          setCurrentUserId(session.user.id);
+          setShowAuth(false);
+        } else if (event === 'SIGNED_OUT') {
+          setCurrentUserId(null);
+          setShowAuth(false);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const checkAuth = async () => {
@@ -34,18 +51,27 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setCurrentUserId(user.id);
+        setShowAuth(false);
       } else {
-        // Handle no user - for now, we'll create a mock user for development
-        console.log('No authenticated user, using mock user');
-        setCurrentUserId('mock-user-id');
+        // No user - show welcome screen first, then auth when they click
+        console.log('No authenticated user');
+        setCurrentUserId(null);
       }
     } catch (error) {
       console.error('Error checking auth:', error);
-      // If auth fails, still allow access with mock user for development
-      setCurrentUserId('mock-user-id');
+      setCurrentUserId(null);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGetStarted = () => {
+    setShowAuth(true);
+  };
+
+  const handleAuthSuccess = async () => {
+    setShowAuth(false);
+    await checkAuth(); // Recheck auth after successful login
   };
 
   const loadEvents = async () => {
@@ -126,6 +152,25 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     console.log('Profile settings');
   };
 
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "Signed out",
+        description: "You've been successfully signed out.",
+      });
+    } catch (error: any) {
+      console.error('Error signing out:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleBack = () => {
     setCurrentView('feed');
   };
@@ -138,8 +183,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     );
   }
 
+  // Show auth modal if requested
+  if (showAuth) {
+    return <Auth onAuthSuccess={handleAuthSuccess} />;
+  }
+
+  // Show welcome screen if no user
   if (!currentUserId) {
-    return <WelcomeScreen onGetStarted={() => checkAuth()} />;
+    return <WelcomeScreen onGetStarted={handleGetStarted} />;
   }
 
   const renderCurrentView = () => {
@@ -172,7 +223,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onBack={handleBack}
             onEdit={handleProfileEdit}
             onSettings={handleProfileSettings}
-            onSignOut={onSignOut}
+            onSignOut={handleSignOut}
           />
         );
       default:

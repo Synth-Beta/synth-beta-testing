@@ -114,11 +114,15 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
           console.log('No profile found, creating default profile');
           
+          // Get user metadata from auth
+          const { data: { user } } = await supabase.auth.getUser();
+          const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'New User';
+          
           const { data: newProfile, error: insertError } = await supabase
             .from('profiles')
             .insert({
               user_id: currentUserId,
-              name: 'New User',
+              name: userName,
               bio: null,
               instagram_handle: null,
               snapchat_handle: null
@@ -132,7 +136,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
             setProfile({
               id: 'temp',
               user_id: currentUserId,
-              name: 'New User',
+              name: userName,
               avatar_url: null,
               bio: null,
               instagram_handle: null,
