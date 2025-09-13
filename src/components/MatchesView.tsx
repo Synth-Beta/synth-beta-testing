@@ -18,13 +18,17 @@ interface MatchWithChat {
   id: string;
   user1_id: string;
   user2_id: string;
-  event_id: number;
+  event_id: string;
   created_at: string;
   event: {
-    event_name: string;
-    location: string;
+    title: string;
+    venue_city: string | null;
+    venue_state: string | null;
     event_date: string;
-    event_time: string;
+    // Legacy fields for backward compatibility
+    event_name?: string;
+    location?: string;
+    event_time?: string;
   };
   chats: {
     id: string;
@@ -41,11 +45,15 @@ interface MatchWithChat {
     snapchat_handle: string | null;
   };
   other_user_events: {
-    id: number;
-    event_name: string;
-    location: string;
+    id: string;
+    title: string;
+    venue_city: string | null;
+    venue_state: string | null;
     event_date: string;
-    event_time: string;
+    // Legacy fields for backward compatibility
+    event_name?: string;
+    location?: string;
+    event_time?: string;
   }[];
 }
 
@@ -53,13 +61,17 @@ interface PendingInvitation {
   id: string;
   swiper_user_id: string;
   swiped_user_id: string;
-  event_id: number;
+  event_id: string;
   created_at: string;
   event: {
-    event_name: string;
-    location: string;
+    title: string;
+    venue_city: string | null;
+    venue_state: string | null;
     event_date: string;
-    event_time: string;
+    // Legacy fields for backward compatibility
+    event_name?: string;
+    location?: string;
+    event_time?: string;
   };
   swiper_user: {
     id: string;
@@ -76,6 +88,18 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
   const [showRequests, setShowRequests] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  // Helper functions to handle event data display
+  const getEventName = (event: any) => {
+    return event.title || event.event_name || 'Unknown Event';
+  };
+
+  const getEventLocation = (event: any) => {
+    if (event.venue_city && event.venue_state) {
+      return `${event.venue_city}, ${event.venue_state}`;
+    }
+    return event.location || 'Location TBD';
+  };
 
   useEffect(() => {
     fetchMatches();
@@ -348,7 +372,12 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
               {pendingInvitations.map((invitation) => {
                 const eventDateTime = (() => {
                   try {
-                    return parseISO(`${invitation.event.event_date}T${invitation.event.event_time}`);
+                    // Handle both old format (separate date/time) and new format (full timestamp)
+                    if (invitation.event.event_time) {
+                      return parseISO(`${invitation.event.event_date}T${invitation.event.event_time}`);
+                    } else {
+                      return parseISO(invitation.event.event_date);
+                    }
                   } catch {
                     return new Date();
                   }
@@ -369,7 +398,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
                             <div>
                               <h3 className="font-semibold text-lg">{invitation.swiper_user.name}</h3>
                               <p className="text-sm text-muted-foreground">
-                                Wants to connect at {invitation.event.event_name}
+                                Wants to connect at {getEventName(invitation.event)}
                               </p>
                             </div>
                             <Badge variant="outline" className="bg-orange-100 text-orange-800">
@@ -384,7 +413,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
                             </div>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <MapPin className="w-4 h-4" />
-                              <span>{invitation.event.location}</span>
+                              <span>{getEventLocation(invitation.event)}</span>
                             </div>
                           </div>
 
@@ -443,7 +472,12 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
             matches.map((match) => {
               const eventDateTime = (() => {
                 try {
-                  return parseISO(`${match.event.event_date}T${match.event.event_time || '00:00'}`);
+                  // Handle both old format (separate date/time) and new format (full timestamp)
+                  if (match.event.event_time) {
+                    return parseISO(`${match.event.event_date}T${match.event.event_time || '00:00'}`);
+                  } else {
+                    return parseISO(match.event.event_date);
+                  }
                 } catch {
                   return new Date();
                 }
@@ -490,7 +524,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
                           </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <MapPin className="w-4 h-4" />
-                            <span>{match.event.location}</span>
+                            <span>{getEventLocation(match.event)}</span>
                           </div>
                         </div>
 
@@ -526,7 +560,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
 
                         <div className="flex items-center justify-between">
                           <div className="text-sm">
-                            <p className="font-medium text-primary">{match.event.event_name}</p>
+                            <p className="font-medium text-primary">{getEventName(match.event)}</p>
                             {match.other_user.bio && (
                               <p className="text-muted-foreground line-clamp-1">
                                 {match.other_user.bio}
@@ -554,7 +588,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
                             <div className="flex flex-wrap gap-1">
                               {match.other_user_events.slice(0, 3).map((event) => (
                                 <Badge key={event.id} variant="outline" className="text-xs">
-                                  {event.event_name}
+                                  {getEventName(event)}
                                 </Badge>
                               ))}
                               {match.other_user_events.length > 3 && (

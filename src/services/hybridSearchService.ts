@@ -216,6 +216,54 @@ class HybridSearchService {
     }));
   }
 
+  // Store JamBase events in the database
+  private async storeJambaseEvents(jambaseEvents: Event[]): Promise<Event[]> {
+    if (!jambaseEvents || jambaseEvents.length === 0) {
+      return [];
+    }
+
+    const storedEvents: Event[] = [];
+
+    for (const event of jambaseEvents) {
+      try {
+        // Check if event already exists by jambase_event_id
+        if (event.jambase_event_id) {
+          const { data: existing } = await supabase
+            .from('jambase_events')
+            .select('*')
+            .eq('jambase_event_id', event.jambase_event_id)
+            .single();
+
+          if (existing) {
+            console.log('Event already exists, skipping:', event.title);
+            storedEvents.push(existing);
+            continue;
+          }
+        }
+
+        // Create new event
+        const { data, error } = await supabase
+          .from('jambase_events')
+          .insert([event])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error storing event:', error);
+          continue;
+        }
+
+        console.log('Successfully stored event:', data.title);
+        storedEvents.push(data);
+      } catch (error) {
+        console.error('Error processing event:', event.title, error);
+        continue;
+      }
+    }
+
+    return storedEvents;
+  }
+
   // Create search suggestions with fuzzy matching
   private createSuggestions(
     supabaseEvents: Event[],
@@ -284,19 +332,35 @@ class HybridSearchService {
     return new Promise((resolve) => {
       this.searchTimeout = setTimeout(async () => {
         try {
-          // Search both Supabase and Jambase in parallel
-          const [supabaseEvents, jambaseEvents] = await Promise.all([
-            this.searchSupabaseEvents(query, date),
-            this.searchJambaseEvents(query, date)
-          ]);
+          // First search existing Supabase events
+          const supabaseEvents = await this.searchSupabaseEvents(query, date);
+          
+          // If we have good results from Supabase, return them
+          if (supabaseEvents.length >= 5) {
+            const suggestions = this.createSuggestions(supabaseEvents, [], query);
+            resolve({ 
+              suggestions: suggestions.slice(0, 15),
+              isLoading: false 
+            });
+            return;
+          }
 
-          const suggestions = this.createSuggestions(supabaseEvents, jambaseEvents, query);
+          // Otherwise, search JamBase and store results
+          console.log('Searching JamBase and storing results...');
+          const jambaseEvents = await this.searchJambaseEvents(query, date);
+          
+          // Store JamBase events in database
+          const storedEvents = await this.storeJambaseEvents(jambaseEvents);
+          
+          // Create suggestions from stored events
+          const suggestions = this.createSuggestions(supabaseEvents, storedEvents, query);
 
-          // If no results from either source, try broader JamBase search
+          // If still no results, try broader JamBase search
           if (suggestions.length === 0) {
             console.log('No results found, trying broader JamBase search...');
             const broaderJambaseEvents = await this.searchJambaseEventsWithBroaderQuery(query, date);
-            const broaderSuggestions = this.createSuggestions([], broaderJambaseEvents, query);
+            const broaderStoredEvents = await this.storeJambaseEvents(broaderJambaseEvents);
+            const broaderSuggestions = this.createSuggestions([], broaderStoredEvents, query);
             
             resolve({ 
               suggestions: broaderSuggestions.slice(0, 15),

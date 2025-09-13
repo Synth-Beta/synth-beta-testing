@@ -7,14 +7,14 @@ const app = express();
 // Server Configuration
 const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
 
 // Supabase Configuration - Set defaults if not provided
 if (!process.env.SUPABASE_URL) {
   process.env.SUPABASE_URL = 'https://glpiolbrafqikqhnseto.supabase.co';
 }
 if (!process.env.SUPABASE_ANON_KEY) {
-  process.env.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjkzNzgyNCwiZXhwIjoyMDcyNTEzODI0fQ.cS0y6dQiw2VvGD7tKfKADKqM8whaopJ716G4dexBRGI';
+  process.env.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5Mzc4MjQsImV4cCI6MjA3MjUxMzgyNH0.O5G3fW-YFtpACNqNfo_lsLK44F-3L3p69Ka-G2lSTLE';
 }
 
 // JamBase API
@@ -22,7 +22,7 @@ process.env.JAMBASE_API_KEY = process.env.JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e
 
 // Middleware
 app.use(cors({
-  origin: [FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173'],
+  origin: [FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080'],
   credentials: true
 }));
 app.use(express.json());
@@ -30,6 +30,14 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/', searchRoutes);
+
+// Debug: Log all registered routes
+console.log('Registered routes:');
+searchRoutes.stack.forEach((route) => {
+  if (route.route) {
+    console.log(`${Object.keys(route.route.methods).join(', ').toUpperCase()} ${route.route.path}`);
+  }
+});
 
 // Health check
 app.get('/health', (req, res) => {

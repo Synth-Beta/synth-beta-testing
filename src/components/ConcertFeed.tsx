@@ -28,7 +28,7 @@ import { MatchesView } from '@/components/MatchesView';
 interface ConcertReview {
   id: string;
   user_id: string;
-  event_id: number;
+  event_id: string;
   rating: 'good' | 'okay' | 'bad';
   review_text: string | null;
   is_public: boolean;

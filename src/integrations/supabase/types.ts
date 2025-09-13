@@ -83,19 +83,19 @@ export type Database = {
       event_interests: {
         Row: {
           created_at: string
-          event_id: number
+          event_id: string
           id: string
           user_id: string
         }
         Insert: {
           created_at?: string
-          event_id: number
+          event_id: string
           id?: string
           user_id: string
         }
         Update: {
           created_at?: string
-          event_id?: number
+          event_id?: string
           id?: string
           user_id?: string
         }
@@ -104,21 +104,21 @@ export type Database = {
       matches: {
         Row: {
           created_at: string
-          event_id: number
+          event_id: string
           id: string
           user1_id: string
           user2_id: string
         }
         Insert: {
           created_at?: string
-          event_id: number
+          event_id: string
           id?: string
           user1_id: string
           user2_id: string
         }
         Update: {
           created_at?: string
-          event_id?: number
+          event_id?: string
           id?: string
           user1_id?: string
           user2_id?: string
@@ -188,7 +188,7 @@ export type Database = {
       user_swipes: {
         Row: {
           created_at: string
-          event_id: number
+          event_id: string
           id: string
           is_interested: boolean
           swiped_user_id: string
@@ -196,7 +196,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          event_id: number
+          event_id: string
           id?: string
           is_interested: boolean
           swiped_user_id: string
@@ -204,7 +204,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          event_id?: number
+          event_id?: string
           id?: string
           is_interested?: boolean
           swiped_user_id?: string

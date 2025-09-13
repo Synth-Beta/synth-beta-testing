@@ -192,7 +192,7 @@ export class SupabaseService {
   }
 
   // ===== USER SWIPES =====
-  static async getUserSwipes(userId: string, eventId?: number) {
+  static async getUserSwipes(userId: string, eventId?: string) {
     let query = supabase
       .from('user_swipes')
       .select(`
@@ -354,7 +354,7 @@ export class SupabaseService {
     return !!data;
   }
 
-  static async hasUserSwipedOnUser(swiperId: string, swipedId: string, eventId: number) {
+  static async hasUserSwipedOnUser(swiperId: string, swipedId: string, eventId: string) {
     const { data, error } = await supabase
       .from('user_swipes')
       .select('id')

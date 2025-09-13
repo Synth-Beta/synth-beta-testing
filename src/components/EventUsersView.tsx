@@ -7,11 +7,15 @@ import { ArrowLeft, Heart, X, MessageCircle, User, MapPin, Calendar, Instagram, 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { DBEvent, Profile } from '@/types/database';
+import { Event } from '@/types/concertSearch';
+
+// Union type to handle both old and new event formats
+type EventData = DBEvent | Event;
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 
 interface EventUsersViewProps {
-  event: DBEvent;
+  event: EventData;
   currentUserId: string;
   onBack: () => void;
   onChatCreated: (chatId: string) => void;
@@ -41,6 +45,27 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
   const [otherEvents, setOtherEvents] = useState<any[]>([]);
   const [showAllEvents, setShowAllEvents] = useState(false);
   const { toast } = useToast();
+
+  // Helper functions to handle event data display
+  const getEventName = () => {
+    return 'title' in event ? event.title : event.event_name;
+  };
+  
+  const getEventLocation = () => {
+    if ('venue_name' in event && event.venue_name) {
+      const locationParts = [event.venue_city, event.venue_state].filter(Boolean);
+      return locationParts.length > 0 ? `${event.venue_name}, ${locationParts.join(', ')}` : event.venue_name;
+    }
+    return event.location || 'Location TBD';
+  };
+  
+  const getEventDate = () => {
+    return 'event_date' in event ? event.event_date : event.event_date;
+  };
+  
+  const getEventTime = () => {
+    return 'event_time' in event ? event.event_time : undefined;
+  };
 
   useEffect(() => {
     fetchInterestedUsers();
@@ -283,8 +308,8 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex-1">
-            <h1 className="font-bold text-lg">{event.event_name}</h1>
-            <p className="text-sm text-muted-foreground">{event.location}</p>
+            <h1 className="font-bold text-lg">{getEventName()}</h1>
+            <p className="text-sm text-muted-foreground">{getEventLocation()}</p>
           </div>
         </div>
 
@@ -325,7 +350,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                 )}
                 
                 <Badge className="mb-4">
-                  Also interested in {event.event_name}
+                  Also interested in {getEventName()}
                 </Badge>
                 
                 <p className="text-xs text-muted-foreground">
@@ -436,19 +461,27 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                     <Calendar className="w-4 h-4" />
                     <span>{(() => {
                       try {
-                        const dateTime = parseISO(`${event.event_date}T${event.event_time || '00:00'}`);
+                        // Handle both old format (separate date/time) and new format (full timestamp)
+                        let dateTime;
+                        if (getEventTime()) {
+                          // Old format: separate date and time fields
+                          dateTime = parseISO(`${getEventDate()}T${getEventTime() || '00:00'}`);
+                        } else {
+                          // New format: event_date is already a full timestamp
+                          dateTime = parseISO(getEventDate());
+                        }
                         return `${format(dateTime, 'MMM d, yyyy')} at ${format(dateTime, 'h:mm a')}`;
                       } catch {
-                        return `${event.event_date} at ${event.event_time || 'TBD'}`;
+                        return `${getEventDate()} at ${getEventTime() || 'TBD'}`;
                       }
                     })()}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                     <MapPin className="w-4 h-4" />
-                    <span>{event.location}</span>
+                    <span>{getEventLocation()}</span>
                   </div>
                   <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                    Interested in {event.event_name}
+                    Interested in {getEventName()}
                   </Badge>
                 </div>
               </div>
@@ -464,7 +497,12 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                           <Calendar className="w-4 h-4" />
                           <span>{(() => {
                             try {
-                              return format(parseISO(`${otherEvent.event_date}T${otherEvent.event_time}`), 'MMM d, yyyy');
+                              // Handle both old format (separate date/time) and new format (full timestamp)
+                              if (otherEvent.event_time) {
+                                return format(parseISO(`${otherEvent.event_date}T${otherEvent.event_time}`), 'MMM d, yyyy');
+                              } else {
+                                return format(parseISO(otherEvent.event_date), 'MMM d, yyyy');
+                              }
                             } catch {
                               return otherEvent.event_date;
                             }
@@ -472,9 +510,11 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                           <MapPin className="w-4 h-4" />
-                          <span>{otherEvent.location}</span>
+                          <span>{otherEvent.venue_city && otherEvent.venue_state 
+                            ? `${otherEvent.venue_city}, ${otherEvent.venue_state}` 
+                            : otherEvent.location || 'Location TBD'}</span>
                         </div>
-                        <p className="font-medium text-sm">{otherEvent.event_name}</p>
+                        <p className="font-medium text-sm">{otherEvent.title || otherEvent.event_name}</p>
                       </div>
                     ))}
                     {otherEvents.length > 3 && (

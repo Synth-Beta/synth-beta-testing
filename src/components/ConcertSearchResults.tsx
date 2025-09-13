@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Music, Ticket, ExternalLink, Clock } from 'lucide-react';
+import { safeFormatEventDateTime } from '@/lib/dateUtils';
 import type { Event } from '@/types/concertSearch';
 
 interface ConcertSearchResultsProps {
@@ -13,27 +14,7 @@ interface ConcertSearchResultsProps {
 
 export function ConcertSearchResults({ event, isNewEvent, source }: ConcertSearchResultsProps) {
   const formatEventDate = (dateString: string, timeString?: string) => {
-    try {
-      const date = new Date(dateString);
-      const formattedDate = date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-      
-      if (timeString) {
-        const time = new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-        return `${formattedDate} at ${time}`;
-      }
-      
-      return formattedDate;
-    } catch {
-      return dateString;
-    }
+    return safeFormatEventDateTime({ event_date: dateString, event_time: timeString });
   };
 
   if (!event) {
