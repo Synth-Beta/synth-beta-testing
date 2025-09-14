@@ -4,12 +4,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UnifiedEventSearch } from './UnifiedEventSearch';
-import { ConcertSearchResults } from './ConcertSearchResults';
+import { StructuredConcertSearch } from './StructuredConcertSearch';
 import { concertSearchService } from '@/services/concertSearchService';
 import { safeFormatEventDateTime } from '@/lib/dateUtils';
 import type { Event } from '@/types/concertSearch';
-import type { EventSelectionResult } from '@/services/hybridSearchService';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -38,13 +36,15 @@ interface UserProfile {
   email?: string;
 }
 
+interface SearchResult {
+  events: Event[];
+  totalFound: number;
+  searchType: 'similar' | 'artist_recent_upcoming';
+}
+
 export function UnifiedSearch({ userId }: UnifiedSearchProps) {
   const [activeTab, setActiveTab] = useState('events');
-  const [searchResults, setSearchResults] = useState<{
-    event: Event | null;
-    isNewEvent: boolean;
-    source: string;
-  } | null>(null);
+  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
   const [userEvents, setUserEvents] = useState<Event[]>([]);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userSearchResults, setUserSearchResults] = useState<UserProfile[]>([]);
@@ -76,14 +76,10 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
     }
   };
 
-  const handleEventSelected = (result: EventSelectionResult) => {
-    setSearchResults({
-      event: result.event,
-      isNewEvent: result.isNewEvent,
-      source: result.source
-    });
+  const handleEventsFound = (result: SearchResult) => {
+    setSearchResults(result);
     
-    // Reload user events to show the new one
+    // Reload user events to show any new ones
     loadUserEvents();
   };
 
@@ -169,25 +165,56 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
         </TabsList>
 
         <TabsContent value="events" className="mt-6 space-y-6">
-          {/* Event Search */}
-          <UnifiedEventSearch onEventSelected={handleEventSelected} userId={userId} />
+          {/* Structured Event Search */}
+          <StructuredConcertSearch onEventsFound={handleEventsFound} userId={userId} />
 
-          {/* Event Search Results */}
+          {/* Search Results Summary */}
           {searchResults && (
-            <ConcertSearchResults 
-              event={searchResults.event} 
-              isNewEvent={searchResults.isNewEvent} 
-              source={searchResults.source} 
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Music className="h-5 w-5" />
+                  Search Results Summary
+                </CardTitle>
+                <CardDescription>
+                  Found {searchResults.totalFound} events using {searchResults.searchType === 'artist_recent_upcoming' ? 'artist recent + upcoming' : 'similar events'} search
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {searchResults.events.slice(0, 6).map((event) => (
+                    <div key={event.id} className="p-3 border rounded-lg">
+                      <h4 className="font-medium text-sm mb-1">{event.title || event.event_name}</h4>
+                      <p className="text-xs text-gray-600 mb-2">
+                        {event.artist_name} at {event.venue_name}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-gray-500">
+                          {formatEventDate(event.event_date, event.event_time || undefined)}
+                        </p>
+                        <Badge variant="outline" className="text-xs">
+                          {event.jambase_event_id ? 'JamBase' : 'Manual'}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {searchResults.events.length > 6 && (
+                  <p className="text-sm text-gray-500 mt-3 text-center">
+                    Showing 6 of {searchResults.events.length} events. See full results above.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           )}
 
-          {/* User's Events */}
+          {/* User's Saved Events */}
           {userEvents.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Music className="h-5 w-5" />
-                  Your Events
+                  Your Saved Events
                 </CardTitle>
                 <CardDescription>
                   Events you've searched for and added to your profile

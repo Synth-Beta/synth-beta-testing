@@ -1,24 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { UnifiedEventSearch } from './UnifiedEventSearch';
+import { StructuredConcertSearch } from './StructuredConcertSearch';
 import { ConcertSearchResults } from './ConcertSearchResults';
 import { concertSearchService } from '@/services/concertSearchService';
 import { safeFormatEventDateTime } from '@/lib/dateUtils';
 import type { Event } from '@/types/concertSearch';
-import type { EventSelectionResult } from '@/services/hybridSearchService';
 import { Music, Calendar, MapPin } from 'lucide-react';
 
 interface ConcertSearchProps {
   userId: string;
 }
 
+interface SearchResult {
+  events: Event[];
+  totalFound: number;
+  searchType: 'similar' | 'artist_recent_upcoming';
+}
+
 export function ConcertSearch({ userId }: ConcertSearchProps) {
-  const [searchResults, setSearchResults] = useState<{
-    event: Event | null;
-    isNewEvent: boolean;
-    source: string;
-  } | null>(null);
+  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
   const [userEvents, setUserEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,14 +40,10 @@ export function ConcertSearch({ userId }: ConcertSearchProps) {
     }
   };
 
-  const handleEventSelected = (result: EventSelectionResult) => {
-    setSearchResults({
-      event: result.event,
-      isNewEvent: result.isNewEvent,
-      source: result.source
-    });
+  const handleEventsFound = (result: SearchResult) => {
+    setSearchResults(result);
     
-    // Reload user events to show the new one
+    // Reload user events to show any new ones
     loadUserEvents();
   };
 
@@ -56,16 +53,47 @@ export function ConcertSearch({ userId }: ConcertSearchProps) {
 
   return (
     <div className="space-y-6">
-      {/* Unified Search */}
-      <UnifiedEventSearch onEventSelected={handleEventSelected} userId={userId} />
+      {/* Structured Search */}
+      <StructuredConcertSearch onEventsFound={handleEventsFound} userId={userId} />
 
-      {/* Search Results */}
+      {/* Search Results Summary */}
       {searchResults && (
-        <ConcertSearchResults 
-          event={searchResults.event} 
-          isNewEvent={searchResults.isNewEvent} 
-          source={searchResults.source} 
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Music className="h-5 w-5" />
+              Search Results Summary
+            </CardTitle>
+            <CardDescription>
+              Found {searchResults.totalFound} events using {searchResults.searchType === 'artist_recent_upcoming' ? 'artist recent + upcoming' : 'similar events'} search
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {searchResults.events.slice(0, 6).map((event) => (
+                <div key={event.id} className="p-3 border rounded-lg">
+                  <h4 className="font-medium text-sm mb-1">{event.title || event.event_name}</h4>
+                  <p className="text-xs text-gray-600 mb-2">
+                    {event.artist_name} at {event.venue_name}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-gray-500">
+                      {formatEventDate(event.event_date, event.event_time || undefined)}
+                    </p>
+                    <Badge variant="outline" className="text-xs">
+                      {event.jambase_event_id ? 'JamBase' : 'Manual'}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {searchResults.events.length > 6 && (
+              <p className="text-sm text-gray-500 mt-3 text-center">
+                Showing 6 of {searchResults.events.length} events. See full results above.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* User's Events */}
@@ -74,7 +102,7 @@ export function ConcertSearch({ userId }: ConcertSearchProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Music className="h-5 w-5" />
-              Your Events
+              Your Saved Events
             </CardTitle>
             <CardDescription>
               Events you've searched for and added to your profile

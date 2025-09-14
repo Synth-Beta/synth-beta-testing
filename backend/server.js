@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const searchRoutes = require('./search-routes');
+const searchConcertsRoutes = require('./search-concerts');
 
 const app = express();
 
@@ -30,10 +31,16 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/', searchRoutes);
+app.use('/', searchConcertsRoutes);
 
 // Debug: Log all registered routes
 console.log('Registered routes:');
 searchRoutes.stack.forEach((route) => {
+  if (route.route) {
+    console.log(`${Object.keys(route.route.methods).join(', ').toUpperCase()} ${route.route.path}`);
+  }
+});
+searchConcertsRoutes.stack.forEach((route) => {
   if (route.route) {
     console.log(`${Object.keys(route.route.methods).join(', ').toUpperCase()} ${route.route.path}`);
   }
