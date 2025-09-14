@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, Camera, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star } from 'lucide-react';
+import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -27,7 +27,7 @@ interface UserProfile {
   avatar_url: string | null;
   bio: string | null;
   instagram_handle: string | null;
-  snapchat_handle: string | null;
+  music_streaming_profile?: string | null; // Optional until migration is applied
   created_at: string;
   updated_at: string;
 }
@@ -89,14 +89,20 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       console.log('Fetching profile for user:', currentUserId);
       
       // First try to get the profile
+      console.log('ProfileView: Fetching profile for user:', currentUserId);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, snapchat_handle, created_at, updated_at')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at')
         .eq('user_id', currentUserId)
         .single();
+      
+      console.log('ProfileView: Profile query result:', { data, error });
 
       if (error) {
         console.error('Profile query error:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
         
         // Handle API key errors specifically
         if (error.message?.includes('invalid') || error.message?.includes('API key') || error.message?.includes('JWT')) {
@@ -112,7 +118,18 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         
         // If no profile exists, create a default one
         if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
-          console.log('No profile found, creating default profile');
+          console.log('No profile found for user:', currentUserId);
+          
+          // Debug: Let's see what profiles exist in the database
+          const { data: allProfiles, error: allProfilesError } = await supabase
+            .from('profiles')
+            .select('id, user_id, name')
+            .limit(10);
+          
+          console.log('All profiles in database:', allProfiles);
+          console.log('All profiles error:', allProfilesError);
+          
+          console.log('Creating default profile for user:', currentUserId);
           
           // Get user metadata from auth
           const { data: { user } } = await supabase.auth.getUser();
@@ -124,8 +141,8 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               user_id: currentUserId,
               name: userName,
               bio: null,
-              instagram_handle: null,
-              snapchat_handle: null
+              instagram_handle: null
+              // Note: music_streaming_profile will be added by the database default or migration
             })
             .select()
             .single();
@@ -140,7 +157,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               avatar_url: null,
               bio: null,
               instagram_handle: null,
-              snapchat_handle: null,
+              music_streaming_profile: null,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             });
@@ -157,17 +174,17 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     } catch (error) {
       console.error('Error fetching profile:', error);
       // Show a fallback profile instead of error
-      setProfile({
-        id: 'temp',
-        user_id: currentUserId,
-        name: 'New User',
-        avatar_url: null,
-        bio: null,
-        instagram_handle: null,
-        snapchat_handle: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
+        setProfile({
+          id: 'temp',
+          user_id: currentUserId,
+          name: 'New User',
+          avatar_url: null,
+          bio: null,
+          instagram_handle: null,
+          music_streaming_profile: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
     } finally {
       setLoading(false);
     }
@@ -223,7 +240,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     const review: ConcertReview = {
       id: Date.now().toString(),
       user_id: currentUserId,
-      event_id: 0, // Placeholder since we're using localStorage
+      event_id: 'placeholder', // Placeholder since we're using localStorage
       rating: newReview.rating,
       review_text: newReview.review_text || null,
       is_public: newReview.is_public,
@@ -297,10 +314,12 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   }
 
   if (!profile) {
+    console.log('❌ ProfileView: No profile data available');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-bold mb-4">Profile not found</h2>
+          <p className="text-muted-foreground mb-4">Loading profile data...</p>
           <Button onClick={onBack}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -309,6 +328,8 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       </div>
     );
   }
+
+  console.log('✅ ProfileView: Rendering profile for:', profile.name);
 
   // Show concert rankings if requested
   if (showConcertRankings) {
@@ -321,7 +342,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   }
 
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4 pb-20">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
@@ -369,8 +390,8 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               )}
 
               {/* Social Media Links */}
-              {(profile.instagram_handle || profile.snapchat_handle) && (
-                <div className="flex items-center justify-center gap-4 mb-4">
+              {(profile.instagram_handle || profile.music_streaming_profile) && (
+                <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
                   {profile.instagram_handle && (
                     <a
                       href={`https://instagram.com/${profile.instagram_handle}`}
@@ -379,19 +400,24 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                       className="flex items-center gap-2 text-pink-600 hover:text-pink-700 transition-colors"
                     >
                       <Instagram className="w-4 h-4" />
-                      <span className="text-sm">@{profile.instagram_handle}</span>
+                      <span className="text-sm">Instagram</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
-                  {profile.snapchat_handle && (
+                  {profile.music_streaming_profile && (
                     <a
-                      href={`https://snapchat.com/add/${profile.snapchat_handle}`}
+                      href={profile.music_streaming_profile.startsWith('http') ? profile.music_streaming_profile : `https://open.spotify.com/user/${profile.music_streaming_profile}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-yellow-600 hover:text-yellow-700 transition-colors"
+                      className="flex items-center gap-2 text-green-600 hover:text-green-700 transition-colors"
                     >
-                      <Camera className="w-4 h-4" />
-                      <span className="text-sm">@{profile.snapchat_handle}</span>
+                      <Music className="w-4 h-4" />
+                      <span className="text-sm">
+                        {profile.music_streaming_profile.startsWith('http') 
+                          ? (profile.music_streaming_profile.includes('spotify.com') ? 'Spotify' : 'Music Profile')
+                          : profile.music_streaming_profile
+                        }
+                      </span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
@@ -550,6 +576,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               </CardContent>
             </Card>
           </TabsContent>
+
         </Tabs>
       </div>
 

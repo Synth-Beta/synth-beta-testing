@@ -159,7 +159,7 @@ export type Database = {
           updated_at: string
           user_id: string
           instagram_handle: string | null
-          snapchat_handle: string | null
+          music_streaming_profile: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -170,7 +170,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           instagram_handle?: string | null
-          snapchat_handle?: string | null
+          music_streaming_profile?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -181,7 +181,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           instagram_handle?: string | null
-          snapchat_handle?: string | null
+          music_streaming_profile?: string | null
         }
         Relationships: []
       }

@@ -3,6 +3,7 @@ import { Navigation } from './Navigation';
 import { ConcertFeed } from './ConcertFeed';
 import { UnifiedSearch } from './UnifiedSearch';
 import { ProfileView } from './ProfileView';
+import { ProfileEdit } from './ProfileEdit';
 import { SwipeView } from './SwipeView';
 import { ConcertEvents } from './ConcertEvents';
 import { Event as EventCardEvent } from './EventCard';
@@ -12,7 +13,7 @@ import { EventSeeder } from './EventSeeder';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-type ViewType = 'feed' | 'search' | 'profile';
+type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit';
 
 interface MainAppProps {
   onSignOut?: () => void;
@@ -147,17 +148,28 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   const handleViewChange = (view: ViewType) => {
+    console.log('🔄 View changing from', currentView, 'to', view);
     setCurrentView(view);
   };
 
   const handleProfileEdit = () => {
     // Navigate to profile edit view
-    console.log('Edit profile');
+    console.log('Navigating to profile edit');
+    setCurrentView('profile-edit');
   };
 
   const handleProfileSettings = () => {
-    // Navigate to settings
-    console.log('Profile settings');
+    // For now, just show a toast - you can implement settings later
+    toast({
+      title: "Settings",
+      description: "Settings feature coming soon!",
+    });
+  };
+
+  const handleProfileSave = () => {
+    // Navigate back to profile view after saving
+    console.log('Profile saved, navigating back to profile view');
+    setCurrentView('profile');
   };
 
   const handleSignOut = async () => {
@@ -202,6 +214,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   }
 
   const renderCurrentView = () => {
+    console.log('🎨 Rendering current view:', currentView);
     switch (currentView) {
       case 'feed':
         return (
@@ -234,6 +247,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onSignOut={handleSignOut}
           />
         );
+      case 'profile-edit':
+        return (
+          <ProfileEdit
+            currentUserId={currentUserId}
+            onBack={() => setCurrentView('profile')}
+            onSave={handleProfileSave}
+          />
+        );
       default:
         return (
           <ConcertFeed 
@@ -246,11 +267,16 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      {renderCurrentView()}
-      <Navigation 
-        currentView={currentView} 
-        onViewChange={handleViewChange} 
-      />
+      <div className="pb-16">
+        {renderCurrentView()}
+      </div>
+      {/* Only show navigation when not in profile-edit mode */}
+      {currentView !== 'profile-edit' && (
+        <Navigation 
+          currentView={currentView === 'profile-edit' ? 'profile' : currentView} 
+          onViewChange={handleViewChange} 
+        />
+      )}
     </div>
   );
 };

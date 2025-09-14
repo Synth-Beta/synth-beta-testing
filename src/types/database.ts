@@ -23,7 +23,7 @@ export interface Profile {
   avatar_url: string | null;
   bio: string | null;
   instagram_handle: string | null;
-  snapchat_handle: string | null;
+  music_streaming_profile: string | null;
   created_at: string;
   updated_at: string;
 }

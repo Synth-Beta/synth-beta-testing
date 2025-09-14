@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Save, Instagram, Camera, User } from 'lucide-react';
+import { ArrowLeft, Save, Instagram, User, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
@@ -24,7 +24,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
     name: '',
     bio: '',
     instagram_handle: '',
-    snapchat_handle: ''
+    music_streaming_profile: ''
   });
   const { toast } = useToast();
 
@@ -34,20 +34,43 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
 
   const fetchProfile = async () => {
     try {
+      console.log('Fetching profile for user:', currentUserId);
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at')
         .eq('user_id', currentUserId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Profile fetch error:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.details);
+        
+        // If no profile exists, create a basic one
+        if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
+          console.log('No profile found, will create one when user saves');
+          // Don't throw error, just show empty form
+          setFormData({
+            name: '',
+            bio: '',
+            instagram_handle: '',
+            music_streaming_profile: ''
+          });
+          setLoading(false);
+          return;
+        }
+        
+        throw error;
+      }
       
-      setProfile(data);
+      console.log('Profile data received:', data);
+      setProfile(data as any);
       setFormData({
         name: data.name || '',
         bio: data.bio || '',
         instagram_handle: data.instagram_handle || '',
-        snapchat_handle: data.snapchat_handle || ''
+        music_streaming_profile: data.music_streaming_profile || ''
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -62,6 +85,8 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
   };
 
   const handleSave = async () => {
+    console.log('Save button clicked, form data:', formData);
+    
     if (!formData.name.trim()) {
       toast({
         title: "Error",
@@ -73,30 +98,54 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
 
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          name: formData.name.trim(),
-          bio: formData.bio.trim() || null,
-          instagram_handle: formData.instagram_handle.trim() || null,
-          snapchat_handle: formData.snapchat_handle.trim() || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', currentUserId);
+      const profileData = {
+        user_id: currentUserId,
+        name: formData.name.trim(),
+        bio: formData.bio.trim() || null,
+        instagram_handle: formData.instagram_handle.trim() || null,
+        music_streaming_profile: formData.music_streaming_profile.trim() || null,
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('Saving profile with data:', profileData);
+      
+      let result;
+      if (profile && profile.id) {
+        // Update existing profile
+        console.log('Updating existing profile');
+        result = await supabase
+          .from('profiles')
+          .update(profileData)
+          .eq('user_id', currentUserId)
+          .select()
+          .single();
+      } else {
+        // Create new profile
+        console.log('Creating new profile');
+        result = await supabase
+          .from('profiles')
+          .insert(profileData)
+          .select()
+          .single();
+      }
 
-      if (error) throw error;
+      if (result.error) {
+        console.error('Profile save error:', result.error);
+        throw result.error;
+      }
 
+      console.log('Profile saved successfully:', result.data);
       toast({
         title: "Success",
-        description: "Profile updated successfully",
+        description: "Profile saved successfully",
       });
       
       onSave();
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('Error saving profile:', error);
       toast({
         title: "Error",
-        description: "Failed to update profile",
+        description: `Failed to save profile: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -201,7 +250,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
                   value={formData.instagram_handle}
                   onChange={(e) => handleInputChange('instagram_handle', e.target.value.replace('@', ''))}
                   placeholder="username"
-                  maxLength={30}
+                  maxLength={100}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -209,24 +258,21 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
               </p>
             </div>
 
-            {/* Snapchat Field */}
+            {/* Music Streaming Profile Field */}
             <div className="space-y-2">
-              <Label htmlFor="snapchat" className="flex items-center gap-2">
-                <Camera className="w-4 h-4" />
-                Snapchat Handle
+              <Label htmlFor="music-streaming" className="flex items-center gap-2">
+                <Music className="w-4 h-4" />
+                Music Streaming Profile
               </Label>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">@</span>
-                <Input
-                  id="snapchat"
-                  value={formData.snapchat_handle}
-                  onChange={(e) => handleInputChange('snapchat_handle', e.target.value.replace('@', ''))}
-                  placeholder="username"
-                  maxLength={30}
-                />
-              </div>
+              <Input
+                id="music-streaming"
+                value={formData.music_streaming_profile}
+                onChange={(e) => handleInputChange('music_streaming_profile', e.target.value)}
+                placeholder="https://open.spotify.com/user/yourusername or @username"
+                maxLength={200}
+              />
               <p className="text-xs text-muted-foreground">
-                Your Snapchat profile will be linked when people view your profile
+                Share your Spotify, Apple Music, or other streaming profile link. Will display as a clickable link on your profile.
               </p>
             </div>
 
