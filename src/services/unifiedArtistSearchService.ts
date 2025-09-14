@@ -16,7 +16,7 @@ export interface ArtistSearchResult {
 export class UnifiedArtistSearchService {
   private static readonly JAMBASE_ARTISTS_URL = 'https://www.jambase.com/jb-api/v1/artists';
   private static readonly JAMBASE_ARTIST_URL = 'https://www.jambase.com/jb-api/v1/artists/id';
-  private static readonly API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
+  private static readonly API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
 
   /**
    * Main search function that implements the complete flow:
@@ -73,8 +73,11 @@ export class UnifiedArtistSearchService {
    */
   private static async searchJamBaseAPI(query: string, limit: number): Promise<any[]> {
     if (!this.API_KEY) {
-      throw new Error('JamBase API key not configured');
+      console.error('❌ JamBase API key not configured. Environment variable VITE_JAMBASE_API_KEY is missing.');
+      throw new Error('JamBase API key not configured. Please check your environment variables.');
     }
+    
+    console.log(`🔑 Using JamBase API key: ${this.API_KEY.substring(0, 8)}...`);
 
     // Use the correct JamBase artists endpoint
     const params = new URLSearchParams({
@@ -89,15 +92,20 @@ export class UnifiedArtistSearchService {
       },
     });
 
+    console.log(`📡 JamBase API response status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
-      console.warn(`JamBase API error: ${response.status} ${response.statusText}, using fallback data`);
+      const errorText = await response.text();
+      console.warn(`JamBase API error: ${response.status} ${response.statusText}`, errorText);
+      console.warn('Using fallback data due to API error');
       return this.getFallbackArtists(query, limit);
     }
 
     const data = await response.json();
+    console.log(`📊 JamBase API response data:`, { success: data.success, artistCount: data.artists?.length });
     
     if (!data.success || !data.artists || !Array.isArray(data.artists)) {
-      console.warn('Invalid JamBase API response format, using fallback data');
+      console.warn('Invalid JamBase API response format, using fallback data', data);
       return this.getFallbackArtists(query, limit);
     }
 
@@ -446,10 +454,12 @@ export class UnifiedArtistSearchService {
    * Test JamBase API connection
    */
   static async testJamBaseAPI(): Promise<{ success: boolean; message: string; data?: any }> {
+    console.log(`🔍 Testing JamBase API with key: ${this.API_KEY ? this.API_KEY.substring(0, 8) + '...' : 'NOT SET'}`);
+    
     if (!this.API_KEY) {
       return {
         success: false,
-        message: 'JamBase API key not configured'
+        message: 'JamBase API key not configured. Please set VITE_JAMBASE_API_KEY environment variable.'
       };
     }
 
