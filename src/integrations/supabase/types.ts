@@ -329,6 +329,84 @@ export type Database = {
           }
         ]
       }
+      artist_profile: {
+        Row: {
+          id: string
+          jambase_artist_id: string
+          artist_data_source: string
+          name: string
+          identifier: string
+          url: string | null
+          image_url: string | null
+          date_published: string | null
+          date_modified: string | null
+          artist_type: string | null
+          band_or_musician: string | null
+          founding_location: string | null
+          founding_date: string | null
+          genres: string[] | null
+          members: Json | null
+          member_of: Json | null
+          external_identifiers: Json | null
+          same_as: Json | null
+          num_upcoming_events: number
+          raw_jambase_data: Json | null
+          created_at: string
+          updated_at: string
+          last_synced_at: string | null
+        }
+        Insert: {
+          id?: string
+          jambase_artist_id: string
+          artist_data_source?: string
+          name: string
+          identifier: string
+          url?: string | null
+          image_url?: string | null
+          date_published?: string | null
+          date_modified?: string | null
+          artist_type?: string | null
+          band_or_musician?: string | null
+          founding_location?: string | null
+          founding_date?: string | null
+          genres?: string[] | null
+          members?: Json | null
+          member_of?: Json | null
+          external_identifiers?: Json | null
+          same_as?: Json | null
+          num_upcoming_events?: number
+          raw_jambase_data?: Json | null
+          created_at?: string
+          updated_at?: string
+          last_synced_at?: string | null
+        }
+        Update: {
+          id?: string
+          jambase_artist_id?: string
+          artist_data_source?: string
+          name?: string
+          identifier?: string
+          url?: string | null
+          image_url?: string | null
+          date_published?: string | null
+          date_modified?: string | null
+          artist_type?: string | null
+          band_or_musician?: string | null
+          founding_location?: string | null
+          founding_date?: string | null
+          genres?: string[] | null
+          members?: Json | null
+          member_of?: Json | null
+          external_identifiers?: Json | null
+          same_as?: Json | null
+          num_upcoming_events?: number
+          raw_jambase_data?: Json | null
+          created_at?: string
+          updated_at?: string
+          last_synced_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

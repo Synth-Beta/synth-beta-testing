@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { concertSearchService } from '@/services/concertSearchService';
 import { fuzzySearchService } from '@/services/fuzzySearchService';
+import { JamBaseArtistSearchService } from '@/services/jambaseArtistSearchService';
 import type { EventSearchParams, Event } from '@/types/concertSearch';
 
 interface ConcertSearchFormProps {
@@ -45,7 +46,7 @@ export function ConcertSearchForm({ onEventFound, userId }: ConcertSearchFormPro
     }
   };
 
-  // Fuzzy search for artists
+  // Search for artists using JamBase API with fuzzy matching
   const searchArtists = async (query: string) => {
     if (query.length < 2) {
       setArtistSuggestions([]);
@@ -55,9 +56,10 @@ export function ConcertSearchForm({ onEventFound, userId }: ConcertSearchFormPro
 
     setIsSearching(true);
     try {
-      const result = await fuzzySearchService.fuzzySearch(query, 'artist');
-      setArtistSuggestions(result.suggestions);
-      setShowArtistSuggestions(result.suggestions.length > 0);
+      // Use JamBase API to search and populate artist profiles
+      const suggestions = await JamBaseArtistSearchService.getArtistSuggestions(query, 10);
+      setArtistSuggestions(suggestions);
+      setShowArtistSuggestions(suggestions.length > 0);
     } catch (error) {
       console.error('Error searching artists:', error);
       setArtistSuggestions([]);
@@ -113,6 +115,18 @@ export function ConcertSearchForm({ onEventFound, userId }: ConcertSearchFormPro
     if (type === 'artist') {
       setSearchParams(prev => ({ ...prev, artist: suggestion.title }));
       setShowArtistSuggestions(false);
+      
+      // Store additional artist data for potential use
+      if (suggestion.id) {
+        // You could store this in state or pass it along if needed
+        console.log('Selected artist:', {
+          id: suggestion.id,
+          name: suggestion.title,
+          genres: suggestion.genres,
+          band_or_musician: suggestion.band_or_musician,
+          upcoming_events: suggestion.num_upcoming_events
+        });
+      }
     } else if (type === 'venue') {
       setSearchParams(prev => ({ ...prev, venue: suggestion.title }));
       setShowVenueSuggestions(false);
@@ -198,15 +212,41 @@ export function ConcertSearchForm({ onEventFound, userId }: ConcertSearchFormPro
                     <button
                       key={suggestion.id || index}
                       type="button"
-                      className="w-full px-4 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none flex items-center gap-2"
+                      className="w-full px-4 py-3 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none flex items-center gap-3"
                       onClick={() => handleSuggestionSelect(suggestion, 'artist')}
                     >
-                      <Music className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <div className="font-medium">{suggestion.title}</div>
-                        {suggestion.subtitle && (
-                          <div className="text-sm text-gray-500">{suggestion.subtitle}</div>
-                        )}
+                      {/* Artist Image */}
+                      <div className="flex-shrink-0">
+                        {suggestion.image_url ? (
+                          <img
+                            src={suggestion.image_url}
+                            alt={suggestion.title}
+                            className="w-10 h-10 rounded-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <div className={`w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center ${suggestion.image_url ? 'hidden' : ''}`}>
+                          <Music className="h-5 w-5 text-gray-400" />
+                        </div>
+                      </div>
+                      
+                      {/* Artist Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 truncate">{suggestion.title}</div>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          {suggestion.subtitle && (
+                            <span className="truncate">{suggestion.subtitle}</span>
+                          )}
+                          {suggestion.band_or_musician && (
+                            <span className="capitalize">• {suggestion.band_or_musician}</span>
+                          )}
+                          {suggestion.num_upcoming_events && suggestion.num_upcoming_events > 0 && (
+                            <span>• {suggestion.num_upcoming_events} upcoming events</span>
+                          )}
+                        </div>
                       </div>
                     </button>
                   ))}

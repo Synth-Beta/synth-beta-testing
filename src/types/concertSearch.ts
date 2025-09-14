@@ -117,3 +117,43 @@ export interface ConcertStats {
   uniqueVenues: number;
   sourceCounts: Record<string, number>;
 }
+
+// Artist-related types
+export interface Artist {
+  id: string;
+  jambase_artist_id?: string;
+  name: string;
+  description?: string;
+  genres?: string[];
+  image_url?: string;
+  popularity_score?: number;
+  created_at?: string;
+  updated_at?: string;
+  source?: 'database' | 'jambase' | 'fallback';
+}
+
+export interface ArtistSearchResult {
+  artists: Artist[];
+  totalFound: number;
+  query: string;
+}
+
+export interface PaginatedEvents {
+  events: Event[];
+  totalFound: number;
+  currentPage: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface ArtistEventSearch {
+  artistId: string;
+  page: number;
+  limit: number;
+  dateRange?: {
+    startDate?: string;
+    endDate?: string;
+  };
+  eventType?: 'all' | 'past' | 'upcoming';
+}

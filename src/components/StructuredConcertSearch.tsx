@@ -6,11 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, Search, Loader2, Music, MapPin, Clock, CheckCircle, PlusCircle, X } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CalendarIcon, Search, Loader2, Music, MapPin, Clock, CheckCircle, PlusCircle, X, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { concertSearchService } from '@/services/concertSearchService';
-import type { Event } from '@/types/concertSearch';
+import { ArtistSearchBox } from './ArtistSearchBox';
+import { ArtistSelector } from './ArtistSelector';
+import { ArtistEventPagination } from './ArtistEventPagination';
+import type { Event, Artist } from '@/types/concertSearch';
 
 interface StructuredSearchParams {
   artist: string;
@@ -30,6 +34,7 @@ interface StructuredConcertSearchProps {
 }
 
 export function StructuredConcertSearch({ onEventsFound, userId }: StructuredConcertSearchProps) {
+  const [searchMode, setSearchMode] = useState<'structured' | 'artist'>('structured');
   const [searchParams, setSearchParams] = useState<StructuredSearchParams>({
     artist: '',
     venue: '',
@@ -39,6 +44,10 @@ export function StructuredConcertSearch({ onEventsFound, userId }: StructuredCon
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
+  
+  // Artist search state
+  const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
+  const [showArtistEvents, setShowArtistEvents] = useState(false);
 
   // Handle date selection
   const handleDateSelect = (date: Date | undefined) => {
@@ -58,6 +67,26 @@ export function StructuredConcertSearch({ onEventsFound, userId }: StructuredCon
   // Clear venue
   const clearVenue = () => {
     setSearchParams(prev => ({ ...prev, venue: '' }));
+  };
+
+  // Artist search handlers
+  const handleArtistSelect = (artist: Artist) => {
+    setSelectedArtist(artist);
+    setShowArtistEvents(false);
+  };
+
+  const handleViewArtistEvents = () => {
+    setShowArtistEvents(true);
+  };
+
+  const handleRemoveArtist = () => {
+    setSelectedArtist(null);
+    setShowArtistEvents(false);
+  };
+
+  const handleEventSelect = (event: Event) => {
+    // Handle event selection (add to user's interests, etc.)
+    console.log('Event selected:', event);
   };
 
   // Handle form submission
@@ -117,15 +146,29 @@ export function StructuredConcertSearch({ onEventsFound, userId }: StructuredCon
           Concert Search
         </CardTitle>
         <CardDescription>
-          Search for concerts with structured parameters. Artist is required, venue and date are optional. 
-          {!searchParams.venue && !searchParams.date && (
-            <span className="block mt-1 text-blue-600 font-medium">
-              💡 Artist-only searches return 10 recent + 10 upcoming concerts
-            </span>
-          )}
+          Choose your search method: structured search with filters or artist-focused search with pagination
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        <Tabs value={searchMode} onValueChange={(value) => {
+          setSearchMode(value as 'structured' | 'artist');
+          setError(null);
+          setSearchResults(null);
+          setSelectedArtist(null);
+          setShowArtistEvents(false);
+        }}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="structured" className="flex items-center gap-2">
+              <Search className="w-4 h-4" />
+              Structured Search
+            </TabsTrigger>
+            <TabsTrigger value="artist" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Artist Search
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="structured" className="mt-6 space-y-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Artist Input - Required */}
           <div className="space-y-2">
@@ -321,6 +364,54 @@ export function StructuredConcertSearch({ onEventsFound, userId }: StructuredCon
             </div>
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="artist" className="mt-6 space-y-6">
+            {!selectedArtist ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="artist-search" className="flex items-center gap-2">
+                    Search for an Artist <span className="text-red-500">*</span>
+                  </Label>
+                  <ArtistSearchBox
+                    onArtistSelect={handleArtistSelect}
+                    placeholder="Type artist name to search..."
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Users className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-blue-900 mb-1">Artist Search Mode</h4>
+                      <p className="text-sm text-blue-700">
+                        Search for an artist by name, then browse through all their past and upcoming events with pagination.
+                        Perfect for exploring an artist's complete tour history and future shows.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <ArtistSelector
+                  artist={selectedArtist}
+                  onViewEvents={handleViewArtistEvents}
+                  onRemove={handleRemoveArtist}
+                />
+                
+                {showArtistEvents && (
+                  <ArtistEventPagination
+                    artist={selectedArtist}
+                    userId={userId}
+                    onEventSelect={handleEventSelect}
+                  />
+                )}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

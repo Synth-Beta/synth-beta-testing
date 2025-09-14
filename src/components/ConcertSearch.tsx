@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { StructuredConcertSearch } from './StructuredConcertSearch';
+import { EventSearch } from './EventSearch';
 import { ConcertSearchResults } from './ConcertSearchResults';
 import { concertSearchService } from '@/services/concertSearchService';
 import { safeFormatEventDateTime } from '@/lib/dateUtils';
@@ -47,14 +47,21 @@ export function ConcertSearch({ userId }: ConcertSearchProps) {
     loadUserEvents();
   };
 
+  const handleEventSelect = (event: Event) => {
+    // Handle event selection (add to user's interests, etc.)
+    console.log('Event selected:', event);
+    // Reload user events to show any new ones
+    loadUserEvents();
+  };
+
   const formatEventDate = (dateString: string, timeString?: string) => {
     return safeFormatEventDateTime({ event_date: dateString, event_time: timeString });
   };
 
   return (
     <div className="space-y-6">
-      {/* Structured Search */}
-      <StructuredConcertSearch onEventsFound={handleEventsFound} userId={userId} />
+      {/* Event Search */}
+      <EventSearch userId={userId} onEventSelect={handleEventSelect} />
 
       {/* Search Results Summary */}
       {searchResults && (
