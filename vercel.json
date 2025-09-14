@@ -12,7 +12,6 @@
   ],
   "env": {
     "VITE_SUPABASE_URL": "SUPABASE_URL",
-    "VITE_SUPABASE_ANON_KEY": "SUPABASE_ANON_KEY",
-    "VITE_JAMBASE_API_KEY": "@vite_jambase_api_key"
+    "VITE_SUPABASE_ANON_KEY": "SUPABASE_ANON_KEY"
   }
 }
