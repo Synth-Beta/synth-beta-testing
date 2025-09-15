@@ -1,0 +1,380 @@
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { 
+  Music, 
+  Calendar, 
+  MapPin, 
+  Clock,
+  ExternalLink,
+  Star,
+  Users,
+  Ticket
+} from 'lucide-react';
+import { JamBaseEventCard } from './JamBaseEventCard';
+import type { Artist } from '@/types/concertSearch';
+import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import { cn } from '@/lib/utils';
+
+interface ArtistCardProps {
+  artist: Artist;
+  events: JamBaseEvent[];
+  totalEvents: number;
+  source: 'database' | 'api';
+  onBack?: () => void;
+  onViewAllEvents?: () => void;
+  className?: string;
+}
+
+export function ArtistCard({ 
+  artist, 
+  events, 
+  totalEvents, 
+  source, 
+  onBack, 
+  onViewAllEvents,
+  className 
+}: ArtistCardProps) {
+  const upcomingEvents = events.filter(event => 
+    new Date(event.event_date) > new Date()
+  );
+  
+  const pastEvents = events.filter(event => 
+    new Date(event.event_date) <= new Date()
+  );
+
+  const formatGenres = (genres: string[] = []) => {
+    if (genres.length === 0) return null;
+    return genres.slice(0, 4).join(', ');
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const formatDoorsTime = (doorsTime: string | null) => {
+    if (!doorsTime) return null;
+    const date = new Date(doorsTime);
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const getLocationString = (event: JamBaseEvent) => {
+    const parts = [event.venue_city, event.venue_state].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : 'Location TBD';
+  };
+
+  return (
+    <div className={cn("w-full max-w-4xl mx-auto space-y-6", className)}>
+      {/* Back Button */}
+      {onBack && (
+        <Button
+          variant="ghost"
+          onClick={onBack}
+          className="mb-4"
+        >
+          ← Back to Search
+        </Button>
+      )}
+
+      {/* Artist Header Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start gap-4">
+            <Avatar className="w-20 h-20">
+              <AvatarImage src={artist.image_url || undefined} />
+              <AvatarFallback className="text-2xl">
+                <Music className="w-10 h-10" />
+              </AvatarFallback>
+            </Avatar>
+            
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-3xl mb-2">{artist.name}</CardTitle>
+              
+              <div className="flex items-center gap-2 mb-3">
+                {artist.jambase_artist_id && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <ExternalLink className="w-3 h-3" />
+                    JamBase Verified
+                  </Badge>
+                )}
+                <Badge variant="secondary">
+                  {source === 'api' ? 'Live Data' : 'Cached Data'}
+                </Badge>
+              </div>
+              
+              {artist.description && (
+                <p className="text-muted-foreground leading-relaxed mb-4">
+                  {artist.description}
+                </p>
+              )}
+              
+              {artist.genres && artist.genres.length > 0 && (
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-muted-foreground mb-2">Genres</div>
+                  <div className="flex flex-wrap gap-1">
+                    {artist.genres.map((genre, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {genre}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>{totalEvents} total events</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  <span>{upcomingEvents.length} upcoming</span>
+                </div>
+                {artist.popularity_score && (
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                    <span>Score: {artist.popularity_score}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Events Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Events</h2>
+          {onViewAllEvents && totalEvents > events.length && (
+            <Button variant="outline" onClick={onViewAllEvents}>
+              View All {totalEvents} Events
+            </Button>
+          )}
+        </div>
+
+        {/* Upcoming Events Table */}
+        {upcomingEvents.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Upcoming Events ({upcomingEvents.length})
+            </h3>
+            <Card>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date & Time</TableHead>
+                      <TableHead>Venue</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Tickets</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {upcomingEvents.slice(0, 10).map((event) => (
+                      <TableRow key={event.jambase_event_id} className="hover:bg-muted/50">
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="font-medium">{formatDate(event.event_date)}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {formatTime(event.event_date)}
+                              {event.doors_time && (
+                                <span className="ml-2">
+                                  • Doors: {formatDoorsTime(event.doors_time)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{event.venue_name}</div>
+                          {event.venue_address && (
+                            <div className="text-sm text-muted-foreground">
+                              {event.venue_address}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">{getLocationString(event)}</div>
+                        </TableCell>
+                        <TableCell>
+                          {event.price_range ? (
+                            <span className="font-medium">${event.price_range}</span>
+                          ) : (
+                            <span className="text-muted-foreground">TBD</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {event.ticket_available && event.ticket_urls && event.ticket_urls.length > 0 ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              asChild
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <a 
+                                href={event.ticket_urls[0]} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1"
+                              >
+                                <Ticket className="w-3 h-3" />
+                                <span className="hidden sm:inline">Buy</span>
+                              </a>
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="default" className="text-xs">
+                            Upcoming
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {upcomingEvents.length > 10 && (
+                <div className="p-4 border-t">
+                  <Button variant="outline" onClick={onViewAllEvents} className="w-full">
+                    Show {upcomingEvents.length - 10} More Upcoming Events
+                  </Button>
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+
+        {/* Past Events Table */}
+        {pastEvents.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Past Events ({pastEvents.length})
+            </h3>
+            <Card>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date & Time</TableHead>
+                      <TableHead>Venue</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Review</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pastEvents.slice(0, 10).map((event) => (
+                      <TableRow key={event.jambase_event_id} className="hover:bg-muted/50">
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="font-medium">{formatDate(event.event_date)}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {formatTime(event.event_date)}
+                              {event.doors_time && (
+                                <span className="ml-2">
+                                  • Doors: {formatDoorsTime(event.doors_time)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{event.venue_name}</div>
+                          {event.venue_address && (
+                            <div className="text-sm text-muted-foreground">
+                              {event.venue_address}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">{getLocationString(event)}</div>
+                        </TableCell>
+                        <TableCell>
+                          {event.price_range ? (
+                            <span className="font-medium">${event.price_range}</span>
+                          ) : (
+                            <span className="text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                          >
+                            <Star className="w-3 h-3 mr-1" />
+                            <span className="hidden sm:inline">Review</span>
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="text-xs">
+                            Past Event
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {pastEvents.length > 10 && (
+                <div className="p-4 border-t">
+                  <Button variant="outline" onClick={onViewAllEvents} className="w-full">
+                    Show {pastEvents.length - 10} More Past Events
+                  </Button>
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+
+        {/* No Events */}
+        {events.length === 0 && (
+          <Card>
+            <CardContent className="text-center py-12">
+              <Music className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Events Found</h3>
+              <p className="text-muted-foreground">
+                No events found for {artist.name}. This could mean:
+              </p>
+              <ul className="text-sm text-muted-foreground mt-2 space-y-1">
+                <li>• The artist has no upcoming or recent events</li>
+                <li>• The artist name might be spelled differently</li>
+                <li>• The events might not be in our database yet</li>
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}

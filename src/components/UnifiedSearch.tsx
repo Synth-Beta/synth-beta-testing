@@ -1,24 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UnifiedEventSearch } from './UnifiedEventSearch';
-import { ArtistSearch } from './ArtistSearch';
+import { Input } from '@/components/ui/input';
 import { UnifiedArtistSearchService, ArtistSearchResult } from '@/services/unifiedArtistSearchService';
+import { ArtistSelectionService, ArtistSelectionResult } from '@/services/artistSelectionService';
+import { ArtistCard } from './ArtistCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { SearchResultsPage } from './SearchResultsPage';
 import { 
   Music, 
-  Calendar, 
-  MapPin, 
   Search, 
   Users, 
   UserPlus,
   Loader2,
-  Database,
-  ExternalLink
+  X,
+  Calendar
 } from 'lucide-react';
 
 interface UnifiedSearchProps {
@@ -38,94 +37,154 @@ interface UserProfile {
 }
 
 export function UnifiedSearch({ userId }: UnifiedSearchProps) {
-  const [activeTab, setActiveTab] = useState('artists');
-  const [selectedArtist, setSelectedArtist] = useState<ArtistSearchResult | null>(null);
-  const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [userSearchResults, setUserSearchResults] = useState<UserProfile[]>([]);
-  const [userSearchLoading, setUserSearchLoading] = useState(false);
-  const [databaseStats, setDatabaseStats] = useState<{
-    total_artists: number;
-    bands: number;
-    musicians: number;
-  } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{
+    artists: ArtistSearchResult[];
+    users: UserProfile[];
+  }>({ artists: [], users: [] });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<'search' | 'artists' | 'people' | 'artist-card'>('search');
+  const [selectedArtist, setSelectedArtist] = useState<ArtistSelectionResult | null>(null);
+  const [isSelectingArtist, setIsSelectingArtist] = useState(false);
   const { toast } = useToast();
+  
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load database stats on component mount
-  useEffect(() => {
-    loadDatabaseStats();
-  }, []);
 
-  // Handle user search
-  useEffect(() => {
-    if (activeTab === 'profiles') {
-      searchUsers(userSearchQuery);
-    }
-  }, [userSearchQuery, activeTab]);
-
-  const loadDatabaseStats = async () => {
-    try {
-      const artists = await UnifiedArtistSearchService.getAllArtists(1000);
-      const bands = artists.filter(a => a.band_or_musician === 'band').length;
-      const musicians = artists.filter(a => a.band_or_musician === 'musician').length;
-      
-      setDatabaseStats({
-        total_artists: artists.length,
-        bands,
-        musicians
-      });
-    } catch (error) {
-      console.error('Error loading database stats:', error);
-    }
-  };
-
-  const handleArtistSelect = (artist: ArtistSearchResult) => {
-    setSelectedArtist(artist);
-    console.log('🎯 Selected artist:', artist);
-  };
-
-  const searchUsers = async (query: string) => {
-    if (!query.trim()) {
-      setUserSearchResults([]);
+  // Debounced search function
+  const performSearch = async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults({ artists: [], users: [] });
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
+
     try {
-      setUserSearchLoading(true);
+      console.log(`🔍 Searching for: "${query}"`);
       
-      // Search for users by name
+      // Search both artists and users in parallel - fetch more results initially
+      const [artistResults, userResults] = await Promise.all([
+        searchArtists(query, 20),
+        searchUsers(query, 20)
+      ]);
+      
+      console.log(`✅ Found ${artistResults.length} artists and ${userResults.length} users`);
+      console.log('Artists:', artistResults.map(a => a.name));
+      console.log('Users:', userResults.map(u => u.name));
+      
+      setSearchResults({
+        artists: artistResults,
+        users: userResults
+      });
+    } catch (err) {
+      console.error('❌ Search error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while searching');
+      setSearchResults({ artists: [], users: [] });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle input change with debouncing
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      performSearch(value);
+    }, 300); // 300ms debounce
+  };
+
+
+  const searchArtists = async (query: string, limit: number = 5): Promise<ArtistSearchResult[]> => {
+    try {
+      return await UnifiedArtistSearchService.searchArtists(query, limit);
+    } catch (error) {
+      console.error('Error searching artists:', error);
+      return [];
+    }
+  };
+
+  const searchUsers = async (query: string, limit: number = 5): Promise<UserProfile[]> => {
+    try {
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('*')
         .ilike('name', `%${query}%`)
         .neq('user_id', userId) // Exclude current user
-        .limit(20);
+        .limit(limit);
 
       if (error) {
         console.error('Error searching users:', error);
-        toast({
-          title: "Search Error",
-          description: "Failed to search users. Please try again.",
-          variant: "destructive",
-        });
-        return;
+        return [];
       }
 
-      setUserSearchResults((profiles || []) as unknown as UserProfile[]);
+      return (profiles || []) as unknown as UserProfile[];
     } catch (error) {
       console.error('Error searching users:', error);
-      toast({
-        title: "Search Error",
-        description: "Failed to search users. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setUserSearchLoading(false);
+      return [];
     }
   };
 
-  const handleUserSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setUserSearchQuery(query);
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchResults({ artists: [], users: [] });
+    setError(null);
+    setCurrentView('search');
+  };
+
+  const handleViewAllArtists = () => {
+    setCurrentView('artists');
+  };
+
+  const handleViewAllPeople = () => {
+    setCurrentView('people');
+  };
+
+  const handleBackToSearch = () => {
+    setCurrentView('search');
+    setSelectedArtist(null);
+  };
+
+  const handleArtistSelect = async (artist: ArtistSearchResult) => {
+    try {
+      setIsSelectingArtist(true);
+      console.log('🎯 Selecting artist:', artist.name);
+      
+      // Call the artist selection service
+      const result = await ArtistSelectionService.selectArtist(artist);
+      
+      // Store the selection (optional)
+      await ArtistSelectionService.storeArtistSelection(userId, result.artist);
+      
+      // Set the selected artist and show the card
+      setSelectedArtist(result);
+      setCurrentView('artist-card');
+      
+      toast({
+        title: "Artist Selected! 🎵",
+        description: `Found ${result.totalEvents} events for ${artist.name}`,
+      });
+      
+    } catch (error) {
+      console.error('❌ Error selecting artist:', error);
+      toast({
+        title: "Error",
+        description: `Failed to load events for ${artist.name}. Please try again.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSelectingArtist(false);
+    }
   };
 
   const sendFriendRequest = async (targetUserId: string) => {
@@ -146,228 +205,270 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
     }
   };
 
-  const handleEventFound = (artist: ArtistSearchResult, venue: string, date: string) => {
-    console.log('🎵 Event found:', { artist: artist.name, venue, date });
-    toast({
-      title: "Event Created!",
-      description: `Found event for ${artist.name} at ${venue} on ${date}`,
-    });
-  };
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Render full results page if viewing all results
+  if (currentView === 'artists' || currentView === 'people') {
+    return (
+      <SearchResultsPage
+        searchQuery={searchQuery}
+        searchType={currentView}
+        onBack={handleBackToSearch}
+        userId={userId}
+        onArtistSelect={handleArtistSelect}
+      />
+    );
+  }
+
+  // Render artist card if an artist is selected
+  if (currentView === 'artist-card' && selectedArtist) {
+    return (
+      <ArtistCard
+        artist={selectedArtist.artist}
+        events={selectedArtist.events}
+        totalEvents={selectedArtist.totalEvents}
+        source={selectedArtist.source}
+        onBack={handleBackToSearch}
+        onViewAllEvents={() => {
+          // Could implement a full events view here
+          console.log('View all events for:', selectedArtist.artist.name);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Database Stats */}
-      {databaseStats && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Artist Database
-            </CardTitle>
-            <CardDescription>
-              Artists automatically populated from JamBase API
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-primary">{databaseStats.total_artists}</div>
-                <div className="text-sm text-muted-foreground">Total Artists</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-blue-600">{databaseStats.bands}</div>
-                <div className="text-sm text-muted-foreground">Bands</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-green-600">{databaseStats.musicians}</div>
-                <div className="text-sm text-muted-foreground">Musicians</div>
-              </div>
+      {/* Unified Search */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Search
+          </CardTitle>
+          <CardDescription>
+            Search for artists and people in one place
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Search Input */}
+          <div className="relative mb-6">
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+              <Search className="h-4 w-4" />
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="artists" className="flex items-center gap-2">
-            <Music className="w-4 h-4" />
-            Artists
-          </TabsTrigger>
-          <TabsTrigger value="events" className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            Events
-          </TabsTrigger>
-          <TabsTrigger value="profiles" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            People
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="artists" className="mt-6 space-y-6">
-          {/* Artist Search */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                Search Artists
-              </CardTitle>
-              <CardDescription>
-                Search for artists using JamBase API. Results are automatically saved to our database.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ArtistSearch
-                onArtistSelect={handleArtistSelect}
-                placeholder="Search for artists (e.g., 'Phish', 'Dead & Company')..."
-                maxResults={15}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Selected Artist Details */}
-          {selectedArtist && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Music className="h-5 w-5" />
-                  Selected Artist
-                </CardTitle>
-                <CardDescription>
-                  Artist details from our database
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  {selectedArtist.image_url ? (
-                    <img
-                      src={selectedArtist.image_url}
-                      alt={selectedArtist.name}
-                      className="w-20 h-20 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
-                      <Music className="h-10 w-10 text-gray-400" />
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold">{selectedArtist.name}</h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                      {selectedArtist.band_or_musician && (
-                        <Badge variant="outline" className="capitalize">
-                          {selectedArtist.band_or_musician}
-                        </Badge>
-                      )}
-                      {selectedArtist.num_upcoming_events && selectedArtist.num_upcoming_events > 0 && (
-                        <span>• {selectedArtist.num_upcoming_events} upcoming events</span>
-                      )}
-                    </div>
-                    {selectedArtist.genres && selectedArtist.genres.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {selectedArtist.genres.map((genre, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {genre}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                    <div className="text-xs text-gray-500 mt-2">
-                      Match Score: {Math.round(selectedArtist.match_score)}% • 
-                      Source: {selectedArtist.is_from_database ? 'Database' : 'JamBase API'}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="events" className="mt-6 space-y-6">
-          {/* Event Search */}
-          <UnifiedEventSearch
-            userId={userId}
-            onEventFound={handleEventFound}
-          />
-        </TabsContent>
-
-        <TabsContent value="profiles" className="mt-6 space-y-6">
-          {/* Profile Search */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                Find People
-              </CardTitle>
-              <CardDescription>
-                Search for other users to connect with
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search by name..."
-                  value={userSearchQuery}
-                  onChange={handleUserSearch}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+            <Input
+              type="text"
+              placeholder="Search for artists or people..."
+              value={searchQuery}
+              onChange={handleInputChange}
+              className="pl-10 pr-10"
+            />
+            {isLoading && (
+              <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
+                <Loader2 className="h-4 w-4 animate-spin" />
               </div>
+            )}
+            {searchQuery && !isLoading && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearSearch}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
 
-              {/* User Search Results */}
-              {userSearchLoading ? (
-                <div className="text-center py-8">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-gray-400" />
-                  <p className="text-gray-600">Searching...</p>
-                </div>
-              ) : userSearchResults.length > 0 ? (
-                <div className="space-y-3">
-                  {userSearchResults.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-12 h-12">
-                          <AvatarImage src={user.avatar_url || undefined} />
-                          <AvatarFallback>
-                            {user.name ? user.name.split(' ').map(n => n[0]).join('') : 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{user.name || 'Unknown User'}</h3>
-                          {user.bio && (
-                            <p className="text-sm text-gray-600 line-clamp-1">{user.bio}</p>
-                          )}
-                          {user.instagram_handle && (
-                            <p className="text-xs text-gray-500">@{user.instagram_handle}</p>
-                          )}
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+              {error}
+            </div>
+          )}
+
+          {/* Search Results */}
+          {searchQuery.length >= 2 && (
+            <div className="space-y-6">
+              {/* Artists Results */}
+              {searchResults.artists.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Music className="h-5 w-5" />
+                      Artists ({searchResults.artists.length} results)
+                    </h3>
+                    {searchResults.artists.length > 3 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleViewAllArtists}
+                        className="text-sm"
+                      >
+                        View All
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    {searchResults.artists.slice(0, 3).map((artist, index) => (
+                      <div key={artist.id || index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                        <div className="flex items-center gap-4">
+                          {/* Artist Image */}
+                          <div className="flex-shrink-0">
+                            {artist.image_url ? (
+                              <img
+                                src={artist.image_url}
+                                alt={artist.name}
+                                className="w-12 h-12 rounded-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                            ) : null}
+                            <div className={`w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center ${artist.image_url ? 'hidden' : ''}`}>
+                              <Music className="h-6 w-6 text-gray-400" />
+                            </div>
+                          </div>
+                          
+                          {/* Artist Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900 truncate">{artist.name}</div>
+                            <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+                              {artist.band_or_musician && (
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {artist.band_or_musician}
+                                </Badge>
+                              )}
+                              {artist.num_upcoming_events && artist.num_upcoming_events > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>{artist.num_upcoming_events} events</span>
+                                </div>
+                              )}
+                            </div>
+                            {artist.genres && artist.genres.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {artist.genres.slice(0, 2).map((genre, genreIndex) => (
+                                  <Badge key={genreIndex} variant="secondary" className="text-xs">
+                                    {genre}
+                                  </Badge>
+                                ))}
+                                {artist.genres.length > 2 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    +{artist.genres.length - 2} more
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Choose Button */}
+                        <div className="flex-shrink-0">
+                          <Button
+                            size="sm"
+                            onClick={() => handleArtistSelect(artist)}
+                            disabled={isSelectingArtist}
+                            className="bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50"
+                          >
+                            {isSelectingArtist ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Loading...
+                              </>
+                            ) : (
+                              'Choose'
+                            )}
+                          </Button>
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => sendFriendRequest(user.user_id)}
-                        className="bg-blue-500 hover:bg-blue-600 text-white"
-                      >
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        Connect
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : userSearchQuery ? (
-                <div className="text-center py-8 bg-gray-50 rounded-lg">
-                  <Search className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <h3 className="font-semibold text-gray-900 mb-1">No Users Found</h3>
-                  <p className="text-sm text-gray-600">Try searching with a different name</p>
-                </div>
-              ) : (
-                <div className="text-center py-8 bg-gray-50 rounded-lg">
-                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <h3 className="font-semibold text-gray-900 mb-1">Search for People</h3>
-                  <p className="text-sm text-gray-600">Enter a name to find other music lovers</p>
+                    ))}
+                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+
+              {/* People Results */}
+              {searchResults.users.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      People ({searchResults.users.length} results)
+                    </h3>
+                    {searchResults.users.length > 3 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleViewAllPeople}
+                        className="text-sm"
+                      >
+                        View All
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    {searchResults.users.slice(0, 3).map((user) => (
+                      <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-12 h-12">
+                            <AvatarImage src={user.avatar_url || undefined} />
+                            <AvatarFallback>
+                              {user.name ? user.name.split(' ').map(n => n[0]).join('') : 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{user.name || 'Unknown User'}</h3>
+                            {user.bio && (
+                              <p className="text-sm text-gray-600 line-clamp-1">{user.bio}</p>
+                            )}
+                            {user.instagram_handle && (
+                              <p className="text-xs text-gray-500">@{user.instagram_handle}</p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => sendFriendRequest(user.user_id)}
+                          className="bg-blue-500 hover:bg-blue-600 text-white"
+                        >
+                          <UserPlus className="w-4 h-4 mr-2" />
+                          Connect
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No Results */}
+              {!isLoading && searchResults.artists.length === 0 && searchResults.users.length === 0 && (
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <Search className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <h3 className="font-semibold text-gray-900 mb-1">No Results Found</h3>
+                  <p className="text-sm text-gray-600">Try searching with different terms</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Empty State */}
+          {searchQuery.length < 2 && (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <Search className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="font-semibold text-gray-900 mb-1">Search for Artists and People</h3>
+              <p className="text-sm text-gray-600">Enter a name to find artists or other music lovers</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

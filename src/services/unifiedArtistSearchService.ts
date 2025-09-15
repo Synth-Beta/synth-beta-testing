@@ -14,8 +14,8 @@ export interface ArtistSearchResult {
 }
 
 export class UnifiedArtistSearchService {
-  private static readonly JAMBASE_ARTISTS_URL = 'https://www.jambase.com/jb-api/v1/artists';
-  private static readonly JAMBASE_ARTIST_URL = 'https://www.jambase.com/jb-api/v1/artists/id';
+  private static readonly JAMBASE_ARTISTS_URL = '/api/jambase/artists';
+  private static readonly JAMBASE_ARTIST_URL = '/api/jambase/artists/id';
   private static readonly API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
 
   /**
@@ -250,12 +250,11 @@ export class UnifiedArtistSearchService {
    * Fetch full artist details from JamBase API
    */
   private static async fetchFullArtistDetails(artistId: string): Promise<JamBaseArtistResponse> {
-    const url = `${this.JAMBASE_ARTIST_URL}/jambase:${artistId}?expandUpcomingEvents=true&expandExternalIdentifiers=true`;
+    const url = `${this.JAMBASE_ARTIST_URL}/jambase:${artistId}?expandUpcomingEvents=true&expandExternalIdentifiers=true&apikey=${this.API_KEY}`;
     
     const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
-        'apikey': this.API_KEY,
       },
     });
 

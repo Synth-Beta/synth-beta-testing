@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Music, Users, Calendar, Search, X } from 'lucide-react';
 import { UnifiedArtistSearchService, ArtistSearchResult } from '@/services/unifiedArtistSearchService';
+import type { Artist } from '@/types/concertSearch';
 
 interface ArtistSearchProps {
-  onArtistSelect?: (artist: ArtistSearchResult) => void;
+  onArtistSelect?: (artist: Artist) => void;
   placeholder?: string;
   showResults?: boolean;
   maxResults?: number;
@@ -24,11 +25,27 @@ export function ArtistSearch({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [selectedArtist, setSelectedArtist] = useState<ArtistSearchResult | null>(null);
+  const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
   
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Convert ArtistSearchResult to Artist
+  const convertToArtist = (searchResult: ArtistSearchResult): Artist => {
+    return {
+      id: searchResult.id,
+      jambase_artist_id: searchResult.identifier,
+      name: searchResult.name,
+      description: `Artist found with ${searchResult.num_upcoming_events || 0} upcoming events`,
+      genres: searchResult.genres || [],
+      image_url: searchResult.image_url,
+      popularity_score: searchResult.num_upcoming_events || 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      source: searchResult.is_from_database ? 'database' : 'jambase'
+    };
+  };
 
   // Debounced search function
   const performSearch = async (query: string) => {
@@ -75,7 +92,8 @@ export function ArtistSearch({
   };
 
   // Handle artist selection
-  const handleArtistSelect = (artist: ArtistSearchResult) => {
+  const handleArtistSelect = (searchResult: ArtistSearchResult) => {
+    const artist = convertToArtist(searchResult);
     setSelectedArtist(artist);
     setSearchQuery(artist.name);
     setShowSuggestions(false);
@@ -177,65 +195,79 @@ export function ArtistSearch({
           className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-80 overflow-y-auto"
         >
           {searchResults.map((artist, index) => (
-            <button
+            <div
               key={artist.id || index}
-              type="button"
-              className="w-full px-4 py-3 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none flex items-center gap-3 border-b border-gray-100 last:border-b-0"
-              onClick={() => handleArtistSelect(artist)}
+              className="w-full px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
             >
-              {/* Artist Image */}
-              <div className="flex-shrink-0">
-                {artist.image_url ? (
-                  <img
-                    src={artist.image_url}
-                    alt={artist.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
-                ) : null}
-                <div className={`w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center ${artist.image_url ? 'hidden' : ''}`}>
-                  <Music className="h-6 w-6 text-gray-400" />
+              <div className="flex items-center gap-3">
+                {/* Artist Image */}
+                <div className="flex-shrink-0">
+                  {artist.image_url ? (
+                    <img
+                      src={artist.image_url}
+                      alt={artist.name}
+                      className="w-12 h-12 rounded-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <div className={`w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center ${artist.image_url ? 'hidden' : ''}`}>
+                    <Music className="h-6 w-6 text-gray-400" />
+                  </div>
                 </div>
-              </div>
-              
-              {/* Artist Info */}
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-gray-900 truncate">{artist.name}</div>
-                <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-                  {artist.band_or_musician && (
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {artist.band_or_musician}
-                    </Badge>
-                  )}
-                  {artist.num_upcoming_events && artist.num_upcoming_events > 0 && (
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>{artist.num_upcoming_events} events</span>
-                    </div>
-                  )}
-                </div>
-                {artist.genres && artist.genres.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {artist.genres.slice(0, 2).map((genre, genreIndex) => (
-                      <Badge key={genreIndex} variant="secondary" className="text-xs">
-                        {genre}
-                      </Badge>
-                    ))}
-                    {artist.genres.length > 2 && (
-                      <Badge variant="secondary" className="text-xs">
-                        +{artist.genres.length - 2} more
+                
+                {/* Artist Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-gray-900 truncate">{artist.name}</div>
+                  <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+                    {artist.band_or_musician && (
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {artist.band_or_musician}
                       </Badge>
                     )}
+                    {artist.num_upcoming_events && artist.num_upcoming_events > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>{artist.num_upcoming_events} events</span>
+                      </div>
+                    )}
                   </div>
-                )}
-                <div className="text-xs text-gray-400 mt-1">
-                  Match: {Math.round(artist.match_score)}%
+                  {artist.genres && artist.genres.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {artist.genres.slice(0, 2).map((genre, genreIndex) => (
+                        <Badge key={genreIndex} variant="secondary" className="text-xs">
+                          {genre}
+                        </Badge>
+                      ))}
+                      {artist.genres.length > 2 && (
+                        <Badge variant="secondary" className="text-xs">
+                          +{artist.genres.length - 2} more
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-400 mt-1">
+                    Match: {Math.round(artist.match_score)}%
+                  </div>
+                </div>
+
+                {/* Choose Button */}
+                <div className="flex-shrink-0">
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleArtistSelect(artist);
+                    }}
+                    className="bg-blue-500 hover:bg-blue-600 text-white"
+                  >
+                    Choose
+                  </Button>
                 </div>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}

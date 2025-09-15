@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 interface ArtistSelectorProps {
   artist: Artist;
-  onViewEvents: () => void;
+  onViewEvents: (artist: Artist) => void;
   onRemove: () => void;
   onToggleFavorite?: (artistId: string) => void;
   isFavorite?: boolean;
@@ -134,7 +134,7 @@ export function ArtistSelector({
           </div>
           
           <Button 
-            onClick={onViewEvents}
+            onClick={() => onViewEvents(artist)}
             className="bg-blue-500 hover:bg-blue-600 text-white"
           >
             <Calendar className="w-4 h-4 mr-2" />

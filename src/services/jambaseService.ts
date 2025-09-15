@@ -300,7 +300,7 @@ export class JamBaseService {
       // 2. Search JamBase API for additional artists
       console.log('🌐 Searching JamBase API...');
       try {
-        const JAMBASE_API_KEY = process.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+        const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
 
         const searchUrl = new URL('/api/jambase/artists', window.location.origin);
         searchUrl.searchParams.append('apikey', JAMBASE_API_KEY);

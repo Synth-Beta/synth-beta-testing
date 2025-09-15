@@ -1,7 +1,7 @@
 // Concert API service for searching and managing concerts
 // This will integrate with your backend API when ready
 
-const API_BASE_URL = process.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 export interface Concert {
   id: string;

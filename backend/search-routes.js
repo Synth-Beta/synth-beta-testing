@@ -234,9 +234,15 @@ router.get('/api/concerts/search', async (req, res) => {
             .select();
 
           if (storeError) {
-            console.error('Error storing JamBase events:', storeError);
+            console.error('DETAILED JamBase storage error:', {
+              message: storeError.message,
+              details: storeError.details,
+              hint: storeError.hint,
+              code: storeError.code
+            });
           } else {
-            console.log(`Successfully stored ${storedEvents.length} events from JamBase`);
+            console.log(`Successfully stored ${storedEvents?.length || 0} events from JamBase`);
+            console.log('First stored event:', storedEvents?.[0]);
             // Return the stored events
             return res.json({
               success: true,
@@ -313,45 +319,6 @@ router.get('/api/concerts/search', async (req, res) => {
   }
 });
 
-// Get concert by ID
-router.get('/api/concerts/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    console.log('Fetching concert with ID:', id);
-
-    const { data: concert, error } = await supabase
-      .from('jambase_events')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error('Get concert by ID error:', error);
-      if (error.code === 'PGRST116') {
-        return res.status(404).json({
-          success: false,
-          error: 'Concert not found'
-        });
-      }
-      throw error;
-    }
-
-    res.json({
-      success: true,
-      concert
-    });
-
-  } catch (error) {
-    console.error('Get concert error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      details: error.message
-    });
-  }
-});
-
 // Get recent concerts (for quick access)
 router.get('/api/concerts/recent', async (req, res) => {
   try {
@@ -398,7 +365,7 @@ router.get('/api/concerts/stats', async (req, res) => {
 
     const { data: concerts, error } = await supabase
       .from('jambase_events')
-      .select('artist_name, venue_name, event_date, created_at');
+      .select('artist_name, venue_name, event_date, created_at, jambase_event_id');
 
     if (error) {
       console.error('Stats error:', error);
@@ -427,8 +394,8 @@ router.get('/api/concerts/stats', async (req, res) => {
     
     // Basic source counts (you can enhance this by adding a source field to your query)
     const sourceCounts = {
-      jambase_api: concerts.filter(c => c.jambase_event_id).length,
-      manual: concerts.filter(c => !c.jambase_event_id).length
+      jambase_api: concerts.filter(c => c.jambase_event_id && c.jambase_event_id !== null).length,
+      manual: concerts.filter(c => !c.jambase_event_id || c.jambase_event_id === null).length
     };
 
     console.log('Stats calculated:', { totalConcerts, uniqueArtists, uniqueVenues });
@@ -445,6 +412,45 @@ router.get('/api/concerts/stats', async (req, res) => {
 
   } catch (error) {
     console.error('Stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+// Get concert by ID
+router.get('/api/concerts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log('Fetching concert with ID:', id);
+
+    const { data: concert, error } = await supabase
+      .from('jambase_events')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Get concert by ID error:', error);
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          error: 'Concert not found'
+        });
+      }
+      throw error;
+    }
+
+    res.json({
+      success: true,
+      concert
+    });
+
+  } catch (error) {
+    console.error('Get concert error:', error);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -483,6 +489,244 @@ router.get('/api/concerts/health', async (req, res) => {
       success: false,
       error: 'Health check failed',
       details: error.message
+    });
+  }
+});
+
+// JamBase Events API endpoint
+router.get('/api/jambase/events', async (req, res) => {
+  try {
+    const { 
+      artistName, 
+      artistId, 
+      venueName, 
+      venueId, 
+      eventDateFrom, 
+      eventDateTo, 
+      eventType = 'concerts',
+      page = 1, 
+      perPage = 40,
+      geoCountryIso2,
+      geoStateIso,
+      geoCityId,
+      geoLatitude,
+      geoLongitude,
+      geoRadiusAmount,
+      geoRadiusUnits = 'mi',
+      genreSlug,
+      apikey
+    } = req.query;
+
+    console.log('JamBase Events API request:', { 
+      artistName, 
+      artistId, 
+      venueName, 
+      eventDateFrom, 
+      eventDateTo, 
+      page, 
+      perPage 
+    });
+
+    // Use the API key from query or environment
+    const JAMBASE_API_KEY = apikey || process.env.JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+    
+    // Build JamBase API URL
+    const baseUrl = `https://www.jambase.com/jb-api/v1/events?apikey=${JAMBASE_API_KEY}`;
+    const params = new URLSearchParams();
+    
+    // Add search parameters
+    if (artistName) params.append('artistName', artistName);
+    if (artistId) params.append('artistId', artistId);
+    if (venueName) params.append('venueName', venueName);
+    if (venueId) params.append('venueId', venueId);
+    if (eventDateFrom) params.append('eventDateFrom', eventDateFrom);
+    if (eventDateTo) params.append('eventDateTo', eventDateTo);
+    if (eventType) params.append('eventType', eventType);
+    if (page) params.append('page', page.toString());
+    if (perPage) params.append('perPage', perPage.toString());
+    if (geoCountryIso2) params.append('geoCountryIso2', geoCountryIso2);
+    if (geoStateIso) params.append('geoStateIso', geoStateIso);
+    if (geoCityId) params.append('geoCityId', geoCityId);
+    if (geoLatitude) params.append('geoLatitude', geoLatitude.toString());
+    if (geoLongitude) params.append('geoLongitude', geoLongitude.toString());
+    if (geoRadiusAmount) params.append('geoRadiusAmount', geoRadiusAmount.toString());
+    if (geoRadiusUnits) params.append('geoRadiusUnits', geoRadiusUnits);
+    if (genreSlug) params.append('genreSlug', genreSlug);
+
+    const url = `${baseUrl}&${params.toString()}`;
+    console.log('Calling JamBase API:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'PlusOneEventCrew/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      console.log(`JamBase API failed with status: ${response.status}`);
+      return res.status(response.status).json({
+        success: false,
+        error: `JamBase API error: ${response.status} ${response.statusText}`,
+        events: [],
+        total: 0,
+        page: parseInt(page),
+        perPage: parseInt(perPage),
+        hasNextPage: false,
+        hasPreviousPage: false
+      });
+    }
+
+    const responseText = await response.text();
+    console.log('JamBase API response length:', responseText.length);
+    
+    if (!responseText || responseText.length === 0) {
+      console.log('Empty response from JamBase API');
+      return res.json({
+        success: true,
+        events: [],
+        total: 0,
+        page: parseInt(page),
+        perPage: parseInt(perPage),
+        hasNextPage: false,
+        hasPreviousPage: false
+      });
+    }
+
+    const data = JSON.parse(responseText);
+    console.log('JamBase API response keys:', Object.keys(data));
+    
+    // Handle different response formats
+    let events = [];
+    if (Array.isArray(data)) {
+      events = data;
+    } else if (data.events && Array.isArray(data.events)) {
+      events = data.events;
+    } else if (data.data && Array.isArray(data.data)) {
+      events = data.data;
+    } else if (data.results && Array.isArray(data.results)) {
+      events = data.results;
+    }
+
+    console.log(`Found ${events.length} events from JamBase API`);
+
+    // Transform events to our format
+    const transformedEvents = events.map(jambaseEvent => {
+      // Handle JSON-LD format from JamBase API
+      const headliner = jambaseEvent.performer?.find(p => p['x-isHeadliner']) || jambaseEvent.performer?.[0];
+      const venue = jambaseEvent.location;
+      const address = venue?.address;
+      
+      return {
+        jambase_event_id: jambaseEvent.identifier?.replace('jambase:', '') || jambaseEvent.id,
+        title: jambaseEvent.name || `${headliner?.name || 'Unknown Artist'} Live`,
+        artist_name: headliner?.name || 'Unknown Artist',
+        artist_id: headliner?.identifier?.replace('jambase:', '') || headliner?.id,
+        venue_name: venue?.name || 'Unknown Venue',
+        venue_id: venue?.identifier?.replace('jambase:', '') || venue?.id,
+        event_date: jambaseEvent.startDate || new Date().toISOString(),
+        doors_time: jambaseEvent.doorTime && jambaseEvent.doorTime.trim() !== '' 
+          ? (jambaseEvent.doorTime.includes('T') || jambaseEvent.doorTime.includes('-') 
+              ? jambaseEvent.doorTime 
+              : `${jambaseEvent.startDate.split('T')[0]}T${jambaseEvent.doorTime}`)
+          : null,
+        description: jambaseEvent.description || `Live performance by ${headliner?.name || 'Unknown Artist'}`,
+        genres: headliner?.genre || [],
+        venue_address: address?.streetAddress,
+        venue_city: address?.addressLocality,
+        venue_state: address?.addressRegion?.name || address?.addressRegion,
+        venue_zip: address?.postalCode,
+        latitude: venue?.geo?.latitude,
+        longitude: venue?.geo?.longitude,
+        ticket_available: jambaseEvent.offers && jambaseEvent.offers.length > 0,
+        price_range: jambaseEvent.offers?.[0]?.priceSpecification?.price || jambaseEvent.offers?.[0]?.priceSpecification?.minPrice,
+        ticket_urls: jambaseEvent.offers?.map(offer => offer.url) || [],
+        setlist: null,
+        tour_name: null
+      };
+    });
+
+    // Store events in database for future use
+    if (transformedEvents.length > 0) {
+      try {
+        console.log('Storing events in database...');
+        const eventsToStore = transformedEvents.map(event => ({
+          jambase_event_id: event.jambase_event_id,
+          title: event.title,
+          artist_name: event.artist_name,
+          artist_id: event.artist_id,
+          venue_name: event.venue_name,
+          venue_id: event.venue_id,
+          event_date: event.event_date,
+          doors_time: event.doors_time,
+          description: event.description,
+          genres: event.genres,
+          venue_address: event.venue_address,
+          venue_city: event.venue_city,
+          venue_state: event.venue_state,
+          venue_zip: event.venue_zip,
+          latitude: event.latitude,
+          longitude: event.longitude,
+          ticket_available: event.ticket_available,
+          price_range: event.price_range,
+          ticket_urls: event.ticket_urls,
+          setlist: event.setlist,
+          tour_name: event.tour_name
+        }));
+
+        const { data: insertedData, error: storeError } = await supabase
+          .from('jambase_events')
+          .upsert(eventsToStore, { 
+            onConflict: 'jambase_event_id',
+            ignoreDuplicates: false 
+          })
+          .select(); // Add this to see what was actually inserted
+
+        if (storeError) {
+          console.error('DETAILED Storage error:', {
+            message: storeError.message,
+            details: storeError.details,
+            hint: storeError.hint,
+            code: storeError.code
+          });
+        } else {
+          console.log(`Successfully stored ${insertedData?.length || 0} events in database`);
+          console.log('First stored event:', insertedData?.[0]);
+        }
+      } catch (storeError) {
+        console.error('Database storage error:', storeError);
+        // Don't fail the request if storage fails
+      }
+    }
+
+    const total = data.total || transformedEvents.length;
+    const currentPage = parseInt(page);
+    const perPageNum = parseInt(perPage);
+    const totalPages = Math.ceil(total / perPageNum);
+
+    res.json({
+      success: true,
+      events: transformedEvents,
+      total: total,
+      page: currentPage,
+      perPage: perPageNum,
+      hasNextPage: currentPage < totalPages,
+      hasPreviousPage: currentPage > 1
+    });
+
+  } catch (error) {
+    console.error('JamBase Events API error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message,
+      events: [],
+      total: 0,
+      page: parseInt(req.query.page) || 1,
+      perPage: parseInt(req.query.perPage) || 40,
+      hasNextPage: false,
+      hasPreviousPage: false
     });
   }
 });

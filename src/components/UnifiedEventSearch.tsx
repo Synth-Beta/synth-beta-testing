@@ -242,7 +242,7 @@ export function UnifiedEventSearch({ onEventFound, userId }: UnifiedEventSearchP
       )}
 
       {/* Debug Info */}
-      {process.env.NODE_ENV === 'development' && (
+      {import.meta.env.DEV && (
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">Debug Info</CardTitle>
