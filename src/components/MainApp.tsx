@@ -4,7 +4,6 @@ import { ConcertFeed } from './ConcertFeed';
 import { UnifiedSearch } from './UnifiedSearch';
 import { ProfileView } from './ProfileView';
 import { ProfileEdit } from './ProfileEdit';
-import { SwipeView } from './SwipeView';
 import { ConcertEvents } from './ConcertEvents';
 import { Event as EventCardEvent } from './EventCard';
 import { WelcomeScreen } from './WelcomeScreen';
@@ -273,7 +272,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       {/* Only show navigation when not in profile-edit mode */}
       {currentView !== 'profile-edit' && (
         <Navigation 
-          currentView={currentView === 'profile-edit' ? 'profile' : currentView} 
+          currentView={currentView as 'feed' | 'search' | 'profile'} 
           onViewChange={handleViewChange} 
         />
       )}

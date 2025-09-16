@@ -189,17 +189,33 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
 
   const sendFriendRequest = async (targetUserId: string) => {
     try {
-      // TODO: Implement friend request functionality
       console.log('Sending friend request to:', targetUserId);
-      toast({
-        title: "Friend Request Sent",
-        description: "Friend request sent successfully!",
+      
+      // Call the database function to create friend request
+      const { data, error } = await supabase.rpc('create_friend_request', {
+        receiver_user_id: targetUserId
       });
-    } catch (error) {
+
+      if (error) {
+        console.error('Error creating friend request:', error);
+        throw error;
+      }
+
+      // Remove the user from search results to show the request was sent
+      setSearchResults(prev => ({
+        ...prev,
+        users: prev.users.filter(user => user.user_id !== targetUserId)
+      }));
+
+      toast({
+        title: "Friend Request Sent! 🎉",
+        description: "Your friend request has been sent and they'll be notified.",
+      });
+    } catch (error: any) {
       console.error('Error sending friend request:', error);
       toast({
         title: "Error",
-        description: "Failed to send friend request. Please try again.",
+        description: error.message || "Failed to send friend request. Please try again.",
         variant: "destructive",
       });
     }
@@ -439,8 +455,8 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
                           onClick={() => sendFriendRequest(user.user_id)}
                           className="bg-blue-500 hover:bg-blue-600 text-white"
                         >
-                          <UserPlus className="w-4 h-4 mr-2" />
-                          Connect
+                          <UserPlus className="w-4 h-4 mr-1" />
+                          Add
                         </Button>
                       </div>
                     ))}

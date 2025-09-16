@@ -2,7 +2,7 @@ import { User, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface NavigationProps {
-  currentView: 'feed' | 'search' | 'profile';
+  currentView: 'feed' | 'search' | 'profile' | 'profile-edit';
   onViewChange: (view: 'feed' | 'search' | 'profile') => void;
 }
 

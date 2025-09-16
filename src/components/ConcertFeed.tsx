@@ -76,9 +76,19 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   const fetchNotifications = async () => {
     try {
-      // TODO: Fetch actual notifications from database
-      // For now, return empty array - no fake notifications
-      setNotifications([]);
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.error('Error fetching notifications:', error);
+        return;
+      }
+
+      setNotifications(data || []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
@@ -86,14 +96,41 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   const fetchFriends = async () => {
     try {
-      // For now, we'll use mock friends data
-      // Later this will come from your friends/matches system
-      const mockFriends = [
-        { id: '1', name: 'Alex Johnson', username: 'alexj', avatar_url: null },
-        { id: '2', name: 'Sarah Chen', username: 'sarahc', avatar_url: null },
-        { id: '3', name: 'Mike Rodriguez', username: 'miker', avatar_url: null },
-      ];
-      setFriends(mockFriends);
+      // Fetch actual friends from database
+      const { data, error } = await supabase
+        .from('friends')
+        .select(`
+          id,
+          user1_id,
+          user2_id,
+          created_at,
+          user1:profiles!friends_user1_id_fkey(id, name, avatar_url, bio),
+          user2:profiles!friends_user2_id_fkey(id, name, avatar_url, bio)
+        `)
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching friends:', error);
+        return;
+      }
+
+      // Transform the data to get the other user's profile
+      const friendsList = (data || []).map(friendship => {
+        const isUser1 = friendship.user1_id === currentUserId;
+        const otherUser = isUser1 ? friendship.user2 : friendship.user1;
+        return {
+          id: otherUser.id,
+          name: otherUser.name,
+          username: otherUser.name.toLowerCase().replace(/\s+/g, ''),
+          avatar_url: otherUser.avatar_url,
+          bio: otherUser.bio,
+          friendship_id: friendship.id,
+          created_at: friendship.created_at
+        };
+      });
+
+      setFriends(friendsList);
     } catch (error) {
       console.error('Error fetching friends:', error);
     }
@@ -273,17 +310,112 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   const sendFriendRequest = async (userId: string) => {
     try {
-      // TODO: Implement friend request functionality
       console.log('Sending friend request to:', userId);
-      toast({
-        title: "Friend Request Sent",
-        description: "Friend request sent successfully!",
+      
+      // Call the database function to create friend request
+      const { data, error } = await supabase.rpc('create_friend_request', {
+        receiver_user_id: userId
       });
-    } catch (error) {
+
+      if (error) {
+        console.error('Error creating friend request:', error);
+        throw error;
+      }
+
+      // Get user details for email notification
+      const { data: receiverData } = await supabase
+        .from('profiles')
+        .select('name, user_id')
+        .eq('user_id', userId)
+        .single();
+
+      const { data: senderData } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('user_id', currentUserId)
+        .single();
+
+      // Send email notification (in background, don't wait for it)
+      if (receiverData?.name && senderData?.name) {
+        // Import and use EmailService
+        import('@/services/emailService').then(({ EmailService }) => {
+          // For now, we'll use a placeholder email since we can't access user emails from client
+          // In production, you'd set up a server-side function to handle this
+          console.log('Email notification would be sent to user:', userId);
+          console.log('Sender:', senderData.name, 'Receiver:', receiverData.name);
+        });
+      }
+
+      // Remove the user from search results to show the request was sent
+      setSearchResults(prev => prev.filter(user => user.id !== userId));
+      setUserSearchQuery(''); // Clear search
+
+      toast({
+        title: "Friend Request Sent! 🎉",
+        description: "Your friend request has been sent and they'll be notified.",
+      });
+    } catch (error: any) {
       console.error('Error sending friend request:', error);
       toast({
         title: "Error",
-        description: "Failed to send friend request. Please try again.",
+        description: error.message || "Failed to send friend request. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAcceptFriendRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase.rpc('accept_friend_request', {
+        request_id: requestId
+      });
+
+      if (error) {
+        console.error('Error accepting friend request:', error);
+        throw error;
+      }
+
+      // Refresh notifications and friends
+      fetchNotifications();
+      fetchFriends();
+
+      toast({
+        title: "Friend Request Accepted! 🎉",
+        description: "You're now friends!",
+      });
+    } catch (error: any) {
+      console.error('Error accepting friend request:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to accept friend request. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeclineFriendRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase.rpc('decline_friend_request', {
+        request_id: requestId
+      });
+
+      if (error) {
+        console.error('Error declining friend request:', error);
+        throw error;
+      }
+
+      // Refresh notifications
+      fetchNotifications();
+
+      toast({
+        title: "Friend Request Declined",
+        description: "The friend request has been declined.",
+      });
+    } catch (error: any) {
+      console.error('Error declining friend request:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to decline friend request. Please try again.",
         variant: "destructive",
       });
     }
@@ -821,15 +953,12 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
               {notifications.length > 0 ? (
                 <div className="space-y-3">
                   {notifications.map((notification) => (
-                    <div key={notification.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
-                      <Avatar className="w-10 h-10">
-                        <AvatarImage src={notification.user.avatar_url || undefined} />
-                        <AvatarFallback>
-                          {notification.user.name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
+                    <div key={notification.id} className={`flex items-center gap-3 p-3 border rounded-lg ${notification.is_read ? 'bg-gray-50 border-gray-200' : 'bg-blue-50 border-blue-200'}`}>
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <Bell className="w-5 h-5 text-blue-600" />
+                      </div>
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{notification.user.name}</h3>
+                        <h3 className="font-semibold text-gray-900">{notification.title}</h3>
                         <p className="text-sm text-gray-600">{notification.message}</p>
                         <p className="text-xs text-gray-500 mt-1">
                           {(() => {
@@ -841,12 +970,25 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                           })()}
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 text-sm"
-                      >
-                        View
-                      </Button>
+                      {notification.type === 'friend_request' && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleAcceptFriendRequest(notification.data?.request_id)}
+                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 text-sm"
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeclineFriendRequest(notification.data?.request_id)}
+                            className="px-3 py-1 text-sm"
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

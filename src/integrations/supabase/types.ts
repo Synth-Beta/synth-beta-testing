@@ -407,6 +407,87 @@ export type Database = {
         }
         Relationships: []
       }
+      friend_requests: {
+        Row: {
+          id: string
+          sender_id: string
+          receiver_id: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          sender_id: string
+          receiver_id: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          sender_id?: string
+          receiver_id?: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      friends: {
+        Row: {
+          id: string
+          user1_id: string
+          user2_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user1_id: string
+          user2_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user1_id?: string
+          user2_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          title: string
+          message: string
+          data: Json | null
+          is_read: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: string
+          title: string
+          message: string
+          data?: Json | null
+          is_read?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: string
+          title?: string
+          message?: string
+          data?: Json | null
+          is_read?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -414,6 +495,24 @@ export type Database = {
     Functions: {
       populate_events_from_concerts: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      create_friend_request: {
+        Args: {
+          receiver_user_id: string
+        }
+        Returns: string
+      }
+      accept_friend_request: {
+        Args: {
+          request_id: string
+        }
+        Returns: undefined
+      }
+      decline_friend_request: {
+        Args: {
+          request_id: string
+        }
         Returns: undefined
       }
     }
