@@ -88,54 +88,38 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
     try {
       setLoading(true);
       
-      // Fetch user's chats
-      const { data: chatParticipants, error: participantsError } = await supabase
-        .from('chat_participants')
-        .select(`
-          chat_id,
-          role,
-          chat:chats(
-            id,
-            name,
-            type,
-            created_at,
-            last_message_id,
-            last_message:chat_messages(
-              id,
-              message,
-              created_at,
-              sender:profiles(name)
-            )
-          )
-        `)
-        .eq('user_id', currentUserId);
+      // Use the new function to get user's chats
+      const { data, error } = await supabase.rpc('get_user_chats', {
+        user_id: currentUserId
+      });
 
-      if (participantsError) {
-        console.error('Error fetching chat participants:', participantsError);
+      if (error) {
+        console.error('Error fetching chats:', error);
         return;
       }
 
       // Transform the data
-      const chatsList = (chatParticipants || []).map(participant => ({
-        id: participant.chat.id,
-        name: participant.chat.name,
-        type: participant.chat.type,
-        created_at: participant.chat.created_at,
+      const chatsList = (data || []).map(chat => ({
+        id: chat.id,
+        name: chat.chat_name,
+        type: chat.is_group_chat ? 'group' : 'direct',
+        created_at: chat.created_at,
         participants: [], // Will be populated separately
-        last_message: participant.chat.last_message ? {
-          id: participant.chat.last_message.id,
-          chat_id: participant.chat.id,
+        last_message: chat.latest_message ? {
+          id: chat.latest_message_id,
+          chat_id: chat.id,
           sender_id: '',
-          message: participant.chat.last_message.message,
-          created_at: participant.chat.last_message.created_at,
+          message: chat.latest_message,
+          created_at: chat.latest_message_created_at,
           sender: {
-            name: participant.chat.last_message.sender.name,
+            name: chat.latest_message_sender_name || 'Unknown',
             avatar_url: null
           }
         } : undefined,
         unread_count: 0 // Will be calculated separately
       }));
 
+      console.log('💬 Fetched chats:', chatsList);
       setChats(chatsList);
     } catch (error) {
       console.error('Error fetching chats:', error);
@@ -184,7 +168,7 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
   const fetchMessages = async (chatId: string) => {
     try {
       const { data, error } = await supabase
-        .from('chat_messages')
+        .from('messages')
         .select(`
           id,
           chat_id,
@@ -212,7 +196,7 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
 
     try {
       const { error } = await supabase
-        .from('chat_messages')
+        .from('messages')
         .insert({
           chat_id: selectedChat.id,
           sender_id: currentUserId,
@@ -244,67 +228,23 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
 
   const createDirectChat = async (friendId: string) => {
     try {
-      // Check if direct chat already exists
-      const { data: existingChat, error: checkError } = await supabase
-        .from('chats')
-        .select(`
-          id,
-          chat_participants!inner(user_id)
-        `)
-        .eq('type', 'direct')
-        .eq('chat_participants.user_id', currentUserId);
+      // Use the database function to create or get existing direct chat
+      const { data: chatId, error } = await supabase.rpc('create_direct_chat', {
+        user1_id: currentUserId,
+        user2_id: friendId
+      });
 
-      if (checkError) {
-        console.error('Error checking existing chat:', checkError);
-        return;
-      }
-
-      // Check if there's already a direct chat with this friend
-      const existingDirectChat = existingChat?.find(chat => 
-        chat.chat_participants.some((p: any) => p.user_id === friendId)
-      );
-
-      if (existingDirectChat) {
-        setSelectedChat({
-          id: existingDirectChat.id,
-          name: '', // Will be set based on friend name
-          type: 'direct',
-          created_at: '',
-          participants: [],
-          unread_count: 0
+      if (error) {
+        console.error('Error creating direct chat:', error);
+        toast({
+          title: "Error",
+          description: "Failed to create chat. Please try again.",
+          variant: "destructive",
         });
         return;
       }
 
-      // Create new direct chat
-      const { data: newChat, error: chatError } = await supabase
-        .from('chats')
-        .insert({
-          type: 'direct',
-          name: '' // Will be set based on participants
-        })
-        .select()
-        .single();
-
-      if (chatError) {
-        console.error('Error creating chat:', chatError);
-        return;
-      }
-
-      // Add participants
-      const { error: participantsError } = await supabase
-        .from('chat_participants')
-        .insert([
-          { chat_id: newChat.id, user_id: currentUserId, role: 'member' },
-          { chat_id: newChat.id, user_id: friendId, role: 'member' }
-        ]);
-
-      if (participantsError) {
-        console.error('Error adding participants:', participantsError);
-        return;
-      }
-
-      // Refresh chats
+      // Refresh chats to get the new chat
       fetchChats();
       
       toast({
@@ -332,37 +272,20 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
     }
 
     try {
-      // Create group chat
-      const { data: newChat, error: chatError } = await supabase
-        .from('chats')
-        .insert({
-          type: 'group',
-          name: groupName.trim()
-        })
-        .select()
-        .single();
+      // Use the database function to create group chat
+      const { data: chatId, error } = await supabase.rpc('create_group_chat', {
+        chat_name: groupName.trim(),
+        user_ids: selectedFriends,
+        admin_id: currentUserId
+      });
 
-      if (chatError) {
-        console.error('Error creating group chat:', chatError);
-        return;
-      }
-
-      // Add participants (creator as admin, others as members)
-      const participants = [
-          { chat_id: newChat.id, user_id: currentUserId, role: 'admin' },
-          ...selectedFriends.map(friendId => ({
-            chat_id: newChat.id,
-            user_id: friendId,
-            role: 'member' as const
-          }))
-        ];
-
-      const { error: participantsError } = await supabase
-        .from('chat_participants')
-        .insert(participants);
-
-      if (participantsError) {
-        console.error('Error adding participants:', participantsError);
+      if (error) {
+        console.error('Error creating group chat:', error);
+        toast({
+          title: "Error",
+          description: "Failed to create group chat. Please try again.",
+          variant: "destructive",
+        });
         return;
       }
 

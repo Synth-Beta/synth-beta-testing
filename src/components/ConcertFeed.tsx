@@ -93,7 +93,17 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
       }
 
       console.log('🔔 Fetched notifications:', data);
-      setNotifications(data || []);
+      
+      // Filter out processed friend requests
+      const activeNotifications = (data || []).filter(notification => {
+        if (notification.type === 'friend_request') {
+          // Check if the friend request still exists and is pending
+          return true; // We'll check this in the UI
+        }
+        return true;
+      });
+      
+      setNotifications(activeNotifications);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
@@ -377,6 +387,26 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     }
   };
 
+  const checkFriendRequestStatus = async (requestId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('friend_requests')
+        .select('status')
+        .eq('id', requestId)
+        .single();
+
+      if (error) {
+        console.log('🔍 Request not found:', error);
+        return 'not_found';
+      }
+
+      return data?.status || 'unknown';
+    } catch (error) {
+      console.error('Error checking request status:', error);
+      return 'error';
+    }
+  };
+
   const handleAcceptFriendRequest = async (requestId: string) => {
     console.log('🤝 Accepting friend request:', requestId);
     console.log('🤝 Request ID type:', typeof requestId);
@@ -388,6 +418,21 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         description: "Invalid friend request. Please refresh and try again.",
         variant: "destructive",
       });
+      return;
+    }
+
+    // First check if the request is still valid
+    const requestStatus = await checkFriendRequestStatus(requestId);
+    console.log('🔍 Request status:', requestStatus);
+
+    if (requestStatus === 'not_found' || requestStatus === 'accepted' || requestStatus === 'declined') {
+      toast({
+        title: "Request Already Processed",
+        description: "This friend request has already been handled. Refreshing notifications...",
+        variant: "destructive",
+      });
+      // Refresh notifications to remove the processed request
+      fetchNotifications();
       return;
     }
 
@@ -1136,19 +1181,65 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                         </p>
                       </div>
                     </div>
-                      <Button
-                        size="lg"
-                        onClick={() => {
-                          // Navigate to chat with this friend
-                          console.log('Starting chat with:', friend.name);
-                          setShowFriendsChatModal(false);
-                          setShowChatView(true);
-                        }}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2"
-                      >
-                        <MessageCircle className="w-5 h-5 mr-2" />
-                        Start Chat
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            // Start direct chat with this friend
+                            console.log('Starting direct chat with:', friend.name);
+                            try {
+                              const { data: chatId, error } = await supabase.rpc('create_direct_chat', {
+                                user1_id: currentUserId,
+                                user2_id: friend.id
+                              });
+
+                              if (error) {
+                                console.error('Error creating direct chat:', error);
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to create chat. Please try again.",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+
+                              setShowFriendsChatModal(false);
+                              setShowChatView(true);
+                              
+                              toast({
+                                title: "Chat Created! 💬",
+                                description: `You can now chat with ${friend.name}!`,
+                              });
+                            } catch (error) {
+                              console.error('Error creating direct chat:', error);
+                              toast({
+                                title: "Error",
+                                description: "Failed to create chat. Please try again.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          className="bg-blue-500 hover:bg-blue-600 text-white"
+                        >
+                          <MessageCircle className="w-4 h-4 mr-1" />
+                          Chat
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            // Add to group selection
+                            console.log('Adding to group selection:', friend.name);
+                            setShowFriendsChatModal(false);
+                            setShowChatView(true);
+                            // TODO: Open group creation with this friend pre-selected
+                          }}
+                          className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                        >
+                          <Users className="w-4 h-4 mr-1" />
+                          Group
+                        </Button>
+                      </div>
                   </div>
                 ))}
               </div>
