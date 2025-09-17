@@ -18,7 +18,8 @@ import {
   Globe,
   Search,
   UserPlus,
-  Bell
+  Bell,
+  X
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -62,6 +63,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   const [friends, setFriends] = useState<any[]>([]);
   const [showChatModal, setShowChatModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [showFriendsChatModal, setShowFriendsChatModal] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -88,6 +90,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         return;
       }
 
+      console.log('🔔 Fetched notifications:', data);
       setNotifications(data || []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -264,12 +267,15 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   };
 
   const searchUsers = async (query: string) => {
+    console.log('🔍 searchUsers called with query:', query);
     if (!query.trim()) {
+      console.log('🔍 Empty query, clearing results');
       setSearchResults([]);
       return;
     }
 
     try {
+      console.log('🔍 Starting user search...');
       setSearchLoading(true);
       
       // Search for users by name (profiles table doesn't have email or username columns)
@@ -278,6 +284,9 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         .select('*')
         .ilike('name', `%${query}%`)
         .limit(10);
+
+      console.log('🔍 Search results:', profiles);
+      console.log('🔍 Search error:', error);
 
       if (error) {
         console.error('Error searching users:', error);
@@ -290,6 +299,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
       }
 
       setSearchResults(profiles || []);
+      console.log('🔍 Set search results:', profiles || []);
     } catch (error) {
       console.error('Error searching users:', error);
       toast({
@@ -304,6 +314,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   const handleUserSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
+    console.log('🔍 User search query:', query);
     setUserSearchQuery(query);
     searchUsers(query);
   };
@@ -365,13 +376,39 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   };
 
   const handleAcceptFriendRequest = async (requestId: string) => {
+    console.log('🤝 Accepting friend request:', requestId);
+    
+    if (!requestId) {
+      toast({
+        title: "Error",
+        description: "Invalid friend request. Please refresh and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase.rpc('accept_friend_request', {
         request_id: requestId
       });
 
+      console.log('🤝 Accept friend request result:', error);
+
       if (error) {
         console.error('Error accepting friend request:', error);
+        
+        // Handle specific error cases
+        if (error.message.includes('not found') || error.message.includes('already processed')) {
+          toast({
+            title: "Request Already Processed",
+            description: "This friend request has already been handled. Refreshing notifications...",
+            variant: "destructive",
+          });
+          // Refresh notifications to remove the processed request
+          fetchNotifications();
+          return;
+        }
+        
         throw error;
       }
 
@@ -394,13 +431,39 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   };
 
   const handleDeclineFriendRequest = async (requestId: string) => {
+    console.log('❌ Declining friend request:', requestId);
+    
+    if (!requestId) {
+      toast({
+        title: "Error",
+        description: "Invalid friend request. Please refresh and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase.rpc('decline_friend_request', {
         request_id: requestId
       });
 
+      console.log('❌ Decline friend request result:', error);
+
       if (error) {
         console.error('Error declining friend request:', error);
+        
+        // Handle specific error cases
+        if (error.message.includes('not found') || error.message.includes('already processed')) {
+          toast({
+            title: "Request Already Processed",
+            description: "This friend request has already been handled. Refreshing notifications...",
+            variant: "destructive",
+          });
+          // Refresh notifications to remove the processed request
+          fetchNotifications();
+          return;
+        }
+        
         throw error;
       }
 
@@ -489,7 +552,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
               variant="outline"
               size="sm"
               className="p-2"
-              onClick={() => setShowChatModal(true)}
+              onClick={() => setShowFriendsChatModal(true)}
             >
               <MessageCircle className="w-5 h-5" />
             </Button>
@@ -974,7 +1037,10 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                         <div className="flex gap-2">
                           <Button
                             size="sm"
-                            onClick={() => handleAcceptFriendRequest(notification.data?.request_id)}
+                            onClick={() => {
+                              console.log('🤝 Accept button clicked for notification:', notification);
+                              handleAcceptFriendRequest(notification.data?.request_id);
+                            }}
                             className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 text-sm"
                           >
                             Accept
@@ -982,7 +1048,10 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDeclineFriendRequest(notification.data?.request_id)}
+                            onClick={() => {
+                              console.log('❌ Decline button clicked for notification:', notification);
+                              handleDeclineFriendRequest(notification.data?.request_id);
+                            }}
                             className="px-3 py-1 text-sm"
                           >
                             Decline
@@ -997,6 +1066,73 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                   <Bell className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                   <h3 className="font-semibold text-gray-900 mb-1">No Notifications</h3>
                   <p className="text-sm text-gray-600">You'll see matches and friend requests here</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Friends Chat Modal */}
+      {showFriendsChatModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold text-gray-900">Chat with Friends</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowFriendsChatModal(false)}
+                className="p-1"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="p-4 max-h-96 overflow-y-auto">
+              {friends.length > 0 ? (
+                <div className="space-y-3">
+                  {friends.map((friend) => (
+                    <div key={friend.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={friend.avatar_url || undefined} />
+                          <AvatarFallback>
+                            {friend.name ? friend.name.split(' ').map(n => n[0]).join('') : 'F'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{friend.name}</h3>
+                          {friend.bio && (
+                            <p className="text-sm text-gray-600 line-clamp-1">{friend.bio}</p>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          // Navigate to chat with this friend
+                          console.log('Starting chat with:', friend.name);
+                          setShowFriendsChatModal(false);
+                          // TODO: Implement direct chat functionality
+                          toast({
+                            title: "Chat Feature Coming Soon! 💬",
+                            description: `Chat with ${friend.name} will be available soon.`,
+                          });
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600 text-white"
+                      >
+                        <MessageCircle className="w-4 h-4 mr-1" />
+                        Chat
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <h3 className="font-semibold text-gray-900 mb-1">No Friends Yet</h3>
+                  <p className="text-sm text-gray-600">Add some friends to start chatting!</p>
                 </div>
               )}
             </div>

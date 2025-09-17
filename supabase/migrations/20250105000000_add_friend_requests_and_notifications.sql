@@ -159,7 +159,7 @@ BEGIN
     'friend_request',
     'New Friend Request',
     COALESCE(sender_name, 'Someone') || ' wants to connect with you!',
-    jsonb_build_object('sender_id', auth.uid(), 'request_id', request_id)
+    jsonb_build_object('sender_id', auth.uid(), 'request_id', request_id, 'sender_name', sender_name)
   );
   
   -- Send email notification (this will be handled by the frontend)
