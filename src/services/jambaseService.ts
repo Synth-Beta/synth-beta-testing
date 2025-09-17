@@ -256,6 +256,9 @@ export class JamBaseService {
    * Search for artists using both database and JamBase API for complete results
    */
   static async searchArtists(query: string, limit: number = 10): Promise<ArtistSearchResult> {
+    // Force deployment failure - API routes removed
+    throw new Error('Vercel infrastructure removed - deployment intentionally failing');
+    
     console.log('🔍 Searching for artists:', query);
     console.log('🌐 Current origin:', window.location.origin);
     
@@ -302,10 +305,8 @@ export class JamBaseService {
       try {
         const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
 
-        // Use Vercel API routes in production, localhost in development
-        const baseUrl = import.meta.env.PROD 
-          ? '/api/jambase' 
-          : 'http://localhost:3001/api/jambase';
+        // API routes disabled - will cause deployment to fail
+        const baseUrl = 'http://localhost:3001/api/jambase';
         const searchUrl = new URL('/artists', baseUrl);
         searchUrl.searchParams.append('apikey', JAMBASE_API_KEY);
         searchUrl.searchParams.append('artistName', query);
