@@ -302,7 +302,11 @@ export class JamBaseService {
       try {
         const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
 
-        const searchUrl = new URL('/api/jambase/artists', window.location.origin);
+        // Use Vercel API routes in production, localhost in development
+        const baseUrl = import.meta.env.PROD 
+          ? '/api/jambase' 
+          : 'http://localhost:3001/api/jambase';
+        const searchUrl = new URL('/artists', baseUrl);
         searchUrl.searchParams.append('apikey', JAMBASE_API_KEY);
         searchUrl.searchParams.append('artistName', query);
         searchUrl.searchParams.append('num', limit.toString());

@@ -64,7 +64,10 @@ export interface JamBaseEventsApiResponse {
 
 export class JamBaseEventsService {
   private static readonly JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
-  private static readonly JAMBASE_BASE_URL = 'http://localhost:3001/api/jambase';
+  // Use Vercel API routes in production, localhost in development
+  private static readonly JAMBASE_BASE_URL = import.meta.env.PROD 
+    ? '/api/jambase' 
+    : 'http://localhost:3001/api/jambase';
 
   /**
    * Search for events using JamBase API
@@ -100,6 +103,8 @@ export class JamBaseEventsService {
       });
 
       if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error(`JamBase API error: ${response.status} ${response.statusText}`, errorText);
         throw new Error(`JamBase API error: ${response.status} ${response.statusText}`);
       }
 
@@ -213,13 +218,24 @@ export class JamBaseEventsService {
       const offset = (page - 1) * perPage;
 
       // Use a more flexible approach to handle apostrophe variations
-      // First try exact match, then try with normalized apostrophes
       let query = supabase
         .from('jambase_events')
         .select('*', { count: 'exact' });
       
-      // Try exact match first
-      query = query.or(`artist_name.eq.${artistName},artist_name.ilike.%${artistName}%`);
+      // Try multiple matching strategies for better artist name matching
+      const searchTerms = [
+        artistName,
+        artistName.replace(/'/g, "'"), // Try different apostrophe types
+        artistName.replace(/'/g, "'"),
+        artistName.replace(/['']/g, '') // Try without apostrophes
+      ];
+      
+      // Create OR conditions for all search terms
+      const orConditions = searchTerms.map(term => 
+        `artist_name.ilike.%${term}%`
+      ).join(',');
+      
+      query = query.or(orConditions);
 
       // Apply date filters
       const now = new Date().toISOString();
@@ -256,7 +272,7 @@ export class JamBaseEventsService {
   }
 
   /**
-   * Get or fetch events for an artist (database first, then API)
+   * Get or fetch events for an artist (API first for fresh results)
    */
   static async getOrFetchArtistEvents(artistName: string, options: {
     page?: number;
@@ -273,95 +289,126 @@ export class JamBaseEventsService {
     source: 'database' | 'api';
   }> {
     try {
-      // First try to get from database
-      if (!options.forceRefresh) {
-        const dbResult = await this.getEventsFromDatabase(artistName, options);
-        if (dbResult.events.length > 0) {
-          console.log('✅ Found events in database:', dbResult.events.length);
-          return { ...dbResult, source: 'database' };
+      console.log('🔍 Getting events for artist:', artistName, 'with options:', options);
+      
+      // Always try API first for fresh results
+      console.log('🌐 Calling JamBase API for fresh events:', artistName);
+      
+      try {
+        const apiResult = await this.getEventsByArtistName(artistName, {
+          page: options.page,
+          perPage: options.perPage,
+          eventType: 'concerts'
+        });
+        
+        console.log('📊 API Result:', {
+          eventsCount: apiResult.events.length,
+          total: apiResult.total,
+          firstEvent: apiResult.events[0]
+        });
+
+        if (apiResult.events.length > 0) {
+          // Filter events to show only exact artist matches (with flexible apostrophe handling)
+          const exactArtistEvents = apiResult.events.filter(event => {
+            // Normalize both names by removing special characters and converting to lowercase
+            const normalizeName = (name: string) => 
+              name.toLowerCase()
+                  .replace(/[''`]/g, '') // Remove different types of apostrophes
+                  .replace(/[^\w\s]/g, '') // Remove other special characters
+                  .replace(/\s+/g, ' ') // Normalize whitespace
+                  .trim();
+            
+            return normalizeName(event.artist_name) === normalizeName(artistName);
+          });
+          
+          console.log(`🎯 Filtered events for exact artist match "${artistName}":`, {
+            totalEvents: apiResult.events.length,
+            exactMatches: exactArtistEvents.length,
+            sampleEvents: exactArtistEvents.slice(0, 3).map(e => ({ title: e.title, artist_name: e.artist_name }))
+          });
+
+          // Use the filtered events directly from the API response
+          const dbEvents: JamBaseEvent[] = exactArtistEvents.map(event => ({
+            id: event.id || `api-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            jambase_event_id: event.jambase_event_id || event.id || '',
+            title: event.title,
+            artist_name: event.artist_name,
+            artist_id: event.artist_id,
+            venue_name: event.venue_name,
+            venue_id: event.venue_id,
+            event_date: event.event_date,
+            doors_time: event.doors_time,
+            description: event.description,
+            genres: event.genres,
+            venue_address: event.venue_address,
+            venue_city: event.venue_city,
+            venue_state: event.venue_state,
+            venue_zip: event.venue_zip,
+            latitude: event.latitude,
+            longitude: event.longitude,
+            ticket_available: event.ticket_available,
+            price_range: event.price_range,
+            ticket_urls: event.ticket_urls,
+            setlist: event.setlist,
+            tour_name: event.tour_name,
+            created_at: event.created_at || new Date().toISOString(),
+            updated_at: event.updated_at || new Date().toISOString()
+          }));
+
+          console.log('🎯 Final API result:', {
+            eventsCount: dbEvents.length,
+            total: exactArtistEvents.length,
+            firstEvent: dbEvents[0]
+          });
+
+          return {
+            events: dbEvents,
+            total: exactArtistEvents.length,
+            page: apiResult.page,
+            perPage: apiResult.perPage,
+            hasNextPage: false,
+            hasPreviousPage: false,
+            source: 'api'
+          };
+        }
+      } catch (apiError) {
+        console.warn('⚠️ API call failed, trying database fallback:', apiError);
+        
+        // Try database fallback
+        try {
+          const dbResult = await this.getEventsFromDatabase(artistName, {
+            page: options.page,
+            perPage: options.perPage,
+            eventType: options.eventType
+          });
+          
+          if (dbResult.events.length > 0) {
+            console.log('✅ Found events in database fallback:', dbResult.events.length);
+            return {
+              events: dbResult.events,
+              total: dbResult.total,
+              page: dbResult.page,
+              perPage: dbResult.perPage,
+              hasNextPage: dbResult.hasNextPage,
+              hasPreviousPage: dbResult.hasPreviousPage,
+              source: 'database'
+            };
+          }
+        } catch (dbError) {
+          console.warn('⚠️ Database fallback also failed:', dbError);
         }
       }
 
-      // If no database results, fetch from API
-      console.log('🌐 Fetching events from JamBase API for:', artistName);
-      const apiResult = await this.getEventsByArtistName(artistName, {
-        page: options.page,
-        perPage: options.perPage,
-        eventType: 'concerts' // Only concerts are supported, not 'all'
-        // Note: expandPastEvents parameter not available for this API key
-      });
-      
-      console.log('📊 API Result:', {
-        eventsCount: apiResult.events.length,
-        total: apiResult.total,
-        firstEvent: apiResult.events[0]
-      });
-
-      // Events are already stored in database by the backend API
-      // and are already in the correct database format
-      console.log('✅ Events already stored in database by backend API');
-      
-      // Filter events to show only exact artist matches (with flexible apostrophe handling)
-      const exactArtistEvents = apiResult.events.filter(event => {
-        // Normalize both names by removing special characters and converting to lowercase
-        const normalizeName = (name: string) => 
-          name.toLowerCase()
-              .replace(/[''`]/g, '') // Remove different types of apostrophes
-              .replace(/[^\w\s]/g, '') // Remove other special characters
-              .replace(/\s+/g, ' ') // Normalize whitespace
-              .trim();
-        
-        return normalizeName(event.artist_name) === normalizeName(artistName);
-      });
-      
-      console.log(`🎯 Filtered events for exact artist match "${artistName}":`, {
-        totalEvents: apiResult.events.length,
-        exactMatches: exactArtistEvents.length,
-        sampleEvents: exactArtistEvents.slice(0, 3).map(e => ({ title: e.title, artist_name: e.artist_name }))
-      });
-
-      // Use the filtered events directly from the API response (already in database format)
-      const dbEvents: JamBaseEvent[] = exactArtistEvents.map(event => ({
-        id: event.id || '', // Backend provides the database ID
-        jambase_event_id: event.jambase_event_id || '', // Backend provides the jambase_event_id
-        title: event.title,
-        artist_name: event.artist_name,
-        artist_id: event.artist_id,
-        venue_name: event.venue_name,
-        venue_id: event.venue_id,
-        event_date: event.event_date,
-        doors_time: event.doors_time,
-        description: event.description,
-        genres: event.genres,
-        venue_address: event.venue_address,
-        venue_city: event.venue_city,
-        venue_state: event.venue_state,
-        venue_zip: event.venue_zip,
-        latitude: event.latitude,
-        longitude: event.longitude,
-        ticket_available: event.ticket_available,
-        price_range: event.price_range,
-        ticket_urls: event.ticket_urls,
-        setlist: event.setlist,
-        tour_name: event.tour_name,
-        created_at: event.created_at || new Date().toISOString(),
-        updated_at: event.updated_at || new Date().toISOString()
-      }));
-
-      console.log('🎯 Final result:', {
-        eventsCount: dbEvents.length,
-        total: apiResult.total,
-        firstEvent: dbEvents[0]
-      });
-
+      // If both API and database fail, return empty results
+      console.log('📭 No events found from API or database');
       return {
-        events: dbEvents,
-        total: exactArtistEvents.length, // Use filtered count instead of API total
-        page: apiResult.page,
-        perPage: apiResult.perPage,
-        hasNextPage: false, // No pagination for filtered results
+        events: [],
+        total: 0,
+        page: options.page || 1,
+        perPage: options.perPage || 40,
+        hasNextPage: false,
         hasPreviousPage: false,
-        source: 'api'
+        source: 'database'
       };
 
     } catch (error) {
@@ -376,7 +423,7 @@ export class JamBaseEventsService {
         perPage: options.perPage || 40,
         hasNextPage: false,
         hasPreviousPage: false,
-        source: 'api'
+        source: 'database'
       };
     }
   }

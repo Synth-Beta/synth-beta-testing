@@ -23,7 +23,7 @@ export class ArtistSelectionService {
         id: artistSearchResult.id,
         jambase_artist_id: artistSearchResult.identifier,
         name: artistSearchResult.name,
-        description: `Artist found with ${artistSearchResult.num_upcoming_events || 0} upcoming events`,
+        description: `Artist found with upcoming events`,
         genres: artistSearchResult.genres || [],
         image_url: artistSearchResult.image_url,
         popularity_score: artistSearchResult.num_upcoming_events || 0,
@@ -32,12 +32,12 @@ export class ArtistSelectionService {
         source: artistSearchResult.is_from_database ? 'database' : 'jambase'
       };
 
-      // Fetch events for this artist using JamBase API - always force refresh
+      // Fetch events for this artist using JamBase API - only upcoming events
       console.log('🌐 Fetching events for artist:', artist.name);
       const eventsResult = await JamBaseEventsService.getOrFetchArtistEvents(artist.name, {
         page: 1,
         perPage: 20,
-        eventType: 'all',
+        eventType: 'upcoming', // Only fetch upcoming events
         forceRefresh: true // Always fetch from API and populate database
       });
 
@@ -48,6 +48,10 @@ export class ArtistSelectionService {
         firstEvent: eventsResult.events[0],
         source: eventsResult.source
       });
+
+      // Update artist description with actual event count
+      // Since we're only fetching upcoming events, all events are upcoming
+      artist.description = `Artist found with ${eventsResult.events.length} upcoming events`;
 
       return {
         artist,

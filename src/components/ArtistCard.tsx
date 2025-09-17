@@ -11,10 +11,8 @@ import {
   Clock,
   ExternalLink,
   Star,
-  Users,
   Ticket
 } from 'lucide-react';
-import { JamBaseEventCard } from './JamBaseEventCard';
 import type { Artist } from '@/types/concertSearch';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { cn } from '@/lib/utils';
@@ -26,6 +24,7 @@ interface ArtistCardProps {
   source: 'database' | 'api';
   onBack?: () => void;
   onViewAllEvents?: () => void;
+  showAllEvents?: boolean;
   className?: string;
 }
 
@@ -36,15 +35,15 @@ export function ArtistCard({
   source, 
   onBack, 
   onViewAllEvents,
+  showAllEvents = false,
   className 
 }: ArtistCardProps) {
   const upcomingEvents = events.filter(event => 
     new Date(event.event_date) > new Date()
   );
   
-  const pastEvents = events.filter(event => 
-    new Date(event.event_date) <= new Date()
-  );
+  // Show all events or limit to 10 based on showAllEvents prop
+  const displayedUpcomingEvents = showAllEvents ? upcomingEvents : upcomingEvents.slice(0, 10);
 
   const formatGenres = (genres: string[] = []) => {
     if (genres.length === 0) return null;
@@ -196,7 +195,7 @@ export function ArtistCard({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {upcomingEvents.slice(0, 10).map((event) => (
+                    {displayedUpcomingEvents.map((event) => (
                       <TableRow key={event.jambase_event_id} className="hover:bg-muted/50">
                         <TableCell>
                           <div className="space-y-1">
@@ -261,10 +260,17 @@ export function ArtistCard({
                   </TableBody>
                 </Table>
               </div>
-              {upcomingEvents.length > 10 && (
+              {!showAllEvents && upcomingEvents.length > 10 && (
                 <div className="p-4 border-t">
                   <Button variant="outline" onClick={onViewAllEvents} className="w-full">
                     Show {upcomingEvents.length - 10} More Upcoming Events
+                  </Button>
+                </div>
+              )}
+              {showAllEvents && upcomingEvents.length > 10 && (
+                <div className="p-4 border-t">
+                  <Button variant="outline" onClick={() => onViewAllEvents?.()} className="w-full">
+                    Show Less (Back to 10 events)
                   </Button>
                 </div>
               )}
@@ -272,90 +278,6 @@ export function ArtistCard({
           </div>
         )}
 
-        {/* Past Events Table */}
-        {pastEvents.length > 0 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              Past Events ({pastEvents.length})
-            </h3>
-            <Card>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date & Time</TableHead>
-                      <TableHead>Venue</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Review</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pastEvents.slice(0, 10).map((event) => (
-                      <TableRow key={event.jambase_event_id} className="hover:bg-muted/50">
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="font-medium">{formatDate(event.event_date)}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {formatTime(event.event_date)}
-                              {event.doors_time && (
-                                <span className="ml-2">
-                                  • Doors: {formatDoorsTime(event.doors_time)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{event.venue_name}</div>
-                          {event.venue_address && (
-                            <div className="text-sm text-muted-foreground">
-                              {event.venue_address}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">{getLocationString(event)}</div>
-                        </TableCell>
-                        <TableCell>
-                          {event.price_range ? (
-                            <span className="font-medium">${event.price_range}</span>
-                          ) : (
-                            <span className="text-muted-foreground">N/A</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
-                          >
-                            <Star className="w-3 h-3 mr-1" />
-                            <span className="hidden sm:inline">Review</span>
-                          </Button>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="text-xs">
-                            Past Event
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              {pastEvents.length > 10 && (
-                <div className="p-4 border-t">
-                  <Button variant="outline" onClick={onViewAllEvents} className="w-full">
-                    Show {pastEvents.length - 10} More Past Events
-                  </Button>
-                </div>
-              )}
-            </Card>
-          </div>
-        )}
 
         {/* No Events */}
         {events.length === 0 && (

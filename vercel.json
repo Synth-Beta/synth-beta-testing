@@ -4,7 +4,21 @@
   "framework": "vite",
   "installCommand": "npm install",
   "devCommand": "npm run dev",
+  "functions": {
+    "api/jambase/events.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
+    },
+    "api/jambase/artists.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
@@ -13,7 +27,25 @@
   "env": {
     "VITE_SUPABASE_URL": "SUPABASE_URL",
     "VITE_SUPABASE_ANON_KEY": "SUPABASE_ANON_KEY",
-    "VITE_JAMBASE_API_KEY": "JAMBASE_API_KEY",
-    "VITE_BACKEND_URL": "BACKEND_URL"
-  }
+    "VITE_JAMBASE_API_KEY": "JAMBASE_API_KEY"
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ]
 }
