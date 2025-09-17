@@ -58,8 +58,8 @@ async function fetchFromJamBase(query, date) {
       params.append('eventDateTo', dateStr);
     }
     
-    // Set limit
-    params.append('limit', '20');
+    // Set limit (reduced for better performance)
+    params.append('limit', '10');
     
     const endpoint = `${baseUrl}&${params.toString()}`;
 

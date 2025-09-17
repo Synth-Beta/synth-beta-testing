@@ -47,12 +47,12 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
   const [currentView, setCurrentView] = useState<'search' | 'artists' | 'people' | 'artist-card'>('search');
   const [selectedArtist, setSelectedArtist] = useState<ArtistSelectionResult | null>(null);
   const [isSelectingArtist, setIsSelectingArtist] = useState(false);
+  const [showAllEvents, setShowAllEvents] = useState(false);
   const { toast } = useToast();
   
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-
-  // Debounced search function
+  // Debounced search function - always calls API for fresh results
   const performSearch = async (query: string) => {
     if (query.length < 2) {
       setSearchResults({ artists: [], users: [] });
@@ -63,9 +63,9 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
     setError(null);
 
     try {
-      console.log(`🔍 Searching for: "${query}"`);
+      console.log(`🔍 Searching for: "${query}" - calling API for fresh results`);
       
-      // Search both artists and users in parallel - fetch more results initially
+      // Search both artists and users in parallel - always call API
       const [artistResults, userResults] = await Promise.all([
         searchArtists(query, 20),
         searchUsers(query, 20)
@@ -75,10 +75,12 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
       console.log('Artists:', artistResults.map(a => a.name));
       console.log('Users:', userResults.map(u => u.name));
       
-      setSearchResults({
+      const results = {
         artists: artistResults,
         users: userResults
-      });
+      };
+      
+      setSearchResults(results);
     } catch (err) {
       console.error('❌ Search error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while searching');
@@ -98,20 +100,100 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    // Set new timeout for debounced search
+    // Set new timeout for debounced search (reduced to 300ms for faster response)
     searchTimeoutRef.current = setTimeout(() => {
       performSearch(value);
-    }, 300); // 300ms debounce
+    }, 300);
   };
 
 
   const searchArtists = async (query: string, limit: number = 5): Promise<ArtistSearchResult[]> => {
     try {
-      return await UnifiedArtistSearchService.searchArtists(query, limit);
+      console.log(`🎵 Searching artists for: "${query}"`);
+      
+      // Always call API first for fresh results
+      console.log(`📡 Calling API for fresh results...`);
+      const results = await UnifiedArtistSearchService.searchArtists(query, limit);
+      console.log(`✅ Found ${results.length} artists from API`);
+      
+      return results;
     } catch (error) {
-      console.error('Error searching artists:', error);
+      console.error('❌ API search failed, trying database fallback:', error);
+      
+      // Fallback to database if API fails
+      try {
+        const dbResults = await searchArtistsFromDatabase(query, limit);
+        if (dbResults.length > 0) {
+          console.log(`✅ Found ${dbResults.length} artists from database fallback`);
+          return dbResults;
+        }
+      } catch (dbError) {
+        console.error('❌ Database fallback also failed:', dbError);
+      }
+      
       return [];
     }
+  };
+
+  // Database-first artist search
+  const searchArtistsFromDatabase = async (query: string, limit: number): Promise<ArtistSearchResult[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('jambase_events')
+        .select('artist_name, artist_id, genres')
+        .ilike('artist_name', `%${query}%`)
+        .limit(limit);
+
+      if (error) throw error;
+
+      // Convert to search results format
+      const uniqueArtists = new Map();
+      data?.forEach(event => {
+        if (event.artist_name && !uniqueArtists.has(event.artist_name.toLowerCase())) {
+          uniqueArtists.set(event.artist_name.toLowerCase(), {
+            id: event.artist_id || `db-${event.artist_name.toLowerCase().replace(/\s+/g, '-')}`,
+            name: event.artist_name,
+            identifier: event.artist_id || '',
+            image_url: null,
+            genres: event.genres || [],
+            band_or_musician: 'band' as const,
+            num_upcoming_events: 0,
+            match_score: calculateMatchScore(query, event.artist_name),
+            is_from_database: true,
+          });
+        }
+      });
+
+      return Array.from(uniqueArtists.values());
+    } catch (error) {
+      console.error('Database search error:', error);
+      return [];
+    }
+  };
+
+  // Simple match score calculation
+  const calculateMatchScore = (query: string, name: string): number => {
+    const queryLower = query.toLowerCase();
+    const nameLower = name.toLowerCase();
+    
+    if (nameLower.includes(queryLower)) {
+      return 1.0;
+    }
+    
+    // Simple fuzzy matching
+    const queryWords = queryLower.split(' ');
+    const nameWords = nameLower.split(' ');
+    let matches = 0;
+    
+    queryWords.forEach(qWord => {
+      nameWords.forEach(nWord => {
+        if (nWord.includes(qWord) || qWord.includes(nWord)) {
+          matches++;
+        }
+      });
+    });
+    
+    return matches / queryWords.length;
   };
 
   const searchUsers = async (query: string, limit: number = 5): Promise<UserProfile[]> => {
@@ -153,6 +235,7 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
   const handleBackToSearch = () => {
     setCurrentView('search');
     setSelectedArtist(null);
+    setShowAllEvents(false);
   };
 
   const handleArtistSelect = async (artist: ArtistSearchResult) => {
@@ -252,9 +335,9 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
         totalEvents={selectedArtist.totalEvents}
         source={selectedArtist.source}
         onBack={handleBackToSearch}
+        showAllEvents={showAllEvents}
         onViewAllEvents={() => {
-          // Could implement a full events view here
-          console.log('View all events for:', selectedArtist.artist.name);
+          setShowAllEvents(!showAllEvents);
         }}
       />
     );

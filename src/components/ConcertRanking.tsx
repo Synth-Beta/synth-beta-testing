@@ -8,6 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
+import { EventReviewModal } from './EventReviewModal';
 
 // Ranking system interfaces
 interface Review {
@@ -234,15 +235,7 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingReview, setEditingReview] = useState<ConcertReview | null>(null);
-  const [newReview, setNewReview] = useState({
-    event_name: '',
-    location: '',
-    event_date: '',
-    event_time: '',
-    rating: '' as 'good' | 'okay' | 'bad' | '',
-    review_text: '',
-    is_public: true
-  });
+  const [reviewModalEvent, setReviewModalEvent] = useState<any>(null);
   const [pendingReview, setPendingReview] = useState<ConcertReview | null>(null);
   const [isNumberOneMovingDown, setIsNumberOneMovingDown] = useState(false);
   const [currentReviewsForComparison, setCurrentReviewsForComparison] = useState<ConcertReview[]>([]);
@@ -376,6 +369,30 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
       case 'bad': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  };
+
+  const handleOpenReviewModal = () => {
+    // Create a mock event for the review modal
+    setReviewModalEvent({
+      id: 'new-review',
+      event_title: '',
+      venue_name: '',
+      event_date: new Date().toISOString().split('T')[0],
+      artist_name: ''
+    });
+    setShowAddReview(true);
+  };
+
+  const handleReviewSubmitted = (review: any) => {
+    // Refresh reviews after submission
+    fetchReviews();
+    setShowAddReview(false);
+    setReviewModalEvent(null);
+    
+    toast({
+      title: "Review Added",
+      description: "Your concert review has been added!",
+    });
   };
 
   const getRatingIcon = (rating: 'good' | 'okay' | 'bad') => {
@@ -725,7 +742,7 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
                 Search Concerts
               </Button>
             )}
-            <Button onClick={() => setShowAddReview(true)} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={handleOpenReviewModal} className="bg-blue-600 hover:bg-blue-700">
               <Plus className="w-4 h-4 mr-2" />
               Add Review
             </Button>
@@ -796,102 +813,17 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
           </div>
         )}
 
-        {/* Add Review Modal */}
-        {showAddReview && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <CardHeader>
-                <CardTitle>Add Concert Review</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Event Name *</label>
-                  <input
-                    type="text"
-                    value={newReview.event_name}
-                    onChange={(e) => setNewReview({ ...newReview, event_name: e.target.value })}
-                    className="w-full p-2 border rounded-md"
-                    placeholder="e.g., Taylor Swift - Eras Tour"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Location</label>
-                  <input
-                    type="text"
-                    value={newReview.location}
-                    onChange={(e) => setNewReview({ ...newReview, location: e.target.value })}
-                    className="w-full p-2 border rounded-md"
-                    placeholder="e.g., Madison Square Garden, NYC"
-                  />
-                </div>
-
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Rating *</label>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={newReview.rating === 'good' ? 'default' : 'outline'}
-                      onClick={() => setNewReview({ ...newReview, rating: 'good' })}
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                    >
-                      <ThumbsUp className="w-4 h-4 mr-2" />
-                      Good
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={newReview.rating === 'okay' ? 'default' : 'outline'}
-                      onClick={() => setNewReview({ ...newReview, rating: 'okay' })}
-                      className="flex-1 bg-yellow-600 hover:bg-yellow-700"
-                    >
-                      <Minus className="w-4 h-4 mr-2" />
-                      Okay
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={newReview.rating === 'bad' ? 'default' : 'outline'}
-                      onClick={() => setNewReview({ ...newReview, rating: 'bad' })}
-                      className="flex-1 bg-red-600 hover:bg-red-700"
-                    >
-                      <ThumbsDown className="w-4 h-4 mr-2" />
-                      Bad
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Review (Optional)</label>
-                  <Textarea
-                    value={newReview.review_text}
-                    onChange={(e) => setNewReview({ ...newReview, review_text: e.target.value })}
-                    placeholder="Share your thoughts about this concert..."
-                    className="min-h-[100px]"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="public"
-                    checked={newReview.is_public}
-                    onChange={(e) => setNewReview({ ...newReview, is_public: e.target.checked })}
-                  />
-                  <label htmlFor="public" className="text-sm">Make this review public</label>
-                </div>
-
-                <div className="flex gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setShowAddReview(false)} className="flex-1">
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAddReview} className="flex-1">
-                    Add Review
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {/* Review Modal */}
+        <EventReviewModal
+          event={reviewModalEvent}
+          userId={currentUserId}
+          isOpen={showAddReview}
+          onClose={() => {
+            setShowAddReview(false);
+            setReviewModalEvent(null);
+          }}
+          onReviewSubmitted={handleReviewSubmitted}
+        />
 
         {/* Ranking Modal */}
         {showRankingModal && pendingReview && (

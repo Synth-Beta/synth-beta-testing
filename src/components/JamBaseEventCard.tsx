@@ -78,7 +78,7 @@ export function JamBaseEventCard({
     
     setIsLoading(true);
     try {
-      await onInterestToggle(event.jambase_event_id, !isInterested);
+      await onInterestToggle(event.id, !isInterested);
     } catch (error) {
       console.error('Error toggling interest:', error);
     } finally {
@@ -88,7 +88,7 @@ export function JamBaseEventCard({
 
   const handleReview = () => {
     if (onReview) {
-      onReview(event.jambase_event_id);
+      onReview(event.id);
     }
   };
 

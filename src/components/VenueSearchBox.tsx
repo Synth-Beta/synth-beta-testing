@@ -3,24 +3,24 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Search, Music, X, Star } from 'lucide-react';
-import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
-import type { Artist, ArtistSearchResult } from '@/types/concertSearch';
+import { Loader2, Search, MapPin, X, Check } from 'lucide-react';
+import { UnifiedVenueSearchService } from '@/services/unifiedVenueSearchService';
+import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import { cn } from '@/lib/utils';
 
-interface ArtistSearchBoxProps {
-  onArtistSelect: (artist: Artist) => void;
+interface VenueSearchBoxProps {
+  onVenueSelect: (venue: VenueSearchResult) => void;
   placeholder?: string;
   className?: string;
 }
 
-export function ArtistSearchBox({ 
-  onArtistSelect, 
-  placeholder = "Search for an artist...",
+export function VenueSearchBox({ 
+  onVenueSelect, 
+  placeholder = "Search for a venue...",
   className 
-}: ArtistSearchBoxProps) {
+}: VenueSearchBoxProps) {
   const [query, setQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<ArtistSearchResult | null>(null);
+  const [searchResults, setSearchResults] = useState<VenueSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -30,7 +30,7 @@ export function ArtistSearchBox({
   // Debounced search
   useEffect(() => {
     if (!query.trim()) {
-      setSearchResults(null);
+      setSearchResults([]);
       setIsOpen(false);
       return;
     }
@@ -51,7 +51,7 @@ export function ArtistSearchBox({
         case 'ArrowDown':
           e.preventDefault();
           setSelectedIndex(prev => 
-            prev < searchResults.artists.length - 1 ? prev + 1 : prev
+            prev < searchResults.length - 1 ? prev + 1 : prev
           );
           break;
         case 'ArrowUp':
@@ -60,8 +60,8 @@ export function ArtistSearchBox({
           break;
         case 'Enter':
           e.preventDefault();
-          if (selectedIndex >= 0 && selectedIndex < searchResults.artists.length) {
-            handleArtistSelect(searchResults.artists[selectedIndex]);
+          if (selectedIndex >= 0 && selectedIndex < searchResults.length) {
+            handleVenueSelect(searchResults[selectedIndex]);
           }
           break;
         case 'Escape':
@@ -88,45 +88,23 @@ export function ArtistSearchBox({
   const performSearch = async (searchQuery: string) => {
     try {
       setIsLoading(true);
-      const results = await UnifiedArtistSearchService.searchArtists(searchQuery, 10);
+      const results = await UnifiedVenueSearchService.searchVenues(searchQuery, 10);
       
-      // Transform UnifiedArtistSearchService results to match expected format
-      const transformedResults = {
-        artists: results.map(result => ({
-          id: result.id,
-          jambase_artist_id: result.identifier,
-          name: result.name,
-          description: `Artist with ${result.num_upcoming_events || 0} upcoming events`,
-          genres: result.genres || [],
-          image_url: result.image_url,
-          popularity_score: result.num_upcoming_events || 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          source: result.is_from_database ? 'database' : 'jambase'
-        })),
-        totalFound: results.length,
-        query: searchQuery
-      };
-      
-      setSearchResults(transformedResults);
+      setSearchResults(results);
       setIsOpen(true);
       setSelectedIndex(-1);
     } catch (error) {
-      console.error('Artist search error:', error);
-      setSearchResults({
-        artists: [],
-        totalFound: 0,
-        query: searchQuery
-      });
+      console.error('Venue search error:', error);
+      setSearchResults([]);
       setIsOpen(true);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleArtistSelect = (artist: Artist) => {
-    onArtistSelect(artist);
-    setQuery(artist.name);
+  const handleVenueSelect = (venue: VenueSearchResult) => {
+    onVenueSelect(venue);
+    setQuery(venue.name);
     setIsOpen(false);
     setSelectedIndex(-1);
     inputRef.current?.blur();
@@ -137,7 +115,7 @@ export function ArtistSearchBox({
   };
 
   const handleInputFocus = () => {
-    if (searchResults && searchResults.artists.length > 0) {
+    if (searchResults && searchResults.length > 0) {
       setIsOpen(true);
     }
   };
@@ -152,14 +130,25 @@ export function ArtistSearchBox({
 
   const clearSearch = () => {
     setQuery('');
-    setSearchResults(null);
+    setSearchResults([]);
     setIsOpen(false);
     setSelectedIndex(-1);
     inputRef.current?.focus();
   };
 
-  const formatGenres = (genres: string[] = []) => {
-    return genres.slice(0, 3).join(', ');
+  const formatAddress = (venue: VenueSearchResult) => {
+    const parts = [];
+    if (venue.address?.addressLocality) parts.push(venue.address.addressLocality);
+    if (venue.address?.addressRegion) parts.push(venue.address.addressRegion);
+    return parts.join(', ');
+  };
+
+  const formatCapacity = (capacity?: number) => {
+    if (!capacity) return '';
+    if (capacity >= 1000) {
+      return `${(capacity / 1000).toFixed(1)}k capacity`;
+    }
+    return `${capacity} capacity`;
   };
 
   return (
@@ -199,98 +188,80 @@ export function ArtistSearchBox({
       {isOpen && searchResults && (
         <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-80 overflow-y-auto shadow-lg border">
           <CardContent className="p-0">
-            {searchResults.artists.length > 0 ? (
+            {searchResults.length > 0 ? (
               <div ref={listRef} className="py-2">
-                {searchResults.artists.map((artist, index) => (
+                {searchResults.map((venue, index) => (
                   <div
-                    key={artist.id}
+                    key={venue.id}
                     className={cn(
                       "px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors",
                       "flex items-start gap-3",
                       selectedIndex === index && "bg-blue-50 border-l-4 border-blue-500"
                     )}
-                    onClick={() => handleArtistSelect(artist)}
+                    onClick={() => handleVenueSelect(venue)}
                     onMouseEnter={() => setSelectedIndex(index)}
                   >
                     <div className="flex-shrink-0 mt-1">
-                      {artist.image_url ? (
+                      {venue.image_url ? (
                         <img
-                          src={artist.image_url}
-                          alt={artist.name}
+                          src={venue.image_url}
+                          alt={venue.name}
                           className="w-10 h-10 rounded-full object-cover"
                         />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                          <Music className="w-5 h-5 text-gray-400" />
+                          <MapPin className="w-5 h-5 text-gray-400" />
                         </div>
                       )}
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-medium text-gray-900 truncate">
-                            {artist.name}
-                          </h3>
-                          {artist.popularity_score && artist.popularity_score > 0 && (
-                            <div className="flex items-center gap-1">
-                              <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                              <span className="text-xs text-gray-500">
-                                {artist.popularity_score}
-                              </span>
-                            </div>
-                          )}
-                          {(artist as any).source && (
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${
-                                (artist as any).source === 'database' 
-                                  ? 'text-green-600 border-green-300' 
-                                  : 'text-blue-600 border-blue-300'
-                              }`}
-                            >
-                              {(artist as any).source === 'database' ? 'Database' : 'JamBase'}
-                            </Badge>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-medium text-gray-900 truncate">
+                          {venue.name}
+                        </h3>
+                        {venue.num_upcoming_events && venue.num_upcoming_events > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Check className="w-3 h-3 text-green-400" />
+                            <span className="text-xs text-gray-500">
+                              {venue.num_upcoming_events} events
+                            </span>
+                          </div>
+                        )}
+                        {venue.is_from_database && (
+                          <Badge 
+                            variant="outline" 
+                            className="text-xs text-green-600 border-green-300"
+                          >
+                            Database
+                          </Badge>
+                        )}
+                      </div>
                       
-                      {artist.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                          {artist.description}
+                      {formatAddress(venue) && (
+                        <p className="text-sm text-gray-600 mb-1">
+                          {formatAddress(venue)}
                         </p>
                       )}
                       
-                      {artist.genres && artist.genres.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {artist.genres.slice(0, 3).map((genre, genreIndex) => (
-                            <Badge
-                              key={genreIndex}
-                              variant="secondary"
-                              className="text-xs px-2 py-0.5"
-                            >
-                              {genre}
-                            </Badge>
-                          ))}
-                          {artist.genres.length > 3 && (
-                            <span className="text-xs text-gray-500">
-                              +{artist.genres.length - 3} more
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        {formatCapacity(venue.maximumAttendeeCapacity) && (
+                          <span>{formatCapacity(venue.maximumAttendeeCapacity)}</span>
+                        )}
+                        {venue.geo && (
+                          <span>
+                            {venue.geo.latitude?.toFixed(2)}, {venue.geo.longitude?.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
-                
-                {searchResults.totalFound > searchResults.artists.length && (
-                  <div className="px-4 py-2 text-xs text-gray-500 text-center border-t">
-                    Showing {searchResults.artists.length} of {searchResults.totalFound} artists
-                  </div>
-                )}
               </div>
             ) : (
               <div className="px-4 py-8 text-center text-gray-500">
-                <Music className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                <p>No artists found for "{query}"</p>
+                <MapPin className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <p>No venues found for "{query}"</p>
                 <p className="text-sm">Try a different search term</p>
               </div>
             )}

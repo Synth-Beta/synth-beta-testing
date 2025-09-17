@@ -488,9 +488,397 @@ export type Database = {
         }
         Relationships: []
       }
+      user_reviews: {
+        Row: {
+          id: string
+          user_id: string
+          event_id: string
+          rating: number
+          reaction_emoji: string | null
+          review_text: string | null
+          photos: string[] | null
+          videos: string[] | null
+          mood_tags: string[] | null
+          genre_tags: string[] | null
+          context_tags: string[] | null
+          likes_count: number
+          comments_count: number
+          shares_count: number
+          is_public: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          event_id: string
+          rating: number
+          reaction_emoji?: string | null
+          review_text?: string | null
+          photos?: string[] | null
+          videos?: string[] | null
+          mood_tags?: string[] | null
+          genre_tags?: string[] | null
+          context_tags?: string[] | null
+          likes_count?: number
+          comments_count?: number
+          shares_count?: number
+          is_public?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          event_id?: string
+          rating?: number
+          reaction_emoji?: string | null
+          review_text?: string | null
+          photos?: string[] | null
+          videos?: string[] | null
+          mood_tags?: string[] | null
+          genre_tags?: string[] | null
+          context_tags?: string[] | null
+          likes_count?: number
+          comments_count?: number
+          shares_count?: number
+          is_public?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_reviews_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "jambase_events"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      review_likes: {
+        Row: {
+          id: string
+          user_id: string
+          review_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          review_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          review_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_likes_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "user_reviews"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      review_comments: {
+        Row: {
+          id: string
+          user_id: string
+          review_id: string
+          parent_comment_id: string | null
+          comment_text: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          review_id: string
+          parent_comment_id?: string | null
+          comment_text: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          review_id?: string
+          parent_comment_id?: string | null
+          comment_text?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_comments_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "user_reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "review_comments"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      review_shares: {
+        Row: {
+          id: string
+          user_id: string
+          review_id: string
+          share_platform: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          review_id: string
+          share_platform?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          review_id?: string
+          share_platform?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_shares_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_shares_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "user_reviews"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      artists: {
+        Row: {
+          id: string
+          jambase_artist_id: string
+          name: string
+          identifier: string
+          url: string | null
+          image_url: string | null
+          date_published: string | null
+          date_modified: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          jambase_artist_id: string
+          name: string
+          identifier: string
+          url?: string | null
+          image_url?: string | null
+          date_published?: string | null
+          date_modified?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          jambase_artist_id?: string
+          name?: string
+          identifier?: string
+          url?: string | null
+          image_url?: string | null
+          date_published?: string | null
+          date_modified?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      venues: {
+        Row: {
+          id: string
+          jambase_venue_id: string
+          name: string
+          identifier: string
+          url: string | null
+          image_url: string | null
+          address: string | null
+          city: string | null
+          state: string | null
+          zip: string | null
+          country: string | null
+          latitude: number | null
+          longitude: number | null
+          date_published: string | null
+          date_modified: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          jambase_venue_id: string
+          name: string
+          identifier: string
+          url?: string | null
+          image_url?: string | null
+          address?: string | null
+          city?: string | null
+          state?: string | null
+          zip?: string | null
+          country?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          date_published?: string | null
+          date_modified?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          jambase_venue_id?: string
+          name?: string
+          identifier?: string
+          url?: string | null
+          image_url?: string | null
+          address?: string | null
+          city?: string | null
+          state?: string | null
+          zip?: string | null
+          country?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          date_published?: string | null
+          date_modified?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_events: {
+        Row: {
+          id: string
+          user_id: string
+          artist_id: string
+          venue_id: string
+          event_name: string
+          event_date: string
+          event_time: string | null
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          artist_id: string
+          venue_id: string
+          event_name: string
+          event_date: string
+          event_time?: string | null
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          artist_id?: string
+          venue_id?: string
+          event_name?: string
+          event_date?: string
+          event_time?: string | null
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_events_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_events_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      public_reviews_with_profiles: {
+        Row: {
+          id: string
+          user_id: string
+          event_id: string
+          rating: number
+          reaction_emoji: string | null
+          review_text: string | null
+          photos: string[] | null
+          videos: string[] | null
+          mood_tags: string[] | null
+          genre_tags: string[] | null
+          context_tags: string[] | null
+          likes_count: number
+          comments_count: number
+          shares_count: number
+          created_at: string
+          updated_at: string
+          reviewer_name: string
+          reviewer_avatar: string | null
+          event_title: string
+          artist_name: string
+          venue_name: string
+          event_date: string
+        }
+        Relationships: []
+      }
     }
     Functions: {
       populate_events_from_concerts: {
