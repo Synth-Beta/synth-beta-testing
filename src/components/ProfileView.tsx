@@ -5,13 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star } from 'lucide-react';
+import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Users, UserPlus, MessageCircle, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ConcertRanking } from './ConcertRanking';
 import { JamBaseService } from '@/services/jambaseService';
 import { EventReviewModal } from './EventReviewModal';
+import { ReviewService } from '@/services/reviewService';
+import { ReviewCard } from './ReviewCard';
+import { FriendProfileCard } from './FriendProfileCard';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -69,12 +72,16 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const [showAddReview, setShowAddReview] = useState(false);
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [reviewModalEvent, setReviewModalEvent] = useState<any>(null);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [showProfileCard, setShowProfileCard] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchProfile();
     fetchUserEvents();
     fetchReviews();
+    fetchFriends();
   }, [currentUserId]);
 
   const fetchProfile = async () => {
@@ -210,13 +217,96 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
   const fetchReviews = async () => {
     try {
-      // Load reviews from localStorage for now (similar to ConcertRanking component)
-      const storedReviews = localStorage.getItem(`concert_reviews_${currentUserId}`);
-      if (storedReviews) {
-        setReviews(JSON.parse(storedReviews));
-      }
+      console.log('🔍 ProfileView: Fetching reviews for user:', currentUserId);
+      
+      // Fetch user's reviews from the database
+      const result = await ReviewService.getUserReviewHistory(currentUserId);
+      
+      console.log('🔍 ProfileView: Raw review data:', result);
+      
+      // Transform to match the expected interface for display
+      const transformedReviews = result.reviews.map((item: any) => ({
+        id: item.review.id,
+        user_id: item.review.user_id,
+        event_id: item.review.event_id,
+        rating: item.review.rating,
+        review_text: item.review.review_text,
+        is_public: item.review.is_public,
+        created_at: item.review.created_at,
+        event: {
+          event_name: item.event?.title || item.event?.event_name || 'Concert Review',
+          location: item.event?.venue_name || 'Unknown Venue',
+          event_date: item.event?.event_date || item.review.created_at,
+          event_time: item.event?.event_time || 'TBD'
+        }
+      }));
+      
+      console.log('🔍 ProfileView: Transformed reviews:', transformedReviews);
+      setReviews(transformedReviews);
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      console.error('❌ ProfileView: Error fetching reviews:', error);
+      setReviews([]);
+    }
+  };
+
+  const fetchFriends = async () => {
+    try {
+      // First, get the friendship records
+      const { data: friendships, error: friendsError } = await supabase
+        .from('friends')
+        .select('id, user1_id, user2_id, created_at')
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+        .order('created_at', { ascending: false });
+
+      if (friendsError) {
+        console.warn('Warning: Could not fetch friends:', friendsError);
+        setFriends([]);
+        return;
+      }
+
+      if (!friendships || friendships.length === 0) {
+        setFriends([]);
+        return;
+      }
+
+      // Get all the user IDs we need to fetch
+      const userIds = friendships.map(f => 
+        f.user1_id === currentUserId ? f.user2_id : f.user1_id
+      );
+
+      // Fetch the profiles for those users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url, bio, user_id, created_at')
+        .in('user_id', userIds);
+
+      if (profilesError) {
+        console.warn('Warning: Could not fetch friend profiles:', profilesError);
+        setFriends([]);
+        return;
+      }
+
+      // Transform the data to get the other user's profile
+      const friendsList = friendships.map(friendship => {
+        const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
+        const profile = profiles?.find(p => p.user_id === otherUserId);
+        
+        return {
+          id: profile?.id || otherUserId,
+          user_id: otherUserId, // Add user_id for chat functionality
+          name: profile?.name || 'Unknown User',
+          username: (profile?.name || 'unknown').toLowerCase().replace(/\s+/g, ''),
+          avatar_url: profile?.avatar_url || null,
+          bio: profile?.bio || null,
+          friendship_id: friendship.id,
+          created_at: friendship.created_at
+        };
+      });
+
+      setFriends(friendsList);
+    } catch (error) {
+      console.warn('Warning: Error fetching friends:', error);
+      setFriends([]);
     }
   };
 
@@ -242,6 +332,36 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       title: "Review Added",
       description: "Your concert review has been added!",
     });
+  };
+
+  const handleEditReview = (review: any) => {
+    // Create a mock event for editing
+    setReviewModalEvent({
+      id: review.event_id,
+      event_title: review.event?.event_name || 'Concert Review',
+      venue_name: review.event?.location || 'Unknown Venue',
+      event_date: review.event?.event_date || review.created_at,
+      artist_name: 'Unknown Artist'
+    });
+    setShowAddReview(true);
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      await ReviewService.deleteEventReview(currentUserId, reviewId);
+      fetchReviews(); // Refresh the list
+      toast({
+        title: "Review Deleted",
+        description: "Your review has been deleted.",
+      });
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete review. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getRatingText = (rating: 'good' | 'okay' | 'bad') => {
@@ -408,7 +528,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
         {/* Events and Reviews Tabs */}
         <Tabs defaultValue="events" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="events" className="flex items-center gap-2">
               <Heart className="w-4 h-4" />
               Events
@@ -416,6 +536,10 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
             <TabsTrigger value="reviews" className="flex items-center gap-2">
               <Star className="w-4 h-4" />
               Reviews
+            </TabsTrigger>
+            <TabsTrigger value="friends" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Friends
             </TabsTrigger>
           </TabsList>
 
@@ -499,47 +623,115 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                 ) : (
                   <div className="space-y-4">
                     {reviews.map((review) => (
-                      <div key={review.id} className="p-4 border rounded-lg">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <h4 className="font-semibold">{review.event.event_name}</h4>
-                            {review.event.location && (
-                              <p className="text-sm text-muted-foreground">{review.event.location}</p>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                              {(() => {
-                                try {
-                                  return format(new Date(review.event.event_date), 'MMM d, yyyy');
-                                } catch {
-                                  return review.event.event_date;
-                                }
-                              })()}
-                            </p>
-                          </div>
-                          <Badge className={`${getRatingColor(review.rating)} border`}>
-                            {getRatingIcon(review.rating)}
-                            <span className="ml-1">{getRatingText(review.rating)}</span>
-                          </Badge>
-                        </div>
-                        {review.review_text && (
-                          <p className="text-sm text-gray-700 leading-relaxed mb-3">
-                            {review.review_text}
-                          </p>
-                        )}
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{(() => {
-                            try {
-                              return format(new Date(review.created_at), 'MMM d, yyyy');
-                            } catch {
-                              return review.created_at;
-                            }
-                          })()}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {review.is_public ? 'Public' : 'Private'}
-                          </Badge>
-                        </div>
-                      </div>
+                      <ReviewCard
+                        key={review.id}
+                        review={{
+                          id: review.id,
+                          user_id: review.user_id,
+                          event_id: review.event_id,
+                          rating: typeof review.rating === 'string' ? parseInt(review.rating) : review.rating,
+                          review_text: review.review_text,
+                          is_public: review.is_public,
+                          created_at: review.created_at,
+                          updated_at: review.created_at,
+                          likes_count: 0,
+                          comments_count: 0,
+                          shares_count: 0,
+                          is_liked_by_user: false,
+                          reaction_emoji: '',
+                          photos: [],
+                          videos: [],
+                          mood_tags: [],
+                          genre_tags: [],
+                          context_tags: []
+                        }}
+                        currentUserId={currentUserId}
+                        onEdit={handleEditReview}
+                        onDelete={handleDeleteReview}
+                        showEventInfo={true}
+                      />
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="friends" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  My Friends ({friends.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {friends.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {friends.map((friend) => (
+                      <Card key={friend.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3 mb-3">
+                            <Avatar className="w-12 h-12">
+                              <AvatarImage src={friend.avatar_url || undefined} />
+                              <AvatarFallback>
+                                {friend.name ? friend.name.split(' ').map(n => n[0]).join('') : 'F'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-900 truncate">{friend.name}</h3>
+                              <p className="text-sm text-gray-600 truncate">@{friend.username}</p>
+                            </div>
+                          </div>
+                          
+                          {friend.bio && (
+                            <p className="text-sm text-gray-700 mb-3 line-clamp-2">{friend.bio}</p>
+                          )}
+                          
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => {
+                                setSelectedFriend(friend);
+                                setShowProfileCard(true);
+                              }}
+                            >
+                              <User className="w-4 h-4 mr-1" />
+                              Profile
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+                              onClick={() => {
+                                console.log('Start chat with:', friend.name);
+                                // TODO: Implement chat functionality
+                              }}
+                            >
+                              <MessageCircle className="w-4 h-4 mr-1" />
+                              Chat
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 bg-gray-50 rounded-lg">
+                    <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No Friends Yet</h3>
+                    <p className="text-gray-600 mb-4">Start connecting with other music lovers!</p>
+                    <Button
+                      onClick={() => {
+                        // TODO: Navigate to find friends or show search
+                        console.log('Find friends clicked');
+                      }}
+                      className="bg-blue-500 hover:bg-blue-600 text-white"
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Find Friends
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -560,6 +752,22 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         }}
         onReviewSubmitted={handleReviewSubmitted}
       />
+
+      {/* Friend Profile Card */}
+      {selectedFriend && (
+        <FriendProfileCard
+          friend={selectedFriend}
+          isOpen={showProfileCard}
+          onClose={() => {
+            setShowProfileCard(false);
+            setSelectedFriend(null);
+          }}
+          onStartChat={(friendId) => {
+            console.log('Start chat with friend:', friendId);
+            // TODO: Implement chat functionality
+          }}
+        />
+      )}
     </div>
   );
 };

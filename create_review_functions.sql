@@ -14,6 +14,9 @@ BEGIN
 END;
 $$;
 
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION public.increment_review_count TO authenticated;
+
 -- Create function to update review counts when likes/comments/shares are added/removed
 CREATE OR REPLACE FUNCTION public.update_review_counts()
 RETURNS TRIGGER

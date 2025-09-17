@@ -904,6 +904,8 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
                 <div>
                   <label className="text-sm font-medium mb-2 block">Event Name *</label>
                   <input
+                    id="edit-event-name"
+                    name="eventName"
                     type="text"
                     value={editingReview.event.event_name}
                     onChange={(e) => setEditingReview({
@@ -917,6 +919,8 @@ export const ConcertRanking = ({ currentUserId, onBack, onSearch }: ConcertRanki
                 <div>
                   <label className="text-sm font-medium mb-2 block">Location</label>
                   <input
+                    id="edit-event-location"
+                    name="eventLocation"
                     type="text"
                     value={editingReview.event.location}
                     onChange={(e) => setEditingReview({

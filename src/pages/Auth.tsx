@@ -99,6 +99,8 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <Input
+                  id="signin-email"
+                  name="signinEmail"
                   type="email"
                   placeholder="Email"
                   value={email}
@@ -106,6 +108,8 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                   required
                 />
                 <Input
+                  id="signin-password"
+                  name="signinPassword"
                   type="password"
                   placeholder="Password"
                   value={password}
@@ -121,6 +125,8 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <Input
+                  id="signup-name"
+                  name="signupName"
                   type="text"
                   placeholder="Your name"
                   value={name}
@@ -128,6 +134,8 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                   required
                 />
                 <Input
+                  id="signup-email"
+                  name="signupEmail"
                   type="email"
                   placeholder="Email"
                   value={email}
@@ -135,6 +143,8 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                   required
                 />
                 <Input
+                  id="signup-password"
+                  name="signupPassword"
                   type="password"
                   placeholder="Password (min 6 characters)"
                   value={password}

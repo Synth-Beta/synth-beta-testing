@@ -363,6 +363,8 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
               <Search className="h-4 w-4" />
             </div>
             <Input
+              id="unified-search-input"
+              name="unifiedSearch"
               type="text"
               placeholder="Search for artists or people..."
               value={searchQuery}

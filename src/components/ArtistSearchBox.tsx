@@ -62,6 +62,9 @@ export function ArtistSearchBox({
           e.preventDefault();
           if (selectedIndex >= 0 && selectedIndex < searchResults.artists.length) {
             handleArtistSelect(searchResults.artists[selectedIndex]);
+          } else if (query.trim()) {
+            // If no item is selected but there's text, try manual selection
+            handleManualSelect();
           }
           break;
         case 'Escape':
@@ -167,6 +170,8 @@ export function ArtistSearchBox({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
         <Input
+          id="artist-search-input"
+          name="artistSearch"
           ref={inputRef}
           type="text"
           placeholder={placeholder}

@@ -22,6 +22,7 @@ export type PublicReviewWithProfile = Tables<'public_reviews_with_profiles'>;
 export interface ReviewData {
   rating: number;
   review_text?: string;
+  reaction_emoji?: string;
   is_public?: boolean;
 }
 
@@ -195,18 +196,19 @@ export class ReviewService {
     total: number;
   }> {
     try {
+      console.log('🔍 ReviewService: Getting user review history for userId:', userId);
+      
       const { data, error } = await supabase
         .from('user_reviews')
-        .select(`
-          *,
-          jambase_event:jambase_events(*)
-        `)
+        .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
+      console.log('🔍 ReviewService: Raw query result:', { data, error });
+
       if (error) throw error;
 
-      return {
+      const result = {
         reviews: (data || []).map((item: any) => ({
           review: {
             id: item.id,
@@ -227,12 +229,15 @@ export class ReviewService {
             shares_count: item.shares_count,
             is_public: item.is_public
           },
-          event: item.jambase_event
+          event: null // We'll fetch event data separately if needed
         })),
         total: Array.isArray(data) ? data.length : 0
       };
+      
+      console.log('🔍 ReviewService: Processed result:', result);
+      return result;
     } catch (error) {
-      console.error('Error getting user review history:', error);
+      console.error('❌ ReviewService: Error getting user review history:', error);
       throw new Error(`Failed to get user review history: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

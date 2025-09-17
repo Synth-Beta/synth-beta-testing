@@ -103,12 +103,31 @@ export function VenueSearchBox({
   };
 
   const handleVenueSelect = (venue: VenueSearchResult) => {
+    console.log('🎯 VenueSearchBox: Venue selected:', venue);
     onVenueSelect(venue);
     setQuery(venue.name);
     setIsOpen(false);
     setSelectedIndex(-1);
     inputRef.current?.blur();
   };
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const container = inputRef.current?.parentElement?.parentElement; // The main container div
+      
+      if (container && !container.contains(target)) {
+        setIsOpen(false);
+        setSelectedIndex(-1);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);
@@ -120,12 +139,18 @@ export function VenueSearchBox({
     }
   };
 
-  const handleInputBlur = () => {
+  const handleInputBlur = (e: React.FocusEvent) => {
+    // Check if focus is moving to the dropdown
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (relatedTarget && listRef.current?.contains(relatedTarget)) {
+      return; // Don't close if focus is moving to dropdown
+    }
+    
     // Delay closing to allow for click events
     setTimeout(() => {
       setIsOpen(false);
       setSelectedIndex(-1);
-    }, 150);
+    }, 100);
   };
 
   const clearSearch = () => {
@@ -156,6 +181,8 @@ export function VenueSearchBox({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
         <Input
+          id="venue-search-input"
+          name="venueSearch"
           ref={inputRef}
           type="text"
           placeholder={placeholder}
@@ -186,7 +213,7 @@ export function VenueSearchBox({
 
       {/* Search Results Dropdown */}
       {isOpen && searchResults && (
-        <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-80 overflow-y-auto shadow-lg border">
+        <Card className="relative top-0 left-0 right-0 z-[100] mt-2 max-h-48 overflow-y-auto shadow-lg border bg-white">
           <CardContent className="p-0">
             {searchResults.length > 0 ? (
               <div ref={listRef} className="py-2">

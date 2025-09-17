@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Star } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Star, Edit, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PublicReviewWithProfile, ReviewService } from '@/services/reviewService';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,6 +14,8 @@ interface PublicReviewCardProps {
   onLike?: (reviewId: string, isLiked: boolean) => void;
   onComment?: (reviewId: string) => void;
   onShare?: (reviewId: string) => void;
+  onEdit?: (review: PublicReviewWithProfile) => void;
+  onDelete?: (reviewId: string) => void;
 }
 
 export function PublicReviewCard({
@@ -21,7 +23,9 @@ export function PublicReviewCard({
   currentUserId,
   onLike,
   onComment,
-  onShare
+  onShare,
+  onEdit,
+  onDelete
 }: PublicReviewCardProps) {
   const [isLiked, setIsLiked] = useState(false); // Would need to check if user liked this review
   const [likesCount, setLikesCount] = useState(review.likes_count);
@@ -64,6 +68,20 @@ export function PublicReviewCard({
     }
   };
 
+  const handleEdit = () => {
+    if (onEdit) {
+      onEdit(review);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (onDelete && window.confirm('Are you sure you want to delete this review?')) {
+      onDelete(review.id);
+    }
+  };
+
+  const isOwner = currentUserId && review.user_id === currentUserId;
+
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
@@ -102,9 +120,31 @@ export function PublicReviewCard({
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="sm">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center space-x-1">
+            {isOwner && (
+              <>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleEdit}
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleDelete}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+            <Button variant="ghost" size="sm">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
 

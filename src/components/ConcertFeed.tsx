@@ -19,7 +19,9 @@ import {
   Search,
   UserPlus,
   Bell,
-  X
+  X,
+  Plus,
+  User
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +30,10 @@ import { MatchesView } from '@/components/MatchesView';
 import { ChatView } from '@/components/ChatView';
 import { UnifiedChatView } from '@/components/UnifiedChatView';
 import { Navigation } from '@/components/Navigation';
+import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
+import { EventReviewModal } from '@/components/EventReviewModal';
+import { FriendProfileCard } from '@/components/FriendProfileCard';
+import { ReviewCard } from '@/components/ReviewCard';
 
 interface ConcertReview {
   id: string;
@@ -62,7 +68,7 @@ interface ConcertFeedProps {
 
 export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigateToNotifications, onViewChange }: ConcertFeedProps) => {
   const [activeTab, setActiveTab] = useState('friends-recommended');
-  const [reviews, setReviews] = useState<ConcertReview[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [friends, setFriends] = useState<any[]>([]);
   const [showChatModal, setShowChatModal] = useState(false);
@@ -74,6 +80,10 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedReviewEvent, setSelectedReviewEvent] = useState<any>(null);
+  const [showProfileCard, setShowProfileCard] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -92,7 +102,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         .limit(20);
 
       if (error) {
-        console.error('Error fetching notifications:', error);
+        console.warn('Warning: Could not fetch notifications:', error);
+        setNotifications([]);
         return;
       }
 
@@ -103,15 +114,23 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
       
       for (const notification of data || []) {
         if (notification.type === 'friend_request') {
-          // Check if the friend request still exists and is pending
-          const { data: requestData } = await supabase
-            .from('friend_requests')
-            .select('status')
-            .eq('id', (notification.data as any)?.request_id)
-            .single();
+          console.log(`🔍 Debug: Notification ${notification.id} data:`, notification.data);
+          console.log(`🔍 Debug: Notification ${notification.id} request_id:`, (notification.data as any)?.request_id);
           
-          if (requestData && requestData.status === 'pending') {
-            activeNotifications.push(notification);
+          // Check if the friend request still exists and is pending
+          const requestId = (notification.data as any)?.request_id;
+          if (requestId) {
+            const { data: friendRequest } = await supabase
+              .from('friend_requests')
+              .select('status')
+              .eq('id', requestId)
+              .single();
+            
+            if (friendRequest && friendRequest.status === 'pending') {
+              activeNotifications.push(notification);
+            } else {
+              console.log(`🔍 Debug: Friend request ${requestId} is no longer pending, removing notification`);
+            }
           }
         } else {
           activeNotifications.push(notification);
@@ -120,7 +139,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
       
       setNotifications(activeNotifications);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.warn('Warning: Error fetching notifications:', error);
+      setNotifications([]);
     }
   };
 
@@ -128,48 +148,51 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     try {
       console.log('👥 Fetching friends for user:', currentUserId);
       
-      // Fetch actual friends from database
-      const { data, error } = await supabase
+      // First, get the friendship records
+      const { data: friendships, error: friendsError } = await supabase
         .from('friends')
         .select('id, user1_id, user2_id, created_at')
         .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
         .order('created_at', { ascending: false });
 
-      console.log('👥 Friends query result:', { data, error });
+      console.log('👥 Friends query result:', { data: friendships, error: friendsError });
 
-      if (error) {
-        console.error('Error fetching friends:', error);
-        return;
-      }
-
-      // Get the other user IDs
-      const otherUserIds = (data || []).map(friendship => 
-        friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id
-      );
-
-      if (otherUserIds.length === 0) {
+      if (friendsError) {
+        console.warn('Warning: Could not fetch friends:', friendsError);
         setFriends([]);
         return;
       }
 
-      // Fetch profiles for the other users
+      if (!friendships || friendships.length === 0) {
+        setFriends([]);
+        return;
+      }
+
+      // Get all the user IDs we need to fetch
+      const userIds = friendships.map(f => 
+        f.user1_id === currentUserId ? f.user2_id : f.user1_id
+      );
+
+      // Fetch the profiles for those users
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('user_id, name, avatar_url, bio')
-        .in('user_id', otherUserIds);
+        .select('id, name, avatar_url, bio')
+        .in('user_id', userIds);
 
       if (profilesError) {
-        console.error('Error fetching friend profiles:', profilesError);
+        console.warn('Warning: Could not fetch friend profiles:', profilesError);
+        setFriends([]);
         return;
       }
 
       // Transform the data to get the other user's profile
-      const friendsList = (data || []).map(friendship => {
+      const friendsList = friendships.map(friendship => {
         const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
-        const profile = profiles?.find(p => p.user_id === otherUserId);
+        const profile = profiles?.find(p => p.id === otherUserId);
         
         return {
-          id: otherUserId,
+          id: profile?.id || otherUserId,
+          user_id: otherUserId, // Add user_id for chat functionality
           name: profile?.name || 'Unknown User',
           username: (profile?.name || 'unknown').toLowerCase().replace(/\s+/g, ''),
           avatar_url: profile?.avatar_url || null,
@@ -182,7 +205,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
       console.log('👥 Processed friends list:', friendsList);
       setFriends(friendsList);
     } catch (error) {
-      console.error('Error fetching friends:', error);
+      console.warn('Warning: Error fetching friends:', error);
+      setFriends([]);
     }
   };
 
@@ -206,28 +230,36 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   const fetchFriendsAndRecommendedReviews = async () => {
     try {
-      // For now, fetch user's own reviews and show them as feed content
-      // In a real implementation, this would fetch friends' reviews from the database
-      const storedReviews = localStorage.getItem(`concert_reviews_${currentUserId}`);
-      if (storedReviews) {
-        const userReviews = JSON.parse(storedReviews);
-        // Transform to match the expected interface
-        const transformedReviews = userReviews.map((review: any) => ({
-          ...review,
-          user: {
-            name: 'You',
-            avatar_url: null,
-            username: 'you'
-          },
-          likes_count: Math.floor(Math.random() * 10),
+      console.log('🔍 ConcertFeed: Fetching reviews for user:', currentUserId);
+      
+      // Fetch user's own reviews from the database
+      const result = await ReviewService.getUserReviewHistory(currentUserId);
+      
+      console.log('🔍 ConcertFeed: Raw review data:', result);
+      
+      // Transform to match the expected interface for display
+      const transformedReviews = result.reviews.map((item: any) => ({
+        id: item.review.id,
+        rating: item.review.rating,
+        review_text: item.review.review_text,
+        created_at: item.review.created_at,
+        is_public: item.review.is_public,
+        event_title: item.event?.title || item.event?.event_name || 'Concert Review',
+        venue_name: item.event?.venue_name || 'Unknown Venue',
+        event_date: item.event?.event_date || item.review.created_at,
+        artist_name: item.event?.artist_name || 'Unknown Artist',
+        reviewer_name: 'You',
+        reviewer_avatar: null,
+        likes_count: item.review.likes_count || 0,
+        comments_count: item.review.comments_count || 0,
+        shares_count: item.review.shares_count || 0,
           is_liked: false
         }));
+      
+      console.log('🔍 ConcertFeed: Transformed reviews:', transformedReviews);
         setReviews(transformedReviews);
-      } else {
-        setReviews([]);
-      }
     } catch (error) {
-      console.error('Error fetching friends and recommended reviews:', error);
+      console.error('❌ ConcertFeed: Error fetching friends and recommended reviews:', error);
       setReviews([]);
     }
   };
@@ -245,28 +277,9 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   const fetchPublicReviews = async () => {
     try {
-      // Fetch all public reviews from localStorage
-      // In a real implementation, this would fetch from the database
-      const storedReviews = localStorage.getItem(`concert_reviews_${currentUserId}`);
-      if (storedReviews) {
-        const userReviews = JSON.parse(storedReviews);
-        // Only show public reviews
-        const publicReviews = userReviews
-          .filter((review: any) => review.is_public)
-          .map((review: any) => ({
-            ...review,
-            user: {
-              name: 'You',
-              avatar_url: null,
-              username: 'you'
-            },
-            likes_count: Math.floor(Math.random() * 20),
-            is_liked: false
-          }));
-        setReviews(publicReviews);
-      } else {
-        setReviews([]);
-      }
+      // Fetch public reviews from the database using the new review service
+      const result = await ReviewService.getPublicReviewsWithProfiles(undefined, 20, 0);
+      setReviews(result.reviews);
     } catch (error) {
       console.error('Error fetching public reviews:', error);
       setReviews([]);
@@ -500,8 +513,10 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         throw error;
       }
 
-      // Refresh notifications and friends
-      fetchNotifications();
+      // Remove the notification from UI immediately
+      setNotifications(prev => prev.filter(n => (n.data as any)?.request_id !== requestId));
+      
+      // Refresh friends list
       fetchFriends();
 
       toast({
@@ -531,8 +546,37 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     }
 
     try {
+      console.log('🔍 Debug: Declining friend request with ID:', requestId);
+      
+      let actualRequestId = requestId;
+      
+      // If no request ID provided, try to find it from friend_requests table
+      if (!actualRequestId) {
+        console.log('🔍 Debug: No request ID provided, trying to find from friend_requests table');
+        
+        const { data: friendRequests, error: fetchError } = await supabase
+          .from('friend_requests')
+          .select('id')
+          .eq('receiver_id', currentUserId)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (fetchError) {
+          console.error('Error fetching friend requests:', fetchError);
+          throw new Error('Could not find friend request');
+        }
+        
+        if (!friendRequests || friendRequests.length === 0) {
+          throw new Error('No pending friend requests found');
+        }
+        
+        actualRequestId = friendRequests[0].id;
+        console.log('🔍 Debug: Found request ID from database:', actualRequestId);
+      }
+      
       const { error } = await supabase.rpc('decline_friend_request', {
-        request_id: requestId
+        request_id: actualRequestId
       });
 
       console.log('❌ Decline friend request result:', error);
@@ -555,8 +599,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         throw error;
       }
 
-      // Refresh notifications
-      fetchNotifications();
+      // Remove the notification from UI immediately
+      setNotifications(prev => prev.filter(n => (n.data as any)?.request_id !== requestId));
 
       toast({
         title: "Friend Request Declined",
@@ -572,7 +616,12 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     }
   };
 
-  const getRatingText = (rating: 'good' | 'okay' | 'bad') => {
+  const getRatingText = (rating: number | 'good' | 'okay' | 'bad') => {
+    if (typeof rating === 'number') {
+      if (rating >= 4) return 'Good';
+      if (rating >= 2) return 'Okay';
+      return 'Bad';
+    }
     switch (rating) {
       case 'good': return 'Good';
       case 'okay': return 'Okay';
@@ -581,7 +630,12 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     }
   };
 
-  const getRatingColor = (rating: 'good' | 'okay' | 'bad') => {
+  const getRatingColor = (rating: number | 'good' | 'okay' | 'bad') => {
+    if (typeof rating === 'number') {
+      if (rating >= 4) return 'bg-green-100 text-green-800 border-green-200';
+      if (rating >= 2) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      return 'bg-red-100 text-red-800 border-red-200';
+    }
     switch (rating) {
       case 'good': return 'bg-green-100 text-green-800 border-green-200';
       case 'okay': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
@@ -590,7 +644,12 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     }
   };
 
-  const getRatingIcon = (rating: 'good' | 'okay' | 'bad') => {
+  const getRatingIcon = (rating: number | 'good' | 'okay' | 'bad') => {
+    if (typeof rating === 'number') {
+      if (rating >= 4) return <ThumbsUp className="w-4 h-4" />;
+      if (rating >= 2) return <Minus className="w-4 h-4" />;
+      return <ThumbsDown className="w-4 h-4" />;
+    }
     switch (rating) {
       case 'good': return <ThumbsUp className="w-4 h-4" />;
       case 'okay': return <Minus className="w-4 h-4" />;
@@ -599,8 +658,78 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     }
   };
 
-  // Don't return early - render chat as overlay
+  const handleAddReview = () => {
+    // Create a mock event for the review modal
+    const mockEvent = {
+      id: 'new-review-' + Date.now(),
+      title: 'New Concert Review',
+      venue_name: '',
+      event_date: new Date().toISOString().split('T')[0],
+      description: 'Share your concert experience'
+    };
+    setSelectedReviewEvent(mockEvent as any);
+    setShowReviewModal(true);
+  };
 
+  const handleReviewSubmitted = (review: any) => {
+    // Refresh reviews after submission
+    fetchReviews();
+    setShowReviewModal(false);
+    setSelectedReviewEvent(null);
+  };
+
+  const handleEditReview = (review: any) => {
+    // Create a mock event for editing
+    setSelectedReviewEvent({
+      id: review.event_id || 'edit-review',
+      event_title: review.event_title || 'Concert Review',
+      venue_name: review.venue_name || 'Unknown Venue',
+      event_date: review.event_date || review.created_at,
+      artist_name: review.artist_name || 'Unknown Artist'
+    });
+    setShowReviewModal(true);
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      await ReviewService.deleteEventReview(currentUserId, reviewId);
+      fetchReviews(); // Refresh the list
+      toast({
+        title: "Review Deleted",
+        description: "Your review has been deleted.",
+      });
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete review. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => {
+      const starValue = i + 1;
+      const isFullStar = rating >= starValue;
+      const isHalfStar = rating >= i + 0.5 && rating < starValue;
+      
+      return (
+        <div key={i} className="relative">
+          <Star
+            className={`w-4 h-4 ${isFullStar ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+          />
+          {isHalfStar && (
+            <div className="absolute inset-0 overflow-hidden w-1/2">
+              <Star className="w-4 h-4 text-yellow-400 fill-current" />
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
+
+  // Don't return early - render chat as overlay
   if (showChatView) {
     return <ChatView currentUserId={currentUserId} onBack={() => setShowChatView(false)} />;
   }
@@ -681,95 +810,45 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                   {reviews.length === 0 ? (
                     <div className="text-center py-8 bg-gray-50 rounded-lg">
                       <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">No Friends' Reviews Yet</h3>
-                      <p className="text-gray-600 text-sm">Your friends haven't shared any concert reviews yet.</p>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">No Reviews Yet</h3>
+                      <p className="text-gray-600 text-sm">Be the first to share a concert review!</p>
+                      <Button
+                        onClick={handleAddReview}
+                        className="mt-4 bg-pink-500 hover:bg-pink-600 text-white"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Your First Review
+                      </Button>
                     </div>
                   ) : (
                     reviews.map((review) => (
-                      <Card key={review.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="w-8 h-8">
-                                <AvatarImage src={review.user.avatar_url || undefined} />
-                                <AvatarFallback className="text-xs">
-                                  {review.user.name.split(' ').map(n => n[0]).join('')}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <h3 className="font-semibold text-sm text-gray-900">{review.user.name}</h3>
-                                <p className="text-xs text-gray-500">@{review.user.username}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
-                                <Users className="w-3 h-3 mr-1" />
-                                Friend
-                              </Badge>
-                              <Badge className={`${getRatingColor(review.rating)} border text-xs`}>
-                                {getRatingIcon(review.rating)}
-                                <span className="ml-1">{getRatingText(review.rating)}</span>
-                              </Badge>
-                            </div>
-                          </div>
-
-                          <div className="mb-3">
-                            <h4 className="text-lg font-semibold text-gray-900 mb-1">
-                              {review.event.event_name}
-                            </h4>
-                            <p className="text-sm text-gray-600 mb-2">
-                              {review.event.location} • {(() => {
-                                try {
-                                  return format(parseISO(review.event.event_date), 'MMM d, yyyy');
-                                } catch {
-                                  return review.event.event_date;
-                                }
-                              })()}
-                            </p>
-                            {review.review_text && (
-                              <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">
-                                {review.review_text}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleLike(review.id)}
-                                className={`flex items-center gap-1 text-xs ${review.is_liked ? 'text-red-500' : 'text-gray-500'}`}
-                              >
-                                <Heart className={`w-3 h-3 ${review.is_liked ? 'fill-current' : ''}`} />
-                                {review.likes_count}
-                              </Button>
-                              <Button variant="ghost" size="sm" className="flex items-center gap-1 text-xs text-gray-500">
-                                <MessageCircle className="w-3 h-3" />
-                                Comment
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => handleShare(review)}
-                                className="flex items-center gap-1 text-xs text-gray-500"
-                              >
-                                <Share2 className="w-3 h-3" />
-                                Share
-                              </Button>
-                            </div>
-                            <span className="text-xs text-gray-500">
-                              {(() => {
-                                try {
-                                  return format(parseISO(review.created_at), 'MMM d');
-                                } catch {
-                                  return review.created_at;
-                                }
-                              })()}
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <ReviewCard
+                        key={review.id}
+                        review={{
+                          id: review.id,
+                          user_id: review.reviewer_id || currentUserId,
+                          event_id: review.event_id || '',
+                          rating: review.rating,
+                          review_text: review.review_text,
+                          is_public: review.is_public,
+                          created_at: review.created_at,
+                          updated_at: review.created_at,
+                          likes_count: review.likes_count || 0,
+                          comments_count: review.comments_count || 0,
+                          shares_count: review.shares_count || 0,
+                          is_liked_by_user: false,
+                          reaction_emoji: '',
+                          photos: [],
+                          videos: [],
+                          mood_tags: [],
+                          genre_tags: [],
+                          context_tags: []
+                        }}
+                        currentUserId={currentUserId}
+                        onEdit={handleEditReview}
+                        onDelete={handleDeleteReview}
+                        showEventInfo={true}
+                      />
                     ))
                   )}
                 </div>
@@ -793,6 +872,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
             </div>
           </TabsContent>
 
+
           <TabsContent value="news" className="mt-6">
             <div className="space-y-3">
               {reviews.length === 0 ? (
@@ -808,14 +888,14 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <Avatar className="w-8 h-8">
-                            <AvatarImage src={review.user.avatar_url || undefined} />
+                            <AvatarImage src={review.reviewer_avatar || undefined} />
                             <AvatarFallback className="text-xs">
-                              {review.user.name.split(' ').map(n => n[0]).join('')}
+                              {review.reviewer_name?.split(' ').map(n => n[0]).join('') || 'U'}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <h3 className="font-semibold text-sm text-gray-900">{review.user.name}</h3>
-                            <p className="text-xs text-gray-500">@{review.user.username}</p>
+                            <h3 className="font-semibold text-sm text-gray-900">{review.reviewer_name || 'Anonymous'}</h3>
+                            <p className="text-xs text-gray-500">Concert Review</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -832,14 +912,14 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
                       <div className="mb-3">
                         <h4 className="text-lg font-semibold text-gray-900 mb-1">
-                          {review.event.event_name}
+                          {review.event_title}
                         </h4>
                         <p className="text-sm text-gray-600 mb-2">
-                          {review.event.location} • {(() => {
+                          {review.venue_name} • {(() => {
                             try {
-                              return format(parseISO(review.event.event_date), 'MMM d, yyyy');
+                              return format(parseISO(review.event_date), 'MMM d, yyyy');
                             } catch {
-                              return review.event.event_date;
+                              return review.event_date;
                             }
                           })()}
                         </p>
@@ -856,10 +936,10 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                             variant="ghost"
                             size="sm"
                             onClick={() => handleLike(review.id)}
-                            className={`flex items-center gap-1 text-xs ${review.is_liked ? 'text-red-500' : 'text-gray-500'}`}
+                            className={`flex items-center gap-1 text-xs ${(review as any).is_liked ? 'text-red-500' : 'text-gray-500'}`}
                           >
-                            <Heart className={`w-3 h-3 ${review.is_liked ? 'fill-current' : ''}`} />
-                            {review.likes_count}
+                            <Heart className={`w-3 h-3 ${(review as any).is_liked ? 'fill-current' : ''}`} />
+                            {(review as any).likes_count}
                           </Button>
                           <Button variant="ghost" size="sm" className="flex items-center gap-1 text-xs text-gray-500">
                             <MessageCircle className="w-3 h-3" />
@@ -868,7 +948,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => handleShare(review)}
+                            onClick={() => handleShare(review as any)}
                             className="flex items-center gap-1 text-xs text-gray-500"
                           >
                             <Share2 className="w-3 h-3" />
@@ -907,14 +987,14 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <Avatar className="w-8 h-8">
-                            <AvatarImage src={review.user.avatar_url || undefined} />
+                            <AvatarImage src={review.reviewer_avatar || undefined} />
                             <AvatarFallback className="text-xs">
-                              {review.user.name.split(' ').map(n => n[0]).join('')}
+                              {review.reviewer_name?.split(' ').map(n => n[0]).join('') || 'U'}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <h3 className="font-semibold text-sm text-gray-900">{review.user.name}</h3>
-                            <p className="text-xs text-gray-500">@{review.user.username}</p>
+                            <h3 className="font-semibold text-sm text-gray-900">{review.reviewer_name || 'Anonymous'}</h3>
+                            <p className="text-xs text-gray-500">Concert Review</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -931,14 +1011,14 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
                       <div className="mb-3">
                         <h4 className="text-lg font-semibold text-gray-900 mb-1">
-                          {review.event.event_name}
+                          {review.event_title}
                         </h4>
                         <p className="text-sm text-gray-600 mb-2">
-                          {review.event.location} • {(() => {
+                          {review.venue_name} • {(() => {
                             try {
-                              return format(parseISO(review.event.event_date), 'MMM d, yyyy');
+                              return format(parseISO(review.event_date), 'MMM d, yyyy');
                             } catch {
-                              return review.event.event_date;
+                              return review.event_date;
                             }
                           })()}
                         </p>
@@ -955,10 +1035,10 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                             variant="ghost"
                             size="sm"
                             onClick={() => handleLike(review.id)}
-                            className={`flex items-center gap-1 text-xs ${review.is_liked ? 'text-red-500' : 'text-gray-500'}`}
+                            className={`flex items-center gap-1 text-xs ${(review as any).is_liked ? 'text-red-500' : 'text-gray-500'}`}
                           >
-                            <Heart className={`w-3 h-3 ${review.is_liked ? 'fill-current' : ''}`} />
-                            {review.likes_count}
+                            <Heart className={`w-3 h-3 ${(review as any).is_liked ? 'fill-current' : ''}`} />
+                            {(review as any).likes_count}
                           </Button>
                           <Button variant="ghost" size="sm" className="flex items-center gap-1 text-xs text-gray-500">
                             <MessageCircle className="w-3 h-3" />
@@ -967,7 +1047,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => handleShare(review)}
+                            onClick={() => handleShare(review as any)}
                             className="flex items-center gap-1 text-xs text-gray-500"
                           >
                             <Share2 className="w-3 h-3" />
@@ -1014,13 +1094,69 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
             </div>
           </div>
           
-          {/* Chat content - just conversations, no requests */}
+          {/* Chat content - show friends and conversations */}
           <div className="p-4">
+            {friends.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Users className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">Start a Conversation</h2>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {friends.map((friend) => (
+                    <Card key={friend.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          <Avatar className="w-12 h-12">
+                            <AvatarImage src={friend.avatar_url || undefined} />
+                            <AvatarFallback>
+                              {friend.name ? friend.name.split(' ').map(n => n[0]).join('') : 'F'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 truncate">{friend.name}</h3>
+                            <p className="text-sm text-gray-600 truncate">@{friend.username}</p>
+                          </div>
+                        </div>
+                        
+                        {friend.bio && (
+                          <p className="text-sm text-gray-700 mb-3 line-clamp-2">{friend.bio}</p>
+                        )}
+                        
+                        <Button
+                          className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                          onClick={() => {
+                            console.log('Start chat with:', friend.name);
+                            // TODO: Implement actual chat functionality
+                            setShowChatModal(false);
+                          }}
+                        >
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                          Start Chat
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ) : (
             <div className="text-center py-12">
               <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Conversations Yet</h3>
-              <p className="text-gray-600">Start chatting with your matches!</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Friends Yet</h3>
+                <p className="text-gray-600 mb-4">Add friends to start conversations!</p>
+                <Button
+                  onClick={() => {
+                    setShowChatModal(false);
+                    setShowNotificationsModal(true);
+                  }}
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Find Friends
+                </Button>
             </div>
+            )}
           </div>
         </div>
       )}
@@ -1051,6 +1187,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
+                id="user-search-input"
+                name="userSearch"
                 type="text"
                 placeholder="Search by email or username..."
                 value={userSearchQuery}
@@ -1129,16 +1267,16 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                       </div>
                       {notification.type === 'friend_request' && (
                         <div className="flex gap-2">
-                      <Button
-                        size="sm"
+                          <Button
+                            size="sm"
                             onClick={() => {
                               console.log('🤝 Accept button clicked for notification:', notification);
                               console.log('🤝 Notification data:', notification.data);
                               console.log('🤝 Request ID from data:', (notification.data as any)?.request_id);
                               handleAcceptFriendRequest((notification.data as any)?.request_id);
                             }}
-                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 text-sm"
-                      >
+                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 text-sm"
+                          >
                             Accept
                           </Button>
                           <Button
@@ -1146,12 +1284,14 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                             variant="outline"
                             onClick={() => {
                               console.log('❌ Decline button clicked for notification:', notification);
+                              console.log('🔍 Debug: Decline - Notification data:', notification.data);
+                              console.log('🔍 Debug: Decline - Request ID from data:', (notification.data as any)?.request_id);
                               handleDeclineFriendRequest((notification.data as any)?.request_id);
                             }}
                             className="px-3 py-1 text-sm"
                           >
                             Decline
-                      </Button>
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -1218,65 +1358,65 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                         </p>
                       </div>
                     </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={async () => {
-                            // Start direct chat with this friend
-                            console.log('Starting direct chat with:', friend.name);
-                            try {
-                              const { data: chatId, error } = await supabase.rpc('create_direct_chat', {
-                                user1_id: currentUserId,
-                                user2_id: friend.id
-                              });
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          // Start direct chat with this friend
+                          console.log('Starting direct chat with:', friend.name);
+                          try {
+                            const { data: chatId, error } = await supabase.rpc('create_direct_chat', {
+                              user1_id: currentUserId,
+                              user2_id: friend.id
+                            });
 
-                              if (error) {
-                                console.error('Error creating direct chat:', error);
-                                toast({
-                                  title: "Error",
-                                  description: "Failed to create chat. Please try again.",
-                                  variant: "destructive",
-                                });
-                                return;
-                              }
-
-                              setShowFriendsChatModal(false);
-                              setShowChatView(true);
-                              
-                              toast({
-                                title: "Chat Created! 💬",
-                                description: `You can now chat with ${friend.name}!`,
-                              });
-                            } catch (error) {
+                            if (error) {
                               console.error('Error creating direct chat:', error);
                               toast({
                                 title: "Error",
                                 description: "Failed to create chat. Please try again.",
                                 variant: "destructive",
                               });
+                              return;
                             }
-                          }}
-                          className="bg-blue-500 hover:bg-blue-600 text-white"
-                        >
-                          <MessageCircle className="w-4 h-4 mr-1" />
-                          Chat
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            // Add to group selection
-                            console.log('Adding to group selection:', friend.name);
+
                             setShowFriendsChatModal(false);
                             setShowChatView(true);
-                            // TODO: Open group creation with this friend pre-selected
-                          }}
-                          className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                        >
-                          <Users className="w-4 h-4 mr-1" />
-                          Group
-                        </Button>
-                      </div>
+                            
+                            toast({
+                              title: "Chat Created! 💬",
+                              description: `You can now chat with ${friend.name}!`,
+                            });
+                          } catch (error) {
+                            console.error('Error creating direct chat:', error);
+                            toast({
+                              title: "Error",
+                              description: "Failed to create chat. Please try again.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600 text-white"
+                      >
+                        <MessageCircle className="w-4 h-4 mr-1" />
+                        Chat
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          // Add to group selection
+                          console.log('Adding to group selection:', friend.name);
+                          setShowFriendsChatModal(false);
+                          setShowChatView(true);
+                          // TODO: Open group creation with this friend pre-selected
+                        }}
+                        className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                      >
+                        <Users className="w-4 h-4 mr-1" />
+                        Group
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1314,6 +1454,31 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         <Navigation 
           currentView="feed" 
           onViewChange={onViewChange} 
+        />
+      )}
+
+      {/* Review Modal */}
+      <EventReviewModal
+        event={selectedReviewEvent}
+        userId={currentUserId}
+        isOpen={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        onReviewSubmitted={handleReviewSubmitted}
+      />
+
+      {/* Friend Profile Card */}
+      {selectedFriend && (
+        <FriendProfileCard
+          friend={selectedFriend}
+          isOpen={showProfileCard}
+          onClose={() => {
+            setShowProfileCard(false);
+            setSelectedFriend(null);
+          }}
+          onStartChat={(friendId) => {
+            console.log('Start chat with friend:', friendId);
+            // TODO: Implement chat functionality
+          }}
         />
       )}
     </div>

@@ -102,7 +102,7 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
       const chatsList = (data || []).map(chat => ({
         id: chat.id,
         name: chat.chat_name,
-        type: chat.is_group_chat ? 'group' : 'direct',
+        type: (chat.is_group_chat ? 'group' : 'direct') as 'direct' | 'group',
         created_at: chat.created_at,
         participants: [], // Will be populated separately
         last_message: chat.latest_message ? {
@@ -130,32 +130,49 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
 
   const fetchFriends = async () => {
     try {
-      const { data, error } = await supabase
+      // First, get the friendship records
+      const { data: friendships, error: friendsError } = await supabase
         .from('friends')
-        .select(`
-          id,
-          user1_id,
-          user2_id,
-          created_at,
-          user1:profiles!friends_user1_id_fkey(id, name, avatar_url, bio),
-          user2:profiles!friends_user2_id_fkey(id, name, avatar_url, bio)
-        `)
+        .select('id, user1_id, user2_id, created_at')
         .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching friends:', error);
+      if (friendsError) {
+        console.error('Error fetching friends:', friendsError);
         return;
       }
 
-      const friendsList = (data || []).map(friendship => {
-        const isUser1 = friendship.user1_id === currentUserId;
-        const otherUser = isUser1 ? friendship.user2 : friendship.user1;
+      if (!friendships || friendships.length === 0) {
+        setFriends([]);
+        return;
+      }
+
+      // Get all the user IDs we need to fetch
+      const userIds = friendships.map(f => 
+        f.user1_id === currentUserId ? f.user2_id : f.user1_id
+      );
+
+      // Fetch the profiles for those users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url, bio')
+        .in('user_id', userIds);
+
+      if (profilesError) {
+        console.error('Error fetching friend profiles:', profilesError);
+        return;
+      }
+
+      // Transform the data to get the other user's profile
+      const friendsList = friendships.map(friendship => {
+        const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
+        const profile = profiles?.find(p => p.id === otherUserId);
+        
         return {
-          id: otherUser.id,
-          name: otherUser.name,
-          avatar_url: otherUser.avatar_url,
-          bio: otherUser.bio
+          id: profile?.id || otherUserId,
+          name: profile?.name || 'Unknown User',
+          avatar_url: profile?.avatar_url || null,
+          bio: profile?.bio || null
         };
       });
 
@@ -173,9 +190,8 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
           id,
           chat_id,
           sender_id,
-          message,
-          created_at,
-          sender:profiles(name, avatar_url)
+          content,
+          created_at
         `)
         .eq('chat_id', chatId)
         .order('created_at', { ascending: true });
@@ -185,7 +201,49 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
         return;
       }
 
-      setMessages(data || []);
+      if (!data || data.length === 0) {
+        setMessages([]);
+        return;
+      }
+
+      // Get unique sender IDs
+      const senderIds = [...new Set(data.map(msg => msg.sender_id))];
+
+      // Fetch sender profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url')
+        .in('user_id', senderIds);
+
+      if (profilesError) {
+        console.error('Error fetching sender profiles:', profilesError);
+        // Still set messages but without sender info
+        const transformedMessages = data.map(msg => ({
+          ...msg,
+          message: msg.content,
+          sender: {
+            name: 'Unknown',
+            avatar_url: null
+          }
+        }));
+        setMessages(transformedMessages);
+        return;
+      }
+
+      // Transform the data to match the expected interface
+      const transformedMessages = data.map(msg => {
+        const profile = profiles?.find(p => p.id === msg.sender_id);
+        return {
+          ...msg,
+          message: msg.content, // Map content to message for compatibility
+          sender: {
+            name: profile?.name || 'Unknown',
+            avatar_url: profile?.avatar_url || null
+          }
+        };
+      });
+
+      setMessages(transformedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
@@ -200,7 +258,7 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
         .insert({
           chat_id: selectedChat.id,
           sender_id: currentUserId,
-          message: newMessage.trim()
+          content: newMessage.trim()
         });
 
       if (error) {

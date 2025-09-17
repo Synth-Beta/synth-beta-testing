@@ -76,9 +76,38 @@ export class UnifiedArtistSearchService {
         return fuzzyResults;
       }
 
-      // If no results from any source, return empty array
-      console.log('📭 No results found from any source');
-      return [];
+      // If no results from any source, use fallback data
+      console.log('📭 No results found from any source, using fallback data');
+      const fallbackResults = this.getFallbackArtists(query, limit);
+      const filteredResults = fallbackResults.filter(artist => 
+        artist.name.toLowerCase().includes(query.toLowerCase())
+      );
+      
+      if (filteredResults.length === 0) {
+        // If no fallback matches, create a manual entry
+        const manualArtist = {
+          id: `manual-${Date.now()}`,
+          name: query,
+          identifier: `manual-${query.toLowerCase().replace(/\s+/g, '-')}`,
+          image: undefined,
+          genres: [],
+          'x-bandOrMusician': 'band',
+          'x-numUpcomingEvents': 0,
+        };
+        filteredResults.push(manualArtist);
+      }
+      
+      return filteredResults.map(artist => ({
+        id: artist.id,
+        name: artist.name,
+        identifier: artist.identifier,
+        image_url: artist.image,
+        genres: artist.genres,
+        band_or_musician: artist['x-bandOrMusician'] as 'band' | 'musician',
+        num_upcoming_events: artist['x-numUpcomingEvents'],
+        match_score: this.calculateFuzzyMatchScore(query, artist.name),
+        is_from_database: false,
+      }));
     } catch (error) {
       console.error('❌ Error in unified artist search:', error);
       // Return fallback results instead of throwing
