@@ -26,6 +26,8 @@ import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { MatchesView } from '@/components/MatchesView';
 import { ChatView } from '@/components/ChatView';
+import { UnifiedChatView } from '@/components/UnifiedChatView';
+import { Navigation } from '@/components/Navigation';
 
 interface ConcertReview {
   id: string;
@@ -55,9 +57,10 @@ interface ConcertFeedProps {
   onBack: () => void;
   onNavigateToChat?: () => void;
   onNavigateToNotifications?: () => void;
+  onViewChange?: (view: 'feed' | 'search' | 'profile') => void;
 }
 
-export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigateToNotifications }: ConcertFeedProps) => {
+export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigateToNotifications, onViewChange }: ConcertFeedProps) => {
   const [activeTab, setActiveTab] = useState('friends-recommended');
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +69,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showFriendsChatModal, setShowFriendsChatModal] = useState(false);
   const [showChatView, setShowChatView] = useState(false);
+  const [showUnifiedChat, setShowUnifiedChat] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -94,14 +98,25 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
       console.log('🔔 Fetched notifications:', data);
       
-      // Filter out processed friend requests
-      const activeNotifications = (data || []).filter(notification => {
+      // Filter out processed friend requests by checking if the request still exists and is pending
+      const activeNotifications = [];
+      
+      for (const notification of data || []) {
         if (notification.type === 'friend_request') {
           // Check if the friend request still exists and is pending
-          return true; // We'll check this in the UI
+          const { data: requestData } = await supabase
+            .from('friend_requests')
+            .select('status')
+            .eq('id', (notification.data as any)?.request_id)
+            .single();
+          
+          if (requestData && requestData.status === 'pending') {
+            activeNotifications.push(notification);
+          }
+        } else {
+          activeNotifications.push(notification);
         }
-        return true;
-      });
+      }
       
       setNotifications(activeNotifications);
     } catch (error) {
@@ -111,40 +126,60 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   const fetchFriends = async () => {
     try {
+      console.log('👥 Fetching friends for user:', currentUserId);
+      
       // Fetch actual friends from database
       const { data, error } = await supabase
         .from('friends')
-        .select(`
-          id,
-          user1_id,
-          user2_id,
-          created_at,
-          user1:profiles!friends_user1_id_fkey(id, name, avatar_url, bio),
-          user2:profiles!friends_user2_id_fkey(id, name, avatar_url, bio)
-        `)
+        .select('id, user1_id, user2_id, created_at')
         .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
         .order('created_at', { ascending: false });
+
+      console.log('👥 Friends query result:', { data, error });
 
       if (error) {
         console.error('Error fetching friends:', error);
         return;
       }
 
+      // Get the other user IDs
+      const otherUserIds = (data || []).map(friendship => 
+        friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id
+      );
+
+      if (otherUserIds.length === 0) {
+        setFriends([]);
+        return;
+      }
+
+      // Fetch profiles for the other users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, name, avatar_url, bio')
+        .in('user_id', otherUserIds);
+
+      if (profilesError) {
+        console.error('Error fetching friend profiles:', profilesError);
+        return;
+      }
+
       // Transform the data to get the other user's profile
       const friendsList = (data || []).map(friendship => {
-        const isUser1 = friendship.user1_id === currentUserId;
-        const otherUser = isUser1 ? friendship.user2 : friendship.user1;
+        const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
+        const profile = profiles?.find(p => p.user_id === otherUserId);
+        
         return {
-          id: otherUser.id,
-          name: otherUser.name,
-          username: otherUser.name.toLowerCase().replace(/\s+/g, ''),
-          avatar_url: otherUser.avatar_url,
-          bio: otherUser.bio,
+          id: otherUserId,
+          name: profile?.name || 'Unknown User',
+          username: (profile?.name || 'unknown').toLowerCase().replace(/\s+/g, ''),
+          avatar_url: profile?.avatar_url || null,
+          bio: profile?.bio || null,
           friendship_id: friendship.id,
           created_at: friendship.created_at
         };
       });
 
+      console.log('👥 Processed friends list:', friendsList);
       setFriends(friendsList);
     } catch (error) {
       console.error('Error fetching friends:', error);
@@ -564,6 +599,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     }
   };
 
+  // Don't return early - render chat as overlay
+
   if (showChatView) {
     return <ChatView currentUserId={currentUserId} onBack={() => setShowChatView(false)} />;
   }
@@ -609,7 +646,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
               variant="outline"
               size="sm"
               className="p-2"
-              onClick={() => setShowChatView(true)}
+              onClick={() => setShowUnifiedChat(true)}
             >
               <MessageCircle className="w-5 h-5" />
             </Button>
@@ -1092,16 +1129,16 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                       </div>
                       {notification.type === 'friend_request' && (
                         <div className="flex gap-2">
-                          <Button
-                            size="sm"
+                      <Button
+                        size="sm"
                             onClick={() => {
                               console.log('🤝 Accept button clicked for notification:', notification);
                               console.log('🤝 Notification data:', notification.data);
-                              console.log('🤝 Request ID from data:', notification.data?.request_id);
-                              handleAcceptFriendRequest(notification.data?.request_id);
+                              console.log('🤝 Request ID from data:', (notification.data as any)?.request_id);
+                              handleAcceptFriendRequest((notification.data as any)?.request_id);
                             }}
-                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 text-sm"
-                          >
+                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 text-sm"
+                      >
                             Accept
                           </Button>
                           <Button
@@ -1109,12 +1146,12 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                             variant="outline"
                             onClick={() => {
                               console.log('❌ Decline button clicked for notification:', notification);
-                              handleDeclineFriendRequest(notification.data?.request_id);
+                              handleDeclineFriendRequest((notification.data as any)?.request_id);
                             }}
                             className="px-3 py-1 text-sm"
                           >
                             Decline
-                          </Button>
+                      </Button>
                         </div>
                       )}
                     </div>
@@ -1262,6 +1299,22 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
             )}
           </div>
         </div>
+      )}
+
+      {/* Full Page Chat */}
+      {showUnifiedChat && (
+        <UnifiedChatView 
+          currentUserId={currentUserId} 
+          onBack={() => setShowUnifiedChat(false)} 
+        />
+      )}
+
+      {/* Bottom Navigation - Hide when chat is open */}
+      {!showUnifiedChat && onViewChange && (
+        <Navigation 
+          currentView="feed" 
+          onViewChange={onViewChange} 
+        />
       )}
     </div>
   );

@@ -515,6 +515,39 @@ export type Database = {
         }
         Returns: undefined
       }
+      create_direct_chat: {
+        Args: {
+          user1_id: string
+          user2_id: string
+        }
+        Returns: string
+      }
+      create_group_chat: {
+        Args: {
+          chat_name: string
+          user_ids: string[]
+          admin_id: string
+        }
+        Returns: string
+      }
+      get_user_chats: {
+        Args: {
+          user_id: string
+        }
+        Returns: {
+          id: string
+          chat_name: string
+          is_group_chat: boolean
+          users: string[]
+          latest_message_id: string | null
+          latest_message: string | null
+          latest_message_created_at: string | null
+          latest_message_sender_name: string | null
+          group_admin_id: string | null
+          created_at: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

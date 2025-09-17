@@ -220,6 +220,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           <ConcertFeed 
             currentUserId={currentUserId}
             onBack={handleBack}
+            onViewChange={handleViewChange}
           />
         );
       case 'search':
@@ -269,10 +270,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       <div className="pb-16">
         {renderCurrentView()}
       </div>
-      {/* Only show navigation when not in profile-edit mode */}
-      {currentView !== 'profile-edit' && (
+      {/* Only show navigation when not in profile-edit mode and not in feed (feed handles its own nav) */}
+      {currentView !== 'profile-edit' && currentView !== 'feed' && (
         <Navigation 
-          currentView={currentView as 'feed' | 'search' | 'profile'} 
+          currentView={currentView as 'search' | 'profile'} 
           onViewChange={handleViewChange} 
         />
       )}
