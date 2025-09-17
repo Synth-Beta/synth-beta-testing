@@ -1,65 +1,80 @@
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Send, MessageCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { 
+  MessageCircle, 
+  Send, 
+  Users, 
+  Plus, 
+  ArrowLeft,
+  MoreVertical,
+  Phone,
+  Video,
+  Search
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+
+interface ChatMessage {
+  id: string;
+  chat_id: string;
+  sender_id: string;
+  message: string;
+  created_at: string;
+  sender: {
+    name: string;
+    avatar_url: string | null;
+  };
+}
+
+interface Chat {
+  id: string;
+  name: string;
+  type: 'direct' | 'group';
+  created_at: string;
+  participants: Array<{
+    user_id: string;
+    name: string;
+    avatar_url: string | null;
+    role: 'admin' | 'member';
+  }>;
+  last_message?: ChatMessage;
+  unread_count: number;
+}
 
 interface ChatViewProps {
-  chatId: string;
   currentUserId: string;
   onBack: () => void;
 }
 
-interface Message {
-  id: string;
-  chat_id: string;
-  sender_id: string;
-  content: string;
-  created_at: string;
-}
-
-interface ChatWithMatch {
-  id: string;
-  match_id: string;
-  created_at: string;
-  updated_at: string;
-  match: {
-    user1_id: string;
-    user2_id: string;
-    event_id: string;
-  event: {
-    title: string;
-    venue_city: string;
-    venue_state: string;
-  };
-  };
-}
-
-interface UserProfile {
-  id: string;
-  user_id: string;
-  name: string;
-  avatar_url: string | null;
-  bio: string | null;
-}
-
-export const ChatView = ({ chatId, currentUserId, onBack }: ChatViewProps) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  const [chatInfo, setChatInfo] = useState<ChatWithMatch | null>(null);
-  const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchChatData();
-    subscribeToMessages();
-  }, [chatId, currentUserId]);
+    fetchChats();
+    fetchFriends();
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (selectedChat) {
+      fetchMessages(selectedChat.id);
+    }
+  }, [selectedChat]);
 
   useEffect(() => {
     scrollToBottom();
@@ -69,230 +84,610 @@ export const ChatView = ({ chatId, currentUserId, onBack }: ChatViewProps) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const fetchChatData = async () => {
+  const fetchChats = async () => {
     try {
-      // Get chat with match and event info
-      const { data: chat, error: chatError } = await supabase
-        .from('chats')
+      setLoading(true);
+      
+      // Fetch user's chats
+      const { data: chatParticipants, error: participantsError } = await supabase
+        .from('chat_participants')
         .select(`
-          id,
-          match_id,
-          created_at,
-          updated_at,
-          match:matches(
-            user1_id,
-            user2_id,
-            event_id,
-            event:jambase_events(
-              title,
-              venue_city,
-              venue_state
+          chat_id,
+          role,
+          chat:chats(
+            id,
+            name,
+            type,
+            created_at,
+            last_message_id,
+            last_message:chat_messages(
+              id,
+              message,
+              created_at,
+              sender:profiles(name)
             )
           )
         `)
-        .eq('id', chatId)
-        .single();
+        .eq('user_id', currentUserId);
 
-      if (chatError) throw chatError;
-      setChatInfo(chat);
+      if (participantsError) {
+        console.error('Error fetching chat participants:', participantsError);
+        return;
+      }
 
-      // Get the other user's profile
-      const otherUserId = chat.match.user1_id === currentUserId 
-        ? chat.match.user2_id 
-        : chat.match.user1_id;
+      // Transform the data
+      const chatsList = (chatParticipants || []).map(participant => ({
+        id: participant.chat.id,
+        name: participant.chat.name,
+        type: participant.chat.type,
+        created_at: participant.chat.created_at,
+        participants: [], // Will be populated separately
+        last_message: participant.chat.last_message ? {
+          id: participant.chat.last_message.id,
+          chat_id: participant.chat.id,
+          sender_id: '',
+          message: participant.chat.last_message.message,
+          created_at: participant.chat.last_message.created_at,
+          sender: {
+            name: participant.chat.last_message.sender.name,
+            avatar_url: null
+          }
+        } : undefined,
+        unread_count: 0 // Will be calculated separately
+      }));
 
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, user_id, name, avatar_url, bio')
-        .eq('user_id', otherUserId)
-        .single();
-
-      if (profileError) throw profileError;
-      setOtherUser(profile);
-
-      // Get messages
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('chat_id', chatId)
-        .order('created_at', { ascending: true });
-
-      if (messagesError) throw messagesError;
-      setMessages(messagesData || []);
-
+      setChats(chatsList);
     } catch (error) {
-      console.error('Error fetching chat data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load chat",
-        variant: "destructive",
-      });
+      console.error('Error fetching chats:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const subscribeToMessages = () => {
-    const channel = supabase
-      .channel(`chat-${chatId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `chat_id=eq.${chatId}`,
-        },
-        (payload) => {
-          setMessages(prev => [...prev, payload.new as Message]);
-        }
-      )
-      .subscribe();
+  const fetchFriends = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('friends')
+        .select(`
+          id,
+          user1_id,
+          user2_id,
+          created_at,
+          user1:profiles!friends_user1_id_fkey(id, name, avatar_url, bio),
+          user2:profiles!friends_user2_id_fkey(id, name, avatar_url, bio)
+        `)
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+        .order('created_at', { ascending: false });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+      if (error) {
+        console.error('Error fetching friends:', error);
+        return;
+      }
+
+      const friendsList = (data || []).map(friendship => {
+        const isUser1 = friendship.user1_id === currentUserId;
+        const otherUser = isUser1 ? friendship.user2 : friendship.user1;
+        return {
+          id: otherUser.id,
+          name: otherUser.name,
+          avatar_url: otherUser.avatar_url,
+          bio: otherUser.bio
+        };
+      });
+
+      setFriends(friendsList);
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    }
+  };
+
+  const fetchMessages = async (chatId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select(`
+          id,
+          chat_id,
+          sender_id,
+          message,
+          created_at,
+          sender:profiles(name, avatar_url)
+        `)
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching messages:', error);
+        return;
+      }
+
+      setMessages(data || []);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !selectedChat) return;
 
     try {
       const { error } = await supabase
-        .from('messages')
+        .from('chat_messages')
         .insert({
-          chat_id: chatId,
+          chat_id: selectedChat.id,
           sender_id: currentUserId,
-          content: newMessage.trim(),
+          message: newMessage.trim()
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error sending message:', error);
+        toast({
+          title: "Error",
+          description: "Failed to send message. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       setNewMessage('');
+      // Refresh messages
+      fetchMessages(selectedChat.id);
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
         title: "Error",
-        description: "Failed to send message",
+        description: "Failed to send message. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+  const createDirectChat = async (friendId: string) => {
+    try {
+      // Check if direct chat already exists
+      const { data: existingChat, error: checkError } = await supabase
+        .from('chats')
+        .select(`
+          id,
+          chat_participants!inner(user_id)
+        `)
+        .eq('type', 'direct')
+        .eq('chat_participants.user_id', currentUserId);
+
+      if (checkError) {
+        console.error('Error checking existing chat:', checkError);
+        return;
+      }
+
+      // Check if there's already a direct chat with this friend
+      const existingDirectChat = existingChat?.find(chat => 
+        chat.chat_participants.some((p: any) => p.user_id === friendId)
+      );
+
+      if (existingDirectChat) {
+        setSelectedChat({
+          id: existingDirectChat.id,
+          name: '', // Will be set based on friend name
+          type: 'direct',
+          created_at: '',
+          participants: [],
+          unread_count: 0
+        });
+        return;
+      }
+
+      // Create new direct chat
+      const { data: newChat, error: chatError } = await supabase
+        .from('chats')
+        .insert({
+          type: 'direct',
+          name: '' // Will be set based on participants
+        })
+        .select()
+        .single();
+
+      if (chatError) {
+        console.error('Error creating chat:', chatError);
+        return;
+      }
+
+      // Add participants
+      const { error: participantsError } = await supabase
+        .from('chat_participants')
+        .insert([
+          { chat_id: newChat.id, user_id: currentUserId, role: 'member' },
+          { chat_id: newChat.id, user_id: friendId, role: 'member' }
+        ]);
+
+      if (participantsError) {
+        console.error('Error adding participants:', participantsError);
+        return;
+      }
+
+      // Refresh chats
+      fetchChats();
+      
+      toast({
+        title: "Chat Created! 💬",
+        description: "You can now start chatting!",
+      });
+    } catch (error) {
+      console.error('Error creating direct chat:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create chat. Please try again.",
+        variant: "destructive",
+      });
     }
+  };
+
+  const createGroupChat = async () => {
+    if (!groupName.trim() || selectedFriends.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a group name and select at least one friend.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Create group chat
+      const { data: newChat, error: chatError } = await supabase
+        .from('chats')
+        .insert({
+          type: 'group',
+          name: groupName.trim()
+        })
+        .select()
+        .single();
+
+      if (chatError) {
+        console.error('Error creating group chat:', chatError);
+        return;
+      }
+
+      // Add participants (creator as admin, others as members)
+      const participants = [
+          { chat_id: newChat.id, user_id: currentUserId, role: 'admin' },
+          ...selectedFriends.map(friendId => ({
+            chat_id: newChat.id,
+            user_id: friendId,
+            role: 'member' as const
+          }))
+        ];
+
+      const { error: participantsError } = await supabase
+        .from('chat_participants')
+        .insert(participants);
+
+      if (participantsError) {
+        console.error('Error adding participants:', participantsError);
+        return;
+      }
+
+      // Reset form
+      setGroupName('');
+      setSelectedFriends([]);
+      setShowCreateGroup(false);
+      
+      // Refresh chats
+      fetchChats();
+      
+      toast({
+        title: "Group Created! 🎉",
+        description: `"${groupName}" group chat is ready!`,
+      });
+    } catch (error) {
+      console.error('Error creating group chat:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create group chat. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleFriendSelection = (friendId: string) => {
+    setSelectedFriends(prev => 
+      prev.includes(friendId) 
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId]
+    );
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading chat...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!chatInfo || !otherUser) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold mb-4">Chat not found</h2>
-          <Button onClick={onBack}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p>Loading chats...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-4 p-4 border-b bg-background">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <div className="flex items-center gap-3">
-          <Avatar className="w-10 h-10">
-            <AvatarImage src={otherUser.avatar_url || undefined} />
-            <AvatarFallback>
-              {otherUser.name.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="font-bold">{otherUser.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {chatInfo.match.event.title}
-            </p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto h-screen flex">
+        {/* Sidebar - Chat List */}
+        <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <Button 
+                variant="outline" 
+                onClick={onBack}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </Button>
+              <Button
+                onClick={() => setShowCreateGroup(true)}
+                className="bg-blue-500 hover:bg-blue-600 text-white"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                New Group
+              </Button>
+            </div>
+            
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Search chats..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          {/* Chat List */}
+          <div className="flex-1 overflow-y-auto">
+            {chats.length === 0 ? (
+              <div className="p-4 text-center">
+                <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <h3 className="font-semibold text-gray-900 mb-1">No Chats Yet</h3>
+                <p className="text-sm text-gray-600">Start a conversation with your friends!</p>
+              </div>
+            ) : (
+              <div className="space-y-1 p-2">
+                {chats.map((chat) => (
+                  <div
+                    key={chat.id}
+                    onClick={() => setSelectedChat(chat)}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                      selectedChat?.id === chat.id 
+                        ? 'bg-blue-50 border border-blue-200' 
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        {chat.type === 'group' ? (
+                          <Users className="w-5 h-5 text-gray-600" />
+                        ) : (
+                          <MessageCircle className="w-5 h-5 text-gray-600" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 truncate">
+                          {chat.name || 'Direct Chat'}
+                        </h3>
+                        {chat.last_message && (
+                          <p className="text-sm text-gray-600 truncate">
+                            {chat.last_message.sender.name}: {chat.last_message.message}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500">
+                          {chat.last_message ? format(parseISO(chat.last_message.created_at), 'MMM d, h:mm a') : 'No messages'}
+                        </p>
+                      </div>
+                      {chat.unread_count > 0 && (
+                        <Badge className="bg-red-500 text-white text-xs">
+                          {chat.unread_count}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 ? (
-          <div className="text-center py-8">
-            <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Start a conversation!</p>
-            <p className="text-sm text-muted-foreground">
-              You both matched for {chatInfo.match.event.title}
-            </p>
-          </div>
-        ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.sender_id === currentUserId ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  message.sender_id === currentUserId
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
-                }`}
-              >
-                <p className="text-sm">{message.content}</p>
-                <p className={`text-xs mt-1 ${
-                  message.sender_id === currentUserId
-                    ? 'text-primary-foreground/70'
-                    : 'text-muted-foreground'
-                }`}>
-                  {(() => {
-                    try {
-                      return format(new Date(message.created_at), 'h:mm a');
-                    } catch {
-                      return 'now';
-                    }
-                  })()}
-                </p>
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col">
+          {selectedChat ? (
+            <>
+              {/* Chat Header */}
+              <div className="p-4 border-b border-gray-200 bg-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                      {selectedChat.type === 'group' ? (
+                        <Users className="w-5 h-5 text-gray-600" />
+                      ) : (
+                        <MessageCircle className="w-5 h-5 text-gray-600" />
+                      )}
+                    </div>
+                    <div>
+                      <h2 className="font-semibold text-gray-900">
+                        {selectedChat.name || 'Direct Chat'}
+                      </h2>
+                      <p className="text-sm text-gray-600">
+                        {selectedChat.type === 'group' ? 'Group chat' : 'Direct message'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm">
+                      <Phone className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <Video className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.length === 0 ? (
+                  <div className="text-center py-8">
+                    <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <h3 className="font-semibold text-gray-900 mb-1">No Messages Yet</h3>
+                    <p className="text-sm text-gray-600">Start the conversation!</p>
+                  </div>
+                ) : (
+                  messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex gap-3 ${
+                        message.sender_id === currentUserId ? 'justify-end' : 'justify-start'
+                      }`}
+                    >
+                      {message.sender_id !== currentUserId && (
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={message.sender.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {message.sender.name.split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      <div
+                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                          message.sender_id === currentUserId
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-200 text-gray-900'
+                        }`}
+                      >
+                        <p className="text-sm">{message.message}</p>
+                        <p className={`text-xs mt-1 ${
+                          message.sender_id === currentUserId ? 'text-blue-100' : 'text-gray-500'
+                        }`}>
+                          {format(parseISO(message.created_at), 'h:mm a')}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Message Input */}
+              <div className="p-4 border-t border-gray-200 bg-white">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Type a message..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={sendMessage}
+                    disabled={!newMessage.trim()}
+                    className="bg-blue-500 hover:bg-blue-600 text-white"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Select a Chat</h3>
+                <p className="text-gray-600">Choose a conversation to start chatting</p>
               </div>
             </div>
-          ))
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Message Input */}
-      <div className="p-4 border-t bg-background">
-        <div className="flex gap-2">
-          <Input
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type a message..."
-            className="flex-1"
-          />
-          <Button onClick={sendMessage} disabled={!newMessage.trim()}>
-            <Send className="w-4 h-4" />
-          </Button>
+          )}
         </div>
       </div>
+
+      {/* Create Group Modal */}
+      {showCreateGroup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Create Group Chat</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Group Name
+                </label>
+                <Input
+                  placeholder="Enter group name..."
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Friends ({selectedFriends.length} selected)
+                </label>
+                <div className="max-h-48 overflow-y-auto space-y-2">
+                  {friends.map((friend) => (
+                    <div
+                      key={friend.id}
+                      onClick={() => toggleFriendSelection(friend.id)}
+                      className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                        selectedFriends.includes(friend.id)
+                          ? 'bg-blue-50 border border-blue-200'
+                          : 'hover:bg-gray-50 border border-transparent'
+                      }`}
+                    >
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={friend.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {friend.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">{friend.name}</h4>
+                        {friend.bio && (
+                          <p className="text-sm text-gray-600 line-clamp-1">{friend.bio}</p>
+                        )}
+                      </div>
+                      {selectedFriends.includes(friend.id) && (
+                        <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                          <span className="text-white text-xs">✓</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={() => setShowCreateGroup(false)}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={createGroupChat}
+                  disabled={!groupName.trim() || selectedFriends.length === 0}
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  Create Group
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

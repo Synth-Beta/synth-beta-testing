@@ -25,6 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { MatchesView } from '@/components/MatchesView';
+import { ChatView } from '@/components/ChatView';
 
 interface ConcertReview {
   id: string;
@@ -64,6 +65,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   const [showChatModal, setShowChatModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showFriendsChatModal, setShowFriendsChatModal] = useState(false);
+  const [showChatView, setShowChatView] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -377,6 +379,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   const handleAcceptFriendRequest = async (requestId: string) => {
     console.log('🤝 Accepting friend request:', requestId);
+    console.log('🤝 Request ID type:', typeof requestId);
+    console.log('🤝 Request ID value:', JSON.stringify(requestId));
     
     if (!requestId) {
       toast({
@@ -388,8 +392,12 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     }
 
     try {
+      // Convert string to UUID if needed
+      const uuidRequestId = typeof requestId === 'string' ? requestId : String(requestId);
+      console.log('🤝 Converted request ID:', uuidRequestId);
+
       const { error } = await supabase.rpc('accept_friend_request', {
-        request_id: requestId
+        request_id: uuidRequestId
       });
 
       console.log('🤝 Accept friend request result:', error);
@@ -511,6 +519,10 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     }
   };
 
+  if (showChatView) {
+    return <ChatView currentUserId={currentUserId} onBack={() => setShowChatView(false)} />;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -552,7 +564,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
               variant="outline"
               size="sm"
               className="p-2"
-              onClick={() => setShowFriendsChatModal(true)}
+              onClick={() => setShowChatView(true)}
             >
               <MessageCircle className="w-5 h-5" />
             </Button>
@@ -1039,6 +1051,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                             size="sm"
                             onClick={() => {
                               console.log('🤝 Accept button clicked for notification:', notification);
+                              console.log('🤝 Notification data:', notification.data);
+                              console.log('🤝 Request ID from data:', notification.data?.request_id);
                               handleAcceptFriendRequest(notification.data?.request_id);
                             }}
                             className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 text-sm"
@@ -1073,69 +1087,88 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         </div>
       )}
 
-      {/* Friends Chat Modal */}
+      {/* Friends Chat Modal - Full Page */}
       {showFriendsChatModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-md max-h-[80vh] overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">Chat with Friends</h2>
-              <Button
-                variant="ghost"
-                size="sm"
+        <div className="fixed inset-0 bg-background z-50">
+          {/* Header with back button */}
+          <div className="sticky top-0 z-40 bg-background border-b border-border p-4">
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="outline" 
                 onClick={() => setShowFriendsChatModal(false)}
-                className="p-1"
+                className="flex items-center gap-2"
               >
-                <X className="w-4 h-4" />
+                ← Back to Feed
               </Button>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">Chat with Friends</h1>
+                <p className="text-sm text-gray-600">Start conversations with your friends</p>
+              </div>
             </div>
-            
-            <div className="p-4 max-h-96 overflow-y-auto">
-              {friends.length > 0 ? (
-                <div className="space-y-3">
-                  {friends.map((friend) => (
-                    <div key={friend.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-10 h-10">
-                          <AvatarImage src={friend.avatar_url || undefined} />
-                          <AvatarFallback>
-                            {friend.name ? friend.name.split(' ').map(n => n[0]).join('') : 'F'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{friend.name}</h3>
-                          {friend.bio && (
-                            <p className="text-sm text-gray-600 line-clamp-1">{friend.bio}</p>
-                          )}
-                        </div>
+          </div>
+          
+          {/* Friends List */}
+          <div className="p-4">
+            {friends.length > 0 ? (
+              <div className="space-y-3">
+                {friends.map((friend) => (
+                  <div key={friend.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="w-12 h-12">
+                        <AvatarImage src={friend.avatar_url || undefined} />
+                        <AvatarFallback className="text-lg">
+                          {friend.name ? friend.name.split(' ').map(n => n[0]).join('') : 'F'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 text-lg">{friend.name}</h3>
+                        {friend.bio && (
+                          <p className="text-sm text-gray-600 line-clamp-2">{friend.bio}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Friends since {(() => {
+                            try {
+                              return format(parseISO(friend.created_at), 'MMM d, yyyy');
+                            } catch {
+                              return friend.created_at;
+                            }
+                          })()}
+                        </p>
                       </div>
+                    </div>
                       <Button
-                        size="sm"
+                        size="lg"
                         onClick={() => {
                           // Navigate to chat with this friend
                           console.log('Starting chat with:', friend.name);
                           setShowFriendsChatModal(false);
-                          // TODO: Implement direct chat functionality
-                          toast({
-                            title: "Chat Feature Coming Soon! 💬",
-                            description: `Chat with ${friend.name} will be available soon.`,
-                          });
+                          setShowChatView(true);
                         }}
-                        className="bg-blue-500 hover:bg-blue-600 text-white"
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2"
                       >
-                        <MessageCircle className="w-4 h-4 mr-1" />
-                        Chat
+                        <MessageCircle className="w-5 h-5 mr-2" />
+                        Start Chat
                       </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <h3 className="font-semibold text-gray-900 mb-1">No Friends Yet</h3>
-                  <p className="text-sm text-gray-600">Add some friends to start chatting!</p>
-                </div>
-              )}
-            </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No Friends Yet</h3>
+                <p className="text-gray-600 mb-4">Add some friends to start chatting!</p>
+                <Button
+                  onClick={() => {
+                    setShowFriendsChatModal(false);
+                    setShowNotificationsModal(true);
+                  }}
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Find Friends
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
