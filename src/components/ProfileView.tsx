@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ConcertRanking } from './ConcertRanking';
 import { JamBaseService } from '@/services/jambaseService';
+import { EventReviewModal } from './EventReviewModal';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -67,15 +68,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const [showConcertRankings, setShowConcertRankings] = useState(false);
   const [showAddReview, setShowAddReview] = useState(false);
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
-  const [newReview, setNewReview] = useState({
-    event_name: '',
-    location: '',
-    event_date: '',
-    event_time: '',
-    rating: '' as 'good' | 'okay' | 'bad' | '',
-    review_text: '',
-    is_public: true
-  });
+  const [reviewModalEvent, setReviewModalEvent] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -227,47 +220,23 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     }
   };
 
-  const handleAddReview = async () => {
-    if (!newReview.event_name || !newReview.rating) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in the event name and rating.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const review: ConcertReview = {
-      id: Date.now().toString(),
-      user_id: currentUserId,
-      event_id: 'placeholder', // Placeholder since we're using localStorage
-      rating: newReview.rating,
-      review_text: newReview.review_text || null,
-      is_public: newReview.is_public,
-      created_at: new Date().toISOString(),
-      event: {
-        event_name: newReview.event_name,
-        location: newReview.location,
-        event_date: newReview.event_date || new Date().toISOString().split('T')[0],
-        event_time: newReview.event_time,
-      },
-    };
-
-    const updatedReviews = [...reviews, review];
-    setReviews(updatedReviews);
-    localStorage.setItem(`concert_reviews_${currentUserId}`, JSON.stringify(updatedReviews));
-    
-    // Reset form
-    setNewReview({
-      event_name: '',
-      location: '',
-      event_date: '',
-      event_time: '',
-      rating: '',
-      review_text: '',
-      is_public: true
+  const handleOpenReviewModal = () => {
+    // Create a mock event for the review modal
+    setReviewModalEvent({
+      id: 'new-review',
+      event_title: '',
+      venue_name: '',
+      event_date: new Date().toISOString().split('T')[0],
+      artist_name: ''
     });
+    setShowAddReview(true);
+  };
+
+  const handleReviewSubmitted = (review: any) => {
+    // Refresh reviews after submission
+    fetchReviews();
     setShowAddReview(false);
+    setReviewModalEvent(null);
     
     toast({
       title: "Review Added",
@@ -508,7 +477,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                     <Star className="w-5 h-5" />
                     Your Concert Reviews
                   </div>
-                  <Button onClick={() => setShowAddReview(true)} size="sm">
+                  <Button onClick={handleOpenReviewModal} size="sm">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Review
                   </Button>
@@ -522,7 +491,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                     <p className="text-sm text-muted-foreground mb-4">
                       Share your concert experiences with others!
                     </p>
-                    <Button onClick={() => setShowAddReview(true)} variant="outline">
+                    <Button onClick={handleOpenReviewModal} variant="outline">
                       <Plus className="w-4 h-4 mr-2" />
                       Add Your First Review
                     </Button>
@@ -580,111 +549,17 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         </Tabs>
       </div>
 
-      {/* Add Review Modal */}
-      {showAddReview && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>Add Concert Review</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Event Name *</label>
-                <input
-                  type="text"
-                  value={newReview.event_name}
-                  onChange={(e) => setNewReview({ ...newReview, event_name: e.target.value })}
-                  className="w-full p-2 border rounded-md"
-                  placeholder="e.g., Taylor Swift - Eras Tour"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Location</label>
-                <input
-                  type="text"
-                  value={newReview.location}
-                  onChange={(e) => setNewReview({ ...newReview, location: e.target.value })}
-                  className="w-full p-2 border rounded-md"
-                  placeholder="e.g., Madison Square Garden, NYC"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Date</label>
-                <input
-                  type="date"
-                  value={newReview.event_date}
-                  onChange={(e) => setNewReview({ ...newReview, event_date: e.target.value })}
-                  className="w-full p-2 border rounded-md"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Rating *</label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={newReview.rating === 'good' ? 'default' : 'outline'}
-                    onClick={() => setNewReview({ ...newReview, rating: 'good' })}
-                    className="flex-1 bg-green-600 hover:bg-green-700"
-                  >
-                    <ThumbsUp className="w-4 h-4 mr-2" />
-                    Good
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={newReview.rating === 'okay' ? 'default' : 'outline'}
-                    onClick={() => setNewReview({ ...newReview, rating: 'okay' })}
-                    className="flex-1 bg-yellow-600 hover:bg-yellow-700"
-                  >
-                    <Minus className="w-4 h-4 mr-2" />
-                    Okay
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={newReview.rating === 'bad' ? 'default' : 'outline'}
-                    onClick={() => setNewReview({ ...newReview, rating: 'bad' })}
-                    className="flex-1 bg-red-600 hover:bg-red-700"
-                  >
-                    <ThumbsDown className="w-4 h-4 mr-2" />
-                    Bad
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Review (Optional)</label>
-                <Textarea
-                  value={newReview.review_text}
-                  onChange={(e) => setNewReview({ ...newReview, review_text: e.target.value })}
-                  placeholder="Share your thoughts about this concert..."
-                  className="min-h-[100px]"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="public"
-                  checked={newReview.is_public}
-                  onChange={(e) => setNewReview({ ...newReview, is_public: e.target.checked })}
-                />
-                <label htmlFor="public" className="text-sm">Make this review public</label>
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <Button variant="outline" onClick={() => setShowAddReview(false)} className="flex-1">
-                  Cancel
-                </Button>
-                <Button onClick={handleAddReview} className="flex-1">
-                  Add Review
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* Review Modal */}
+      <EventReviewModal
+        event={reviewModalEvent}
+        userId={currentUserId}
+        isOpen={showAddReview}
+        onClose={() => {
+          setShowAddReview(false);
+          setReviewModalEvent(null);
+        }}
+        onReviewSubmitted={handleReviewSubmitted}
+      />
     </div>
   );
 };

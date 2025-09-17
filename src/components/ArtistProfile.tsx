@@ -21,7 +21,8 @@ import { cn } from '@/lib/utils';
 import { JamBaseEventCard } from './JamBaseEventCard';
 import { EventReviewModal } from './EventReviewModal';
 import { JamBaseEventsService, JamBaseEvent } from '@/services/jambaseEventsService';
-import { UserEventService, UserEventReview } from '@/services/userEventService';
+import { UserEventService } from '@/services/userEventService';
+import { ReviewService, UserReview } from '@/services/reviewService';
 import type { Artist } from '@/types/concertSearch';
 
 interface ArtistProfileProps {
@@ -48,9 +49,6 @@ interface UserInterests {
   [eventId: string]: boolean;
 }
 
-interface UserReviews {
-  [eventId: string]: UserEventReview;
-}
 
 export function ArtistProfile({
   artist,
@@ -73,7 +71,7 @@ export function ArtistProfile({
 
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const [userInterests, setUserInterests] = useState<UserInterests>({});
-  const [userReviews, setUserReviews] = useState<UserReviews>({});
+  const [userReviews, setUserReviews] = useState<Record<string, UserReview>>({});
   const [reviewModalEvent, setReviewModalEvent] = useState<JamBaseEvent | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
@@ -94,9 +92,11 @@ export function ArtistProfile({
 
     try {
       const perPage = 10;
+      let upcomingResult: any = null;
+      let pastResult: any = null;
       
       if (type === 'both' || type === 'upcoming') {
-        const upcomingResult = await JamBaseEventsService.getOrFetchArtistEvents(artist.name, {
+        upcomingResult = await JamBaseEventsService.getOrFetchArtistEvents(artist.name, {
           page: type === 'both' ? 1 : page,
           perPage,
           eventType: 'upcoming'
@@ -111,7 +111,7 @@ export function ArtistProfile({
       }
 
       if (type === 'both' || type === 'past') {
-        const pastResult = await JamBaseEventsService.getOrFetchArtistEvents(artist.name, {
+        pastResult = await JamBaseEventsService.getOrFetchArtistEvents(artist.name, {
           page: type === 'both' ? 1 : page,
           perPage,
           eventType: 'past'
@@ -156,7 +156,7 @@ export function ArtistProfile({
 
     try {
       // Load user interests for upcoming events
-      const upcomingEventIds = upcomingEvents.map(e => e.jambase_event_id);
+      const upcomingEventIds = upcomingEvents.map(e => e.id);
       if (upcomingEventIds.length > 0) {
         const interestPromises = upcomingEventIds.map(eventId => 
           UserEventService.isUserInterested(userId, eventId)
@@ -171,14 +171,14 @@ export function ArtistProfile({
       }
 
       // Load user reviews for past events
-      const pastEventIds = pastEvents.map(e => e.jambase_event_id);
+      const pastEventIds = pastEvents.map(e => e.id);
       if (pastEventIds.length > 0) {
         const reviewPromises = pastEventIds.map(eventId => 
-          UserEventService.getUserEventReview(userId, eventId)
+          ReviewService.getUserEventReview(userId, eventId)
         );
         const reviews = await Promise.all(reviewPromises);
         
-        const reviewsMap: UserReviews = {};
+        const reviewsMap: Record<string, UserReview> = {};
         pastEventIds.forEach((eventId, index) => {
           if (reviews[index]) {
             reviewsMap[eventId] = reviews[index];
@@ -215,11 +215,11 @@ export function ArtistProfile({
     }
   };
 
-  const handleReviewSubmitted = (review: UserEventReview) => {
-    setUserReviews(prev => ({ ...prev, [review.jambase_event_id]: review }));
+  const handleReviewSubmitted = (review: UserReview) => {
+    setUserReviews(prev => ({ ...prev, [review.event_id]: review }));
     
     if (onReview) {
-      onReview(review.jambase_event_id);
+      onReview(review.event_id);
     }
   };
 
