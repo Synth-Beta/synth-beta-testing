@@ -8,6 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { DBEvent, Profile } from '@/types/database';
 import { Event } from '@/types/concertSearch';
+import { useAuth } from '@/hooks/useAuth';
 
 // Union type to handle both old and new event formats
 type EventData = DBEvent | Event;
@@ -45,6 +46,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
   const [otherEvents, setOtherEvents] = useState<any[]>([]);
   const [showAllEvents, setShowAllEvents] = useState(false);
   const { toast } = useToast();
+  const { sessionExpired } = useAuth();
 
   // Helper functions to handle event data display
   const getEventName = () => {
@@ -68,11 +70,24 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
   };
 
   useEffect(() => {
+    // Don't fetch data if session is expired
+    if (sessionExpired) {
+      setLoading(false);
+      return;
+    }
+    
     fetchInterestedUsers();
-  }, [event.id, currentUserId]);
+  }, [event.id, currentUserId, sessionExpired]);
 
   const fetchInterestedUsers = async () => {
     try {
+      // Check if session is expired before making any requests
+      if (sessionExpired) {
+        console.log('Session expired, skipping users fetch');
+        setLoading(false);
+        return;
+      }
+
       // Get all users interested in this event (excluding current user)
       const { data: interests, error: interestsError } = await supabase
         .from('user_jambase_events')
@@ -268,6 +283,8 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
   };
 
   const currentUser = users[currentUserIndex];
+
+  // Session expiration is handled by MainApp, so we don't need to handle it here
 
   if (loading) {
     return (

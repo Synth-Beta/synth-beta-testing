@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Users, UserPlus, MessageCircle, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { ConcertRanking } from './ConcertRanking';
 import { JamBaseService } from '@/services/jambaseService';
@@ -76,17 +77,43 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
   const { toast } = useToast();
+  const { user, sessionExpired } = useAuth();
 
   useEffect(() => {
+    // Don't fetch data if session is expired
+    if (sessionExpired) {
+      setLoading(false);
+      return;
+    }
+    
+    // Don't fetch if user is not available yet
+    if (!user) {
+      console.log('🔍 ProfileView: User not available yet, waiting...');
+      return;
+    }
+    
+    console.log('🔍 ProfileView: User is available, fetching data...');
     fetchProfile();
     fetchUserEvents();
     fetchReviews();
     fetchFriends();
-  }, [currentUserId]);
+  }, [currentUserId, sessionExpired, user]);
 
   const fetchProfile = async () => {
     try {
-      console.log('Fetching profile for user:', currentUserId);
+      console.log('🔍 ProfileView: Starting profile fetch...');
+      console.log('🔍 ProfileView: sessionExpired:', sessionExpired);
+      console.log('🔍 ProfileView: user:', user);
+      console.log('🔍 ProfileView: currentUserId:', currentUserId);
+      
+      // Check if session is expired before making any requests
+      if (sessionExpired || !user) {
+        console.log('❌ Session expired or no user, skipping profile fetch');
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Fetching profile for user:', currentUserId);
       
       // First try to get the profile
       console.log('ProfileView: Fetching profile for user:', currentUserId);
@@ -104,15 +131,15 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         console.error('Error message:', error.message);
         console.error('Error details:', error.details);
         
-        // Handle API key errors specifically
-        if (error.message?.includes('invalid') || error.message?.includes('API key') || error.message?.includes('JWT')) {
-          console.error('API key error in ProfileView, signing out:', error);
+        // Handle session/authentication errors
+        if (error.message?.includes('invalid') || error.message?.includes('API key') || error.message?.includes('JWT') || error.message?.includes('expired')) {
+          console.error('Session error in ProfileView:', error);
           toast({
             title: "Session Expired",
             description: "Your session has expired. Please sign in again.",
             variant: "destructive",
           });
-          // Don't sign out from here, let the parent handle it
+          setLoading(false);
           return;
         }
         
@@ -120,48 +147,47 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
           console.log('No profile found for user:', currentUserId);
           
-          // Debug: Let's see what profiles exist in the database
-          const { data: allProfiles, error: allProfilesError } = await supabase
-            .from('profiles')
-            .select('id, user_id, name')
-            .limit(10);
-          
-          console.log('All profiles in database:', allProfiles);
-          console.log('All profiles error:', allProfilesError);
-          
           console.log('Creating default profile for user:', currentUserId);
           
           // Get user metadata from auth
           const { data: { user } } = await supabase.auth.getUser();
           const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'New User';
           
+          console.log('Creating profile with name:', userName);
+          
           const { data: newProfile, error: insertError } = await supabase
             .from('profiles')
             .insert({
               user_id: currentUserId,
               name: userName,
-              bio: null,
-              instagram_handle: null
-              // Note: music_streaming_profile will be added by the database default or migration
+              bio: 'Music lover looking to connect at events!',
+              instagram_handle: null,
+              music_streaming_profile: null
             })
             .select()
             .single();
           
+          console.log('Profile creation result:', { newProfile, insertError });
+          
           if (insertError) {
             console.error('Error creating profile:', insertError);
+            console.error('Insert error details:', insertError.details);
+            console.error('Insert error hint:', insertError.hint);
+            
             // If we can't create a profile, show a fallback
             setProfile({
               id: 'temp',
               user_id: currentUserId,
               name: userName,
               avatar_url: null,
-              bio: null,
+              bio: 'Music lover looking to connect at events!',
               instagram_handle: null,
               music_streaming_profile: null,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             });
           } else {
+            console.log('Profile created successfully:', newProfile);
             setProfile(newProfile);
           }
         } else {
@@ -192,6 +218,12 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
   const fetchUserEvents = async () => {
     try {
+      // Check if session is expired before making any requests
+      if (sessionExpired || !user) {
+        console.log('Session expired or no user, skipping user events fetch');
+        return;
+      }
+
       const data = await JamBaseService.getUserEvents(currentUserId);
       
       const events = data?.map(item => ({
@@ -217,6 +249,12 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
   const fetchReviews = async () => {
     try {
+      // Check if session is expired before making any requests
+      if (sessionExpired || !user) {
+        console.log('Session expired or no user, skipping reviews fetch');
+        return;
+      }
+
       console.log('🔍 ProfileView: Fetching reviews for user:', currentUserId);
       
       // Fetch user's reviews from the database
@@ -251,6 +289,12 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
   const fetchFriends = async () => {
     try {
+      // Check if session is expired before making any requests
+      if (sessionExpired || !user) {
+        console.log('Session expired or no user, skipping friends fetch');
+        return;
+      }
+
       // First, get the friendship records
       const { data: friendships, error: friendsError } = await supabase
         .from('friends')
@@ -391,6 +435,8 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     }
   };
 
+  // Session expiration is handled by MainApp, so we don't need to handle it here
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -404,11 +450,17 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
   if (!profile) {
     console.log('❌ ProfileView: No profile data available');
+    console.log('❌ ProfileView: Loading state:', loading);
+    console.log('❌ ProfileView: Current user ID:', currentUserId);
+    console.log('❌ ProfileView: User from auth:', user);
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-bold mb-4">Profile not found</h2>
-          <p className="text-muted-foreground mb-4">Loading profile data...</p>
+          <p className="text-muted-foreground mb-4">Unable to load profile data. Please try again.</p>
+          <div className="text-xs text-muted-foreground mb-4">
+            Debug: User ID: {currentUserId}, Loading: {loading.toString()}
+          </div>
           <Button onClick={onBack}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -456,6 +508,17 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                 Sign Out
               </Button>
             )}
+            <Button 
+              onClick={() => {
+                console.log('🔐 Force login triggered');
+                // Force a page reload to trigger re-evaluation
+                window.location.reload();
+              }} 
+              variant="outline"
+              size="sm"
+            >
+              Refresh/Login
+            </Button>
           </div>
         </div>
 

@@ -11,6 +11,7 @@ import Auth from '@/pages/Auth';
 import { EventSeeder } from './EventSeeder';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit';
 
@@ -20,67 +21,84 @@ interface MainAppProps {
 
 export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [currentView, setCurrentView] = useState<ViewType>('feed');
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showAuth, setShowAuth] = useState(false);
   const [events, setEvents] = useState<EventCardEvent[]>([]);
   const { toast } = useToast();
+  const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
 
   useEffect(() => {
     console.log('🚀 MainApp useEffect starting...');
-    checkAuth();
     loadEvents();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('🔐 Auth state change:', event, session?.user?.id);
-        if (event === 'SIGNED_IN' && session) {
-          setCurrentUserId(session.user.id);
-          setShowAuth(false);
-        } else if (event === 'SIGNED_OUT') {
-          setCurrentUserId(null);
-          setShowAuth(false);
-        }
+    // Add keyboard shortcut for testing login (Ctrl/Cmd + L)
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'l') {
+        event.preventDefault();
+        console.log('🔐 Login shortcut triggered');
+        setShowAuth(true);
       }
-    );
+    };
 
-    return () => subscription.unsubscribe();
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const checkAuth = async () => {
-    console.log('🔍 Checking auth...');
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log('👤 User data:', user?.id ? 'Found user' : 'No user');
-      if (user) {
-        setCurrentUserId(user.id);
-        setShowAuth(false);
-      } else {
-        // No user - show welcome screen first, then auth when they click
-        console.log('No authenticated user');
-        setCurrentUserId(null);
-        setLoading(false); // Only set loading false if no user
-      }
-    } catch (error) {
-      console.error('❌ Error checking auth:', error);
-      setCurrentUserId(null);
-      setLoading(false); // Set loading false on error
+  // Handle session expiration
+  useEffect(() => {
+    if (sessionExpired) {
+      console.log('🔐 Session expired, redirecting to login');
+      toast({
+        title: "Session Expired",
+        description: "Your session has expired. Please sign in again.",
+        variant: "destructive",
+      });
+      // Clear any local state and show auth
+      setCurrentView('feed');
+      setShowAuth(true); // Force show auth modal
     }
-  };
+  }, [sessionExpired, toast]);
+
+  // Handle API key errors as session expiration
+  useEffect(() => {
+    const handleApiError = (event: CustomEvent) => {
+      if (event.detail?.message?.includes('Invalid API key')) {
+        console.log('🔐 API key error detected, treating as session expiration');
+        setShowAuth(true);
+        toast({
+          title: "Configuration Error",
+          description: "Please check your Supabase configuration and sign in again.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    window.addEventListener('api-error', handleApiError as EventListener);
+    return () => window.removeEventListener('api-error', handleApiError as EventListener);
+  }, [toast]);
+
+  const [showAuth, setShowAuth] = useState(false);
 
   const handleGetStarted = () => {
     setShowAuth(true);
   };
 
+  const handleForceLogin = () => {
+    setShowAuth(true);
+  };
+
   const handleAuthSuccess = async () => {
     setShowAuth(false);
-    await checkAuth(); // Recheck auth after successful login
+    resetSessionExpired(); // Reset session expired state on successful login
   };
 
   const loadEvents = async () => {
     console.log('📅 Loading events...');
     try {
+      // Check if session is expired before making any requests
+      if (sessionExpired || !user) {
+        console.log('Session expired or no user, skipping events load');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('jambase_events')
         .select('*')
@@ -111,13 +129,11 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         description: "Failed to load events",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false); // Make sure loading is set to false
     }
   };
 
   const handleEventSwipe = async (eventId: string, direction: 'like' | 'pass') => {
-    if (!currentUserId) return;
+    if (!user?.id) return;
 
     try {
       if (direction === 'like') {
@@ -125,7 +141,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         const { error } = await supabase
           .from('user_jambase_events')
           .insert({
-            user_id: currentUserId,
+            user_id: user.id,
             jambase_event_id: eventId
           });
 
@@ -173,9 +189,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
+      await signOut();
+      setShowAuth(false); // Hide auth modal
       toast({
         title: "Signed out",
         description: "You've been successfully signed out.",
@@ -202,15 +217,19 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     );
   }
 
-  // Show auth modal if requested
-  if (showAuth) {
+  // Show auth modal if requested or session expired
+  if (showAuth || sessionExpired) {
+    console.log('🔐 Showing auth modal. showAuth:', showAuth, 'sessionExpired:', sessionExpired);
     return <Auth onAuthSuccess={handleAuthSuccess} />;
   }
 
   // Show welcome screen if no user
-  if (!currentUserId) {
-    return <WelcomeScreen onGetStarted={handleGetStarted} />;
+  if (!user?.id) {
+    return <WelcomeScreen onGetStarted={handleGetStarted} onLogin={handleForceLogin} />;
   }
+
+  // Show API key error banner only when there are actual API key issues
+  const showApiKeyError = false; // Set to true if you want to force show the API key error banner
 
   const renderCurrentView = () => {
     console.log('🎨 Rendering current view:', currentView);
@@ -218,7 +237,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       case 'feed':
         return (
           <ConcertFeed 
-            currentUserId={currentUserId}
+            currentUserId={user.id}
             onBack={handleBack}
             onViewChange={handleViewChange}
           />
@@ -232,7 +251,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
                 <p className="text-gray-600 mt-2">Find events and connect with other music lovers</p>
               </div>
               <UnifiedSearch 
-                userId={currentUserId}
+                userId={user.id}
               />
             </div>
           </div>
@@ -240,7 +259,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       case 'profile':
         return (
           <ProfileView
-            currentUserId={currentUserId}
+            currentUserId={user.id}
             onBack={handleBack}
             onEdit={handleProfileEdit}
             onSettings={handleProfileSettings}
@@ -250,7 +269,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       case 'profile-edit':
         return (
           <ProfileEdit
-            currentUserId={currentUserId}
+            currentUserId={user.id}
             onBack={() => setCurrentView('profile')}
             onSave={handleProfileSave}
           />
@@ -258,7 +277,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       default:
         return (
           <ConcertFeed 
-            currentUserId={currentUserId}
+            currentUserId={user.id}
             onBack={handleBack}
           />
         );
@@ -267,6 +286,24 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* API Key Error Banner - Only show if there's actually an API key issue */}
+      {showApiKeyError && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-bold">API Key Error Detected</p>
+              <p className="text-sm">Your Supabase API key is invalid. Please check your configuration.</p>
+            </div>
+            <button 
+              onClick={handleForceLogin}
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            >
+              Go to Login
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="pb-16">
         {renderCurrentView()}
       </div>

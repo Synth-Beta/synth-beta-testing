@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { format, parseISO } from 'date-fns';
 import { MatchesView } from '@/components/MatchesView';
 import { ChatView } from '@/components/ChatView';
@@ -77,6 +78,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   const [showChatView, setShowChatView] = useState(false);
   const [showUnifiedChat, setShowUnifiedChat] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const { toast } = useToast();
+  const { sessionExpired } = useAuth();
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -84,16 +87,27 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   const [selectedReviewEvent, setSelectedReviewEvent] = useState<any>(null);
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
-  const { toast } = useToast();
 
   useEffect(() => {
+    // Don't fetch data if session is expired
+    if (sessionExpired) {
+      setLoading(false);
+      return;
+    }
+    
     fetchFriends();
     fetchReviews();
     fetchNotifications();
-  }, [currentUserId, activeTab]);
+  }, [currentUserId, activeTab, sessionExpired]);
 
   const fetchNotifications = async () => {
     try {
+      // Check if session is expired before making any requests
+      if (sessionExpired) {
+        console.log('Session expired, skipping notifications fetch');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
@@ -146,6 +160,12 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   const fetchFriends = async () => {
     try {
+      // Check if session is expired before making any requests
+      if (sessionExpired) {
+        console.log('Session expired, skipping friends fetch');
+        return;
+      }
+
       console.log('👥 Fetching friends for user:', currentUserId);
       
       // First, get the friendship records
@@ -212,6 +232,13 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   const fetchReviews = async () => {
     try {
+      // Check if session is expired before making any requests
+      if (sessionExpired) {
+        console.log('Session expired, skipping reviews fetch');
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       
       if (activeTab === 'friends-recommended') {
@@ -733,6 +760,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   if (showChatView) {
     return <ChatView currentUserId={currentUserId} onBack={() => setShowChatView(false)} />;
   }
+
+  // Session expiration is handled by MainApp, so we don't need to handle it here
 
   if (loading) {
     return (

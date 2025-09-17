@@ -5,9 +5,10 @@ import heroImage from '@/assets/hero-events.jpg';
 
 interface WelcomeScreenProps {
   onGetStarted: () => void;
+  onLogin?: () => void;
 }
 
-export const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
+export const WelcomeScreen = ({ onGetStarted, onLogin }: WelcomeScreenProps) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-accent/10 p-4">
       <div className="max-w-md mx-auto pt-12">
@@ -66,15 +67,28 @@ export const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
           </Card>
         </div>
 
-        {/* CTA Button */}
-        <Button 
-          onClick={onGetStarted}
-          size="lg"
-          className="w-full btn-swipe-like text-lg py-6 animate-pulse-glow"
-        >
-          I'm Ready to Go Into the App
-          <ArrowRight className="w-5 h-5 ml-2" />
-        </Button>
+        {/* CTA Buttons */}
+        <div className="space-y-3">
+          <Button 
+            onClick={onGetStarted}
+            size="lg"
+            className="w-full btn-swipe-like text-lg py-6 animate-pulse-glow"
+          >
+            I'm Ready to Go Into the App
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
+          
+          {onLogin && (
+            <Button 
+              onClick={onLogin}
+              variant="outline"
+              size="lg"
+              className="w-full text-lg py-6"
+            >
+              Already have an account? Sign In
+            </Button>
+          )}
+        </div>
 
         <p className="text-center text-xs text-muted-foreground mt-4">
           Start ranking concerts and finding your music crew
