@@ -8,15 +8,22 @@ export interface ReviewFormData {
   selectedVenue: VenueSearchResult | null;
   eventDate: string;
   
-  // Step 2: Rating
-  rating: number; // Can be decimal values like 1.5, 2.5, etc.
+  // Step 2: Rating - Now supports separate ratings
+  artistRating: number; // Rating for the artist/performance
+  venueRating: number; // Rating for the venue
+  rating: number; // Overall rating (calculated or manual)
   
   // Step 3: Review Content
   reviewText: string;
   reactionEmoji: string;
+  venueReviewText: string; // Separate venue-specific review
+  artistReviewText: string; // Separate artist-specific review
   
   // Step 4: Privacy
   isPublic: boolean;
+  
+  // Review type
+  reviewType: 'event' | 'venue' | 'artist';
 }
 
 export interface ReviewFormState {
@@ -31,10 +38,15 @@ const initialFormData: ReviewFormData = {
   selectedArtist: null,
   selectedVenue: null,
   eventDate: '',
+  artistRating: 0,
+  venueRating: 0,
   rating: 0,
   reviewText: '',
   reactionEmoji: '',
+  venueReviewText: '',
+  artistReviewText: '',
   isPublic: true,
+  reviewType: 'event',
 };
 
 export function useReviewForm() {
@@ -62,16 +74,41 @@ export function useReviewForm() {
         }
         break;
       case 2:
-        if (data.rating === 0) {
-          errors.rating = 'Please provide a rating';
-        } else if (data.rating < 1 || data.rating > 5) {
-          errors.rating = 'Rating must be between 1 and 5 stars';
+        if (data.reviewType === 'event') {
+          if (data.artistRating === 0) {
+            errors.artistRating = 'Please provide an artist rating';
+          } else if (data.artistRating < 1 || data.artistRating > 5) {
+            errors.artistRating = 'Artist rating must be between 1 and 5 stars';
+          }
+          if (data.venueRating === 0) {
+            errors.venueRating = 'Please provide a venue rating';
+          } else if (data.venueRating < 1 || data.venueRating > 5) {
+            errors.venueRating = 'Venue rating must be between 1 and 5 stars';
+          }
+        } else if (data.reviewType === 'venue') {
+          if (data.venueRating === 0) {
+            errors.venueRating = 'Please provide a venue rating';
+          } else if (data.venueRating < 1 || data.venueRating > 5) {
+            errors.venueRating = 'Venue rating must be between 1 and 5 stars';
+          }
+        } else if (data.reviewType === 'artist') {
+          if (data.artistRating === 0) {
+            errors.artistRating = 'Please provide an artist rating';
+          } else if (data.artistRating < 1 || data.artistRating > 5) {
+            errors.artistRating = 'Artist rating must be between 1 and 5 stars';
+          }
         }
         break;
       case 3:
         // Review text is optional, but if provided, should be reasonable length
         if (data.reviewText && data.reviewText.length > 500) {
           errors.reviewText = 'Review text must be 500 characters or less';
+        }
+        if (data.venueReviewText && data.venueReviewText.length > 300) {
+          errors.venueReviewText = 'Venue review must be 300 characters or less';
+        }
+        if (data.artistReviewText && data.artistReviewText.length > 300) {
+          errors.artistReviewText = 'Artist review must be 300 characters or less';
         }
         break;
       case 4:

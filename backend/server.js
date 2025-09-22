@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const searchRoutes = require('./search-routes');
 const searchConcertsRoutes = require('./search-concerts');
+const streamingProfileRoutes = require('./streaming-profile-routes');
+const locationSearchRoutes = require('./location-search-routes');
 
 const app = express();
 
@@ -33,6 +35,8 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/', searchRoutes);
 app.use('/', searchConcertsRoutes);
+app.use('/', streamingProfileRoutes);
+app.use('/', locationSearchRoutes);
 
 // Debug: Log all registered routes
 console.log('Registered routes:');
@@ -42,6 +46,11 @@ searchRoutes.stack.forEach((route) => {
   }
 });
 searchConcertsRoutes.stack.forEach((route) => {
+  if (route.route) {
+    console.log(`${Object.keys(route.route.methods).join(', ').toUpperCase()} ${route.route.path}`);
+  }
+});
+streamingProfileRoutes.stack.forEach((route) => {
   if (route.route) {
     console.log(`${Object.keys(route.route.methods).join(', ').toUpperCase()} ${route.route.path}`);
   }

@@ -12,13 +12,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { ConcertRanking } from './ConcertRanking';
+import { ConcertRanking } from '../events/ConcertRanking';
 import { JamBaseService } from '@/services/jambaseService';
-import { EventReviewModal } from './EventReviewModal';
+import { EventReviewModal } from '../reviews/EventReviewModal';
 import { ReviewService } from '@/services/reviewService';
-import { ReviewCard } from './ReviewCard';
+import { ReviewCard } from '../reviews/ReviewCard';
 import { FriendProfileCard } from './FriendProfileCard';
-import { SpotifyStats } from './SpotifyStats';
+import { UnifiedStreamingStats, detectStreamingServiceType } from '../streaming/UnifiedStreamingStats';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -498,7 +498,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   }
 
   return (
-    <div className="min-h-screen p-4 pb-20">
+    <div className="min-h-screen p-4 pb-48">
       <div className="max-w-2xl mx-auto">
 
         {/* Instagram-style Profile Header */}
@@ -576,23 +576,44 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
-                  {profile.music_streaming_profile && (
+                {profile.music_streaming_profile && (() => {
+                  const serviceType = detectStreamingServiceType(profile.music_streaming_profile);
+                  const isSpotify = serviceType === 'spotify';
+                  const isAppleMusic = serviceType === 'apple-music';
+                  
+                  let href = profile.music_streaming_profile;
+                  let displayText = profile.music_streaming_profile;
+                  let colorClass = 'text-blue-600 hover:text-blue-700';
+                  
+                  if (isSpotify) {
+                    href = profile.music_streaming_profile.startsWith('http') 
+                      ? profile.music_streaming_profile 
+                      : `https://open.spotify.com/user/${profile.music_streaming_profile}`;
+                    displayText = 'Spotify Profile';
+                    colorClass = 'text-green-600 hover:text-green-700';
+                  } else if (isAppleMusic) {
+                    href = profile.music_streaming_profile.startsWith('http') 
+                      ? profile.music_streaming_profile 
+                      : profile.music_streaming_profile;
+                    displayText = 'Apple Music Profile';
+                    colorClass = 'text-red-500 hover:text-red-600';
+                  } else if (profile.music_streaming_profile.startsWith('http')) {
+                    displayText = 'Music Profile';
+                  }
+                  
+                  return (
                     <a
-                      href={profile.music_streaming_profile.startsWith('http') ? profile.music_streaming_profile : `https://open.spotify.com/user/${profile.music_streaming_profile}`}
+                      href={href}
                       target="_blank"
                       rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-green-600 hover:text-green-700 transition-colors text-sm"
+                      className={`flex items-center gap-2 transition-colors text-sm ${colorClass}`}
                     >
                       <Music className="w-4 h-4" />
-                    <span>
-                        {profile.music_streaming_profile.startsWith('http') 
-                        ? (profile.music_streaming_profile.includes('spotify.com') ? 'Spotify Profile' : 'Music Profile')
-                          : profile.music_streaming_profile
-                        }
-                      </span>
+                      <span>{displayText}</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
-                  )}
+                  );
+                })()}
                 </div>
               )}
               </div>
@@ -615,7 +636,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="posts" className="mt-6">
+          <TabsContent value="posts" className="mt-6 mb-40">
             <PostsGrid 
               posts={[
                 // Transform reviews into posts
@@ -624,7 +645,17 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                   type: 'review' as const,
                   title: review.event?.event_name || 'Concert Review',
                   subtitle: review.event?.location || 'Unknown Venue',
-                  rating: typeof review.rating === 'string' ? parseInt(review.rating) : review.rating,
+                  rating: (() => {
+                    if (typeof review.rating === 'string') {
+                      switch (review.rating) {
+                        case 'good': return 5;
+                        case 'okay': return 3;
+                        case 'bad': return 1;
+                        default: return 0;
+                      }
+                    }
+                    return review.rating || 0;
+                  })(),
                   date: review.created_at,
                   likes: 0,
                   comments: 0,
@@ -657,7 +688,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
             />
             
             {/* Floating Add Button */}
-            <div className="fixed bottom-24 right-4 z-10">
+            <div className="fixed bottom-20 right-4 z-10">
               <Button 
                 onClick={handleOpenReviewModal} 
                 size="lg"
@@ -750,7 +781,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
           </TabsContent>
 
           <TabsContent value="stats" className="mt-6">
-            <SpotifyStats />
+            <UnifiedStreamingStats musicStreamingProfile={profile.music_streaming_profile} />
           </TabsContent>
 
         </Tabs>

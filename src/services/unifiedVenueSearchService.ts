@@ -181,7 +181,7 @@ export class UnifiedVenueSearchService {
         id: 'madison-square-garden',
         name: 'Madison Square Garden',
         identifier: 'jambase:msg-1',
-        image: 'https://via.placeholder.com/300x300/EF4444/FFFFFF?text=MSG',
+        image: 'https://picsum.photos/300/300?random=1',
         address: {
           streetAddress: '4 Pennsylvania Plaza',
           addressLocality: 'New York',
@@ -200,7 +200,7 @@ export class UnifiedVenueSearchService {
         id: 'hollywood-bowl',
         name: 'Hollywood Bowl',
         identifier: 'jambase:hb-1',
-        image: 'https://via.placeholder.com/300x300/8B5CF6/FFFFFF?text=HB',
+        image: 'https://picsum.photos/300/300?random=2',
         address: {
           streetAddress: '2301 N Highland Ave',
           addressLocality: 'Los Angeles',
@@ -219,7 +219,7 @@ export class UnifiedVenueSearchService {
         id: 'the-factory',
         name: 'The Factory',
         identifier: 'jambase:factory-1',
-        image: 'https://via.placeholder.com/300x300/10B981/FFFFFF?text=Factory',
+        image: 'https://picsum.photos/300/300?random=3',
         address: {
           streetAddress: '123 Factory St',
           addressLocality: 'St. Louis',
@@ -238,7 +238,7 @@ export class UnifiedVenueSearchService {
         id: 'red-rocks',
         name: 'Red Rocks Amphitheatre',
         identifier: 'jambase:rr-1',
-        image: 'https://via.placeholder.com/300x300/DC2626/FFFFFF?text=RR',
+        image: 'https://picsum.photos/300/300?random=4',
         address: {
           streetAddress: '18300 W Alameda Pkwy',
           addressLocality: 'Morrison',
@@ -257,7 +257,7 @@ export class UnifiedVenueSearchService {
         id: 'brooklyn-bowl',
         name: 'Brooklyn Bowl',
         identifier: 'jambase:bb-1',
-        image: 'https://via.placeholder.com/300x300/10B981/FFFFFF?text=BB',
+        image: 'https://picsum.photos/300/300?random=5',
         address: {
           streetAddress: '61 Wythe Ave',
           addressLocality: 'Brooklyn',
@@ -276,7 +276,7 @@ export class UnifiedVenueSearchService {
         id: 'the-fillmore',
         name: 'The Fillmore',
         identifier: 'jambase:tf-1',
-        image: 'https://via.placeholder.com/300x300/F59E0B/FFFFFF?text=TF',
+        image: 'https://picsum.photos/300/300?random=6',
         address: {
           streetAddress: '1805 Geary Blvd',
           addressLocality: 'San Francisco',
@@ -295,7 +295,7 @@ export class UnifiedVenueSearchService {
         id: 'house-of-blues',
         name: 'House of Blues',
         identifier: 'jambase:hob-1',
-        image: 'https://via.placeholder.com/300x300/3B82F6/FFFFFF?text=HOB',
+        image: 'https://picsum.photos/300/300?random=7',
         address: {
           streetAddress: '225 Decatur St',
           addressLocality: 'New Orleans',
@@ -314,7 +314,7 @@ export class UnifiedVenueSearchService {
         id: 'radio-city-music-hall',
         name: 'Radio City Music Hall',
         identifier: 'jambase:rcmh-1',
-        image: 'https://via.placeholder.com/300x300/EC4899/FFFFFF?text=RCMH',
+        image: 'https://picsum.photos/300/300?random=8',
         address: {
           streetAddress: '1260 6th Ave',
           addressLocality: 'New York',
@@ -333,7 +333,7 @@ export class UnifiedVenueSearchService {
         id: 'the-greek-theatre',
         name: 'The Greek Theatre',
         identifier: 'jambase:tgt-1',
-        image: 'https://via.placeholder.com/300x300/14B8A6/FFFFFF?text=TGT',
+        image: 'https://picsum.photos/300/300?random=9',
         address: {
           streetAddress: '2700 N Vermont Ave',
           addressLocality: 'Los Angeles',
@@ -382,7 +382,7 @@ export class UnifiedVenueSearchService {
         
         // Check if venue already exists
         const { data: existingVenue, error: checkError } = await supabase
-          .from('venue_profile')
+          .from('venue_profile' as any)
           .select('*')
           .eq('jambase_venue_id', venueId)
           .single();
@@ -394,7 +394,27 @@ export class UnifiedVenueSearchService {
         }
 
         // If table doesn't exist or other database error, skip database operations
-        if (checkError && checkError.code !== 'PGRST116') {
+        if (checkError && (checkError.code === 'PGRST116' || checkError.code === '42P01')) {
+          console.warn(`⚠️  venue_profile table doesn't exist yet. Skipping database operations for ${jamBaseVenue.name}`);
+          // Still add the venue to results even if we can't store it
+          populatedVenues.push({
+            id: jamBaseVenue.id,
+            jambase_venue_id: venueId,
+            name: jamBaseVenue.name,
+            address: jamBaseVenue.address,
+            geo: jamBaseVenue.geo,
+            maximum_attendee_capacity: jamBaseVenue.maximumAttendeeCapacity,
+            num_upcoming_events: jamBaseVenue['x-numUpcomingEvents'] || 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            identifier: jamBaseVenue.identifier,
+            last_synced_at: new Date().toISOString()
+          } as any);
+          continue;
+        }
+
+        // Handle other database errors
+        if (checkError) {
           console.warn(`⚠️  Database error checking venue ${jamBaseVenue.name}:`, checkError);
           // Still add the venue to results even if we can't store it
           populatedVenues.push({
@@ -428,7 +448,7 @@ export class UnifiedVenueSearchService {
         };
         
         const { data: savedVenue, error } = await supabase
-          .from('venue_profile')
+          .from('venue_profile' as any)
           .upsert({
             ...venueData,
           } as any, {
@@ -488,12 +508,17 @@ export class UnifiedVenueSearchService {
     try {
       // Get all venues from database
       const { data: allVenues, error } = await supabase
-        .from('venue_profile')
+        .from('venue_profile' as any)
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.warn(`⚠️  Database error getting venues: ${error.message}`);
+        // Handle table not existing or other database errors
+        if (error.code === 'PGRST116' || error.code === '42P01') {
+          console.warn(`⚠️  venue_profile table doesn't exist yet. Returning empty results for fuzzy matching.`);
+        } else {
+          console.warn(`⚠️  Database error getting venues: ${error.message}`);
+        }
         return [];
       }
 
@@ -502,16 +527,41 @@ export class UnifiedVenueSearchService {
         return [];
       }
 
+      // Ensure we have valid venue data before processing
+      if (!Array.isArray(allVenues)) {
+        console.warn('⚠️  Invalid venue data received from database');
+        return [];
+      }
+
+      // Filter out any rows that are not valid venue objects
+      const venues = (allVenues as Array<any>).filter(
+        (venue): venue is {
+          id: string;
+          jambase_venue_id: string | null;
+          name: string;
+          identifier: string | null;
+          image_url: string | null;
+          address: any;
+          geo: any;
+          maximum_attendee_capacity: number | null;
+          num_upcoming_events: number | null;
+        } =>
+          typeof venue === 'object' &&
+          venue !== null &&
+          typeof venue.id === 'string' &&
+          typeof venue.name === 'string'
+      );
+
       // Calculate fuzzy match scores for all venues
-      const scoredVenues = allVenues.map(venue => ({
-        id: venue.jambase_venue_id,
+      const scoredVenues = venues.map(venue => ({
+        id: venue.jambase_venue_id || venue.id,
         name: venue.name,
-        identifier: venue.identifier,
-        image_url: venue.image_url,
+        identifier: venue.identifier || '',
+        image_url: venue.image_url || undefined,
         address: venue.address,
         geo: venue.geo,
-        maximumAttendeeCapacity: venue.maximum_attendee_capacity,
-        num_upcoming_events: venue.num_upcoming_events,
+        maximumAttendeeCapacity: venue.maximum_attendee_capacity || undefined,
+        num_upcoming_events: venue.num_upcoming_events || 0,
         match_score: this.calculateFuzzyMatchScore(query, venue.name),
         is_from_database: true,
       }));

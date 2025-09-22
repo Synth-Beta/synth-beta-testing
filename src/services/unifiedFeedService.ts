@@ -293,25 +293,42 @@ export class UnifiedFeedService {
   private static async getFriendActivity(userId: string, limit: number): Promise<UnifiedFeedItem[]> {
     try {
       // Get recent friend requests that were accepted
+      // First get the friendship records
       const { data: friendships, error } = await supabase
         .from('friends')
-        .select(`
-          id,
-          user1_id,
-          user2_id,
-          created_at,
-          user1:profiles!friends_user1_id_fkey(name, avatar_url),
-          user2:profiles!friends_user2_id_fkey(name, avatar_url)
-        `)
+        .select('id, user1_id, user2_id, created_at')
         .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
         .order('created_at', { ascending: false })
         .limit(limit);
       
       if (error) throw error;
       
-      return (friendships || []).map(friendship => {
+      // If no friendships found, return empty array
+      if (!friendships || friendships.length === 0) {
+        return [];
+      }
+
+      // Get profile information for all friend user IDs
+      const allFriendIds = friendships.map(friendship => 
+        friendship.user1_id === userId ? friendship.user2_id : friendship.user1_id
+      );
+      
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id, name, avatar_url')
+        .in('user_id', allFriendIds);
+
+      if (profileError) {
+        console.error('Error fetching friend profiles:', profileError);
+        return [];
+      }
+
+      // Create a map of user_id to profile for quick lookup
+      const profileMap = new Map(profiles?.map(profile => [profile.user_id, profile]) || []);
+
+      return friendships.map(friendship => {
         const otherUserId = friendship.user1_id === userId ? friendship.user2_id : friendship.user1_id;
-        const otherUser = friendship.user1_id === userId ? friendship.user2 : friendship.user1;
+        const otherUser = profileMap.get(otherUserId);
         
         return {
           id: `friend-activity-${friendship.id}`,

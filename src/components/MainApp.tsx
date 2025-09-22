@@ -3,6 +3,7 @@ import { Navigation } from './Navigation';
 import { ConcertFeed } from './ConcertFeed';
 import { UnifiedFeed } from './UnifiedFeed';
 import { UnifiedSearch } from './UnifiedSearch';
+import { SearchMap } from './SearchMap';
 import { ProfileView } from './ProfileView';
 import { ProfileEdit } from './ProfileEdit';
 import { ConcertEvents } from './ConcertEvents';
@@ -251,9 +252,18 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
                 <h1 className="text-3xl font-bold text-gray-900">Search</h1>
                 <p className="text-gray-600 mt-2">Find events and connect with other music lovers</p>
               </div>
-              <UnifiedSearch 
-                userId={user.id}
-              />
+              
+              {/* Search Component */}
+              <div className="mb-6">
+                <UnifiedSearch 
+                  userId={user.id}
+                />
+              </div>
+              
+              {/* Map Component */}
+              <div className="mb-6">
+                <SearchMap userId={user.id} />
+              </div>
             </div>
           </div>
         );

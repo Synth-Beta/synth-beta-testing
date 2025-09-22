@@ -1,8 +1,76 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-// Type definitions
-export type UserReview = Tables<'user_reviews'>;
+// Review system types with venue support
+export interface ReviewData {
+  rating?: number; // Overall rating (calculated automatically)
+  artist_rating?: number; // Rating for the artist/performance
+  venue_rating?: number; // Rating for the venue
+  review_type: 'event' | 'venue' | 'artist'; // Type of review
+  review_text?: string;
+  reaction_emoji?: string;
+  is_public?: boolean;
+  venue_tags?: string[]; // Venue-specific tags
+  artist_tags?: string[]; // Artist-specific tags
+}
+
+export interface UserReview {
+  id: string;
+  user_id: string;
+  event_id: string;
+  venue_id?: string;
+  rating: number;
+  artist_rating?: number;
+  venue_rating?: number;
+  review_type: 'event' | 'venue' | 'artist';
+  reaction_emoji?: string;
+  review_text?: string;
+  photos?: string[];
+  videos?: string[];
+  mood_tags?: string[];
+  genre_tags?: string[];
+  context_tags?: string[];
+  venue_tags?: string[];
+  artist_tags?: string[];
+  likes_count: number;
+  comments_count: number;
+  shares_count: number;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicReviewWithProfile extends UserReview {
+  reviewer_name: string;
+  reviewer_avatar?: string;
+  event_title?: string;
+  artist_name?: string;
+  venue_name?: string;
+  event_date?: string;
+  venue_profile_name?: string;
+  venue_address?: any;
+}
+
+export interface VenueStats {
+  total_reviews: number;
+  average_venue_rating: number;
+  average_artist_rating: number;
+  average_overall_rating: number;
+  rating_distribution: {
+    '1_star': number;
+    '2_star': number;
+    '3_star': number;
+    '4_star': number;
+    '5_star': number;
+  };
+}
+
+export interface TagCount {
+  tag: string;
+  count: number;
+}
+
+// Legacy type definitions for backwards compatibility
 export type UserReviewInsert = TablesInsert<'user_reviews'>;
 export type UserReviewUpdate = TablesUpdate<'user_reviews'>;
 
@@ -15,16 +83,6 @@ export type ReviewCommentUpdate = TablesUpdate<'review_comments'>;
 
 export type ReviewShare = Tables<'review_shares'>;
 export type ReviewShareInsert = TablesInsert<'review_shares'>;
-
-export type PublicReviewWithProfile = Tables<'public_reviews_with_profiles'>;
-
-// Review creation/update data
-export interface ReviewData {
-  rating: number;
-  review_text?: string;
-  reaction_emoji?: string;
-  is_public?: boolean;
-}
 
 // Review with engagement data
 export interface ReviewWithEngagement extends UserReview {
@@ -43,14 +101,67 @@ export interface CommentWithUser extends ReviewComment {
   };
 }
 
+// Pre-defined tag options for consistent tagging
+export const VENUE_TAGS = [
+  'excellent-sound',
+  'poor-sound',
+  'great-staff',
+  'rude-staff',
+  'clean-facilities',
+  'dirty-facilities',
+  'easy-parking',
+  'no-parking',
+  'accessible',
+  'not-accessible',
+  'good-drinks',
+  'expensive-drinks',
+  'great-food',
+  'no-food',
+  'spacious',
+  'cramped',
+  'good-sightlines',
+  'obstructed-view',
+  'air-conditioned',
+  'too-hot',
+  'well-organized',
+  'chaotic',
+] as const;
+
+export const ARTIST_TAGS = [
+  'amazing-performance',
+  'disappointing-performance',
+  'high-energy',
+  'low-energy',
+  'great-setlist',
+  'boring-setlist',
+  'excellent-vocals',
+  'poor-vocals',
+  'great-stage-presence',
+  'no-stage-presence',
+  'interactive',
+  'distant',
+  'on-time',
+  'very-late',
+  'good-sound-mix',
+  'bad-sound-mix',
+  'played-hits',
+  'no-hits',
+  'long-set',
+  'short-set',
+] as const;
+
+export type VenueTag = typeof VENUE_TAGS[number];
+export type ArtistTag = typeof ARTIST_TAGS[number];
+
 export class ReviewService {
   /**
-   * Create or update a review for an event
+   * Create or update a review for an event, venue, or artist
    */
   static async setEventReview(
     userId: string,
     eventId: string,
-    reviewData: ReviewData
+    reviewData: ReviewData,
+    venueId?: string
   ): Promise<UserReview> {
     try {
       // Check if user already has a review for this event
@@ -70,6 +181,7 @@ export class ReviewService {
         const { data, error } = await supabase
           .from('user_reviews')
           .update({
+            venue_id: venueId,
             ...reviewData,
             updated_at: new Date().toISOString()
           })
@@ -86,6 +198,7 @@ export class ReviewService {
           .insert({
             user_id: userId,
             event_id: eventId,
+            venue_id: venueId,
             ...reviewData
           })
           .select()
@@ -432,6 +545,7 @@ export class ReviewService {
    */
   static async getPublicReviewsWithProfiles(
     eventId?: string,
+    venueId?: string,
     limit: number = 20,
     offset: number = 0
   ): Promise<{
@@ -447,6 +561,10 @@ export class ReviewService {
 
       if (eventId) {
         query = query.eq('event_id', eventId);
+      }
+
+      if (venueId) {
+        query = query.eq('venue_id', venueId);
       }
 
       const { data, error, count } = await query;
@@ -489,7 +607,7 @@ export class ReviewService {
   /**
    * Get popular tags for filtering
    */
-  static async getPopularTags(type: 'mood' | 'genre' | 'context'): Promise<Array<{ tag: string; count: number }>> {
+  static async getPopularTags(type: 'mood' | 'genre' | 'context' | 'venue' | 'artist'): Promise<Array<{ tag: string; count: number }>> {
     try {
       const column = `${type}_tags`;
       const { data, error } = await supabase
@@ -516,6 +634,114 @@ export class ReviewService {
     } catch (error) {
       console.error('Error getting popular tags:', error);
       return [];
+    }
+  }
+
+  /**
+   * Get venue statistics
+   */
+  static async getVenueStats(venueId: string): Promise<VenueStats> {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_venue_stats', { venue_uuid: venueId });
+
+      if (error) throw error;
+
+      return data[0] || {
+        total_reviews: 0,
+        average_venue_rating: 0,
+        average_artist_rating: 0,
+        average_overall_rating: 0,
+        rating_distribution: {
+          '1_star': 0,
+          '2_star': 0,
+          '3_star': 0,
+          '4_star': 0,
+          '5_star': 0,
+        }
+      };
+    } catch (error) {
+      console.error('Error getting venue stats:', error);
+      throw new Error(`Failed to get venue stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get popular venue tags
+   */
+  static async getPopularVenueTags(venueId?: string): Promise<TagCount[]> {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_popular_venue_tags', venueId ? { venue_uuid: venueId } : {});
+
+      if (error) throw error;
+
+      return data || [];
+    } catch (error) {
+      console.error('Error getting popular venue tags:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get reviews for a specific venue
+   */
+  static async getVenueReviews(
+    venueId: string,
+    userId?: string
+  ): Promise<{
+    reviews: ReviewWithEngagement[];
+    averageRating: number;
+    totalReviews: number;
+  }> {
+    try {
+      // Get reviews with user engagement data
+      const { data: reviews, error } = await supabase
+        .from('user_reviews')
+        .select(`
+          *,
+          review_likes!left(id, user_id)
+        `)
+        .eq('venue_id', venueId)
+        .eq('is_public', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Check if current user has liked any of these reviews
+      let userLikes: string[] = [];
+      if (userId) {
+        const { data: likes } = await supabase
+          .from('review_likes')
+          .select('review_id')
+          .eq('user_id', userId)
+          .in('review_id', reviews?.map(r => r.id) || []);
+        
+        userLikes = likes?.map(l => l.review_id) || [];
+      }
+
+      // Process reviews with engagement data
+      const processedReviews: ReviewWithEngagement[] = (reviews || []).map(review => ({
+        ...review,
+        is_liked_by_user: userLikes.includes(review.id),
+        user_like_id: userLikes.includes(review.id) 
+          ? review.review_likes?.find(l => l.user_id === userId)?.id 
+          : undefined
+      }));
+
+      const totalReviews = processedReviews.length;
+      const averageRating = totalReviews > 0 
+        ? processedReviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
+        : 0;
+
+      return {
+        reviews: processedReviews,
+        averageRating,
+        totalReviews
+      };
+    } catch (error) {
+      console.error('Error getting venue reviews:', error);
+      throw new Error(`Failed to get venue reviews: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

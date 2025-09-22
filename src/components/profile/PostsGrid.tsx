@@ -10,7 +10,7 @@ interface PostGridItem {
   image?: string;
   title: string;
   subtitle: string;
-  rating?: number; // 1-5 star rating for reviews
+  rating?: number;
   date: string;
   location?: string;
   likes?: number;
@@ -29,9 +29,7 @@ export const PostsGrid = ({ posts, onPostClick }: PostsGridProps) => {
       <Star
         key={i}
         className={`w-3 h-3 ${
-          i < Math.floor(rating) ? "text-yellow-400 fill-current" : 
-          i === Math.floor(rating) && rating % 1 >= 0.5 ? "text-yellow-400 fill-current" :
-          "text-gray-300"
+          i < rating ? "text-yellow-400 fill-current" : "text-gray-300"
         }`}
       />
     ));
@@ -50,7 +48,7 @@ export const PostsGrid = ({ posts, onPostClick }: PostsGridProps) => {
   }
 
   return (
-    <div className="grid grid-cols-3 gap-1 md:gap-2 pb-8">
+    <div className="grid grid-cols-3 gap-1 md:gap-2">
       {posts.map((post) => (
         <Card 
           key={post.id}
@@ -85,6 +83,12 @@ export const PostsGrid = ({ posts, onPostClick }: PostsGridProps) => {
                 )}
               </div>
               
+              {/* Rating overlay for reviews */}
+              {post.type === 'review' && post.rating && (
+                <div className="absolute bottom-2 left-2 flex">
+                  {renderStars(post.rating)}
+                </div>
+              )}
             </div>
             
             {/* Content */}
@@ -100,15 +104,7 @@ export const PostsGrid = ({ posts, onPostClick }: PostsGridProps) => {
                   <span>{format(new Date(post.date), 'MMM d')}</span>
                 </div>
                 
-                {/* Rating for reviews */}
-                {post.type === 'review' && post.rating && (
-                  <div className="flex items-center gap-1">
-                    {renderStars(post.rating)}
-                  </div>
-                )}
-                
-                {/* Likes and comments for other post types */}
-                {post.type !== 'review' && (post.likes || post.comments) && (
+                {(post.likes || post.comments) && (
                   <div className="flex items-center gap-2">
                     {post.likes && (
                       <div className="flex items-center gap-1">
