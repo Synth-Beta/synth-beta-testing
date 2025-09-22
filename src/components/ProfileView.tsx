@@ -5,7 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Users, UserPlus, MessageCircle, User } from 'lucide-react';
+import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Users, UserPlus, MessageCircle, User, Grid, BarChart3 } from 'lucide-react';
+import { FollowersModal } from './FollowersModal';
+import { PostsGrid } from './PostsGrid';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -16,6 +18,7 @@ import { EventReviewModal } from './EventReviewModal';
 import { ReviewService } from '@/services/reviewService';
 import { ReviewCard } from './ReviewCard';
 import { FriendProfileCard } from './FriendProfileCard';
+import { SpotifyStats } from './SpotifyStats';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -76,6 +79,10 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const [friends, setFriends] = useState<any[]>([]);
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('posts');
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
+  const [followersModalType, setFollowersModalType] = useState<'followers' | 'following'>('followers');
   const { toast } = useToast();
   const { user, sessionExpired } = useAuth();
 
@@ -98,6 +105,14 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     fetchReviews();
     fetchFriends();
   }, [currentUserId, sessionExpired, user]);
+
+  useEffect(() => {
+    // Check for hash in URL to determine active tab
+    const hash = window.location.hash.substring(1);
+    if (hash === 'spotify') {
+      setActiveTab('spotify');
+    }
+  }, []);
 
   const fetchProfile = async () => {
     try {
@@ -485,74 +500,79 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   return (
     <div className="min-h-screen p-4 pb-20">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">Your Profile</h1>
-            <p className="text-muted-foreground">Manage your profile and view your activity</p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={onSettings} variant="ghost" size="icon">
-              <Settings className="w-4 h-4" />
-            </Button>
-            <Button onClick={() => setShowConcertRankings(true)} variant="outline">
-              <Music className="w-4 h-4 mr-2" />
-              My Concerts
-            </Button>
-            <Button onClick={onEdit} variant="outline">
-              <Edit className="w-4 h-4 mr-2" />
-              Edit
-            </Button>
-            {onSignOut && (
-              <Button onClick={onSignOut} variant="destructive">
-                Sign Out
-              </Button>
-            )}
-            <Button 
-              onClick={() => {
-                console.log('🔐 Force login triggered');
-                // Force a page reload to trigger re-evaluation
-                window.location.reload();
-              }} 
-              variant="outline"
-              size="sm"
-            >
-              Refresh/Login
-            </Button>
-          </div>
-        </div>
 
-        {/* Profile Card */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="text-center">
-              <Avatar className="w-24 h-24 mx-auto mb-4">
+        {/* Instagram-style Profile Header */}
+        <div className="mb-6">
+          {/* Profile Info Row */}
+          <div className="flex items-start gap-6 mb-6">
+            {/* Profile Picture */}
+            <Avatar className="w-20 h-20 md:w-24 md:h-24">
                 <AvatarImage src={profile.avatar_url || undefined} />
                 <AvatarFallback className="text-2xl">
                   {profile.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               
-              <h2 className="text-2xl font-bold mb-2">{profile.name}</h2>
+            {/* Profile Stats and Actions */}
+            <div className="flex-1">
+              <div className="flex items-center gap-4 mb-4">
+                <h2 className="text-xl font-semibold">{profile.name}</h2>
+                <Button onClick={onEdit} variant="outline" size="sm">
+                  Edit profile
+                </Button>
+                <Button onClick={onSettings} variant="ghost" size="sm">
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </div>
               
+              {/* Stats Row */}
+              <div className="flex gap-6 mb-4">
+                <div className="text-center">
+                  <span className="font-semibold">{userEvents.length + reviews.length}</span>
+                  <p className="text-sm text-muted-foreground">posts</p>
+                </div>
+                <button 
+                  className="text-center hover:opacity-70 transition-opacity"
+                  onClick={() => {
+                    setFollowersModalType('followers');
+                    setShowFollowersModal(true);
+                  }}
+                >
+                  <span className="font-semibold">{friends.length}</span>
+                  <p className="text-sm text-muted-foreground">followers</p>
+                </button>
+                <button 
+                  className="text-center hover:opacity-70 transition-opacity"
+                  onClick={() => {
+                    setFollowersModalType('following');
+                    setShowFollowingModal(true);
+                  }}
+                >
+                  <span className="font-semibold">{friends.length}</span>
+                  <p className="text-sm text-muted-foreground">following</p>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Bio and Links */}
+          <div className="mb-4">
               {profile.bio && (
-                <p className="text-muted-foreground mb-4 max-w-md mx-auto">
-                  {profile.bio}
-                </p>
+              <p className="text-sm mb-3">{profile.bio}</p>
               )}
 
               {/* Social Media Links */}
               {(profile.instagram_handle || profile.music_streaming_profile) && (
-                <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
+              <div className="flex flex-col gap-1">
                   {profile.instagram_handle && (
                     <a
                       href={`https://instagram.com/${profile.instagram_handle}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-pink-600 hover:text-pink-700 transition-colors"
+                    className="flex items-center gap-2 text-pink-600 hover:text-pink-700 transition-colors text-sm"
                     >
                       <Instagram className="w-4 h-4" />
-                      <span className="text-sm">Instagram</span>
+                    <span>@{profile.instagram_handle}</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
@@ -561,12 +581,12 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                       href={profile.music_streaming_profile.startsWith('http') ? profile.music_streaming_profile : `https://open.spotify.com/user/${profile.music_streaming_profile}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-green-600 hover:text-green-700 transition-colors"
+                    className="flex items-center gap-2 text-green-600 hover:text-green-700 transition-colors text-sm"
                     >
                       <Music className="w-4 h-4" />
-                      <span className="text-sm">
+                    <span>
                         {profile.music_streaming_profile.startsWith('http') 
-                          ? (profile.music_streaming_profile.includes('spotify.com') ? 'Spotify' : 'Music Profile')
+                        ? (profile.music_streaming_profile.includes('spotify.com') ? 'Spotify Profile' : 'Music Profile')
                           : profile.music_streaming_profile
                         }
                       </span>
@@ -575,149 +595,77 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                   )}
                 </div>
               )}
-              
-              <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-                <span>Member since {(() => {
-                  try {
-                    return format(new Date(profile.created_at), 'MMM yyyy');
-                  } catch {
-                    return 'Recently';
-                  }
-                })()}</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Events and Reviews Tabs */}
-        <Tabs defaultValue="events" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="events" className="flex items-center gap-2">
-              <Heart className="w-4 h-4" />
-              Events
-            </TabsTrigger>
-            <TabsTrigger value="reviews" className="flex items-center gap-2">
-              <Star className="w-4 h-4" />
-              Reviews
+        {/* Instagram-style Content Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="posts" className="flex items-center gap-2">
+              <Grid className="w-4 h-4" />
+              Posts
             </TabsTrigger>
             <TabsTrigger value="friends" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               Friends
             </TabsTrigger>
+            <TabsTrigger value="stats" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Streaming Stats
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="events" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Heart className="w-5 h-5" />
-                  Concerts You're Interested In
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {userEvents.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Heart className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No concerts yet</p>
-                    <p className="text-sm text-muted-foreground">
-                      Start exploring concerts to build your profile!
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {userEvents.map((event) => {
-                      const eventDateTime = new Date(event.event_date);
-                      
-                      return (
-                        <div key={event.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold truncate">{event.title}</h4>
-                            <p className="text-sm text-muted-foreground truncate">{event.artist_name}</p>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                              <div className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                <span>{format(eventDateTime, 'MMM d, yyyy')}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3" />
-                                <span className="truncate">{event.venue_name}, {event.venue_city}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <Badge variant="secondary">
-                            Interested
-                          </Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="reviews" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Star className="w-5 h-5" />
-                    Your Concert Reviews
-                  </div>
-                  <Button onClick={handleOpenReviewModal} size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Review
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {reviews.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Star className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No reviews yet</p>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Share your concert experiences with others!
-                    </p>
-                    <Button onClick={handleOpenReviewModal} variant="outline">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Your First Review
+          <TabsContent value="posts" className="mt-6">
+            <PostsGrid 
+              posts={[
+                // Transform reviews into posts
+                ...reviews.map((review) => ({
+                  id: `review-${review.id}`,
+                  type: 'review' as const,
+                  title: review.event?.event_name || 'Concert Review',
+                  subtitle: review.event?.location || 'Unknown Venue',
+                  rating: typeof review.rating === 'string' ? parseInt(review.rating) : review.rating,
+                  date: review.created_at,
+                  likes: 0,
+                  comments: 0,
+                  badge: 'Review'
+                })),
+                // Transform events into posts
+                ...userEvents.map((event) => ({
+                  id: `event-${event.id}`,
+                  type: 'event' as const,
+                  title: event.title,
+                  subtitle: event.artist_name,
+                  date: event.event_date,
+                  location: `${event.venue_name}, ${event.venue_city}`,
+                  badge: 'Interested'
+                }))
+              ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())}
+              onPostClick={(post) => {
+                if (post.type === 'review') {
+                  // Handle review click - could open review modal
+                  const reviewId = post.id.replace('review-', '');
+                  const review = reviews.find(r => r.id === reviewId);
+                  if (review) {
+                    handleEditReview(review);
+                  }
+                } else {
+                  // Handle event click
+                  console.log('Event clicked:', post);
+                }
+              }}
+            />
+            
+            {/* Floating Add Button */}
+            <div className="fixed bottom-20 right-4 z-10">
+              <Button 
+                onClick={handleOpenReviewModal} 
+                size="lg"
+                className="rounded-full h-12 w-12 shadow-lg"
+              >
+                <Plus className="w-6 h-6" />
                     </Button>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {reviews.map((review) => (
-                      <ReviewCard
-                        key={review.id}
-                        review={{
-                          id: review.id,
-                          user_id: review.user_id,
-                          event_id: review.event_id,
-                          rating: typeof review.rating === 'string' ? parseInt(review.rating) : review.rating,
-                          review_text: review.review_text,
-                          is_public: review.is_public,
-                          created_at: review.created_at,
-                          updated_at: review.created_at,
-                          likes_count: 0,
-                          comments_count: 0,
-                          shares_count: 0,
-                          is_liked_by_user: false,
-                          reaction_emoji: '',
-                          photos: [],
-                          videos: [],
-                          mood_tags: [],
-                          genre_tags: [],
-                          context_tags: []
-                        }}
-                        currentUserId={currentUserId}
-                        onEdit={handleEditReview}
-                        onDelete={handleDeleteReview}
-                        showEventInfo={true}
-                      />
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="friends" className="mt-6">
@@ -801,6 +749,10 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
             </Card>
           </TabsContent>
 
+          <TabsContent value="stats" className="mt-6">
+            <SpotifyStats />
+          </TabsContent>
+
         </Tabs>
       </div>
 
@@ -831,6 +783,39 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
           }}
         />
       )}
+
+      {/* Followers/Following Modals */}
+      <FollowersModal
+        isOpen={showFollowersModal}
+        onClose={() => setShowFollowersModal(false)}
+        type="followers"
+        friends={friends}
+        count={friends.length}
+        onStartChat={(friendId) => {
+          console.log('Start chat with friend:', friendId);
+          // TODO: Implement chat functionality
+        }}
+        onViewProfile={(friend) => {
+          setSelectedFriend(friend);
+          setShowProfileCard(true);
+        }}
+      />
+      
+      <FollowersModal
+        isOpen={showFollowingModal}
+        onClose={() => setShowFollowingModal(false)}
+        type="following"
+        friends={friends}
+        count={friends.length}
+        onStartChat={(friendId) => {
+          console.log('Start chat with friend:', friendId);
+          // TODO: Implement chat functionality
+        }}
+        onViewProfile={(friend) => {
+          setSelectedFriend(friend);
+          setShowProfileCard(true);
+        }}
+      />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navigation } from './Navigation';
 import { ConcertFeed } from './ConcertFeed';
+import { UnifiedFeed } from './UnifiedFeed';
 import { UnifiedSearch } from './UnifiedSearch';
 import { ProfileView } from './ProfileView';
 import { ProfileEdit } from './ProfileEdit';
@@ -236,7 +237,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     switch (currentView) {
       case 'feed':
         return (
-          <ConcertFeed 
+          <UnifiedFeed 
             currentUserId={user.id}
             onBack={handleBack}
             onViewChange={handleViewChange}
@@ -276,7 +277,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         );
       default:
         return (
-          <ConcertFeed 
+          <UnifiedFeed 
             currentUserId={user.id}
             onBack={handleBack}
           />
