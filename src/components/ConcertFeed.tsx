@@ -60,7 +60,7 @@ interface ConcertReview {
 }
 
 interface ConcertFeedProps {
-  currentUserId: string;
+  currentUserId: string | null;
   onBack: () => void;
   onNavigateToChat?: () => void;
   onNavigateToNotifications?: () => void;
@@ -71,6 +71,18 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   const [activeTab, setActiveTab] = useState('friends-recommended');
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Early return if no user
+  if (!currentUserId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
   const [friends, setFriends] = useState<any[]>([]);
   const [showChatModal, setShowChatModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);

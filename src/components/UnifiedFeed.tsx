@@ -32,6 +32,9 @@ import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService
 import { EventReviewModal } from '@/components/EventReviewModal';
 import { ReviewCard } from '@/components/ReviewCard';
 import { UnifiedFeedService, UnifiedFeedItem } from '@/services/unifiedFeedService';
+import { LocationService } from '@/services/locationService';
+import { EventMap } from './EventMap';
+import { UnifiedChatView } from './UnifiedChatView';
 
 // Using UnifiedFeedItem from service instead of local interface
 
@@ -56,6 +59,10 @@ export const UnifiedFeed = ({
   const [hasMore, setHasMore] = useState(true);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedReviewEvent, setSelectedReviewEvent] = useState<any>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | undefined>();
+  const [showUnifiedChat, setShowUnifiedChat] = useState(false);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([40.7128, -74.0060]); // Default to NYC
+  const [mapZoom, setMapZoom] = useState(10);
   const { toast } = useToast();
   const { sessionExpired } = useAuth();
 
@@ -65,8 +72,21 @@ export const UnifiedFeed = ({
       return;
     }
     
-    // Load feed data
-    loadFeedData();
+    // Try to get user's location for better recommendations
+    LocationService.getCurrentLocation()
+      .then(location => {
+        setUserLocation({ lat: location.latitude, lng: location.longitude });
+        setMapCenter([location.latitude, location.longitude]);
+        setMapZoom(10);
+      })
+      .catch(error => {
+        console.log('Could not get user location:', error);
+        // Continue without location
+      })
+      .finally(() => {
+        loadFeedData();
+        loadUpcomingEvents();
+      });
   }, [currentUserId, sessionExpired]);
 
   // Infinite scroll effect
@@ -122,7 +142,15 @@ export const UnifiedFeed = ({
     }
   };
 
-
+  const loadUpcomingEvents = async () => {
+    try {
+      // This function can be implemented later to load upcoming events
+      // For now, it's just a placeholder to prevent errors
+      console.log('Loading upcoming events...');
+    } catch (error) {
+      console.error('Error loading upcoming events:', error);
+    }
+  };
 
   const handleLike = async (itemId: string) => {
     try {
@@ -147,7 +175,7 @@ export const UnifiedFeed = ({
     }
   };
 
-  const handleShare = async (item: FeedItem) => {
+  const handleShare = async (item: UnifiedFeedItem) => {
     try {
       const shareText = `Check out this ${item.type}: ${item.title}`;
       await navigator.clipboard.writeText(shareText);
@@ -234,7 +262,7 @@ export const UnifiedFeed = ({
               variant="outline"
               size="sm"
               className="p-2"
-              onClick={() => onNavigateToChat?.()}
+              onClick={() => setShowUnifiedChat(true)}
             >
               <MessageCircle className="w-5 h-5" />
             </Button>
@@ -564,14 +592,6 @@ export const UnifiedFeed = ({
           )}
       </div>
 
-      {/* Navigation */}
-      {onViewChange && (
-        <Navigation 
-          currentView="feed" 
-          onViewChange={onViewChange} 
-        />
-      )}
-
       {/* Review Modal */}
       <EventReviewModal
         event={selectedReviewEvent}
@@ -583,6 +603,22 @@ export const UnifiedFeed = ({
           setShowReviewModal(false);
         }}
       />
+
+      {/* Full Page Chat */}
+      {showUnifiedChat && (
+        <UnifiedChatView 
+          currentUserId={currentUserId} 
+          onBack={() => setShowUnifiedChat(false)} 
+        />
+      )}
+
+      {/* Bottom Navigation - Hide when chat is open */}
+      {!showUnifiedChat && onViewChange && (
+        <Navigation 
+          currentView="feed" 
+          onViewChange={onViewChange} 
+        />
+      )}
     </div>
   );
 };
