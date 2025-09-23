@@ -20,6 +20,7 @@ export class SpotifyService {
   private constructor() {
     this.config = {
       clientId: '00c8ab88043a4d53bc3ec13684885ca9',
+      clientSecret: '0c8ae2f4f5b54f1bb5b00511f7da52ad', // For development mode
       redirectUri: import.meta.env.VITE_SPOTIFY_REDIRECT_URI || (typeof window !== 'undefined' ? `${window.location.origin}/auth/spotify/callback` : ''),
       scopes: [
         'user-read-private',
@@ -40,13 +41,9 @@ export class SpotifyService {
   }
 
   // Authentication methods
-  public async authenticate(): Promise<void> {
+  public authenticate(): void {
     const state = this.generateRandomString(16);
-    const codeVerifier = this.generateCodeVerifier();
-    const codeChallenge = await this.generateCodeChallenge(codeVerifier);
-    
     localStorage.setItem('spotify_auth_state', state);
-    localStorage.setItem('spotify_code_verifier', codeVerifier);
 
     const authUrl = new URL('https://accounts.spotify.com/authorize');
     authUrl.searchParams.append('client_id', this.config.clientId);
@@ -54,22 +51,47 @@ export class SpotifyService {
     authUrl.searchParams.append('redirect_uri', this.config.redirectUri);
     authUrl.searchParams.append('state', state);
     authUrl.searchParams.append('scope', this.config.scopes.join(' '));
-    authUrl.searchParams.append('code_challenge_method', 'S256');
-    authUrl.searchParams.append('code_challenge', codeChallenge);
 
     console.log('🚀 Starting Spotify authentication...');
     console.log('📋 Requesting scopes:', this.config.scopes);
     console.log('🔗 Redirect URI:', this.config.redirectUri);
     console.log('🆔 Client ID:', this.config.clientId);
+    console.log('🔐 Using client secret flow (development mode)');
     console.log('🌐 Full auth URL:', authUrl.toString());
     
     window.location.href = authUrl.toString();
   }
 
-  public async reauthenticate(): Promise<void> {
+  public reauthenticate(): void {
     // Clear existing tokens and force re-auth
+    console.log('🔄 Forcing re-authentication...');
     this.logout();
-    await this.authenticate();
+    this.authenticate();
+  }
+
+  public async validateTokenAndReauthIfNeeded(): Promise<boolean> {
+    if (!this.accessToken) {
+      console.log('❌ No access token available');
+      return false;
+    }
+
+    try {
+      // Try to get user profile to test basic scopes
+      console.log('🔍 Validating token scopes...');
+      await this.spotifyApiCall<SpotifyUser>('/me');
+      console.log('✅ Token validation successful');
+      return true;
+    } catch (error) {
+      console.error('❌ Token validation failed:', error);
+      
+      if (error instanceof Error && error.message.includes('403')) {
+        console.log('🚨 Token has insufficient scopes, forcing re-authentication...');
+        await this.reauthenticate();
+        return false; // Will redirect, so return false
+      }
+      
+      throw error;
+    }
   }
 
   public async handleAuthCallback(): Promise<boolean> {
@@ -115,9 +137,11 @@ export class SpotifyService {
 
     if (storedToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
       this.accessToken = storedToken;
+      console.log('🔑 Found stored token, expires at:', new Date(parseInt(tokenExpiry)).toLocaleString());
       return true;
     }
 
+    console.log('❌ No valid stored token found');
     return false;
   }
 
@@ -165,31 +189,37 @@ export class SpotifyService {
   }
 
   public logout(): void {
+    console.log('🚪 Logging out from Spotify...');
     this.accessToken = null;
     localStorage.removeItem('spotify_access_token');
     localStorage.removeItem('spotify_token_expiry');
     localStorage.removeItem('spotify_refresh_token');
     localStorage.removeItem('spotify_auth_state');
     localStorage.removeItem('spotify_code_verifier');
+    console.log('✅ Spotify logout completed');
+  }
+
+  public clearStoredData(): void {
+    console.log('🧹 Clearing all stored Spotify data...');
+    this.logout();
+    console.log('✅ All Spotify data cleared');
   }
 
   private async exchangeCodeForToken(code: string): Promise<void> {
-    const codeVerifier = localStorage.getItem('spotify_code_verifier');
-    if (!codeVerifier) {
-      throw new Error('Code verifier not found');
+    if (!this.config.clientSecret) {
+      throw new Error('Client secret not configured');
     }
 
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${btoa(`${this.config.clientId}:${this.config.clientSecret}`)}`,
       },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code: code,
         redirect_uri: this.config.redirectUri,
-        client_id: this.config.clientId,
-        code_verifier: codeVerifier,
       }),
     });
 
@@ -228,16 +258,22 @@ export class SpotifyService {
       return false;
     }
 
+    if (!this.config.clientSecret) {
+      console.error('Client secret not configured for token refresh');
+      this.logout();
+      return false;
+    }
+
     try {
       const response = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${btoa(`${this.config.clientId}:${this.config.clientSecret}`)}`,
         },
         body: new URLSearchParams({
           grant_type: 'refresh_token',
           refresh_token: refreshToken,
-          client_id: this.config.clientId,
         }),
       });
 
@@ -509,24 +545,6 @@ export class SpotifyService {
     return result;
   }
 
-  private generateCodeVerifier(): string {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return btoa(String.fromCharCode.apply(null, Array.from(array)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-  }
-
-  private async generateCodeChallenge(verifier: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(verifier);
-    const digest = await crypto.subtle.digest('SHA-256', data);
-    return btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(digest))))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-  }
 }
 
 export const spotifyService = SpotifyService.getInstance();

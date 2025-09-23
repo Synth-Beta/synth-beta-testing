@@ -165,6 +165,7 @@ export interface SpotifyListeningStats {
 
 export interface SpotifyAuthConfig {
   clientId: string;
+  clientSecret?: string;
   redirectUri: string;
   scopes: string[];
 }

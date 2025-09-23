@@ -70,9 +70,16 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       // Check for stored token
       const hasStoredToken = spotifyService.checkStoredToken();
       if (hasStoredToken) {
-        setIsAuthenticated(true);
-        setHasPermissionError(false);
-        await loadUserProfile();
+        console.log('🔍 Validating stored token...');
+        const isValid = await spotifyService.validateTokenAndReauthIfNeeded();
+        if (isValid) {
+          setIsAuthenticated(true);
+          setHasPermissionError(false);
+          await loadUserProfile();
+        } else {
+          // Re-authentication was triggered, will redirect
+          return;
+        }
       }
     } catch (error) {
       console.error('Spotify initialization error:', error);
@@ -86,10 +93,10 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     }
   };
 
-  const handleConnect = async () => {
+  const handleConnect = () => {
     setAuthenticating(true);
     try {
-      await spotifyService.authenticate();
+      spotifyService.authenticate();
     } catch (error) {
       console.error('Authentication error:', error);
       setAuthenticating(false);
@@ -101,10 +108,10 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     }
   };
 
-  const handleReconnect = async () => {
+  const handleReconnect = () => {
     setAuthenticating(true);
     try {
-      await spotifyService.reauthenticate();
+      spotifyService.reauthenticate();
     } catch (error) {
       console.error('Reconnection error:', error);
       setAuthenticating(false);
@@ -114,6 +121,22 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleClearData = () => {
+    spotifyService.clearStoredData();
+    setIsAuthenticated(false);
+    setUserProfile(null);
+    setTopTracks([]);
+    setTopArtists([]);
+    setRecentTracks([]);
+    setListeningStats(null);
+    setHasPermissionError(false);
+    
+    toast({
+      title: "Data Cleared",
+      description: "All Spotify data has been cleared. Please reconnect.",
+    });
   };
 
   const handleLogout = () => {
