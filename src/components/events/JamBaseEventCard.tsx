@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import { EventMap } from '@/components/EventMap';
 
 interface JamBaseEventCardProps {
   event: JamBaseEvent;
@@ -171,6 +172,19 @@ export function JamBaseEventCard({
             </div>
           </div>
         </div>
+
+        {/* Mini Map Preview */}
+        {event.latitude && event.longitude && (
+          <div className="h-40 rounded-md overflow-hidden border border-gray-100">
+            <EventMap
+              center={[event.latitude as number, event.longitude as number]}
+              zoom={12}
+              // Cast to response shape for the map component
+              events={[event as any]}
+              onEventClick={() => { /* no-op in card */ }}
+            />
+          </div>
+        )}
 
         {/* Description */}
         {event.description && (
