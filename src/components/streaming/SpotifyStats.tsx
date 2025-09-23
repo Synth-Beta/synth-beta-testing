@@ -102,6 +102,13 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       } else {
         // No valid token found, might have been cleared due to old PKCE token
         console.log('ℹ️ No valid token found, user needs to authenticate');
+        setIsAuthenticated(false);
+        setUserProfile(null);
+        setTopTracks([]);
+        setTopArtists([]);
+        setRecentTracks([]);
+        setListeningStats(null);
+        setHasPermissionError(false);
       }
     } catch (error) {
       console.error('Spotify initialization error:', error);
@@ -190,6 +197,16 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     // Don't try to load profile if not authenticated
     if (!isAuthenticated || !spotifyService.isAuthenticated()) {
       console.log('⚠️ Not authenticated, skipping profile load');
+      // Reset the component state if we're not actually authenticated
+      if (!spotifyService.isAuthenticated()) {
+        setIsAuthenticated(false);
+        setUserProfile(null);
+        setTopTracks([]);
+        setTopArtists([]);
+        setRecentTracks([]);
+        setListeningStats(null);
+        setHasPermissionError(false);
+      }
       return;
     }
 
@@ -225,6 +242,16 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     // Don't try to load stats if not authenticated
     if (!isAuthenticated || !spotifyService.isAuthenticated()) {
       console.log('⚠️ Not authenticated, skipping stats load');
+      // Reset the component state if we're not actually authenticated
+      if (!spotifyService.isAuthenticated()) {
+        setIsAuthenticated(false);
+        setUserProfile(null);
+        setTopTracks([]);
+        setTopArtists([]);
+        setRecentTracks([]);
+        setListeningStats(null);
+        setHasPermissionError(false);
+      }
       return;
     }
 
