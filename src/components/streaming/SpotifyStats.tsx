@@ -83,9 +83,19 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     }
   };
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     setAuthenticating(true);
-    spotifyService.authenticate();
+    try {
+      await spotifyService.authenticate();
+    } catch (error) {
+      console.error('Authentication error:', error);
+      setAuthenticating(false);
+      toast({
+        title: "Authentication Error",
+        description: "Failed to start Spotify authentication. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleLogout = () => {

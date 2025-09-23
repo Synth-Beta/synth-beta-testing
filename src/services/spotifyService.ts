@@ -40,9 +40,13 @@ export class SpotifyService {
   }
 
   // Authentication methods
-  public authenticate(): void {
+  public async authenticate(): Promise<void> {
     const state = this.generateRandomString(16);
+    const codeVerifier = this.generateCodeVerifier();
+    const codeChallenge = await this.generateCodeChallenge(codeVerifier);
+    
     localStorage.setItem('spotify_auth_state', state);
+    localStorage.setItem('spotify_code_verifier', codeVerifier);
 
     const authUrl = new URL('https://accounts.spotify.com/authorize');
     authUrl.searchParams.append('client_id', this.config.clientId);
@@ -50,6 +54,8 @@ export class SpotifyService {
     authUrl.searchParams.append('redirect_uri', this.config.redirectUri);
     authUrl.searchParams.append('state', state);
     authUrl.searchParams.append('scope', this.config.scopes.join(' '));
+    authUrl.searchParams.append('code_challenge_method', 'S256');
+    authUrl.searchParams.append('code_challenge', codeChallenge);
 
     window.location.href = authUrl.toString();
   }
@@ -105,9 +111,15 @@ export class SpotifyService {
     localStorage.removeItem('spotify_token_expiry');
     localStorage.removeItem('spotify_refresh_token');
     localStorage.removeItem('spotify_auth_state');
+    localStorage.removeItem('spotify_code_verifier');
   }
 
   private async exchangeCodeForToken(code: string): Promise<void> {
+    const codeVerifier = localStorage.getItem('spotify_code_verifier');
+    if (!codeVerifier) {
+      throw new Error('Code verifier not found');
+    }
+
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
@@ -118,6 +130,7 @@ export class SpotifyService {
         code: code,
         redirect_uri: this.config.redirectUri,
         client_id: this.config.clientId,
+        code_verifier: codeVerifier,
       }),
     });
 
@@ -300,6 +313,25 @@ export class SpotifyService {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }
+
+  private generateCodeVerifier(): string {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return btoa(String.fromCharCode.apply(null, Array.from(array)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+  }
+
+  private async generateCodeChallenge(verifier: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(digest))))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
   }
 }
 
