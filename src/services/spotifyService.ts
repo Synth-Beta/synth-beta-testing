@@ -20,7 +20,7 @@ export class SpotifyService {
   private constructor() {
     this.config = {
       clientId: '00c8ab88043a4d53bc3ec13684885ca9',
-      redirectUri: import.meta.env.VITE_SPOTIFY_REDIRECT_URI || (typeof window !== 'undefined' ? `${window.location.origin}/auth/spotify/callback/` : ''),
+      redirectUri: import.meta.env.VITE_SPOTIFY_REDIRECT_URI || (typeof window !== 'undefined' ? `${window.location.origin}/auth/spotify/callback` : ''),
       scopes: [
         'user-read-private',
         'user-read-email',
