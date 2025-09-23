@@ -4,6 +4,7 @@ import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService
 import { Button } from '@/components/ui/button';
 import { Loader2, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ReviewCommentsModal } from './ReviewCommentsModal';
 
 interface PublicReviewListProps {
   eventId?: string;
@@ -24,6 +25,7 @@ export function PublicReviewList({
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [commentsOpenFor, setCommentsOpenFor] = useState<string | null>(null);
 
   // Filter states
   const [minRating, setMinRating] = useState<number | null>(null);
@@ -40,6 +42,7 @@ export function PublicReviewList({
       const currentOffset = reset ? 0 : offset;
       const result = await ReviewService.getPublicReviewsWithProfiles(
         eventId,
+        undefined,
         limit,
         currentOffset
       );
@@ -83,14 +86,20 @@ export function PublicReviewList({
   };
 
   const handleComment = (reviewId: string) => {
-    if (onReviewClick) {
-      onReviewClick(reviewId);
-    }
+    setCommentsOpenFor(reviewId);
+    if (onReviewClick) onReviewClick(reviewId);
   };
 
-  const handleShare = (reviewId: string) => {
-    // TODO: Implement share functionality
-    console.log('Share review:', reviewId);
+  const handleShare = async (reviewId: string) => {
+    if (!currentUserId) return;
+    try {
+      // Optimistic update
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, shares_count: (r.shares_count || 0) + 1 } : r));
+      await ReviewService.shareReview(currentUserId, reviewId);
+    } catch (err) {
+      console.error('Error sharing review:', err);
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, shares_count: Math.max(0, (r.shares_count || 0) - 1) } : r));
+    }
   };
 
   const clearFilters = () => {
@@ -184,6 +193,13 @@ export function PublicReviewList({
           />
         ))}
       </div>
+
+      <ReviewCommentsModal
+        reviewId={commentsOpenFor}
+        isOpen={Boolean(commentsOpenFor)}
+        onClose={() => setCommentsOpenFor(null)}
+        currentUserId={currentUserId}
+      />
 
       {/* Load More */}
       {hasMore && (

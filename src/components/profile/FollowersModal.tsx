@@ -37,7 +37,7 @@ export const FollowersModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="text-center">{title}</DialogTitle>
         </DialogHeader>

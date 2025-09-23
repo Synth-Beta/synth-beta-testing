@@ -30,8 +30,12 @@ import { format, parseISO } from 'date-fns';
 import { Navigation } from '@/components/Navigation';
 import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
-import { ReviewCard } from '@/components/ReviewCard';
+import { ReviewCard as FeedReviewCard } from '@/components/reviews/ReviewCard';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
+import { EventCommentsModal } from '@/components/events/EventCommentsModal';
+import { EventLikersModal } from '@/components/events/EventLikersModal';
+import { EventLikesService } from '@/services/eventLikesService';
+import { ShareService } from '@/services/shareService';
 import { UnifiedFeedService, UnifiedFeedItem } from '@/services/unifiedFeedService';
 import { LocationService } from '@/services/locationService';
 import { EventMap } from './EventMap';
@@ -70,6 +74,8 @@ export const UnifiedFeed = ({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedEventForDetails, setSelectedEventForDetails] = useState<any>(null);
   const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
+  const [openEventCommentsFor, setOpenEventCommentsFor] = useState<string | null>(null);
+  const [openLikersFor, setOpenLikersFor] = useState<string | null>(null);
 
   useEffect(() => {
     if (sessionExpired) {
@@ -329,7 +335,8 @@ export const UnifiedFeed = ({
               <Card 
                 key={item.id} 
                 className="hover:shadow-md transition-shadow cursor-pointer"
-                onClick={async () => {
+                onClick={async (e) => {
+                  if (e.defaultPrevented) return;
                   if (item.event_data) {
                     setSelectedEventForDetails(item.event_data);
                     try {
@@ -403,20 +410,61 @@ export const UnifiedFeed = ({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleLike(item.id)}
+                        onMouseDown={(e) => { e.stopPropagation(); }}
+                        onClick={async (e) => { 
+                          e.preventDefault(); 
+                          e.stopPropagation(); 
+                          // Optimistic toggle
+                          setFeedItems(prev => prev.map(x => x.id === item.id ? { ...x, is_liked: !x.is_liked, likes_count: (x.likes_count || 0) + (x.is_liked ? -1 : 1) } : x));
+                          try {
+                            if (item.event_data) {
+                              const liked = item.is_liked;
+                              if (liked) {
+                                await EventLikesService.unlikeEvent(currentUserId, item.event_data.id);
+                              } else {
+                                await EventLikesService.likeEvent(currentUserId, item.event_data.id);
+                              }
+                            }
+                          } catch (err) {
+                            // revert on error
+                            setFeedItems(prev => prev.map(x => x.id === item.id ? { ...x, is_liked: item.is_liked, likes_count: item.likes_count } : x));
+                          }
+                        }}
                         className={`flex items-center gap-1 text-xs ${item.is_liked ? 'text-red-500' : 'text-gray-500'}`}
                       >
                         <Heart className={`w-3 h-3 ${item.is_liked ? 'fill-current' : ''}`} />
                         {item.likes_count || 0}
                       </Button>
-                      <Button variant="ghost" size="sm" className="flex items-center gap-1 text-xs text-gray-500">
-                        <MessageCircle className="w-3 h-3" />
-                        {item.comments_count || 0}
-                      </Button>
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        onClick={() => handleShare(item)}
+                        className="flex items-center gap-1 text-xs text-gray-500"
+                        onMouseDown={(e) => { e.stopPropagation(); }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (item.event_data) setOpenEventCommentsFor(item.event_data.id); }}
+                      >
+                        <MessageCircle className="w-3 h-3" />
+                        {item.comments_count || 0}
+                      </Button>
+                      <button 
+                        className="text-[10px] text-gray-500 underline"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (item.event_data) setOpenLikersFor(item.event_data.id); }}
+                        aria-label="See who liked"
+                      >
+                        See likes
+                      </button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onMouseDown={(e) => { e.stopPropagation(); }}
+                        onClick={async (e) => { 
+                          e.preventDefault(); 
+                          e.stopPropagation(); 
+                          if (item.event_data) {
+                            const url = await ShareService.shareEvent(item.event_data.id, item.title, item.content || undefined);
+                            toast({ title: 'Link copied', description: url });
+                          }
+                        }}
                         className="flex items-center gap-1 text-xs text-gray-500"
                       >
                         <Share2 className="w-3 h-3" />
@@ -552,41 +600,23 @@ export const UnifiedFeed = ({
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleLike(item.id)}
-                            className={`flex items-center gap-1 text-xs ${item.is_liked ? 'text-red-500' : 'text-gray-500'}`}
-                          >
-                            <Heart className={`w-3 h-3 ${item.is_liked ? 'fill-current' : ''}`} />
-                            {item.likes_count || 0}
-                          </Button>
-                          <Button variant="ghost" size="sm" className="flex items-center gap-1 text-xs text-gray-500">
-                            <MessageCircle className="w-3 h-3" />
-                            {item.comments_count || 0}
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => handleShare(item)}
-                            className="flex items-center gap-1 text-xs text-gray-500"
-                          >
-                            <Share2 className="w-3 h-3" />
-                            {item.shares_count || 0}
-                          </Button>
-                        </div>
-                        <span className="text-xs text-gray-500">
-                          {(() => {
-                            try {
-                              return format(parseISO(item.created_at), 'MMM d, h:mm a');
-                            } catch {
-                              return item.created_at;
-                            }
-                          })()}
-                        </span>
-                      </div>
+                      <FeedReviewCard
+                        review={{
+                          id: String(item.review_id || item.id).replace(/^public-review-/, ''),
+                          user_id: item.author?.id || 'unknown',
+                          event_id: '',
+                          rating: item.rating || 0,
+                          review_text: item.content || '',
+                          likes_count: item.likes_count || 0,
+                          comments_count: item.comments_count || 0,
+                          shares_count: item.shares_count || 0,
+                          created_at: item.created_at,
+                          updated_at: item.created_at,
+                          is_public: item.is_public ?? true,
+                        } as any}
+                        currentUserId={currentUserId}
+                        showEventInfo={false}
+                      />
                     </CardContent>
                   </Card>
                 ))}
@@ -650,6 +680,40 @@ export const UnifiedFeed = ({
           }
         }}
         isInterested={selectedEventInterested}
+      />
+
+      {/* Inline Event Comments Modal from feed */}
+      <EventCommentsModal
+        eventId={openEventCommentsFor}
+        isOpen={Boolean(openEventCommentsFor)}
+        onClose={() => setOpenEventCommentsFor(null)}
+        currentUserId={currentUserId}
+        onCommentAdded={() => {
+          // Optimistically bump count for the currently open event card
+          if (!openEventCommentsFor) return;
+          setFeedItems(prev => prev.map(item => {
+            if (item.type === 'event' && item.event_data?.id === openEventCommentsFor) {
+              return { ...item, comments_count: (item.comments_count || 0) + 1 };
+            }
+            return item;
+          }));
+        }}
+        onCommentsLoaded={(count) => {
+          // Sync count from server load in case it differs
+          if (!openEventCommentsFor) return;
+          setFeedItems(prev => prev.map(item => {
+            if (item.type === 'event' && item.event_data?.id === openEventCommentsFor) {
+              return { ...item, comments_count: count };
+            }
+            return item;
+          }));
+        }}
+      />
+
+      <EventLikersModal
+        eventId={openLikersFor}
+        isOpen={Boolean(openLikersFor)}
+        onClose={() => setOpenLikersFor(null)}
       />
 
       {/* Full Page Chat */}

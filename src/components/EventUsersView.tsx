@@ -62,11 +62,11 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
   };
   
   const getEventDate = () => {
-    return 'event_date' in event ? event.event_date : event.event_date;
+    return (event as any).event_date;
   };
   
   const getEventTime = () => {
-    return 'event_time' in event ? event.event_time : undefined;
+    return (event as any).event_time;
   };
 
   useEffect(() => {
@@ -129,14 +129,14 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
       ) || []);
 
       // Fetch profiles for those interested users
-      const { data: profiles, error: profilesError } = await supabase
+      const { data: profiles, error: profilesError } = await (supabase as any)
         .from('profiles')
         .select('id, user_id, name, avatar_url, bio, instagram_handle, snapchat_handle, created_at, updated_at')
         .in('user_id', interestedUserIds);
 
       if (profilesError) throw profilesError;
 
-      const usersWithData: UserWithProfile[] = (profiles || [])
+      const usersWithData: UserWithProfile[] = ((profiles as any[]) || [])
         .filter(p => !swipeMap.has(p.user_id))
         .map(p => ({
           id: p.id,
@@ -444,7 +444,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         }
         setShowAllEvents(false);
       }}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="text-center">Profile</DialogTitle>
           </DialogHeader>

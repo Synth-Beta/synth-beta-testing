@@ -15,6 +15,7 @@ import {
   Users,
   Music
 } from 'lucide-react';
+import { EventCommentsModal } from './EventCommentsModal';
 import { JamBaseEventCard } from './JamBaseEventCard';
 import { FriendProfileCard } from '@/components/FriendProfileCard';
 import { EventReviewsSection } from '@/components/reviews/EventReviewsSection';
@@ -51,6 +52,7 @@ export function EventDetailsModal({
   const [interestedUsers, setInterestedUsers] = useState<Array<{ id: string; name: string; avatar_url?: string }>>([]);
   const [usersPage, setUsersPage] = useState(1);
   const pageSize = 3;
+  const [commentsOpen, setCommentsOpen] = useState(false);
   // All data is real; no demo flags
 
   const formatDate = (dateString: string) => {
@@ -108,7 +110,7 @@ export function EventDetailsModal({
           .neq('user_id', currentUserId);
         if (error) throw error;
         const dbCount = count ?? 0;
-        setInterestedCount(isDemoEvent && dbCount === 0 ? 4 : dbCount);
+        setInterestedCount(dbCount);
       } catch {
         setInterestedCount(null);
       }
@@ -354,6 +356,16 @@ export function EventDetailsModal({
                   </Button>
                 )}
 
+                {/* Event Comments Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCommentsOpen(true)}
+                >
+                  <MessageSquare className="w-4 h-4 mr-1" />
+                  Comments
+                </Button>
+
                 {/* Price Range */}
                 {event.price_range && (
                   <div className="text-sm">
@@ -411,6 +423,12 @@ export function EventDetailsModal({
             }}
           />
         )}
+        <EventCommentsModal
+          eventId={event.id}
+          isOpen={commentsOpen}
+          onClose={() => setCommentsOpen(false)}
+          currentUserId={currentUserId}
+        />
       </DialogContent>
     </Dialog>
   );

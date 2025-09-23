@@ -3,6 +3,7 @@ import { ReviewCard } from './ReviewCard';
 import { ReviewService, ReviewWithEngagement } from '@/services/reviewService';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { ReviewCommentsModal } from './reviews/ReviewCommentsModal';
 
 interface ReviewListProps {
   eventId: string;
@@ -22,6 +23,7 @@ export function ReviewList({
   const [error, setError] = useState<string | null>(null);
   const [averageRating, setAverageRating] = useState(0);
   const [totalReviews, setTotalReviews] = useState(0);
+  const [commentsOpenFor, setCommentsOpenFor] = useState<string | null>(null);
 
   useEffect(() => {
     loadReviews();
@@ -62,9 +64,8 @@ export function ReviewList({
   };
 
   const handleComment = (reviewId: string) => {
-    if (onReviewClick) {
-      onReviewClick(reviewId);
-    }
+    setCommentsOpenFor(reviewId);
+    if (onReviewClick) onReviewClick(reviewId);
   };
 
   const handleShare = (reviewId: string) => {
@@ -142,6 +143,13 @@ export function ReviewList({
           />
         ))}
       </div>
+
+      <ReviewCommentsModal
+        reviewId={commentsOpenFor}
+        isOpen={Boolean(commentsOpenFor)}
+        onClose={() => setCommentsOpenFor(null)}
+        currentUserId={currentUserId}
+      />
     </div>
   );
 }

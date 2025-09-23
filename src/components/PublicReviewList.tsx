@@ -4,6 +4,7 @@ import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService
 import { Button } from '@/components/ui/button';
 import { Loader2, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+ 
 
 interface PublicReviewListProps {
   eventId?: string;
@@ -24,6 +25,7 @@ export function PublicReviewList({
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+ 
 
   // Filter states
   const [minRating, setMinRating] = useState<number | null>(null);
@@ -82,15 +84,12 @@ export function PublicReviewList({
     );
   };
 
-  const handleComment = (reviewId: string) => {
-    if (onReviewClick) {
-      onReviewClick(reviewId);
-    }
+  const handleComment = (_reviewId: string) => {
+    // No-op; comment handled inline within card component
   };
 
   const handleShare = (reviewId: string) => {
-    // TODO: Implement share functionality
-    console.log('Share review:', reviewId);
+    // Placeholder: keep no-op so it doesn't trigger parent navigation
   };
 
   const clearFilters = () => {
@@ -184,6 +183,8 @@ export function PublicReviewList({
           />
         ))}
       </div>
+
+      
 
       {/* Load More */}
       {hasMore && (

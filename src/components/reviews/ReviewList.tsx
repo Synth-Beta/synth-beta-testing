@@ -61,15 +61,21 @@ export function ReviewList({
     );
   };
 
-  const handleComment = (reviewId: string) => {
-    if (onReviewClick) {
-      onReviewClick(reviewId);
-    }
+  const handleComment = (_reviewId: string) => {
+    // No-op to prevent parent flows; comment handled inline in card
   };
 
-  const handleShare = (reviewId: string) => {
-    // TODO: Implement share functionality
-    console.log('Share review:', reviewId);
+  const handleShare = async (reviewId: string) => {
+    if (!currentUserId) return;
+    try {
+      // Optimistic update
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, shares_count: (r.shares_count || 0) + 1 } : r));
+      await ReviewService.shareReview(currentUserId, reviewId);
+    } catch (err) {
+      console.error('Error sharing review:', err);
+      // Revert on error
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, shares_count: Math.max(0, (r.shares_count || 0) - 1) } : r));
+    }
   };
 
   if (loading) {
@@ -142,6 +148,7 @@ export function ReviewList({
           />
         ))}
       </div>
+
     </div>
   );
 }

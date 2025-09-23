@@ -7,6 +7,8 @@ export interface UnifiedFeedItem {
   type: 'review' | 'event' | 'friend_activity' | 'system_news';
   title: string;
   content?: string;
+  // For reviews, the underlying review id for comment actions
+  review_id?: string;
   author: {
     id: string;
     name: string;
@@ -113,6 +115,7 @@ export class UnifiedFeedService {
       return (reviews || []).map(review => ({
         id: `review-${review.id}`,
         type: 'review' as const,
+        review_id: review.id,
         title: review.is_public ? 'Your Public Review' : 'Your Private Review',
         content: review.review_text || '',
         author: {
@@ -157,6 +160,7 @@ export class UnifiedFeedService {
       return (reviews || []).map(review => ({
         id: `public-review-${review.review_id || review.id}`,
         type: 'review' as const,
+        review_id: (review as any).review_id || review.id,
         title: `${review.reviewer_name || 'Someone'}'s Review`,
         content: review.review_text || '',
         author: {

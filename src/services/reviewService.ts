@@ -22,7 +22,7 @@ export interface UserReview {
   rating: number;
   artist_rating?: number;
   venue_rating?: number;
-  review_type: 'event' | 'venue' | 'artist';
+  review_type?: 'event' | 'venue' | 'artist';
   reaction_emoji?: string;
   review_text?: string;
   photos?: string[];
@@ -35,7 +35,7 @@ export interface UserReview {
   likes_count: number;
   comments_count: number;
   shares_count: number;
-  is_public: boolean;
+  is_public?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -164,6 +164,18 @@ export class ReviewService {
     venueId?: string
   ): Promise<UserReview> {
     try {
+      // Helper to ensure a valid rating value for inserts
+      const deriveRating = (data: ReviewData): number => {
+        if (typeof data.rating === 'number') return data.rating;
+        const parts = [data.artist_rating, data.venue_rating].filter(
+          (v): v is number => typeof v === 'number'
+        );
+        if (parts.length > 0) {
+          return parts.reduce((a, b) => a + b, 0) / parts.length;
+        }
+        return 0; // fallback to satisfy required column
+      };
+
       // Check if user already has a review for this event
       const { data: existingReview, error: checkError } = await supabase
         .from('user_reviews')
@@ -182,6 +194,12 @@ export class ReviewService {
           .from('user_reviews')
           .update({
             venue_id: venueId,
+            // include derived rating only if provided/derivable; updates can be partial
+            ...(typeof reviewData.rating === 'number' ||
+            typeof reviewData.artist_rating === 'number' ||
+            typeof reviewData.venue_rating === 'number'
+              ? { rating: deriveRating(reviewData) }
+              : {}),
             ...reviewData,
             updated_at: new Date().toISOString()
           })
@@ -190,23 +208,33 @@ export class ReviewService {
           .single();
 
         if (error) throw error;
-        return data;
-      } else {
-        // Create new review
-        const { data, error } = await supabase
-          .from('user_reviews')
-          .insert({
-            user_id: userId,
-            event_id: eventId,
-            venue_id: venueId,
-            ...reviewData
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        return data;
+        return data as unknown as UserReview;
       }
+
+      // Create new review
+      const insertPayload: UserReviewInsert = {
+        user_id: userId,
+        event_id: eventId,
+        ...(venueId ? { venue_id: venueId } : {}),
+        rating: deriveRating(reviewData),
+        reaction_emoji: reviewData.reaction_emoji,
+        review_text: reviewData.review_text,
+        is_public: reviewData.is_public ?? true,
+        artist_rating: reviewData.artist_rating,
+        venue_rating: reviewData.venue_rating,
+        review_type: reviewData.review_type,
+        venue_tags: reviewData.venue_tags,
+        artist_tags: reviewData.artist_tags
+      } as UserReviewInsert;
+
+      const { data, error } = await supabase
+        .from('user_reviews')
+        .insert(insertPayload)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as unknown as UserReview;
     } catch (error) {
       console.error('Error setting event review:', error);
       throw new Error(`Failed to set event review: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -279,7 +307,10 @@ export class ReviewService {
         is_liked_by_user: userLikes.includes(review.id),
         user_like_id: userLikes.includes(review.id) 
           ? review.review_likes?.find(l => l.user_id === userId)?.id 
-          : undefined
+          : undefined,
+        // ensure optional fields exist for typing
+        review_type: (review as any).review_type,
+        is_public: (review as any).is_public
       }));
 
       const totalReviews = processedReviews.length;
@@ -328,6 +359,7 @@ export class ReviewService {
             user_id: item.user_id,
             event_id: item.event_id,
             rating: item.rating,
+            review_type: item.review_type,
             reaction_emoji: item.reaction_emoji,
             review_text: item.review_text,
             photos: item.photos,
@@ -335,6 +367,9 @@ export class ReviewService {
             mood_tags: item.mood_tags,
             genre_tags: item.genre_tags,
             context_tags: item.context_tags,
+            venue_id: item.venue_id,
+            artist_rating: item.artist_rating,
+            venue_rating: item.venue_rating,
             created_at: item.created_at,
             updated_at: item.updated_at,
             likes_count: item.likes_count,
@@ -567,7 +602,7 @@ export class ReviewService {
       // we do not push a venue_id equality filter here. Callers can filter by venue
       // name client-side if needed.
 
-      const { data, error, count } = await query;
+      const { data, error, count } = await query as any;
 
       if (error) throw error;
 
@@ -591,13 +626,30 @@ export class ReviewService {
   ): Promise<void> {
     try {
       const column = `${type}_count`;
-      const { error } = await supabase.rpc('increment_review_count' as any, {
-        review_id: reviewId,
-        column_name: column,
-        delta: delta
-      });
+      const { data: updated, error } = await (supabase as any)
+        .from('user_reviews')
+        .update({ [column]: (supabase as any).sql`${column} + ${delta}` })
+        .eq('id', reviewId)
+        .select('id')
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        // fall back to a safe client-side read-modify-write if server does not support SQL fragment
+        if ((error as any).code === 'PGRST302' || (error as any).code === 'PGRST202') {
+          const { data: current } = await (supabase as any)
+            .from('user_reviews')
+            .select('likes_count, comments_count, shares_count')
+            .eq('id', reviewId)
+            .single();
+          const next = Math.max(0, (current?.[column] || 0) + delta);
+          await (supabase as any)
+            .from('user_reviews')
+            .update({ [column]: next })
+            .eq('id', reviewId);
+        } else {
+          throw error;
+        }
+      }
     } catch (error) {
       console.error(`Error updating ${type} count:`, error);
       // Don't throw here as it's not critical
@@ -642,7 +694,7 @@ export class ReviewService {
    */
   static async getVenueStats(venueId: string): Promise<VenueStats> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .rpc('get_venue_stats', { venue_uuid: venueId });
 
       if (error) throw error;
@@ -671,7 +723,7 @@ export class ReviewService {
    */
   static async getPopularVenueTags(venueId?: string): Promise<TagCount[]> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .rpc('get_popular_venue_tags', venueId ? { venue_uuid: venueId } : {});
 
       if (error) throw error;
@@ -696,7 +748,7 @@ export class ReviewService {
   }> {
     try {
       // Get reviews with user engagement data
-      const { data: reviews, error } = await supabase
+      const { data: reviews, error } = await (supabase as any)
         .from('user_reviews')
         .select(`
           *,
@@ -721,13 +773,15 @@ export class ReviewService {
       }
 
       // Process reviews with engagement data
-      const processedReviews: ReviewWithEngagement[] = (reviews || []).map(review => ({
+      const processedReviews: ReviewWithEngagement[] = (((reviews as any[]) || [])).map((review: any) => ({
         ...review,
         is_liked_by_user: userLikes.includes(review.id),
-        user_like_id: userLikes.includes(review.id) 
-          ? review.review_likes?.find(l => l.user_id === userId)?.id 
-          : undefined
-      }));
+        user_like_id: userLikes.includes(review.id)
+          ? review.review_likes?.find((l: any) => l.user_id === userId)?.id
+          : undefined,
+        review_type: review.review_type,
+        is_public: review.is_public
+      })) as unknown as ReviewWithEngagement[];
 
       const totalReviews = processedReviews.length;
       const averageRating = totalReviews > 0 

@@ -265,7 +265,7 @@ export function EventReviewModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl h-[90vh] p-0 overflow-hidden flex flex-col">
+      <DialogContent className="max-w-2xl h-[90vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
         {/* Header */}
         <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-white sticky top-0 z-10">
           <div className="flex items-center justify-between">
