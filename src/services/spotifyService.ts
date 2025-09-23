@@ -221,8 +221,26 @@ export class SpotifyService {
       }
     }
 
+    if (response.status === 429) {
+      // Rate limited - check for Retry-After header
+      const retryAfter = response.headers.get('Retry-After');
+      const delay = retryAfter ? parseInt(retryAfter) * 1000 : 1000;
+      throw new Error(`Rate limited. Please try again in ${delay / 1000} seconds.`);
+    }
+
+    if (response.status === 403) {
+      // Forbidden - likely missing scopes
+      throw new Error('Access forbidden. Please reconnect with proper permissions.');
+    }
+
+    if (response.status === 404) {
+      // Not found - endpoint doesn't exist or user has no data
+      throw new Error('No data found. This might be because you haven\'t listened to enough music yet.');
+    }
+
     if (!response.ok) {
-      throw new Error(`Spotify API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(`Spotify API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     return response.json();
@@ -232,16 +250,60 @@ export class SpotifyService {
     return this.spotifyApiCall<SpotifyUser>('/me');
   }
 
-  public async getTopTracks(timeRange: SpotifyTimeRange = 'short_term', limit: number = 20): Promise<SpotifyTopTracksResponse> {
-    return this.spotifyApiCall<SpotifyTopTracksResponse>(`/me/top/tracks?time_range=${timeRange}&limit=${limit}`);
+  public async getTopTracks(timeRange: SpotifyTimeRange = 'medium_term', limit: number = 20, offset: number = 0): Promise<SpotifyTopTracksResponse> {
+    // Validate parameters according to API docs
+    if (limit < 1 || limit > 50) {
+      throw new Error('Limit must be between 1 and 50');
+    }
+    if (offset < 0) {
+      throw new Error('Offset must be 0 or greater');
+    }
+    
+    const params = new URLSearchParams({
+      time_range: timeRange,
+      limit: limit.toString(),
+      offset: offset.toString()
+    });
+    
+    return this.spotifyApiCall<SpotifyTopTracksResponse>(`/me/top/tracks?${params.toString()}`);
   }
 
-  public async getTopArtists(timeRange: SpotifyTimeRange = 'short_term', limit: number = 20): Promise<SpotifyTopArtistsResponse> {
-    return this.spotifyApiCall<SpotifyTopArtistsResponse>(`/me/top/artists?time_range=${timeRange}&limit=${limit}`);
+  public async getTopArtists(timeRange: SpotifyTimeRange = 'medium_term', limit: number = 20, offset: number = 0): Promise<SpotifyTopArtistsResponse> {
+    // Validate parameters according to API docs
+    if (limit < 1 || limit > 50) {
+      throw new Error('Limit must be between 1 and 50');
+    }
+    if (offset < 0) {
+      throw new Error('Offset must be 0 or greater');
+    }
+    
+    const params = new URLSearchParams({
+      time_range: timeRange,
+      limit: limit.toString(),
+      offset: offset.toString()
+    });
+    
+    return this.spotifyApiCall<SpotifyTopArtistsResponse>(`/me/top/artists?${params.toString()}`);
   }
 
-  public async getRecentlyPlayed(limit: number = 20): Promise<SpotifyRecentlyPlayedResponse> {
-    return this.spotifyApiCall<SpotifyRecentlyPlayedResponse>(`/me/player/recently-played?limit=${limit}`);
+  public async getRecentlyPlayed(limit: number = 20, after?: number, before?: number): Promise<SpotifyRecentlyPlayedResponse> {
+    // Validate limit according to API docs (max 50)
+    if (limit < 1 || limit > 50) {
+      throw new Error('Limit must be between 1 and 50');
+    }
+    
+    const params = new URLSearchParams({
+      limit: limit.toString()
+    });
+    
+    if (after !== undefined) {
+      params.append('after', after.toString());
+    }
+    if (before !== undefined) {
+      params.append('before', before.toString());
+    }
+    
+    return this.spotifyApiCall<SpotifyRecentlyPlayedResponse>(`/me/player/recently-played?${params.toString()}`);
   }
 
   public async getCurrentPlayback(): Promise<SpotifyCurrentlyPlayingResponse | null> {
@@ -252,6 +314,51 @@ export class SpotifyService {
       console.log('No active player found');
       return null;
     }
+  }
+
+  // Get all top items with pagination support
+  public async getAllTopTracks(timeRange: SpotifyTimeRange = 'medium_term'): Promise<SpotifyTrack[]> {
+    const allTracks: SpotifyTrack[] = [];
+    let offset = 0;
+    const limit = 50; // Maximum allowed by API
+    let hasMore = true;
+
+    while (hasMore) {
+      try {
+        const response = await this.getTopTracks(timeRange, limit, offset);
+        allTracks.push(...response.items);
+        
+        hasMore = response.next !== null;
+        offset += limit;
+      } catch (error) {
+        console.error('Error fetching top tracks:', error);
+        break;
+      }
+    }
+
+    return allTracks;
+  }
+
+  public async getAllTopArtists(timeRange: SpotifyTimeRange = 'medium_term'): Promise<SpotifyArtist[]> {
+    const allArtists: SpotifyArtist[] = [];
+    let offset = 0;
+    const limit = 50; // Maximum allowed by API
+    let hasMore = true;
+
+    while (hasMore) {
+      try {
+        const response = await this.getTopArtists(timeRange, limit, offset);
+        allArtists.push(...response.items);
+        
+        hasMore = response.next !== null;
+        offset += limit;
+      } catch (error) {
+        console.error('Error fetching top artists:', error);
+        break;
+      }
+    }
+
+    return allArtists;
   }
 
   // Utility methods

@@ -130,28 +130,43 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
   const loadStats = async () => {
     try {
       setLoading(true);
-      const [topTracksResponse, topArtistsResponse, recentlyPlayedResponse] = await Promise.all([
-        spotifyService.getTopTracks(currentPeriod, 20),
-        spotifyService.getTopArtists(currentPeriod, 20),
-        spotifyService.getRecentlyPlayed(20)
+      
+      // Try to get comprehensive data
+      const [topTracksResponse, topArtistsResponse, recentlyPlayedResponse] = await Promise.allSettled([
+        spotifyService.getTopTracks(currentPeriod, 50), // Get more data
+        spotifyService.getTopArtists(currentPeriod, 50),
+        spotifyService.getRecentlyPlayed(50)
       ]);
 
-      setTopTracks(topTracksResponse.items);
-      setTopArtists(topArtistsResponse.items);
-      setRecentTracks(recentlyPlayedResponse.items);
+      // Handle successful responses
+      const topTracks = topTracksResponse.status === 'fulfilled' ? topTracksResponse.value.items : [];
+      const topArtists = topArtistsResponse.status === 'fulfilled' ? topArtistsResponse.value.items : [];
+      const recentTracks = recentlyPlayedResponse.status === 'fulfilled' ? recentlyPlayedResponse.value.items : [];
+
+      setTopTracks(topTracks);
+      setTopArtists(topArtists);
+      setRecentTracks(recentTracks);
 
       // Calculate listening stats
-      const stats = spotifyService.calculateListeningStats(
-        topTracksResponse.items,
-        topArtistsResponse.items
-      );
+      const stats = spotifyService.calculateListeningStats(topTracks, topArtists);
       setListeningStats(stats);
+
+      // Show helpful message if no data
+      if (topTracks.length === 0 && topArtists.length === 0) {
+        toast({
+          title: "No Listening Data",
+          description: "No top tracks or artists found. Try listening to more music on Spotify and check back later.",
+          variant: "default",
+        });
+      }
 
     } catch (error) {
       console.error('Error loading stats:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load Spotify statistics.';
+      
       toast({
         title: "Stats Error",
-        description: "Failed to load Spotify statistics.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -233,15 +248,27 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
             <Music className="w-5 h-5 text-green-600" />
             Spotify Music Stats
           </CardTitle>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleLogout}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Disconnect
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={loadStats}
+              disabled={loading}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Activity className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Disconnect
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -354,7 +381,8 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
               ) : topTracks.length === 0 ? (
                 <div className="text-center py-8">
                   <Music className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">No tracks found</p>
+                  <p className="text-muted-foreground mb-2">No top tracks found</p>
+                  <p className="text-sm text-muted-foreground">Listen to more music on Spotify to see your top tracks here</p>
                 </div>
               ) : (
                 topTracks.map((track, index) => (
@@ -403,7 +431,8 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
               ) : topArtists.length === 0 ? (
                 <div className="text-center py-8">
                   <User className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">No artists found</p>
+                  <p className="text-muted-foreground mb-2">No top artists found</p>
+                  <p className="text-sm text-muted-foreground">Listen to more music on Spotify to see your top artists here</p>
                 </div>
               ) : (
                 topArtists.map((artist, index) => (
@@ -452,7 +481,8 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
               ) : recentTracks.length === 0 ? (
                 <div className="text-center py-8">
                   <Activity className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">No recent tracks found</p>
+                  <p className="text-muted-foreground mb-2">No recent tracks found</p>
+                  <p className="text-sm text-muted-foreground">Play some music on Spotify to see your recent activity here</p>
                 </div>
               ) : (
                 recentTracks.map((item, index) => {
