@@ -257,6 +257,18 @@ export class SpotifyService {
   // Utility methods
   public calculateListeningStats(tracks: SpotifyTrack[], artists: SpotifyArtist[]): SpotifyListeningStats {
     const totalTracks = tracks.length;
+
+    if (totalTracks === 0) {
+      return {
+        totalTracks: 0,
+        uniqueArtists: 0,
+        uniqueAlbums: 0,
+        totalHours: 0,
+        avgPopularity: 0,
+        topGenres: []
+      };
+    }
+
     const uniqueArtists = new Set(tracks.flatMap(t => t.artists.map(a => a.id))).size;
     const uniqueAlbums = new Set(tracks.map(t => t.album.id)).size;
     const avgPopularity = Math.round(tracks.reduce((sum, t) => sum + t.popularity, 0) / totalTracks);
