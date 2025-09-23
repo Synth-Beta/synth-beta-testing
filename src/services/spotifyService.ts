@@ -57,7 +57,12 @@ export class SpotifyService {
     authUrl.searchParams.append('code_challenge_method', 'S256');
     authUrl.searchParams.append('code_challenge', codeChallenge);
 
-    console.log('Requesting Spotify scopes:', this.config.scopes);
+    console.log('🚀 Starting Spotify authentication...');
+    console.log('📋 Requesting scopes:', this.config.scopes);
+    console.log('🔗 Redirect URI:', this.config.redirectUri);
+    console.log('🆔 Client ID:', this.config.clientId);
+    console.log('🌐 Full auth URL:', authUrl.toString());
+    
     window.location.href = authUrl.toString();
   }
 
@@ -68,30 +73,38 @@ export class SpotifyService {
   }
 
   public async handleAuthCallback(): Promise<boolean> {
+    console.log('🔄 Handling Spotify auth callback...');
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const state = urlParams.get('state');
     const error = urlParams.get('error');
 
+    console.log('📥 Callback params:', { code: !!code, state: !!state, error });
+
     if (error) {
-      console.error('Authentication error:', error);
+      console.error('❌ Authentication error:', error);
       throw new Error(`Authentication failed: ${error}`);
     }
 
     if (!code || !state) {
+      console.log('ℹ️ No code or state in callback, not a Spotify auth');
       return false;
     }
 
     const storedState = localStorage.getItem('spotify_auth_state');
+    console.log('🔐 State validation:', { received: state, stored: storedState, match: state === storedState });
+    
     if (state !== storedState) {
-      console.error('State mismatch');
+      console.error('❌ State mismatch');
       throw new Error('Authentication state mismatch');
     }
 
+    console.log('✅ State validated, exchanging code for token...');
     await this.exchangeCodeForToken(code);
     
     // Clean up URL
     window.history.replaceState({}, document.title, window.location.pathname);
+    console.log('🎉 Authentication completed successfully!');
     
     return true;
   }
@@ -114,29 +127,39 @@ export class SpotifyService {
 
   public async checkTokenScopes(): Promise<string[]> {
     try {
+      console.log('🔍 Checking Spotify token scopes...');
+      console.log('📋 Requested scopes:', this.config.scopes);
+      console.log('🔑 Access token present:', !!this.accessToken);
+      
       // Try to get user profile to check basic scopes
-      const profile = await this.spotifyApiCall<SpotifyUser>('/me');
-      console.log('User profile loaded successfully, basic scopes are working');
+      try {
+        const profile = await this.spotifyApiCall<SpotifyUser>('/me');
+        console.log('✅ User profile loaded successfully, basic scopes are working');
+        console.log('👤 User profile:', profile.display_name);
+      } catch (error) {
+        console.error('❌ User profile failed:', error);
+        throw error;
+      }
       
       // Try to get top tracks to check user-top-read scope
       try {
         await this.spotifyApiCall<SpotifyTopTracksResponse>('/me/top/tracks?limit=1');
-        console.log('user-top-read scope is working');
+        console.log('✅ user-top-read scope is working');
       } catch (error) {
-        console.warn('user-top-read scope may be missing:', error);
+        console.warn('⚠️ user-top-read scope may be missing:', error);
       }
       
       // Try to get recently played to check user-read-recently-played scope
       try {
         await this.spotifyApiCall<SpotifyRecentlyPlayedResponse>('/me/player/recently-played?limit=1');
-        console.log('user-read-recently-played scope is working');
+        console.log('✅ user-read-recently-played scope is working');
       } catch (error) {
-        console.warn('user-read-recently-played scope may be missing:', error);
+        console.warn('⚠️ user-read-recently-played scope may be missing:', error);
       }
       
       return ['user-read-private', 'user-read-email']; // Basic scopes that work
     } catch (error) {
-      console.error('Token scope check failed:', error);
+      console.error('❌ Token scope check failed:', error);
       throw new Error('Unable to verify token scopes. Please reconnect to Spotify.');
     }
   }
@@ -173,8 +196,14 @@ export class SpotifyService {
     const data: SpotifyAuthResponse = await response.json();
 
     if (!response.ok) {
+      console.error('❌ Token exchange failed:', response.status, response.statusText);
+      console.error('Response data:', data);
       throw new Error('Failed to exchange code for token');
     }
+
+    console.log('🎉 Token exchange successful!');
+    console.log('📋 Granted scopes:', data.scope);
+    console.log('⏰ Token expires in:', data.expires_in, 'seconds');
 
     if (data.access_token) {
       this.accessToken = data.access_token;
@@ -185,6 +214,7 @@ export class SpotifyService {
       
       if (data.refresh_token) {
         localStorage.setItem('spotify_refresh_token', data.refresh_token);
+        console.log('🔄 Refresh token saved');
       }
     } else {
       throw new Error('No access token received');
