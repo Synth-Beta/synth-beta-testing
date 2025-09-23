@@ -29,6 +29,7 @@ interface EventMapProps {
   zoom: number;
   events: JamBaseEventResponse[];
   onEventClick: (event: JamBaseEventResponse) => void;
+  showCountBadge?: boolean;
 }
 
 // Component to update map view when center/zoom changes
@@ -42,14 +43,15 @@ const MapUpdater = ({ center, zoom }: { center: [number, number]; zoom: number }
   return null;
 };
 
-export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEventClick }) => {
+export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEventClick, showCountBadge = true }) => {
   const mapRef = useRef<any>(null);
 
-  // Filter events that have valid coordinates
-  const validEvents = events.filter(event => 
-    event.latitude && event.longitude && 
-    !isNaN(event.latitude) && !isNaN(event.longitude)
-  );
+  // Filter events that have valid numeric coordinates
+  const validEvents = events.filter(event => {
+    const lat = Number(event.latitude);
+    const lon = Number(event.longitude);
+    return event.latitude != null && event.longitude != null && !Number.isNaN(lat) && !Number.isNaN(lon);
+  });
 
   return (
     <div className="w-full h-full">
@@ -69,7 +71,7 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
         {validEvents.map((event) => (
           <Marker
             key={event.id}
-            position={[event.latitude!, event.longitude!]}
+            position={[Number(event.latitude), Number(event.longitude)]}
             icon={eventIcon}
           >
             <Popup maxWidth={300} className="event-popup">
@@ -169,7 +171,7 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
       </MapContainer>
       
       {/* Event count indicator */}
-      {validEvents.length > 0 && (
+      {showCountBadge && validEvents.length > 0 && (
         <div className="absolute top-2 left-2 bg-white rounded-lg shadow-md px-3 py-1 z-[1000]">
           <span className="text-sm font-medium text-gray-700">
             {validEvents.length} event{validEvents.length !== 1 ? 's' : ''} shown

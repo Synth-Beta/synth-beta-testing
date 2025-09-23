@@ -741,18 +741,28 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                 <p className="text-sm text-muted-foreground">Tap the heart on events to add them here.</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {interestedEvents.map((ev) => (
-                  <div key={ev.id} className="cursor-pointer" onClick={() => { setSelectedEvent(ev); setDetailsOpen(true); }}>
-                    <JamBaseEventCard
-                      event={ev}
-                      onInterestToggle={undefined}
-                      onReview={undefined}
-                      isInterested={true}
-                      showInterestButton={false}
-                    />
-                  </div>
-                ))}
+              <div className="grid grid-cols-3 gap-1 md:gap-2">
+                {interestedEvents
+                  .sort((a: any, b: any) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
+                  .slice(0, 9)
+                  .map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="aspect-square cursor-pointer rounded-md overflow-hidden border bg-white hover:shadow-md transition-shadow"
+                      onClick={() => { setSelectedEvent(ev); setDetailsOpen(true); }}
+                    >
+                      <div className="p-2 h-full flex flex-col justify-between">
+                        <div>
+                          <h4 className="font-semibold text-xs truncate">{ev.title}</h4>
+                          <p className="text-[10px] text-muted-foreground truncate">{ev.venue_name}</p>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground flex items-center justify-between">
+                          <span>{new Date(ev.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                          <span className="truncate">{[ev.venue_city, ev.venue_state].filter(Boolean).join(', ')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
               </div>
             )}
           </TabsContent>
@@ -816,6 +826,15 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         currentUserId={currentUserId}
         isOpen={detailsOpen}
         onClose={() => setDetailsOpen(false)}
+        onInterestToggle={async (eventId, interested) => {
+          try {
+            const { UserEventService } = await import('@/services/userEventService');
+            await UserEventService.setEventInterest(currentUserId, eventId, interested);
+          } catch (e) {
+            console.warn('Failed to toggle interest from modal', e);
+          }
+        }}
+        isInterested={true}
       />
     </div>
   );

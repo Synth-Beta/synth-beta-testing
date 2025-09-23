@@ -36,6 +36,7 @@ import { UnifiedFeedService, UnifiedFeedItem } from '@/services/unifiedFeedServi
 import { LocationService } from '@/services/locationService';
 import { EventMap } from './EventMap';
 import { UnifiedChatView } from './UnifiedChatView';
+import { UserEventService } from '@/services/userEventService';
 
 // Using UnifiedFeedItem from service instead of local interface
 
@@ -68,6 +69,7 @@ export const UnifiedFeed = ({
   const { sessionExpired } = useAuth();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedEventForDetails, setSelectedEventForDetails] = useState<any>(null);
+  const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
 
   useEffect(() => {
     if (sessionExpired) {
@@ -285,7 +287,11 @@ export const UnifiedFeed = ({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="events" className="space-y-4">
+          <TabsContent
+            value="events"
+            className="space-y-4 overflow-y-auto"
+            style={{ maxHeight: 'calc(100vh - 220px)', paddingBottom: '80px' }}
+          >
             {/* Demo Ad for Events Tab */}
             <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
               <CardContent className="p-4">
@@ -323,9 +329,18 @@ export const UnifiedFeed = ({
               <Card 
                 key={item.id} 
                 className="hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => {
+                onClick={async () => {
                   if (item.event_data) {
                     setSelectedEventForDetails(item.event_data);
+                    try {
+                      const interested = await UserEventService.isUserInterested(
+                        currentUserId,
+                        item.event_data.id
+                      );
+                      setSelectedEventInterested(interested);
+                    } catch {
+                      setSelectedEventInterested(false);
+                    }
                     setDetailsOpen(true);
                   }
                 }}
@@ -435,7 +450,11 @@ export const UnifiedFeed = ({
             </div>
           </TabsContent>
 
-          <TabsContent value="reviews" className="space-y-4">
+          <TabsContent
+            value="reviews"
+            className="space-y-4 overflow-y-auto"
+            style={{ maxHeight: 'calc(100vh - 220px)', paddingBottom: '80px' }}
+          >
             {/* Demo Ad for Reviews Tab */}
             <Card className="border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
               <CardContent className="p-4">
@@ -622,6 +641,15 @@ export const UnifiedFeed = ({
         currentUserId={currentUserId}
         isOpen={detailsOpen}
         onClose={() => setDetailsOpen(false)}
+        onInterestToggle={async (eventId, interested) => {
+          try {
+            await UserEventService.setEventInterest(currentUserId, eventId, interested);
+            setSelectedEventInterested(interested);
+          } catch (e) {
+            console.error('Failed to toggle interest from feed modal', e);
+          }
+        }}
+        isInterested={selectedEventInterested}
       />
 
       {/* Full Page Chat */}

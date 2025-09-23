@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { EventMap } from '@/components/EventMap';
+import { supabase } from '@/integrations/supabase/client';
 
 interface JamBaseEventCardProps {
   event: JamBaseEvent;
@@ -27,6 +28,8 @@ interface JamBaseEventCardProps {
   hasReviewed?: boolean;
   showInterestButton?: boolean;
   showReviewButton?: boolean;
+  currentUserId?: string;
+  onOpenInterestedUsers?: (eventId: string) => void;
   className?: string;
 }
 
@@ -38,9 +41,13 @@ export function JamBaseEventCard({
   hasReviewed = false,
   showInterestButton = true,
   showReviewButton = true,
+  currentUserId,
+  onOpenInterestedUsers,
   className
 }: JamBaseEventCardProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [interestedCount, setInterestedCount] = useState<number | null>(null);
+  // All data is real; no demo flags or mock avatars
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -104,6 +111,23 @@ export function JamBaseEventCard({
     }
     return getLocationString();
   };
+
+  useEffect(() => {
+    const fetchInterestedCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('user_jambase_events')
+          .select('*', { count: 'exact', head: true })
+          .eq('jambase_event_id', event.id)
+          .neq('user_id', currentUserId || '');
+        if (error) throw error;
+        setInterestedCount(count ?? 0);
+      } catch {
+        setInterestedCount(null);
+      }
+    };
+    fetchInterestedCount();
+  }, [event.id, currentUserId]);
 
   const getCheapestTicketUrl = () => {
     if (!event.ticket_urls || event.ticket_urls.length === 0) return null;
@@ -174,14 +198,15 @@ export function JamBaseEventCard({
         </div>
 
         {/* Mini Map Preview */}
-        {event.latitude && event.longitude && (
+        {event.latitude != null && event.longitude != null && !Number.isNaN(Number(event.latitude)) && !Number.isNaN(Number(event.longitude)) && (
           <div className="h-40 rounded-md overflow-hidden border border-gray-100">
             <EventMap
-              center={[event.latitude as number, event.longitude as number]}
+              center={[Number(event.latitude), Number(event.longitude)]}
               zoom={12}
               // Cast to response shape for the map component
               events={[event as any]}
               onEventClick={() => { /* no-op in card */ }}
+              showCountBadge={false}
             />
           </div>
         )}
@@ -299,6 +324,18 @@ export function JamBaseEventCard({
               </Button>
             )}
           </div>
+        </div>
+
+        {/* Interested Users Preview */}
+        <div className="mt-3 flex items-center justify-between rounded-md border p-2">
+            <div className="text-sm text-muted-foreground">
+              {interestedCount === null ? 'Loading people going…' : `${interestedCount} others are interested`}
+            </div>
+            {onOpenInterestedUsers && (
+              <Button size="sm" variant="outline" onClick={() => onOpenInterestedUsers(event.id)}>
+                Meet people going
+              </Button>
+            )}
         </div>
 
         {/* Setlist Preview */}

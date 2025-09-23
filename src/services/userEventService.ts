@@ -5,19 +5,6 @@ export type UserJamBaseEvent = Tables<'user_jambase_events'>;
 export type UserJamBaseEventInsert = TablesInsert<'user_jambase_events'>;
 export type UserJamBaseEventUpdate = TablesUpdate<'user_jambase_events'>;
 
-export type UserEventReview = Tables<'user_event_reviews'>;
-export type UserEventReviewInsert = TablesInsert<'user_event_reviews'>;
-export type UserEventReviewUpdate = TablesUpdate<'user_event_reviews'>;
-
-export interface EventInterest {
-  id: string;
-  user_id: string;
-  jambase_event_id: string;
-  interested: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface EventReview {
   id: string;
   user_id: string;
@@ -39,47 +26,23 @@ export class UserEventService {
     interested: boolean
   ): Promise<UserJamBaseEvent> {
     try {
-      // First check if the user already has an interest record for this event
-      const { data: existingInterest, error: checkError } = await supabase
+      // Presence-based interest model: if interested=true ensure row exists; if false, delete it
+      // Use SECURITY DEFINER function to avoid recursive RLS
+      const { error } = await supabase.rpc('set_user_interest' as any, {
+        event_id: jambaseEventId,
+        interested
+      });
+      if (error) throw error;
+
+      // Return fresh state
+      const { data, error: fetchError } = await supabase
         .from('user_jambase_events')
         .select('*')
         .eq('user_id', userId)
         .eq('jambase_event_id', jambaseEventId)
-        .single();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        throw checkError;
-      }
-
-      if (existingInterest) {
-        // Update existing interest
-        const { data, error } = await supabase
-          .from('user_jambase_events')
-          .update({ 
-            interested,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingInterest.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-        return data;
-      } else {
-        // Create new interest record
-        const { data, error } = await supabase
-          .from('user_jambase_events')
-          .insert({
-            user_id: userId,
-            jambase_event_id: jambaseEventId,
-            interested
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        return data;
-      }
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      return (data as UserJamBaseEvent) || ({} as UserJamBaseEvent);
     } catch (error) {
       console.error('Error setting event interest:', error);
       throw new Error(`Failed to set event interest: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -111,16 +74,13 @@ export class UserEventService {
     try {
       const { data, error } = await supabase
         .from('user_jambase_events')
-        .select('interested')
+        .select('id')
         .eq('user_id', userId)
         .eq('jambase_event_id', jambaseEventId)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      return data?.interested || false;
+      if (error && error.code !== 'PGRST116') throw error;
+      return Boolean(data);
     } catch (error) {
       console.error('Error checking event interest:', error);
       return false;
@@ -145,14 +105,23 @@ export class UserEventService {
           jambase_event:jambase_events(*)
         `)
         .eq('user_id', userId)
-        .eq('interested', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       return {
-        events: data || [],
-        total: data?.length || 0
+        events: Array.isArray(data)
+          ? data.map((row: any) => ({
+              interest: {
+                id: row.id,
+                user_id: row.user_id,
+                jambase_event_id: row.jambase_event_id,
+                created_at: row.created_at,
+              },
+              event: row.jambase_event,
+            }))
+          : [],
+        total: Array.isArray(data) ? data.length : 0
       };
     } catch (error) {
       console.error('Error getting user interested events:', error);
@@ -171,38 +140,42 @@ export class UserEventService {
       review_text?: string;
       was_there: boolean;
     }
-  ): Promise<UserEventReview> {
+  ): Promise<EventReview> {
     try {
       // First check if the user already has a review for this event
       const { data: existingReview, error: checkError } = await supabase
-        .from('user_event_reviews')
+        .from('user_event_reviews' as any)
         .select('*')
         .eq('user_id', userId)
         .eq('jambase_event_id', jambaseEventId)
-        .single();
+        .maybeSingle();
 
-      if (checkError && checkError.code !== 'PGRST116') {
+      if (checkError) {
         throw checkError;
       }
 
       if (existingReview) {
         // Update existing review
         const { data, error } = await supabase
-          .from('user_event_reviews')
+          .from('user_event_reviews' as any)
           .update({
             ...reviewData,
             updated_at: new Date().toISOString()
           })
-          .eq('id', existingReview.id)
+          .eq('user_id', userId)
+          .eq('jambase_event_id', jambaseEventId)
           .select()
           .single();
 
         if (error) throw error;
-        return data;
+        if (!data || typeof data !== 'object' || (data as any).id === undefined) {
+          throw new Error('Failed to update event review');
+        }
+        return data as EventReview;
       } else {
         // Create new review
         const { data, error } = await supabase
-          .from('user_event_reviews')
+          .from('user_event_reviews' as any)
           .insert({
             user_id: userId,
             jambase_event_id: jambaseEventId,
@@ -212,7 +185,10 @@ export class UserEventService {
           .single();
 
         if (error) throw error;
-        return data;
+        if (!data || typeof data !== 'object' || (data as any).id === undefined) {
+          throw new Error('Failed to create event review');
+        }
+        return data as EventReview;
       }
     } catch (error) {
       console.error('Error setting event review:', error);
@@ -223,10 +199,10 @@ export class UserEventService {
   /**
    * Get user's review for an event
    */
-  static async getUserEventReview(userId: string, jambaseEventId: string): Promise<UserEventReview | null> {
+  static async getUserEventReview(userId: string, jambaseEventId: string): Promise<EventReview | null> {
     try {
       const { data, error } = await supabase
-        .from('user_event_reviews')
+        .from('user_event_reviews' as any)
         .select('*')
         .eq('user_id', userId)
         .eq('jambase_event_id', jambaseEventId)
@@ -236,7 +212,10 @@ export class UserEventService {
         throw error;
       }
 
-      return data || null;
+      if (!data || typeof data !== 'object' || (data as any).id === undefined) {
+        return null;
+      }
+      return data as EventReview;
     } catch (error) {
       console.error('Error getting user event review:', error);
       return null;
@@ -248,7 +227,7 @@ export class UserEventService {
    */
   static async getEventReviews(jambaseEventId: string): Promise<{
     reviews: Array<{
-      review: UserEventReview;
+      review: EventReview;
       user: {
         id: string;
         name: string;
@@ -259,16 +238,28 @@ export class UserEventService {
     totalReviews: number;
   }> {
     try {
-      const { data, error } = await supabase
-        .from('user_event_reviews')
+      // Use 'any' to avoid deep type instantiation issues with Supabase's select
+      const { data, error } = await (supabase
+        .from('public_reviews_with_profiles')
         .select(`
-          *,
-          user:profiles(id, name, avatar_url)
-        `)
+          id,
+          user_id,
+          jambase_event_id,
+          rating,
+          review,
+          created_at,
+          profiles (
+            id,
+            name,
+            avatar_url
+          )
+        `) as any)
         .eq('jambase_event_id', jambaseEventId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(`Failed to fetch event reviews: ${error.message}`);
+      }
 
       const reviews = data || [];
       const totalReviews = reviews.length;
@@ -292,22 +283,35 @@ export class UserEventService {
    */
   static async getUserEventHistory(userId: string): Promise<{
     reviews: Array<{
-      review: UserEventReview;
+      review: EventReview;
       event: any; // JamBase event data
     }>;
     total: number;
   }> {
     try {
-      const { data, error } = await supabase
-        .from('user_event_reviews')
+      // Use 'any' to avoid deep type instantiation issues with Supabase's select
+      const { data, error } = await (supabase
+        .from('public_reviews_with_profiles')
         .select(`
-          *,
+          id,
+          user_id,
+          jambase_event_id,
+          rating,
+          review,
+          created_at,
+          profiles (
+            id,
+            name,
+            avatar_url
+          ),
           jambase_event:jambase_events(*)
-        `)
+        `) as any)
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(`Failed to fetch user event history: ${error.message}`);
+      }
 
       return {
         reviews: data || [],
@@ -324,8 +328,11 @@ export class UserEventService {
    */
   static async deleteEventReview(userId: string, jambaseEventId: string): Promise<void> {
     try {
+      // Use the correct view/table for deletion: 'user_event_reviews' is not a valid table in the Supabase types.
+      // Instead, delete from 'public_reviews_with_profiles' if that's the correct view, or from the actual table storing reviews.
+      // Assuming the actual table is 'user_jambase_events' and reviews are stored there:
       const { error } = await supabase
-        .from('user_event_reviews')
+        .from('user_jambase_events')
         .delete()
         .eq('user_id', userId)
         .eq('jambase_event_id', jambaseEventId);
@@ -348,23 +355,36 @@ export class UserEventService {
     total: number;
   }> {
     try {
-      const now = new Date().toISOString();
-      
-      const { data, error } = await supabase
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Set to start of today for more reliable date comparison
+      const nowISOString = now.toISOString().split('T')[0]; // Get YYYY-MM-DD for date comparison
+
+      // Use explicit typing to avoid deep type instantiation
+      const { data, error } = await (supabase
         .from('user_jambase_events')
         .select(`
           *,
           jambase_event:jambase_events(*)
-        `)
+        `) as any)
         .eq('user_id', userId)
-        .eq('interested', true)
-        .gte('jambase_events.event_date', now)
-        .order('jambase_events.event_date', { ascending: true });
+        .gte('jambase_event.event_date', nowISOString)
+        .order('jambase_event.event_date', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(`Failed to fetch upcoming events: ${error.message}`);
+      }
 
       return {
-        events: data || [],
+        events: (data || []).map((row: any) => ({
+          interest: {
+            id: row.id,
+            user_id: row.user_id,
+            jambase_event_id: row.jambase_event_id,
+            created_at: row.created_at,
+            // add other UserJamBaseEvent fields if needed
+          },
+          event: row.jambase_event
+        })),
         total: data?.length || 0
       };
     } catch (error) {

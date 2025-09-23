@@ -108,7 +108,7 @@ export const EventList = ({ events, onEventLike }: EventListProps) => {
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{event.attendeeCount} interested</span>
+            <span className="text-xs text-muted-foreground">{event.attendeeCount} interested</span>
                 <Button
                   size="sm"
                   onClick={() => onEventLike(event.id)}

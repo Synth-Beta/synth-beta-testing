@@ -28,13 +28,15 @@ interface FriendProfileCardProps {
   isOpen: boolean;
   onClose: () => void;
   onStartChat?: (friendId: string) => void;
+  onAddFriend?: (friendUserId: string) => Promise<void> | void;
 }
 
 export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
   friend,
   isOpen,
   onClose,
-  onStartChat
+  onStartChat,
+  onAddFriend
 }) => {
   if (!isOpen) return null;
 
@@ -130,6 +132,17 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t">
+            {onAddFriend && (
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={async () => {
+                  await onAddFriend(friend.user_id);
+                }}
+              >
+                Add Friend
+              </Button>
+            )}
             <Button
               variant="outline"
               className="flex-1"

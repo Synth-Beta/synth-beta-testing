@@ -45,11 +45,12 @@ const MapUpdater = ({ center, zoom }: { center: [number, number]; zoom: number }
 export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEventClick }) => {
   const mapRef = useRef<any>(null);
 
-  // Filter events that have valid coordinates
-  const validEvents = events.filter(event => 
-    event.latitude && event.longitude && 
-    !isNaN(event.latitude) && !isNaN(event.longitude)
-  );
+  // Filter events that have valid numeric coordinates
+  const validEvents = events.filter(event => {
+    const lat = Number(event.latitude);
+    const lon = Number(event.longitude);
+    return event.latitude != null && event.longitude != null && !Number.isNaN(lat) && !Number.isNaN(lon);
+  });
 
   return (
     <div className="w-full h-full">
@@ -69,7 +70,7 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
         {validEvents.map((event) => (
           <Marker
             key={event.id}
-            position={[event.latitude!, event.longitude!]}
+            position={[Number(event.latitude), Number(event.longitude)]}
             icon={eventIcon}
           >
             <Popup maxWidth={300} className="event-popup">

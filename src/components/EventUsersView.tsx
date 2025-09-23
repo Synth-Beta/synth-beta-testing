@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Heart, X, MessageCircle, User, MapPin, Calendar, Instagram, Camera, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Heart, X, MessageCircle, User, MapPin, Calendar, Instagram, Camera, ExternalLink, UserPlus } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { DBEvent, Profile } from '@/types/database';
@@ -282,6 +282,26 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
     }
   };
 
+  const sendFriendRequest = async (receiverUserId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('create_friend_request', {
+        receiver_user_id: receiverUserId
+      });
+      if (error) throw error;
+      toast({
+        title: 'Friend request sent',
+        description: 'They will see your request in their notifications.'
+      });
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send friend request',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const currentUser = users[currentUserIndex];
 
   // Session expiration is handled by MainApp, so we don't need to handle it here
@@ -398,6 +418,15 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
           >
             <Heart className="w-5 h-5 mr-2" />
             Connect
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => sendFriendRequest(currentUser.user_id)}
+            disabled={isAnimating}
+          >
+            <UserPlus className="w-5 h-5 mr-2" />
+            Friend request
           </Button>
         </div>
 

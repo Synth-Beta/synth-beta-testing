@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { UserEventService } from '@/services/userEventService';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
@@ -107,39 +108,21 @@ export const ConcertEvents = ({ currentUserId, onBack }: ConcertEventsProps) => 
     try {
       const isCurrentlyInterested = interestedEvents.has(eventId);
 
+      // Use centralized service to ensure consistent behavior and RLS-safe upsert
+      await UserEventService.setEventInterest(currentUserId, eventId, !isCurrentlyInterested);
+
       if (isCurrentlyInterested) {
-        // Remove from interested
-        const { error } = await supabase
-          .from('user_jambase_events')
-          .delete()
-          .eq('user_id', currentUserId)
-          .eq('jambase_event_id', eventId);
-
-        if (error) throw error;
-
         setInterestedEvents(prev => {
           const newSet = new Set(prev);
           newSet.delete(eventId);
           return newSet;
         });
-
         toast({
           title: "Removed from Interested",
           description: "Event removed from your interested list",
         });
       } else {
-        // Add to interested
-        const { error } = await supabase
-          .from('user_jambase_events')
-          .insert({
-            user_id: currentUserId,
-            jambase_event_id: eventId
-          });
-
-        if (error) throw error;
-
         setInterestedEvents(prev => new Set([...prev, eventId]));
-
         toast({
           title: "Added to Interested!",
           description: "Event added to your interested list",
@@ -262,19 +245,20 @@ export const ConcertEvents = ({ currentUserId, onBack }: ConcertEventsProps) => 
                 <div className="absolute bottom-3 right-3">
                   <Button
                     size="sm"
-                    variant="ghost"
-                    onClick={() => handleInterestToggle(concert.id)}
-                    className={`h-8 w-8 p-0 rounded-full ${
-                      interestedEvents.has(concert.id) 
-                        ? 'bg-red-500 hover:bg-red-600 text-white' 
-                        : 'bg-background/90 hover:bg-background text-foreground'
+                    variant={interestedEvents.has(concert.id) ? 'default' : 'outline'}
+                    onClick={(e) => { e.stopPropagation(); handleInterestToggle(concert.id); }}
+                    className={`${
+                      interestedEvents.has(concert.id)
+                        ? 'bg-red-500 hover:bg-red-600 text-white'
+                        : 'hover:bg-red-50 hover:text-red-600 hover:border-red-300'
                     }`}
                   >
-                    <Heart 
-                      className={`w-4 h-4 ${
+                    <Heart
+                      className={`w-4 h-4 mr-1 ${
                         interestedEvents.has(concert.id) ? 'fill-current' : ''
-                      }`} 
+                      }`}
                     />
+                    {interestedEvents.has(concert.id) ? 'Interested' : "I'm Interested"}
                   </Button>
                 </div>
               </div>
@@ -360,6 +344,8 @@ export const ConcertEvents = ({ currentUserId, onBack }: ConcertEventsProps) => 
         currentUserId={currentUserId}
         isOpen={detailsOpen}
         onClose={() => setDetailsOpen(false)}
+        onInterestToggle={(eventId) => handleInterestToggle(eventId)}
+        isInterested={selectedEvent ? interestedEvents.has(selectedEvent.id) : false}
       />
     </div>
   );

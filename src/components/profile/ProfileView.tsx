@@ -700,7 +700,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
             </div>
           </TabsContent>
 
-          {canViewInterested && (
+            {canViewInterested && (
             <TabsContent value="interested" className="mt-6">
               {userEvents.length === 0 ? (
                 <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -709,18 +709,42 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                   <p className="text-sm text-muted-foreground">Tap the heart on events to add them here.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-1 md:gap-2">
                   {userEvents
                     .sort((a,b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
+                    .slice(0, 9)
                     .map((ev) => (
-                      <div key={ev.id} className="cursor-pointer" onClick={() => { setSelectedEvent(ev as any); setDetailsOpen(true); }}>
-                        <JamBaseEventCard
-                          event={ev as any}
-                          onInterestToggle={undefined}
-                          onReview={undefined}
-                          isInterested={true}
-                          showInterestButton={false}
-                        />
+                      <div
+                        key={ev.id}
+                        className="aspect-square cursor-pointer rounded-md overflow-hidden border bg-white hover:shadow-md transition-shadow"
+                        onClick={() => { setSelectedEvent(ev as any); setDetailsOpen(true); }}
+                      >
+                        <div className="h-full flex flex-col">
+                          <div className="h-2/3 w-full bg-gray-100">
+                            <img
+                              src={
+                                (ev as any).artist_image_url ||
+                                (ev as any).artist_image ||
+                                (ev as any).image_url ||
+                                (ev as any).image ||
+                                '/placeholder.svg'
+                              }
+                              alt={ev.title}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                          <div className="p-2 flex-1 flex flex-col justify-between">
+                            <div>
+                              <h4 className="font-semibold text-xs truncate">{ev.title}</h4>
+                              <p className="text-xs text-muted-foreground truncate">{ev.venue_name}</p>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground flex items-center justify-between">
+                              <span>{new Date(ev.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                              <span className="truncate">{[ev.venue_city, ev.venue_state].filter(Boolean).join(', ')}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     ))}
                 </div>
