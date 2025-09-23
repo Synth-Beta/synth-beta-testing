@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Users, UserPlus, MessageCircle, User, Grid, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3 } from 'lucide-react';
 import { FollowersModal } from './FollowersModal';
 import { PostsGrid } from './PostsGrid';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +19,8 @@ import { ReviewService } from '@/services/reviewService';
 import { ReviewCard } from '../reviews/ReviewCard';
 import { FriendProfileCard } from './FriendProfileCard';
 import { UnifiedStreamingStats, detectStreamingServiceType } from '../streaming/UnifiedStreamingStats';
+import { EventDetailsModal } from '@/components/events/EventDetailsModal';
+import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -80,9 +82,11 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('posts');
+  const [canViewInterested, setCanViewInterested] = useState<boolean>(true);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
-  const [showFollowingModal, setShowFollowingModal] = useState(false);
-  const [followersModalType, setFollowersModalType] = useState<'followers' | 'following'>('followers');
+  const [followersModalType, setFollowersModalType] = useState<'followers' | 'following' | 'friends'>('friends');
   const { toast } = useToast();
   const { user, sessionExpired } = useAuth();
 
@@ -113,6 +117,24 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       setActiveTab('spotify');
     }
   }, []);
+
+  useEffect(() => {
+    // Show by default; optionally restrict later based on friends
+    if (!user) { setCanViewInterested(true); return; }
+    if (user.id === currentUserId) { setCanViewInterested(true); return; }
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('friends')
+          .select('id')
+          .or(`and(user1_id.eq.${user.id},user2_id.eq.${currentUserId}),and(user1_id.eq.${currentUserId},user2_id.eq.${user.id}))`)
+          .limit(1);
+        setCanViewInterested(Array.isArray(data) ? data.length >= 0 : true);
+      } catch {
+        setCanViewInterested(true);
+      }
+    })();
+  }, [user, currentUserId]);
 
   const fetchProfile = async () => {
     try {
@@ -239,7 +261,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         return;
       }
 
-      const data = await JamBaseService.getUserEvents(currentUserId);
+      const data = await JamBaseService.getUserEvents(user.id);
       
       const events = data?.map(item => ({
         id: item.jambase_event.id,
@@ -528,28 +550,18 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               {/* Stats Row */}
               <div className="flex gap-6 mb-4">
                 <div className="text-center">
-                  <span className="font-semibold">{userEvents.length + reviews.length}</span>
-                  <p className="text-sm text-muted-foreground">posts</p>
+                  <span className="font-semibold">{reviews.length}</span>
+                  <p className="text-sm text-muted-foreground">reviews</p>
                 </div>
                 <button 
                   className="text-center hover:opacity-70 transition-opacity"
                   onClick={() => {
-                    setFollowersModalType('followers');
+                    setFollowersModalType('friends');
                     setShowFollowersModal(true);
                   }}
                 >
                   <span className="font-semibold">{friends.length}</span>
-                  <p className="text-sm text-muted-foreground">followers</p>
-                </button>
-                <button 
-                  className="text-center hover:opacity-70 transition-opacity"
-                  onClick={() => {
-                    setFollowersModalType('following');
-                    setShowFollowingModal(true);
-                  }}
-                >
-                  <span className="font-semibold">{friends.length}</span>
-                  <p className="text-sm text-muted-foreground">following</p>
+                  <p className="text-sm text-muted-foreground">friends</p>
                 </button>
               </div>
             </div>
@@ -626,10 +638,12 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               <Grid className="w-4 h-4" />
               Posts
             </TabsTrigger>
-            <TabsTrigger value="friends" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Friends
-            </TabsTrigger>
+            {canViewInterested && (
+              <TabsTrigger value="interested" className="flex items-center gap-2">
+                <Heart className="w-4 h-4" />
+                Interested Events
+              </TabsTrigger>
+            )}
             <TabsTrigger value="stats" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               Streaming Stats
@@ -660,16 +674,6 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                   likes: 0,
                   comments: 0,
                   badge: 'Review'
-                })),
-                // Transform events into posts
-                ...userEvents.map((event) => ({
-                  id: `event-${event.id}`,
-                  type: 'event' as const,
-                  title: event.title,
-                  subtitle: event.artist_name,
-                  date: event.event_date,
-                  location: `${event.venue_name}, ${event.venue_city}`,
-                  badge: 'Interested'
                 }))
               ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())}
               onPostClick={(post) => {
@@ -680,9 +684,6 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                   if (review) {
                     handleEditReview(review);
                   }
-                } else {
-                  // Handle event click
-                  console.log('Event clicked:', post);
                 }
               }}
             />
@@ -699,86 +700,35 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
             </div>
           </TabsContent>
 
-          <TabsContent value="friends" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  My Friends ({friends.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {friends.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {friends.map((friend) => (
-                      <Card key={friend.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-3 mb-3">
-                            <Avatar className="w-12 h-12">
-                              <AvatarImage src={friend.avatar_url || undefined} />
-                              <AvatarFallback>
-                                {friend.name ? friend.name.split(' ').map(n => n[0]).join('') : 'F'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-gray-900 truncate">{friend.name}</h3>
-                              <p className="text-sm text-gray-600 truncate">@{friend.username}</p>
-                            </div>
-                          </div>
-                          
-                          {friend.bio && (
-                            <p className="text-sm text-gray-700 mb-3 line-clamp-2">{friend.bio}</p>
-                          )}
-                          
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1"
-                              onClick={() => {
-                                setSelectedFriend(friend);
-                                setShowProfileCard(true);
-                              }}
-                            >
-                              <User className="w-4 h-4 mr-1" />
-                              Profile
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
-                              onClick={() => {
-                                console.log('Start chat with:', friend.name);
-                                // TODO: Implement chat functionality
-                              }}
-                            >
-                              <MessageCircle className="w-4 h-4 mr-1" />
-                              Chat
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
+          {canViewInterested && (
+            <TabsContent value="interested" className="mt-6">
+              {userEvents.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <Heart className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold">No Interested Events Yet</h3>
+                  <p className="text-sm text-muted-foreground">Tap the heart on events to add them here.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {userEvents
+                    .sort((a,b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
+                    .map((ev) => (
+                      <div key={ev.id} className="cursor-pointer" onClick={() => { setSelectedEvent(ev as any); setDetailsOpen(true); }}>
+                        <JamBaseEventCard
+                          event={ev as any}
+                          onInterestToggle={undefined}
+                          onReview={undefined}
+                          isInterested={true}
+                          showInterestButton={false}
+                        />
+                      </div>
                     ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No Friends Yet</h3>
-                    <p className="text-gray-600 mb-4">Start connecting with other music lovers!</p>
-                    <Button
-                      onClick={() => {
-                        // TODO: Navigate to find friends or show search
-                        console.log('Find friends clicked');
-                      }}
-                      className="bg-blue-500 hover:bg-blue-600 text-white"
-                    >
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Find Friends
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </div>
+              )}
+            </TabsContent>
+          )}
+
+          
 
           <TabsContent value="stats" className="mt-6">
             <UnifiedStreamingStats musicStreamingProfile={profile.music_streaming_profile} />
@@ -815,7 +765,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         />
       )}
 
-      {/* Followers/Following Modals */}
+      {/* Friends Modal */}
       <FollowersModal
         isOpen={showFollowersModal}
         onClose={() => setShowFollowersModal(false)}
@@ -824,28 +774,19 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         count={friends.length}
         onStartChat={(friendId) => {
           console.log('Start chat with friend:', friendId);
-          // TODO: Implement chat functionality
         }}
         onViewProfile={(friend) => {
           setSelectedFriend(friend);
           setShowProfileCard(true);
         }}
       />
-      
-      <FollowersModal
-        isOpen={showFollowingModal}
-        onClose={() => setShowFollowingModal(false)}
-        type="following"
-        friends={friends}
-        count={friends.length}
-        onStartChat={(friendId) => {
-          console.log('Start chat with friend:', friendId);
-          // TODO: Implement chat functionality
-        }}
-        onViewProfile={(friend) => {
-          setSelectedFriend(friend);
-          setShowProfileCard(true);
-        }}
+
+      {/* Event Details Modal */}
+      <EventDetailsModal
+        event={selectedEvent}
+        currentUserId={currentUserId}
+        isOpen={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
       />
     </div>
   );

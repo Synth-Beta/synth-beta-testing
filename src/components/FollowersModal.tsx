@@ -17,7 +17,7 @@ interface Friend {
 interface FollowersModalProps {
   isOpen: boolean;
   onClose: () => void;
-  type: 'followers' | 'following';
+  type: 'followers' | 'following' | 'friends';
   friends: Friend[];
   count: number;
   onStartChat?: (friendId: string) => void;
@@ -33,7 +33,7 @@ export const FollowersModal = ({
   onStartChat,
   onViewProfile
 }: FollowersModalProps) => {
-  const title = type === 'followers' ? 'Followers' : 'Following';
+  const title = type === 'friends' ? 'Friends' : type === 'followers' ? 'Followers' : 'Following';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -47,12 +47,16 @@ export const FollowersModal = ({
               <div className="text-center py-8">
                 <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">
-                  {type === 'followers' ? 'No followers yet' : 'Not following anyone yet'}
+                  {type === 'friends' ? 'No friends yet' : type === 'followers' ? 'No followers yet' : 'Not following anyone yet'}
                 </p>
               </div>
             ) : (
               friends.map((friend) => (
-                <div key={friend.id} className="flex items-center gap-3">
+                <div
+                  key={friend.id}
+                  className="flex items-center gap-3 cursor-pointer hover:bg-muted/40 rounded-md p-2"
+                  onClick={() => onViewProfile && onViewProfile(friend)}
+                >
                   <Avatar className="w-12 h-12">
                     <AvatarImage src={friend.avatar_url || undefined} />
                     <AvatarFallback>
@@ -73,7 +77,7 @@ export const FollowersModal = ({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => onViewProfile(friend)}
+                        onClick={(e) => { e.stopPropagation(); onViewProfile(friend); }}
                       >
                         <User className="w-4 h-4" />
                       </Button>
@@ -81,7 +85,7 @@ export const FollowersModal = ({
                     {onStartChat && (
                       <Button
                         size="sm"
-                        onClick={() => onStartChat(friend.user_id)}
+                        onClick={(e) => { e.stopPropagation(); onStartChat(friend.user_id); }}
                       >
                         <MessageCircle className="w-4 h-4" />
                       </Button>
