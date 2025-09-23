@@ -19,8 +19,8 @@ import { ReviewService } from '@/services/reviewService';
 import { ReviewCard } from '../reviews/ReviewCard';
 import { FriendProfileCard } from './FriendProfileCard';
 import { UnifiedStreamingStats, detectStreamingServiceType } from '../streaming/UnifiedStreamingStats';
-import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
+import { EventDetailsModal } from '../events/EventDetailsModal';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -767,12 +767,13 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
       {/* Friends Modal */}
       <FollowersModal
-        isOpen={showFollowersModal}
+        isOpen={Boolean(showFollowersModal)}
         onClose={() => setShowFollowersModal(false)}
-        type="followers"
-        friends={friends}
-        count={friends.length}
-        onStartChat={(friendId) => {
+        type="friends"
+        friends={Array.isArray(friends) ? friends : []}
+        count={Array.isArray(friends) ? friends.length : 0}
+        onStartChat={(friendId: string) => {
+          // TODO: Implement chat functionality
           console.log('Start chat with friend:', friendId);
         }}
         onViewProfile={(friend) => {

@@ -4,7 +4,7 @@ import { AppleMusicStats } from './AppleMusicStats';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Music, Sync, CheckCircle, AlertCircle } from 'lucide-react';
+import { Music, CheckCircle, AlertCircle } from 'lucide-react';
 import { appleMusicService } from '@/services/appleMusicService';
 import { useToast } from '@/hooks/use-toast';
 
@@ -112,7 +112,8 @@ export const UnifiedStreamingStats = ({
       case 'error':
         return <AlertCircle className="w-4 h-4 text-red-500" />;
       default:
-        return <Sync className="w-4 h-4" />;
+        // Fallback to a generic spinner if Sync icon is not defined
+        return <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />;
     }
   };
 

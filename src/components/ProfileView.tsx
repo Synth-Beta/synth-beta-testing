@@ -19,8 +19,9 @@ import { ReviewService } from '@/services/reviewService';
 import { ReviewCard } from './ReviewCard';
 import { FriendProfileCard } from './FriendProfileCard';
 import { SpotifyStats } from './SpotifyStats';
-import { EventDetailsModal } from '@/components/events/EventDetailsModal';
+// import { EventDetailsModal } from '@/components/events/EventDetailsModal'; // Temporarily removed due to missing module
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
+import { EventDetailsModal } from './events/EventDetailsModal';
 
 interface ProfileViewProps {
   currentUserId: string;
