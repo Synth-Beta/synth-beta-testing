@@ -80,6 +80,9 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
           // Re-authentication was triggered, will redirect
           return;
         }
+      } else {
+        // No valid token found, might have been cleared due to old PKCE token
+        console.log('ℹ️ No valid token found, user needs to authenticate');
       }
     } catch (error) {
       console.error('Spotify initialization error:', error);
@@ -137,6 +140,10 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       title: "Data Cleared",
       description: "All Spotify data has been cleared. Please reconnect.",
     });
+  };
+
+  const handleForceReconnect = () => {
+    spotifyService.forceClearAndReauth();
   };
 
   const handleLogout = () => {
@@ -305,6 +312,16 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
             Spotify Music Stats
           </CardTitle>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleForceReconnect}
+              disabled={authenticating}
+              className="text-red-600 border-red-600 hover:bg-red-50"
+            >
+              <Activity className="w-4 h-4 mr-2" />
+              Force Reconnect
+            </Button>
             {hasPermissionError && (
               <Button 
                 variant="outline" 

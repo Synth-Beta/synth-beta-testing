@@ -85,8 +85,9 @@ export class SpotifyService {
       console.error('❌ Token validation failed:', error);
       
       if (error instanceof Error && error.message.includes('403')) {
-        console.log('🚨 Token has insufficient scopes, forcing re-authentication...');
-        await this.reauthenticate();
+        console.log('🚨 Token has insufficient scopes, clearing old token and forcing re-authentication...');
+        this.clearStoredData();
+        this.reauthenticate();
         return false; // Will redirect, so return false
       }
       
@@ -134,6 +135,14 @@ export class SpotifyService {
   public checkStoredToken(): boolean {
     const storedToken = localStorage.getItem('spotify_access_token');
     const tokenExpiry = localStorage.getItem('spotify_token_expiry');
+    const codeVerifier = localStorage.getItem('spotify_code_verifier');
+
+    // If we have a code verifier, this is an old PKCE token - clear it
+    if (codeVerifier) {
+      console.log('🧹 Detected old PKCE token, clearing stored data...');
+      this.clearStoredData();
+      return false;
+    }
 
     if (storedToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
       this.accessToken = storedToken;
@@ -203,6 +212,16 @@ export class SpotifyService {
     console.log('🧹 Clearing all stored Spotify data...');
     this.logout();
     console.log('✅ All Spotify data cleared');
+  }
+
+  public forceClearAndReauth(): void {
+    console.log('🚨 Force clearing all data and re-authenticating...');
+    this.clearStoredData();
+    // Show a message to the user
+    if (typeof window !== 'undefined') {
+      alert('Old Spotify token detected. Please reconnect with the new authentication method.');
+    }
+    this.authenticate();
   }
 
   private async exchangeCodeForToken(code: string): Promise<void> {
