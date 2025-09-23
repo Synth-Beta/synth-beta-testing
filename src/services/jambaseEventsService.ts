@@ -64,15 +64,17 @@ export interface JamBaseEventsApiResponse {
 
 export class JamBaseEventsService {
   private static readonly JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
-  // API routes disabled - will cause deployment to fail
-  private static readonly JAMBASE_BASE_URL = 'http://localhost:3001/api/jambase';
+  private static readonly JAMBASE_BASE_URL = (
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_BACKEND_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : '')
+  ) + '/api/jambase';
 
   /**
    * Search for events using JamBase API
    */
   static async searchEvents(params: JamBaseEventSearchParams): Promise<JamBaseEventsApiResponse> {
-    // Force deployment failure - API routes removed
-    throw new Error('Vercel infrastructure removed - deployment intentionally failing');
+    // Call backend JamBase proxy if configured
     
     try {
       const searchParams = new URLSearchParams();

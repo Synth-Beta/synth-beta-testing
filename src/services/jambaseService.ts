@@ -256,8 +256,7 @@ export class JamBaseService {
    * Search for artists using both database and JamBase API for complete results
    */
   static async searchArtists(query: string, limit: number = 10): Promise<ArtistSearchResult> {
-    // Force deployment failure - API routes removed
-    throw new Error('Vercel infrastructure removed - deployment intentionally failing');
+    // NOTE: Avoid throwing in production; rely on env-configured backend when available
     
     console.log('🔍 Searching for artists:', query);
     console.log('🌐 Current origin:', window.location.origin);

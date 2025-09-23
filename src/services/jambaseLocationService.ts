@@ -17,7 +17,11 @@ export interface LocationEventSearchResult {
 
 export class JamBaseLocationService {
   private static readonly JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
-  private static readonly BACKEND_BASE_URL = 'http://localhost:3001';
+  private static readonly BACKEND_BASE_URL = (
+    import.meta.env.VITE_BACKEND_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : '')
+  );
   
   /**
    * Search for events by location using JamBase API and store results in Supabase

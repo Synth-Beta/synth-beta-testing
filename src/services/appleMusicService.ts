@@ -17,7 +17,7 @@ import {
 } from '@/types/appleMusic';
 
 class AppleMusicService {
-  private developerToken: string = process.env.VITE_APPLE_MUSIC_DEVELOPER_TOKEN || '';
+  private developerToken: string = import.meta.env.VITE_APPLE_MUSIC_DEVELOPER_TOKEN || '';
   private musicKit: MusicKitInstance | null = null;
   private userToken: string | null = null;
   private storefront: string = 'us';
@@ -394,7 +394,10 @@ class AppleMusicService {
       // Get current user ID if available
       const userId = await this.getCurrentUserId();
       
-      const backendUrl = process.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const backendUrl =
+        import.meta.env.VITE_BACKEND_URL ||
+        import.meta.env.VITE_API_BASE_URL ||
+        (typeof window !== 'undefined' ? window.location.origin : '');
       const response = await fetch(`${backendUrl}/api/user/streaming-profile`, {
         method: 'POST',
         headers: {
