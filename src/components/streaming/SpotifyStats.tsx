@@ -48,6 +48,25 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
 
   useEffect(() => {
     initializeSpotify();
+
+    // Listen for token cleared events
+    const handleTokenCleared = () => {
+      console.log('🔄 Token cleared event received, resetting component state...');
+      setIsAuthenticated(false);
+      setUserProfile(null);
+      setTopTracks([]);
+      setTopArtists([]);
+      setRecentTracks([]);
+      setListeningStats(null);
+      setHasPermissionError(false);
+      setLoading(false);
+    };
+
+    window.addEventListener('spotify-token-cleared', handleTokenCleared);
+    
+    return () => {
+      window.removeEventListener('spotify-token-cleared', handleTokenCleared);
+    };
   }, []);
 
   useEffect(() => {
@@ -168,6 +187,12 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
   };
 
   const loadUserProfile = async () => {
+    // Don't try to load profile if not authenticated
+    if (!isAuthenticated || !spotifyService.isAuthenticated()) {
+      console.log('⚠️ Not authenticated, skipping profile load');
+      return;
+    }
+
     try {
       // First check token scopes
       await spotifyService.checkTokenScopes();
@@ -197,6 +222,12 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
   };
 
   const loadStats = async () => {
+    // Don't try to load stats if not authenticated
+    if (!isAuthenticated || !spotifyService.isAuthenticated()) {
+      console.log('⚠️ Not authenticated, skipping stats load');
+      return;
+    }
+
     try {
       setLoading(true);
       

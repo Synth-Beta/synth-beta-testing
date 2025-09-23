@@ -391,6 +391,10 @@ export class SpotifyService {
       // Forbidden - likely missing scopes or old token
       console.log('🚨 403 Forbidden detected, clearing all stored data...');
       this.clearStoredData();
+      // Dispatch a custom event to notify components
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('spotify-token-cleared'));
+      }
       throw new Error('Access forbidden. Please reconnect with proper permissions.');
     }
 
