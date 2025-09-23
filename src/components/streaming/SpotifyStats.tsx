@@ -37,6 +37,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [authenticating, setAuthenticating] = useState(false);
+  const [hasPermissionError, setHasPermissionError] = useState(false);
   const [userProfile, setUserProfile] = useState<SpotifyUser | null>(null);
   const [topTracks, setTopTracks] = useState<SpotifyTrack[]>([]);
   const [topArtists, setTopArtists] = useState<SpotifyArtist[]>([]);
@@ -61,6 +62,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       const hasCallback = await spotifyService.handleAuthCallback();
       if (hasCallback) {
         setIsAuthenticated(true);
+        setHasPermissionError(false);
         await loadUserProfile();
         return;
       }
@@ -69,6 +71,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       const hasStoredToken = spotifyService.checkStoredToken();
       if (hasStoredToken) {
         setIsAuthenticated(true);
+        setHasPermissionError(false);
         await loadUserProfile();
       }
     } catch (error) {
@@ -98,6 +101,21 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     }
   };
 
+  const handleReconnect = async () => {
+    setAuthenticating(true);
+    try {
+      await spotifyService.reauthenticate();
+    } catch (error) {
+      console.error('Reconnection error:', error);
+      setAuthenticating(false);
+      toast({
+        title: "Reconnection Error",
+        description: "Failed to reconnect to Spotify. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleLogout = () => {
     spotifyService.logout();
     setIsAuthenticated(false);
@@ -115,15 +133,30 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
 
   const loadUserProfile = async () => {
     try {
+      // First check token scopes
+      await spotifyService.checkTokenScopes();
+      
       const profile = await spotifyService.getUserProfile();
       setUserProfile(profile);
     } catch (error) {
       console.error('Error loading user profile:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load Spotify profile.';
+      
       toast({
         title: "Profile Error",
-        description: "Failed to load Spotify profile.",
+        description: errorMessage,
         variant: "destructive",
       });
+      
+      // If it's a permission error, suggest reconnecting
+      if (errorMessage.includes('permissions') || errorMessage.includes('403')) {
+        setHasPermissionError(true);
+        toast({
+          title: "Permission Issue",
+          description: "Please disconnect and reconnect to Spotify to grant proper permissions.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -249,6 +282,18 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
             Spotify Music Stats
           </CardTitle>
           <div className="flex gap-2">
+            {hasPermissionError && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleReconnect}
+                disabled={authenticating}
+                className="text-orange-600 border-orange-600 hover:bg-orange-50"
+              >
+                <Activity className="w-4 h-4 mr-2" />
+                {authenticating ? 'Reconnecting...' : 'Reconnect'}
+              </Button>
+            )}
             <Button 
               variant="ghost" 
               size="sm" 

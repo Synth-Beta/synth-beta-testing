@@ -57,7 +57,14 @@ export class SpotifyService {
     authUrl.searchParams.append('code_challenge_method', 'S256');
     authUrl.searchParams.append('code_challenge', codeChallenge);
 
+    console.log('Requesting Spotify scopes:', this.config.scopes);
     window.location.href = authUrl.toString();
+  }
+
+  public async reauthenticate(): Promise<void> {
+    // Clear existing tokens and force re-auth
+    this.logout();
+    await this.authenticate();
   }
 
   public async handleAuthCallback(): Promise<boolean> {
@@ -103,6 +110,35 @@ export class SpotifyService {
 
   public isAuthenticated(): boolean {
     return this.accessToken !== null;
+  }
+
+  public async checkTokenScopes(): Promise<string[]> {
+    try {
+      // Try to get user profile to check basic scopes
+      const profile = await this.spotifyApiCall<SpotifyUser>('/me');
+      console.log('User profile loaded successfully, basic scopes are working');
+      
+      // Try to get top tracks to check user-top-read scope
+      try {
+        await this.spotifyApiCall<SpotifyTopTracksResponse>('/me/top/tracks?limit=1');
+        console.log('user-top-read scope is working');
+      } catch (error) {
+        console.warn('user-top-read scope may be missing:', error);
+      }
+      
+      // Try to get recently played to check user-read-recently-played scope
+      try {
+        await this.spotifyApiCall<SpotifyRecentlyPlayedResponse>('/me/player/recently-played?limit=1');
+        console.log('user-read-recently-played scope is working');
+      } catch (error) {
+        console.warn('user-read-recently-played scope may be missing:', error);
+      }
+      
+      return ['user-read-private', 'user-read-email']; // Basic scopes that work
+    } catch (error) {
+      console.error('Token scope check failed:', error);
+      throw new Error('Unable to verify token scopes. Please reconnect to Spotify.');
+    }
   }
 
   public logout(): void {
@@ -247,7 +283,16 @@ export class SpotifyService {
   }
 
   public async getUserProfile(): Promise<SpotifyUser> {
-    return this.spotifyApiCall<SpotifyUser>('/me');
+    try {
+      return await this.spotifyApiCall<SpotifyUser>('/me');
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      // Check if it's a scope issue
+      if (error instanceof Error && error.message.includes('403')) {
+        throw new Error('Insufficient permissions. Please reconnect with proper Spotify permissions.');
+      }
+      throw error;
+    }
   }
 
   public async getTopTracks(timeRange: SpotifyTimeRange = 'medium_term', limit: number = 20, offset: number = 0): Promise<SpotifyTopTracksResponse> {
