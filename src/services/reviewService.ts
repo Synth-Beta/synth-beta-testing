@@ -563,9 +563,9 @@ export class ReviewService {
         query = query.eq('event_id', eventId);
       }
 
-      if (venueId) {
-        query = query.eq('venue_id', venueId);
-      }
+      // Note: Some environments' views may not expose venue_id. To keep compatibility,
+      // we do not push a venue_id equality filter here. Callers can filter by venue
+      // name client-side if needed.
 
       const { data, error, count } = await query;
 

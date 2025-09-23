@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
+import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 
 interface ConcertEvent {
   id: string;
@@ -40,6 +41,8 @@ export const ConcertEvents = ({ currentUserId, onBack }: ConcertEventsProps) => 
   const [selectedCity, setSelectedCity] = useState<string>('all');
   const [cities, setCities] = useState<string[]>([]);
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
+  const [selectedEvent, setSelectedEvent] = useState<ConcertEvent | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -237,7 +240,7 @@ export const ConcertEvents = ({ currentUserId, onBack }: ConcertEventsProps) => 
         {/* Concerts Grid - 5 per row on large screens */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredConcerts.map((concert) => (
-            <Card key={concert.id} className="group hover:shadow-lg transition-all duration-200 overflow-hidden bg-card">
+            <Card key={concert.id} className="group hover:shadow-lg transition-all duration-200 overflow-hidden bg-card cursor-pointer" onClick={() => { setSelectedEvent(concert); setDetailsOpen(true); }}>
               {/* Concert Image */}
               <div className="relative h-48 overflow-hidden">
                 <img 
@@ -350,6 +353,14 @@ export const ConcertEvents = ({ currentUserId, onBack }: ConcertEventsProps) => 
           </div>
         )}
       </div>
+
+      {/* Event Details Modal */}
+      <EventDetailsModal
+        event={selectedEvent as any}
+        currentUserId={currentUserId}
+        isOpen={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+      />
     </div>
   );
 };

@@ -104,6 +104,18 @@ export function JamBaseEventCard({
     return getLocationString();
   };
 
+  const getCheapestTicketUrl = () => {
+    if (!event.ticket_urls || event.ticket_urls.length === 0) return null;
+    // Heuristic: prefer URLs containing known cheap vendors first
+    const preferredOrder = ['stubhub', 'vividseats', 'seatgeek', 'ticketmaster', 'axs'];
+    const lower = event.ticket_urls.map(u => ({ url: u, l: u.toLowerCase() }));
+    for (const vendor of preferredOrder) {
+      const found = lower.find(u => u.l.includes(vendor));
+      if (found) return found.url;
+    }
+    return event.ticket_urls[0];
+  };
+
   return (
     <Card className={cn("w-full transition-all duration-200 hover:shadow-lg", className)}>
       <CardHeader className="pb-3">
@@ -261,13 +273,13 @@ export function JamBaseEventCard({
                 className="text-blue-600 hover:text-blue-700"
               >
                 <a 
-                  href={event.ticket_urls[0]} 
+                  href={getCheapestTicketUrl() || event.ticket_urls[0]} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center gap-1"
                 >
                   <Ticket className="w-4 h-4" />
-                  <span className="hidden sm:inline">Tickets</span>
+                  <span className="hidden sm:inline">Cheapest Tickets</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </Button>

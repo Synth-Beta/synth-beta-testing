@@ -31,6 +31,7 @@ import { Navigation } from '@/components/Navigation';
 import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
 import { ReviewCard } from '@/components/ReviewCard';
+import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UnifiedFeedService, UnifiedFeedItem } from '@/services/unifiedFeedService';
 import { LocationService } from '@/services/locationService';
 import { EventMap } from './EventMap';
@@ -65,6 +66,8 @@ export const UnifiedFeed = ({
   const [mapZoom, setMapZoom] = useState(10);
   const { toast } = useToast();
   const { sessionExpired } = useAuth();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedEventForDetails, setSelectedEventForDetails] = useState<any>(null);
 
   useEffect(() => {
     if (sessionExpired) {
@@ -317,7 +320,16 @@ export const UnifiedFeed = ({
               {feedItems
                 .filter(item => item.type === 'event')
                 .map((item) => (
-              <Card key={item.id} className="hover:shadow-md transition-shadow">
+              <Card 
+                key={item.id} 
+                className="hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => {
+                  if (item.event_data) {
+                    setSelectedEventForDetails(item.event_data);
+                    setDetailsOpen(true);
+                  }
+                }}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -602,6 +614,14 @@ export const UnifiedFeed = ({
           loadFeedData();
           setShowReviewModal(false);
         }}
+      />
+
+      {/* Event Details Modal (for Events tab) */}
+      <EventDetailsModal
+        event={selectedEventForDetails}
+        currentUserId={currentUserId}
+        isOpen={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
       />
 
       {/* Full Page Chat */}
