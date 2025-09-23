@@ -146,6 +146,12 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     spotifyService.forceClearAndReauth();
   };
 
+  const handleNuclearReset = () => {
+    if (confirm('This will clear ALL Spotify data and reload the page. Are you sure?')) {
+      spotifyService.nuclearReset();
+    }
+  };
+
   const handleLogout = () => {
     spotifyService.logout();
     setIsAuthenticated(false);
@@ -312,6 +318,16 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
             Spotify Music Stats
           </CardTitle>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleNuclearReset}
+              disabled={authenticating}
+              className="text-red-700 border-red-700 hover:bg-red-100"
+            >
+              <Activity className="w-4 h-4 mr-2" />
+              Nuclear Reset
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 

@@ -144,6 +144,19 @@ export class SpotifyService {
       return false;
     }
 
+    // Check if token was created before we switched to client secret flow
+    // If token is older than 1 hour, it's likely from the old PKCE flow
+    if (storedToken && tokenExpiry) {
+      const tokenAge = Date.now() - parseInt(tokenExpiry) + (3600 * 1000); // Add 1 hour to get creation time
+      const oneHourAgo = 60 * 60 * 1000; // 1 hour in milliseconds
+      
+      if (tokenAge > oneHourAgo) {
+        console.log('🧹 Token is older than 1 hour, likely from old PKCE flow, clearing...');
+        this.clearStoredData();
+        return false;
+      }
+    }
+
     if (storedToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
       this.accessToken = storedToken;
       console.log('🔑 Found stored token, expires at:', new Date(parseInt(tokenExpiry)).toLocaleString());
@@ -219,9 +232,34 @@ export class SpotifyService {
     this.clearStoredData();
     // Show a message to the user
     if (typeof window !== 'undefined') {
-      alert('Old Spotify token detected. Please reconnect with the new authentication method.');
+      alert('Clearing all Spotify data. Please reconnect with the new authentication method.');
     }
     this.authenticate();
+  }
+
+  public nuclearReset(): void {
+    console.log('💥 NUCLEAR RESET: Clearing everything and forcing fresh start...');
+    
+    // Clear all possible localStorage keys
+    const keysToRemove = [
+      'spotify_access_token',
+      'spotify_token_expiry', 
+      'spotify_refresh_token',
+      'spotify_auth_state',
+      'spotify_code_verifier'
+    ];
+    
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+      console.log(`🗑️ Removed ${key}`);
+    });
+    
+    this.accessToken = null;
+    
+    if (typeof window !== 'undefined') {
+      alert('Nuclear reset complete. All Spotify data cleared. Please refresh the page and reconnect.');
+      window.location.reload();
+    }
   }
 
   private async exchangeCodeForToken(code: string): Promise<void> {
@@ -350,7 +388,9 @@ export class SpotifyService {
     }
 
     if (response.status === 403) {
-      // Forbidden - likely missing scopes
+      // Forbidden - likely missing scopes or old token
+      console.log('🚨 403 Forbidden detected, clearing all stored data...');
+      this.clearStoredData();
       throw new Error('Access forbidden. Please reconnect with proper permissions.');
     }
 
