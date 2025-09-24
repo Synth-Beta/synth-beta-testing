@@ -1,11 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { EventReviewModal } from './EventReviewModal';
+// import { EventReviewForm } from './EventReviewForm'; // Removed because module not found
 import { ReviewList } from './ReviewList';
 import { PublicReviewList } from './PublicReviewList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Star, MessageSquare } from 'lucide-react';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import { EventReviewForm } from './EventReviewForm.tsx';
+import { supabase } from '@/integrations/supabase/client';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { VenueCard } from './VenueCard';
+import { ArtistCard } from '@/components/ArtistCard';
+import type { Artist } from '@/types/concertSearch';
 
 interface EventReviewsSectionProps {
   event: JamBaseEvent;
@@ -20,13 +27,88 @@ export function EventReviewsSection({
 }: EventReviewsSectionProps) {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'reviews' | 'public'>('reviews');
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [editingEvent, setEditingEvent] = useState<JamBaseEvent | null>(null);
+  const [venueDialog, setVenueDialog] = useState<{ open: boolean; venueId?: string | null; venueName?: string }>(() => ({ open: false }));
+  const [artistDialog, setArtistDialog] = useState<{ open: boolean; artist?: Artist | null }>(() => ({ open: false }));
 
   const handleReviewSubmitted = (review: any) => {
     setIsReviewModalOpen(false);
+    setEditingReviewId(null);
+    setEditingEvent(null);
     if (onReviewSubmitted) {
       onReviewSubmitted(review.id);
     }
   };
+
+  useEffect(() => {
+    const loadEventForEdit = async () => {
+      if (!editingReviewId) return;
+      try {
+        // Look up the review to get event_id
+        const { data: reviewRow } = await (supabase as any)
+          .from('user_reviews')
+          .select('event_id')
+          .eq('id', editingReviewId)
+          .single();
+        const eventId = reviewRow?.event_id;
+        if (!eventId) return;
+        // Fetch event metadata for nicer context in the form
+        const { data: eventRow } = await (supabase as any)
+          .from('jambase_events')
+          .select('*')
+          .eq('id', eventId)
+          .single();
+        if (eventRow) {
+          setEditingEvent(eventRow as JamBaseEvent);
+        } else {
+          setEditingEvent({ id: eventId } as unknown as JamBaseEvent);
+        }
+      } catch {
+        setEditingEvent(null);
+      }
+    };
+    loadEventForEdit();
+  }, [editingReviewId]);
+
+  useEffect(() => {
+    const openVenue = (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      setVenueDialog({ open: true, venueId: detail.venueId || null, venueName: detail.venueName });
+    };
+    const openArtist = async (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      if (detail.artistId) {
+        try {
+          // Fetch artist from DB using jambase_artist_id when id provided
+          const { UnifiedArtistSearchService } = await import('@/services/unifiedArtistSearchService');
+          const byId = await UnifiedArtistSearchService.getArtistById(detail.artistId);
+          if (byId) {
+            setArtistDialog({ open: true, artist: {
+              id: byId.jambase_artist_id,
+              jambase_artist_id: byId.jambase_artist_id,
+              name: byId.name,
+              description: (byId as any).description,
+              genres: byId.genres,
+              image_url: byId.image_url,
+              popularity_score: byId.num_upcoming_events,
+              source: 'database'
+            } as any });
+            return;
+          }
+        } catch {}
+      }
+      // Fallback: open with name only
+      const artist: Artist = { id: detail.artistId || 'manual', name: detail.artistName || 'Unknown Artist' } as any;
+      setArtistDialog({ open: true, artist });
+    };
+    document.addEventListener('open-venue-card', openVenue as EventListener);
+    document.addEventListener('open-artist-card', openArtist as EventListener);
+    return () => {
+      document.removeEventListener('open-venue-card', openVenue as EventListener);
+      document.removeEventListener('open-artist-card', openArtist as EventListener);
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -65,6 +147,10 @@ export function EventReviewsSection({
             eventId={event.id}
             currentUserId={userId}
             showEventInfo={false}
+            onEdit={(review) => {
+              if (review.user_id !== userId) return;
+              setEditingReviewId(review.id);
+            }}
           />
         </TabsContent>
 
@@ -76,16 +162,48 @@ export function EventReviewsSection({
         </TabsContent>
       </Tabs>
 
-      {/* Review Modal */}
-      {userId && (
-        <EventReviewModal
-          event={event}
-          userId={userId}
-          isOpen={isReviewModalOpen}
-          onClose={() => setIsReviewModalOpen(false)}
-          onReviewSubmitted={handleReviewSubmitted}
-        />
+      {/* Inline Single-Page Review Form (replaces modal for simpler UX) */}
+      {userId && isReviewModalOpen && (
+        <div className="mt-4">
+          <EventReviewForm
+            event={event}
+            userId={userId}
+            onSubmitted={handleReviewSubmitted as any}
+          />
+        </div>
       )}
+
+      {userId && editingReviewId && editingEvent && (
+        <div className="mt-4">
+          <EventReviewForm
+            event={editingEvent as any}
+            userId={userId}
+            onSubmitted={handleReviewSubmitted as any}
+          />
+        </div>
+      )}
+
+      <Dialog open={venueDialog.open} onOpenChange={(open) => setVenueDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-2xl w-[95vw]" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Venue</DialogTitle>
+          </DialogHeader>
+          {venueDialog.open && (
+            <VenueCard venueId={venueDialog.venueId} venueName={venueDialog.venueName || 'Venue'} />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={artistDialog.open} onOpenChange={(open) => setArtistDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-4xl w-[95vw]" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Artist</DialogTitle>
+          </DialogHeader>
+          {artistDialog.open && artistDialog.artist && (
+            <ArtistCard artist={artistDialog.artist} events={[]} totalEvents={0} source="database" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

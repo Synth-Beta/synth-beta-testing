@@ -74,34 +74,18 @@ export function useReviewForm() {
         }
         break;
       case 2:
-        if (data.reviewType === 'event') {
-          if (data.artistRating === 0) {
-            errors.artistRating = 'Please provide an artist rating';
-          } else if (data.artistRating < 1 || data.artistRating > 5) {
-            errors.artistRating = 'Artist rating must be between 1 and 5 stars';
-          }
-          if (data.venueRating === 0) {
-            errors.venueRating = 'Please provide a venue rating';
-          } else if (data.venueRating < 1 || data.venueRating > 5) {
-            errors.venueRating = 'Venue rating must be between 1 and 5 stars';
-          }
-        } else if (data.reviewType === 'venue') {
-          if (data.venueRating === 0) {
-            errors.venueRating = 'Please provide a venue rating';
-          } else if (data.venueRating < 1 || data.venueRating > 5) {
-            errors.venueRating = 'Venue rating must be between 1 and 5 stars';
-          }
-        } else if (data.reviewType === 'artist') {
-          if (data.artistRating === 0) {
-            errors.artistRating = 'Please provide an artist rating';
-          } else if (data.artistRating < 1 || data.artistRating > 5) {
-            errors.artistRating = 'Artist rating must be between 1 and 5 stars';
-          }
+        // unified overall rating in half steps 1..10
+        if (data.rating === 0) {
+          errors.rating = 'Please provide an overall rating';
+        } else if (data.rating < 1 || data.rating > 10) {
+          errors.rating = 'Rating must be between 0.5 and 5.0 stars';
         }
         break;
       case 3:
-        // Review text is optional, but if provided, should be reasonable length
-        if (data.reviewText && data.reviewText.length > 500) {
+        // Review text is required per new design
+        if (!data.reviewText) {
+          errors.reviewText = 'Please share a brief description of your experience';
+        } else if (data.reviewText.length > 500) {
           errors.reviewText = 'Review text must be 500 characters or less';
         }
         if (data.venueReviewText && data.venueReviewText.length > 300) {

@@ -29,112 +29,79 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
     onUpdateFormData({ eventDate: e.target.value });
   };
 
+  const [artistLocked, setArtistLocked] = React.useState(!!formData.selectedArtist);
+  const [venueLocked, setVenueLocked] = React.useState(!!formData.selectedVenue);
+
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Event Details</h2>
         <p className="text-sm text-gray-600">Tell us about the concert you attended</p>
       </div>
+      {/* Horizontal row: Artist, Venue, Date */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+        <div className="space-y-2">
+          <Label htmlFor="artist" className="text-sm font-medium">Artist or Band *</Label>
+          {!formData.selectedArtist || !artistLocked ? (
+            <ArtistSearchBox
+              onArtistSelect={(a)=>{ handleArtistSelect(a); setArtistLocked(true); }}
+              placeholder="Search for an artist or band..."
+              className="w-full"
+            />
+          ) : (
+            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+              <div>
+                <p className="text-sm font-medium text-green-800">{formData.selectedArtist.name}</p>
+              </div>
+              <button className="text-xs text-red-600" onClick={()=>{ onUpdateFormData({ selectedArtist: null }); setArtistLocked(false); }}>×</button>
+            </div>
+          )}
+          {errors.selectedArtist && (
+            <p className="text-sm text-red-600">{errors.selectedArtist}</p>
+          )}
+        </div>
 
-      {/* Artist Selection */}
-      <div className="space-y-3">
-        <Label htmlFor="artist" className="text-sm font-medium">
-          Artist or Band *
-        </Label>
-        <ArtistSearchBox
-          onArtistSelect={handleArtistSelect}
-          placeholder="Search for an artist or band..."
-          className="w-full"
-        />
-        {errors.selectedArtist && (
-          <p className="text-sm text-red-600">{errors.selectedArtist}</p>
-        )}
-        {formData.selectedArtist && (
-          <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg border border-green-200">
-            <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-              <Check className="w-4 h-4 text-white" />
+        <div className="space-y-2">
+          <Label htmlFor="venue" className="text-sm font-medium">Venue *</Label>
+          {!formData.selectedVenue || !venueLocked ? (
+            <VenueSearchBox
+              onVenueSelect={(v)=>{ handleVenueSelect(v); setVenueLocked(true); }}
+              placeholder="Search for a venue..."
+              className="w-full"
+            />
+          ) : (
+            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+              <div>
+                <p className="text-sm font-medium text-green-800">{formData.selectedVenue.name}</p>
+                {formData.selectedVenue.address && (
+                  <p className="text-xs text-green-700">{[formData.selectedVenue.address.addressLocality, formData.selectedVenue.address.addressRegion].filter(Boolean).join(', ')}</p>
+                )}
+              </div>
+              <button className="text-xs text-red-600" onClick={()=>{ onUpdateFormData({ selectedVenue: null }); setVenueLocked(false); }}>×</button>
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-green-800">
-                {formData.selectedArtist.name}
-              </p>
-              {formData.selectedArtist.genres && formData.selectedArtist.genres.length > 0 && (
-                <p className="text-xs text-green-600">
-                  {formData.selectedArtist.genres.join(', ')}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+          {errors.selectedVenue && (
+            <p className="text-sm text-red-600">{errors.selectedVenue}</p>
+          )}
+        </div>
 
-      {/* Venue Selection */}
-      <div className="space-y-3">
-        <Label htmlFor="venue" className="text-sm font-medium">
-          Venue *
-        </Label>
-        <VenueSearchBox
-          onVenueSelect={handleVenueSelect}
-          placeholder="Search for a venue..."
-          className="w-full"
-        />
-        {errors.selectedVenue && (
-          <p className="text-sm text-red-600">{errors.selectedVenue}</p>
-        )}
-        {formData.selectedVenue && (
-          <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg border border-green-200">
-            <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-              <Check className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-green-800">
-                {formData.selectedVenue.name}
-              </p>
-              {formData.selectedVenue.address && (
-                <p className="text-xs text-green-600">
-                  {[
-                    formData.selectedVenue.address.addressLocality,
-                    formData.selectedVenue.address.addressRegion
-                  ].filter(Boolean).join(', ')}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Date Selection */}
-      <div className="space-y-3">
-        <Label htmlFor="eventDate" className="text-sm font-medium flex items-center gap-2">
-          <Calendar className="w-4 h-4" />
-          Concert Date *
-        </Label>
-        <Input
-          id="eventDate"
-          type="date"
-          value={formData.eventDate}
-          onChange={handleDateChange}
-          className="w-full"
-          max={new Date().toISOString().split('T')[0]} // Can't be in the future
-        />
-        {errors.eventDate && (
-          <p className="text-sm text-red-600">{errors.eventDate}</p>
-        )}
-        {formData.eventDate && (
-          <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg border border-green-200">
-            <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-              <Check className="w-4 h-4 text-white" />
-            </div>
-            <p className="text-sm font-medium text-green-800">
-              {new Date(formData.eventDate).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
-            </p>
-          </div>
-        )}
+        <div className="space-y-2">
+          <Label htmlFor="eventDate" className="text-sm font-medium flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            Date *
+          </Label>
+          <Input
+            id="eventDate"
+            type="date"
+            value={formData.eventDate}
+            onChange={handleDateChange}
+            className="w-full"
+            max={new Date().toISOString().split('T')[0]}
+          />
+          {errors.eventDate && (
+            <p className="text-sm text-red-600">{errors.eventDate}</p>
+          )}
+        </div>
       </div>
 
       {/* Summary */}

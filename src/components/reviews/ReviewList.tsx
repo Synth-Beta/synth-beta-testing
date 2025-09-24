@@ -8,6 +8,7 @@ interface ReviewListProps {
   eventId: string;
   currentUserId?: string;
   onReviewClick?: (reviewId: string) => void;
+  onEdit?: (review: ReviewWithEngagement) => void;
   showEventInfo?: boolean;
 }
 
@@ -15,6 +16,7 @@ export function ReviewList({
   eventId,
   currentUserId,
   onReviewClick,
+  onEdit,
   showEventInfo = false
 }: ReviewListProps) {
   const [reviews, setReviews] = useState<ReviewWithEngagement[]>([]);
@@ -145,6 +147,7 @@ export function ReviewList({
             onComment={handleComment}
             onShare={handleShare}
             showEventInfo={showEventInfo}
+            onEdit={onEdit}
           />
         ))}
       </div>

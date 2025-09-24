@@ -434,10 +434,11 @@ export class UnifiedArtistSearchService {
   private static async getFuzzyMatchedResults(query: string, limit: number): Promise<ArtistSearchResult[]> {
     try {
       // Get all artists from database
-      const { data: allArtists, error } = await supabase
+      const { data: allArtists, error } = await (supabase as any)
         .from('artist_profile')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(Math.max(50, limit * 5));
 
       if (error) {
         console.warn(`⚠️  Database error getting artists: ${error.message}`);

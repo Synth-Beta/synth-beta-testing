@@ -22,6 +22,11 @@ import { SpotifyStats } from './SpotifyStats';
 // import { EventDetailsModal } from '@/components/events/EventDetailsModal'; // Temporarily removed due to missing module
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
 import { EventDetailsModal } from './events/EventDetailsModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArtistCard } from '@/components/ArtistCard';
+import { VenueCard } from '@/components/reviews/VenueCard';
+import { ProfileReviewCard } from '@/components/reviews/ProfileReviewCard';
+import type { Artist } from '@/types/concertSearch';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -63,11 +68,18 @@ interface ConcertReview {
   review_text: string | null;
   is_public: boolean;
   created_at: string;
+  likes_count?: number;
+  comments_count?: number;
+  shares_count?: number;
   event: {
     event_name: string;
     location: string;
     event_date: string;
     event_time: string;
+    artist_name?: string | null;
+    artist_id?: string | null;
+    venue_name?: string | null;
+    venue_id?: string | null;
   };
 }
 
@@ -86,6 +98,10 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const [interestedEvents, setInterestedEvents] = useState<any[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [viewReviewOpen, setViewReviewOpen] = useState(false);
+  const [selectedReview, setSelectedReview] = useState<ConcertReview | null>(null);
+  const [venueDialog, setVenueDialog] = useState<{ open: boolean; venueId?: string | null; venueName?: string }>(() => ({ open: false }));
+  const [artistDialog, setArtistDialog] = useState<{ open: boolean; artist?: Artist | null }>(() => ({ open: false }));
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [followersModalType, setFollowersModalType] = useState<'followers' | 'following' | 'friends'>('friends');
   const { toast } = useToast();
@@ -362,7 +378,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       
       console.log('🔍 ProfileView: Raw review data:', result);
       
-      // Transform to match the expected interface for display
+      // Transform to match the expected interface for display (preserve venue_id & artist_name)
       const transformedReviews = result.reviews.map((item: any) => ({
         id: item.review.id,
         user_id: item.review.user_id,
@@ -371,12 +387,22 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         review_text: item.review.review_text,
         is_public: item.review.is_public,
         created_at: item.review.created_at,
-        event: {
-          event_name: item.event?.title || item.event?.event_name || 'Concert Review',
-          location: item.event?.venue_name || 'Unknown Venue',
-          event_date: item.event?.event_date || item.review.created_at,
-          event_time: item.event?.event_time || 'TBD'
-        }
+        likes_count: item.review.likes_count,
+        comments_count: item.review.comments_count,
+        shares_count: item.review.shares_count,
+        event: Object.assign(
+          {
+            event_name: item.event?.title || 'Concert Review',
+            location: item.event?.venue_name || 'Unknown Venue',
+            event_date: item.event?.event_date || item.review.created_at,
+            event_time: item.event?.doors_time || 'TBD'
+          },
+          {
+            artist_name: item.event?.artist_name,
+            venue_name: item.event?.venue_name,
+            venue_id: item.event?.venue_id
+          }
+        )
       }));
       
       console.log('🔍 ProfileView: Transformed reviews:', transformedReviews);
@@ -478,7 +504,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     });
   };
 
-  const handleEditReview = (review: any) => {
+  const openEditForReview = (review: any) => {
     // Create a mock event for editing
     setReviewModalEvent({
       id: review.event_id,
@@ -488,6 +514,11 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       artist_name: 'Unknown Artist'
     });
     setShowAddReview(true);
+  };
+
+  const openViewForReview = (review: ConcertReview) => {
+    setSelectedReview(review);
+    setViewReviewOpen(true);
   };
 
   const handleDeleteReview = async (reviewId: string) => {
@@ -697,8 +728,8 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                 ...reviews.map((review) => ({
                   id: `review-${review.id}`,
                   type: 'review' as const,
-                  title: review.event?.event_name || 'Concert Review',
-                  subtitle: review.event?.location || 'Unknown Venue',
+                  title: `${review.event?.event_name || 'Concert'} live at ${review.event?.location || 'Venue'}`,
+                  subtitle: new Date(review.event?.event_date || review.created_at).toLocaleDateString(),
                   rating: typeof review.rating === 'string' ? parseInt(review.rating) : review.rating,
                   date: review.created_at,
                   likes: 0,
@@ -708,14 +739,12 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())}
               onPostClick={(post) => {
                 if (post.type === 'review') {
-                  // Handle review click - could open review modal
                   const reviewId = post.id.replace('review-', '');
                   const review = reviews.find(r => r.id === reviewId);
                   if (review) {
-                    handleEditReview(review);
+                    openViewForReview(review);
                   }
                 } else {
-                  // Handle event click
                   console.log('Event clicked:', post);
                 }
               }}
@@ -787,6 +816,72 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         }}
         onReviewSubmitted={handleReviewSubmitted}
       />
+
+      {/* Review View Dialog */}
+      <Dialog open={viewReviewOpen} onOpenChange={setViewReviewOpen}>
+        <DialogContent className="max-w-2xl w-[95vw]" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Review</DialogTitle>
+          </DialogHeader>
+          {selectedReview && (
+            <div className="space-y-5">
+              <ProfileReviewCard
+                title={selectedReview.event.event_name}
+                rating={selectedReview.rating}
+                reviewText={selectedReview.review_text}
+                event={{
+                  event_name: selectedReview.event.event_name,
+                  event_date: selectedReview.event.event_date,
+                  artist_name: selectedReview.event.artist_name,
+                  artist_id: null,
+                  venue_name: selectedReview.event.venue_name,
+                  venue_id: selectedReview.event.venue_id
+                }}
+                reviewId={selectedReview.id}
+                currentUserId={currentUserId}
+                initialIsLiked={false}
+                initialLikesCount={selectedReview.likes_count || 0}
+                initialCommentsCount={selectedReview.comments_count || 0}
+                onOpenArtist={(_id, name) => {
+                  const artist: Artist = { id: 'manual', name: name || 'Artist' } as any;
+                  setArtistDialog({ open: true, artist });
+                }}
+                onOpenVenue={(id, name) => {
+                  setVenueDialog({ open: true, venueId: id || null, venueName: name || 'Venue' });
+                }}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setViewReviewOpen(false)}>Close</Button>
+                <Button onClick={() => { setViewReviewOpen(false); openEditForReview(selectedReview); }}>Edit</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Venue Dialog */}
+      <Dialog open={venueDialog.open} onOpenChange={(open) => setVenueDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-2xl w-[95vw]" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Venue</DialogTitle>
+          </DialogHeader>
+          {venueDialog.open && (
+            <VenueCard venueId={venueDialog.venueId} venueName={venueDialog.venueName || 'Venue'} />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Artist Dialog */}
+      <Dialog open={artistDialog.open} onOpenChange={(open) => setArtistDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-4xl w-[95vw]" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Artist</DialogTitle>
+          </DialogHeader>
+          {artistDialog.open && artistDialog.artist && (
+            <ArtistCard artist={artistDialog.artist} events={[]} totalEvents={0} source="database" />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Friend Profile Card */}
       {selectedFriend && (

@@ -90,6 +90,10 @@ export interface ReviewWithEngagement extends UserReview {
   user_like_id?: string;
   recent_comments?: ReviewComment[];
   total_comments?: number;
+  // projected event metadata for UI (optional)
+  artist_name?: string;
+  artist_id?: string;
+  venue_name?: string;
 }
 
 // Comment with user data
@@ -176,39 +180,84 @@ export class ReviewService {
         return 0; // fallback to satisfy required column
       };
 
-      // Check if user already has a review for this event
-      const { data: existingReview, error: checkError } = await supabase
-        .from('user_reviews')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('event_id', eventId)
-        .single();
+      // Check if user already has a review for this event (guard against non-UUID eventId)
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId);
+      // If eventId is not a UUID, skip .single() to avoid 400s and treat as not found
+      const { data: existingReview, error: checkError } = isUuid
+        ? await supabase
+            .from('user_reviews')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('event_id', eventId)
+            .maybeSingle()
+        : { data: null as any, error: null as any };
 
-      if (checkError && checkError.code !== 'PGRST116') {
+      if (checkError && checkError.code !== 'PGRST116' && (checkError as any).status !== 406) {
         throw checkError;
       }
 
       if (existingReview) {
         // Update existing review
-        const { data, error } = await supabase
-          .from('user_reviews')
-          .update({
-            venue_id: venueId,
-            // include derived rating only if provided/derivable; updates can be partial
-            ...(typeof reviewData.rating === 'number' ||
-            typeof reviewData.artist_rating === 'number' ||
-            typeof reviewData.venue_rating === 'number'
-              ? { rating: deriveRating(reviewData) }
-              : {}),
-            ...reviewData,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingReview.id)
-          .select()
-          .single();
+        // Try full update first; fallback to legacy columns if schema lacks new fields
+        const fullUpdate: any = {
+          ...(venueId ? { venue_id: venueId } : {}),
+          ...(typeof reviewData.rating === 'number' ||
+          typeof reviewData.artist_rating === 'number' ||
+          typeof reviewData.venue_rating === 'number'
+            ? { rating: deriveRating(reviewData) }
+            : {}),
+          review_text: reviewData.review_text,
+          reaction_emoji: reviewData.reaction_emoji,
+          is_public: reviewData.is_public,
+          artist_rating: reviewData.artist_rating,
+          venue_rating: reviewData.venue_rating,
+          review_type: reviewData.review_type,
+          venue_tags: reviewData.venue_tags,
+          artist_tags: reviewData.artist_tags,
+          updated_at: new Date().toISOString()
+        };
 
-        if (error) throw error;
-        return data as unknown as UserReview;
+        // Perform update without returning to avoid 400/406 in some environments
+        let { error } = await supabase
+          .from('user_reviews')
+          .update(fullUpdate)
+          .eq('id', existingReview.id);
+        // Fetch the updated row separately
+        let data: any = null;
+        if (!error) {
+          const fetched = await supabase
+            .from('user_reviews')
+            .select('*')
+            .eq('id', existingReview.id)
+            .maybeSingle();
+          data = fetched.data as any;
+          error = fetched.error as any;
+        }
+
+        if (error) {
+          // Retry with legacy-only columns on any 4xx schema error
+          // Unknown columns: retry with legacy-only columns
+          const legacyUpdate: any = {
+            ...(venueId ? { venue_id: venueId } : {}),
+            rating: deriveRating(reviewData),
+            review_text: reviewData.review_text,
+            reaction_emoji: reviewData.reaction_emoji,
+            is_public: reviewData.is_public,
+            updated_at: new Date().toISOString()
+          };
+
+          const retry = await supabase
+            .from('user_reviews')
+            .update(legacyUpdate)
+            .eq('id', existingReview.id)
+            .select()
+            .single();
+          data = retry.data as any;
+          error = retry.error as any;
+        }
+
+        if (error) throw error as any;
+        return data as any as UserReview;
       }
 
       // Create new review
@@ -227,14 +276,36 @@ export class ReviewService {
         artist_tags: reviewData.artist_tags
       } as UserReviewInsert;
 
-      const { data, error } = await supabase
+      // Try full insert first
+      let { data, error } = await supabase
         .from('user_reviews')
-        .insert(insertPayload)
+        .insert(insertPayload as any)
         .select()
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-      return data as unknown as UserReview;
+      if (error) {
+        // Retry with legacy-only columns
+        const legacyInsert: any = {
+          user_id: userId,
+          event_id: eventId,
+          ...(venueId ? { venue_id: venueId } : {}),
+          rating: deriveRating(reviewData),
+          reaction_emoji: reviewData.reaction_emoji,
+          review_text: reviewData.review_text,
+          is_public: reviewData.is_public ?? true
+        };
+
+        const retry = await supabase
+          .from('user_reviews')
+          .insert(legacyInsert)
+          .select()
+          .single();
+        data = retry.data as any;
+        error = retry.error as any;
+      }
+
+      if (error) throw error as any;
+      return data as any as UserReview;
     } catch (error) {
       console.error('Error setting event review:', error);
       throw new Error(`Failed to set event review: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -281,6 +352,7 @@ export class ReviewService {
         .from('user_reviews')
         .select(`
           *,
+          jambase_events: jambase_events (id, title, artist_name, artist_id, venue_name, venue_id, event_date),
           review_likes!left(id, user_id)
         `)
         .eq('event_id', eventId)
@@ -302,8 +374,13 @@ export class ReviewService {
       }
 
       // Process reviews with engagement data
-      const processedReviews: ReviewWithEngagement[] = (reviews || []).map(review => ({
+      const processedReviews: ReviewWithEngagement[] = (reviews || []).map((review: any) => ({
         ...review,
+        // Project event info onto the review for UI access
+        artist_name: review.jambase_events?.artist_name,
+        artist_id: review.jambase_events?.artist_id,
+        venue_name: review.jambase_events?.venue_name,
+        venue_id: review.jambase_events?.venue_id || review.venue_id,
         is_liked_by_user: userLikes.includes(review.id),
         user_like_id: userLikes.includes(review.id) 
           ? review.review_likes?.find(l => l.user_id === userId)?.id 
@@ -342,9 +419,23 @@ export class ReviewService {
     try {
       console.log('🔍 ReviewService: Getting user review history for userId:', userId);
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('user_reviews')
-        .select('*')
+        .select(`
+          *,
+          jambase_events: jambase_events (
+            id,
+            title,
+            artist_name,
+            venue_name,
+            venue_id,
+            event_date,
+            doors_time,
+            venue_city,
+            venue_state,
+            venue_zip
+          )
+        `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
@@ -377,7 +468,7 @@ export class ReviewService {
             shares_count: item.shares_count,
             is_public: item.is_public
           },
-          event: null // We'll fetch event data separately if needed
+          event: item.jambase_events
         })),
         total: Array.isArray(data) ? data.length : 0
       };
@@ -653,6 +744,34 @@ export class ReviewService {
     } catch (error) {
       console.error(`Error updating ${type} count:`, error);
       // Don't throw here as it's not critical
+    }
+  }
+
+  /**
+   * Get engagement counts and like status for a review
+   */
+  static async getReviewEngagement(
+    reviewId: string,
+    userId?: string
+  ): Promise<{ likes_count: number; comments_count: number; shares_count: number; is_liked_by_user: boolean } | null> {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('user_reviews')
+        .select('id, likes_count, comments_count, shares_count, review_likes!left(id, user_id)')
+        .eq('id', reviewId)
+        .single();
+      if (error) throw error;
+      const likes = Array.isArray(data?.review_likes) ? data.review_likes : [];
+      const isLiked = userId ? likes.some((l: any) => l.user_id === userId) : false;
+      return {
+        likes_count: data?.likes_count || 0,
+        comments_count: data?.comments_count || 0,
+        shares_count: data?.shares_count || 0,
+        is_liked_by_user: isLiked,
+      };
+    } catch (e) {
+      console.warn('ReviewService.getReviewEngagement failed', e);
+      return null;
     }
   }
 

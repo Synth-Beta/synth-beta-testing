@@ -37,6 +37,7 @@ export function ReviewCard({
   const [isLiking, setIsLiking] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<CommentWithUser[]>([]);
+  const [commentsCount, setCommentsCount] = useState<number>(review.comments_count || 0);
   const [loadingComments, setLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -75,6 +76,7 @@ export function ReviewCard({
         setLoadingComments(true);
         const result = await ReviewService.getReviewComments(review.id);
         setComments(result);
+        setCommentsCount(result.length);
       } finally {
         setLoadingComments(false);
       }
@@ -99,6 +101,7 @@ export function ReviewCard({
         } as CommentWithUser
       ]);
       setNewComment('');
+      setCommentsCount(prev => prev + 1);
     } finally {
       setSubmitting(false);
     }
@@ -204,13 +207,38 @@ export function ReviewCard({
           <p className="text-sm text-gray-700 mb-3">{review.review_text}</p>
         )}
 
-        {/* Event Info (if showEventInfo is true) */}
-        {showEventInfo && (
-          <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm font-medium text-gray-900">Event Information</p>
-            <p className="text-xs text-gray-600">Event details would be shown here</p>
+        {/* Event Info / Artist & Venue chips (view mode only) */}
+        <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+          <p className="text-sm font-medium text-gray-900">Event</p>
+          <div className="mt-2 flex items-center gap-2 text-sm">
+            {review.artist_name && (
+              <button
+                className="px-2 py-1 rounded bg-white border hover:bg-gray-50"
+                onClick={(e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const ev = new CustomEvent('open-artist-card', { detail: { artistId: review.artist_id, artistName: review.artist_name } });
+                  document.dispatchEvent(ev);
+                }}
+                aria-label={`View artist ${review.artist_name}`}
+              >
+                {review.artist_name}
+              </button>
+            )}
+            {review.venue_name && (
+              <button
+                className="px-2 py-1 rounded bg-white border hover:bg-gray-50"
+                onClick={(e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const ev = new CustomEvent('open-venue-card', { detail: { venueId: review.venue_id, venueName: review.venue_name } });
+                  document.dispatchEvent(ev);
+                }}
+                aria-label={`View venue ${review.venue_name}`}
+              >
+                {review.venue_name}
+              </button>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Social Actions */}
         <div className="flex items-center justify-between pt-3 border-t">
@@ -243,7 +271,7 @@ export function ReviewCard({
               className="flex items-center space-x-1"
             >
               <MessageCircle className="h-4 w-4" />
-              <span className="text-sm">{review.comments_count}</span>
+              <span className="text-sm">{commentsCount}</span>
             </Button>
 
             <Button
