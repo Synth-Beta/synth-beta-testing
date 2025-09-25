@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ArrowLeft, Save, Instagram, User, Music } from 'lucide-react';
+import { SynthSLogo } from '@/components/SynthSLogo';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
@@ -172,16 +173,19 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
   }
 
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen synth-gradient-card p-4">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">Edit Profile</h1>
-            <p className="text-muted-foreground">Update your profile information</p>
+          <div className="flex items-center gap-4 flex-1">
+            <SynthSLogo size="sm" />
+            <div>
+              <h1 className="synth-heading text-2xl">Edit Profile</h1>
+              <p className="synth-text text-muted-foreground">Update your profile information</p>
+            </div>
           </div>
         </div>
 

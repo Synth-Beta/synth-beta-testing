@@ -2,121 +2,105 @@
 @tailwind components;
 @tailwind utilities;
 
-/* PlusOne Design System - Bright, playful, community-focused */
+/* Synth Design System - Bold, modern, music-focused */
 
 @layer base {
   :root {
-    /* Core brand colors */
-    --background: 0 0% 99%;
-    --foreground: 340 15% 15%;
-    
-    /* Pink brand palette */
-    --primary: 330 85% 60%;
-    --primary-light: 330 85% 70%;
-    --primary-dark: 330 85% 50%;
-    --primary-foreground: 0 0% 100%;
-    
-    /* Supporting colors */
-    --secondary: 20 20% 96%;
-    --secondary-foreground: 340 15% 25%;
-    
-    --accent: 50 100% 88%;
-    --accent-foreground: 340 15% 25%;
-    
-    --muted: 320 10% 95%;
-    --muted-foreground: 340 8% 45%;
-    
-    /* Event category colors */
-    --music: 280 85% 65%;
-    --food: 25 85% 60%;
-    --arts: 200 85% 60%;
-    --sports: 120 85% 55%;
-    --social: 45 85% 65%;
-    
-    /* UI elements */
+    /* Synth Light Mode - White Background */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+
     --card: 0 0% 100%;
-    --card-foreground: 340 15% 15%;
-    --card-shadow: 330 25% 90%;
-    
-    --border: 320 15% 88%;
-    --input: 320 15% 93%;
-    --ring: 330 85% 60%;
-    
+    --card-foreground: 0 0% 0%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+
+    --primary: 320 100% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 60 56% 91%;
+    --secondary-foreground: 0 0% 0%;
+
+    --muted: 60 20% 95%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 320 100% 60%;
+    --accent-foreground: 0 0% 100%;
+
     --destructive: 0 75% 60%;
     --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 95%;
+    --ring: 320 100% 60%;
     
     --success: 140 65% 55%;
     --warning: 35 85% 60%;
     
-    /* Gradients */
-    --gradient-brand: linear-gradient(135deg, hsl(330 85% 60%), hsl(320 80% 70%));
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(320 10% 98%));
-    --gradient-accent: linear-gradient(135deg, hsl(50 100% 88%), hsl(40 100% 85%));
+    /* Event category colors - Synth themed */
+    --music: 320 100% 60%;
+    --food: 25 85% 60%;
+    --arts: 280 85% 65%;
+    --sports: 120 85% 55%;
+    --social: 45 85% 65%;
     
-    /* Shadows */
-    --shadow-soft: 0 4px 20px -2px hsl(330 25% 90% / 0.3);
-    --shadow-card: 0 8px 30px -4px hsl(330 25% 90% / 0.4);
-    --shadow-hover: 0 12px 40px -6px hsl(330 40% 85% / 0.5);
+    /* Synth Gradients */
+    --gradient-brand: linear-gradient(135deg, #FF3399, #FF66B3);
+    --gradient-card: linear-gradient(145deg, #FFFFFF, #F5F5DC);
+    --gradient-accent: linear-gradient(135deg, #F5F5DC, #FAFAF5);
+    --gradient-dark: linear-gradient(135deg, #000000, #1A1A1A);
+    
+    /* Synth Shadows */
+    --shadow-soft: 0 4px 20px -2px rgba(255, 51, 153, 0.1);
+    --shadow-card: 0 8px 30px -4px rgba(0, 0, 0, 0.1);
+    --shadow-hover: 0 12px 40px -6px rgba(255, 51, 153, 0.2);
+    --shadow-glow: 0 0 20px rgba(255, 51, 153, 0.3);
     
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --transition-glow: all 0.3s ease-in-out;
     
-    --radius: 1rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+  /* Light mode variant - if needed */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 320 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 60 56% 91%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 60 20% 95%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 320 100% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 95%;
+    --ring: 320 100% 60%;
+    --gradient-card: linear-gradient(145deg, #FFFFFF, #F5F5DC);
+    --gradient-accent: linear-gradient(135deg, #F5F5DC, #FAFAF5);
+    --shadow-soft: 0 4px 20px -2px rgba(255, 51, 153, 0.1);
+    --shadow-card: 0 8px 30px -4px rgba(0, 0, 0, 0.1);
+    --shadow-hover: 0 12px 40px -6px rgba(255, 51, 153, 0.2);
+    --shadow-glow: 0 0 20px rgba(255, 51, 153, 0.3);
   }
 }
 
@@ -126,37 +110,146 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
     background: var(--gradient-card);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply synth-heading;
+  }
+
+  p, span, div, a, button, input, textarea, label {
+    @apply synth-text;
   }
 }
 
 @layer components {
-  /* Event category badges */
-  .category-music { @apply bg-purple-100 text-purple-700; }
-  .category-food { @apply bg-orange-100 text-orange-700; }
-  .category-arts { @apply bg-blue-100 text-blue-700; }
-  .category-sports { @apply bg-green-100 text-green-700; }
-  .category-social { @apply bg-yellow-100 text-yellow-700; }
+  /* Synth Typography */
+  .synth-heading {
+    @apply font-bold text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.02em;
+  }
   
-  /* Card animations */
-  .card-hover {
+  .synth-text {
+    @apply text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  
+  /* Synth Logo Styles */
+  .synth-logo {
+    @apply font-bold text-4xl;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.05em;
+  }
+  
+  .synth-logo-s {
+    @apply text-synth-pink;
+  }
+  
+  .synth-logo-text {
+    @apply text-synth-beige;
+  }
+  
+  /* Event category badges - Synth themed */
+  .category-music { 
+    @apply bg-synth-pink/10 text-synth-pink border border-synth-pink/20; 
+  }
+  .category-food { 
+    @apply bg-orange-100 text-orange-700 border border-orange-200; 
+  }
+  .category-arts { 
+    @apply bg-purple-100 text-purple-700 border border-purple-200; 
+  }
+  .category-sports { 
+    @apply bg-green-100 text-green-700 border border-green-200; 
+  }
+  .category-social { 
+    @apply bg-synth-beige text-synth-black border border-synth-beige-dark; 
+  }
+  
+  /* Synth Card Styles */
+  .synth-card {
+    @apply bg-card border border-border rounded-xl shadow-card;
     transition: var(--transition-smooth);
-    box-shadow: var(--shadow-card);
-  }
-  .card-hover:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-hover);
   }
   
-  /* Button variants */
+  .synth-card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+  }
+  
+  .synth-card-glow {
+    @apply synth-card;
+    box-shadow: var(--shadow-glow);
+  }
+  
+  /* Synth Button Variants */
+  .btn-synth-primary {
+    @apply bg-synth-pink text-white hover:bg-synth-pink-dark;
+    transition: var(--transition-smooth);
+    box-shadow: 0 4px 14px 0 rgba(255, 51, 153, 0.3);
+  }
+  
+  .btn-synth-primary:hover {
+    box-shadow: 0 6px 20px 0 rgba(255, 51, 153, 0.4);
+    transform: translateY(-1px);
+  }
+  
+  .btn-synth-secondary {
+    @apply bg-synth-beige text-synth-black hover:bg-synth-beige-dark border border-synth-beige-dark;
+    transition: var(--transition-smooth);
+  }
+  
   .btn-swipe-like {
-    @apply bg-gradient-to-r from-primary to-primary-light text-primary-foreground;
+    @apply btn-synth-primary;
     transition: var(--transition-bounce);
   }
+  
   .btn-swipe-pass {
-    @apply bg-gradient-to-r from-muted to-secondary text-muted-foreground;
+    @apply bg-muted text-muted-foreground hover:bg-muted/80;
     transition: var(--transition-bounce);
+  }
+  
+  /* Synth Navigation */
+  .synth-nav {
+    @apply bg-card/95 backdrop-blur-sm border-t border-border;
+  }
+  
+  .synth-nav-item {
+    @apply flex flex-col items-center gap-1 p-3 rounded-lg transition-all duration-200;
+  }
+  
+  .synth-nav-item.active {
+    @apply bg-synth-pink text-white;
+  }
+  
+  .synth-nav-item:not(.active) {
+    @apply text-muted-foreground hover:text-foreground hover:bg-muted;
+  }
+  
+  /* Synth Gradients */
+  .synth-gradient-brand {
+    background: var(--gradient-brand);
+  }
+  
+  .synth-gradient-card {
+    background: var(--gradient-card);
+  }
+  
+  .synth-gradient-dark {
+    background: var(--gradient-dark);
+  }
+  
+  /* Synth Glow Effects */
+  .synth-glow {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  .synth-glow-hover:hover {
+    box-shadow: var(--shadow-glow);
   }
 
   /* Leaflet map styles */

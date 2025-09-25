@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { VenueCard } from './VenueCard';
 import { ArtistCard } from '@/components/ArtistCard';
 import type { Artist } from '@/types/concertSearch';
+import { SimpleArtistVenueService } from '@/services/simpleArtistVenueService';
 
 interface EventReviewsSectionProps {
   event: JamBaseEvent;
@@ -72,31 +73,43 @@ export function EventReviewsSection({
   }, [editingReviewId]);
 
   useEffect(() => {
-    const openVenue = (e: Event) => {
+    const openVenue = async (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
+      if (detail.venueName) {
+        try {
+          // Use the simple service to get venue with events
+          const venueWithEvents = await SimpleArtistVenueService.getVenueByName(detail.venueName);
+          console.log('Venue with events:', venueWithEvents);
+        } catch (error) {
+          console.error('Error fetching venue events:', error);
+        }
+      }
       setVenueDialog({ open: true, venueId: detail.venueId || null, venueName: detail.venueName });
     };
     const openArtist = async (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
-      if (detail.artistId) {
+      if (detail.artistName) {
         try {
-          // Fetch artist from DB using jambase_artist_id when id provided
-          const { UnifiedArtistSearchService } = await import('@/services/unifiedArtistSearchService');
-          const byId = await UnifiedArtistSearchService.getArtistById(detail.artistId);
-          if (byId) {
-            setArtistDialog({ open: true, artist: {
-              id: byId.jambase_artist_id,
-              jambase_artist_id: byId.jambase_artist_id,
-              name: byId.name,
-              description: (byId as any).description,
-              genres: byId.genres,
-              image_url: byId.image_url,
-              popularity_score: byId.num_upcoming_events,
-              source: 'database'
-            } as any });
+          // Use the simple service to get artist with events
+          const artistWithEvents = await SimpleArtistVenueService.getArtistByName(detail.artistName);
+          
+          if (artistWithEvents) {
+            setArtistDialog({ 
+              open: true, 
+              artist: {
+                id: artistWithEvents.id,
+                name: artistWithEvents.name,
+                image_url: artistWithEvents.image_url,
+                popularity_score: artistWithEvents.events.length,
+                source: 'database',
+                events: artistWithEvents.events
+              } as any 
+            });
             return;
           }
-        } catch {}
+        } catch (error) {
+          console.error('Error fetching artist:', error);
+        }
       }
       // Fallback: open with name only
       const artist: Artist = { id: detail.artistId || 'manual', name: detail.artistName || 'Unknown Artist' } as any;

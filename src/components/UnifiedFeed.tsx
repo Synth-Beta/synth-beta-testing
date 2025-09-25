@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { format, parseISO } from 'date-fns';
 import { Navigation } from '@/components/Navigation';
+import { SynthSLogo } from '@/components/SynthSLogo';
 import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
 import { ReviewCard as FeedReviewCard } from '@/components/reviews/ReviewCard';
@@ -250,14 +251,18 @@ export const UnifiedFeed = ({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen synth-gradient-card">
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Concert Feed</h1>
-            <p className="text-gray-600 mt-2">Discover concerts, reviews, and connect with the community</p>
+        <div className="mb-6">
+          <div className="flex items-center gap-4 mb-2">
+            <SynthSLogo size="md" />
+            <h1 className="synth-heading text-3xl">Concert Feed</h1>
           </div>
+          <p className="synth-text text-muted-foreground">Discover concerts, reviews, and connect with the community</p>
+        </div>
+        
+        <div className="flex items-center justify-end mb-6">
           
           <div className="flex items-center gap-3">
             <Button

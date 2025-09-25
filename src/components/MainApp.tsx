@@ -249,8 +249,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           <div className="min-h-screen bg-background p-4 pb-20">
             <div className="max-w-4xl mx-auto">
               <div className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-900">Search</h1>
-                <p className="text-gray-600 mt-2">Find events and connect with other music lovers</p>
+                <h1 className="synth-heading text-3xl">Search</h1>
+                <p className="synth-text text-muted-foreground mt-2">Find events and connect with other music lovers</p>
               </div>
               
               {/* Search Component */}

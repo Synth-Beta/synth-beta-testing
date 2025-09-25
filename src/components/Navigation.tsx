@@ -1,5 +1,6 @@
 import { User, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SynthSLogo } from '@/components/SynthSLogo';
 
 interface NavigationProps {
   currentView: 'feed' | 'search' | 'profile' | 'profile-edit';
@@ -14,22 +15,24 @@ export const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 z-[2000]">
+    <nav className="synth-nav fixed bottom-0 left-0 right-0 p-4 z-[2000]">
       <div className="flex justify-around max-w-md mx-auto">
         {navItems.map(({ id, icon: Icon, label }) => (
           <Button
             key={id}
-            variant={currentView === id ? 'default' : 'ghost'}
+            variant="ghost"
             size="sm"
             onClick={() => onViewChange(id)}
-            className={`flex-col h-auto py-2 px-3 ${
-              currentView === id 
-                ? 'bg-primary text-primary-foreground' 
-                : 'text-muted-foreground hover:text-card-foreground'
+            className={`synth-nav-item ${
+              currentView === id ? 'active' : ''
             }`}
           >
-            <Icon className="w-5 h-5 mb-1" />
-            <span className="text-xs">{label}</span>
+            {currentView === id && id === 'feed' ? (
+              <SynthSLogo size="sm" />
+            ) : (
+              <Icon className="w-5 h-5" />
+            )}
+            <span className="text-xs font-medium">{label}</span>
           </Button>
         ))}
       </div>

@@ -10,6 +10,7 @@ import { ArtistCard } from './ArtistCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { SearchResultsPage } from './SearchResultsPage';
+import { SynthSLogo } from '@/components/SynthSLogo';
 import { 
   Music, 
   Search, 
@@ -346,13 +347,14 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
   return (
     <div className="space-y-6">
       {/* Unified Search */}
-      <Card>
+      <Card className="synth-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
+            <SynthSLogo size="sm" />
             <Search className="h-5 w-5" />
             Search
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="synth-text">
             Search for artists and people in one place
           </CardDescription>
         </CardHeader>

@@ -51,7 +51,7 @@ export const EventCard = ({ event, onSwipe, className = '' }: EventCardProps) =>
   return (
     <Card 
       className={`
-        relative w-full max-w-sm mx-auto bg-card rounded-2xl overflow-hidden shadow-lg
+        synth-card relative w-full max-w-sm mx-auto overflow-hidden
         ${isAnimating && swipeDirection === 'like' ? 'animate-swipe-like' : ''}
         ${isAnimating && swipeDirection === 'pass' ? 'animate-swipe-pass' : ''}
         ${className}
@@ -70,7 +70,7 @@ export const EventCard = ({ event, onSwipe, className = '' }: EventCardProps) =>
           </span>
         </div>
         {event.price && (
-          <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-semibold">
+          <div className="absolute top-4 right-4 btn-synth-primary px-3 py-1 rounded-full text-sm font-semibold">
             {event.price}
           </div>
         )}
@@ -79,8 +79,8 @@ export const EventCard = ({ event, onSwipe, className = '' }: EventCardProps) =>
       {/* Event Details */}
       <div className="p-6 space-y-4">
         <div>
-          <h3 className="text-xl font-bold text-card-foreground mb-2">{event.title}</h3>
-          <p className="text-muted-foreground text-sm line-clamp-2">{event.description}</p>
+          <h3 className="synth-heading text-xl mb-2">{event.title}</h3>
+          <p className="synth-text text-muted-foreground text-sm line-clamp-2">{event.description}</p>
         </div>
 
         <div className="space-y-2">
@@ -113,7 +113,6 @@ export const EventCard = ({ event, onSwipe, className = '' }: EventCardProps) =>
           <Button
             onClick={() => handleSwipe('like')}
             size="lg"
-            variant="ghost"
             className="flex-1 btn-swipe-like p-0 h-12 w-12 rounded-full"
             disabled={isAnimating}
           >

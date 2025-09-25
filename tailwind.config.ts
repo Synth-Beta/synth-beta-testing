@@ -53,7 +53,19 @@ export default {
 				},
 				success: 'hsl(var(--success))',
 				warning: 'hsl(var(--warning))',
-				// Event categories
+				// Synth Brand Colors
+				synth: {
+					pink: '#FF3399',
+					'pink-light': '#FF66B3',
+					'pink-dark': '#E6007A',
+					beige: '#F5F5DC',
+					'beige-light': '#FAFAF5',
+					'beige-dark': '#E6E6D1',
+					black: '#000000',
+					'black-light': '#1A1A1A',
+					'black-dark': '#0D0D0D'
+				},
+				// Event categories with Synth theme
 				music: 'hsl(var(--music))',
 				food: 'hsl(var(--food))',
 				arts: 'hsl(var(--arts))',

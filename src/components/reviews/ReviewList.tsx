@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ReviewCard } from './ReviewCard';
 import { ReviewService, ReviewWithEngagement } from '@/services/reviewService';
+import { EnhancedReviewService } from '@/services/enhancedReviewService';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
@@ -34,10 +35,19 @@ export function ReviewList({
       setLoading(true);
       setError(null);
       
-      const result = await ReviewService.getEventReviews(eventId, currentUserId);
-      setReviews(result.reviews);
-      setAverageRating(result.averageRating);
-      setTotalReviews(result.totalReviews);
+      // Try enhanced service first, fallback to original if it fails
+      try {
+        const result = await EnhancedReviewService.getEventReviewsWithArtistVenueIds(eventId, currentUserId);
+        setReviews(result.reviews);
+        setAverageRating(result.averageRating);
+        setTotalReviews(result.totalReviews);
+      } catch (enhancedError) {
+        console.warn('Enhanced service failed, falling back to original:', enhancedError);
+        const result = await ReviewService.getEventReviews(eventId, currentUserId);
+        setReviews(result.reviews);
+        setAverageRating(result.averageRating);
+        setTotalReviews(result.totalReviews);
+      }
     } catch (err) {
       console.error('Error loading reviews:', err);
       setError('Failed to load reviews');

@@ -13,6 +13,7 @@ import {
   Navigation as NavigationIcon,
   RefreshCw
 } from 'lucide-react';
+import { SynthSLogo } from '@/components/SynthSLogo';
 import { useToast } from '@/hooks/use-toast';
 
 interface SearchMapProps {
@@ -217,9 +218,10 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
   };
 
   return (
-    <Card>
+    <Card className="synth-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
+          <SynthSLogo size="sm" />
           <MapPin className="w-5 h-5" />
           Upcoming Events Near You
         </CardTitle>

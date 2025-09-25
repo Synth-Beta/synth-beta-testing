@@ -216,7 +216,9 @@ export function ReviewCard({
                 className="px-2 py-1 rounded bg-white border hover:bg-gray-50"
                 onClick={(e) => {
                   e.preventDefault(); e.stopPropagation();
-                  const ev = new CustomEvent('open-artist-card', { detail: { artistId: review.artist_id, artistName: review.artist_name } });
+                  // Use artist_uuid if available, otherwise fall back to artist_id
+                  const artistId = (review as any).artist_uuid || review.artist_id;
+                  const ev = new CustomEvent('open-artist-card', { detail: { artistId, artistName: review.artist_name } });
                   document.dispatchEvent(ev);
                 }}
                 aria-label={`View artist ${review.artist_name}`}
@@ -229,7 +231,9 @@ export function ReviewCard({
                 className="px-2 py-1 rounded bg-white border hover:bg-gray-50"
                 onClick={(e) => {
                   e.preventDefault(); e.stopPropagation();
-                  const ev = new CustomEvent('open-venue-card', { detail: { venueId: review.venue_id, venueName: review.venue_name } });
+                  // Use venue_uuid if available, otherwise fall back to venue_id
+                  const venueId = (review as any).venue_uuid || review.venue_id;
+                  const ev = new CustomEvent('open-venue-card', { detail: { venueId, venueName: review.venue_name } });
                   document.dispatchEvent(ev);
                 }}
                 aria-label={`View venue ${review.venue_name}`}

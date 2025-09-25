@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { SynthSLogo } from '@/components/SynthSLogo';
 import { ArrowRight, Users, Heart, Music, Star } from 'lucide-react';
 import heroImage from '@/assets/hero-events.jpg';
 
@@ -10,18 +11,18 @@ interface WelcomeScreenProps {
 
 export const WelcomeScreen = ({ onGetStarted, onLogin }: WelcomeScreenProps) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-accent/10 p-4">
+    <div className="min-h-screen synth-gradient-card p-4">
       <div className="max-w-md mx-auto pt-12">
-        {/* Logo & Title */}
+        {/* Synth Logo & Title */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-primary to-primary-light rounded-2xl mx-auto mb-4 flex items-center justify-center animate-bounce-in">
-            <Heart className="w-10 h-10 text-primary-foreground" />
+          <div className="w-24 h-24 mx-auto mb-6 animate-bounce-in synth-glow">
+            <SynthSLogo size="xl" />
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent mb-2">
-            PlusOne
+          <h1 className="synth-heading text-4xl mb-2">
+            Welcome to Synth
           </h1>
-          <p className="text-lg text-muted-foreground">
-            Find friends for local events
+          <p className="synth-text text-lg text-muted-foreground">
+            Your music community awaits
           </p>
         </div>
 
@@ -36,32 +37,32 @@ export const WelcomeScreen = ({ onGetStarted, onLogin }: WelcomeScreenProps) => 
 
         {/* Features */}
         <div className="space-y-4 mb-8">
-          <Card className="p-4 bg-card/60 backdrop-blur-sm border-border/50">
+          <Card className="synth-card p-4 bg-card/60 backdrop-blur-sm border-border/50">
             <div className="flex items-start gap-3">
-              <Star className="w-6 h-6 text-primary mt-1" />
+              <Star className="w-6 h-6 text-synth-pink mt-1" />
               <div>
-                <h3 className="font-semibold text-card-foreground mb-1">Review Events You've Been</h3>
-                <p className="text-sm text-muted-foreground">Rank and review your past concert experiences</p>
+                <h3 className="synth-heading font-semibold mb-1">Review Events You've Been</h3>
+                <p className="synth-text text-sm text-muted-foreground">Rank and review your past concert experiences</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4 bg-card/60 backdrop-blur-sm border-border/50">
+          <Card className="synth-card p-4 bg-card/60 backdrop-blur-sm border-border/50">
             <div className="flex items-start gap-3">
-              <Music className="w-6 h-6 text-primary mt-1" />
+              <Music className="w-6 h-6 text-synth-pink mt-1" />
               <div>
-                <h3 className="font-semibold text-card-foreground mb-1">Discover Future Events</h3>
-                <p className="text-sm text-muted-foreground">Find upcoming concerts and events in your area</p>
+                <h3 className="synth-heading font-semibold mb-1">Discover Future Events</h3>
+                <p className="synth-text text-sm text-muted-foreground">Find upcoming concerts and events in your area</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4 bg-card/60 backdrop-blur-sm border-border/50">
+          <Card className="synth-card p-4 bg-card/60 backdrop-blur-sm border-border/50">
             <div className="flex items-start gap-3">
-              <Users className="w-6 h-6 text-primary mt-1" />
+              <Users className="w-6 h-6 text-synth-pink mt-1" />
               <div>
-                <h3 className="font-semibold text-card-foreground mb-1">Match with New People</h3>
-                <p className="text-sm text-muted-foreground">Connect with others who share your music taste</p>
+                <h3 className="synth-heading font-semibold mb-1">Match with New People</h3>
+                <p className="synth-text text-sm text-muted-foreground">Connect with others who share your music taste</p>
               </div>
             </div>
           </Card>
@@ -72,16 +73,17 @@ export const WelcomeScreen = ({ onGetStarted, onLogin }: WelcomeScreenProps) => 
           <Button 
             onClick={onGetStarted}
             size="lg"
-            className="w-full btn-swipe-like text-lg py-6 animate-pulse-glow"
+            variant="synth"
+            className="w-full text-lg py-6 animate-pulse-glow"
           >
-            I'm Ready to Go Into the App
+            Join the Synth Community
             <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
           
           {onLogin && (
             <Button 
               onClick={onLogin}
-              variant="outline"
+              variant="synth-secondary"
               size="lg"
               className="w-full text-lg py-6"
             >
@@ -90,8 +92,8 @@ export const WelcomeScreen = ({ onGetStarted, onLogin }: WelcomeScreenProps) => 
           )}
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-4">
-          Start ranking concerts and finding your music crew
+        <p className="synth-text text-center text-xs text-muted-foreground mt-4">
+          Start discovering music and connecting with your crew
         </p>
       </div>
     </div>

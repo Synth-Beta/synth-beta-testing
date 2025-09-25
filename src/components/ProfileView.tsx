@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ArtistCard } from '@/components/ArtistCard';
 import { VenueCard } from '@/components/reviews/VenueCard';
 import { ProfileReviewCard } from '@/components/reviews/ProfileReviewCard';
+import { SynthSLogo } from '@/components/SynthSLogo';
 import type { Artist } from '@/types/concertSearch';
 
 interface ProfileViewProps {
@@ -614,8 +615,13 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   }
 
   return (
-    <div className="min-h-screen p-4 pb-20">
+    <div className="min-h-screen synth-gradient-card p-4 pb-20">
       <div className="max-w-2xl mx-auto">
+        {/* Synth Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <SynthSLogo size="md" />
+          <h1 className="synth-heading text-2xl">Profile</h1>
+        </div>
 
         {/* Instagram-style Profile Header */}
         <div className="mb-6">
