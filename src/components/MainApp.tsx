@@ -11,11 +11,13 @@ import { Event as EventCardEvent } from './EventCard';
 import { WelcomeScreen } from './WelcomeScreen';
 import Auth from '@/pages/Auth';
 import { EventSeeder } from './EventSeeder';
+import { SettingsModal } from './SettingsModal';
+import { NotificationsPage } from './NotificationsPage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
-type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit';
+type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications';
 
 interface MainAppProps {
   onSignOut?: () => void;
@@ -78,6 +80,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   }, [toast]);
 
   const [showAuth, setShowAuth] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const handleGetStarted = () => {
     setShowAuth(true);
@@ -176,11 +179,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   const handleProfileSettings = () => {
-    // For now, just show a toast - you can implement settings later
-    toast({
-      title: "Settings",
-      description: "Settings feature coming soon!",
-    });
+    setShowSettings(true);
   };
 
   const handleProfileSave = () => {
@@ -193,6 +192,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     try {
       await signOut();
       setShowAuth(false); // Hide auth modal
+      setShowSettings(false); // Hide settings modal
       toast({
         title: "Signed out",
         description: "You've been successfully signed out.",
@@ -209,6 +209,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   const handleBack = () => {
     setCurrentView('feed');
+  };
+
+  const handleNavigateToNotifications = () => {
+    setCurrentView('notifications');
   };
 
   if (loading) {
@@ -242,6 +246,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             currentUserId={user.id}
             onBack={handleBack}
             onViewChange={handleViewChange}
+            onNavigateToNotifications={handleNavigateToNotifications}
           />
         );
       case 'search':
@@ -285,11 +290,19 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onSave={handleProfileSave}
           />
         );
+      case 'notifications':
+        return (
+          <NotificationsPage
+            currentUserId={user.id}
+            onBack={handleBack}
+          />
+        );
       default:
         return (
           <UnifiedFeed 
             currentUserId={user.id}
             onBack={handleBack}
+            onNavigateToNotifications={handleNavigateToNotifications}
           />
         );
     }
@@ -325,6 +338,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           onViewChange={handleViewChange} 
         />
       )}
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onSignOut={handleSignOut}
+        userEmail={user?.email}
+      />
     </div>
   );
 };

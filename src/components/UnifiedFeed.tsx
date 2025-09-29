@@ -680,8 +680,36 @@ export const UnifiedFeed = ({
           try {
             await UserEventService.setEventInterest(currentUserId, eventId, interested);
             setSelectedEventInterested(interested);
+            
+            // Update the feed items locally without reloading
+            setFeedItems(prevItems => 
+              prevItems.map(item => {
+                if (item.type === 'event' && item.event_data?.id === eventId) {
+                  return {
+                    ...item,
+                    event_data: {
+                      ...item.event_data,
+                      isInterested: interested
+                    }
+                  };
+                }
+                return item;
+              })
+            );
+            
+            toast({
+              title: interested ? "Event Added!" : "Event Removed",
+              description: interested 
+                ? "You're now interested in this event" 
+                : "You're no longer interested in this event",
+            });
           } catch (e) {
             console.error('Failed to toggle interest from feed modal', e);
+            toast({
+              title: "Error",
+              description: "Failed to update your interest. Please try again.",
+              variant: "destructive",
+            });
           }
         }}
         isInterested={selectedEventInterested}

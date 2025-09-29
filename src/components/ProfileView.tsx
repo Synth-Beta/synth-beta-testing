@@ -99,6 +99,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const [interestedEvents, setInterestedEvents] = useState<any[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(true);
   const [viewReviewOpen, setViewReviewOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState<ConcertReview | null>(null);
   const [venueDialog, setVenueDialog] = useState<{ open: boolean; venueId?: string | null; venueName?: string }>(() => ({ open: false }));
@@ -136,37 +137,40 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     }
   }, []);
 
+  const fetchInterestedEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_jambase_events')
+        .select(`
+          jambase_event:jambase_events(
+            id,
+            title,
+            artist_name,
+            venue_name,
+            venue_city,
+            venue_state,
+            event_date,
+            doors_time,
+            description,
+            genres,
+            price_range,
+            ticket_available,
+            ticket_urls
+          )
+        `)
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      const events = (data || []).map((item: any) => item.jambase_event).filter(Boolean);
+      setInterestedEvents(events);
+    } catch (e) {
+      console.error('Error fetching interested events:', e);
+      setInterestedEvents([]);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from('user_jambase_events')
-          .select(`
-            jambase_event:jambase_events(
-              id,
-              title,
-              artist_name,
-              venue_name,
-              venue_city,
-              venue_state,
-              event_date,
-              doors_time,
-              description,
-              genres,
-              price_range,
-              ticket_available,
-              ticket_urls
-            )
-          `)
-          .eq('user_id', currentUserId)
-          .order('created_at', { ascending: false });
-        if (error) throw error;
-        const events = (data || []).map((item: any) => item.jambase_event).filter(Boolean);
-        setInterestedEvents(events);
-      } catch (e) {
-        setInterestedEvents([]);
-      }
-    })();
+    fetchInterestedEvents();
   }, [currentUserId]);
 
   const fetchProfile = async () => {
@@ -784,7 +788,11 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                     <div
                       key={ev.id}
                       className="aspect-square cursor-pointer rounded-md overflow-hidden border bg-white hover:shadow-md transition-shadow"
-                      onClick={() => { setSelectedEvent(ev); setDetailsOpen(true); }}
+                      onClick={() => { 
+                        setSelectedEvent(ev); 
+                        setSelectedEventInterested(true); // Initialize as interested since it's in the interested events list
+                        setDetailsOpen(true); 
+                      }}
                     >
                       <div className="p-2 h-full flex flex-col justify-between">
                         <div>
@@ -926,16 +934,37 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         event={selectedEvent}
         currentUserId={currentUserId}
         isOpen={detailsOpen}
-        onClose={() => setDetailsOpen(false)}
+        onClose={() => {
+          // Check if user is no longer interested and remove from list
+          if (!selectedEventInterested && selectedEvent) {
+            setInterestedEvents(prev => prev.filter(event => event.id !== selectedEvent.id));
+          }
+          setDetailsOpen(false);
+        }}
         onInterestToggle={async (eventId, interested) => {
           try {
             const { UserEventService } = await import('@/services/userEventService');
             await UserEventService.setEventInterest(currentUserId, eventId, interested);
+            
+            // Update the local state to track the current interest status
+            setSelectedEventInterested(interested);
+            
+            toast({
+              title: interested ? "Event Added!" : "Event Removed",
+              description: interested 
+                ? "You're now interested in this event" 
+                : "You're no longer interested in this event",
+            });
           } catch (e) {
             console.warn('Failed to toggle interest from modal', e);
+            toast({
+              title: "Error",
+              description: "Failed to update your interest. Please try again.",
+              variant: "destructive",
+            });
           }
         }}
-        isInterested={true}
+        isInterested={selectedEventInterested}
       />
     </div>
   );
