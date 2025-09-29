@@ -32,6 +32,15 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
   const [artistLocked, setArtistLocked] = React.useState(!!formData.selectedArtist);
   const [venueLocked, setVenueLocked] = React.useState(!!formData.selectedVenue);
 
+  React.useEffect(() => {
+    // Keep locks in sync with prefilled data
+    setArtistLocked(!!formData.selectedArtist);
+  }, [formData.selectedArtist]);
+
+  React.useEffect(() => {
+    setVenueLocked(!!formData.selectedVenue);
+  }, [formData.selectedVenue]);
+
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">

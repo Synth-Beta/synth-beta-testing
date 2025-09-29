@@ -4,8 +4,13 @@ import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/type
 // Review system types with venue support
 export interface ReviewData {
   rating?: number; // Overall rating (calculated automatically)
-  artist_rating?: number; // Rating for the artist/performance
-  venue_rating?: number; // Rating for the venue
+  performance_rating?: number; // Rating for artist/band performance quality (0.5-5.0)
+  venue_rating?: number; // Rating for venue experience - sound, staff, facilities (0.5-5.0)
+  overall_experience_rating?: number; // Rating for overall event experience - atmosphere, crowd (0.5-5.0)
+  performance_review_text?: string; // Optional qualitative review for performance
+  venue_review_text?: string; // Optional qualitative review for venue
+  overall_experience_review_text?: string; // Optional qualitative review for overall experience
+  artist_rating?: number; // Legacy field for backward compatibility
   review_type: 'event' | 'venue' | 'artist'; // Type of review
   review_text?: string;
   reaction_emoji?: string;
@@ -20,8 +25,13 @@ export interface UserReview {
   event_id: string;
   venue_id?: string;
   rating: number;
-  artist_rating?: number;
+  performance_rating?: number;
   venue_rating?: number;
+  overall_experience_rating?: number;
+  performance_review_text?: string;
+  venue_review_text?: string;
+  overall_experience_review_text?: string;
+  artist_rating?: number; // Legacy field
   review_type?: 'event' | 'venue' | 'artist';
   reaction_emoji?: string;
   review_text?: string;
@@ -171,12 +181,23 @@ export class ReviewService {
       // Helper to ensure a valid rating value for inserts
       const deriveRating = (data: ReviewData): number => {
         if (typeof data.rating === 'number') return data.rating;
-        const parts = [data.artist_rating, data.venue_rating].filter(
-          (v): v is number => typeof v === 'number'
+        
+        // Use new three-category system if available
+        const newParts = [data.performance_rating, data.venue_rating, data.overall_experience_rating].filter(
+          (v): v is number => typeof v === 'number' && v > 0
         );
-        if (parts.length > 0) {
-          return parts.reduce((a, b) => a + b, 0) / parts.length;
+        if (newParts.length === 3) {
+          return Math.round((newParts.reduce((a, b) => a + b, 0) / newParts.length) * 2) / 2; // Round to nearest 0.5
         }
+        
+        // Fallback to legacy two-category system
+        const legacyParts = [data.artist_rating, data.venue_rating].filter(
+          (v): v is number => typeof v === 'number' && v > 0
+        );
+        if (legacyParts.length > 0) {
+          return Math.round((legacyParts.reduce((a, b) => a + b, 0) / legacyParts.length) * 2) / 2;
+        }
+        
         return 0; // fallback to satisfy required column
       };
 
@@ -202,15 +223,24 @@ export class ReviewService {
         const fullUpdate: any = {
           ...(venueId ? { venue_id: venueId } : {}),
           ...(typeof reviewData.rating === 'number' ||
-          typeof reviewData.artist_rating === 'number' ||
-          typeof reviewData.venue_rating === 'number'
+          typeof reviewData.performance_rating === 'number' ||
+          typeof reviewData.venue_rating === 'number' ||
+          typeof reviewData.overall_experience_rating === 'number' ||
+          typeof reviewData.artist_rating === 'number'
             ? { rating: deriveRating(reviewData) }
             : {}),
           review_text: reviewData.review_text,
           reaction_emoji: reviewData.reaction_emoji,
           is_public: reviewData.is_public,
-          artist_rating: reviewData.artist_rating,
+          performance_rating: reviewData.performance_rating,
           venue_rating: reviewData.venue_rating,
+          overall_experience_rating: reviewData.overall_experience_rating,
+          performance_review_text: reviewData.performance_review_text,
+          venue_review_text: reviewData.venue_review_text,
+          overall_experience_review_text: reviewData.overall_experience_review_text,
+          // Ensure venue data stored in both columns for compatibility
+          venue_rating_new: (reviewData as any).venue_rating ?? undefined,
+          artist_rating: reviewData.artist_rating, // Legacy field
           review_type: reviewData.review_type,
           venue_tags: reviewData.venue_tags,
           artist_tags: reviewData.artist_tags,
@@ -269,8 +299,15 @@ export class ReviewService {
         reaction_emoji: reviewData.reaction_emoji,
         review_text: reviewData.review_text,
         is_public: reviewData.is_public ?? true,
-        artist_rating: reviewData.artist_rating,
+        performance_rating: reviewData.performance_rating,
         venue_rating: reviewData.venue_rating,
+        overall_experience_rating: reviewData.overall_experience_rating,
+        performance_review_text: reviewData.performance_review_text,
+        venue_review_text: reviewData.venue_review_text,
+        overall_experience_review_text: reviewData.overall_experience_review_text,
+        // Ensure venue data stored in both columns for compatibility
+        venue_rating_new: (reviewData as any).venue_rating ?? undefined,
+        artist_rating: reviewData.artist_rating, // Legacy field
         review_type: reviewData.review_type,
         venue_tags: reviewData.venue_tags,
         artist_tags: reviewData.artist_tags

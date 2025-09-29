@@ -120,17 +120,17 @@ export function ReviewList({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Review Summary */}
-      <div className="bg-gray-50 rounded-lg p-4">
+      <div className="bg-gradient-to-r from-gray-50 to-white rounded-lg p-4 border border-gray-200">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-lg">Reviews</h3>
+            <h3 className="font-semibold text-lg text-gray-900">Reviews</h3>
             <p className="text-sm text-gray-600">
               {totalReviews} review{totalReviews !== 1 ? 's' : ''}
               {averageRating > 0 && (
                 <span className="ml-2">
-                  • Average rating: {averageRating.toFixed(1)}/5
+                  • Average rating: <span className="font-semibold text-gray-900">{averageRating.toFixed(1)}/5</span>
                 </span>
               )}
             </p>

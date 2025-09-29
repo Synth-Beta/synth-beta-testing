@@ -8,16 +8,19 @@ export interface ReviewFormData {
   selectedVenue: VenueSearchResult | null;
   eventDate: string;
   
-  // Step 2: Rating - Now supports separate ratings
-  artistRating: number; // Rating for the artist/performance
-  venueRating: number; // Rating for the venue
-  rating: number; // Overall rating (calculated or manual)
+  // Step 2: Rating - Three separate categories
+  performanceRating: number; // Rating for artist/band performance quality (0.5-5.0)
+  venueRating: number; // Rating for venue experience - sound, staff, facilities (0.5-5.0)
+  overallExperienceRating: number; // Rating for overall event experience - atmosphere, crowd (0.5-5.0)
+  rating: number; // Overall rating (calculated as average of the three)
   
   // Step 3: Review Content
   reviewText: string;
   reactionEmoji: string;
-  venueReviewText: string; // Separate venue-specific review
-  artistReviewText: string; // Separate artist-specific review
+  performanceReviewText: string; // Optional qualitative review for performance
+  venueReviewText: string; // Optional qualitative review for venue
+  overallExperienceReviewText: string; // Optional qualitative review for overall experience
+  artistReviewText: string; // Legacy field for backward compatibility
   
   // Step 4: Privacy
   isPublic: boolean;
@@ -38,12 +41,15 @@ const initialFormData: ReviewFormData = {
   selectedArtist: null,
   selectedVenue: null,
   eventDate: '',
-  artistRating: 0,
+  performanceRating: 0,
   venueRating: 0,
+  overallExperienceRating: 0,
   rating: 0,
   reviewText: '',
   reactionEmoji: '',
+  performanceReviewText: '',
   venueReviewText: '',
+  overallExperienceReviewText: '',
   artistReviewText: '',
   isPublic: true,
   reviewType: 'event',
@@ -74,11 +80,23 @@ export function useReviewForm() {
         }
         break;
       case 2:
-        // unified overall rating in half steps 1..10
-        if (data.rating === 0) {
-          errors.rating = 'Please provide an overall rating';
-        } else if (data.rating < 1 || data.rating > 10) {
-          errors.rating = 'Rating must be between 0.5 and 5.0 stars';
+        // Validate all three rating categories
+        if (data.performanceRating === 0) {
+          errors.performanceRating = 'Please rate the performance';
+        } else if (data.performanceRating < 0.5 || data.performanceRating > 5.0) {
+          errors.performanceRating = 'Performance rating must be between 0.5 and 5.0 stars';
+        }
+        
+        if (data.venueRating === 0) {
+          errors.venueRating = 'Please rate the venue';
+        } else if (data.venueRating < 0.5 || data.venueRating > 5.0) {
+          errors.venueRating = 'Venue rating must be between 0.5 and 5.0 stars';
+        }
+        
+        if (data.overallExperienceRating === 0) {
+          errors.overallExperienceRating = 'Please rate the overall experience';
+        } else if (data.overallExperienceRating < 0.5 || data.overallExperienceRating > 5.0) {
+          errors.overallExperienceRating = 'Overall experience rating must be between 0.5 and 5.0 stars';
         }
         break;
       case 3:
@@ -88,8 +106,14 @@ export function useReviewForm() {
         } else if (data.reviewText.length > 500) {
           errors.reviewText = 'Review text must be 500 characters or less';
         }
+        if (data.performanceReviewText && data.performanceReviewText.length > 300) {
+          errors.performanceReviewText = 'Performance review must be 300 characters or less';
+        }
         if (data.venueReviewText && data.venueReviewText.length > 300) {
           errors.venueReviewText = 'Venue review must be 300 characters or less';
+        }
+        if (data.overallExperienceReviewText && data.overallExperienceReviewText.length > 300) {
+          errors.overallExperienceReviewText = 'Overall experience review must be 300 characters or less';
         }
         if (data.artistReviewText && data.artistReviewText.length > 300) {
           errors.artistReviewText = 'Artist review must be 300 characters or less';
@@ -103,9 +127,30 @@ export function useReviewForm() {
     return errors;
   }, []);
 
+  // Helper function to calculate overall rating from the three categories
+  const calculateOverallRating = useCallback((performance: number, venue: number, experience: number) => {
+    const parts: number[] = [];
+    if (performance && performance > 0) parts.push(performance);
+    if (venue && venue > 0) parts.push(venue);
+    if (experience && experience > 0) parts.push(experience);
+    if (parts.length === 0) return 0;
+    const avg = parts.reduce((a, b) => a + b, 0) / parts.length;
+    return Math.round(avg * 2) / 2; // Round to nearest 0.5
+  }, []);
+
   const updateFormData = useCallback((updates: Partial<ReviewFormData>) => {
     setState(prev => {
       const newFormData = { ...prev.formData, ...updates };
+      
+      // Auto-calculate overall rating if any of the three ratings are updated
+      if (updates.performanceRating !== undefined || updates.venueRating !== undefined || updates.overallExperienceRating !== undefined) {
+        newFormData.rating = calculateOverallRating(
+          updates.performanceRating ?? newFormData.performanceRating,
+          updates.venueRating ?? newFormData.venueRating,
+          updates.overallExperienceRating ?? newFormData.overallExperienceRating
+        );
+      }
+      
       const stepErrors = validateStep(prev.currentStep, newFormData);
       const isValid = Object.keys(stepErrors).length === 0;
       
@@ -116,7 +161,7 @@ export function useReviewForm() {
         isValid,
       };
     });
-  }, [validateStep]);
+  }, [validateStep, calculateOverallRating]);
 
   const nextStep = useCallback(() => {
     setState(prev => {

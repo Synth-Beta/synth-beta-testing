@@ -40,22 +40,26 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
         const review = await ReviewService.getUserEventReview(userId, event.id);
         if (review) {
           setExistingReview(review);
+          // Prefill form data from existing review
           setFormData({
             selectedArtist: null,
             selectedVenue: null,
             eventDate: review.created_at.split('T')[0],
-            artistRating: review.artist_rating || review.rating,
+            performanceRating: review.performance_rating || review.rating,
             venueRating: review.venue_rating || review.rating,
+            overallExperienceRating: review.overall_experience_rating || review.rating,
             rating: review.rating,
             reviewText: review.review_text || '',
             reactionEmoji: review.reaction_emoji || '',
-            venueReviewText: '',
+            performanceReviewText: review.performance_review_text || '',
+            venueReviewText: review.venue_review_text || '',
+            overallExperienceReviewText: review.overall_experience_review_text || '',
             artistReviewText: '',
             isPublic: review.is_public,
             reviewType: review.review_type || 'event',
           });
           try {
-            // Pre-populate selected artist and venue for locked view-by-default editing
+            // Pre-populate selected artist and venue for locked editing
             const approxArtist = (event as any)?.artist_name || (event as any)?.artist?.name;
             const approxVenue = (event as any)?.venue_name || (event as any)?.venue?.name;
             const approxVenueId = review.venue_id;
@@ -72,6 +76,7 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
           } catch {}
         } else {
           setExistingReview(null);
+          // Only reset when creating a brand-new review for this event
           resetForm();
           setFormData({ reviewType: 'event' });
         }
@@ -80,6 +85,7 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
       }
     };
     load();
+    // run strictly on event.id change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event?.id, userId]);
 
@@ -194,8 +200,7 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
     try {
       const combinedReviewText = [
         formData.reviewText.trim(),
-        formData.artistReviewText.trim() ? `Artist: ${formData.artistReviewText.trim()}` : '',
-        formData.venueReviewText.trim() ? `Venue: ${formData.venueReviewText.trim()}` : ''
+        formData.artistReviewText.trim() ? `Artist: ${formData.artistReviewText.trim()}` : ''
       ].filter(Boolean).join('\n\n');
 
       const showsRankingBlock = shows.length
@@ -211,11 +216,15 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
         review_type: 'event',
         // overall rating stored in half steps; convert to 1..5 scale for DB
         rating: Math.max(1, Math.min(5, Math.round((formData.rating / 2) * 10) / 10)) as any,
+        performance_rating: formData.performanceRating || undefined,
+        venue_rating: formData.venueRating || undefined,
+        overall_experience_rating: formData.overallExperienceRating || undefined,
+        performance_review_text: formData.performanceReviewText || undefined,
+        venue_review_text: formData.venueReviewText || undefined,
+        overall_experience_review_text: formData.overallExperienceReviewText || undefined,
         review_text: (combinedReviewText + showsRankingBlock).trim() || undefined,
         reaction_emoji: formData.reactionEmoji || undefined,
         is_public: formData.isPublic,
-        venue_tags: [],
-        artist_tags: [],
       };
 
       // Ensure venue exists in DB to save venue_id if possible
@@ -290,7 +299,10 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
       const review = await ReviewService.setEventReview(userId, eventId, reviewData, venueId);
       toast({ title: existingReview ? 'Review Updated' : 'Review Submitted! 🎉', description: existingReview ? 'Your review has been updated.' : 'Thanks for sharing your concert experience!' });
       if (onSubmitted) onSubmitted(review);
-      resetForm();
+      // Do not reset on edit; keep state if the user reopens
+      if (!existingReview) {
+        resetForm();
+      }
     } catch (e) {
       console.error('Error submitting review:', e);
       toast({ title: 'Error', description: 'Failed to submit review. Please try again.', variant: 'destructive' });

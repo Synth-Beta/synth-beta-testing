@@ -146,9 +146,9 @@ export function PublicReviewList({
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="bg-gray-50 rounded-lg p-4">
+      <div className="bg-gradient-to-r from-gray-50 to-white rounded-lg p-4 border border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-lg">Reviews ({total})</h3>
+          <h3 className="font-semibold text-lg text-gray-900">Reviews ({total})</h3>
           <div className="flex items-center space-x-2">
             <Filter className="h-4 w-4" />
             <Button
@@ -163,7 +163,7 @@ export function PublicReviewList({
         </div>
 
         {/* Rating Filter */}
-        <div className="mb-4">
+        <div className="mb-2">
           <label className="text-sm font-medium text-gray-700 mb-2 block">Minimum Rating</label>
           <div className="flex space-x-2">
             {[1, 2, 3, 4, 5].map(rating => (

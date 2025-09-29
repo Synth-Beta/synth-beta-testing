@@ -126,15 +126,22 @@ export function ReviewCard({
   const isOwner = currentUserId && review.user_id === currentUserId;
 
   const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={cn(
-          "w-4 h-4",
-          i < rating ? "text-yellow-400 fill-current" : "text-gray-300"
-        )}
-      />
-    ));
+    return Array.from({ length: 5 }, (_, i) => {
+      const starIndex = i + 1;
+      const isFull = rating >= starIndex;
+      const isHalf = !isFull && rating >= starIndex - 0.5;
+      
+      return (
+        <div key={i} className="relative w-4 h-4">
+          <Star className="w-4 h-4 text-gray-300" />
+          {(isHalf || isFull) && (
+            <div className={cn('absolute left-0 top-0 h-full overflow-hidden pointer-events-none', isFull ? 'w-full' : 'w-1/2')}>
+              <Star className="w-4 h-4 text-yellow-400 fill-current" />
+            </div>
+          )}
+        </div>
+      );
+    });
   };
 
 
@@ -149,18 +156,18 @@ export function ReviewCard({
   }, [review.id, showComments, comments.length]);
 
   return (
-    <Card className="w-full" id={`review-card-${review.id}`}>
-      <CardHeader className="pb-3">
+    <Card className="w-full border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 bg-white" id={`review-card-${review.id}`}>
+      <CardHeader className="pb-3 bg-gradient-to-r from-gray-50 to-white border-b">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3">
-            <Avatar className="h-10 w-10">
+            <Avatar className="h-10 w-10 ring-2 ring-pink-100">
               <AvatarImage src={undefined} />
               <AvatarFallback>
                 {review.user_id?.slice(0, 2).toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-sm font-semibold text-gray-900">
                 User {review.user_id?.slice(0, 8)}
               </p>
               <div className="flex items-center space-x-2">
@@ -204,16 +211,18 @@ export function ReviewCard({
       <CardContent className="pt-0">
         {/* Review Text */}
         {review.review_text && (
-          <p className="text-sm text-gray-700 mb-3">{review.review_text}</p>
+          <p className="text-[15px] leading-6 text-gray-800 mb-3">
+            {review.review_text}
+          </p>
         )}
 
         {/* Event Info / Artist & Venue chips (view mode only) */}
-        <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-          <p className="text-sm font-medium text-gray-900">Event</p>
+        <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+          <p className="text-xs font-semibold tracking-wide text-gray-700 uppercase">Event</p>
           <div className="mt-2 flex items-center gap-2 text-sm">
             {review.artist_name && (
               <button
-                className="px-2 py-1 rounded bg-white border hover:bg-gray-50"
+                className="px-2 py-1 rounded-full bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
                 onClick={(e) => {
                   e.preventDefault(); e.stopPropagation();
                   // Use artist_uuid if available, otherwise fall back to artist_id
@@ -228,7 +237,7 @@ export function ReviewCard({
             )}
             {review.venue_name && (
               <button
-                className="px-2 py-1 rounded bg-white border hover:bg-gray-50"
+                className="px-2 py-1 rounded-full bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
                 onClick={(e) => {
                   e.preventDefault(); e.stopPropagation();
                   // Use venue_uuid if available, otherwise fall back to venue_id
@@ -244,8 +253,56 @@ export function ReviewCard({
           </div>
         </div>
 
+        {/* Category Breakdown with stronger contrast */}
+        {(review.performance_rating || review.venue_rating || review.overall_experience_rating) && (
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {review.performance_rating && (
+              <div className="rounded-lg border-l-4 border-yellow-400 bg-yellow-50/60 p-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-yellow-900 font-medium">Performance</span>
+                  <div className="flex items-center">
+                    {renderStars(review.performance_rating)}
+                    <span className="ml-1 text-yellow-900 font-semibold">{review.performance_rating.toFixed(1)}</span>
+                  </div>
+                </div>
+                {review.performance_review_text && (
+                  <p className="mt-1 text-xs text-yellow-900/90 italic">“{review.performance_review_text}”</p>
+                )}
+              </div>
+            )}
+            {review.venue_rating && (
+              <div className="rounded-lg border-l-4 border-blue-500 bg-blue-50/60 p-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-blue-900 font-medium">Venue</span>
+                  <div className="flex items-center">
+                    {renderStars(review.venue_rating)}
+                    <span className="ml-1 text-blue-900 font-semibold">{review.venue_rating.toFixed(1)}</span>
+                  </div>
+                </div>
+                {review.venue_review_text && (
+                  <p className="mt-1 text-xs text-blue-900/90 italic">“{review.venue_review_text}”</p>
+                )}
+              </div>
+            )}
+            {review.overall_experience_rating && (
+              <div className="rounded-lg border-l-4 border-emerald-500 bg-emerald-50/60 p-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-emerald-900 font-medium">Experience</span>
+                  <div className="flex items-center">
+                    {renderStars(review.overall_experience_rating)}
+                    <span className="ml-1 text-emerald-900 font-semibold">{review.overall_experience_rating.toFixed(1)}</span>
+                  </div>
+                </div>
+                {review.overall_experience_review_text && (
+                  <p className="mt-1 text-xs text-emerald-900/90 italic">“{review.overall_experience_review_text}”</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Social Actions */}
-        <div className="flex items-center justify-between pt-3 border-t">
+        <div className="flex items-center justify-between pt-3 border-t mt-3">
           <div className="flex items-center space-x-4">
             <Button
               variant="ghost"
