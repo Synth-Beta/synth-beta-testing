@@ -20,6 +20,7 @@ export interface UnifiedFeedItem {
   // Review-specific fields
   rating?: number;
   is_public?: boolean;
+  photos?: string[];
   event_info?: {
     event_name?: string;
     venue_name?: string;
@@ -103,20 +104,20 @@ export class UnifiedFeedService {
    */
   private static async getUserReviews(userId: string): Promise<UnifiedFeedItem[]> {
     try {
-      const { data: reviews, error } = await supabase
+      const { data: reviews, error } = await (supabase as any)
         .from('user_reviews')
-        .select('*')
+        .select(`*, jambase_events: jambase_events (id, title, artist_name, venue_name, event_date)`)
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20);
       
       if (error) throw error;
       
-      return (reviews || []).map(review => ({
+      return (reviews || []).map((review: any) => ({
         id: `review-${review.id}`,
         type: 'review' as const,
         review_id: review.id,
-        title: review.is_public ? 'Your Public Review' : 'Your Private Review',
+        title: review.jambase_events?.title || (review.is_public ? 'Your Public Review' : 'Your Private Review'),
         content: review.review_text || '',
         author: {
           id: userId,
@@ -127,13 +128,15 @@ export class UnifiedFeedService {
         updated_at: review.updated_at,
         rating: review.rating,
         is_public: review.is_public,
+        photos: (review as any).photos || undefined,
         likes_count: review.likes_count || 0,
         comments_count: review.comments_count || 0,
         shares_count: review.shares_count || 0,
         event_info: {
-          event_name: 'Concert Review',
-          venue_name: 'Unknown Venue',
-          event_date: review.created_at
+          event_name: review.jambase_events?.title || 'Concert Review',
+          venue_name: review.jambase_events?.venue_name || 'Unknown Venue',
+          event_date: review.jambase_events?.event_date || review.created_at,
+          artist_name: review.jambase_events?.artist_name
         },
         relevance_score: this.calculateReviewRelevance(review, true) // Higher score for own reviews
       }));
@@ -171,6 +174,7 @@ export class UnifiedFeedService {
         created_at: review.created_at,
         rating: review.rating,
         is_public: true,
+        photos: (review as any).photos || undefined,
         likes_count: review.likes_count || 0,
         comments_count: review.comments_count || 0,
         shares_count: review.shares_count || 0,

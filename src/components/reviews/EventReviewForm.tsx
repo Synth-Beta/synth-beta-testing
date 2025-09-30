@@ -11,6 +11,7 @@ import { ReviewContentStep } from './ReviewFormSteps/ReviewContentStep';
 import { PrivacySubmitStep } from './ReviewFormSteps/PrivacySubmitStep';
 import { supabase } from '@/integrations/supabase/client';
 import { ShowRanking, type ShowEntry } from './ShowRanking';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface EventReviewFormProps {
   event: JamBaseEvent | PublicReviewWithProfile;
@@ -37,16 +38,34 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
     const load = async () => {
       if (!event || !userId) return;
       try {
-        const review = await ReviewService.getUserEventReview(userId, event.id);
+        // First check if we have an existing review ID (edit mode)
+        const existingReviewId = (event as any)?.existing_review_id;
+        let review = null;
+        
+        if (existingReviewId) {
+          // Edit mode: fetch review by ID
+          const { data, error } = await (supabase as any)
+            .from('user_reviews')
+            .select('*')
+            .eq('id', existingReviewId)
+            .maybeSingle();
+          if (data && !error) {
+            review = data;
+          }
+        } else {
+          // Create mode: try to fetch by event ID
+          review = await ReviewService.getUserEventReview(userId, event.id);
+        }
+
         if (review) {
           setExistingReview(review);
           // Prefill form data from existing review
           setFormData({
             selectedArtist: null,
             selectedVenue: null,
-            eventDate: review.created_at.split('T')[0],
+            eventDate: (review.event_date || review.created_at || '').split('T')[0],
             performanceRating: review.performance_rating || review.rating,
-            venueRating: review.venue_rating || review.rating,
+            venueRating: review.venue_rating || review.venue_rating_new || review.rating,
             overallExperienceRating: review.overall_experience_rating || review.rating,
             rating: review.rating,
             reviewText: review.review_text || '',
@@ -58,10 +77,11 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
             isPublic: review.is_public,
             reviewType: review.review_type || 'event',
           });
+          
+          // Pre-populate selected artist and venue
           try {
-            // Pre-populate selected artist and venue for locked editing
-            const approxArtist = (event as any)?.artist_name || (event as any)?.artist?.name;
-            const approxVenue = (event as any)?.venue_name || (event as any)?.venue?.name;
+            const approxArtist = (event as any)?.artist_name || (event as any)?.artist?.name || review.artist_name;
+            const approxVenue = (event as any)?.venue_name || (event as any)?.venue?.name || review.venue_name;
             const approxVenueId = review.venue_id;
             const selectedArtist = approxArtist
               ? ({ id: (event as any)?.artist?.id || `manual-${approxArtist}`, name: approxArtist, is_from_database: false } as any)
@@ -75,10 +95,35 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
             if (Object.keys(updates).length > 0) setFormData(updates);
           } catch {}
         } else {
+          // No existing review - create new one
           setExistingReview(null);
-          // Only reset when creating a brand-new review for this event
           resetForm();
-          setFormData({ reviewType: 'event' });
+          
+          // Prefill from the provided event context (artist, venue, date)
+          try {
+            const approxArtist = (event as any)?.artist_name || (event as any)?.artist?.name;
+            const approxArtistId = (event as any)?.artist_id || (event as any)?.artist?.id || undefined;
+            const approxVenue = (event as any)?.venue_name || (event as any)?.venue?.name;
+            const approxVenueId = (event as any)?.venue_id || (event as any)?.venue?.id || undefined;
+            const approxDate = (event as any)?.event_date || (event as any)?.date || undefined;
+
+            const selectedArtist = approxArtist
+              ? ({ id: approxArtistId || `manual-${approxArtist}`, name: approxArtist, is_from_database: !!approxArtistId } as any)
+              : null;
+            const selectedVenue = approxVenue
+              ? ({ id: approxVenueId || `manual-${approxVenue}`, name: approxVenue, is_from_database: !!approxVenueId } as any)
+              : null;
+            const eventDate = approxDate ? String(approxDate).split('T')[0] : '';
+
+            setFormData({
+              reviewType: 'event',
+              ...(selectedArtist ? { selectedArtist } : {}),
+              ...(selectedVenue ? { selectedVenue } : {}),
+              ...(eventDate ? { eventDate } : {}),
+            });
+          } catch {
+            setFormData({ reviewType: 'event' });
+          }
         }
       } catch (e) {
         console.error('Error loading review for single page form', e);
@@ -212,10 +257,12 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
         `
         : '';
 
+      // Ensure overall rating is saved on a 1..5 integer scale without halving
+      const integerOverall = Math.max(1, Math.min(5, Math.round(formData.rating))) as any;
       const reviewData: ReviewData = {
         review_type: 'event',
-        // overall rating stored in half steps; convert to 1..5 scale for DB
-        rating: Math.max(1, Math.min(5, Math.round((formData.rating / 2) * 10) / 10)) as any,
+        // Send integer overall rating to satisfy NOT NULL integer column; decimals go to category columns
+        rating: integerOverall,
         performance_rating: formData.performanceRating || undefined,
         venue_rating: formData.venueRating || undefined,
         overall_experience_rating: formData.overallExperienceRating || undefined,
@@ -297,6 +344,20 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
       }
 
       const review = await ReviewService.setEventReview(userId, eventId, reviewData, venueId);
+      try {
+        const entityType = formData.reviewType === 'artist' ? 'artist' : (formData.reviewType === 'venue' ? 'venue' : 'event');
+        const entityId = entityType === 'artist' ? (formData.selectedArtist?.id || eventId) : (entityType === 'venue' ? (venueId || formData.selectedVenue?.id || eventId) : eventId);
+        trackInteraction.review(entityType, entityId, reviewData.rating as number, {
+          performance_rating: reviewData.performance_rating,
+          venue_rating: reviewData.venue_rating,
+          overall_experience_rating: reviewData.overall_experience_rating,
+          is_public: reviewData.is_public,
+          has_text: !!reviewData.review_text,
+          text_length: reviewData.review_text?.length || 0,
+          reviewType: formData.reviewType
+        });
+        trackInteraction.formSubmit('event_review', entityId, true, { reviewType: formData.reviewType });
+      } catch {}
       toast({ title: existingReview ? 'Review Updated' : 'Review Submitted! 🎉', description: existingReview ? 'Your review has been updated.' : 'Thanks for sharing your concert experience!' });
       if (onSubmitted) onSubmitted(review);
       // Do not reset on edit; keep state if the user reopens
@@ -304,8 +365,9 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
         resetForm();
       }
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error('Error submitting review:', e);
-      toast({ title: 'Error', description: 'Failed to submit review. Please try again.', variant: 'destructive' });
+      toast({ title: 'Error', description: `Failed to submit review: ${msg}`, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -335,6 +397,7 @@ export function EventReviewForm({ event, userId, onSubmitted }: EventReviewFormP
                 onClick={async () => {
                   try {
                     await ReviewService.deleteEventReview(userId, event.id);
+                      try { trackInteraction.click('review', event.id, { action: 'delete', source: 'event_review_form' }); } catch {}
                     toast({ title: 'Review Deleted', description: 'Your review has been deleted.' });
                     setExistingReview(null);
                     resetForm();

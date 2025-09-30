@@ -7,6 +7,7 @@ import { Loader2, Search, MapPin, X, Check } from 'lucide-react';
 import { UnifiedVenueSearchService } from '@/services/unifiedVenueSearchService';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import { cn } from '@/lib/utils';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface VenueSearchBoxProps {
   onVenueSelect: (venue: VenueSearchResult) => void;
@@ -104,6 +105,7 @@ export function VenueSearchBox({
 
   const handleVenueSelect = (venue: VenueSearchResult) => {
     console.log('🎯 VenueSearchBox: Venue selected:', venue);
+    try { trackInteraction.click('venue', (venue as any).id || (venue as any).identifier || venue.name, { source: 'venue_search_box', name: venue.name, city: venue.address?.addressLocality, state: venue.address?.addressRegion }); } catch {}
     onVenueSelect(venue);
     setQuery(venue.name);
     setIsOpen(false);

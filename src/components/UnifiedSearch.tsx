@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { SearchResultsPage } from './SearchResultsPage';
 import { SynthSLogo } from '@/components/SynthSLogo';
+import { trackInteraction } from '@/services/interactionTrackingService';
 import { 
   Music, 
   Search, 
@@ -66,6 +67,12 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
     try {
       console.log(`🔍 Searching for: "${query}" - calling API for fresh results`);
       
+      // Track search execution
+      trackInteraction.search(query, 'search', 'unified_search', {
+        queryLength: query.length,
+        searchType: 'unified'
+      });
+      
       // Search both artists and users in parallel - always call API
       const [artistResults, userResults] = await Promise.all([
         searchArtists(query, 20),
@@ -82,6 +89,15 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
       };
       
       setSearchResults(results);
+
+      // Track search results
+      trackInteraction.click('search', 'unified_search', {
+        query,
+        artistCount: artistResults.length,
+        userCount: userResults.length,
+        totalResults: artistResults.length + userResults.length
+      });
+      
     } catch (err) {
       console.error('❌ Search error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while searching');
@@ -95,6 +111,12 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
+
+    // Track search typing
+    trackInteraction.search(value, 'search', 'unified_search', {
+      queryLength: value.length,
+      isTyping: true
+    });
 
     // Clear previous timeout
     if (searchTimeoutRef.current) {
@@ -223,26 +245,53 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
     setSearchResults({ artists: [], users: [] });
     setError(null);
     setCurrentView('search');
+
+    // Track search clear
+    trackInteraction.click('search', 'unified_search', {
+      action: 'clear'
+    });
   };
 
   const handleViewAllArtists = () => {
     setCurrentView('artists');
+
+    // Track view all artists
+    trackInteraction.click('search', 'view_all_artists', {
+      resultCount: searchResults.artists.length
+    });
   };
 
   const handleViewAllPeople = () => {
     setCurrentView('people');
+
+    // Track view all people
+    trackInteraction.click('search', 'view_all_people', {
+      resultCount: searchResults.users.length
+    });
   };
 
   const handleBackToSearch = () => {
     setCurrentView('search');
     setSelectedArtist(null);
     setShowAllEvents(false);
+
+    // Track back to search
+    trackInteraction.navigate('artists', 'search');
   };
 
   const handleArtistSelect = async (artist: ArtistSearchResult) => {
     try {
       setIsSelectingArtist(true);
       console.log('🎯 Selecting artist:', artist.name);
+      
+      // Track artist selection
+      trackInteraction.search(artist.name, 'artist', artist.id, {
+        rank: searchResults.artists.findIndex(a => a.id === artist.id) + 1,
+        searchType: 'artist',
+        hasImage: !!artist.image_url,
+        genres: artist.genres,
+        upcomingEvents: artist.num_upcoming_events
+      });
       
       // Call the artist selection service
       const result = await ArtistSelectionService.selectArtist(artist);
@@ -274,6 +323,12 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
   const sendFriendRequest = async (targetUserId: string) => {
     try {
       console.log('Sending friend request to:', targetUserId);
+      
+      // Track friend request
+      trackInteraction.like('user', targetUserId, true, {
+        action: 'friend_request_send',
+        source: 'search'
+      });
       
       // Call the database function to create friend request
       const { data, error } = await supabase.rpc('create_friend_request', {

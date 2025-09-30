@@ -209,6 +209,17 @@ export function ReviewCard({
       </CardHeader>
 
       <CardContent className="pt-0">
+        {/* Photo preview (first user-uploaded photo) */}
+        {(review as any)?.photos && (review as any)?.photos.length > 0 && (
+          <div className="mb-3 overflow-hidden rounded-lg border bg-gray-50">
+            <img
+              src={(review as any).photos[0]}
+              alt="Review"
+              className="w-full h-56 object-cover"
+              loading="lazy"
+            />
+          </div>
+        )}
         {/* Review Text */}
         {review.review_text && (
           <p className="text-[15px] leading-6 text-gray-800 mb-3">

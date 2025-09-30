@@ -8,6 +8,7 @@ import { VenueSearchBox } from '@/components/VenueSearchBox';
 import type { Artist } from '@/types/concertSearch';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EventDetailsStepProps {
   formData: ReviewFormData;
@@ -16,6 +17,51 @@ interface EventDetailsStepProps {
 }
 
 export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDetailsStepProps) {
+  // Quick event search (Supabase backed)
+  const [eventQuery, setEventQuery] = React.useState('');
+  const [eventResults, setEventResults] = React.useState<Array<any>>([]);
+  const [eventLoading, setEventLoading] = React.useState(false);
+  const [showEventResults, setShowEventResults] = React.useState(false);
+
+  React.useEffect(() => {
+    const handler = setTimeout(async () => {
+      const q = eventQuery.trim();
+      if (q.length < 2) { setEventResults([]); return; }
+      try {
+        setEventLoading(true);
+        // Search by artist, title, or venue with OR conditions
+        const { data, error } = await supabase
+          .from('jambase_events')
+          .select('id, title, artist_name, venue_name, event_date')
+          .or(`artist_name.ilike.%${q}%,title.ilike.%${q}%,venue_name.ilike.%${q}%`)
+          .order('event_date', { ascending: false })
+          .limit(20);
+        if (!error) {
+          setEventResults(data || []);
+          setShowEventResults(true);
+        } else {
+          setEventResults([]);
+          setShowEventResults(false);
+        }
+      } finally {
+        setEventLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [eventQuery]);
+
+  const applyEventSelection = (ev: any) => {
+    const eventDate = ev?.event_date ? String(ev.event_date).split('T')[0] : '';
+    const selectedArtist = ev?.artist_name ? ({ id: ev.artist_id || `manual-${ev.artist_name}`, name: ev.artist_name, is_from_database: !!ev.artist_id } as any) : null;
+    const selectedVenue = ev?.venue_name ? ({ id: ev.venue_id || `manual-${ev.venue_name}`, name: ev.venue_name, is_from_database: !!ev.venue_id } as any) : null;
+    const updates: Partial<ReviewFormData> = { reviewType: 'event' } as any;
+    if (selectedArtist) (updates as any).selectedArtist = selectedArtist;
+    if (selectedVenue) (updates as any).selectedVenue = selectedVenue;
+    if (eventDate) (updates as any).eventDate = eventDate;
+    onUpdateFormData(updates);
+    setShowEventResults(false);
+  };
+
   const handleArtistSelect = (artist: Artist) => {
     onUpdateFormData({ selectedArtist: artist });
   };
@@ -43,6 +89,40 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
 
   return (
     <div className="space-y-6">
+      {/* Quick Event Search */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Quick search existing event (optional)</Label>
+        <div className="relative">
+          <Input
+            placeholder="Search by artist, event title, or venue..."
+            value={eventQuery}
+            onChange={(e) => setEventQuery(e.target.value)}
+            onFocus={() => { if (eventResults.length > 0) setShowEventResults(true); }}
+          />
+          {showEventResults && (eventResults.length > 0 || eventLoading) && (
+            <div className="absolute z-20 mt-1 w-full max-h-64 overflow-auto rounded-md border bg-white shadow">
+              {eventLoading && (
+                <div className="px-3 py-2 text-sm text-muted-foreground">Searching…</div>
+              )}
+              {!eventLoading && eventResults.map(ev => (
+                <button
+                  key={ev.id}
+                  type="button"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                  onClick={() => applyEventSelection(ev)}
+                >
+                  <div className="font-medium text-gray-900">{ev.title || `${ev.artist_name} @ ${ev.venue_name}`}</div>
+                  <div className="text-xs text-gray-500">{ev.artist_name} • {ev.venue_name} • {new Date(ev.event_date).toLocaleDateString()}</div>
+                </button>
+              ))}
+              {!eventLoading && eventResults.length === 0 && (
+                <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Event Details</h2>
         <p className="text-sm text-gray-600">Tell us about the concert you attended</p>

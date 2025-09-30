@@ -13,6 +13,7 @@ interface RatingStepProps {
 
 export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepProps) {
   const [hoverHalfSteps, setHoverHalfSteps] = useState<{ [key: string]: number | null }>({});
+  const [isHoveringOverall, setIsHoveringOverall] = useState<boolean>(false);
   
   const getRatingLabel = (rating: number) => {
     if (!rating) return 'Not Rated';
@@ -45,18 +46,27 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
     return Math.round(avg * 2) / 2; // nearest 0.5
   };
 
+  const setAllCategoriesFromOverall = (halfSteps: number) => {
+    onUpdateFormData({
+      performanceRating: halfSteps,
+      venueRating: halfSteps,
+      overallExperienceRating: halfSteps,
+    });
+  };
+
   const renderStarRating = (category: 'performanceRating' | 'venueRating' | 'overallExperienceRating', label: string, description: string, size: 'small' | 'large' = 'small') => {
     const displayRating = getHoverRating(category);
-    const starSize = size === 'large' ? 'w-12 h-12' : 'w-8 h-8';
-    const containerSize = size === 'large' ? 'w-14 h-14' : 'w-10 h-10';
+    const starSize = size === 'large' ? 'w-12 h-12' : 'w-7 h-7 md:w-8 md:h-8';
+    // Slightly tighter containers to ensure five fit on one row on small screens
+    const containerSize = size === 'large' ? 'w-14 h-14' : 'w-8 h-8 md:w-9 md:h-9';
     
     return (
       <div className="space-y-4">
-        <div className="text-center">
+        <div className="text-center min-h-[84px] md:min-h-[96px] flex flex-col items-center justify-end">
           <Label className={cn('font-medium text-gray-900', size === 'large' ? 'text-lg' : 'text-sm')}>{label} *</Label>
           <p className={cn('text-gray-600 mt-1', size === 'large' ? 'text-sm' : 'text-xs')}>{description}</p>
         </div>
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-2 md:gap-2 flex-nowrap">
           {Array.from({ length: 5 }, (_, i) => {
             const starIndex = i + 1; // 1..5
             const thresholdFull = starIndex;
@@ -66,7 +76,7 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
             return (
               <div
                 key={i}
-                className={cn('relative flex items-center justify-center cursor-pointer', containerSize)}
+                className={cn('relative flex items-center justify-center cursor-pointer shrink-0', containerSize)}
                 onMouseLeave={() => setHover(category, null)}
               >
                 <Star className={cn('text-gray-300', starSize)} />
@@ -144,44 +154,78 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
         <p className="text-sm text-gray-600">Rate each aspect of the event and share your thoughts</p>
       </div>
 
-      {/* Large Overall Rating Display at Top - always visible */}
-      <div className="text-center p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-        <p className="text-sm text-blue-600 mb-2 font-medium">Overall Rating</p>
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <div className="flex items-center">
+      {/* Large Overall Rating Display at Top - now interactive */}
+      <div className="text-center p-7 md:p-8 bg-gradient-to-r from-pink-50 via-rose-50 to-fuchsia-50 rounded-2xl border border-pink-200 shadow-sm">
+        <p className="text-sm text-pink-600 mb-3 font-medium tracking-wide">Overall Rating</p>
+        <div className="flex items-center justify-center gap-4 mb-2">
+          <div
+            className="flex items-center"
+            onMouseLeave={() => {
+              setIsHoveringOverall(false);
+              setHover('performanceRating', null);
+              setHover('venueRating', null);
+              setHover('overallExperienceRating', null);
+            }}
+          >
             {Array.from({ length: 5 }, (_, i) => {
               const starIndex = i + 1;
-              const displayOverall = getOverallDisplayRating();
+              const displayOverall = isHoveringOverall
+                ? (hoverHalfSteps['performanceRating'] ?? hoverHalfSteps['venueRating'] ?? hoverHalfSteps['overallExperienceRating'] ?? getOverallDisplayRating())
+                : getOverallDisplayRating();
               const isFull = (displayOverall as number) >= starIndex;
               const isHalf = !isFull && (displayOverall as number) === starIndex - 0.5;
               return (
-                <div key={i} className="relative w-8 h-8">
-                  <Star className="w-8 h-8 text-gray-300" />
+                <div key={i} className="relative w-12 h-12 md:w-14 md:h-14 cursor-pointer">
+                  <Star className="w-12 h-12 md:w-14 md:h-14 text-gray-300" />
                   {(isHalf || isFull) && (
                     <div className={cn('absolute left-0 top-0 h-full overflow-hidden pointer-events-none', isFull ? 'w-full' : 'w-1/2')}>
-                      <Star className="w-8 h-8 text-yellow-400 fill-current" />
+                      <Star className="w-12 h-12 md:w-14 md:h-14 text-pink-500 fill-current" />
                     </div>
                   )}
+                  {/* left half */}
+                  <button
+                    aria-label={`Set overall to ${(starIndex - 0.5).toFixed(1)}`}
+                    className="absolute left-0 top-0 h-full w-1/2"
+                    onMouseEnter={() => {
+                      setIsHoveringOverall(true);
+                      setHover('performanceRating', starIndex - 0.5);
+                      setHover('venueRating', starIndex - 0.5);
+                      setHover('overallExperienceRating', starIndex - 0.5);
+                    }}
+                    onClick={() => setAllCategoriesFromOverall(starIndex - 0.5)}
+                  />
+                  {/* right half */}
+                  <button
+                    aria-label={`Set overall to ${starIndex.toFixed(1)}`}
+                    className="absolute right-0 top-0 h-full w-1/2"
+                    onMouseEnter={() => {
+                      setIsHoveringOverall(true);
+                      setHover('performanceRating', starIndex);
+                      setHover('venueRating', starIndex);
+                      setHover('overallExperienceRating', starIndex);
+                    }}
+                    onClick={() => setAllCategoriesFromOverall(starIndex)}
+                  />
                 </div>
               );
             })}
           </div>
-          <span className="text-3xl font-bold text-gray-900">{getRatingLabel(getOverallDisplayRating())}</span>
+          <span className="text-4xl font-extrabold text-gray-900">{getRatingLabel(getOverallDisplayRating())}</span>
         </div>
-        <p className="text-xs text-blue-500">Average of all three categories below</p>
+        <p className="text-xs text-pink-600">Average of categories • Click stars to set all</p>
       </div>
 
-      {/* Three categories laid out horizontally */}
+      {/* Three categories laid out horizontally with subtle separators */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-4">
           {renderStarRating('performanceRating', 'Performance', 'How was the artist/band performance?')}
           {renderQualitativeSection('performanceReviewText', 'Performance Details', 'What made the performance special? Any standout moments, energy level, or technical aspects?')}
         </div>
-        <div className="space-y-4">
+        <div className="space-y-4 border-t md:border-t-0 md:border-l md:border-gray-200 md:pl-6 pt-6 md:pt-0">
           {renderStarRating('venueRating', 'Venue', 'How was the venue experience (sound, staff, facilities)?')}
           {renderQualitativeSection('venueReviewText', 'Venue Details', 'How was the sound quality, staff service, facilities, or overall venue atmosphere?')}
         </div>
-        <div className="space-y-4">
+        <div className="space-y-4 border-t md:border-t-0 md:border-l md:border-gray-200 md:pl-6 pt-6 md:pt-0">
           {renderStarRating('overallExperienceRating', 'Overall Experience', 'How was the overall atmosphere and crowd?')}
           {renderQualitativeSection('overallExperienceReviewText', 'Overall Experience Details', 'What made the overall experience memorable? Crowd energy, atmosphere, or special moments?')}
         </div>

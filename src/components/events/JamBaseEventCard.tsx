@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { EventMap } from '@/components/EventMap';
 import { supabase } from '@/integrations/supabase/client';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface JamBaseEventCardProps {
   event: JamBaseEvent;
@@ -47,6 +48,7 @@ export function JamBaseEventCard({
 }: JamBaseEventCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [interestedCount, setInterestedCount] = useState<number | null>(null);
+  const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
   // All data is real; no demo flags or mock avatars
 
   const formatDate = (dateString: string) => {
@@ -129,6 +131,47 @@ export function JamBaseEventCard({
     fetchInterestedCount();
   }, [event.id, currentUserId]);
 
+  // Resolve a primary image for the event: review photo for this event → artist image → popular review photo for artist
+  useEffect(() => {
+    (async () => {
+      try {
+        // 1) try a user review photo for this specific event
+        const byEvent = await (supabase as any)
+          .from('user_reviews')
+          .select('photos')
+          .eq('event_id', event.id)
+          .not('photos', 'is', null)
+          .order('likes_count', { ascending: false })
+          .limit(1);
+        const eventPhoto = Array.isArray(byEvent.data) && byEvent.data[0]?.photos?.[0];
+        if (eventPhoto) { setHeroImageUrl(eventPhoto); return; }
+
+        // 2) try artist image via any review that carries artist image url in payload (if available)
+        const artist = await (supabase as any)
+          .from('user_reviews')
+          .select('photos, jambase_events!inner(artist_name)')
+          .not('photos', 'is', null)
+          .ilike('jambase_events.artist_name', `%${event.artist_name || ''}%`)
+          .order('likes_count', { ascending: false })
+          .limit(1);
+        const artistImg = Array.isArray(artist.data) && artist.data[0]?.photos?.[0];
+        if (artistImg) { setHeroImageUrl(artistImg); return; }
+
+        // 3) try most-liked review photo for same artist across events
+        const byArtist = await (supabase as any)
+          .from('user_reviews')
+          .select('photos, jambase_events!inner(artist_name)')
+          .not('photos', 'is', null)
+          .ilike('jambase_events.artist_name', `%${event.artist_name || ''}%`)
+          .order('likes_count', { ascending: false })
+          .limit(1);
+        const artistPhoto = Array.isArray(byArtist.data) && byArtist.data[0]?.photos?.[0];
+        if (artistPhoto) { setHeroImageUrl(artistPhoto); return; }
+      } catch {}
+      setHeroImageUrl(null);
+    })();
+  }, [event.id, event.artist_id, event.artist_name]);
+
   const getCheapestTicketUrl = () => {
     if (!event.ticket_urls || event.ticket_urls.length === 0) return null;
     // Heuristic: prefer URLs containing known cheap vendors first
@@ -143,6 +186,11 @@ export function JamBaseEventCard({
 
   return (
     <Card className={cn("w-full transition-all duration-200 hover:shadow-lg", className)}>
+      {heroImageUrl && (
+        <div className="h-44 w-full overflow-hidden rounded-t-lg">
+          <img src={heroImageUrl} alt={event.title} className="w-full h-full object-cover" loading="lazy" />
+        </div>
+      )}
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
@@ -316,6 +364,7 @@ export function JamBaseEventCard({
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center gap-1"
+                  onClick={() => { try { trackInteraction.click('ticket', event.id, { providerUrl: getCheapestTicketUrl() || event.ticket_urls[0] }); } catch {} }}
                 >
                   <Ticket className="w-4 h-4" />
                   <span className="hidden sm:inline">Cheapest Tickets</span>

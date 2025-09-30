@@ -850,6 +850,59 @@ export type Database = {
           }
         ]
       }
+      user_interactions: {
+        Row: {
+          id: string
+          user_id: string
+          identity_issuer: string | null
+          identity_sub: string | null
+          global_user_id: string | null
+          session_id: string | null
+          event_type: string
+          entity_type: string
+          entity_id: string
+          occurred_at: string
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          identity_issuer?: string | null
+          identity_sub?: string | null
+          global_user_id?: string | null
+          session_id?: string | null
+          event_type: string
+          entity_type: string
+          entity_id: string
+          occurred_at?: string
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          identity_issuer?: string | null
+          identity_sub?: string | null
+          global_user_id?: string | null
+          session_id?: string | null
+          event_type?: string
+          entity_type?: string
+          entity_id?: string
+          occurred_at?: string
+          metadata?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_interactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       public_reviews_with_profiles: {
@@ -935,6 +988,22 @@ export type Database = {
           created_at: string
           updated_at: string
         }[]
+      }
+      log_user_interaction: {
+        Args: {
+          p_session_id?: string | null
+          p_event_type: string
+          p_entity_type: string
+          p_entity_id: string
+          p_metadata?: Json
+        }
+        Returns: string
+      }
+      log_user_interactions_batch: {
+        Args: {
+          p_interactions: Json
+        }
+        Returns: string[]
       }
     }
     Enums: {

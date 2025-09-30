@@ -22,6 +22,7 @@ import { EventReviewsSection } from '@/components/reviews/EventReviewsSection';
 import { EventMap } from '@/components/EventMap';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { supabase } from '@/integrations/supabase/client';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface EventDetailsModalProps {
   event: JamBaseEvent | null;
@@ -389,6 +390,7 @@ export function EventDetailsModal({
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="flex items-center gap-1"
+                      onClick={() => { try { trackInteraction.click('ticket', event.id, { providerUrl: event.ticket_urls[0] }); } catch {} }}
                     >
                       <Ticket className="w-4 h-4" />
                       <span>Get Tickets</span>

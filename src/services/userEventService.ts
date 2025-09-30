@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 export type UserJamBaseEvent = Tables<'user_jambase_events'>;
 export type UserJamBaseEventInsert = TablesInsert<'user_jambase_events'>;
@@ -42,6 +43,9 @@ export class UserEventService {
         .eq('jambase_event_id', jambaseEventId)
         .maybeSingle();
       if (fetchError) throw fetchError;
+      try {
+        trackInteraction.interest('event', jambaseEventId, interested);
+      } catch {}
       return (data as UserJamBaseEvent) || ({} as UserJamBaseEvent);
     } catch (error) {
       console.error('Error setting event interest:', error);
@@ -61,6 +65,9 @@ export class UserEventService {
         .eq('jambase_event_id', jambaseEventId);
 
       if (error) throw error;
+      try {
+        trackInteraction.interest('event', jambaseEventId, false, { action: 'remove' });
+      } catch {}
     } catch (error) {
       console.error('Error removing event interest:', error);
       throw new Error(`Failed to remove event interest: ${error instanceof Error ? error.message : 'Unknown error'}`);

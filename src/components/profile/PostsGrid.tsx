@@ -25,14 +25,22 @@ interface PostsGridProps {
 
 export const PostsGrid = ({ posts, onPostClick }: PostsGridProps) => {
   const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`w-3 h-3 ${
-          i < rating ? "text-yellow-400 fill-current" : "text-gray-300"
-        }`}
-      />
-    ));
+    // rating can be fractional (e.g., 3.5). Show half by overlaying a clipped star.
+    return Array.from({ length: 5 }, (_, i) => {
+      const index = i + 1;
+      const isFull = rating >= index;
+      const isHalf = !isFull && rating >= index - 0.5;
+      return (
+        <div key={i} className="relative w-3 h-3">
+          <Star className={`w-3 h-3 ${isFull ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+          {isHalf && (
+            <div className="absolute inset-0 overflow-hidden" style={{ width: '50%' }}>
+              <Star className="w-3 h-3 text-yellow-400 fill-current" />
+            </div>
+          )}
+        </div>
+      );
+    });
   };
 
   if (posts.length === 0) {
@@ -83,12 +91,7 @@ export const PostsGrid = ({ posts, onPostClick }: PostsGridProps) => {
                 )}
               </div>
               
-              {/* Rating overlay for reviews */}
-              {post.type === 'review' && post.rating && (
-                <div className="absolute bottom-2 left-2 flex">
-                  {renderStars(post.rating)}
-                </div>
-              )}
+              {/* Rating overlay intentionally removed in profile grid to avoid UI overlap */}
             </div>
             
             {/* Content */}
@@ -103,6 +106,11 @@ export const PostsGrid = ({ posts, onPostClick }: PostsGridProps) => {
                   <Calendar className="w-3 h-3" />
                   <span>{format(new Date(post.date), 'MMM d')}</span>
                 </div>
+                {post.type === 'review' && typeof post.rating === 'number' && (
+                  <div className="flex items-center gap-0.5">
+                    {renderStars(post.rating)}
+                  </div>
+                )}
                 
                 {(post.likes || post.comments) && (
                   <div className="flex items-center gap-2">

@@ -217,7 +217,7 @@ export function useReviewForm() {
 
   const setFormData = useCallback((data: Partial<ReviewFormData>) => {
     setState(prev => {
-      const newFormData = { ...initialFormData, ...data };
+      const newFormData = { ...prev.formData, ...data };
       const stepErrors = validateStep(prev.currentStep, newFormData);
       const isValid = Object.keys(stepErrors).length === 0;
       

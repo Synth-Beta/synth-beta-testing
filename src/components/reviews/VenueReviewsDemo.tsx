@@ -75,16 +75,24 @@ export function VenueReviewsDemo({ venue, className }: VenueReviewsDemoProps) {
   };
 
   const renderStars = (rating: number) => {
+    const stars = Math.round(Math.max(0, Math.min(5, rating)) * 2) / 2;
     return (
       <div className="flex">
-        {Array.from({ length: 5 }, (_, i) => (
-          <Star
-            key={i}
-            className={`w-4 h-4 ${
-              i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
-            }`}
-          />
-        ))}
+        {Array.from({ length: 5 }, (_, i) => {
+          const idx = i + 1;
+          const isFull = stars >= idx;
+          const isHalf = !isFull && stars >= idx - 0.5;
+          return (
+            <div key={i} className="relative w-4 h-4">
+              <Star className="w-4 h-4 text-gray-300" />
+              {(isHalf || isFull) && (
+                <div className={`absolute left-0 top-0 h-full overflow-hidden ${isFull ? 'w-full' : 'w-1/2'}`}>
+                  <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -150,7 +158,7 @@ export function VenueReviewsDemo({ venue, className }: VenueReviewsDemoProps) {
               {/* Overall Rating */}
               <div className="text-center">
                 <div className="flex items-center justify-center mb-1">
-                  {renderStars(Math.round(stats.average_overall_rating))}
+                  {renderStars(stats.average_overall_rating)}
                 </div>
                 <p className="text-2xl font-bold text-gray-900">
                   {stats.average_overall_rating.toFixed(1)}
@@ -164,7 +172,7 @@ export function VenueReviewsDemo({ venue, className }: VenueReviewsDemoProps) {
               {stats.average_artist_rating > 0 && (
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-1">
-                    {renderStars(Math.round(stats.average_artist_rating))}
+                    {renderStars(stats.average_artist_rating)}
                   </div>
                   <p className="text-lg font-semibold text-yellow-600">
                     {stats.average_artist_rating.toFixed(1)}
@@ -177,7 +185,7 @@ export function VenueReviewsDemo({ venue, className }: VenueReviewsDemoProps) {
               {stats.average_venue_rating > 0 && (
                 <div className="text-center">
                   <div className="flex items-center justify-center mb-1">
-                    {renderStars(Math.round(stats.average_venue_rating))}
+                    {renderStars(stats.average_venue_rating)}
                   </div>
                   <p className="text-lg font-semibold text-green-600">
                     {stats.average_venue_rating.toFixed(1)}

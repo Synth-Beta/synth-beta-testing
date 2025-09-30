@@ -10,6 +10,7 @@ import { SynthSLogo } from '@/components/SynthSLogo';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface ProfileEditProps {
   currentUserId: string;
@@ -136,6 +137,25 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
       }
 
       console.log('Profile saved successfully:', result.data);
+      // Track profile updates and form submit
+      try {
+        const previous = profile;
+        const changedFields: string[] = [];
+        if ((previous?.name || '') !== profileData.name) changedFields.push('name');
+        if ((previous?.bio || null) !== profileData.bio) changedFields.push('bio');
+        if ((previous?.instagram_handle || null) !== profileData.instagram_handle) changedFields.push('instagram_handle');
+        if ((previous?.music_streaming_profile || null) !== profileData.music_streaming_profile) changedFields.push('music_streaming_profile');
+
+        if (changedFields.length > 0) {
+          trackInteraction.profileUpdate('fields_changed', currentUserId, {
+            changedFields,
+            hasStreamingProfile: !!profileData.music_streaming_profile
+          });
+        }
+        trackInteraction.formSubmit('profile_edit', currentUserId, true);
+      } catch (e) {
+        console.warn('Profile interaction tracking failed', e);
+      }
       toast({
         title: "Success",
         description: "Profile saved successfully",

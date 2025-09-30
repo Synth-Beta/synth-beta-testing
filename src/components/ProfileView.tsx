@@ -19,6 +19,8 @@ import { ReviewService } from '@/services/reviewService';
 import { ReviewCard } from './ReviewCard';
 import { FriendProfileCard } from './FriendProfileCard';
 import { SpotifyStats } from './SpotifyStats';
+import { HolisticStatsCard } from '@/components/profile/HolisticStatsCard';
+import { MusicTasteCard } from '@/components/profile/MusicTasteCard';
 // import { EventDetailsModal } from '@/components/events/EventDetailsModal'; // Temporarily removed due to missing module
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
 import { EventDetailsModal } from './events/EventDetailsModal';
@@ -711,8 +713,15 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                   )}
                 </div>
               )}
-              </div>
-            </div>
+          </div>
+
+          {/* Holistic Stats + Music Taste (compact) */}
+          <div className="mt-4 grid grid-cols-1 gap-3">
+            {/* Removed HolisticStatsCard per UX feedback */}
+            {/* <HolisticStatsCard userId={currentUserId} /> */}
+            <MusicTasteCard userId={currentUserId} />
+          </div>
+        </div>
 
         {/* Instagram-style Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -732,6 +741,28 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
           </TabsList>
 
           <TabsContent value="posts" className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Your Reviews</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Non-blocking notice instead of intrusive alert
+                  try {
+                    const { useToast } = require('@/hooks/use-toast');
+                    const { toast } = useToast();
+                    toast({
+                      title: 'Ranking mode',
+                      description: 'Use the Profile (new) view for ranking. This view will get ranking soon.',
+                    });
+                  } catch {
+                    console.info('Ranking mode is available in the new Profile view.');
+                  }
+                }}
+              >
+                Ranking mode
+              </Button>
+            </div>
             <PostsGrid 
               posts={[
                 // Transform reviews into posts
@@ -833,12 +864,12 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
       {/* Review View Dialog */}
       <Dialog open={viewReviewOpen} onOpenChange={setViewReviewOpen}>
-        <DialogContent className="max-w-2xl w-[95vw]" aria-describedby={undefined}>
-          <DialogHeader>
+        <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
+          <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
             <DialogTitle>Review</DialogTitle>
           </DialogHeader>
           {selectedReview && (
-            <div className="space-y-5">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
               <ProfileReviewCard
                 title={selectedReview.event.event_name}
                 rating={selectedReview.rating}
@@ -864,7 +895,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                   setVenueDialog({ open: true, venueId: id || null, venueName: name || 'Venue' });
                 }}
               />
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pb-2">
                 <Button variant="outline" onClick={() => setViewReviewOpen(false)}>Close</Button>
                 <Button onClick={() => { setViewReviewOpen(false); openEditForReview(selectedReview); }}>Edit</Button>
               </div>

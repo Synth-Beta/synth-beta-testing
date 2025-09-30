@@ -15,12 +15,17 @@ import { format } from 'date-fns';
 import { ConcertRanking } from '../events/ConcertRanking';
 import { JamBaseService } from '@/services/jambaseService';
 import { EventReviewModal } from '../reviews/EventReviewModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ProfileReviewCard } from '../reviews/ProfileReviewCard';
+import type { Artist } from '@/types/concertSearch';
 import { ReviewService } from '@/services/reviewService';
 import { ReviewCard } from '../reviews/ReviewCard';
 import { FriendProfileCard } from './FriendProfileCard';
 import { UnifiedStreamingStats, detectStreamingServiceType } from '../streaming/UnifiedStreamingStats';
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
 import { EventDetailsModal } from '../events/EventDetailsModal';
+import { MusicTasteCard } from './MusicTasteCard';
+import { HolisticStatsCard } from './HolisticStatsCard';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -82,9 +87,12 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('posts');
+  const [rankingMode, setRankingMode] = useState(false);
   const [canViewInterested, setCanViewInterested] = useState<boolean>(true);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [viewReviewOpen, setViewReviewOpen] = useState(false); // Only declare once
+  const [selectedReview, setSelectedReview] = useState<any>(null);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [followersModalType, setFollowersModalType] = useState<'followers' | 'following' | 'friends'>('friends');
   const { toast } = useToast();
@@ -299,12 +307,16 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       
       console.log('🔍 ProfileView: Raw review data:', result);
       
-      // Transform to match the expected interface for display
+      // Transform to match the expected interface for display (include rank_order and category ratings for display)
       const transformedReviews = result.reviews.map((item: any) => ({
         id: item.review.id,
         user_id: item.review.user_id,
         event_id: item.review.event_id,
         rating: item.review.rating,
+        rank_order: (item.review as any).rank_order,
+        performance_rating: (item.review as any).performance_rating,
+        venue_rating: (item.review as any).venue_rating_new ?? (item.review as any).venue_rating,
+        overall_experience_rating: (item.review as any).overall_experience_rating,
         review_text: item.review.review_text,
         is_public: item.review.is_public,
         created_at: item.review.created_at,
@@ -322,6 +334,23 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       console.error('❌ ProfileView: Error fetching reviews:', error);
       setReviews([]);
     }
+  };
+
+  // Compute display rating (0.5 increments) preferring category ratings when present
+  const getDisplayRating = (r: any) => {
+    const parts: number[] = [];
+    if (typeof r.performance_rating === 'number' && r.performance_rating > 0) parts.push(r.performance_rating);
+    if (typeof r.venue_rating === 'number' && r.venue_rating > 0) parts.push(r.venue_rating);
+    if (typeof r.overall_experience_rating === 'number' && r.overall_experience_rating > 0) parts.push(r.overall_experience_rating);
+    if (parts.length > 0) {
+      const avg = parts.reduce((a, b) => a + b, 0) / parts.length;
+      return Math.round(avg * 2) / 2;
+    }
+    if (typeof r.rating === 'number') return Math.round(r.rating * 2) / 2;
+    if (r.rating === 'good') return 5;
+    if (r.rating === 'okay') return 3;
+    if (r.rating === 'bad') return 1;
+    return 0;
   };
 
   const fetchFriends = async () => {
@@ -416,13 +445,32 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   };
 
   const handleEditReview = (review: any) => {
-    // Create a mock event for editing
+    // Open edit with prefilled data for non-destructive updates
     setReviewModalEvent({
       id: review.event_id,
-      event_title: review.event?.event_name || 'Concert Review',
-      venue_name: review.event?.location || 'Unknown Venue',
+      title: review.event?.event_name || 'Concert Review',
+      venue_name: review.event?.venue_name || review.event?.location || 'Unknown Venue',
       event_date: review.event?.event_date || review.created_at,
-      artist_name: 'Unknown Artist'
+      artist_name: review.event?.artist_name || 'Unknown Artist',
+      existing_review_id: review.id,
+      // pass through existing ratings/texts where the form can read them from context if needed
+      existing_review: {
+        rating: review.rating,
+        review_text: review.review_text,
+        performance_rating: review.performance_rating,
+        venue_rating: review.venue_rating,
+        overall_experience_rating: review.overall_experience_rating,
+        performance_review_text: review.performance_review_text,
+        venue_review_text: review.venue_review_text,
+        overall_experience_review_text: review.overall_experience_review_text,
+        reaction_emoji: review.reaction_emoji,
+        is_public: review.is_public,
+        review_type: review.review_type,
+        event_date: review.event?.event_date || review.created_at,
+        artist_name: review.event?.artist_name,
+        venue_name: review.event?.venue_name,
+        venue_id: review.venue_id
+      }
     });
     setShowAddReview(true);
   };
@@ -519,6 +567,8 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     );
   }
 
+  // setViewReviewOpen is defined by useState earlier
+
   return (
     <div className="min-h-screen p-4 pb-48">
       <div className="max-w-2xl mx-auto">
@@ -537,33 +587,26 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               
             {/* Profile Stats and Actions */}
             <div className="flex-1">
-              <div className="flex items-center gap-4 mb-4">
-                <h2 className="text-xl font-semibold">{profile.name}</h2>
-                <Button onClick={onEdit} variant="outline" size="sm">
-                  Edit profile
-                </Button>
-                <Button onClick={onSettings} variant="ghost" size="sm">
-                  <Settings className="w-4 h-4" />
-                </Button>
+              {/* Compact counts row above name */}
+              <div className="flex items-center gap-6 mb-2">
+              <div className="text-center">
+                <span className="font-semibold">{reviews.length}</span>
+                <p className="text-sm text-muted-foreground">reviews</p>
+              </div>
+              <button
+                className="text-center hover:opacity-70 transition-opacity"
+                onClick={() => { setFollowersModalType('friends'); setShowFollowersModal(true); }}
+              >
+                <span className="font-semibold">{friends.length}</span>
+                <p className="text-sm text-muted-foreground">friends</p>
+              </button>
               </div>
               
-              {/* Stats Row */}
-              <div className="flex gap-6 mb-4">
-                <div className="text-center">
-                  <span className="font-semibold">{reviews.length}</span>
-                  <p className="text-sm text-muted-foreground">reviews</p>
-                </div>
-                <button 
-                  className="text-center hover:opacity-70 transition-opacity"
-                  onClick={() => {
-                    setFollowersModalType('friends');
-                    setShowFollowersModal(true);
-                  }}
-                >
-                  <span className="font-semibold">{friends.length}</span>
-                  <p className="text-sm text-muted-foreground">friends</p>
-                </button>
-              </div>
+              <div className="flex items-center gap-4 mb-3">
+                <h2 className="text-xl font-semibold">{profile.name}</h2>
+                <Button onClick={onEdit} variant="outline" size="sm">Edit profile</Button>
+                <Button onClick={onSettings} variant="ghost" size="sm"><Settings className="w-4 h-4" /></Button>
+            </div>
             </div>
           </div>
           
@@ -651,6 +694,14 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
           </TabsList>
 
           <TabsContent value="posts" className="mt-6 mb-40">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Your Reviews</h3>
+              <Button variant={rankingMode ? 'default' : 'outline'} size="sm" onClick={() => setRankingMode(v => !v)}>
+                {rankingMode ? 'Done' : 'Ranking mode'}
+              </Button>
+            </div>
+
+            {!rankingMode && (
             <PostsGrid 
               posts={[
                 // Transform reviews into posts
@@ -660,6 +711,18 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                   title: review.event?.event_name || 'Concert Review',
                   subtitle: review.event?.location || 'Unknown Venue',
                   rating: (() => {
+                    // Prefer category average if present to preserve .5 increments
+                    const parts: number[] = [];
+                    const pr = (review as any).performance_rating;
+                    const vr = (review as any).venue_rating;
+                    const or = (review as any).overall_experience_rating;
+                    if (typeof pr === 'number' && pr > 0) parts.push(pr);
+                    if (typeof vr === 'number' && vr > 0) parts.push(vr);
+                    if (typeof or === 'number' && or > 0) parts.push(or);
+                    if (parts.length > 0) {
+                      const avg = parts.reduce((a, b) => a + b, 0) / parts.length;
+                      return Math.round(avg * 2) / 2;
+                    }
                     if (typeof review.rating === 'string') {
                       switch (review.rating) {
                         case 'good': return 5;
@@ -668,7 +731,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                         default: return 0;
                       }
                     }
-                    return review.rating || 0;
+                    return Math.round((review.rating || 0) * 2) / 2;
                   })(),
                   date: review.created_at,
                   likes: 0,
@@ -678,17 +741,96 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())}
               onPostClick={(post) => {
                 if (post.type === 'review') {
-                  // Handle review click - could open review modal
                   const reviewId = post.id.replace('review-', '');
                   const review = reviews.find(r => r.id === reviewId);
                   if (review) {
-                    handleEditReview(review);
+                    // Open view modal first (same cool card as feed)
+                    setSelectedReview(review as any);
+                    try { console.log('🔎 Opening review modal for', review.id); } catch {}
+                    setViewReviewOpen(true);
                   }
                 }
               }}
-            />
+            />)}
+
+            {rankingMode && (
+              <div className="space-y-6">
+                {[5,4.5,4,3.5,3,2.5,2,1.5,1].map(ratingGroup => {
+                  const group = reviews.filter(r => getDisplayRating(r) === ratingGroup);
+                  if (group.length === 0) return null as any;
+                  return (
+                    <div key={ratingGroup}>
+                      <div className="text-xs font-semibold text-muted-foreground mb-2">{ratingGroup}★</div>
+                      <ul className="divide-y rounded-lg border bg-white">
+                        {group
+                          .sort((a, b) => {
+                            const ao = (a as any).rank_order ?? 9999;
+                            const bo = (b as any).rank_order ?? 9999;
+                            if (ao !== bo) return ao - bo;
+                            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                          })
+                          .map((item, idx) => (
+                          <li
+                            key={item.id}
+                            className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50"
+                            onClick={() => { setSelectedReview(item as any); setViewReviewOpen(true); }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="h-6 w-6 rounded-full bg-gray-100 text-xs flex items-center justify-center border">{idx + 1}</div>
+                              <div>
+                                <div className="text-sm font-medium">{item.event.event_name}</div>
+                                <div className="text-xs text-muted-foreground">{new Date(item.event.event_date).toLocaleDateString()}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {idx > 0 && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const arr = group.slice().sort((a,b)=>((a as any).rank_order||9999)-((b as any).rank_order||9999));
+                                  const i = arr.findIndex(x => x.id === item.id);
+                                  if (i > 0) {
+                                    const [moved] = arr.splice(i,1);
+                                    arr.splice(i-1,0,moved);
+                                    (async () => {
+                                      await ReviewService.setRankOrderForRatingGroup(currentUserId, ratingGroup, arr.map(x => x.id));
+                                      fetchReviews();
+                                    })();
+                                  }
+                                }}
+                              >↑</Button>)}
+                              {idx < group.length - 1 && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const arr = group.slice().sort((a,b)=>((a as any).rank_order||9999)-((b as any).rank_order||9999));
+                                  const i = arr.findIndex(x => x.id === item.id);
+                                  if (i !== -1 && i < arr.length - 1) {
+                                    const [moved] = arr.splice(i,1);
+                                    arr.splice(i+1,0,moved);
+                                    (async () => {
+                                      await ReviewService.setRankOrderForRatingGroup(currentUserId, ratingGroup, arr.map(x => x.id));
+                                      fetchReviews();
+                                    })();
+                                  }
+                                }}
+                              >↓</Button>)}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             
             {/* Floating Add Button */}
+            {!rankingMode && (
             <div className="fixed bottom-20 right-4 z-10">
               <Button 
                 onClick={handleOpenReviewModal} 
@@ -697,7 +839,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               >
                 <Plus className="w-6 h-6" />
               </Button>
-            </div>
+            </div>)}
           </TabsContent>
 
             {canViewInterested && (
@@ -744,6 +886,11 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                               <span className="truncate">{[ev.venue_city, ev.venue_state].filter(Boolean).join(', ')}</span>
                             </div>
                           </div>
+
+            {/* Music Taste Card (public, compact) */}
+            <div className="mt-4">
+              <MusicTasteCard userId={currentUserId} />
+            </div>
                         </div>
                       </div>
                     ))}
@@ -772,6 +919,43 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         }}
         onReviewSubmitted={handleReviewSubmitted}
       />
+
+      {/* Review View Dialog - same card as feed, opens from profile grid */}
+      {viewReviewOpen && selectedReview && (
+        <Dialog open={viewReviewOpen} onOpenChange={setViewReviewOpen}>
+          <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
+            <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
+              <DialogTitle>Review</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+              <ProfileReviewCard
+                title={selectedReview.event?.event_name || 'Concert Review'}
+                rating={selectedReview.rating}
+                reviewText={selectedReview.review_text}
+                event={{
+                  event_name: selectedReview.event?.event_name,
+                  event_date: selectedReview.event?.event_date,
+                  artist_name: selectedReview.event?.artist_name,
+                  artist_id: null,
+                  venue_name: selectedReview.event?.venue_name,
+                  venue_id: selectedReview.event?.venue_id
+                }}
+                reviewId={selectedReview.id}
+                currentUserId={currentUserId}
+                initialIsLiked={Boolean(selectedReview.is_liked)}
+                initialLikesCount={selectedReview.likes_count || 0}
+                initialCommentsCount={selectedReview.comments_count || 0}
+                onOpenArtist={(_id, _name) => {}}
+                onOpenVenue={(_id, _name) => {}}
+              />
+              <div className="flex justify-end gap-2 pb-2">
+                <Button variant="outline" onClick={() => setViewReviewOpen(false)}>Close</Button>
+                <Button onClick={() => { setViewReviewOpen(false); handleEditReview(selectedReview); }}>Edit</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Friend Profile Card */}
       {selectedFriend && (
@@ -806,13 +990,15 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         }}
       />
 
-      {/* Event Details Modal */}
+      {/* Event Details Modal - mount only when needed to avoid React static flag warning */}
+      {detailsOpen && selectedEvent && (
       <EventDetailsModal
         event={selectedEvent}
         currentUserId={currentUserId}
         isOpen={detailsOpen}
         onClose={() => setDetailsOpen(false)}
       />
+      )}
     </div>
   );
 };

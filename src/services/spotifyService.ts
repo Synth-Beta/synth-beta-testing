@@ -11,6 +11,7 @@ import {
   SpotifyTrack,
   SpotifyArtist
 } from '@/types/spotify';
+import { trackInteraction, interactionTracker } from '@/services/interactionTrackingService';
 
 export class SpotifyService {
   private static instance: SpotifyService;
@@ -18,10 +19,11 @@ export class SpotifyService {
   private config: SpotifyAuthConfig;
 
   private constructor() {
+    const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
+    const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || (typeof window !== 'undefined' ? `${window.location.origin}/auth/spotify/callback` : '');
     this.config = {
-      clientId: '00c8ab88043a4d53bc3ec13684885ca9',
-      clientSecret: '0c8ae2f4f5b54f1bb5b00511f7da52ad', // For development mode
-      redirectUri: import.meta.env.VITE_SPOTIFY_REDIRECT_URI || (typeof window !== 'undefined' ? `${window.location.origin}/auth/spotify/callback` : ''),
+      clientId,
+      redirectUri,
       scopes: [
         'user-read-private',
         'user-read-email',
@@ -30,7 +32,10 @@ export class SpotifyService {
         'user-read-playback-state',
         'user-read-currently-playing'
       ]
-    };
+    } as SpotifyAuthConfig;
+    if (!clientId || !redirectUri) {
+      console.error('Spotify config is missing. Ensure VITE_SPOTIFY_CLIENT_ID and VITE_SPOTIFY_REDIRECT_URI are set.');
+    }
   }
 
   public static getInstance(): SpotifyService {
@@ -41,9 +46,15 @@ export class SpotifyService {
   }
 
   // Authentication methods
-  public authenticate(): void {
+  public async authenticate(): Promise<void> {
+    if (!this.config.clientId || !this.config.redirectUri) {
+      throw new Error('Spotify not configured. Missing clientId or redirectUri.');
+    }
     const state = this.generateRandomString(16);
+    const codeVerifier = this.generateRandomString(64);
+    const codeChallenge = await this.generateCodeChallenge(codeVerifier);
     localStorage.setItem('spotify_auth_state', state);
+    localStorage.setItem('spotify_code_verifier', codeVerifier);
 
     const authUrl = new URL('https://accounts.spotify.com/authorize');
     authUrl.searchParams.append('client_id', this.config.clientId);
@@ -51,14 +62,16 @@ export class SpotifyService {
     authUrl.searchParams.append('redirect_uri', this.config.redirectUri);
     authUrl.searchParams.append('state', state);
     authUrl.searchParams.append('scope', this.config.scopes.join(' '));
+    authUrl.searchParams.append('code_challenge_method', 'S256');
+    authUrl.searchParams.append('code_challenge', codeChallenge);
 
-    console.log('🚀 Starting Spotify authentication...');
-    console.log('📋 Requesting scopes:', this.config.scopes);
-    console.log('🔗 Redirect URI:', this.config.redirectUri);
-    console.log('🆔 Client ID:', this.config.clientId);
-    console.log('🔐 Using client secret flow (development mode)');
-    console.log('🌐 Full auth URL:', authUrl.toString());
-    
+    try {
+      trackInteraction.click('spotify', this.config.clientId, {
+        action: 'connect_start',
+        scopes: this.config.scopes,
+        redirectUri: this.config.redirectUri
+      });
+    } catch {}
     window.location.href = authUrl.toString();
   }
 
@@ -124,6 +137,13 @@ export class SpotifyService {
 
     console.log('✅ State validated, exchanging code for token...');
     await this.exchangeCodeForToken(code);
+    try {
+      trackInteraction.click('spotify', 'current_user', {
+        action: 'connect_success'
+      });
+      // After successful auth, kick off a full sync of listening data
+      await this.syncUserMusicPreferences();
+    } catch {}
     
     // Clean up URL
     window.history.replaceState({}, document.title, window.location.pathname);
@@ -132,31 +152,109 @@ export class SpotifyService {
     return true;
   }
 
+  /**
+   * Pulls user's listening data (top artists, top tracks, recently played)
+   * and logs normalized interactions per item into user_interactions.
+   */
+  public async syncUserMusicPreferences(): Promise<void> {
+    try {
+      // Fetch multiple ranges for stronger signal
+      const [topArtistsShort, topArtistsMed, topArtistsLong] = await Promise.all([
+        this.getTopArtists('short_term', 50, 0).catch(() => ({ items: [] } as SpotifyTopArtistsResponse)),
+        this.getTopArtists('medium_term', 50, 0).catch(() => ({ items: [] } as SpotifyTopArtistsResponse)),
+        this.getTopArtists('long_term', 50, 0).catch(() => ({ items: [] } as SpotifyTopArtistsResponse))
+      ]);
+
+      const [topTracksShort, topTracksMed, topTracksLong] = await Promise.all([
+        this.getTopTracks('short_term', 50, 0).catch(() => ({ items: [] } as SpotifyTopTracksResponse)),
+        this.getTopTracks('medium_term', 50, 0).catch(() => ({ items: [] } as SpotifyTopTracksResponse)),
+        this.getTopTracks('long_term', 50, 0).catch(() => ({ items: [] } as SpotifyTopTracksResponse))
+      ]);
+
+      const recentlyPlayed = await this.getRecentlyPlayed(50).catch(() => ({ items: [] } as SpotifyRecentlyPlayedResponse));
+
+      // Log artist preferences
+      const pushArtist = (artist: SpotifyArtist, timeRange: SpotifyTimeRange) => {
+        interactionTracker.queueInteraction({
+          eventType: 'music_pref',
+          entityType: 'artist',
+          entityId: artist.id,
+          metadata: {
+            name: artist.name,
+            genres: artist.genres,
+            popularity: artist.popularity,
+            timeRange
+          }
+        });
+      };
+
+      topArtistsShort.items.forEach(a => pushArtist(a, 'short_term'));
+      topArtistsMed.items.forEach(a => pushArtist(a, 'medium_term'));
+      topArtistsLong.items.forEach(a => pushArtist(a, 'long_term'));
+
+      // Log track preferences
+      const pushTrack = (track: SpotifyTrack, timeRange: SpotifyTimeRange) => {
+        interactionTracker.queueInteraction({
+          eventType: 'music_pref',
+          entityType: 'track',
+          entityId: track.id,
+          metadata: {
+            name: track.name,
+            album: track.album?.name,
+            artistNames: track.artists?.map(a => a.name),
+            artistIds: track.artists?.map(a => a.id),
+            popularity: track.popularity,
+            timeRange
+          }
+        });
+      };
+
+      topTracksShort.items.forEach(t => pushTrack(t, 'short_term'));
+      topTracksMed.items.forEach(t => pushTrack(t, 'medium_term'));
+      topTracksLong.items.forEach(t => pushTrack(t, 'long_term'));
+
+      // Log listening history
+      recentlyPlayed.items.forEach(item => {
+        const t = item.track;
+        if (!t) return;
+        interactionTracker.queueInteraction({
+          eventType: 'listen',
+          entityType: 'track',
+          entityId: t.id,
+          metadata: {
+            name: t.name,
+            album: t.album?.name,
+            artistNames: t.artists?.map(a => a.name),
+            artistIds: t.artists?.map(a => a.id),
+            played_at: item.played_at
+          }
+        });
+      });
+
+      // Flush batched interactions to DB
+      await interactionTracker.flush();
+
+      // Summary log
+      trackInteraction.click('spotify', 'current_user', {
+        action: 'sync_complete',
+        artists_short: topArtistsShort.items.length,
+        artists_medium: topArtistsMed.items.length,
+        artists_long: topArtistsLong.items.length,
+        tracks_short: topTracksShort.items.length,
+        tracks_medium: topTracksMed.items.length,
+        tracks_long: topTracksLong.items.length,
+        recently_played: recentlyPlayed.items.length
+      });
+    } catch (error) {
+      console.error('Spotify sync error:', error);
+      // Best-effort logging, do not throw
+    }
+  }
+
   public checkStoredToken(): boolean {
     const storedToken = localStorage.getItem('spotify_access_token');
     const tokenExpiry = localStorage.getItem('spotify_token_expiry');
-    const codeVerifier = localStorage.getItem('spotify_code_verifier');
-
-    // If we have a code verifier, this is an old PKCE token - clear it
-    if (codeVerifier) {
-      console.log('🧹 Detected old PKCE token, clearing stored data...');
-      this.clearStoredData();
-      return false;
-    }
-
-    // Check if token was created before we switched to client secret flow
-    // If token is older than 1 hour, it's likely from the old PKCE flow
-    if (storedToken && tokenExpiry) {
-      const tokenAge = Date.now() - parseInt(tokenExpiry) + (3600 * 1000); // Add 1 hour to get creation time
-      const oneHourAgo = 60 * 60 * 1000; // 1 hour in milliseconds
-      
-      if (tokenAge > oneHourAgo) {
-        console.log('🧹 Token is older than 1 hour, likely from old PKCE flow, clearing...');
-        this.clearStoredData();
-        return false;
-      }
-    }
-
+    // If we have a code verifier stored, it's fine (PKCE). Do not clear.
     if (storedToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
       this.accessToken = storedToken;
       console.log('🔑 Found stored token, expires at:', new Date(parseInt(tokenExpiry)).toLocaleString());
@@ -165,6 +263,46 @@ export class SpotifyService {
 
     console.log('❌ No valid stored token found');
     return false;
+  }
+
+  /**
+   * Ensure a valid session without user interaction.
+   * - Loads stored token if valid
+   * - If expired, attempts silent refresh using refresh_token
+   * - Returns true when an access token is available
+   */
+  public async ensureSession(): Promise<boolean> {
+    const storedToken = localStorage.getItem('spotify_access_token');
+    const tokenExpiryStr = localStorage.getItem('spotify_token_expiry');
+    if (storedToken && tokenExpiryStr) {
+      const tokenExpiry = parseInt(tokenExpiryStr);
+      if (Date.now() < tokenExpiry) {
+        this.accessToken = storedToken;
+        return true;
+      }
+      // Try silent refresh
+      const refreshed = await this.refreshToken();
+      return refreshed;
+    }
+    // No token, cannot ensure session without user interaction
+    return false;
+  }
+
+  /**
+   * Lightweight session sync: fetch small amounts to keep personalization fresh without full reauth.
+   * Safe to call at app start if ensureSession() returns true.
+   */
+  public async syncThisSessionLightly(): Promise<void> {
+    try {
+      // Keep it light: 10 top artists/tracks medium_term and 10 recently played
+      await Promise.all([
+        this.getTopArtists('medium_term', 10, 0).catch(() => null),
+        this.getTopTracks('medium_term', 10, 0).catch(() => null),
+        this.getRecentlyPlayed(10).catch(() => null)
+      ]);
+    } catch (e) {
+      console.warn('Light sync skipped:', e);
+    }
   }
 
   public isAuthenticated(): boolean {
@@ -263,20 +401,22 @@ export class SpotifyService {
   }
 
   private async exchangeCodeForToken(code: string): Promise<void> {
-    if (!this.config.clientSecret) {
-      throw new Error('Client secret not configured');
+    const codeVerifier = localStorage.getItem('spotify_code_verifier') || '';
+    if (!this.config.clientId || !this.config.redirectUri) {
+      throw new Error('Spotify not configured for token exchange');
     }
 
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${btoa(`${this.config.clientId}:${this.config.clientSecret}`)}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
-        code: code,
+        code,
         redirect_uri: this.config.redirectUri,
+        client_id: this.config.clientId,
+        code_verifier: codeVerifier
       }),
     });
 
@@ -315,22 +455,16 @@ export class SpotifyService {
       return false;
     }
 
-    if (!this.config.clientSecret) {
-      console.error('Client secret not configured for token refresh');
-      this.logout();
-      return false;
-    }
-
     try {
       const response = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${btoa(`${this.config.clientId}:${this.config.clientSecret}`)}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: new URLSearchParams({
           grant_type: 'refresh_token',
           refresh_token: refreshToken,
+          client_id: this.config.clientId
         }),
       });
 
@@ -381,10 +515,10 @@ export class SpotifyService {
     }
 
     if (response.status === 429) {
-      // Rate limited - check for Retry-After header
       const retryAfter = response.headers.get('Retry-After');
       const delay = retryAfter ? parseInt(retryAfter) * 1000 : 1000;
-      throw new Error(`Rate limited. Please try again in ${delay / 1000} seconds.`);
+      await new Promise(res => setTimeout(res, delay));
+      return this.spotifyApiCall<T>(endpoint, options);
     }
 
     if (response.status === 403) {
@@ -439,7 +573,9 @@ export class SpotifyService {
       offset: offset.toString()
     });
     
-    return this.spotifyApiCall<SpotifyTopTracksResponse>(`/me/top/tracks?${params.toString()}`);
+    const res = await this.spotifyApiCall<SpotifyTopTracksResponse>(`/me/top/tracks?${params.toString()}`);
+    try { trackInteraction.view('spotify', 'current_user', undefined, { resource: 'top_tracks', count: res.items?.length ?? 0, timeRange }); } catch {}
+    return res;
   }
 
   public async getTopArtists(timeRange: SpotifyTimeRange = 'medium_term', limit: number = 20, offset: number = 0): Promise<SpotifyTopArtistsResponse> {
@@ -457,7 +593,9 @@ export class SpotifyService {
       offset: offset.toString()
     });
     
-    return this.spotifyApiCall<SpotifyTopArtistsResponse>(`/me/top/artists?${params.toString()}`);
+    const res = await this.spotifyApiCall<SpotifyTopArtistsResponse>(`/me/top/artists?${params.toString()}`);
+    try { trackInteraction.view('spotify', 'current_user', undefined, { resource: 'top_artists', count: res.items?.length ?? 0, timeRange }); } catch {}
+    return res;
   }
 
   public async getRecentlyPlayed(limit: number = 20, after?: number, before?: number): Promise<SpotifyRecentlyPlayedResponse> {
@@ -477,7 +615,9 @@ export class SpotifyService {
       params.append('before', before.toString());
     }
     
-    return this.spotifyApiCall<SpotifyRecentlyPlayedResponse>(`/me/player/recently-played?${params.toString()}`);
+    const res = await this.spotifyApiCall<SpotifyRecentlyPlayedResponse>(`/me/player/recently-played?${params.toString()}`);
+    try { trackInteraction.view('spotify', 'current_user', undefined, { resource: 'recently_played', count: res.items?.length ?? 0 }); } catch {}
+    return res;
   }
 
   public async getCurrentPlayback(): Promise<SpotifyCurrentlyPlayingResponse | null> {
@@ -606,6 +746,31 @@ export class SpotifyService {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }
+
+  private async generateCodeChallenge(codeVerifier: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(digest)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+    return base64;
+  }
+
+  /**
+   * Minimal self test to validate token and endpoints; returns summary info.
+   */
+  public async selfTest(): Promise<{ ok: boolean; profile?: string; topArtists?: number; recentlyPlayed?: number; error?: string }> {
+    try {
+      const profile = await this.getUserProfile();
+      const ta = await this.getTopArtists('short_term', 1, 0);
+      const rp = await this.getRecentlyPlayed(1);
+      return { ok: true, profile: profile.display_name, topArtists: ta.items?.length ?? 0, recentlyPlayed: rp.items?.length ?? 0 };
+    } catch (e: any) {
+      return { ok: false, error: e?.message || String(e) };
+    }
   }
 
 }

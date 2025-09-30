@@ -4,7 +4,7 @@ import { ConcertFeed } from './ConcertFeed';
 import { UnifiedFeed } from './UnifiedFeed';
 import { UnifiedSearch } from './UnifiedSearch';
 import { SearchMap } from './SearchMap';
-import { ProfileView } from './ProfileView';
+import { ProfileView } from './profile/ProfileView';
 import { ProfileEdit } from './ProfileEdit';
 import { ConcertEvents } from './ConcertEvents';
 import { Event as EventCardEvent } from './EventCard';

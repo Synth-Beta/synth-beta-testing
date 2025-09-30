@@ -7,6 +7,7 @@ import { Loader2, Search, Music, X, Star } from 'lucide-react';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import type { Artist, ArtistSearchResult } from '@/types/concertSearch';
 import { cn } from '@/lib/utils';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface ArtistSearchBoxProps {
   onArtistSelect: (artist: Artist) => void;
@@ -128,6 +129,7 @@ export function ArtistSearchBox({
   };
 
   const handleArtistSelect = (artist: Artist) => {
+    try { trackInteraction.click('artist', (artist as any).id || (artist as any).jambase_artist_id || artist.name, { source: 'artist_search_box', name: (artist as any).name }); } catch {}
     onArtistSelect(artist);
     setQuery(artist.name);
     setIsOpen(false);

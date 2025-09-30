@@ -178,27 +178,33 @@ export class ReviewService {
     venueId?: string
   ): Promise<UserReview> {
     try {
-      // Helper to ensure a valid rating value for inserts
+      // Helper to ensure a valid INTEGER rating value (1..5) for inserts/updates
       const deriveRating = (data: ReviewData): number => {
-        if (typeof data.rating === 'number') return data.rating;
-        
-        // Use new three-category system if available
+        const clampToRange = (val: number) => Math.max(1, Math.min(5, val));
+        if (typeof data.rating === 'number' && !Number.isNaN(data.rating)) {
+          return clampToRange(Math.round(data.rating));
+        }
+
+        // Prefer new three-category system if available (decimal halves permitted at column level)
         const newParts = [data.performance_rating, data.venue_rating, data.overall_experience_rating].filter(
           (v): v is number => typeof v === 'number' && v > 0
         );
         if (newParts.length === 3) {
-          return Math.round((newParts.reduce((a, b) => a + b, 0) / newParts.length) * 2) / 2; // Round to nearest 0.5
+          const avg = newParts.reduce((a, b) => a + b, 0) / newParts.length;
+          return clampToRange(Math.round(avg));
         }
-        
+
         // Fallback to legacy two-category system
         const legacyParts = [data.artist_rating, data.venue_rating].filter(
           (v): v is number => typeof v === 'number' && v > 0
         );
         if (legacyParts.length > 0) {
-          return Math.round((legacyParts.reduce((a, b) => a + b, 0) / legacyParts.length) * 2) / 2;
+          const avg = legacyParts.reduce((a, b) => a + b, 0) / legacyParts.length;
+          return clampToRange(Math.round(avg));
         }
-        
-        return 0; // fallback to satisfy required column
+
+        // As a last resort, return mid rating to pass NOT NULL constraint while being neutral
+        return 3;
       };
 
       // Check if user already has a review for this event (guard against non-UUID eventId)
@@ -233,7 +239,7 @@ export class ReviewService {
           reaction_emoji: reviewData.reaction_emoji,
           is_public: reviewData.is_public,
           performance_rating: reviewData.performance_rating,
-          venue_rating: reviewData.venue_rating,
+          // Do not write decimals to legacy integer venue_rating; use new decimal column instead
           overall_experience_rating: reviewData.overall_experience_rating,
           performance_review_text: reviewData.performance_review_text,
           venue_review_text: reviewData.venue_review_text,
@@ -300,7 +306,7 @@ export class ReviewService {
         review_text: reviewData.review_text,
         is_public: reviewData.is_public ?? true,
         performance_rating: reviewData.performance_rating,
-        venue_rating: reviewData.venue_rating,
+        // Do not write decimals to legacy integer venue_rating; use new decimal column instead
         overall_experience_rating: reviewData.overall_experience_rating,
         performance_review_text: reviewData.performance_review_text,
         venue_review_text: reviewData.venue_review_text,
@@ -319,6 +325,22 @@ export class ReviewService {
         .insert(insertPayload as any)
         .select()
         .maybeSingle();
+
+      if (error) {
+        // If duplicate key (user_id, event_id) already exists, fallback to update instead of failing
+        const err: any = error as any;
+        if (err?.code === '23505' || /duplicate key/i.test(err?.message || '')) {
+          const upd = await supabase
+            .from('user_reviews')
+            .update(insertPayload as any)
+            .eq('user_id', userId)
+            .eq('event_id', eventId)
+            .select()
+            .maybeSingle();
+          data = upd.data as any;
+          error = upd.error as any;
+        }
+      }
 
       if (error) {
         // Retry with legacy-only columns
@@ -344,8 +366,11 @@ export class ReviewService {
       if (error) throw error as any;
       return data as any as UserReview;
     } catch (error) {
-      console.error('Error setting event review:', error);
-      throw new Error(`Failed to set event review: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Surface deeper Supabase details when possible
+      const errObj: any = error as any;
+      const message = errObj?.message || errObj?.error_description || errObj?.details || errObj?.hint || JSON.stringify(errObj);
+      console.error('Error setting event review:', errObj);
+      throw new Error(`Failed to set event review: ${message}`);
     }
   }
 
@@ -474,6 +499,8 @@ export class ReviewService {
           )
         `)
         .eq('user_id', userId)
+        .order('rating', { ascending: false })
+        .order('rank_order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false });
 
       console.log('🔍 ReviewService: Raw query result:', { data, error });
@@ -487,6 +514,10 @@ export class ReviewService {
             user_id: item.user_id,
             event_id: item.event_id,
             rating: item.rating,
+                rank_order: (item as any).rank_order,
+            performance_rating: item.performance_rating,
+            venue_rating_new: item.venue_rating_new,
+            overall_experience_rating: item.overall_experience_rating,
             review_type: item.review_type,
             reaction_emoji: item.reaction_emoji,
             review_text: item.review_text,
@@ -515,6 +546,52 @@ export class ReviewService {
     } catch (error) {
       console.error('❌ ReviewService: Error getting user review history:', error);
       throw new Error(`Failed to get user review history: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Persist ordered ranks for a single rating group
+   */
+  static async setRankOrderForRatingGroup(
+    userId: string,
+    rating: number,
+    orderedReviewIds: string[]
+  ): Promise<void> {
+    // Defensive: ensure dense 1..N ranks
+    const updates = orderedReviewIds.map((id, idx) => ({ id, rank_order: idx + 1 }));
+    try {
+      for (const u of updates) {
+        // Match by display rating (nearest 0.5) across either integer rating or category average
+        const roundedRating = Math.round(rating * 2) / 2;
+        const { error } = await (supabase as any)
+          .from('user_reviews')
+          .update({ rank_order: u.rank_order })
+          .eq('id', u.id)
+          .eq('user_id', userId)
+          // Allow either integer overall or computed average to equal the bucket rating
+          .or(
+            `rating.eq.${Math.round(roundedRating)},and(performance_rating.is.not.null,venue_rating_new.is.not.null,overall_experience_rating.is.not.null)`
+          );
+        if (error) throw error;
+      }
+    } catch (e) {
+      console.error('Error updating rank order group', e);
+      throw new Error('Failed to update ranking');
+    }
+  }
+
+  /**
+   * Clear rank when rating changes (so item drops to bottom of its new group)
+   */
+  static async clearRankOnRatingChange(reviewId: string): Promise<void> {
+    try {
+      const { error } = await (supabase as any)
+        .from('user_reviews')
+        .update({ rank_order: null })
+        .eq('id', reviewId);
+      if (error) throw error;
+    } catch (e) {
+      console.warn('Failed to clear rank_order on rating change', e);
     }
   }
 
@@ -754,29 +831,22 @@ export class ReviewService {
   ): Promise<void> {
     try {
       const column = `${type}_count`;
-      const { data: updated, error } = await (supabase as any)
-        .from('user_reviews')
-        .update({ [column]: (supabase as any).sql`${column} + ${delta}` })
-        .eq('id', reviewId)
-        .select('id')
-        .single();
+      // Prefer RPC (created by migration) to do an atomic increment
+      const { error: rpcError } = await (supabase as any)
+        .rpc('increment_review_count', { review_id: reviewId, column_name: column, delta });
 
-      if (error) {
-        // fall back to a safe client-side read-modify-write if server does not support SQL fragment
-        if ((error as any).code === 'PGRST302' || (error as any).code === 'PGRST202') {
-          const { data: current } = await (supabase as any)
-            .from('user_reviews')
-            .select('likes_count, comments_count, shares_count')
-            .eq('id', reviewId)
-            .single();
-          const next = Math.max(0, (current?.[column] || 0) + delta);
-          await (supabase as any)
-            .from('user_reviews')
-            .update({ [column]: next })
-            .eq('id', reviewId);
-        } else {
-          throw error;
-        }
+      if (rpcError) {
+        // Fallback to safe read-modify-write if RPC is unavailable
+        const { data: current } = await (supabase as any)
+          .from('user_reviews')
+          .select('likes_count, comments_count, shares_count')
+          .eq('id', reviewId)
+          .single();
+        const next = Math.max(0, (current?.[column] || 0) + delta);
+        await (supabase as any)
+          .from('user_reviews')
+          .update({ [column]: next })
+          .eq('id', reviewId);
       }
     } catch (error) {
       console.error(`Error updating ${type} count:`, error);

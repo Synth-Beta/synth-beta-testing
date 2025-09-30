@@ -27,17 +27,24 @@ export function VenueReviewCard({
   };
 
   const renderStars = (rating: number, color: string = 'text-yellow-400') => {
+    const stars = Math.round(Math.max(0, Math.min(5, rating)) * 2) / 2;
     return (
       <div className="flex">
-        {Array.from({ length: 5 }, (_, i) => (
-          <Star
-            key={i}
-            className={cn(
-              "w-4 h-4",
-              i < rating ? `${color} fill-current` : "text-gray-300"
-            )}
-          />
-        ))}
+        {Array.from({ length: 5 }, (_, i) => {
+          const idx = i + 1;
+          const isFull = stars >= idx;
+          const isHalf = !isFull && stars >= idx - 0.5;
+          return (
+            <div key={i} className="relative w-4 h-4">
+              <Star className="w-4 h-4 text-gray-300" />
+              {(isHalf || isFull) && (
+                <div className={cn('absolute left-0 top-0 h-full overflow-hidden', isFull ? 'w-full' : 'w-1/2')}>
+                  <Star className={cn('w-4 h-4 fill-current', color)} />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };

@@ -2,10 +2,11 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Star, Images, MessageCircle, Heart, Share2, Loader2, Send } from 'lucide-react';
+import { Star, Images, MessageCircle, Heart, Share2, Loader2, Send, Play, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ReviewService, type CommentWithUser } from '@/services/reviewService';
 import { ShareService } from '@/services/shareService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ReviewEventMeta {
   event_name: string;
@@ -29,10 +30,15 @@ export interface ProfileReviewCardProps {
   initialIsLiked?: boolean;
   initialLikesCount?: number;
   initialCommentsCount?: number;
+  photos?: string[];
+  videos?: string[];
 }
 
 function normalizeRating(r: number | 'good' | 'okay' | 'bad'): number {
-  if (typeof r === 'number') return Math.max(1, Math.min(5, Math.round(r)));
+  if (typeof r === 'number') {
+    const clamped = Math.max(1, Math.min(5, r));
+    return Math.round(clamped * 2) / 2; // preserve .5 increments
+  }
   if (r === 'good') return 5;
   if (r === 'okay') return 3;
   if (r === 'bad') return 1;
@@ -51,9 +57,21 @@ export function ProfileReviewCard({
   currentUserId,
   initialIsLiked = false,
   initialLikesCount = 0,
-  initialCommentsCount = 0
+  initialCommentsCount = 0,
+  photos: initialPhotos,
+  videos: initialVideos
 }: ProfileReviewCardProps) {
-  const stars = normalizeRating(rating);
+  // Display stars should honor .5 increments. Prefer category averages when available.
+  const baseStars = normalizeRating(rating);
+  const getDisplayStars = () => {
+    const parts: number[] = [];
+    if (typeof (categoryRatings.performance) === 'number' && categoryRatings.performance > 0) parts.push(categoryRatings.performance);
+    if (typeof (categoryRatings.venue) === 'number' && categoryRatings.venue > 0) parts.push(categoryRatings.venue);
+    if (typeof (categoryRatings.overall) === 'number' && categoryRatings.overall > 0) parts.push(categoryRatings.overall);
+    if (parts.length === 0) return baseStars;
+    const avg = parts.reduce((a, b) => a + b, 0) / parts.length;
+    return Math.round(avg * 2) / 2;
+  };
   const [isLiked, setIsLiked] = React.useState<boolean>(initialIsLiked);
   const [likesCount, setLikesCount] = React.useState<number>(initialLikesCount);
   const [commentsCount, setCommentsCount] = React.useState<number>(initialCommentsCount);
@@ -62,6 +80,9 @@ export function ProfileReviewCard({
   const [loadingComments, setLoadingComments] = React.useState<boolean>(false);
   const [newComment, setNewComment] = React.useState<string>('');
   const [submitting, setSubmitting] = React.useState<boolean>(false);
+  const [media, setMedia] = React.useState<{ photos: string[]; videos: string[] }>({ photos: initialPhotos || [], videos: initialVideos || [] });
+  const [categoryRatings, setCategoryRatings] = React.useState<{ performance?: number; venue?: number; overall?: number }>({});
+  const [artistAvatar, setArtistAvatar] = React.useState<string | null>(null);
 
   const toggleComments = async () => {
     const next = !showComments;
@@ -134,9 +155,65 @@ export function ProfileReviewCard({
     })();
   }, [reviewId, currentUserId]);
 
+  // Lazy-load media and category ratings for this review (and artist avatar)
+  React.useEffect(() => {
+    (async () => {
+      try {
+        // fetch media and ratings
+        const { data } = await (supabase as any)
+          .from('user_reviews')
+          .select('photos, videos, performance_rating, venue_rating_new, overall_experience_rating')
+          .eq('id', reviewId)
+          .maybeSingle();
+        if (data) {
+          const nextPhotos = Array.isArray(data.photos) ? data.photos : [];
+          const nextVideos = Array.isArray(data.videos) ? data.videos : [];
+          if (nextPhotos.length || nextVideos.length) {
+            setMedia({ photos: nextPhotos, videos: nextVideos });
+          }
+          setCategoryRatings({
+            performance: typeof data.performance_rating === 'number' ? data.performance_rating : undefined,
+            venue: typeof data.venue_rating_new === 'number' ? data.venue_rating_new : undefined,
+            overall: typeof data.overall_experience_rating === 'number' ? data.overall_experience_rating : undefined,
+          });
+        }
+      } catch {}
+
+      try {
+        // best-effort artist avatar
+        if (event.artist_name) {
+          const avatarSel = await (supabase as any)
+            .from('artist_profile')
+            .select('image_url')
+            .ilike('name', `%${event.artist_name}%`)
+            .limit(1);
+          const img = Array.isArray(avatarSel.data) && avatarSel.data[0]?.image_url;
+          if (img) setArtistAvatar(img);
+        }
+      } catch {}
+    })();
+  }, [reviewId, event.artist_name]);
+
   return (
-    <Card className={cn('border-gray-200', className)}>
-      <CardHeader className="pb-3">
+    <Card className={cn('border-gray-200 overflow-hidden', className)}>
+      {/* Brand header */}
+      <div className="h-32 w-full bg-gradient-to-r from-pink-500 via-fuchsia-500 to-purple-600 relative">
+        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_20%,white_0%,transparent_30%),radial-gradient(circle_at_80%_30%,white_0%,transparent_35%)]" />
+        <div className="absolute top-3 left-3 flex items-center gap-2 text-white">
+          <Sparkles className="w-4 h-4" />
+          <span className="text-xs tracking-wide">Review</span>
+        </div>
+        {/* Artist avatar */}
+        <div className="absolute -bottom-8 left-4 h-16 w-16 rounded-full ring-4 ring-white overflow-hidden bg-white/80 flex items-center justify-center text-lg font-semibold">
+          {artistAvatar ? (
+            <img src={artistAvatar} alt={event.artist_name || 'Artist'} className="h-full w-full object-cover" />
+          ) : (
+            <span>{(event.artist_name || title || 'A').slice(0,1).toUpperCase()}</span>
+          )}
+        </div>
+      </div>
+
+      <CardHeader className="pt-10 pb-3">
         <CardTitle className="text-lg">
           {title || event.event_name}
         </CardTitle>
@@ -164,16 +241,51 @@ export function ProfileReviewCard({
           </span>
         </div>
       </CardHeader>
+
       <CardContent className="space-y-5">
-        {/* Stars */}
+        {/* Overall Stars (supports half-star display) */}
         <div className="flex items-center gap-1">
-          {Array.from({ length: 5 }, (_, i) => (
-            <Star
-              key={i}
-              className={cn('w-5 h-5', i < stars ? 'text-yellow-400 fill-current' : 'text-gray-300')}
-            />
-          ))}
+          {Array.from({ length: 5 }, (_, i) => {
+            const starIndex = i + 1;
+            const stars = getDisplayStars();
+            const isFull = stars >= starIndex;
+            const isHalf = !isFull && stars >= starIndex - 0.5;
+            return (
+              <div key={i} className="relative w-5 h-5">
+                <Star className="w-5 h-5 text-gray-300" />
+                {(isHalf || isFull) && (
+                  <div className={cn('absolute left-0 top-0 h-full overflow-hidden pointer-events-none', isFull ? 'w-full' : 'w-1/2')}>
+                    <Star className="w-5 h-5 text-yellow-400 fill-current" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
+
+        {/* Category chips */}
+        {(categoryRatings.performance || categoryRatings.venue || categoryRatings.overall) && (
+          <div className="flex flex-wrap gap-2">
+            {typeof categoryRatings.performance === 'number' && (
+              <Badge variant="outline" className="gap-1">
+                <Star className="w-3 h-3 text-yellow-400" />
+                <span className="text-xs">Performance {categoryRatings.performance.toFixed(1)}</span>
+              </Badge>
+            )}
+            {typeof categoryRatings.venue === 'number' && (
+              <Badge variant="outline" className="gap-1">
+                <Star className="w-3 h-3 text-yellow-400" />
+                <span className="text-xs">Venue {categoryRatings.venue.toFixed(1)}</span>
+              </Badge>
+            )}
+            {typeof categoryRatings.overall === 'number' && (
+              <Badge variant="outline" className="gap-1">
+                <Star className="w-3 h-3 text-yellow-400" />
+                <span className="text-xs">Experience {categoryRatings.overall.toFixed(1)}</span>
+              </Badge>
+            )}
+          </div>
+        )}
 
         {/* Social Actions */}
         <div className="flex items-center justify-between pt-1">
@@ -200,18 +312,30 @@ export function ProfileReviewCard({
           </div>
         )}
 
-        {/* Photos placeholder */}
-        <div className="rounded-lg border p-4 bg-gray-50">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Images className="w-4 h-4" />
-            <span>Photos</span>
+        {/* Media gallery */}
+        {(media.photos.length > 0 || media.videos.length > 0) && (
+          <div className="rounded-lg border p-3 bg-gray-50">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Images className="w-4 h-4" />
+              <span>Media</span>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {media.photos.slice(0, 6).map((src, idx) => (
+                <div key={`p-${idx}`} className="aspect-square rounded overflow-hidden bg-white">
+                  <img src={src} alt={`photo-${idx}`} className="h-full w-full object-cover" loading="lazy" />
+                </div>
+              ))}
+              {media.videos.slice(0, 2).map((src, idx) => (
+                <div key={`v-${idx}`} className="aspect-square rounded overflow-hidden bg-black relative">
+                  <video src={src} className="h-full w-full object-cover" muted playsInline />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-white/80 rounded-full p-2"><Play className="w-4 h-4" /></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <div className="aspect-square rounded bg-white border flex items-center justify-center text-xs text-gray-400">Add photo</div>
-            <div className="aspect-square rounded bg-white border flex items-center justify-center text-xs text-gray-400">Add photo</div>
-            <div className="aspect-square rounded bg-white border flex items-center justify-center text-xs text-gray-400">Add photo</div>
-          </div>
-        </div>
+        )}
 
         {/* Comments */}
         {showComments && (

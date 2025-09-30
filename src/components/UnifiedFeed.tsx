@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +33,7 @@ import { SynthSLogo } from '@/components/SynthSLogo';
 import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
 import { ReviewCard as FeedReviewCard } from '@/components/reviews/ReviewCard';
+import { ProfileReviewCard } from '@/components/reviews/ProfileReviewCard';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventCommentsModal } from '@/components/events/EventCommentsModal';
 import { EventLikersModal } from '@/components/events/EventLikersModal';
@@ -77,6 +79,8 @@ export const UnifiedFeed = ({
   const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
   const [openEventCommentsFor, setOpenEventCommentsFor] = useState<string | null>(null);
   const [openLikersFor, setOpenLikersFor] = useState<string | null>(null);
+  const [viewReviewOpen, setViewReviewOpen] = useState(false);
+  const [selectedReviewForView, setSelectedReviewForView] = useState<any>(null);
 
   useEffect(() => {
     if (sessionExpired) {
@@ -239,6 +243,79 @@ export const UnifiedFeed = ({
     }
   };
 
+  // Hero image resolver for review items (mirrors JamBaseEventCard logic exactly)
+  const ReviewHeroImage: React.FC<{ item: UnifiedFeedItem }> = ({ item }) => {
+    const [url, setUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+      (async () => {
+        try {
+          console.log('ReviewHeroImage: Resolving image for item:', item.id, 'photos:', item.photos, 'artist:', item.event_info?.artist_name);
+          
+          // 1) try a user review photo for this specific review
+          if (Array.isArray(item.photos) && item.photos.length > 0) {
+            console.log('ReviewHeroImage: Using item photos:', item.photos[0]);
+            setUrl(item.photos[0] as any);
+            return;
+          }
+
+          const artistName = item.event_info?.artist_name || '';
+          if (!artistName) { 
+            console.log('ReviewHeroImage: No artist name, setting null');
+            setUrl(null); 
+            return; 
+          }
+
+          // 2) try artist image via any review that carries photos for this artist
+          const artist = await (supabase as any)
+            .from('user_reviews')
+            .select('photos, jambase_events!inner(artist_name)')
+            .not('photos', 'is', null)
+            .ilike('jambase_events.artist_name', `%${artistName}%`)
+            .order('likes_count', { ascending: false })
+            .limit(1);
+          const artistImg = Array.isArray(artist.data) && artist.data[0]?.photos?.[0];
+          if (artistImg) { 
+            console.log('ReviewHeroImage: Using artist review photo:', artistImg);
+            setUrl(artistImg); 
+            return; 
+          }
+
+          // 3) try most-liked review photo for same artist across events (same as step 2, but explicit)
+          const byArtist = await (supabase as any)
+            .from('user_reviews')
+            .select('photos, jambase_events!inner(artist_name)')
+            .not('photos', 'is', null)
+            .ilike('jambase_events.artist_name', `%${artistName}%`)
+            .order('likes_count', { ascending: false })
+            .limit(1);
+          const artistPhoto = Array.isArray(byArtist.data) && byArtist.data[0]?.photos?.[0];
+          if (artistPhoto) { 
+            console.log('ReviewHeroImage: Using popular artist photo:', artistPhoto);
+            setUrl(artistPhoto); 
+            return; 
+          }
+          
+          console.log('ReviewHeroImage: No image found, setting null');
+          setUrl(null);
+        } catch (error) {
+          console.error('ReviewHeroImage: Error resolving image:', error);
+          setUrl(null);
+        }
+      })();
+    }, [item.id, item.photos, item.event_info?.artist_name]);
+
+    console.log('ReviewHeroImage: Rendering with url:', url);
+    if (!url) return null;
+    return (
+      <div className="h-44 w-full overflow-hidden rounded-t-lg">
+        <img src={url} alt={item.event_info?.event_name || item.title} className="w-full h-full object-cover" loading="lazy" />
+      </div>
+    );
+  };
+
+  // (Reverted) No custom EventHeroImage in unified feed
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -339,7 +416,7 @@ export const UnifiedFeed = ({
                 .map((item) => (
               <Card 
                 key={item.id} 
-                className="hover:shadow-md transition-shadow cursor-pointer"
+                className="hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
                 onClick={async (e) => {
                   if (e.defaultPrevented) return;
                   if (item.event_data) {
@@ -357,6 +434,12 @@ export const UnifiedFeed = ({
                   }
                 }}
               >
+                {/* Simple gradient header (original) */}
+                {item.event_data?.artist_name && (
+                  <div className="h-40 w-full bg-gradient-to-r from-gray-100 to-white flex items-center px-4">
+                    <div className="text-sm text-gray-600">{item.event_data.artist_name}</div>
+                  </div>
+                )}
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -542,7 +625,16 @@ export const UnifiedFeed = ({
               {feedItems
                 .filter(item => item.type === 'review')
                 .map((item) => (
-                  <Card key={item.id} className="hover:shadow-md transition-shadow">
+                  <Card 
+                    key={item.id} 
+                    className="hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
+                    onClick={() => {
+                      setSelectedReviewForView(item);
+                      setViewReviewOpen(true);
+                    }}
+                  >
+                    {/* Review hero image (user photo → artist image → popular review image) */}
+                    <ReviewHeroImage item={item} />
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
@@ -604,24 +696,49 @@ export const UnifiedFeed = ({
                           </p>
                         )}
                       </div>
-
-                      <FeedReviewCard
-                        review={{
-                          id: String(item.review_id || item.id).replace(/^public-review-/, ''),
-                          user_id: item.author?.id || 'unknown',
-                          event_id: '',
-                          rating: item.rating || 0,
-                          review_text: item.content || '',
-                          likes_count: item.likes_count || 0,
-                          comments_count: item.comments_count || 0,
-                          shares_count: item.shares_count || 0,
-                          created_at: item.created_at,
-                          updated_at: item.created_at,
-                          is_public: item.is_public ?? true,
-                        } as any}
-                        currentUserId={currentUserId}
-                        showEventInfo={false}
-                      />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="flex items-center gap-1 text-xs text-gray-500"
+                            onMouseDown={(e) => { e.stopPropagation(); }}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                          >
+                            <Heart className="w-3 h-3" />
+                            {item.likes_count || 0}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="flex items-center gap-1 text-xs text-gray-500"
+                            onMouseDown={(e) => { e.stopPropagation(); }}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                          >
+                            <MessageCircle className="w-3 h-3" />
+                            {item.comments_count || 0}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="flex items-center gap-1 text-xs text-gray-500"
+                            onMouseDown={(e) => { e.stopPropagation(); }}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                          >
+                            <Share2 className="w-3 h-3" />
+                            {item.shares_count || 0}
+                          </Button>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {(() => {
+                            try {
+                              return format(parseISO(item.created_at), 'MMM d, h:mm a');
+                            } catch {
+                              return item.created_at;
+                            }
+                          })()}
+                        </span>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -676,6 +793,12 @@ export const UnifiedFeed = ({
         currentUserId={currentUserId}
         isOpen={detailsOpen}
         onClose={() => setDetailsOpen(false)}
+        onReview={() => {
+          if (selectedEventForDetails) {
+            setSelectedReviewEvent(selectedEventForDetails);
+            setShowReviewModal(true);
+          }
+        }}
         onInterestToggle={async (eventId, interested) => {
           try {
             await UserEventService.setEventInterest(currentUserId, eventId, interested);
@@ -748,6 +871,37 @@ export const UnifiedFeed = ({
         isOpen={Boolean(openLikersFor)}
         onClose={() => setOpenLikersFor(null)}
       />
+
+      {/* Review View Dialog - mirrors ProfileView */}
+      <Dialog open={viewReviewOpen} onOpenChange={setViewReviewOpen}>
+        <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
+          <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
+            <DialogTitle>Review</DialogTitle>
+          </DialogHeader>
+          {selectedReviewForView && (
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+              <ProfileReviewCard
+                title={selectedReviewForView.event_info?.event_name || selectedReviewForView.title}
+                rating={selectedReviewForView.rating || 0}
+                reviewText={selectedReviewForView.content || ''}
+                event={{
+                  event_name: selectedReviewForView.event_info?.event_name || selectedReviewForView.title || 'Concert Review',
+                  event_date: selectedReviewForView.event_info?.event_date || selectedReviewForView.created_at,
+                  artist_name: selectedReviewForView.event_info?.artist_name || null,
+                  artist_id: null,
+                  venue_name: selectedReviewForView.event_info?.venue_name || null,
+                  venue_id: selectedReviewForView.event_info?.venue_id || null,
+                }}
+                reviewId={String(selectedReviewForView.review_id || selectedReviewForView.id).replace(/^public-review-/, '')}
+                currentUserId={currentUserId}
+                initialIsLiked={Boolean(selectedReviewForView.is_liked)}
+                initialLikesCount={selectedReviewForView.likes_count || 0}
+                initialCommentsCount={selectedReviewForView.comments_count || 0}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Full Page Chat */}
       {showUnifiedChat && (
