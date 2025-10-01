@@ -49,6 +49,13 @@ VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
+**Optional**: To enable Spotify integration for music preferences:
+```
+VITE_SPOTIFY_CLIENT_ID=your_spotify_client_id
+VITE_SPOTIFY_REDIRECT_URI=http://localhost:8080/auth/spotify/callback
+```
+Create a Spotify app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) to get credentials. The app works perfectly fine without Spotify configured.
+
 4. Start the development server:
 ```bash
 npm run dev

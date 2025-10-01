@@ -10,6 +10,7 @@ import { ArtistCard } from './ArtistCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { SearchResultsPage } from './SearchResultsPage';
+import { ManualEventForm } from '@/components/search/ManualEventForm';
 import { 
   Music, 
   Search, 
@@ -17,7 +18,8 @@ import {
   UserPlus,
   Loader2,
   X,
-  Calendar
+  Calendar,
+  PlusCircle
 } from 'lucide-react';
 
 interface UnifiedSearchProps {
@@ -49,7 +51,7 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
   const [selectedArtist, setSelectedArtist] = useState<ArtistSelectionResult | null>(null);
   const [isSelectingArtist, setIsSelectingArtist] = useState(false);
   const [showAllEvents, setShowAllEvents] = useState(false);
-  
+  const [showManualEventForm, setShowManualEventForm] = useState(false);
   
   const { toast } = useToast();
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -316,6 +318,14 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
     };
   }, []);
 
+  const handleManualEventCreated = (event: any) => {
+    toast({
+      title: "Event Created! 🎉",
+      description: `${event.title} has been added to your events.`,
+    });
+    // You could refresh the feed or navigate to the event here
+  };
+
   // Render full results page if viewing all results
   if (currentView === 'artists' || currentView === 'people') {
     return (
@@ -347,6 +357,12 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
   }
 
   return (
+    <>
+      <ManualEventForm
+        open={showManualEventForm}
+        onClose={() => setShowManualEventForm(false)}
+        onEventCreated={handleManualEventCreated}
+      />
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -555,7 +571,16 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
                 <div className="text-center py-8 bg-gray-50 rounded-lg">
                   <Search className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <h3 className="font-semibold text-gray-900 mb-1">No Results Found</h3>
-                  <p className="text-sm text-gray-600">Try searching with different terms</p>
+                  <p className="text-sm text-gray-600 mb-4">Try searching with different terms or add your own event</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowManualEventForm(true)}
+                    className="gap-2"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Add Event Manually
+                  </Button>
                 </div>
               )}
             </div>
@@ -566,10 +591,20 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
             <div className="text-center py-8 bg-gray-50 rounded-lg">
               <Search className="w-12 h-12 text-gray-400 mx-auto mb-3" />
               <h3 className="font-semibold text-gray-900 mb-1">Search for Artists and People</h3>
-              <p className="text-sm text-gray-600">Enter a name to find artists or other music lovers</p>
+              <p className="text-sm text-gray-600 mb-4">Enter a name to find artists or other music lovers</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowManualEventForm(true)}
+                className="gap-2 text-blue-600 hover:text-blue-700"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Or add your own event
+              </Button>
             </div>
           )}
       </CardContent>
     </Card>
+    </>
   );
 }

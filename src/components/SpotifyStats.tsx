@@ -84,8 +84,28 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
   };
 
   const handleConnect = () => {
+    // Check if Spotify is configured before attempting authentication
+    if (!spotifyService.isConfigured()) {
+      toast({
+        title: "Spotify Not Configured",
+        description: "Spotify integration is not available. This feature is optional and doesn't affect core functionality.",
+        variant: "default",
+      });
+      return;
+    }
+
     setAuthenticating(true);
-    spotifyService.authenticate();
+    try {
+      spotifyService.authenticate();
+    } catch (error) {
+      console.error('Authentication error:', error);
+      setAuthenticating(false);
+      toast({
+        title: "Authentication Error",
+        description: error instanceof Error ? error.message : "Failed to start Spotify authentication.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleLogout = () => {

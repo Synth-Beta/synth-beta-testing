@@ -21,6 +21,8 @@ import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchServic
 import type { Artist, PaginatedEvents, Event } from '@/types/concertSearch';
 import { safeFormatEventDateTime } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
+import { ManualArtistForm } from '@/components/search/ManualArtistForm';
+import { useToast } from '@/hooks/use-toast';
 
 interface EventSearchProps {
   userId: string;
@@ -40,8 +42,10 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
   const [error, setError] = useState<string | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);
+  const [showManualArtistForm, setShowManualArtistForm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const eventsPerPage = 10;
 
@@ -320,6 +324,14 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
     return genres.slice(0, 3).join(', ');
   };
 
+  const handleManualArtistCreated = (artist: Artist) => {
+    handleArtistSelect(artist);
+    toast({
+      title: "Artist Created! 🎵",
+      description: `${artist.name} has been added. You can now browse their events.`,
+    });
+  };
+
   const renderEventCard = (event: Event) => {
     const isUpcoming = new Date(event.event_date) > new Date();
 
@@ -458,6 +470,13 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
   };
 
   return (
+    <>
+      <ManualArtistForm
+        open={showManualArtistForm}
+        onClose={() => setShowManualArtistForm(false)}
+        onArtistCreated={handleManualArtistCreated}
+        initialQuery={query}
+      />
     <div className={cn("w-full max-w-4xl mx-auto", className)}>
       <Card>
         <CardHeader>
@@ -604,7 +623,19 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
                     <div className="px-4 py-8 text-center text-gray-500">
                       <Music className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                       <p className="text-sm">No artists found for "{query}"</p>
-                      <p className="text-xs text-gray-400 mt-1">Try a different search term</p>
+                      <p className="text-xs text-gray-400 mt-2 mb-3">Try a different search term</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setIsOpen(false);
+                          setShowManualArtistForm(true);
+                        }}
+                        className="gap-2"
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                        Add "{query}" Manually
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -755,5 +786,6 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
         </CardContent>
       </Card>
     </div>
+    </>
   );
 }

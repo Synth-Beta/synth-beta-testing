@@ -160,10 +160,10 @@ export class UnifiedFeedService {
       
       if (error) throw error;
       
-      return (reviews || []).map(review => ({
-        id: `public-review-${review.review_id || review.id}`,
+      return (reviews || []).map((review: any) => ({
+        id: `public-review-${review.id}`,
         type: 'review' as const,
-        review_id: (review as any).review_id || review.id,
+        review_id: review.id,
         title: `${review.reviewer_name || 'Someone'}'s Review`,
         content: review.review_text || '',
         author: {

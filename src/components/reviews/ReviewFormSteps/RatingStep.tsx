@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
@@ -113,39 +112,6 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
     );
   };
 
-  const renderQualitativeSection = (category: 'performanceReviewText' | 'venueReviewText' | 'overallExperienceReviewText', label: string, placeholder: string) => {
-    const fieldName = category.replace('ReviewText', '');
-    const ratingField = `${fieldName.charAt(0).toLowerCase() + fieldName.slice(1)}Rating` as keyof typeof formData;
-    const ratingValue = formData[ratingField] as number;
-    const hasRating = ratingValue > 0;
-    
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium text-gray-900">{label} (Optional)</Label>
-          {hasRating && (
-            <span className="text-xs text-gray-500">
-              {getRatingLabel(ratingValue)}
-            </span>
-          )}
-        </div>
-        <Textarea
-          value={formData[category]}
-          onChange={(e) => onUpdateFormData({ [category]: e.target.value })}
-          placeholder={placeholder}
-          className="min-h-[80px] text-sm"
-          maxLength={300}
-        />
-        <div className="flex justify-between text-xs text-gray-500">
-          <span>Share specific details about this aspect</span>
-          <span>{formData[category].length}/300</span>
-        </div>
-        {errors[category] && (
-          <p className="text-sm text-red-600">{errors[category]}</p>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="space-y-8">
@@ -219,15 +185,12 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-4">
           {renderStarRating('performanceRating', 'Performance', 'How was the artist/band performance?')}
-          {renderQualitativeSection('performanceReviewText', 'Performance Details', 'What made the performance special? Any standout moments, energy level, or technical aspects?')}
         </div>
         <div className="space-y-4 border-t md:border-t-0 md:border-l md:border-gray-200 md:pl-6 pt-6 md:pt-0">
           {renderStarRating('venueRating', 'Venue', 'How was the venue experience (sound, staff, facilities)?')}
-          {renderQualitativeSection('venueReviewText', 'Venue Details', 'How was the sound quality, staff service, facilities, or overall venue atmosphere?')}
         </div>
         <div className="space-y-4 border-t md:border-t-0 md:border-l md:border-gray-200 md:pl-6 pt-6 md:pt-0">
           {renderStarRating('overallExperienceRating', 'Overall Experience', 'How was the overall atmosphere and crowd?')}
-          {renderQualitativeSection('overallExperienceReviewText', 'Overall Experience Details', 'What made the overall experience memorable? Crowd energy, atmosphere, or special moments?')}
         </div>
       </div>
     </div>

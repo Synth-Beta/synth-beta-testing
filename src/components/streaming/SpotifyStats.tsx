@@ -123,6 +123,16 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
   };
 
   const handleConnect = () => {
+    // Check if Spotify is configured before attempting authentication
+    if (!spotifyService.isConfigured()) {
+      toast({
+        title: "Spotify Not Configured",
+        description: "Spotify integration is not available. This feature is optional and doesn't affect core functionality.",
+        variant: "default",
+      });
+      return;
+    }
+
     setAuthenticating(true);
     try {
       spotifyService.authenticate();
@@ -131,13 +141,23 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       setAuthenticating(false);
       toast({
         title: "Authentication Error",
-        description: "Failed to start Spotify authentication. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to start Spotify authentication. Please try again.",
         variant: "destructive",
       });
     }
   };
 
   const handleReconnect = () => {
+    // Check if Spotify is configured before attempting reconnection
+    if (!spotifyService.isConfigured()) {
+      toast({
+        title: "Spotify Not Configured",
+        description: "Spotify integration is not available. This feature is optional and doesn't affect core functionality.",
+        variant: "default",
+      });
+      return;
+    }
+
     setAuthenticating(true);
     try {
       spotifyService.reauthenticate();
@@ -146,7 +166,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       setAuthenticating(false);
       toast({
         title: "Reconnection Error",
-        description: "Failed to reconnect to Spotify. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to reconnect to Spotify. Please try again.",
         variant: "destructive",
       });
     }

@@ -45,10 +45,16 @@ export class SpotifyService {
     return SpotifyService.instance;
   }
 
+  // Check if Spotify is properly configured
+  public isConfigured(): boolean {
+    return !!(this.config.clientId && this.config.redirectUri);
+  }
+
   // Authentication methods
   public async authenticate(): Promise<void> {
     if (!this.config.clientId || !this.config.redirectUri) {
-      throw new Error('Spotify not configured. Missing clientId or redirectUri.');
+      console.warn('Spotify not configured. Missing VITE_SPOTIFY_CLIENT_ID or VITE_SPOTIFY_REDIRECT_URI environment variables.');
+      throw new Error('Spotify integration is not configured. Please contact the administrator.');
     }
     const state = this.generateRandomString(16);
     const codeVerifier = this.generateRandomString(64);
