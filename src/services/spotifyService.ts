@@ -21,6 +21,17 @@ export class SpotifyService {
   private constructor() {
     const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
     const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || (typeof window !== 'undefined' ? `${window.location.origin}/auth/spotify/callback` : '');
+    
+    // Debug logging
+    console.log('🔍 Spotify Config Debug:', {
+      hasClientId: !!clientId,
+      hasRedirectUri: !!redirectUri,
+      clientIdLength: clientId.length,
+      redirectUri: redirectUri,
+      envMode: import.meta.env.MODE,
+      allEnvKeys: Object.keys(import.meta.env)
+    });
+    
     this.config = {
       clientId,
       redirectUri,
