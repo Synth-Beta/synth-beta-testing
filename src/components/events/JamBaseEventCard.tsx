@@ -32,6 +32,7 @@ interface JamBaseEventCardProps {
   currentUserId?: string;
   onOpenInterestedUsers?: (eventId: string) => void;
   className?: string;
+  onClick?: () => void;
 }
 
 export function JamBaseEventCard({
@@ -44,7 +45,8 @@ export function JamBaseEventCard({
   showReviewButton = true,
   currentUserId,
   onOpenInterestedUsers,
-  className
+  className,
+  onClick
 }: JamBaseEventCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [interestedCount, setInterestedCount] = useState<number | null>(null);
@@ -185,7 +187,10 @@ export function JamBaseEventCard({
   };
 
   return (
-    <Card className={cn("w-full transition-all duration-200 hover:shadow-lg", className)}>
+    <Card 
+      className={cn("w-full transition-all duration-200 hover:shadow-lg", className)}
+      onClick={onClick}
+    >
       {heroImageUrl && (
         <div className="h-44 w-full overflow-hidden rounded-t-lg">
           <img src={heroImageUrl} alt={event.title} className="w-full h-full object-cover" loading="lazy" />

@@ -8,6 +8,7 @@ interface PostGridItem {
   id: string;
   type: 'review' | 'event';
   image?: string;
+  images?: string[];
   title: string;
   subtitle: string;
   rating?: number;
@@ -65,7 +66,7 @@ export const PostsGrid = ({ posts, onPostClick }: PostsGridProps) => {
         >
           <CardContent className="p-0 h-full relative">
             {/* Image or Placeholder */}
-            <div className="w-full h-2/3 bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex items-center justify-center">
+            <div className="w-full h-2/3 bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex items-center justify-center overflow-hidden">
               {post.image ? (
                 <img 
                   src={post.image} 

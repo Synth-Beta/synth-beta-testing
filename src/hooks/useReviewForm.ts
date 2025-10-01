@@ -21,6 +21,8 @@ export interface ReviewFormData {
   venueReviewText: string; // Optional qualitative review for venue
   overallExperienceReviewText: string; // Optional qualitative review for overall experience
   artistReviewText: string; // Legacy field for backward compatibility
+  photos: string[]; // Photo URLs uploaded to storage
+  videos: string[]; // Video URLs uploaded to storage
   
   // Step 4: Privacy
   isPublic: boolean;
@@ -51,6 +53,8 @@ const initialFormData: ReviewFormData = {
   venueReviewText: '',
   overallExperienceReviewText: '',
   artistReviewText: '',
+  photos: [],
+  videos: [],
   isPublic: true,
   reviewType: 'event',
 };

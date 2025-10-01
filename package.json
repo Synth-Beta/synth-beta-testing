@@ -14,7 +14,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "setup": "npm install && npm run backend:install"
+    "setup": "npm install && npm run backend:install",
+    "verify:photos": "node verify-photo-integration.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

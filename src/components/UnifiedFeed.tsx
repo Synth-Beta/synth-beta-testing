@@ -637,8 +637,8 @@ export const UnifiedFeed = ({
                     <ReviewHeroImage item={item} />
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="w-8 h-8">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10 ring-2 ring-purple-100">
                             <AvatarImage src={item.author?.avatar_url || undefined} />
                             <AvatarFallback className="text-xs">
                               {item.author?.name?.split(' ').map(n => n[0]).join('') || 'U'}
@@ -655,16 +655,6 @@ export const UnifiedFeed = ({
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge className="bg-purple-100 text-purple-800 text-xs">
-                            <Star className="w-3 h-3 mr-1" />
-                            Review
-                          </Badge>
-                          {item.rating && (
-                            <Badge className={`${getRatingColor(item.rating)} border text-xs`}>
-                              {getRatingIcon(item.rating)}
-                              <span className="ml-1">{getRatingText(item.rating)}</span>
-                            </Badge>
-                          )}
                           {!item.is_public && (
                             <Badge variant="outline" className="text-xs">
                               {item.is_public ? <Globe className="w-3 h-3 mr-1" /> : <Users className="w-3 h-3 mr-1" />}
@@ -673,6 +663,35 @@ export const UnifiedFeed = ({
                           )}
                         </div>
                       </div>
+
+                      {/* Prominent Star Rating Display */}
+                      {item.rating && (
+                        <div className="mb-4 p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-0.5">
+                                {Array.from({ length: 5 }, (_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`w-5 h-5 ${
+                                      i < Math.floor(item.rating) 
+                                        ? 'text-yellow-500 fill-yellow-500' 
+                                        : i < item.rating 
+                                        ? 'text-yellow-500 fill-yellow-500' 
+                                        : 'text-gray-300 fill-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-2xl font-bold text-gray-900">{item.rating.toFixed(1)}</span>
+                            </div>
+                            <Badge className={`${getRatingColor(item.rating)} border`}>
+                              {getRatingIcon(item.rating)}
+                              <span className="ml-1">{getRatingText(item.rating)}</span>
+                            </Badge>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="mb-3">
                         <h4 className="text-lg font-semibold text-gray-900 mb-1">

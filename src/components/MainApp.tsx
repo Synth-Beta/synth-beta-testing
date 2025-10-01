@@ -4,6 +4,7 @@ import { ConcertFeed } from './ConcertFeed';
 import { UnifiedFeed } from './UnifiedFeed';
 import { UnifiedSearch } from './UnifiedSearch';
 import { SearchMap } from './SearchMap';
+import { RedesignedSearchPage } from './search/RedesignedSearchPage';
 import { ProfileView } from './profile/ProfileView';
 import { ProfileEdit } from './ProfileEdit';
 import { ConcertEvents } from './ConcertEvents';
@@ -26,6 +27,7 @@ interface MainAppProps {
 export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [currentView, setCurrentView] = useState<ViewType>('feed');
   const [events, setEvents] = useState<EventCardEvent[]>([]);
+  const [profileUserId, setProfileUserId] = useState<string | undefined>(undefined);
   const { toast } = useToast();
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
 
@@ -43,6 +45,15 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     };
 
     window.addEventListener('keydown', handleKeyDown);
+    // Listen for unified search user-profile navigation
+    const handleOpenUserProfile = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { userId?: string };
+      if (detail?.userId) {
+        setProfileUserId(detail.userId);
+        setCurrentView('profile');
+      }
+    };
+    window.addEventListener('open-user-profile', handleOpenUserProfile as EventListener);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
@@ -170,6 +181,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const handleViewChange = (view: ViewType) => {
     console.log('🔄 View changing from', currentView, 'to', view);
     setCurrentView(view);
+    // Clear profileUserId when navigating away from profile
+    if (view !== 'profile') {
+      setProfileUserId(undefined);
+    }
   };
 
   const handleProfileEdit = () => {
@@ -251,31 +266,15 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         );
       case 'search':
         return (
-          <div className="min-h-screen bg-background p-4 pb-20">
-            <div className="max-w-4xl mx-auto">
-              <div className="mb-6">
-                <h1 className="synth-heading text-3xl">Search</h1>
-                <p className="synth-text text-muted-foreground mt-2">Find events and connect with other music lovers</p>
-              </div>
-              
-              {/* Search Component */}
-              <div className="mb-6">
-                <UnifiedSearch 
-                  userId={user.id}
-                />
-              </div>
-              
-              {/* Map Component */}
-              <div className="mb-6">
-                <SearchMap userId={user.id} />
-              </div>
-            </div>
-          </div>
+          <RedesignedSearchPage 
+            userId={user.id}
+          />
         );
       case 'profile':
         return (
           <ProfileView
             currentUserId={user.id}
+            profileUserId={profileUserId}
             onBack={handleBack}
             onEdit={handleProfileEdit}
             onSettings={handleProfileSettings}

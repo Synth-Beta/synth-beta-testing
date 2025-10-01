@@ -42,6 +42,17 @@ export function EventReviewsSection({
     }
   };
 
+  const handleReviewDeleted = () => {
+    console.log('📢 Review deleted, refreshing data');
+    setIsReviewModalOpen(false);
+    setEditingReviewId(null);
+    setEditingEvent(null);
+    // Trigger refresh by calling the callback
+    if (onReviewSubmitted) {
+      onReviewSubmitted(null);
+    }
+  };
+
   useEffect(() => {
     const loadEventForEdit = async () => {
       if (!editingReviewId) return;
@@ -182,6 +193,7 @@ export function EventReviewsSection({
             event={event}
             userId={userId}
             onSubmitted={handleReviewSubmitted as any}
+            onDeleted={handleReviewDeleted}
           />
         </div>
       )}
@@ -192,6 +204,7 @@ export function EventReviewsSection({
             event={editingEvent as any}
             userId={userId}
             onSubmitted={handleReviewSubmitted as any}
+            onDeleted={handleReviewDeleted}
           />
         </div>
       )}

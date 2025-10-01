@@ -3,6 +3,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
+import { PhotoUpload } from '@/components/ui/photo-upload';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ReviewContentStepProps {
   formData: ReviewFormData;
@@ -22,8 +24,14 @@ const emojiOptions = [
 ];
 
 export function ReviewContentStep({ formData, errors, onUpdateFormData }: ReviewContentStepProps) {
+  const { user } = useAuth();
+  
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onUpdateFormData({ reviewText: e.target.value });
+  };
+
+  const handlePhotosChange = (urls: string[]) => {
+    onUpdateFormData({ photos: urls });
   };
 
   const characterCount = formData.reviewText.length;
@@ -63,6 +71,20 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
             <p className="text-sm text-red-600">{errors.reviewText}</p>
           )}
       </div>
+
+      {/* Photo Upload */}
+      {user && (
+        <PhotoUpload
+          value={formData.photos || []}
+          onChange={handlePhotosChange}
+          userId={user.id}
+          bucket="review-photos"
+          maxPhotos={5}
+          maxSizeMB={5}
+          label="Photos (Optional)"
+          helperText="Add photos from the event to make your review more engaging"
+        />
+      )}
     </div>
   );
 }

@@ -41,6 +41,9 @@ export function ReviewCard({
   const [loadingComments, setLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const photos: string[] = Array.isArray((review as any)?.photos) ? (review as any).photos : [];
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [imageIndex, setImageIndex] = useState(0);
 
   const handleLike = async () => {
     if (!currentUserId || isLiking) return;
@@ -155,6 +158,23 @@ export function ReviewCard({
     return () => el?.removeEventListener('toggle-review-comments', listener as EventListener);
   }, [review.id, showComments, comments.length]);
 
+  const openImageViewer = (index: number) => {
+    setImageIndex(index);
+    setImageViewerOpen(true);
+  };
+
+  const closeImageViewer = () => setImageViewerOpen(false);
+  const prevImage = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!photos.length) return;
+    setImageIndex((idx) => (idx - 1 + photos.length) % photos.length);
+  };
+  const nextImage = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!photos.length) return;
+    setImageIndex((idx) => (idx + 1) % photos.length);
+  };
+
   return (
     <Card className="w-full border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 bg-white" id={`review-card-${review.id}`}>
       <CardHeader className="pb-3 bg-gradient-to-r from-gray-50 to-white border-b">
@@ -168,16 +188,11 @@ export function ReviewCard({
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900">
-                User {review.user_id?.slice(0, 8)}
+                You
               </p>
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center">
-                  {renderStars(review.rating)}
-                </div>
-                <span className="text-xs text-gray-500">
-                  {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}
-                </span>
-              </div>
+              <p className="text-xs text-gray-500">
+                Review
+              </p>
             </div>
           </div>
           <div className="flex items-center space-x-1">
@@ -208,16 +223,63 @@ export function ReviewCard({
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0">
-        {/* Photo preview (first user-uploaded photo) */}
-        {(review as any)?.photos && (review as any)?.photos.length > 0 && (
+      <CardContent className="pt-4">
+        {/* Prominent Star Rating Display */}
+        <div className="mb-4 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border-2 border-yellow-300 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <Star
+                    key={i}
+                    className={`w-6 h-6 ${
+                      i < Math.floor(review.rating) 
+                        ? 'text-yellow-500 fill-yellow-500' 
+                        : i < review.rating 
+                        ? 'text-yellow-500 fill-yellow-500' 
+                        : 'text-gray-300 fill-gray-300'
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-3xl font-bold text-gray-900">{review.rating.toFixed(1)}</span>
+              <span className="text-sm text-gray-600 font-medium">stars</span>
+            </div>
+            <div className="text-xs text-gray-500">
+              {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}
+            </div>
+          </div>
+        </div>
+
+        {/* Hero image showcasing user's experience */}
+        {photos.length > 0 && (
           <div className="mb-3 overflow-hidden rounded-lg border bg-gray-50">
             <img
-              src={(review as any).photos[0]}
-              alt="Review"
-              className="w-full h-56 object-cover"
+              src={photos[0]}
+              alt={`${(review as any).event_name || 'Event'} photo 1`}
+              className="w-full h-64 object-cover cursor-zoom-in"
               loading="lazy"
+              onClick={(e) => { e.stopPropagation(); openImageViewer(0); }}
             />
+          </div>
+        )}
+
+        {/* Secondary media grid */}
+        {photos.length > 1 && (
+          <div className="mb-4">
+            <div className="grid grid-cols-3 gap-2">
+              {photos.slice(1, 7).map((src: string, idx: number) => (
+                <div key={`pf-${idx}`} className="aspect-square rounded overflow-hidden bg-gray-100 border">
+                  <img 
+                    src={src} 
+                    alt={`${(review as any).event_name || 'Event'} photo ${idx + 2}`} 
+                    className="h-full w-full object-cover cursor-zoom-in" 
+                    loading="lazy"
+                    onClick={(e) => { e.stopPropagation(); openImageViewer(idx + 1); }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
         {/* Review Text */}
@@ -358,7 +420,7 @@ export function ReviewCard({
             </Button>
           </div>
         </div>
-      </CardContent>
+    </CardContent>
     {showComments && (
       <div className="px-6 pb-4">
         <div className="mt-3 border-t pt-3 space-y-3">
@@ -393,6 +455,39 @@ export function ReviewCard({
             </Button>
           </div>
         </div>
+      </div>
+    )}
+    {imageViewerOpen && photos.length > 0 && (
+      <div 
+        className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" 
+        onClick={closeImageViewer}
+        role="dialog" aria-modal="true"
+      >
+        <button 
+          className="absolute top-4 right-4 text-white/80 hover:text-white text-xl" 
+          aria-label="Close"
+          onClick={(e) => { e.stopPropagation(); closeImageViewer(); }}
+        >
+          ×
+        </button>
+        {photos.length > 1 && (
+          <>
+            <button 
+              className="absolute left-3 md:left-6 text-white/80 hover:text-white text-3xl select-none"
+              aria-label="Previous image" onClick={prevImage}
+            >‹</button>
+            <button 
+              className="absolute right-3 md:right-6 text-white/80 hover:text-white text-3xl select-none"
+              aria-label="Next image" onClick={nextImage}
+            >›</button>
+          </>
+        )}
+        <img 
+          src={photos[imageIndex]} 
+          alt={`${(review as any).event_name || 'Event'} photo ${imageIndex + 1}`} 
+          className="max-h-[85vh] max-w-[92vw] object-contain"
+          onClick={(e) => e.stopPropagation()}
+        />
       </div>
     )}
     </Card>

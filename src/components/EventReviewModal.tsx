@@ -48,6 +48,11 @@ export function EventReviewModal({
                 if (onReviewSubmitted) onReviewSubmitted(review);
                 onClose();
               }}
+              onDeleted={() => {
+                // Refresh parent data by triggering callback
+                if (onReviewSubmitted) onReviewSubmitted(null as any);
+                onClose();
+              }}
             />
           </div>
         </div>

@@ -14,6 +14,8 @@ export interface ReviewData {
   review_type: 'event' | 'venue' | 'artist'; // Type of review
   review_text?: string;
   reaction_emoji?: string;
+  photos?: string[]; // Array of photo URLs from storage
+  videos?: string[]; // Array of video URLs from storage
   is_public?: boolean;
   venue_tags?: string[]; // Venue-specific tags
   artist_tags?: string[]; // Artist-specific tags
@@ -250,6 +252,7 @@ export class ReviewService {
           review_type: reviewData.review_type,
           venue_tags: reviewData.venue_tags,
           artist_tags: reviewData.artist_tags,
+          photos: reviewData.photos, // Add photos field
           updated_at: new Date().toISOString()
         };
 
@@ -279,6 +282,7 @@ export class ReviewService {
             review_text: reviewData.review_text,
             reaction_emoji: reviewData.reaction_emoji,
             is_public: reviewData.is_public,
+            photos: reviewData.photos, // Add photos field to legacy update
             updated_at: new Date().toISOString()
           };
 
@@ -316,7 +320,8 @@ export class ReviewService {
         artist_rating: reviewData.artist_rating, // Legacy field
         review_type: reviewData.review_type,
         venue_tags: reviewData.venue_tags,
-        artist_tags: reviewData.artist_tags
+        artist_tags: reviewData.artist_tags,
+        photos: reviewData.photos // Add photos field
       } as UserReviewInsert;
 
       // Try full insert first
@@ -351,7 +356,8 @@ export class ReviewService {
           rating: deriveRating(reviewData),
           reaction_emoji: reviewData.reaction_emoji,
           review_text: reviewData.review_text,
-          is_public: reviewData.is_public ?? true
+          is_public: reviewData.is_public ?? true,
+          photos: reviewData.photos // Add photos field to legacy insert
         };
 
         const retry = await supabase
@@ -379,6 +385,13 @@ export class ReviewService {
    */
   static async getUserEventReview(userId: string, eventId: string): Promise<UserReview | null> {
     try {
+      // Validate UUID format to prevent 400 errors
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(eventId)) {
+        console.log('⚠️ Invalid event ID format (not a UUID), skipping review lookup:', eventId);
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('user_reviews')
         .select('*')
@@ -387,12 +400,17 @@ export class ReviewService {
         .single();
 
       if (error && error.code !== 'PGRST116') {
+        // PGRST116 = not found, which is okay
         throw error;
       }
 
       return data || null;
     } catch (error) {
-      console.error('Error getting user event review:', error);
+      const err = error as any;
+      // Don't log UUID validation errors as they're handled gracefully
+      if (err?.code !== '22P02') {
+        console.error('Error getting user event review:', error);
+      }
       return null;
     }
   }
@@ -557,26 +575,32 @@ export class ReviewService {
     rating: number,
     orderedReviewIds: string[]
   ): Promise<void> {
+    console.log('💾 Saving rank order:', { userId, rating, count: orderedReviewIds.length });
+    
     // Defensive: ensure dense 1..N ranks
     const updates = orderedReviewIds.map((id, idx) => ({ id, rank_order: idx + 1 }));
+    
     try {
       for (const u of updates) {
-        // Match by display rating (nearest 0.5) across either integer rating or category average
-        const roundedRating = Math.round(rating * 2) / 2;
+        console.log(`  Updating review ${u.id.slice(0, 8)}... → rank_order = ${u.rank_order}`);
+
+        // Use 'as any' to bypass type error since 'rank_order' exists in DB but not in generated types
         const { error } = await (supabase as any)
           .from('user_reviews')
           .update({ rank_order: u.rank_order })
           .eq('id', u.id)
-          .eq('user_id', userId)
-          // Allow either integer overall or computed average to equal the bucket rating
-          .or(
-            `rating.eq.${Math.round(roundedRating)},and(performance_rating.is.not.null,venue_rating_new.is.not.null,overall_experience_rating.is.not.null)`
-          );
-        if (error) throw error;
+          .eq('user_id', userId);
+
+        if (error) {
+          console.error(`❌ Error updating review ${u.id}:`, error);
+          throw error;
+        }
       }
+      
+      console.log('✅ All rankings saved successfully');
     } catch (e) {
-      console.error('Error updating rank order group', e);
-      throw new Error('Failed to update ranking');
+      console.error('❌ Error updating rank order group:', e);
+      throw new Error(`Failed to update ranking: ${e instanceof Error ? e.message : 'Unknown error'}`);
     }
   }
 

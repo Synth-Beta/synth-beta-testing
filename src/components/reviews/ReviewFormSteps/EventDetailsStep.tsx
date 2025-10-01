@@ -63,12 +63,25 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
   };
 
   const handleArtistSelect = (artist: Artist) => {
+    console.log('🎵 Artist selected in EventDetailsStep:', {
+      name: artist.name,
+      id: artist.id,
+    });
     onUpdateFormData({ selectedArtist: artist });
+    // Lock immediately to prevent race condition
+    setArtistLocked(true);
   };
 
   const handleVenueSelect = (venue: VenueSearchResult) => {
-    console.log('🎯 Venue selected:', venue);
+    console.log('🎯 Venue selected in EventDetailsStep:', {
+      name: venue.name,
+      id: venue.id,
+      is_from_database: venue.is_from_database,
+      identifier: venue.identifier,
+    });
     onUpdateFormData({ selectedVenue: venue });
+    // Lock immediately to prevent race condition
+    setVenueLocked(true);
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,12 +92,17 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
   const [venueLocked, setVenueLocked] = React.useState(!!formData.selectedVenue);
 
   React.useEffect(() => {
-    // Keep locks in sync with prefilled data
-    setArtistLocked(!!formData.selectedArtist);
+    // Only unlock if artist is cleared, don't auto-lock
+    if (!formData.selectedArtist) {
+      setArtistLocked(false);
+    }
   }, [formData.selectedArtist]);
 
   React.useEffect(() => {
-    setVenueLocked(!!formData.selectedVenue);
+    // Only unlock if venue is cleared, don't auto-lock
+    if (!formData.selectedVenue) {
+      setVenueLocked(false);
+    }
   }, [formData.selectedVenue]);
 
   return (
@@ -133,7 +151,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
           <Label htmlFor="artist" className="text-sm font-medium">Artist or Band *</Label>
           {!formData.selectedArtist || !artistLocked ? (
             <ArtistSearchBox
-              onArtistSelect={(a)=>{ handleArtistSelect(a); setArtistLocked(true); }}
+              onArtistSelect={handleArtistSelect}
               placeholder="Search for an artist or band..."
               className="w-full"
             />
@@ -154,7 +172,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
           <Label htmlFor="venue" className="text-sm font-medium">Venue *</Label>
           {!formData.selectedVenue || !venueLocked ? (
             <VenueSearchBox
-              onVenueSelect={(v)=>{ handleVenueSelect(v); setVenueLocked(true); }}
+              onVenueSelect={handleVenueSelect}
               placeholder="Search for a venue..."
               className="w-full"
             />

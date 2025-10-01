@@ -397,38 +397,6 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
           </CardTitle>
           <div className="flex gap-2">
             <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleNuclearReset}
-              disabled={authenticating}
-              className="text-red-700 border-red-700 hover:bg-red-100"
-            >
-              <Activity className="w-4 h-4 mr-2" />
-              Nuclear Reset
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleForceReconnect}
-              disabled={authenticating}
-              className="text-red-600 border-red-600 hover:bg-red-50"
-            >
-              <Activity className="w-4 h-4 mr-2" />
-              Force Reconnect
-            </Button>
-            {hasPermissionError && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleReconnect}
-                disabled={authenticating}
-                className="text-orange-600 border-orange-600 hover:bg-orange-50"
-              >
-                <Activity className="w-4 h-4 mr-2" />
-                {authenticating ? 'Reconnecting...' : 'Reconnect'}
-              </Button>
-            )}
-            <Button 
               variant="ghost" 
               size="sm" 
               onClick={loadStats}

@@ -9,6 +9,7 @@ import { ArrowLeft, Save, Instagram, User, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
+import { SinglePhotoUpload } from '@/components/ui/photo-upload';
 
 interface ProfileEditProps {
   currentUserId: string;
@@ -24,7 +25,8 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
     name: '',
     bio: '',
     instagram_handle: '',
-    music_streaming_profile: ''
+    music_streaming_profile: '',
+    avatar_url: null as string | null
   });
   const { toast } = useToast();
 
@@ -55,7 +57,8 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
             name: '',
             bio: '',
             instagram_handle: '',
-            music_streaming_profile: ''
+            music_streaming_profile: '',
+            avatar_url: null
           });
           setLoading(false);
           return;
@@ -70,7 +73,8 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         name: data.name || '',
         bio: data.bio || '',
         instagram_handle: data.instagram_handle || '',
-        music_streaming_profile: data.music_streaming_profile || ''
+        music_streaming_profile: data.music_streaming_profile || '',
+        avatar_url: data.avatar_url || null
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -104,6 +108,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         bio: formData.bio.trim() || null,
         instagram_handle: formData.instagram_handle.trim() || null,
         music_streaming_profile: formData.music_streaming_profile.trim() || null,
+        avatar_url: formData.avatar_url || null,
         updated_at: new Date().toISOString()
       };
       
@@ -193,21 +198,17 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Avatar Section */}
-            <div className="flex items-center gap-4">
-              <Avatar className="w-20 h-20">
-                <AvatarImage src={profile?.avatar_url || undefined} />
-                <AvatarFallback className="text-xl">
-                  {formData.name.charAt(0).toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-sm font-medium">Profile Picture</p>
-                <p className="text-xs text-muted-foreground">
-                  Avatar updates coming soon
-                </p>
-              </div>
-            </div>
+            {/* Avatar Upload */}
+            <SinglePhotoUpload
+              value={formData.avatar_url}
+              onChange={(url) => handleInputChange('avatar_url', url || '')}
+              userId={currentUserId}
+              bucket="profile-avatars"
+              maxSizeMB={2}
+              label="Profile Picture"
+              helperText="Upload a photo to personalize your profile. Max 2MB."
+              aspectRatio="circle"
+            />
 
             {/* Name Field */}
             <div className="space-y-2">

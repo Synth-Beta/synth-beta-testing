@@ -29,6 +29,7 @@ import { HolisticStatsCard } from './HolisticStatsCard';
 
 interface ProfileViewProps {
   currentUserId: string;
+  profileUserId?: string; // Optional: if provided, show this user's profile instead of current user
   onBack: () => void;
   onEdit: () => void;
   onSettings: () => void;
@@ -75,7 +76,7 @@ interface ConcertReview {
   };
 }
 
-export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignOut }: ProfileViewProps) => {
+export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut }: ProfileViewProps) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<UserEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,6 +99,10 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const { toast } = useToast();
   const { user, sessionExpired } = useAuth();
 
+  // Determine which user's profile to show
+  const targetUserId = profileUserId || currentUserId;
+  const isViewingOwnProfile = !profileUserId || profileUserId === currentUserId;
+
   useEffect(() => {
     // Don't fetch data if session is expired
     if (sessionExpired) {
@@ -116,7 +121,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     fetchUserEvents();
     fetchReviews();
     fetchFriends();
-  }, [currentUserId, sessionExpired, user]);
+  }, [targetUserId, sessionExpired, user]);
 
   useEffect(() => {
     // Check for hash in URL to determine active tab
@@ -158,14 +163,14 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         return;
       }
 
-      console.log('✅ Fetching profile for user:', currentUserId);
+      console.log('✅ Fetching profile for user:', targetUserId);
       
       // First try to get the profile
-      console.log('ProfileView: Fetching profile for user:', currentUserId);
+      console.log('ProfileView: Fetching profile for user:', targetUserId);
       const { data, error } = await supabase
         .from('profiles')
         .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at')
-        .eq('user_id', currentUserId)
+        .eq('user_id', targetUserId)
         .single();
       
       console.log('ProfileView: Profile query result:', { data, error });
@@ -269,7 +274,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         return;
       }
 
-      const data = await JamBaseService.getUserEvents(user.id);
+      const data = await JamBaseService.getUserEvents(targetUserId);
       
       const events = data?.map(item => ({
         id: item.jambase_event.id,
@@ -300,10 +305,10 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         return;
       }
 
-      console.log('🔍 ProfileView: Fetching reviews for user:', currentUserId);
+      console.log('🔍 ProfileView: Fetching reviews for user:', targetUserId);
       
       // Fetch user's reviews from the database
-      const result = await ReviewService.getUserReviewHistory(currentUserId);
+      const result = await ReviewService.getUserReviewHistory(targetUserId);
       
       console.log('🔍 ProfileView: Raw review data:', result);
       
@@ -318,6 +323,8 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         venue_rating: (item.review as any).venue_rating_new ?? (item.review as any).venue_rating,
         overall_experience_rating: (item.review as any).overall_experience_rating,
         review_text: item.review.review_text,
+        photos: item.review.photos || [],
+        videos: item.review.videos || [],
         is_public: item.review.is_public,
         created_at: item.review.created_at,
         event: {
@@ -365,7 +372,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       const { data: friendships, error: friendsError } = await supabase
         .from('friends')
         .select('id, user1_id, user2_id, created_at')
-        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+        .or(`user1_id.eq.${targetUserId},user2_id.eq.${targetUserId}`)
         .order('created_at', { ascending: false });
 
       if (friendsError) {
@@ -604,8 +611,12 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               
               <div className="flex items-center gap-4 mb-3">
                 <h2 className="text-xl font-semibold">{profile.name}</h2>
-                <Button onClick={onEdit} variant="outline" size="sm">Edit profile</Button>
-                <Button onClick={onSettings} variant="ghost" size="sm"><Settings className="w-4 h-4" /></Button>
+                {isViewingOwnProfile && (
+                  <>
+                    <Button onClick={onEdit} variant="outline" size="sm">Edit profile</Button>
+                    <Button onClick={onSettings} variant="ghost" size="sm"><Settings className="w-4 h-4" /></Button>
+                  </>
+                )}
             </div>
             </div>
           </div>
@@ -708,8 +719,10 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                 ...reviews.map((review) => ({
                   id: `review-${review.id}`,
                   type: 'review' as const,
+                  image: Array.isArray((review as any)?.photos) && (review as any).photos.length > 0 ? (review as any).photos[0] : undefined,
+                  images: Array.isArray((review as any)?.photos) ? (review as any).photos : [],
                   title: review.event?.event_name || 'Concert Review',
-                  subtitle: review.event?.location || 'Unknown Venue',
+                  subtitle: (review as any).event?.venue_name || review.event?.location || 'Unknown Venue',
                   rating: (() => {
                     // Prefer category average if present to preserve .5 increments
                     const parts: number[] = [];

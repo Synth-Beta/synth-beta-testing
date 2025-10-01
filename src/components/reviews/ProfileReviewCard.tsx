@@ -194,24 +194,52 @@ export function ProfileReviewCard({
     })();
   }, [reviewId, event.artist_name]);
 
+  const hasHero = media.photos.length > 0;
+
   return (
     <Card className={cn('border-gray-200 overflow-hidden', className)}>
-      {/* Brand header */}
-      <div className="h-32 w-full bg-gradient-to-r from-pink-500 via-fuchsia-500 to-purple-600 relative">
-        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_20%,white_0%,transparent_30%),radial-gradient(circle_at_80%_30%,white_0%,transparent_35%)]" />
-        <div className="absolute top-3 left-3 flex items-center gap-2 text-white">
-          <Sparkles className="w-4 h-4" />
-          <span className="text-xs tracking-wide">Review</span>
+      {/* Brand header - only show when there is no photo to hero */}
+      {!hasHero && (
+        <div className="h-32 w-full bg-gradient-to-r from-pink-500 via-fuchsia-500 to-purple-600 relative">
+          <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_20%,white_0%,transparent_30%),radial-gradient(circle_at_80%_30%,white_0%,transparent_35%)]" />
+          <div className="absolute top-3 left-3 flex items-center gap-2 text-white">
+            <Sparkles className="w-4 h-4" />
+            <span className="text-xs tracking-wide">Review</span>
+          </div>
+          {/* Artist avatar */}
+          <div className="absolute -bottom-8 left-4 h-16 w-16 rounded-full ring-4 ring-white overflow-hidden bg-white/80 flex items-center justify-center text-lg font-semibold">
+            {artistAvatar ? (
+              <img src={artistAvatar} alt={event.artist_name || 'Artist'} className="h-full w-full object-cover" />
+            ) : (
+              <span>{(event.artist_name || title || 'A').slice(0,1).toUpperCase()}</span>
+            )}
+          </div>
         </div>
-        {/* Artist avatar */}
-        <div className="absolute -bottom-8 left-4 h-16 w-16 rounded-full ring-4 ring-white overflow-hidden bg-white/80 flex items-center justify-center text-lg font-semibold">
-          {artistAvatar ? (
-            <img src={artistAvatar} alt={event.artist_name || 'Artist'} className="h-full w-full object-cover" />
-          ) : (
-            <span>{(event.artist_name || title || 'A').slice(0,1).toUpperCase()}</span>
-          )}
+      )}
+
+      {/* Hero image showcasing user's experience (first photo). Use object-contain to avoid cropping. */}
+      {hasHero && (
+        <div className="w-full overflow-hidden bg-black relative">
+          {/* Overlay brand + avatar on top of the image */}
+          <div className="absolute top-2 left-2 z-10 flex items-center gap-2 text-white/95">
+            <Sparkles className="w-4 h-4" />
+            <span className="text-xs tracking-wide">Review</span>
+          </div>
+          <div className="absolute top-2 left-2 md:left-4 translate-y-10 z-10 h-12 w-12 md:h-14 md:w-14 rounded-full ring-4 ring-white/80 overflow-hidden bg-white/80 flex items-center justify-center text-base md:text-lg font-semibold">
+            {artistAvatar ? (
+              <img src={artistAvatar} alt={event.artist_name || 'Artist'} className="h-full w-full object-cover" />
+            ) : (
+              <span>{(event.artist_name || title || 'A').slice(0,1).toUpperCase()}</span>
+            )}
+          </div>
+          <img
+            src={media.photos[0]}
+            alt={`${event.event_name} photo 1`}
+            className="w-full max-h-[60vh] object-contain"
+            loading="lazy"
+          />
         </div>
-      </div>
+      )}
 
       <CardHeader className="pt-10 pb-3">
         <CardTitle className="text-lg">
@@ -312,17 +340,17 @@ export function ProfileReviewCard({
           </div>
         )}
 
-        {/* Media gallery */}
-        {(media.photos.length > 0 || media.videos.length > 0) && (
+        {/* Media gallery (show remaining photos/videos after hero) */}
+        {((media.photos.length > 1) || media.videos.length > 0) && (
           <div className="rounded-lg border p-3 bg-gray-50">
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Images className="w-4 h-4" />
               <span>Media</span>
             </div>
             <div className="mt-3 grid grid-cols-3 gap-2">
-              {media.photos.slice(0, 6).map((src, idx) => (
+              {media.photos.slice(1, 7).map((src, idx) => (
                 <div key={`p-${idx}`} className="aspect-square rounded overflow-hidden bg-white">
-                  <img src={src} alt={`photo-${idx}`} className="h-full w-full object-cover" loading="lazy" />
+                  <img src={src} alt={`${event.event_name} photo ${idx + 2}`} className="h-full w-full object-cover" loading="lazy" />
                 </div>
               ))}
               {media.videos.slice(0, 2).map((src, idx) => (
