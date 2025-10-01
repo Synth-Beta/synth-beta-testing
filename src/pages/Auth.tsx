@@ -26,7 +26,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/#profile`,
           data: {
             name: name,
           }

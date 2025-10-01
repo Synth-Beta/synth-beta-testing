@@ -12,7 +12,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { ConcertRanking } from '../events/ConcertRanking';
 import { JamBaseService } from '@/services/jambaseService';
 import { EventReviewModal } from '../reviews/EventReviewModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -80,7 +79,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<UserEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showConcertRankings, setShowConcertRankings] = useState(false);
   const [showAddReview, setShowAddReview] = useState(false);
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [reviewModalEvent, setReviewModalEvent] = useState<any>(null);
@@ -96,6 +94,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [selectedReview, setSelectedReview] = useState<any>(null);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [followersModalType, setFollowersModalType] = useState<'followers' | 'following' | 'friends'>('friends');
+  const [friendStatus, setFriendStatus] = useState<'none' | 'friends' | 'pending_sent' | 'pending_received'>('none');
   const { toast } = useToast();
   const { user, sessionExpired } = useAuth();
 
@@ -121,6 +120,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     fetchUserEvents();
     fetchReviews();
     fetchFriends();
+    if (!isViewingOwnProfile) {
+      checkFriendStatus();
+    }
   }, [targetUserId, sessionExpired, user]);
 
   useEffect(() => {
@@ -427,6 +429,107 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     }
   };
 
+  const checkFriendStatus = async () => {
+    try {
+      if (sessionExpired || !user || isViewingOwnProfile) {
+        return;
+      }
+
+      // Check if users are already friends
+      const { data: friendship, error: friendsError } = await supabase
+        .from('friends')
+        .select('id')
+        .or(`and(user1_id.eq.${currentUserId},user2_id.eq.${targetUserId}),and(user1_id.eq.${targetUserId},user2_id.eq.${currentUserId})`)
+        .limit(1);
+
+      if (friendsError) {
+        console.warn('Warning: Could not check friendship status:', friendsError);
+        return;
+      }
+
+      if (friendship && friendship.length > 0) {
+        setFriendStatus('friends');
+        return;
+      }
+
+      // Check for pending friend requests
+      const { data: sentRequest, error: sentError } = await supabase
+        .from('friend_requests')
+        .select('id')
+        .eq('sender_id', currentUserId)
+        .eq('receiver_id', targetUserId)
+        .eq('status', 'pending')
+        .limit(1);
+
+      if (sentError) {
+        console.warn('Warning: Could not check sent friend requests:', sentError);
+        return;
+      }
+
+      if (sentRequest && sentRequest.length > 0) {
+        setFriendStatus('pending_sent');
+        return;
+      }
+
+      const { data: receivedRequest, error: receivedError } = await supabase
+        .from('friend_requests')
+        .select('id')
+        .eq('sender_id', targetUserId)
+        .eq('receiver_id', currentUserId)
+        .eq('status', 'pending')
+        .limit(1);
+
+      if (receivedError) {
+        console.warn('Warning: Could not check received friend requests:', receivedError);
+        return;
+      }
+
+      if (receivedRequest && receivedRequest.length > 0) {
+        setFriendStatus('pending_received');
+        return;
+      }
+
+      setFriendStatus('none');
+    } catch (error) {
+      console.warn('Warning: Error checking friend status:', error);
+      setFriendStatus('none');
+    }
+  };
+
+  const sendFriendRequest = async () => {
+    try {
+      if (sessionExpired || !user || isViewingOwnProfile) {
+        return;
+      }
+
+      console.log('Sending friend request to:', targetUserId);
+      
+      // Call the database function to create friend request
+      const { data, error } = await supabase.rpc('create_friend_request', {
+        receiver_user_id: targetUserId
+      });
+
+      if (error) {
+        console.error('Error creating friend request:', error);
+        throw error;
+      }
+
+      setFriendStatus('pending_sent');
+      
+      toast({
+        title: "Friend Request Sent! 🎉",
+        description: "Your friend request has been sent and they'll be notified.",
+      });
+    } catch (error: any) {
+      console.error('Error sending friend request:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send friend request. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleOpenReviewModal = () => {
     // Create a mock event for the review modal
     setReviewModalEvent({
@@ -564,15 +667,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   console.log('✅ ProfileView: Rendering profile for:', profile.name);
 
-  // Show concert rankings if requested
-  if (showConcertRankings) {
-    return (
-      <ConcertRanking
-        currentUserId={currentUserId}
-        onBack={() => setShowConcertRankings(false)}
-      />
-    );
-  }
 
   // setViewReviewOpen is defined by useState earlier
 
@@ -611,11 +705,35 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               
               <div className="flex items-center gap-4 mb-3">
                 <h2 className="text-xl font-semibold">{profile.name}</h2>
-                {isViewingOwnProfile && (
+                {isViewingOwnProfile ? (
                   <>
                     <Button onClick={onEdit} variant="outline" size="sm">Edit profile</Button>
                     <Button onClick={onSettings} variant="ghost" size="sm"><Settings className="w-4 h-4" /></Button>
                   </>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {friendStatus === 'none' && (
+                      <Button onClick={sendFriendRequest} variant="default" size="sm">
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add Friend
+                      </Button>
+                    )}
+                    {friendStatus === 'pending_sent' && (
+                      <Button disabled variant="outline" size="sm">
+                        Friend Request Sent
+                      </Button>
+                    )}
+                    {friendStatus === 'pending_received' && (
+                      <Button disabled variant="outline" size="sm">
+                        Respond to Request
+                      </Button>
+                    )}
+                    {friendStatus === 'friends' && (
+                      <Button disabled variant="outline" size="sm">
+                        Friends
+                      </Button>
+                    )}
+                  </div>
                 )}
             </div>
             </div>

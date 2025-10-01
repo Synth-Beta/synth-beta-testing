@@ -18,19 +18,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { SynthSLogo } from '@/components/SynthSLogo';
+import { fetchUserNotifications, type Notification } from '@/utils/notificationUtils';
 
-interface Notification {
-  id: string;
-  type: 'friend_request' | 'event_interest' | 'review_like' | 'review_comment' | 'event_reminder';
-  title: string;
-  message: string;
-  user_id?: string;
-  event_id?: string;
-  review_id?: string;
-  is_read: boolean;
-  created_at: string;
-  data?: any;
-}
 
 interface NotificationsPageProps {
   currentUserId: string;
@@ -55,19 +44,18 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
 
   const fetchNotifications = async () => {
     try {
-      // Fetch notifications from the database
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      // Check if session is expired before making any requests
+      if (sessionExpired) {
+        console.log('Session expired, skipping notifications fetch');
+        setLoading(false);
+        return;
+      }
 
-      if (error) throw error;
+      // Use the utility function to fetch and filter notifications
+      const activeNotifications = await fetchUserNotifications(currentUserId, 50);
 
-      const notificationList = data || [];
-      setNotifications(notificationList);
-      setUnreadCount(notificationList.filter(n => !n.is_read).length);
+      setNotifications(activeNotifications);
+      setUnreadCount(activeNotifications.filter(n => !n.is_read).length);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       // Create some mock notifications for demo purposes
@@ -80,6 +68,11 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
           user_id: 'user123',
           is_read: false,
           created_at: new Date().toISOString(),
+          data: {
+            sender_id: 'user123',
+            request_id: 'mock-request-123',
+            sender_name: 'Sarah Johnson'
+          }
         },
         {
           id: '2',
@@ -152,6 +145,179 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
       });
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+    }
+  };
+
+  const checkFriendRequestStatus = async (requestId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('friend_requests')
+        .select('status')
+        .eq('id', requestId)
+        .single();
+
+      if (error) {
+        console.log('🔍 Request not found:', error);
+        return 'not_found';
+      }
+
+      return data?.status || 'not_found';
+    } catch (error) {
+      console.error('Error checking friend request status:', error);
+      return 'not_found';
+    }
+  };
+
+  const handleAcceptFriendRequest = async (requestId: string) => {
+    console.log('🤝 Accepting friend request:', requestId);
+    
+    if (!requestId) {
+      toast({
+        title: "Error",
+        description: "Invalid friend request. Please refresh and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // First check if the request is still valid
+    const requestStatus = await checkFriendRequestStatus(requestId);
+    console.log('🔍 Request status:', requestStatus);
+
+    if (requestStatus === 'not_found' || requestStatus === 'accepted' || requestStatus === 'declined') {
+      toast({
+        title: "Request Already Processed",
+        description: "This friend request has already been handled. Refreshing notifications...",
+        variant: "destructive",
+      });
+      // Refresh notifications to remove the processed request
+      fetchNotifications();
+      return;
+    }
+
+    try {
+      // Convert string to UUID if needed
+      const uuidRequestId = typeof requestId === 'string' ? requestId : String(requestId);
+      console.log('🤝 Converted request ID:', uuidRequestId);
+
+      const { error } = await supabase.rpc('accept_friend_request', {
+        request_id: uuidRequestId
+      });
+
+      console.log('🤝 Accept friend request result:', error);
+
+      if (error) {
+        console.error('Error accepting friend request:', error);
+        
+        // Handle specific error cases
+        if (error.message.includes('not found') || error.message.includes('already processed')) {
+          toast({
+            title: "Request Already Processed",
+            description: "This friend request has already been handled. Refreshing notifications...",
+            variant: "destructive",
+          });
+          // Refresh notifications to remove the processed request
+          fetchNotifications();
+          return;
+        }
+        
+        throw error;
+      }
+
+      // Remove the notification from UI immediately
+      setNotifications(prev => prev.filter(n => (n.data as any)?.request_id !== requestId));
+      
+      toast({
+        title: "Friend Request Accepted! 🎉",
+        description: "You're now friends!",
+      });
+    } catch (error: any) {
+      console.error('Error accepting friend request:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to accept friend request. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeclineFriendRequest = async (requestId: string) => {
+    console.log('❌ Declining friend request:', requestId);
+    
+    if (!requestId) {
+      toast({
+        title: "Error",
+        description: "Invalid friend request. Please refresh and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log('🔍 Debug: Declining friend request with ID:', requestId);
+
+    // If no request ID provided, try to find it from friend_requests table
+    let actualRequestId = requestId;
+    if (!requestId) {
+      console.log('🔍 Debug: No request ID provided, trying to find from friend_requests table');
+      
+      const { data: friendRequests, error: fetchError } = await supabase
+        .from('friend_requests')
+        .select('id')
+        .eq('receiver_id', currentUserId)
+        .eq('status', 'pending')
+        .limit(1);
+
+      if (fetchError) {
+        console.error('Error fetching friend requests:', fetchError);
+        throw new Error('Could not find friend request');
+      }
+
+      if (!friendRequests || friendRequests.length === 0) {
+        throw new Error('No pending friend requests found');
+      }
+
+      actualRequestId = friendRequests[0].id;
+    }
+
+    try {
+      const { error } = await supabase.rpc('decline_friend_request', {
+        request_id: actualRequestId
+      });
+
+      console.log('❌ Decline friend request result:', error);
+
+      if (error) {
+        console.error('Error declining friend request:', error);
+        
+        // Handle specific error cases
+        if (error.message.includes('not found') || error.message.includes('already processed')) {
+          toast({
+            title: "Request Already Processed",
+            description: "This friend request has already been handled. Refreshing notifications...",
+            variant: "destructive",
+          });
+          // Refresh notifications to remove the processed request
+          fetchNotifications();
+          return;
+        }
+        
+        throw error;
+      }
+
+      // Remove the notification from UI immediately
+      setNotifications(prev => prev.filter(n => (n.data as any)?.request_id !== requestId));
+
+      toast({
+        title: "Friend Request Declined",
+        description: "The friend request has been declined.",
+      });
+    } catch (error: any) {
+      console.error('Error declining friend request:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to decline friend request. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -291,11 +457,27 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
                         
                         {notification.type === 'friend_request' && (
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="h-6 px-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-6 px-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAcceptFriendRequest((notification.data as any)?.request_id);
+                              }}
+                            >
                               <Check className="w-3 h-3 mr-1" />
                               Accept
                             </Button>
-                            <Button size="sm" variant="outline" className="h-6 px-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-6 px-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeclineFriendRequest((notification.data as any)?.request_id);
+                              }}
+                            >
                               <X className="w-3 h-3 mr-1" />
                               Decline
                             </Button>

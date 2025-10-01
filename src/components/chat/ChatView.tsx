@@ -18,6 +18,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
+import { SynthSLogo } from '@/components/SynthSLogo';
 
 interface ChatMessage {
   id: string;
@@ -389,24 +390,28 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen synth-gradient-card">
       <div className="max-w-6xl mx-auto h-screen flex">
         {/* Sidebar - Chat List */}
-        <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
+        <div className="w-1/3 bg-white/95 backdrop-blur-sm border-r border-synth-black/10 flex flex-col shadow-xl">
           {/* Header */}
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-6 border-b border-synth-black/10 bg-gradient-to-r from-synth-beige to-synth-beige-light">
+            <div className="flex items-center gap-3 mb-4">
+              <SynthSLogo size="sm" />
+              <h1 className="text-2xl font-bold text-synth-black">Chats</h1>
+            </div>
             <div className="flex items-center justify-between mb-4">
               <Button 
                 variant="outline" 
                 onClick={onBack}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 bg-synth-black/5 border-synth-black/20 text-synth-black hover:bg-synth-black hover:text-white transition-all duration-200"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back
               </Button>
               <Button
                 onClick={() => setShowCreateGroup(true)}
-                className="bg-blue-500 hover:bg-blue-600 text-white"
+                className="bg-synth-pink hover:bg-synth-pink-dark text-white transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 <Plus className="w-4 h-4 mr-1" />
                 New Group
@@ -415,12 +420,12 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
             
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-synth-black/60 w-4 h-4" />
               <Input
                 placeholder="Search chats..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-white/80 border-synth-black/20 focus:border-synth-pink focus:ring-synth-pink/20 rounded-xl"
               />
             </div>
           </div>

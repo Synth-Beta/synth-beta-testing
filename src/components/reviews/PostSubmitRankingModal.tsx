@@ -19,6 +19,7 @@ interface ReviewWithEventData extends UserReview {
   artist_name?: string;
   venue_name?: string;
   event_date?: string;
+  rank_order?: number;
 }
 
 interface PostSubmitRankingModalProps {
@@ -82,6 +83,7 @@ export function PostSubmitRankingModal({
           venue_name: event?.venue_name,
           event_date: event?.event_date,
           effectiveRating: calculateEffectiveRating(review),
+          rank_order: (review as any).rank_order || null,
         }))
         .filter(review => {
           const reviewRating = Math.round(review.effectiveRating * 2) / 2;

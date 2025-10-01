@@ -12,7 +12,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { ConcertRanking } from './ConcertRanking';
 import { JamBaseService } from '@/services/jambaseService';
 import { EventReviewModal } from './EventReviewModal';
 import { ReviewService } from '@/services/reviewService';
@@ -90,7 +89,6 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<UserEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showConcertRankings, setShowConcertRankings] = useState(false);
   const [showAddReview, setShowAddReview] = useState(false);
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [reviewModalEvent, setReviewModalEvent] = useState<any>(null);
@@ -610,15 +608,6 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
   console.log('✅ ProfileView: Rendering profile for:', profile.name);
 
-  // Show concert rankings if requested
-  if (showConcertRankings) {
-    return (
-      <ConcertRanking
-        currentUserId={currentUserId}
-        onBack={() => setShowConcertRankings(false)}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen synth-gradient-card p-4 pb-20">

@@ -23,7 +23,7 @@ export function ReviewSystemTest({ userId }: ReviewSystemTestProps) {
   const loadSampleEvent = async () => {
     try {
       // Try to get a sample event from the database
-      const { data: events } = await ReviewService.getPublicReviewsWithProfiles(undefined, 1, 0);
+      const { data: events } = await ReviewService.getPublicReviewsWithProfiles();
       if (events.reviews.length > 0) {
         // Create a mock event from the first review
         const review = events.reviews[0];
@@ -56,7 +56,7 @@ export function ReviewSystemTest({ userId }: ReviewSystemTestProps) {
     try {
       // Test 1: Get public reviews
       try {
-        await ReviewService.getPublicReviewsWithProfiles(undefined, 5, 0);
+        await ReviewService.getPublicReviewsWithProfiles();
         results['getPublicReviews'] = true;
       } catch (error) {
         console.error('Test 1 failed:', error);

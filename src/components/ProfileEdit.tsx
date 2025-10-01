@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
 import { trackInteraction } from '@/services/interactionTrackingService';
+import { ProfilePictureUpload } from './profile/ProfilePictureUpload';
 
 interface ProfileEditProps {
   currentUserId: string;
@@ -181,6 +182,16 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
     }));
   };
 
+  const handleAvatarUploadSuccess = (newAvatarUrl: string) => {
+    // Update the profile state with the new avatar URL
+    if (profile) {
+      setProfile({
+        ...profile,
+        avatar_url: newAvatarUrl || null
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -219,16 +230,16 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
           <CardContent className="space-y-6">
             {/* Avatar Section */}
             <div className="flex items-center gap-4">
-              <Avatar className="w-20 h-20">
-                <AvatarImage src={profile?.avatar_url || undefined} />
-                <AvatarFallback className="text-xl">
-                  {formData.name.charAt(0).toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
+              <ProfilePictureUpload
+                currentAvatarUrl={profile?.avatar_url}
+                userName={formData.name || 'User'}
+                onUploadSuccess={handleAvatarUploadSuccess}
+                size="md"
+              />
               <div>
                 <p className="text-sm font-medium">Profile Picture</p>
                 <p className="text-xs text-muted-foreground">
-                  Avatar updates coming soon
+                  Upload a photo to personalize your profile
                 </p>
               </div>
             </div>

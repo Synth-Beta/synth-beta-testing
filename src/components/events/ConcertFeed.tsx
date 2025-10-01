@@ -26,6 +26,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { fetchUserNotifications } from '@/utils/notificationUtils';
 import { format, parseISO } from 'date-fns';
 import { MatchesView } from '@/components/MatchesView';
 import { ChatView } from '@/components/ChatView';
@@ -108,49 +109,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         return;
       }
 
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (error) {
-        console.warn('Warning: Could not fetch notifications:', error);
-        setNotifications([]);
-        return;
-      }
-
-      console.log('🔔 Fetched notifications:', data);
-      
-      // Filter out processed friend requests by checking if the request still exists and is pending
-      const activeNotifications = [];
-      
-      for (const notification of data || []) {
-        if (notification.type === 'friend_request') {
-          console.log(`🔍 Debug: Notification ${notification.id} data:`, notification.data);
-          console.log(`🔍 Debug: Notification ${notification.id} request_id:`, (notification.data as any)?.request_id);
-          
-          // Check if the friend request still exists and is pending
-          const requestId = (notification.data as any)?.request_id;
-          if (requestId) {
-            const { data: friendRequest } = await supabase
-              .from('friend_requests')
-              .select('status')
-              .eq('id', requestId)
-              .single();
-            
-            if (friendRequest && friendRequest.status === 'pending') {
-              activeNotifications.push(notification);
-            } else {
-              console.log(`🔍 Debug: Friend request ${requestId} is no longer pending, removing notification`);
-            }
-          }
-        } else {
-          activeNotifications.push(notification);
-        }
-      }
-      
+      // Use the utility function to fetch and filter notifications
+      const activeNotifications = await fetchUserNotifications(currentUserId, 20);
       setNotifications(activeNotifications);
     } catch (error) {
       console.warn('Warning: Error fetching notifications:', error);
@@ -305,7 +265,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   const fetchPublicReviews = async () => {
     try {
       // Fetch public reviews from the database using the new review service
-      const result = await ReviewService.getPublicReviewsWithProfiles(undefined, 20, 0);
+      const result = await ReviewService.getPublicReviewsWithProfiles();
       setReviews(result.reviews);
     } catch (error) {
       console.error('Error fetching public reviews:', error);

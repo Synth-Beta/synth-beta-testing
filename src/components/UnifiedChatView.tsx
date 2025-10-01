@@ -12,11 +12,13 @@ import {
   X,
   Send,
   UserPlus,
-  Trash2
+  Trash2,
+  ArrowLeft
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
+import { SynthSLogo } from '@/components/SynthSLogo';
 
 interface Chat {
   id: string;
@@ -110,24 +112,104 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   const fetchUsers = async () => {
     try {
       console.log('🔍 Current user ID:', currentUserId);
+      console.log('🔍 User ID type:', typeof currentUserId);
       
-      // TEMPORARY FIX: For testing, add Test Dummy as a friend if current user is Tej
-      if (currentUserId === '690d27ae-d803-4ff5-a381-162f8863dd9b') {
-        // Tej's ID - add Test Dummy as friend for testing
-        const testFriend = {
-          user_id: '1a4b8b00-1c9f-4d7a-9c63-7a218395ad7b',
-          name: 'Test Dummy',
-          avatar_url: null,
-          bio: null
-        };
-        console.log('🔍 Adding Test Dummy as friend for testing');
-        setUsers([testFriend]);
+      // Query friends from the friends table
+      console.log('🔍 Querying friends table...');
+      console.log('🔍 Query string:', `user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
+      
+      const { data: friendships, error: friendsError } = await supabase
+        .from('friends')
+        .select('id, user1_id, user2_id, created_at')
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+        .order('created_at', { ascending: false });
+
+      console.log('🔍 Friends query result:', { friendships, friendsError });
+      console.log('🔍 Friendships length:', friendships?.length || 0);
+
+      if (friendsError) {
+        console.error('❌ Error fetching friends:', friendsError);
+        console.error('❌ Error details:', {
+          message: friendsError.message,
+          details: friendsError.details,
+          hint: friendsError.hint,
+          code: friendsError.code
+        });
+        setUsers([]);
         return;
       }
-      
-      // For other users, no friends yet
-      console.log('🔍 No friends found');
-      setUsers([]);
+
+      if (!friendships || friendships.length === 0) {
+        console.log('🔍 No friends found in database');
+        console.log('🔍 Checking if friends table exists and has data...');
+        
+        // Let's also check if the friends table has any data at all
+        const { data: allFriends, error: allFriendsError } = await supabase
+          .from('friends')
+          .select('*')
+          .limit(5);
+        
+        console.log('🔍 All friends in table (first 5):', { allFriends, allFriendsError });
+        
+        // Also check if we can access profiles table
+        const { data: allProfiles, error: allProfilesError } = await supabase
+          .from('profiles')
+          .select('user_id, name')
+          .limit(5);
+        
+        console.log('🔍 All profiles in table (first 5):', { allProfiles, allProfilesError });
+        
+        // Check if there are any friend requests
+        const { data: friendRequests, error: friendRequestsError } = await supabase
+          .from('friend_requests')
+          .select('*')
+          .limit(5);
+        
+        console.log('🔍 Friend requests (first 5):', { friendRequests, friendRequestsError });
+        
+        setUsers([]);
+        return;
+      }
+
+      // Get all the user IDs we need to fetch
+      const userIds = friendships.map(f => 
+        f.user1_id === currentUserId ? f.user2_id : f.user1_id
+      );
+
+      console.log('🔍 Friend user IDs to fetch:', userIds);
+
+      // Fetch the profiles for those users
+      console.log('🔍 Querying profiles table...');
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url, bio, user_id, created_at')
+        .in('user_id', userIds);
+
+      console.log('🔍 Profiles query result:', { profiles, profilesError });
+
+      if (profilesError) {
+        console.error('❌ Error fetching friend profiles:', profilesError);
+        setUsers([]);
+        return;
+      }
+
+      // Transform the data to get the other user's profile
+      const friendsList = friendships.map(friendship => {
+        const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
+        const profile = profiles?.find(p => p.user_id === otherUserId);
+        
+        return {
+          id: profile?.id || otherUserId,
+          user_id: otherUserId,
+          name: profile?.name || 'Unknown User',
+          avatar_url: profile?.avatar_url || null,
+          bio: profile?.bio || null,
+          created_at: friendship.created_at
+        };
+      });
+
+      console.log('✅ Friends fetched successfully:', friendsList);
+      setUsers(friendsList);
     } catch (error) {
       console.error('Error fetching friends:', error);
       setUsers([]);
@@ -186,22 +268,34 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
     setNewMessage('');
 
     try {
-      // TEMPORARY: For testing, just add message to UI
-      const testMessage: Message = {
-        id: `msg-${Date.now()}`,
-        chat_id: selectedChat.id,
-        sender_id: currentUserId,
-        content: messageText,
-        created_at: new Date().toISOString(),
-        sender_name: 'You',
-        sender_avatar: null
-      };
-      
-      setMessages(prev => [...prev, testMessage]);
+      // Insert message into database
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          chat_id: selectedChat.id,
+          sender_id: currentUserId,
+          content: messageText
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error sending message:', error);
+        toast({
+          title: "Error",
+          description: "Failed to send message. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Refresh messages to get the new message with proper sender info
+      // The database trigger will automatically update the chat's latest_message_id
+      fetchMessages(selectedChat.id);
       
       toast({
         title: "Message Sent! 💬",
-        description: "Message added to chat (test mode)",
+        description: "Your message has been delivered",
       });
     } catch (error) {
       console.error('Error sending message:', error);
@@ -228,29 +322,29 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         return;
       }
       
-      // TEMPORARY: Create a working chat for testing
-      const friendName = users.find(user => user.user_id === userId)?.name || 'Friend';
-      const testChat: Chat = {
-        id: `chat-${Date.now()}`,
-        chat_name: `Chat with ${friendName}`,
-        is_group_chat: false,
-        users: [currentUserId, userId],
-        latest_message_id: null,
-        latest_message: null,
-        latest_message_created_at: null,
-        latest_message_sender_name: null,
-        group_admin_id: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      
-      setChats(prev => [testChat, ...prev]);
-      setSelectedChat(testChat);
+      // Use the database function to create or get existing direct chat
+      const { data: chatId, error } = await supabase.rpc('create_direct_chat', {
+        user1_id: currentUserId,
+        user2_id: userId
+      });
+
+      if (error) {
+        console.error('Error creating direct chat:', error);
+        toast({
+          title: "Error",
+          description: "Failed to create chat. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Refresh chats to get the new chat
+      fetchChats();
       setShowUserSearch(false);
       
       toast({
         title: "Chat Created! 💬",
-        description: "You can now start chatting! (Test mode - messages will show in UI)",
+        description: "You can now start chatting!",
       });
     } catch (error) {
       console.error('Error creating direct chat:', error);
@@ -401,29 +495,32 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   };
 
   return (
-    <div className="fixed inset-0 flex h-screen bg-gray-50 z-50">
+    <div className="fixed inset-0 flex h-screen synth-gradient-card z-50">
       {/* Left Sidebar - Chat List */}
-      <div className="w-1/3 border-r border-gray-200 bg-white flex flex-col">
+      <div className="w-1/3 border-r border-synth-black/10 bg-white/95 backdrop-blur-sm flex flex-col shadow-xl">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-6 border-b border-synth-black/10 bg-gradient-to-r from-synth-beige to-synth-beige-light">
+          <div className="flex items-center gap-3 mb-4">
+            <SynthSLogo size="sm" />
+            <h1 className="text-2xl font-bold text-synth-black">Messages</h1>
+          </div>
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
             <Button
               variant="outline"
               size="sm"
               onClick={onBack}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-synth-black/5 border-synth-black/20 text-synth-black hover:bg-synth-black hover:text-white transition-all duration-200"
             >
-              <X className="w-4 h-4" />
-              Close
+              <ArrowLeft className="w-4 h-4" />
+              Back
             </Button>
           </div>
           
           {/* Action Buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <Button
               onClick={() => setShowUserSearch(true)}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+              className="flex-1 bg-synth-pink hover:bg-synth-pink-dark text-white transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               <UserPlus className="w-4 h-4 mr-2" />
               New Chat
@@ -431,7 +528,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
             <Button
               onClick={() => setShowGroupCreate(true)}
               variant="outline"
-              className="flex-1"
+              className="flex-1 bg-synth-pink/10 border-synth-pink/20 text-synth-pink hover:bg-synth-pink hover:text-white transition-all duration-200"
             >
               <Users className="w-4 h-4 mr-2" />
               New Group
@@ -442,11 +539,11 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto">
           {chats.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">
-              <MessageCircle className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-              <p className="font-medium mb-1">No conversations yet</p>
-              <p className="text-sm mb-3">Start chatting with your friends!</p>
-              <div className="text-xs text-gray-400 space-y-1">
+            <div className="p-8 text-center text-synth-black/70">
+              <MessageCircle className="w-16 h-16 mx-auto mb-4 text-synth-pink/40" />
+              <p className="font-semibold mb-2 text-lg text-synth-black">No conversations yet</p>
+              <p className="text-sm mb-4 text-synth-black/60">Start chatting with your friends!</p>
+              <div className="text-xs text-synth-black/50 space-y-1 bg-synth-beige/30 p-4 rounded-lg">
                 <p>• Send friend requests first</p>
                 <p>• Wait for them to accept</p>
                 <p>• Then start chatting!</p>
@@ -457,10 +554,10 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
               {chats.map((chat) => (
                 <Card
                   key={chat.id}
-                  className={`cursor-pointer transition-colors ${
+                  className={`cursor-pointer transition-all duration-200 ${
                     selectedChat?.id === chat.id
-                      ? 'bg-blue-50 border-blue-200'
-                      : 'hover:bg-gray-50'
+                      ? 'bg-synth-pink/10 border-synth-pink/30 shadow-lg'
+                      : 'hover:bg-synth-beige/30 hover:shadow-md border-synth-black/10'
                   }`}
                 >
                   <CardContent className="p-3">
@@ -527,28 +624,28 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       </div>
 
       {/* Right Side - Messages */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col bg-white/95 backdrop-blur-sm shadow-xl">
         {selectedChat ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b border-gray-200 bg-white">
-              <div className="flex items-center gap-3">
-                <Avatar className="w-10 h-10">
+            <div className="p-6 border-b border-synth-black/10 bg-gradient-to-r from-synth-beige to-synth-beige-light">
+              <div className="flex items-center gap-4">
+                <Avatar className="w-12 h-12 ring-2 ring-synth-pink/20">
                   <AvatarImage src={getChatAvatar(selectedChat) || undefined} />
-                  <AvatarFallback>
+                  <AvatarFallback className="bg-synth-pink/10 text-synth-black font-semibold">
                     {selectedChat.is_group_chat ? (
-                      <Users className="w-5 h-5" />
+                      <Users className="w-6 h-6" />
                     ) : (
                       getChatDisplayName(selectedChat).split(' ').map(n => n[0]).join('')
                     )}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 className="font-semibold text-gray-900">
+                  <h2 className="font-bold text-lg text-synth-black">
                     {getChatDisplayName(selectedChat)}
                   </h2>
                   {selectedChat.is_group_chat && (
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-synth-black/60">
                       {selectedChat.users.length} members
                     </p>
                   )}
@@ -557,12 +654,12 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-synth-beige-light/30 to-white">
               {messages.length === 0 ? (
-                <div className="text-center text-gray-500 mt-8">
-                  <MessageCircle className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                  <p>No messages yet</p>
-                  <p className="text-sm">Start the conversation!</p>
+                <div className="text-center text-synth-black/70 mt-12">
+                  <MessageCircle className="w-16 h-16 mx-auto mb-4 text-synth-pink/40" />
+                  <p className="font-semibold text-lg mb-2">No messages yet</p>
+                  <p className="text-sm text-synth-black/60">Start the conversation!</p>
                 </div>
               ) : (
                 messages.map((message) => (
@@ -573,14 +670,16 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                     }`}
                   >
                     <div
-                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                      className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm transition-all duration-200 ${
                         message.sender_id === currentUserId
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-200 text-gray-900'
+                          ? 'bg-synth-pink text-white shadow-lg hover:shadow-xl'
+                          : 'bg-white text-synth-black border border-synth-black/10 hover:shadow-md'
                       }`}
                     >
-                      <p className="text-sm">{message.content}</p>
-                      <p className="text-xs opacity-70 mt-1">
+                      <p className="text-sm leading-relaxed">{message.content}</p>
+                      <p className={`text-xs mt-2 ${
+                        message.sender_id === currentUserId ? 'text-white/70' : 'text-synth-black/50'
+                      }`}>
                         {format(parseISO(message.created_at), 'h:mm a')}
                       </p>
                     </div>
@@ -590,34 +689,34 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
             </div>
 
             {/* Message Input - Always show when chat is selected */}
-            <div className="p-4 border-t border-gray-200 bg-white">
-              <div className="flex gap-2">
+            <div className="p-6 border-t border-synth-black/10 bg-gradient-to-r from-synth-beige to-synth-beige-light">
+              <div className="flex gap-3">
                 <Input
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message... (will be saved when database is ready)"
+                  placeholder="Type a message..."
                   onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  className="flex-1"
+                  className="flex-1 bg-white/80 border-synth-black/20 focus:border-synth-pink focus:ring-synth-pink/20 rounded-xl"
                 />
                 <Button 
                   onClick={sendMessage} 
                   disabled={!newMessage.trim()}
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                  className="bg-synth-pink hover:bg-synth-pink-dark text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
-              <p className="text-xs text-gray-400 mt-2">
-                💡 Messages will be saved to database when fully set up
+              <p className="text-xs text-synth-black/60 mt-3 text-center">
+                💬 Messages are saved to your chat history
               </p>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
+          <div className="flex-1 flex items-center justify-center text-synth-black/70">
             <div className="text-center">
-              <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <h2 className="text-xl font-semibold mb-2">Select a conversation</h2>
-              <p>Choose a chat from the sidebar to start messaging</p>
+              <MessageCircle className="w-20 h-20 mx-auto mb-6 text-synth-pink/40" />
+              <h2 className="text-2xl font-bold mb-3 text-synth-black">Select a conversation</h2>
+              <p className="text-synth-black/60">Choose a chat from the sidebar to start messaging</p>
             </div>
           </div>
         )}

@@ -45,6 +45,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   const [searchType, setSearchType] = useState<SearchType>('all');
   const [events, setEvents] = useState<JamBaseEventResponse[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<JamBaseEventResponse[]>([]);
+  const [dateFilteredEvents, setDateFilteredEvents] = useState<JamBaseEventResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<JamBaseEventResponse | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -84,6 +85,22 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   useEffect(() => {
     filterEvents();
   }, [events, filters]);
+
+  // Update date filtered events when filteredEvents or selectedDate changes
+  useEffect(() => {
+    if (selectedDate) {
+      const eventsForDate = filteredEvents.filter(event => {
+        try {
+          return isSameDay(parseISO(event.event_date), selectedDate);
+        } catch {
+          return false;
+        }
+      });
+      setDateFilteredEvents(eventsForDate);
+    } else {
+      setDateFilteredEvents([]);
+    }
+  }, [filteredEvents, selectedDate]);
 
   const initializeLocationAndEvents = async () => {
     setIsLoading(true);
@@ -366,8 +383,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
     
-    // If we have a date selected and we're in calendar view, we could scroll to events for that date
-    if (date && viewMode === 'calendar') {
+    // Filter events by selected date
+    if (date) {
       const eventsForDate = filteredEvents.filter(event => {
         try {
           return isSameDay(parseISO(event.event_date), date);
@@ -375,6 +392,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           return false;
         }
       });
+      setDateFilteredEvents(eventsForDate);
       
       if (eventsForDate.length > 0) {
         toast({
@@ -382,6 +400,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           description: `Found ${eventsForDate.length} event${eventsForDate.length !== 1 ? 's' : ''} on ${format(date, 'MMMM d, yyyy')}`,
         });
       }
+    } else {
+      setDateFilteredEvents([]);
     }
   };
 
@@ -523,15 +543,27 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
               <div className="order-2 lg:order-2 lg:col-span-2 relative z-10">
                 <Card className="relative z-10">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Music className="h-5 w-5" />
-                      Upcoming Events
-                    </CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Music className="h-5 w-5" />
+                        {selectedDate ? `Events on ${format(selectedDate, 'MMM d, yyyy')}` : 'Upcoming Events'}
+                      </CardTitle>
+                      {selectedDate && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDateSelect(undefined)}
+                          className="text-xs"
+                        >
+                          Clear Date Filter
+                        </Button>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <ScrollArea className="h-96">
                       <div className="space-y-4">
-                        {filteredEvents.slice(0, 50).map((event) => (
+                        {(selectedDate ? dateFilteredEvents : filteredEvents).slice(0, 50).map((event) => (
                           <div
                             key={event.id}
                             className="p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
@@ -625,6 +657,26 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                             </div>
                           </div>
                         ))}
+                        
+                        {/* Empty state for date filtering */}
+                        {selectedDate && dateFilteredEvents.length === 0 && (
+                          <div className="text-center py-8">
+                            <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                            <h3 className="text-lg font-semibold text-muted-foreground mb-2">
+                              No Events Found
+                            </h3>
+                            <p className="text-sm text-muted-foreground mb-4">
+                              No events scheduled for {format(selectedDate, 'MMMM d, yyyy')}
+                            </p>
+                            <Button
+                              variant="outline"
+                              onClick={() => handleDateSelect(undefined)}
+                              className="text-sm"
+                            >
+                              View All Events
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </ScrollArea>
                   </CardContent>

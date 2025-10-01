@@ -35,6 +35,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     console.log('🚀 MainApp useEffect starting...');
     loadEvents();
 
+    // Check for URL fragment to determine initial view
+    const hash = window.location.hash;
+    if (hash === '#profile') {
+      setCurrentView('profile');
+      // Clear the hash to prevent re-triggering on refresh
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+
     // Add keyboard shortcut for testing login (Ctrl/Cmd + L)
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'l') {
