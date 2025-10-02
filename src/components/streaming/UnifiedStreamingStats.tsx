@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 interface UnifiedStreamingStatsProps {
   className?: string;
   musicStreamingProfile?: string | null;
+  isViewingOtherProfile?: boolean; // New prop to indicate if viewing someone else's profile
 }
 
 type StreamingService = 'spotify' | 'apple-music' | 'unknown';
@@ -18,7 +19,8 @@ type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 
 export const UnifiedStreamingStats = ({ 
   className, 
-  musicStreamingProfile 
+  musicStreamingProfile,
+  isViewingOtherProfile = false
 }: UnifiedStreamingStatsProps) => {
   const [detectedService, setDetectedService] = useState<StreamingService>('unknown');
   const [showServiceSelector, setShowServiceSelector] = useState(false);
@@ -175,21 +177,32 @@ export const UnifiedStreamingStats = ({
         <CardContent>
           <div className="text-center py-8">
             <Music className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Streaming Service Connected</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Add your music streaming profile to your account to see your listening stats and connect with others who share your music taste.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Go to Edit Profile to add your Spotify or Apple Music profile.
-            </p>
+            {isViewingOtherProfile ? (
+              <>
+                <h3 className="text-lg font-semibold mb-2">No Streaming Service Connected</h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  This user hasn't connected a music streaming service to their profile yet.
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold mb-2">No Streaming Service Connected</h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  Add your music streaming profile to your account to see your listening stats and connect with others who share your music taste.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Go to Edit Profile to add your Spotify or Apple Music profile.
+                </p>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  // Show service selector if we couldn't auto-detect
-  if (showServiceSelector) {
+  // Show service selector if we couldn't auto-detect (only for own profile)
+  if (showServiceSelector && !isViewingOtherProfile) {
     return (
       <Card className={className}>
         <CardHeader>
@@ -221,6 +234,29 @@ export const UnifiedStreamingStats = ({
                 Apple Music
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // If viewing someone else's profile and we can't detect their service, show appropriate message
+  if (showServiceSelector && isViewingOtherProfile) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Music className="w-5 h-5" />
+            Streaming Stats
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Music className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Streaming Service Not Connected</h3>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              This user hasn't connected a music streaming service to their profile yet.
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -11,9 +11,11 @@ interface ReviewCommentsModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUserId?: string;
+  onCommentAdded?: () => void;
+  onCommentsLoaded?: (count: number) => void;
 }
 
-export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId }: ReviewCommentsModalProps) {
+export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId, onCommentAdded, onCommentsLoaded }: ReviewCommentsModalProps) {
   const [comments, setComments] = useState<CommentWithUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -34,8 +36,9 @@ export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId }
       setError(null);
       const result = await ReviewService.getReviewComments(reviewId);
       setComments(result);
+      if (onCommentsLoaded) onCommentsLoaded(result.length);
     } catch (err) {
-      console.error('Failed to load comments', err);
+      console.error('Failed to load review comments', err);
       setError('Failed to load comments');
     } finally {
       setLoading(false);
@@ -46,20 +49,23 @@ export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId }
     if (!currentUserId || !reviewId || !newComment.trim() || submitting) return;
     try {
       setSubmitting(true);
+      setError(null);
       const created = await ReviewService.addComment(currentUserId, reviewId, newComment.trim());
-      // Optimistically add to local list; minimal user data
-      setComments(prev => [
-        ...prev,
-        {
-          ...created,
-          user: {
-            id: created.user_id,
-            name: 'You',
-            avatar_url: undefined
-          }
-        } as CommentWithUser
-      ]);
+      
+      // Add the new comment to the list with user info
+      const newCommentWithUser: CommentWithUser = {
+        ...created,
+        user: {
+          id: currentUserId,
+          name: 'You',
+          avatar_url: undefined
+        }
+      };
+      
+      setComments(prev => [...prev, newCommentWithUser]);
       setNewComment('');
+      
+      if (onCommentAdded) onCommentAdded();
     } catch (err) {
       console.error('Failed to add comment', err);
       setError('Failed to add comment');
@@ -68,53 +74,93 @@ export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId }
     }
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
-        <DialogHeader>
-          <DialogTitle>Comments</DialogTitle>
-          <DialogDescription>Join the discussion for this review.</DialogDescription>
-        </DialogHeader>
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleAddComment();
+    }
+  };
 
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col">
+        <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
+          <DialogTitle>Review Comments</DialogTitle>
+          <DialogDescription>
+            Share your thoughts about this review
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
           {loading ? (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading comments...
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading comments...</span>
             </div>
           ) : error ? (
-            <div className="text-sm text-red-600 py-4">{error}</div>
+            <div className="text-center py-8 text-red-600">
+              <p>{error}</p>
+              <Button variant="outline" onClick={loadComments} className="mt-2">
+                Try Again
+              </Button>
+            </div>
           ) : comments.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-4">No comments yet. Be the first to comment!</div>
+            <div className="text-center py-8 text-gray-500">
+              <p>No comments yet.</p>
+              <p className="text-sm">Be the first to share your thoughts!</p>
+            </div>
           ) : (
-            comments.map((c) => (
-              <div key={c.id} className="flex items-start gap-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={c.user.avatar_url || undefined} />
-                  <AvatarFallback>{(c.user.name || 'U').slice(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-foreground">{c.user.name || 'User'}</div>
-                  <div className="text-sm text-foreground whitespace-pre-wrap">{c.comment_text}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{new Date(c.created_at).toLocaleString()}</div>
+            <div className="space-y-4">
+              {comments.map((comment) => (
+                <div key={comment.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={comment.user.avatar_url} />
+                    <AvatarFallback className="text-xs">
+                      {(comment.user.name || 'U').slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-sm">{comment.user.name || 'User'}</span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(comment.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-900 whitespace-pre-wrap break-words">
+                      {comment.comment_text}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
-
-        <div className="pt-2 border-t mt-2">
-          <div className="flex items-end gap-2">
+        
+        <div className="border-t border-gray-200 p-4 bg-white">
+          <div className="flex gap-2">
             <Textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder={currentUserId ? 'Write a comment…' : 'Sign in to comment'}
+              onKeyDown={handleKeyPress}
+              placeholder={currentUserId ? 'Write a comment...' : 'Sign in to comment'}
               disabled={!currentUserId || submitting}
-              className="min-h-[72px]"
+              className="min-h-[60px] resize-none"
             />
-            <Button onClick={handleAddComment} disabled={!currentUserId || submitting || !newComment.trim()}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            <Button 
+              onClick={handleAddComment} 
+              disabled={!currentUserId || submitting || !newComment.trim()}
+              className="px-3"
+            >
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Press Ctrl+Enter to submit
+          </p>
         </div>
       </DialogContent>
     </Dialog>

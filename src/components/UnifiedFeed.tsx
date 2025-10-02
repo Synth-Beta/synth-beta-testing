@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -36,6 +37,7 @@ import { ReviewCard as FeedReviewCard } from '@/components/reviews/ReviewCard';
 import { ProfileReviewCard } from '@/components/reviews/ProfileReviewCard';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventCommentsModal } from '@/components/events/EventCommentsModal';
+import { ReviewCommentsModal } from '@/components/reviews/ReviewCommentsModal';
 import { EventLikersModal } from '@/components/events/EventLikersModal';
 import { EventLikesService } from '@/services/eventLikesService';
 import { ShareService } from '@/services/shareService';
@@ -78,9 +80,11 @@ export const UnifiedFeed = ({
   const [selectedEventForDetails, setSelectedEventForDetails] = useState<any>(null);
   const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
   const [openEventCommentsFor, setOpenEventCommentsFor] = useState<string | null>(null);
+  const [openReviewCommentsFor, setOpenReviewCommentsFor] = useState<string | null>(null);
   const [openLikersFor, setOpenLikersFor] = useState<string | null>(null);
   const [viewReviewOpen, setViewReviewOpen] = useState(false);
   const [selectedReviewForView, setSelectedReviewForView] = useState<any>(null);
+  const [showCommentsInModal, setShowCommentsInModal] = useState(false);
 
   useEffect(() => {
     if (sessionExpired) {
@@ -342,14 +346,10 @@ export const UnifiedFeed = ({
         <div className="flex items-center justify-end mb-6">
           
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="relative p-2"
+            <NotificationBell
               onClick={() => onNavigateToNotifications?.()}
-            >
-              <Bell className="w-5 h-5" />
-            </Button>
+              className="p-2"
+            />
             
             <Button
               variant="outline"
@@ -413,9 +413,9 @@ export const UnifiedFeed = ({
         <div className="space-y-4">
               {feedItems
                 .filter(item => item.type === 'event')
-                .map((item) => (
+                .map((item, index) => (
               <Card 
-                key={item.id} 
+                key={`event-${item.id}-${index}`} 
                 className="hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
                 onClick={async (e) => {
                   if (e.defaultPrevented) return;
@@ -624,12 +624,13 @@ export const UnifiedFeed = ({
             <div className="space-y-4">
               {feedItems
                 .filter(item => item.type === 'review')
-                .map((item) => (
+                .map((item, index) => (
                   <Card 
-                    key={item.id} 
+                    key={`review-${item.id}-${index}`} 
                     className="hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
                     onClick={() => {
                       setSelectedReviewForView(item);
+                      setShowCommentsInModal(false);
                       setViewReviewOpen(true);
                     }}
                   >
@@ -720,11 +721,46 @@ export const UnifiedFeed = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="flex items-center gap-1 text-xs text-gray-500"
+                            className={`flex items-center gap-1 text-xs ${item.is_liked ? 'text-red-500' : 'text-gray-500'}`}
                             onMouseDown={(e) => { e.stopPropagation(); }}
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            onClick={async (e) => { 
+                              e.preventDefault(); 
+                              e.stopPropagation(); 
+                              
+                              console.log('🔍 UnifiedFeed: Review like clicked', {
+                                itemId: item.id,
+                                reviewId: item.review_id || item.id,
+                                currentUserId,
+                                isLiked: item.is_liked,
+                                likesCount: item.likes_count
+                              });
+                              
+                              // Optimistic toggle
+                              setFeedItems(prev => prev.map(x => x.id === item.id ? { ...x, is_liked: !x.is_liked, likes_count: (x.likes_count || 0) + (x.is_liked ? -1 : 1) } : x));
+                              try {
+                                if (item.review_id || item.id) {
+                                  const reviewId = item.review_id || item.id;
+                                  const liked = item.is_liked;
+                                  console.log('🔍 UnifiedFeed: Calling ReviewService', { reviewId, liked });
+                                  
+                                  if (liked) {
+                                    await ReviewService.unlikeReview(currentUserId, reviewId);
+                                    console.log('✅ UnifiedFeed: Review unliked successfully');
+                                  } else {
+                                    await ReviewService.likeReview(currentUserId, reviewId);
+                                    console.log('✅ UnifiedFeed: Review liked successfully');
+                                  }
+                                } else {
+                                  console.log('❌ UnifiedFeed: No review ID found');
+                                }
+                              } catch (err) {
+                                console.error('❌ UnifiedFeed: Error toggling review like:', err);
+                                // revert on error
+                                setFeedItems(prev => prev.map(x => x.id === item.id ? { ...x, is_liked: item.is_liked, likes_count: item.likes_count } : x));
+                              }
+                            }}
                           >
-                            <Heart className="w-3 h-3" />
+                            <Heart className={`w-3 h-3 ${item.is_liked ? 'fill-current' : ''}`} />
                             {item.likes_count || 0}
                           </Button>
                           <Button
@@ -732,7 +768,13 @@ export const UnifiedFeed = ({
                             size="sm"
                             className="flex items-center gap-1 text-xs text-gray-500"
                             onMouseDown={(e) => { e.stopPropagation(); }}
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            onClick={(e) => { 
+                              e.preventDefault(); 
+                              e.stopPropagation(); 
+                              console.log('🔍 UnifiedFeed: Review comment clicked', { itemId: item.id, reviewId: item.review_id || item.id });
+                              // Open the review comments modal
+                              setOpenReviewCommentsFor(item.review_id || item.id);
+                            }}
                           >
                             <MessageCircle className="w-3 h-3" />
                             {item.comments_count || 0}
@@ -742,7 +784,47 @@ export const UnifiedFeed = ({
                             size="sm"
                             className="flex items-center gap-1 text-xs text-gray-500"
                             onMouseDown={(e) => { e.stopPropagation(); }}
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            onClick={async (e) => { 
+                              e.preventDefault(); 
+                              e.stopPropagation(); 
+                              console.log('🔍 UnifiedFeed: Review share clicked', { itemId: item.id, reviewId: item.review_id || item.id });
+                              try {
+                                const reviewId = item.review_id || item.id;
+                                const url = await ShareService.shareReview(reviewId, item.title, item.content || undefined);
+                                toast({ 
+                                  title: 'Review Shared!', 
+                                  description: 'Link copied to clipboard',
+                                  duration: 2000
+                                });
+                                
+                                // Optimistically increment share count
+                                setFeedItems(prev => prev.map(x => 
+                                  x.id === item.id 
+                                    ? { ...x, shares_count: (x.shares_count || 0) + 1 } 
+                                    : x
+                                ));
+                                
+                                // Record the share in the database
+                                try {
+                                  await ReviewService.shareReview(currentUserId || '', reviewId);
+                                } catch (shareError) {
+                                  console.error('❌ UnifiedFeed: Error recording share:', shareError);
+                                  // Revert optimistic update on error
+                                  setFeedItems(prev => prev.map(x => 
+                                    x.id === item.id 
+                                      ? { ...x, shares_count: (x.shares_count || 0) - 1 } 
+                                      : x
+                                  ));
+                                }
+                              } catch (error) {
+                                console.error('❌ UnifiedFeed: Error sharing review:', error);
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to share review",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
                           >
                             <Share2 className="w-3 h-3" />
                             {item.shares_count || 0}
@@ -885,6 +967,34 @@ export const UnifiedFeed = ({
         }}
       />
 
+      {/* Inline Review Comments Modal from feed */}
+      <ReviewCommentsModal
+        reviewId={openReviewCommentsFor}
+        isOpen={Boolean(openReviewCommentsFor)}
+        onClose={() => setOpenReviewCommentsFor(null)}
+        currentUserId={currentUserId}
+        onCommentAdded={() => {
+          // Optimistically bump count for the currently open review card
+          if (!openReviewCommentsFor) return;
+          setFeedItems(prev => prev.map(item => {
+            if (item.type === 'review' && (item.review_id || item.id) === openReviewCommentsFor) {
+              return { ...item, comments_count: (item.comments_count || 0) + 1 };
+            }
+            return item;
+          }));
+        }}
+        onCommentsLoaded={(count) => {
+          // Sync count from server load in case it differs
+          if (!openReviewCommentsFor) return;
+          setFeedItems(prev => prev.map(item => {
+            if (item.type === 'review' && (item.review_id || item.id) === openReviewCommentsFor) {
+              return { ...item, comments_count: count };
+            }
+            return item;
+          }));
+        }}
+      />
+
       <EventLikersModal
         eventId={openLikersFor}
         isOpen={Boolean(openLikersFor)}
@@ -892,7 +1002,12 @@ export const UnifiedFeed = ({
       />
 
       {/* Review View Dialog - mirrors ProfileView */}
-      <Dialog open={viewReviewOpen} onOpenChange={setViewReviewOpen}>
+      <Dialog open={viewReviewOpen} onOpenChange={(open) => {
+        setViewReviewOpen(open);
+        if (!open) {
+          setShowCommentsInModal(false);
+        }
+      }}>
         <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
           <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
             <DialogTitle>Review</DialogTitle>
@@ -916,6 +1031,8 @@ export const UnifiedFeed = ({
                 initialIsLiked={Boolean(selectedReviewForView.is_liked)}
                 initialLikesCount={selectedReviewForView.likes_count || 0}
                 initialCommentsCount={selectedReviewForView.comments_count || 0}
+                initialSharesCount={selectedReviewForView.shares_count || 0}
+                showCommentsInitially={showCommentsInModal}
               />
             </div>
           )}

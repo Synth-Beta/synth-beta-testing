@@ -342,7 +342,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       {currentView !== 'profile-edit' && currentView !== 'feed' && (
         <Navigation 
           currentView={currentView as 'search' | 'profile'} 
-          onViewChange={handleViewChange} 
+          onViewChange={handleViewChange}
         />
       )}
 

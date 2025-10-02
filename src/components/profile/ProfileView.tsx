@@ -19,7 +19,6 @@ import { ProfileReviewCard } from '../reviews/ProfileReviewCard';
 import type { Artist } from '@/types/concertSearch';
 import { ReviewService } from '@/services/reviewService';
 import { ReviewCard } from '../reviews/ReviewCard';
-import { FriendProfileCard } from './FriendProfileCard';
 import { UnifiedStreamingStats, detectStreamingServiceType } from '../streaming/UnifiedStreamingStats';
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
 import { EventDetailsModal } from '../events/EventDetailsModal';
@@ -83,8 +82,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [reviewModalEvent, setReviewModalEvent] = useState<any>(null);
   const [friends, setFriends] = useState<any[]>([]);
-  const [showProfileCard, setShowProfileCard] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('posts');
   const [rankingMode, setRankingMode] = useState(false);
   const [canViewInterested, setCanViewInterested] = useState<boolean>(true);
@@ -144,7 +141,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           .select('id')
           .or(`and(user1_id.eq.${user.id},user2_id.eq.${currentUserId}),and(user1_id.eq.${currentUserId},user2_id.eq.${user.id}))`)
           .limit(1);
-        setCanViewInterested(Array.isArray(data) ? data.length >= 0 : true);
+        setCanViewInterested(Array.isArray(data) ? data.length > 0 : false);
       } catch {
         setCanViewInterested(true);
       }
@@ -315,27 +312,30 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       console.log('🔍 ProfileView: Raw review data:', result);
       
       // Transform to match the expected interface for display (include rank_order and category ratings for display)
-      const transformedReviews = result.reviews.map((item: any) => ({
-        id: item.review.id,
-        user_id: item.review.user_id,
-        event_id: item.review.event_id,
-        rating: item.review.rating,
-        rank_order: (item.review as any).rank_order,
-        performance_rating: (item.review as any).performance_rating,
-        venue_rating: (item.review as any).venue_rating_new ?? (item.review as any).venue_rating,
-        overall_experience_rating: (item.review as any).overall_experience_rating,
-        review_text: item.review.review_text,
-        photos: item.review.photos || [],
-        videos: item.review.videos || [],
-        is_public: item.review.is_public,
-        created_at: item.review.created_at,
-        event: {
-          event_name: item.event?.title || item.event?.event_name || 'Concert Review',
-          location: item.event?.venue_name || 'Unknown Venue',
-          event_date: item.event?.event_date || item.review.created_at,
-          event_time: item.event?.event_time || 'TBD'
-        }
-      }));
+      // Filter reviews based on privacy: show all reviews for own profile, only public reviews for others
+      const transformedReviews = result.reviews
+        .filter((item: any) => isViewingOwnProfile || item.review.is_public)
+        .map((item: any) => ({
+          id: item.review.id,
+          user_id: item.review.user_id,
+          event_id: item.review.event_id,
+          rating: item.review.rating,
+          rank_order: (item.review as any).rank_order,
+          performance_rating: (item.review as any).performance_rating,
+          venue_rating: (item.review as any).venue_rating_new ?? (item.review as any).venue_rating,
+          overall_experience_rating: (item.review as any).overall_experience_rating,
+          review_text: item.review.review_text,
+          photos: item.review.photos || [],
+          videos: item.review.videos || [],
+          is_public: item.review.is_public,
+          created_at: item.review.created_at,
+          event: {
+            event_name: item.event?.title || item.event?.event_name || 'Concert Review',
+            location: item.event?.venue_name || 'Unknown Venue',
+            event_date: item.event?.event_date || item.review.created_at,
+            event_time: item.event?.event_time || 'TBD'
+          }
+        }));
       
       console.log('🔍 ProfileView: Transformed reviews:', transformedReviews);
       setReviews(transformedReviews);
@@ -824,10 +824,12 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
           <TabsContent value="posts" className="mt-6 mb-40">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-muted-foreground">Your Reviews</h3>
-              <Button variant={rankingMode ? 'default' : 'outline'} size="sm" onClick={() => setRankingMode(v => !v)}>
-                {rankingMode ? 'Done' : 'Ranking mode'}
-              </Button>
+              <h3 className="text-sm font-medium text-muted-foreground">{isViewingOwnProfile ? 'Your Reviews' : 'Reviews'}</h3>
+              {isViewingOwnProfile && (
+                <Button variant={rankingMode ? 'default' : 'outline'} size="sm" onClick={() => setRankingMode(v => !v)}>
+                  {rankingMode ? 'Done' : 'Ranking mode'}
+                </Button>
+              )}
             </div>
 
             {!rankingMode && (
@@ -884,7 +886,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               }}
             />)}
 
-            {rankingMode && (
+            {rankingMode && isViewingOwnProfile && (
               <div className="space-y-6">
                 {[5,4.5,4,3.5,3,2.5,2,1.5,1].map(ratingGroup => {
                   const group = reviews.filter(r => getDisplayRating(r) === ratingGroup);
@@ -960,8 +962,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               </div>
             )}
             
-            {/* Floating Add Button */}
-            {!rankingMode && (
+            {/* Floating Add Button - only show for own profile */}
+            {!rankingMode && isViewingOwnProfile && (
             <div className="fixed bottom-20 right-4 z-10">
               <Button 
                 onClick={handleOpenReviewModal} 
@@ -1033,7 +1035,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           
 
           <TabsContent value="stats" className="mt-6">
-            <UnifiedStreamingStats musicStreamingProfile={profile.music_streaming_profile} />
+            <UnifiedStreamingStats 
+              musicStreamingProfile={profile.music_streaming_profile} 
+              isViewingOtherProfile={!isViewingOwnProfile}
+            />
           </TabsContent>
 
         </Tabs>
@@ -1081,28 +1086,15 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               />
               <div className="flex justify-end gap-2 pb-2">
                 <Button variant="outline" onClick={() => setViewReviewOpen(false)}>Close</Button>
-                <Button onClick={() => { setViewReviewOpen(false); handleEditReview(selectedReview); }}>Edit</Button>
+                {isViewingOwnProfile && selectedReview?.user_id === currentUserId && (
+                  <Button onClick={() => { setViewReviewOpen(false); handleEditReview(selectedReview); }}>Edit</Button>
+                )}
               </div>
             </div>
           </DialogContent>
         </Dialog>
       )}
 
-      {/* Friend Profile Card */}
-      {selectedFriend && (
-        <FriendProfileCard
-          friend={selectedFriend}
-          isOpen={showProfileCard}
-          onClose={() => {
-            setShowProfileCard(false);
-            setSelectedFriend(null);
-          }}
-          onStartChat={(friendId) => {
-            console.log('Start chat with friend:', friendId);
-            // TODO: Implement chat functionality
-          }}
-        />
-      )}
 
       {/* Friends Modal */}
       <FollowersModal
@@ -1116,8 +1108,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           console.log('Start chat with friend:', friendId);
         }}
         onViewProfile={(friend) => {
-          setSelectedFriend(friend);
-          setShowProfileCard(true);
+          // Navigate to friend's profile using the same pattern as MainApp
+          const event = new CustomEvent('open-user-profile', {
+            detail: { userId: friend.user_id }
+          });
+          window.dispatchEvent(event);
+          // Close the modal after navigation
+          setShowFollowersModal(false);
         }}
       />
 

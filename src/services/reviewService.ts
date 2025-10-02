@@ -641,7 +641,31 @@ export class ReviewService {
    * Like a review
    */
   static async likeReview(userId: string, reviewId: string): Promise<ReviewLike> {
+    console.log('🔍 ReviewService: likeReview called', { userId, reviewId });
+    
     try {
+      // Check if user already liked this review
+      console.log('🔍 ReviewService: Checking for existing like...');
+      const { data: existingLike, error: checkError } = await supabase
+        .from('review_likes')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('review_id', reviewId)
+        .maybeSingle();
+
+      console.log('🔍 ReviewService: Existing like check result:', { existingLike, checkError });
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ ReviewService: Error checking existing like:', checkError);
+        throw checkError;
+      }
+
+      if (existingLike) {
+        console.log('✅ ReviewService: User already liked this review, returning existing like');
+        return existingLike as ReviewLike;
+      }
+
+      console.log('🔍 ReviewService: Inserting new like...');
       const { data, error } = await supabase
         .from('review_likes')
         .insert({
@@ -651,14 +675,30 @@ export class ReviewService {
         .select()
         .single();
 
-      if (error) throw error;
+      console.log('🔍 ReviewService: Insert result:', { data, error });
 
-      // Update likes count
-      await this.updateReviewCounts(reviewId, 'likes', 1);
+      if (error) {
+        console.error('❌ ReviewService: Error inserting like:', error);
+        // Handle duplicate key error gracefully
+        if (error.code === '23505') {
+          console.log('🔍 ReviewService: Duplicate key error, fetching existing like...');
+          // Try to get the existing like
+          const { data: existing } = await supabase
+            .from('review_likes')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('review_id', reviewId)
+            .single();
+          console.log('✅ ReviewService: Found existing like after duplicate error:', existing);
+          return existing as ReviewLike;
+        }
+        throw error;
+      }
 
+      console.log('✅ ReviewService: Like inserted successfully:', data);
       return data;
     } catch (error) {
-      console.error('Error liking review:', error);
+      console.error('❌ ReviewService: Error liking review:', error);
       throw new Error(`Failed to like review: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -675,9 +715,6 @@ export class ReviewService {
         .eq('review_id', reviewId);
 
       if (error) throw error;
-
-      // Update likes count
-      await this.updateReviewCounts(reviewId, 'likes', -1);
     } catch (error) {
       console.error('Error unliking review:', error);
       throw new Error(`Failed to unlike review: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -855,25 +892,37 @@ export class ReviewService {
   ): Promise<void> {
     try {
       const column = `${type}_count`;
-      // Prefer RPC (created by migration) to do an atomic increment
-      const { error: rpcError } = await (supabase as any)
-        .rpc('increment_review_count', { review_id: reviewId, column_name: column, delta });
-
-      if (rpcError) {
-        // Fallback to safe read-modify-write if RPC is unavailable
-        const { data: current } = await (supabase as any)
-          .from('user_reviews')
-          .select('likes_count, comments_count, shares_count')
-          .eq('id', reviewId)
-          .single();
-        const next = Math.max(0, (current?.[column] || 0) + delta);
-        await (supabase as any)
-          .from('user_reviews')
-          .update({ [column]: next })
-          .eq('id', reviewId);
+      console.log('🔍 ReviewService: Updating review counts', { reviewId, type, delta, column });
+      
+      // Use direct read-modify-write approach since RPC function may not exist
+      const { data: current, error: fetchError } = await supabase
+        .from('user_reviews')
+        .select('likes_count, comments_count, shares_count')
+        .eq('id', reviewId)
+        .single();
+      
+      if (fetchError) {
+        console.error('❌ ReviewService: Error fetching current counts:', fetchError);
+        return;
+      }
+      
+      const currentCount = current?.[column] || 0;
+      const nextCount = Math.max(0, currentCount + delta);
+      
+      console.log('🔍 ReviewService: Updating count', { currentCount, nextCount });
+      
+      const { error: updateError } = await supabase
+        .from('user_reviews')
+        .update({ [column]: nextCount })
+        .eq('id', reviewId);
+      
+      if (updateError) {
+        console.error('❌ ReviewService: Error updating count:', updateError);
+      } else {
+        console.log('✅ ReviewService: Successfully updated count');
       }
     } catch (error) {
-      console.error(`Error updating ${type} count:`, error);
+      console.error(`❌ ReviewService: Error updating ${type} count:`, error);
       // Don't throw here as it's not critical
     }
   }
@@ -886,23 +935,100 @@ export class ReviewService {
     userId?: string
   ): Promise<{ likes_count: number; comments_count: number; shares_count: number; is_liked_by_user: boolean } | null> {
     try {
-      const { data, error } = await (supabase as any)
+      // Try using the new RPC function first
+      const { data: rpcData, error: rpcError } = await (supabase as any)
+        .rpc('get_review_engagement', {
+          review_id_param: reviewId,
+          user_id_param: userId || null
+        });
+
+      if (!rpcError && rpcData && Array.isArray(rpcData) && rpcData.length > 0 && typeof rpcData[0] === 'object') {
+        return rpcData[0] as { likes_count: number; comments_count: number; shares_count: number; is_liked_by_user: boolean };
+      }
+
+      // Fallback to direct queries
+      console.log('🔍 ReviewService: RPC failed, using direct queries');
+      
+      // Get review counts
+      const { data: reviewData, error: reviewError } = await supabase
         .from('user_reviews')
-        .select('id, likes_count, comments_count, shares_count, review_likes!left(id, user_id)')
+        .select('likes_count, comments_count, shares_count')
         .eq('id', reviewId)
         .single();
-      if (error) throw error;
-      const likes = Array.isArray(data?.review_likes) ? data.review_likes : [];
-      const isLiked = userId ? likes.some((l: any) => l.user_id === userId) : false;
+      
+      if (reviewError) {
+        console.error('❌ ReviewService: Error fetching review data:', reviewError);
+        throw reviewError;
+      }
+      
+      // Check if user has liked this review
+      let isLiked = false;
+      if (userId) {
+        const { data: likeData, error: likeError } = await supabase
+          .from('review_likes')
+          .select('id')
+          .eq('review_id', reviewId)
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        if (likeError) {
+          console.error('❌ ReviewService: Error checking like status:', likeError);
+        } else {
+          isLiked = !!likeData;
+        }
+      }
+      
       return {
-        likes_count: data?.likes_count || 0,
-        comments_count: data?.comments_count || 0,
-        shares_count: data?.shares_count || 0,
+        likes_count: reviewData?.likes_count || 0,
+        comments_count: reviewData?.comments_count || 0,
+        shares_count: reviewData?.shares_count || 0,
         is_liked_by_user: isLiked,
       };
     } catch (e) {
       console.warn('ReviewService.getReviewEngagement failed', e);
       return null;
+    }
+  }
+
+  /**
+   * Get real-time engagement data for multiple reviews
+   */
+  static async getReviewsEngagement(
+    reviewIds: string[],
+    userId?: string
+  ): Promise<Record<string, { likes_count: number; comments_count: number; shares_count: number; is_liked_by_user: boolean }>> {
+    try {
+      const { data, error } = await supabase
+        .from('user_reviews')
+        .select(`
+          id, 
+          likes_count, 
+          comments_count, 
+          shares_count,
+          review_likes!left(id, user_id)
+        `)
+        .in('id', reviewIds);
+
+      if (error) throw error;
+
+      const result: Record<string, any> = {};
+      
+      data?.forEach((review: any) => {
+        const likes = Array.isArray(review.review_likes) ? review.review_likes : [];
+        const isLiked = userId ? likes.some((l: any) => l.user_id === userId) : false;
+        
+        result[review.id] = {
+          likes_count: review.likes_count || 0,
+          comments_count: review.comments_count || 0,
+          shares_count: review.shares_count || 0,
+          is_liked_by_user: isLiked,
+        };
+      });
+
+      return result;
+    } catch (e) {
+      console.warn('ReviewService.getReviewsEngagement failed', e);
+      return {};
     }
   }
 

@@ -29,6 +29,20 @@ export class EventLikesService {
 
   static async likeEvent(userId: string, eventId: string): Promise<EventLike | null> {
     const internalEventId = await this.resolveInternalEventId(eventId);
+    
+    // First check if the user has already liked this event
+    const existingLike = await this.isLikedByUser(userId, eventId);
+    if (existingLike) {
+      // User already liked this event, return the existing like
+      const { data } = await (supabase as any)
+        .from('event_likes')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('event_id', internalEventId)
+        .single();
+      return data as EventLike;
+    }
+    
     const { data, error } = await (supabase as any)
       .from('event_likes')
       .insert({ user_id: userId, event_id: internalEventId })
@@ -39,6 +53,17 @@ export class EventLikesService {
       if ((error as any).code === 'PGRST205') {
         console.warn('event_likes table not found. Add migration to enable event likes.');
         return null;
+      }
+      // Handle duplicate key constraint (409 Conflict)
+      if ((error as any).code === '23505' || (error as any).status === 409) {
+        // Try to get the existing like
+        const { data: existingData } = await (supabase as any)
+          .from('event_likes')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('event_id', internalEventId)
+          .single();
+        return existingData as EventLike;
       }
       throw error;
     }
@@ -79,15 +104,26 @@ export class EventLikesService {
   }
 
   static async isLikedByUser(userId: string, eventId: string): Promise<boolean> {
-    const internalEventId = await this.resolveInternalEventId(eventId);
-    const { data } = await (supabase as any)
-      .from('event_likes')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('event_id', internalEventId)
-      .limit(1)
-      .single();
-    return Boolean(data);
+    try {
+      const internalEventId = await this.resolveInternalEventId(eventId);
+      const { data, error } = await (supabase as any)
+        .from('event_likes')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('event_id', internalEventId)
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) {
+        if ((error as any).code === 'PGRST205') return false; // table not found
+        throw error;
+      }
+      
+      return Boolean(data);
+    } catch (error) {
+      console.error('Error checking if event is liked by user:', error);
+      return false;
+    }
   }
 }
 

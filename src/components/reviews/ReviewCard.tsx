@@ -46,25 +46,50 @@ export function ReviewCard({
   const [imageIndex, setImageIndex] = useState(0);
 
   const handleLike = async () => {
-    if (!currentUserId || isLiking) return;
+    console.log('🔍 ReviewCard: handleLike called', {
+      currentUserId,
+      reviewId: review.id,
+      isLiked,
+      isLiking,
+      likesCount
+    });
+    
+    if (!currentUserId || isLiking) {
+      console.log('❌ ReviewCard: Early return - no userId or already liking', { currentUserId, isLiking });
+      return;
+    }
     
     setIsLiking(true);
     try {
       if (isLiked) {
+        console.log('🔍 ReviewCard: Unliking review...');
         await ReviewService.unlikeReview(currentUserId, review.id);
         setLikesCount(prev => Math.max(0, prev - 1));
         setIsLiked(false);
+        console.log('✅ ReviewCard: Review unliked successfully');
       } else {
-        await ReviewService.likeReview(currentUserId, review.id);
+        console.log('🔍 ReviewCard: Liking review...');
+        const result = await ReviewService.likeReview(currentUserId, review.id);
+        console.log('🔍 ReviewCard: Like result:', result);
         setLikesCount(prev => prev + 1);
         setIsLiked(true);
+        console.log('✅ ReviewCard: Review liked successfully');
       }
       
       if (onLike) {
+        console.log('🔍 ReviewCard: Calling onLike callback');
         onLike(review.id, !isLiked);
       }
     } catch (error) {
-      console.error('Error toggling like:', error);
+      console.error('❌ ReviewCard: Error toggling like:', error);
+      // Revert optimistic update on error
+      if (isLiked) {
+        setLikesCount(prev => prev + 1);
+        setIsLiked(true);
+      } else {
+        setLikesCount(prev => Math.max(0, prev - 1));
+        setIsLiked(false);
+      }
     } finally {
       setIsLiking(false);
     }
@@ -79,7 +104,10 @@ export function ReviewCard({
         setLoadingComments(true);
         const result = await ReviewService.getReviewComments(review.id);
         setComments(result);
+        // Update comment count to match actual comments
         setCommentsCount(result.length);
+      } catch (error) {
+        console.error('Error loading comments:', error);
       } finally {
         setLoadingComments(false);
       }
@@ -157,6 +185,39 @@ export function ReviewCard({
     el?.addEventListener('toggle-review-comments', listener as EventListener);
     return () => el?.removeEventListener('toggle-review-comments', listener as EventListener);
   }, [review.id, showComments, comments.length]);
+
+  // Refresh engagement data when component mounts
+  useEffect(() => {
+    const refreshEngagement = async () => {
+      console.log('🔍 ReviewCard: Refreshing engagement data', { reviewId: review.id, currentUserId });
+      
+      if (currentUserId) {
+        try {
+          const engagement = await ReviewService.getReviewEngagement(review.id, currentUserId);
+          console.log('🔍 ReviewCard: Engagement data received:', engagement);
+          
+          if (engagement) {
+            setLikesCount(engagement.likes_count);
+            setCommentsCount(engagement.comments_count);
+            setIsLiked(engagement.is_liked_by_user);
+            console.log('✅ ReviewCard: Engagement state updated', {
+              likesCount: engagement.likes_count,
+              commentsCount: engagement.comments_count,
+              isLiked: engagement.is_liked_by_user
+            });
+          } else {
+            console.log('⚠️ ReviewCard: No engagement data received');
+          }
+        } catch (error) {
+          console.error('❌ ReviewCard: Error refreshing engagement data:', error);
+        }
+      } else {
+        console.log('⚠️ ReviewCard: No currentUserId, skipping engagement refresh');
+      }
+    };
+
+    refreshEngagement();
+  }, [review.id, currentUserId]);
 
   const openImageViewer = (index: number) => {
     setImageIndex(index);

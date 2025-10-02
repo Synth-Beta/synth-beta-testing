@@ -141,11 +141,10 @@ export class JamBaseCitiesService {
       
       // Use upsert to avoid duplicates
       const { error } = await supabase
-        .from('jambase_cities')
-        .upsert(citiesToStore, {
+        .from('jambase_cities' as any)
+        .upsert(citiesToStore as any, {
           onConflict: 'jambase_city_id'
         });
-      
       if (error) {
         console.error('❌ Error storing cities in Supabase:', error);
         throw error;

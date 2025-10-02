@@ -30,8 +30,10 @@ export interface ProfileReviewCardProps {
   initialIsLiked?: boolean;
   initialLikesCount?: number;
   initialCommentsCount?: number;
+  initialSharesCount?: number;
   photos?: string[];
   videos?: string[];
+  showCommentsInitially?: boolean;
 }
 
 function normalizeRating(r: number | 'good' | 'okay' | 'bad'): number {
@@ -58,8 +60,10 @@ export function ProfileReviewCard({
   initialIsLiked = false,
   initialLikesCount = 0,
   initialCommentsCount = 0,
+  initialSharesCount = 0,
   photos: initialPhotos,
-  videos: initialVideos
+  videos: initialVideos,
+  showCommentsInitially = false
 }: ProfileReviewCardProps) {
   // Display stars should honor .5 increments. Prefer category averages when available.
   const baseStars = normalizeRating(rating);
@@ -75,7 +79,8 @@ export function ProfileReviewCard({
   const [isLiked, setIsLiked] = React.useState<boolean>(initialIsLiked);
   const [likesCount, setLikesCount] = React.useState<number>(initialLikesCount);
   const [commentsCount, setCommentsCount] = React.useState<number>(initialCommentsCount);
-  const [showComments, setShowComments] = React.useState<boolean>(false);
+  const [sharesCount, setSharesCount] = React.useState<number>(initialSharesCount);
+  const [showComments, setShowComments] = React.useState<boolean>(showCommentsInitially);
   const [comments, setComments] = React.useState<CommentWithUser[]>([]);
   const [loadingComments, setLoadingComments] = React.useState<boolean>(false);
   const [newComment, setNewComment] = React.useState<string>('');
@@ -116,8 +121,22 @@ export function ProfileReviewCard({
 
   const share = async () => {
     try {
-      await ShareService.shareReview(reviewId, 'PlusOne Review', reviewText || undefined);
-    } catch {}
+      console.log('🔍 ProfileReviewCard: Sharing review', { reviewId });
+      const url = await ShareService.shareReview(reviewId, 'PlusOne Review', reviewText || undefined);
+      
+      // Record the share in the database
+      if (currentUserId) {
+        try {
+          await ReviewService.shareReview(currentUserId, reviewId);
+          // Update local share count
+          setSharesCount(prev => prev + 1);
+        } catch (shareError) {
+          console.error('❌ ProfileReviewCard: Error recording share:', shareError);
+        }
+      }
+    } catch (error) {
+      console.error('❌ ProfileReviewCard: Error sharing review:', error);
+    }
   };
 
   const addComment = async () => {
@@ -150,10 +169,29 @@ export function ProfileReviewCard({
       if (engagement) {
         setLikesCount(engagement.likes_count);
         setCommentsCount(engagement.comments_count);
+        setSharesCount(engagement.shares_count);
         setIsLiked(engagement.is_liked_by_user);
       }
     })();
   }, [reviewId, currentUserId]);
+
+  // Load comments if showCommentsInitially is true
+  React.useEffect(() => {
+    if (showCommentsInitially && comments.length === 0) {
+      (async () => {
+        try {
+          setLoadingComments(true);
+          const result = await ReviewService.getReviewComments(reviewId);
+          setComments(result);
+          setCommentsCount(result.length);
+        } catch (error) {
+          console.error('Error loading comments:', error);
+        } finally {
+          setLoadingComments(false);
+        }
+      })();
+    }
+  }, [showCommentsInitially, reviewId, comments.length]);
 
   // Lazy-load media and category ratings for this review (and artist avatar)
   React.useEffect(() => {

@@ -39,8 +39,14 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <Card 
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto cursor-pointer"
+        onClick={onClose}
+      >
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-xl font-bold">Profile</CardTitle>
@@ -130,14 +136,19 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => {
-                console.log('View full profile for:', friend.name);
-                // TODO: Navigate to full profile page
-              }}
-            >
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => {
+              console.log('View full profile for:', friend.name);
+              // Emit custom event to navigate to friend's profile
+              const event = new CustomEvent('open-user-profile', {
+                detail: { userId: friend.user_id }
+              });
+              window.dispatchEvent(event);
+              onClose(); // Close the modal
+            }}
+          >
               <User className="w-4 h-4 mr-2" />
               Full Profile
             </Button>
