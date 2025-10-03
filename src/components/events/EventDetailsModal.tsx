@@ -18,6 +18,7 @@ import {
 import { EventCommentsModal } from './EventCommentsModal';
 import { JamBaseEventCard } from './JamBaseEventCard';
 import { FriendProfileCard } from '@/components/FriendProfileCard';
+import { formatPrice } from '@/utils/currencyUtils';
 import { EventReviewsSection } from '@/components/reviews/EventReviewsSection';
 import { EventMap } from '@/components/EventMap';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
@@ -371,7 +372,7 @@ export function EventDetailsModal({
                 {event.price_range && (
                   <div className="text-sm">
                     <span className="text-muted-foreground">Price: </span>
-                    <span className="font-medium">{event.price_range}</span>
+                    <span className="font-medium">{formatPrice(event.price_range)}</span>
                   </div>
                 )}
               </div>

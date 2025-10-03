@@ -15,12 +15,16 @@ import {
   Clock,
   Users,
   Ticket,
-  ExternalLink
+  ExternalLink,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { JamBaseEventsService, JamBaseEventResponse, JamBaseEvent } from '@/services/jambaseEventsService';
 import { LocationService } from '@/services/locationService';
+import { formatPrice, extractNumericPrice } from '@/utils/currencyUtils';
 
 // Import our new components
 import { CompactSearchBar } from './CompactSearchBar';
@@ -54,6 +58,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   const [mapZoom, setMapZoom] = useState(4);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'date' | 'price' | 'popularity' | 'distance' | 'relevance'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
   const [filters, setFilters] = useState<FilterState>({
     genres: [],
@@ -75,6 +81,79 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     });
     return Array.from(genreSet).sort();
   }, [events]);
+
+  // Sort events based on selected criteria
+  const sortedEvents = useMemo(() => {
+    const eventsToSort = selectedDate ? dateFilteredEvents : filteredEvents;
+    
+    return [...eventsToSort].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'date':
+          const dateA = new Date(a.event_date).getTime();
+          const dateB = new Date(b.event_date).getTime();
+          comparison = dateA - dateB;
+          break;
+          
+        case 'price':
+          const priceA = extractNumericPrice(a.price_range || '');
+          const priceB = extractNumericPrice(b.price_range || '');
+          comparison = priceA - priceB;
+          break;
+          
+        case 'popularity':
+          // For now, use a simple popularity metric based on venue size or other factors
+          // This could be enhanced with actual engagement data
+          const popularityA = a.venue_name?.length || 0; // Simple heuristic
+          const popularityB = b.venue_name?.length || 0;
+          comparison = popularityA - popularityB;
+          break;
+          
+        case 'distance':
+          // Calculate distance if user location is available
+          if (userLocation && a.latitude && a.longitude && b.latitude && b.longitude) {
+            const distanceA = calculateDistance(userLocation.lat, userLocation.lng, a.latitude, a.longitude);
+            const distanceB = calculateDistance(userLocation.lat, userLocation.lng, b.latitude, b.longitude);
+            comparison = distanceA - distanceB;
+          } else {
+            comparison = 0;
+          }
+          break;
+          
+        case 'relevance':
+        default:
+          // Default relevance based on date proximity and other factors
+          const now = Date.now();
+          const eventDateA = new Date(a.event_date).getTime();
+          const eventDateB = new Date(b.event_date).getTime();
+          const relevanceA = Math.abs(eventDateA - now);
+          const relevanceB = Math.abs(eventDateB - now);
+          comparison = relevanceA - relevanceB;
+          break;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  }, [selectedDate, dateFilteredEvents, filteredEvents, sortBy, sortOrder, userLocation]);
+
+  // Calculate distance between two points using Haversine formula
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 3959; // Earth's radius in miles
+    const dLat = toRadians(lat2 - lat1);
+    const dLng = toRadians(lng2 - lng1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Convert degrees to radians
+  const toRadians = (degrees: number): number => {
+    return degrees * (Math.PI / 180);
+  };
 
   // Initialize user location and load events & cities
   useEffect(() => {
@@ -468,12 +547,15 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         </div>
 
         {/* Search Results Summary */}
-        {(searchQuery || filters.genres.length > 0 || (filters.selectedCities && filters.selectedCities.length > 0) || filters.dateRange.from || filters.dateRange.to) && (
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <div>
-              Showing {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}
-              {searchQuery && ` for "${searchQuery}"`}
-            </div>
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div>
+            Showing {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}
+            {searchQuery && ` for "${searchQuery}"`}
+            <span className="ml-2 text-xs">
+              (sorted by {sortBy} {sortOrder === 'asc' ? '↑' : '↓'})
+            </span>
+          </div>
+          {(searchQuery || filters.genres.length > 0 || (filters.selectedCities && filters.selectedCities.length > 0) || filters.dateRange.from || filters.dateRange.to) && (
             <Button
               variant="ghost"
               size="sm"
@@ -490,8 +572,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
             >
               Clear all filters
             </Button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Loading State */}
         {isLoading && (
@@ -548,22 +630,47 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                         <Music className="h-5 w-5" />
                         {selectedDate ? `Events on ${format(selectedDate, 'MMM d, yyyy')}` : 'Upcoming Events'}
                       </CardTitle>
-                      {selectedDate && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDateSelect(undefined)}
-                          className="text-xs"
-                        >
-                          Clear Date Filter
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {/* Sort Controls */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground">Sort:</span>
+                          <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as any)}
+                            className="text-xs border border-gray-300 rounded px-1 py-0.5 bg-white"
+                          >
+                            <option value="date">Date</option>
+                            <option value="price">Price</option>
+                            <option value="popularity">Popularity</option>
+                            <option value="distance">Distance</option>
+                            <option value="relevance">Relevance</option>
+                          </select>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                            className="p-1 h-6 w-6"
+                          >
+                            {sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                          </Button>
+                        </div>
+                        {selectedDate && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDateSelect(undefined)}
+                            className="text-xs"
+                          >
+                            Clear Date Filter
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <ScrollArea className="h-96">
                       <div className="space-y-4">
-                        {(selectedDate ? dateFilteredEvents : filteredEvents).slice(0, 50).map((event) => (
+                        {sortedEvents.slice(0, 50).map((event) => (
                           <div
                             key={event.id}
                             className="p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
@@ -625,7 +732,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                               <div className="flex flex-col items-end gap-2 ml-4">
                                 {event.price_range && (
                                   <Badge variant="secondary">
-                                    {event.price_range}
+                                    {formatPrice(event.price_range)}
                                   </Badge>
                                 )}
                                 <div className="flex gap-1">

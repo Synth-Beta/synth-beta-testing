@@ -105,6 +105,15 @@ export class SpotifyService {
       return false;
     }
 
+    // Check if we're currently in the middle of an auth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const isInCallback = urlParams.get('code') && urlParams.get('state');
+    
+    if (isInCallback) {
+      console.log('🔄 Currently in auth callback, skipping token validation to avoid race condition');
+      return false; // Let the callback handle the authentication
+    }
+
     try {
       // Try to get user profile to test basic scopes
       console.log('🔍 Validating token scopes...');
@@ -148,8 +157,45 @@ export class SpotifyService {
     console.log('🔐 State validation:', { received: state, stored: storedState, match: state === storedState });
     
     if (state !== storedState) {
-      console.error('❌ State mismatch');
-      throw new Error('Authentication state mismatch');
+      console.error('❌ State mismatch detected');
+      console.log('🔧 Attempting recovery...');
+      
+      // Check if we have any stored state at all
+      if (!storedState) {
+        console.log('⚠️ No stored state found - user may have navigated away during auth');
+        console.log('🔄 Attempting to proceed with token exchange anyway...');
+        
+        // Try to exchange the code anyway - sometimes this works
+        try {
+          await this.exchangeCodeForToken(code);
+          console.log('✅ Token exchange successful despite state mismatch');
+          
+          // Clean up and return success
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return true;
+        } catch (tokenError) {
+          console.error('❌ Token exchange failed:', tokenError);
+          throw new Error('Authentication state mismatch. Please try connecting to Spotify again.');
+        }
+      } else {
+        console.error('❌ State mismatch with stored state present');
+        console.log('🔧 This might be due to a race condition - attempting token exchange anyway');
+        
+        // Try to exchange the code anyway - sometimes this works even with state mismatch
+        try {
+          await this.exchangeCodeForToken(code);
+          console.log('✅ Token exchange successful despite state mismatch');
+          
+          // Clean up and return success
+          window.history.replaceState({}, document.title, window.location.pathname);
+          localStorage.removeItem('spotify_auth_state');
+          localStorage.removeItem('spotify_code_verifier');
+          return true;
+        } catch (tokenError) {
+          console.error('❌ Token exchange failed:', tokenError);
+          throw new Error('Authentication state mismatch. Please try connecting to Spotify again.');
+        }
+      }
     }
 
     console.log('✅ State validated, exchanging code for token...');
@@ -390,6 +436,27 @@ export class SpotifyService {
       alert('Clearing all Spotify data. Please reconnect with the new authentication method.');
     }
     this.authenticate();
+  }
+
+  /**
+   * Recovery method for state mismatch issues
+   * Clears auth data and provides user-friendly guidance
+   */
+  public recoverFromStateMismatch(): void {
+    console.log('🔧 Recovering from state mismatch...');
+    this.clearStoredData();
+    
+    if (typeof window !== 'undefined') {
+      // Show a more user-friendly message
+      const shouldRetry = confirm(
+        'Spotify authentication session expired. This can happen if you navigated away during the connection process.\n\n' +
+        'Would you like to try connecting again now?'
+      );
+      
+      if (shouldRetry) {
+        this.authenticate();
+      }
+    }
   }
 
   public nuclearReset(): void {

@@ -23,7 +23,10 @@ import {
   ThumbsDown,
   Minus,
   Bell,
-  Navigation as NavigationIcon
+  Navigation as NavigationIcon,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -46,6 +49,7 @@ import { LocationService } from '@/services/locationService';
 import { EventMap } from './EventMap';
 import { UnifiedChatView } from './UnifiedChatView';
 import { UserEventService } from '@/services/userEventService';
+import { extractNumericPrice } from '@/utils/currencyUtils';
 
 // Using UnifiedFeedItem from service instead of local interface
 
@@ -85,6 +89,8 @@ export const UnifiedFeed = ({
   const [viewReviewOpen, setViewReviewOpen] = useState(false);
   const [selectedReviewForView, setSelectedReviewForView] = useState<any>(null);
   const [showCommentsInModal, setShowCommentsInModal] = useState(false);
+  const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'price' | 'popularity' | 'distance'>('relevance');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     if (sessionExpired) {
@@ -247,6 +253,60 @@ export const UnifiedFeed = ({
     }
   };
 
+  // Sort feed items based on selected criteria
+  const sortFeedItems = (items: UnifiedFeedItem[]) => {
+    return [...items].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'date':
+          const dateA = new Date(a.created_at).getTime();
+          const dateB = new Date(b.created_at).getTime();
+          comparison = dateA - dateB;
+          break;
+          
+        case 'price':
+          // Extract numeric price from price_range for events
+          const priceA = extractPrice(a);
+          const priceB = extractPrice(b);
+          comparison = priceA - priceB;
+          break;
+          
+        case 'popularity':
+          const popularityA = (a.likes_count || 0) + (a.comments_count || 0) + (a.shares_count || 0);
+          const popularityB = (b.likes_count || 0) + (b.comments_count || 0) + (b.shares_count || 0);
+          comparison = popularityA - popularityB;
+          break;
+          
+        case 'distance':
+          const distanceA = a.distance_miles || Infinity;
+          const distanceB = b.distance_miles || Infinity;
+          comparison = distanceA - distanceB;
+          break;
+          
+        case 'relevance':
+        default:
+          comparison = a.relevance_score - b.relevance_score;
+          break;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  };
+
+  // Extract numeric price from price_range string
+  const extractPrice = (item: UnifiedFeedItem): number => {
+    if (item.type === 'event' && item.event_data?.price_range) {
+      return extractNumericPrice(item.event_data.price_range);
+    }
+    return 0;
+  };
+
+  // Get sorted feed items
+  const sortedFeedItems = useMemo(() => {
+    return sortFeedItems(feedItems);
+  }, [feedItems, sortBy, sortOrder]);
+
   // Hero image resolver for review items (mirrors JamBaseEventCard logic exactly)
   const ReviewHeroImage: React.FC<{ item: UnifiedFeedItem }> = ({ item }) => {
     const [url, setUrl] = useState<string | null>(null);
@@ -343,7 +403,30 @@ export const UnifiedFeed = ({
           <p className="synth-text text-muted-foreground">Discover concerts, reviews, and connect with the community</p>
         </div>
         
-        <div className="flex items-center justify-end mb-6">
+        <div className="flex items-center justify-between mb-6">
+          {/* Sort Controls */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Sort by:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
+            >
+              <option value="relevance">Relevance</option>
+              <option value="date">Date</option>
+              <option value="price">Price</option>
+              <option value="popularity">Popularity</option>
+              <option value="distance">Distance</option>
+            </select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="p-1"
+            >
+              {sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
+            </Button>
+          </div>
           
           <div className="flex items-center gap-3">
             <NotificationBell
@@ -411,7 +494,7 @@ export const UnifiedFeed = ({
 
             {/* Events Feed Items */}
         <div className="space-y-4">
-              {feedItems
+              {sortedFeedItems
                 .filter(item => item.type === 'event')
                 .map((item, index) => (
               <Card 
@@ -574,7 +657,7 @@ export const UnifiedFeed = ({
                 ))}
               
               {/* Empty state for events */}
-              {feedItems.filter(item => item.type === 'event').length === 0 && (
+              {sortedFeedItems.filter(item => item.type === 'event').length === 0 && (
                 <div className="text-center py-12 bg-white rounded-lg">
                   <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No Events Yet</h3>
@@ -622,7 +705,7 @@ export const UnifiedFeed = ({
 
             {/* Reviews Feed Items */}
             <div className="space-y-4">
-              {feedItems
+              {sortedFeedItems
                 .filter(item => item.type === 'review')
                 .map((item, index) => (
                   <Card 
@@ -845,7 +928,7 @@ export const UnifiedFeed = ({
                 ))}
               
               {/* Empty state for reviews */}
-              {feedItems.filter(item => item.type === 'review').length === 0 && (
+              {sortedFeedItems.filter(item => item.type === 'review').length === 0 && (
                 <div className="text-center py-12 bg-white rounded-lg">
                   <Star className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No Reviews Yet</h3>
@@ -867,7 +950,7 @@ export const UnifiedFeed = ({
           )}
           
           {/* End of feed indicator */}
-          {!hasMore && feedItems.length > 0 && (
+          {!hasMore && sortedFeedItems.length > 0 && (
             <div className="text-center py-8">
               <div className="w-16 h-px bg-gray-300 mx-auto mb-3"></div>
               <p className="text-sm text-gray-500">You're all caught up!</p>

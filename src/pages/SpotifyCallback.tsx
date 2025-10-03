@@ -23,11 +23,25 @@ const SpotifyCallback = () => {
         }
       } catch (error) {
         console.error('Spotify callback error:', error);
+        
+        // Provide more specific error messages
+        let errorMessage = "Failed to connect to Spotify. Please try again.";
+        if (error instanceof Error) {
+          if (error.message.includes('state mismatch')) {
+            errorMessage = "Authentication session expired. Please try connecting again.";
+          } else if (error.message.includes('Authentication failed')) {
+            errorMessage = "Spotify authentication was cancelled or failed.";
+          }
+        }
+        
         toast({
           title: "Connection Failed",
-          description: "Failed to connect to Spotify. Please try again.",
+          description: errorMessage,
           variant: "destructive",
         });
+        
+        // Clear any stored auth data to ensure clean retry
+        spotifyService.clearStoredData();
         navigate('/');
       }
     };

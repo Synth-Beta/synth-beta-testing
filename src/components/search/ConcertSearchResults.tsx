@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Music, Ticket, ExternalLink, Clock } from 'lucide-react';
 import { safeFormatEventDateTime } from '@/lib/dateUtils';
 import type { Event } from '@/types/concertSearch';
+import { formatPrice } from '@/utils/currencyUtils';
 
 interface ConcertSearchResultsProps {
   event: Event | null;
@@ -135,7 +136,7 @@ export function ConcertSearchResults({ event, isNewEvent, source }: ConcertSearc
           {event.price_range && (
             <div>
               <p className="text-sm">
-                <span className="font-medium">Price Range:</span> {event.price_range}
+                <span className="font-medium">Price Range:</span> {formatPrice(event.price_range)}
               </p>
             </div>
           )}

@@ -20,6 +20,7 @@ import {
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import type { Artist, PaginatedEvents, Event } from '@/types/concertSearch';
 import { safeFormatEventDateTime } from '@/lib/dateUtils';
+import { formatPrice } from '@/utils/currencyUtils';
 import { cn } from '@/lib/utils';
 import { ManualArtistForm } from '@/components/search/ManualArtistForm';
 import { useToast } from '@/hooks/use-toast';
@@ -387,7 +388,7 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
             
             {event.price_range && (
               <p className="text-xs text-gray-500 mt-1">
-                {event.price_range}
+                {formatPrice(event.price_range)}
               </p>
             )}
           </div>

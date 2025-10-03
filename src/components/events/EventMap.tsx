@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
 import { JamBaseEventResponse } from '@/services/jambaseEventsService';
+import { formatPrice } from '@/utils/currencyUtils';
 
 // Fix for default markers in React Leaflet
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -130,7 +131,7 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
                   {event.price_range && (
                     <div className="flex items-center gap-2 text-xs text-green-600">
                       <Ticket className="w-3 h-3" />
-                      <span>{event.price_range}</span>
+                      <span>{formatPrice(event.price_range)}</span>
                     </div>
                   )}
                 </div>

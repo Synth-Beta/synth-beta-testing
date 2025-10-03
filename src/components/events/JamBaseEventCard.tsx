@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { EventMap } from '@/components/EventMap';
+import { formatPrice } from '@/utils/currencyUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { trackInteraction } from '@/services/interactionTrackingService';
 
@@ -302,7 +303,7 @@ export function JamBaseEventCard({
         {event.price_range && (
           <div className="text-sm">
             <span className="text-muted-foreground">Price: </span>
-            <span className="font-medium">{event.price_range}</span>
+            <span className="font-medium">{formatPrice(event.price_range)}</span>
           </div>
         )}
 
