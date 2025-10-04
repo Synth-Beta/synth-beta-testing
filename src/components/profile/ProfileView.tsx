@@ -654,18 +654,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   // Session expiration is handled by MainApp, so we don't need to handle it here
 
-  console.log('🔍 ProfileView: Current loading state:', loading);
-  
   if (loading) {
-    console.log('🔍 ProfileView: Loading skeleton is being rendered!');
     return (
       <div className="min-h-screen synth-gradient-card p-4 pb-20">
         <div className="max-w-2xl mx-auto space-y-6">
-          {/* Debug info */}
-          <div className="bg-red-100 p-4 rounded-lg text-sm">
-            <strong>DEBUG:</strong> Skeleton should be showing! Loading: {loading.toString()}
-          </div>
-          
           {/* Header skeleton */}
           <div className="flex items-center gap-4 mb-6">
             <SynthSLogo size="md" className="animate-breathe" />
