@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { SynthSLogo } from '@/components/SynthSLogo';
 import { 
   Search, 
   Map, 
@@ -508,22 +509,23 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     <div className="min-h-screen synth-gradient-card">
       <div id="search-layout-root" className="max-w-7xl mx-auto p-6 space-y-8">
         {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold tracking-tight synth-heading bg-gradient-to-r from-synth-pink to-synth-pink-light bg-clip-text text-transparent">Discover Events</h1>
-          <p className="text-muted-foreground text-lg">
-            Find concerts, festivals, and music events near you
-          </p>
+        <div className="glass-card inner-glow text-center space-y-2 p-4 mb-6 floating-shadow">
+          <div className="flex items-center justify-center gap-3">
+            <SynthSLogo size="sm" className="hover-icon" />
+            <h1 className="gradient-text text-2xl font-bold">Discover Events</h1>
+          </div>
+          <p className="text-gray-600 text-sm">Find concerts, festivals, and music events near you</p>
         </div>
 
-        {/* Compact Search Bar */}
-        <div className="max-w-2xl mx-auto relative z-50">
-          <CompactSearchBar
-            onSearch={handleSearch}
-            onClear={handleClearSearch}
-            isLoading={isLoading}
-            userId={userId}
-          />
-        </div>
+         {/* Compact Search Bar */}
+         <div className="glass-card inner-glow p-4 rounded-2xl floating-shadow mb-6">
+           <CompactSearchBar
+             onSearch={handleSearch}
+             onClear={handleClearSearch}
+             isLoading={isLoading}
+             userId={userId}
+           />
+         </div>
 
         {/* Filters */}
         <div className="flex flex-col gap-4">
@@ -552,11 +554,11 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         </div>
 
         {/* Search Results Summary */}
-        <div className="flex items-center justify-between text-sm text-muted-foreground bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+        <div className="glass-card inner-glow flex items-center justify-between text-sm text-gray-600 rounded-2xl p-4 floating-shadow">
           <div>
-            Showing <span className="font-semibold text-synth-pink">{filteredEvents.length}</span> event{filteredEvents.length !== 1 ? 's' : ''}
+            Showing <span className="gradient-text-bold font-semibold">{filteredEvents.length}</span> event{filteredEvents.length !== -1 ? 's' : ''}
             {searchQuery && ` for "${searchQuery}"`}
-            <span className="ml-2 text-xs bg-synth-beige/20 px-2 py-1 rounded-lg">
+            <span className="ml-2 text-xs bg-white/30 px-2 py-1 rounded-lg backdrop-blur-sm">
               (sorted by {sortBy} {sortOrder === 'asc' ? '↑' : '↓'})
             </span>
           </div>
@@ -573,7 +575,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                   showFilters: false
                 });
               }}
-              className="text-muted-foreground hover:text-foreground bg-white/60 backdrop-blur-sm border border-white/20 hover:bg-white/80"
+              className="hover-button text-gray-500 hover:text-gray-700 hover:bg-white/80"
             >
               Clear all filters
             </Button>
@@ -582,9 +584,9 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
 
         {/* Loading State */}
         {isLoading && (
-          <div className="flex items-center justify-center py-16 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
-            <Loader2 className="h-8 w-8 animate-spin mr-3 text-synth-pink" />
-            <span className="font-medium">Loading events...</span>
+          <div className="glass-card inner-glow flex items-center justify-center py-16 rounded-2xl floating-shadow">
+            <Loader2 className="h-8 w-8 animate-spin mr-3" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+            <span className="font-medium text-gray-600">Loading events...</span>
           </div>
         )}
 
@@ -595,10 +597,10 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
               {/* Left: Map or Calendar */}
               <div className="order-1 lg:order-1 lg:col-span-1 relative z-10">
                 {viewMode === 'map' ? (
-                  <Card className="relative z-10">
+                  <Card className="glass-card inner-glow relative z-10 floating-shadow">
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Map className="h-5 w-5" />
+                      <CardTitle className="flex items-center gap-2 gradient-text">
+                        <Map className="h-5 w-5 hover-icon" />
                         Events Map
                       </CardTitle>
                     </CardHeader>
@@ -628,11 +630,11 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
 
               {/* Right: Single Events List */}
               <div className="order-2 lg:order-2 lg:col-span-2 relative z-10">
-                <Card className="relative z-10">
+                <Card className="glass-card inner-glow relative z-10 floating-shadow">
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
-                        <Music className="h-5 w-5" />
+                      <CardTitle className="flex items-center gap-2 gradient-text">
+                        <Music className="h-5 w-5 hover-icon" />
                         {selectedDate ? `Events on ${format(selectedDate, 'MMM d, yyyy')}` : 'Upcoming Events'}
                       </CardTitle>
                       <div className="flex items-center gap-2">
@@ -654,7 +656,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                             variant="outline"
                             size="sm"
                             onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                            className="p-1 h-6 w-6"
+                            className="hover-button p-1 h-6 w-6"
                           >
                             {sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                           </Button>
@@ -664,7 +666,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                             variant="outline"
                             size="sm"
                             onClick={() => handleDateSelect(undefined)}
-                            className="text-xs"
+                            className="hover-button text-xs"
                           >
                             Clear Date Filter
                           </Button>
@@ -678,26 +680,26 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                         {sortedEvents.slice(0, 50).map((event) => (
                           <div
                             key={event.id}
-                            className="p-4 border border-white/20 rounded-2xl hover:bg-white/60 hover:shadow-lg cursor-pointer transition-all duration-300 backdrop-blur-sm bg-white/40"
+                            className="glass-card inner-glow p-4 rounded-2xl hover-card cursor-pointer floating-shadow"
                             onClick={() => handleEventClick(event)}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-lg mb-2 line-clamp-1 synth-heading">
+                                <h3 className="font-bold text-lg mb-2 line-clamp-1 text-gray-800">
                                   {event.title || event.artist_name}
                                 </h3>
                                 {event.artist_name && event.artist_name !== event.title && (
-                                  <p className="text-muted-foreground mb-3 flex items-center gap-2">
-                                    <Music className="h-4 w-4 text-synth-pink" />
-                                    <span className="bg-synth-beige/20 px-2 py-1 rounded-lg text-xs font-medium">
+                                  <p className="text-gray-500 mb-3 flex items-center gap-2">
+                                    <Music className="h-4 w-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                                    <span className="bg-white/30 px-2 py-1 rounded-lg text-xs font-medium backdrop-blur-sm hover-icon">
                                       {event.artist_name}
                                     </span>
                                   </p>
                                 )}
                                 <div className="space-y-3">
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Calendar className="h-4 w-4 text-synth-pink" />
-                                    <span className="bg-synth-pink/10 px-2 py-1 rounded-lg text-xs font-medium text-synth-pink">
+                                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                                    <Calendar className="h-4 w-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                                    <span className="bg-white/30 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-medium">
                                       {(() => {
                                         try {
                                           return format(parseISO(event.event_date), 'EEEE, MMMM d, yyyy');
@@ -707,17 +709,17 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                                       })()}
                                     </span>
                                   </div>
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <MapPin className="h-4 w-4 text-synth-beige" />
-                                    <span className="bg-synth-beige/20 px-2 py-1 rounded-lg text-xs font-medium">
+                                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                                    <MapPin className="h-4 w-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                                    <span className="bg-white/30 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-medium">
                                       {event.venue_name}
                                       {event.venue_city && `, ${event.venue_city}`}
                                     </span>
                                   </div>
                                   {event.doors_time && (
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                      <Clock className="h-4 w-4 text-synth-pink" />
-                                      <span className="bg-synth-pink/10 px-2 py-1 rounded-lg text-xs font-medium text-synth-pink">Doors: {event.doors_time}</span>
+                                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                                      <Clock className="h-4 w-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                                      <span className="bg-white/30 px-2 py-1 rounded-lg text-xs backdrop-blur-sm font-medium">Doors: {event.doors_time}</span>
                                     </div>
                                   )}
                                   {event.genres && event.genres.length > 0 && (
@@ -738,7 +740,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                               </div>
                               <div className="flex flex-col items-end gap-3 ml-4">
                                 {event.price_range && (
-                                  <Badge variant="secondary" className="bg-synth-pink/20 text-synth-pink border-synth-pink/30 px-3 py-1 rounded-full">
+                                  <Badge variant="secondary" className="gradient-badge px-3 py-1 rounded-full">
                                     {formatPrice(event.price_range)}
                                   </Badge>
                                 )}
@@ -750,24 +752,24 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                                       e.stopPropagation();
                                       handleInterestToggle(event.id, !interestedEvents.has(event.id));
                                     }}
-                                    className={interestedEvents.has(event.id) ? "bg-synth-pink hover:bg-synth-pink-dark" : "bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40"}
+                                    className={interestedEvents.has(event.id) ? "hover-button gradient-button" : "hover-button border-gray-300 hover:border-pink-400 hover:text-pink-500"}
                                   >
-                                    <Users className="h-4 w-4 mr-1" />
+                                    <Users className="h-4 w-4 mr-1 hover-icon" />
                                     {interestedEvents.has(event.id) ? "Interested" : "Show Interest"}
                                   </Button>
-                                  {event.ticket_urls && event.ticket_urls.length > 0 && (
-                                    <Button
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        window.open(event.ticket_urls![0], '_blank');
-                                      }}
-                                      className="bg-synth-beige hover:bg-synth-beige-dark text-synth-black border-synth-beige-dark"
-                                    >
-                                      <Ticket className="h-4 w-4 mr-1" />
-                                      Tickets
-                                    </Button>
-                                  )}
+                                   {event.ticket_urls && event.ticket_urls.length > 0 && (
+                                     <Button
+                                       size="sm"
+                                       onClick={(e) => {
+                                         e.stopPropagation();
+                                         window.open(event.ticket_urls![0], '_blank');
+                                       }}
+                                       className="hover-button gradient-button"
+                                     >
+                                       <Ticket className="h-4 w-4 mr-1 hover-icon" />
+                                       Tickets
+                                     </Button>
+                                   )}
                                 </div>
                               </div>
                             </div>
@@ -776,18 +778,18 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                         
                         {/* Empty state for date filtering */}
                         {selectedDate && dateFilteredEvents.length === 0 && (
-                          <div className="text-center py-12 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
-                            <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                            <h3 className="text-xl font-bold text-muted-foreground mb-3 synth-heading">
+                          <div className="glass-card inner-glow text-center py-12 rounded-2xl floating-shadow">
+                            <Calendar className="w-16 h-16 mx-auto mb-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                            <h3 className="text-xl font-bold text-gray-600 mb-3 gradient-text">
                               No Events Found
                             </h3>
-                            <p className="text-sm text-muted-foreground mb-4">
+                            <p className="text-sm text-gray-500 mb-4">
                               No events scheduled for {format(selectedDate, 'MMMM d, yyyy')}
                             </p>
                             <Button
                               variant="outline"
                               onClick={() => handleDateSelect(undefined)}
-                              className="text-sm bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40"
+                              className="hover-button text-sm border-gray-200 hover:border-pink-400 hover:text-pink-500"
                             >
                               View All Events
                             </Button>
@@ -802,11 +804,11 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
               
             </div>
           ) : (
-            <Card className="bg-white/60 backdrop-blur-sm border border-white/20">
+            <Card className="glass-card inner-glow floating-shadow">
               <CardContent className="text-center py-16">
-                <Search className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-bold mb-3 synth-heading">No events found</h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                <Search className="h-16 w-16 mx-auto mb-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                <h3 className="text-xl font-bold mb-3 gradient-text">No events found</h3>
+                <p className="text-gray-500 mb-6 max-w-md mx-auto">
                   Try adjusting your search criteria or filters
                 </p>
                 <Button
@@ -820,7 +822,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                       showFilters: false
                     });
                   }}
-                  className="bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40"
+                  className="hover-button border-gray-200 hover:border-pink-400 hover:text-pink-500"
                 >
                   Clear all filters
                 </Button>

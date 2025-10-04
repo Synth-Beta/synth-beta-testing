@@ -372,10 +372,11 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
       <div className="min-h-screen synth-gradient-card p-4 pb-20">
         <div className="max-w-2xl mx-auto space-y-6">
           {/* Header skeleton */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-8 h-8 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse"></div>
-            <SynthSLogo size="md" className="animate-breathe" />
-            <div className="h-8 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse w-36"></div>
+          <div className="glass-card inner-glow text-center space-y-3 p-4 mb-6 floating-shadow">
+            <div className="flex items-center justify-center gap-4">
+              <SynthSLogo size="md" className="hover-icon animate-breathe" />
+              <div className="h-8 bg-gray-200 rounded animate-pulse w-36"></div>
+            </div>
           </div>
 
           {/* Notifications skeleton */}
@@ -395,29 +396,31 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
     <div className="min-h-screen synth-gradient-card p-4 pb-20">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <SynthSLogo size="md" />
-          <h1 className="synth-heading text-2xl">Notifications</h1>
-          {unreadCount > 0 && (
-            <Badge variant="destructive" className="ml-auto">
-              {unreadCount} unread
-            </Badge>
-          )}
+        <div className="glass-card inner-glow text-center space-y-3 p-4 mb-6 floating-shadow">
+          <div className="flex items-center justify-center gap-4">
+            <Button variant="ghost" size="sm" onClick={onBack} className="hover-button absolute left-4">
+              <ArrowLeft className="w-4 h-4 hover-icon" />
+            </Button>
+            <SynthSLogo size="md" className="hover-icon" />
+            <h1 className="gradient-text text-2xl font-bold">Notifications</h1>
+            {unreadCount > 0 && (
+              <Badge variant="default" className="gradient-badge">
+                {unreadCount} unread
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Actions */}
         {notifications.length > 0 && unreadCount > 0 && (
-          <div className="mb-4">
+          <div className="glass-card inner-glow p-4 mb-6 floating-shadow">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={markAllAsRead}
-              className="w-full"
+              className="hover-button w-full border-gray-200 hover:border-pink-400 hover:text-pink-500"
             >
-              <Check className="w-4 h-4 mr-2" />
+              <Check className="w-4 h-4 mr-2 hover-icon" />
               Mark all as read
             </Button>
           </div>
@@ -425,11 +428,11 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
 
         {/* Notifications List */}
         {notifications.length === 0 ? (
-          <Card>
+          <Card className="glass-card inner-glow floating-shadow">
             <CardContent className="text-center py-12">
-              <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No notifications yet</h3>
-              <p className="text-muted-foreground">
+              <Bell className="w-12 h-12 mx-auto mb-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+              <h3 className="text-lg font-semibold mb-2 gradient-text">No notifications yet</h3>
+              <p className="text-gray-500">
                 When you get friend requests, event updates, or review activity, they'll appear here.
               </p>
             </CardContent>
@@ -439,33 +442,35 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
             {notifications.map((notification) => (
               <Card 
                 key={notification.id} 
-                className={`cursor-pointer transition-colors ${
-                  !notification.is_read ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
+                className={`glass-card inner-glow hover-card cursor-pointer floating-shadow ${
+                  !notification.is_read ? 'border-pink-300' : ''
                 }`}
                 onClick={() => markAsRead(notification.id)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className={`flex-shrink-0 ${getNotificationColor(notification.type)}`}>
-                      {getNotificationIcon(notification.type)}
+                    <div className="flex-shrink-0 hover-icon">
+                      {React.cloneElement(getNotificationIcon(notification.type), {
+                        style: { background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }
+                      })}
                     </div>
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-semibold text-sm truncate">
+                        <h4 className="font-semibold text-sm truncate gradient-text">
                           {notification.title}
                         </h4>
                         {!notification.is_read && (
-                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                          <div className="w-2 h-2 gradient-badge rounded-full flex-shrink-0"></div>
                         )}
                       </div>
                       
-                      <p className="text-sm text-muted-foreground mb-2">
+                      <p className="text-sm text-gray-600 mb-2">
                         {notification.message}
                       </p>
                       
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-gray-500 bg-white/30 px-2 py-1 rounded backdrop-blur-sm">
                           {formatTimeAgo(notification.created_at)}
                         </span>
                         
@@ -473,26 +478,26 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
                           <div className="flex gap-2">
                             <Button 
                               size="sm" 
-                              variant="outline" 
-                              className="h-6 px-2"
+                              variant="default" 
+                              className="hover-button gradient-button h-6 px-2"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleAcceptFriendRequest((notification.data as any)?.request_id);
                               }}
                             >
-                              <Check className="w-3 h-3 mr-1" />
+                              <Check className="w-3 h-3 mr-1 hover-icon" />
                               Accept
                             </Button>
                             <Button 
                               size="sm" 
                               variant="outline" 
-                              className="h-6 px-2"
+                              className="hover-button h-6 px-2 border-gray-200 hover:border-red-400 hover:text-red-500"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeclineFriendRequest((notification.data as any)?.request_id);
                               }}
                             >
-                              <X className="w-3 h-3 mr-1" />
+                              <X className="w-3 h-3 mr-1 hover-icon" />
                               Decline
                             </Button>
                           </div>

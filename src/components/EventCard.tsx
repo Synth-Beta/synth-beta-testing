@@ -51,17 +51,16 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
   }
 
   return (
-    <Card
-      className={`
-        synth-card relative w-full max-w-sm mx-auto overflow-hidden
-        transition-all duration-300 hover:shadow-2xl
-        ${isAnimating && swipeDirection === "like" ? "animate-swipe-like" : ""}
-        ${isAnimating && swipeDirection === "pass" ? "animate-swipe-pass" : ""}
-        ${className}
-      `}
-      role="article"
-      aria-label={`Event: ${event.title}`}
-    >
+        <Card
+          className={`
+            glass-card hover-card depth-card relative w-full max-w-sm mx-auto overflow-hidden floating-shadow
+            ${isAnimating && swipeDirection === "like" ? "animate-swipe-like" : ""}
+            ${isAnimating && swipeDirection === "pass" ? "animate-swipe-pass" : ""}
+            ${className}
+          `}
+          role="article"
+          aria-label={`Event: ${event.title}`}
+        >
       {/* Event Image */}
       <div className="relative h-72 overflow-hidden">
         <img
@@ -74,13 +73,13 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
 
         <div className="absolute top-4 left-4">
           <span
-            className={`px-4 py-2 rounded-full text-xs font-semibold shadow-lg backdrop-blur-sm ${getCategoryColor(event.category)}`}
+            className={`px-4 py-2 rounded-full text-xs font-semibold shadow-lg backdrop-blur-sm hover-icon ${getCategoryColor(event.category)}`}
           >
             {event.category.charAt(0).toUpperCase() + event.category.slice(1)}
           </span>
         </div>
         {event.price && (
-          <div className="absolute top-4 right-4 btn-synth-primary px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+          <div className="absolute top-4 right-4 gradient-badge rounded-full text-sm font-bold shadow-lg">
             {event.price}
           </div>
         )}
@@ -94,17 +93,17 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
 
         <div className="space-y-3 bg-muted/30 rounded-xl p-4">
           <div className="flex items-center gap-3 text-sm text-foreground">
-            <Calendar className="w-5 h-5 text-synth-pink flex-shrink-0" aria-hidden="true" />
+            <Calendar className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
             <span className="font-medium">
               {event.date} at {event.time}
             </span>
           </div>
           <div className="flex items-center gap-3 text-sm text-foreground">
-            <MapPin className="w-5 h-5 text-synth-pink flex-shrink-0" aria-hidden="true" />
+            <MapPin className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
             <span className="font-medium">{event.venue}</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-foreground">
-            <Users className="w-5 h-5 text-synth-pink flex-shrink-0" aria-hidden="true" />
+            <Users className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
             <span className="font-medium">{event.attendeeCount} interested</span>
           </div>
         </div>
@@ -115,21 +114,21 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
             onClick={() => handleSwipe("pass")}
             variant="outline"
             size="lg"
-            className="flex-1 btn-swipe-pass h-14 text-base font-semibold"
+            className="hover-button flex-1 border-2 border-gray-300 hover:border-red-400 hover:text-red-500 btn-swipe-pass h-14 text-base font-semibold transition-all duration-200"
             disabled={isAnimating}
             aria-label="Pass on this event"
           >
-            <X className="w-6 h-6 mr-2" aria-hidden="true" />
+            <X className="w-6 h-6 mr-2 hover-icon" aria-hidden="true" />
             Pass
           </Button>
           <Button
             onClick={() => handleSwipe("like")}
             size="lg"
-            className="flex-1 btn-swipe-like h-14 text-base font-semibold"
+            className="hover-button gradient-button flex-1 h-14 text-base font-semibold"
             disabled={isAnimating}
             aria-label="Like this event"
           >
-            <Heart className="w-6 h-6 mr-2" aria-hidden="true" />
+            <Heart className="w-6 h-6 mr-2 hover-heart" aria-hidden="true" />
             Interested
           </Button>
         </div>

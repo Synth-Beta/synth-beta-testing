@@ -16,8 +16,8 @@ export const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
     { id: "profile", icon: User, label: "Profile" },
   ]
 
-  return (
-    <nav className="synth-nav fixed bottom-0 left-0 right-0 p-4 z-40 safe-area-bottom">
+      return (
+    <nav className="glass-nav fixed bottom-0 left-0 right-0 p-4 z-40 safe-area-bottom">
       <div className="flex justify-around max-w-md mx-auto gap-2">
         {navItems.map(({ id, icon: Icon, label }) => (
           <Button
@@ -27,13 +27,13 @@ export const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
             onClick={() => onViewChange(id)}
             aria-label={`Navigate to ${label}`}
             aria-current={currentView === id ? "page" : undefined}
-            className={`synth-nav-item flex-1 ${currentView === id ? "active" : ""}`}
+            className={`nav-button hover-button flex-1 ${
+              currentView === id 
+                ? "active" 
+                : ""
+            }`}
           >
-            {currentView === id && id === "feed" ? (
-              <SynthSLogo size="sm" />
-            ) : (
-              <Icon className="w-5 h-5" aria-hidden="true" />
-            )}
+            <Icon className="w-5 h-5" aria-hidden="true" />
             <span className="text-xs font-medium">{label}</span>
           </Button>
         ))}

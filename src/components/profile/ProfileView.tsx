@@ -713,12 +713,12 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     <div className="min-h-screen p-4 pb-48">
       <div className="max-w-2xl mx-auto">
 
-        {/* Instagram-style Profile Header */}
-        <div className="mb-6">
+        {/* Enhanced Profile Header */}
+        <div className="mb-6 p-6">
           {/* Profile Info Row */}
           <div className="flex items-start gap-6 mb-6">
             {/* Profile Picture */}
-            <Avatar className="w-20 h-20 md:w-24 md:h-24">
+            <Avatar className="w-20 h-20 md:w-24 md:h-24 profile-ring">
                 <AvatarImage src={profile.avatar_url || undefined} />
                 <AvatarFallback className="text-2xl">
                   {profile.name.charAt(0).toUpperCase()}
@@ -730,14 +730,14 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               {/* Compact counts row above name */}
               <div className="flex items-center gap-6 mb-2">
               <div className="text-center">
-                <span className="font-semibold">{reviews.length}</span>
+                <span className="gradient-text-bold font-semibold">{reviews.length}</span>
                 <p className="text-sm text-muted-foreground">reviews</p>
               </div>
               <button
                 className="text-center hover:opacity-70 transition-opacity"
                 onClick={() => { setFollowersModalType('friends'); setShowFollowersModal(true); }}
               >
-                <span className="font-semibold">{friends.length}</span>
+                <span className="gradient-text-bold font-semibold">{friends.length}</span>
                 <p className="text-sm text-muted-foreground">friends</p>
               </button>
               </div>
@@ -746,8 +746,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 <h2 className="text-xl font-semibold">{profile.name}</h2>
                 {isViewingOwnProfile ? (
                   <>
-                    <Button onClick={onEdit} variant="outline" size="sm">Edit profile</Button>
-                    <Button onClick={onSettings} variant="ghost" size="sm"><Settings className="w-4 h-4" /></Button>
+                    <Button onClick={onEdit} variant="outline" size="sm" className="hover-button gradient-button">Edit profile</Button>
+                    <Button onClick={onSettings} variant="ghost" size="sm" className="hover-button"><Settings className="w-4 h-4 hover-icon" /></Button>
                   </>
                 ) : (
                   <div className="flex items-center gap-2">
@@ -829,7 +829,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                       href={href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`flex items-center gap-2 transition-colors text-sm ${colorClass}`}
+                      className={`flex items-center gap-2 hover:opacity-80 transition-opacity duration-200 text-sm ${colorClass}`}
                     >
                       <Music className="w-4 h-4" />
                       <span>{displayText}</span>
@@ -844,7 +844,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
         {/* Instagram-style Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="glass-card inner-glow grid w-full grid-cols-3 mb-6 p-1 floating-shadow">
             <TabsTrigger value="posts" className="flex items-center gap-2">
               <Grid className="w-4 h-4" />
               Posts
@@ -862,10 +862,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           </TabsList>
 
           <TabsContent value="posts" className="mt-6 mb-40">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-muted-foreground">{isViewingOwnProfile ? 'Your Reviews' : 'Reviews'}</h3>
+            <div className="flex items-center justify-between mb-3 p-4">
+              <h3 className="gradient-text text-sm font-medium">{isViewingOwnProfile ? 'Your Reviews' : 'Reviews'}</h3>
               {isViewingOwnProfile && (
-                <Button variant={rankingMode ? 'default' : 'outline'} size="sm" onClick={() => setRankingMode(v => !v)}>
+                <Button variant={rankingMode ? 'default' : 'outline'} size="sm" onClick={() => setRankingMode(v => !v)} className="hover-button gradient-button">
                   {rankingMode ? 'Done' : 'Ranking mode'}
                 </Button>
               )}
@@ -933,7 +933,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   return (
                     <div key={ratingGroup}>
                       <div className="text-xs font-semibold text-muted-foreground mb-2">{ratingGroup}★</div>
-                      <ul className="divide-y rounded-lg border bg-white">
+                      <ul className="glass-card inner-glow divide-y rounded-lg border p-2 floating-shadow">
                         {group
                           .sort((a, b) => {
                             const ao = (a as any).rank_order ?? 9999;

@@ -178,8 +178,8 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
   return (
     <div className="relative w-full">
       <div className="relative">
-        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground z-10">
-          <Search className="h-4 w-4" />
+        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 z-10">
+          <Search className="h-5 w-5 hover-icon" />
         </div>
         
         <Input
@@ -191,13 +191,13 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
           onKeyDown={handleKeyPress}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          className="pl-10 pr-20 h-12 text-base"
+          className="pl-12 pr-20 h-12 text-base border-2 border-gray-200 hover:border-pink-300 focus:border-pink-400 rounded-xl transition-all duration-200"
           disabled={isLoading}
         />
         
-        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+        <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
           {isLoading && (
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <Loader2 className="h-5 w-5 animate-spin" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
           )}
           
           {query && !isLoading && (
@@ -205,9 +205,9 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
               variant="ghost"
               size="sm"
               onClick={handleClear}
-              className="h-8 w-8 p-0 hover:bg-muted"
+              className="h-8 w-8 p-0 hover-button"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4 hover-icon" />
             </Button>
           )}
           
@@ -215,7 +215,7 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
             size="sm"
             onClick={() => handleSearch()}
             disabled={!query.trim() || isLoading}
-            className="h-8 px-3 bg-primary hover:bg-primary/90"
+            className="h-9 px-4 hover-button gradient-button"
           >
             Search
           </Button>
@@ -224,7 +224,7 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
 
       {/* Search Suggestions Dropdown */}
       {showSuggestions && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-lg shadow-lg z-[100] max-h-64 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 glass-card inner-glow rounded-lg shadow-lg z-[100] max-h-64 overflow-y-auto floating-shadow">
           {isLoadingSuggestions ? (
             <div className="p-4 text-center">
               <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />

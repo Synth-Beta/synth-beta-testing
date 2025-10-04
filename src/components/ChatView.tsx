@@ -399,28 +399,28 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
               <Button 
                 variant="outline" 
                 onClick={onBack}
-                className="flex items-center gap-2"
+                className="hover-button flex items-center gap-2"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4 hover-icon" />
                 Back
               </Button>
               <Button
                 onClick={() => setShowCreateGroup(true)}
-                className="bg-blue-500 hover:bg-blue-600 text-white"
+                className="hover-button gradient-button"
               >
-                <Plus className="w-4 h-4 mr-1" />
+                <Plus className="w-4 h-4 mr-1 hover-icon" />
                 New Group
               </Button>
             </div>
             
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
               <Input
                 placeholder="Search chats..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 border-gray-200 focus:border-pink-400 hover:border-pink-300"
               />
             </div>
           </div>
@@ -429,8 +429,8 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
           <div className="flex-1 overflow-y-auto">
             {chats.length === 0 ? (
               <div className="p-4 text-center">
-                <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-1">No Chats Yet</h3>
+                <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                <h3 className="font-semibold gradient-text mb-1">No Chats Yet</h3>
                 <p className="text-sm text-gray-600">Start a conversation with your friends!</p>
               </div>
             ) : (
@@ -439,22 +439,22 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
                   <div
                     key={chat.id}
                     onClick={() => setSelectedChat(chat)}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                    className={`p-3 rounded-lg cursor-pointer hover-card ${
                       selectedChat?.id === chat.id 
-                        ? 'bg-blue-50 border border-blue-200' 
-                        : 'hover:bg-gray-50'
+                        ? 'bg-gradient-to-r from-pink-50 to-white border border-pink-200' 
+                        : ''
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-100 to-white flex items-center justify-center">
                         {chat.type === 'group' ? (
-                          <Users className="w-5 h-5 text-gray-600" />
+                          <Users className="w-5 h-5 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                         ) : (
-                          <MessageCircle className="w-5 h-5 text-gray-600" />
+                          <MessageCircle className="w-5 h-5 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 truncate">
+                        <h3 className="font-semibold gradient-text truncate">
                           {chat.name || 'Direct Chat'}
                         </h3>
                         {chat.last_message && (
@@ -467,7 +467,7 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
                         </p>
                       </div>
                       {chat.unread_count > 0 && (
-                        <Badge className="bg-red-500 text-white text-xs">
+                        <Badge className="gradient-badge text-xs">
                           {chat.unread_count}
                         </Badge>
                       )}
@@ -504,14 +504,14 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
-                      <Phone className="w-4 h-4" />
+                    <Button variant="ghost" size="sm" className="hover-button">
+                      <Phone className="w-4 h-4 hover-icon" />
                     </Button>
-                    <Button variant="ghost" size="sm">
-                      <Video className="w-4 h-4" />
+                    <Button variant="ghost" size="sm" className="hover-button">
+                      <Video className="w-4 h-4 hover-icon" />
                     </Button>
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical className="w-4 h-4" />
+                    <Button variant="ghost" size="sm" className="hover-button">
+                      <MoreVertical className="w-4 h-4 hover-icon" />
                     </Button>
                   </div>
                 </div>
@@ -521,8 +521,8 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.length === 0 ? (
                   <div className="text-center py-8">
-                    <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <h3 className="font-semibold text-gray-900 mb-1">No Messages Yet</h3>
+                    <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                    <h3 className="font-semibold gradient-text mb-1">No Messages Yet</h3>
                     <p className="text-sm text-gray-600">Start the conversation!</p>
                   </div>
                 ) : (
@@ -544,13 +544,13 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
                       <div
                         className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                           message.sender_id === currentUserId
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-200 text-gray-900'
+                            ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg'
+                            : 'bg-white/70 backdrop-blur-sm text-gray-900 border border-white/50 shadow-lg'
                         }`}
                       >
                         <p className="text-sm">{message.message}</p>
                         <p className={`text-xs mt-1 ${
-                          message.sender_id === currentUserId ? 'text-blue-100' : 'text-gray-500'
+                          message.sender_id === currentUserId ? 'text-pink-100' : 'text-gray-500'
                         }`}>
                           {format(parseISO(message.created_at), 'h:mm a')}
                         </p>
@@ -562,21 +562,21 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
               </div>
 
               {/* Message Input */}
-              <div className="p-4 border-t border-gray-200 bg-white">
+              <div className="p-4 border-t border-gray-200 bg-white/70 backdrop-blur-sm">
                 <div className="flex gap-2">
                   <Input
                     placeholder="Type a message..."
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                    className="flex-1"
+                    className="flex-1 border-gray-200 focus:border-pink-400 hover:border-pink-300"
                   />
                   <Button
                     onClick={sendMessage}
                     disabled={!newMessage.trim()}
-                    className="bg-blue-500 hover:bg-blue-600 text-white"
+                    className="hover-button gradient-button"
                   >
-                    <Send className="w-4 h-4" />
+                    <Send className="w-4 h-4 hover-icon" />
                   </Button>
                 </div>
               </div>
@@ -584,8 +584,8 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Select a Chat</h3>
+                <MessageCircle className="w-16 h-16 mx-auto mb-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                <h3 className="text-xl font-semibold gradient-text mb-2">Select a Chat</h3>
                 <p className="text-gray-600">Choose a conversation to start chatting</p>
               </div>
             </div>
@@ -596,9 +596,9 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
       {/* Create Group Modal */}
       {showCreateGroup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
+          <Card className="glass-card inner-glow floating-shadow w-full max-w-md">
             <CardHeader>
-              <CardTitle>Create Group Chat</CardTitle>
+              <CardTitle className="gradient-text">Create Group Chat</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -609,6 +609,7 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
                   placeholder="Enter group name..."
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
+                  className="border-gray-200 focus:border-pink-400 hover:border-pink-300"
                 />
               </div>
               
@@ -621,10 +622,10 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
                     <div
                       key={friend.id}
                       onClick={() => toggleFriendSelection(friend.id)}
-                      className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                      className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover-card ${
                         selectedFriends.includes(friend.id)
-                          ? 'bg-blue-50 border border-blue-200'
-                          : 'hover:bg-gray-50 border border-transparent'
+                          ? 'bg-gradient-to-r from-pink-50 to-white border border-pink-200'
+                          : 'border border-transparent'
                       }`}
                     >
                       <Avatar className="w-8 h-8">
@@ -640,7 +641,7 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
                         )}
                       </div>
                       {selectedFriends.includes(friend.id) && (
-                        <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 flex items-center justify-center">
                           <span className="text-white text-xs">✓</span>
                         </div>
                       )}
@@ -653,14 +654,14 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
                 <Button
                   onClick={() => setShowCreateGroup(false)}
                   variant="outline"
-                  className="flex-1"
+                  className="hover-button flex-1 border-gray-200 hover:border-gray-400 hover:text-gray-700"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={createGroupChat}
                   disabled={!groupName.trim() || selectedFriends.length === 0}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+                  className="hover-button gradient-button flex-1"
                 >
                   Create Group
                 </Button>

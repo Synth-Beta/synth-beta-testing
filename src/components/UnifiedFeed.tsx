@@ -408,17 +408,18 @@ export const UnifiedFeed = ({
 
   return (
     <div className="min-h-screen synth-gradient-card">
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <div className="max-w-4xl mx-auto">
+      <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center gap-4">
-            <SynthSLogo size="md" />
-            <h1 className="synth-heading text-4xl bg-gradient-to-r from-synth-pink to-synth-pink-light bg-clip-text text-transparent">Concert Feed</h1>
+        <div className="glass-card inner-glow text-center space-y-2 p-4 mb-4 floating-shadow">
+          <div className="flex items-center justify-center gap-3">
+            <SynthSLogo size="sm" className="hover-icon" />
+            <h1 className="gradient-text text-3xl font-bold">Concert Feed</h1>
           </div>
-          <p className="synth-text text-muted-foreground text-lg">Discover concerts, reviews, and connect with the community</p>
+          <p className="text-gray-600 text-sm">Discover concerts, reviews, and connect with the community</p>
         </div>
         
-        <div className="flex items-center justify-between bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+        <div className="glass-card inner-glow flex items-center justify-between px-6 py-2 sticky top-4 z-30">
           {/* Sort Controls */}
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-gray-700">Sort by:</span>
@@ -449,14 +450,12 @@ export const UnifiedFeed = ({
               className="p-2"
             />
             
-            <Button
-              variant="outline"
-              size="sm"
-              className="p-2"
+            <button
+              className="p-2 hover-icon"
               onClick={() => setShowUnifiedChat(true)}
             >
               <MessageCircle className="w-5 h-5" />
-            </Button>
+            </button>
           </div>
         </div>
 
@@ -475,8 +474,7 @@ export const UnifiedFeed = ({
 
           <TabsContent
             value="events"
-            className="space-y-4 overflow-y-auto synth-scrollbar"
-            style={{ maxHeight: 'calc(100vh - 220px)', paddingBottom: '80px' }}
+            className="space-y-4"
           >
             {/* Demo Ad for Events Tab */}
             <Card className="border-2 border-blue-200/50 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 backdrop-blur-sm">
@@ -687,8 +685,7 @@ export const UnifiedFeed = ({
 
           <TabsContent
             value="reviews"
-            className="space-y-4 overflow-y-auto synth-scrollbar"
-            style={{ maxHeight: 'calc(100vh - 220px)', paddingBottom: '80px' }}
+            className="space-y-4"
           >
             {/* Demo Ad for Reviews Tab */}
             <Card className="border-2 border-purple-200/50 bg-gradient-to-r from-purple-50/80 to-pink-50/80 backdrop-blur-sm">
@@ -1160,6 +1157,7 @@ export const UnifiedFeed = ({
           onViewChange={onViewChange} 
         />
       )}
+      </div>
     </div>
   );
 };
