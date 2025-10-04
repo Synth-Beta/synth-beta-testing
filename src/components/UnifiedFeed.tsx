@@ -259,30 +259,34 @@ export const UnifiedFeed = ({
       let comparison = 0;
       
       switch (sortBy) {
-        case 'date':
+        case 'date': {
           const dateA = new Date(a.created_at).getTime();
           const dateB = new Date(b.created_at).getTime();
           comparison = dateA - dateB;
           break;
+        }
           
-        case 'price':
+        case 'price': {
           // Extract numeric price from price_range for events
           const priceA = extractPrice(a);
           const priceB = extractPrice(b);
           comparison = priceA - priceB;
           break;
+        }
           
-        case 'popularity':
+        case 'popularity': {
           const popularityA = (a.likes_count || 0) + (a.comments_count || 0) + (a.shares_count || 0);
           const popularityB = (b.likes_count || 0) + (b.comments_count || 0) + (b.shares_count || 0);
           comparison = popularityA - popularityB;
           break;
+        }
           
-        case 'distance':
+        case 'distance': {
           const distanceA = a.distance_miles || Infinity;
           const distanceB = b.distance_miles || Infinity;
           comparison = distanceA - distanceB;
           break;
+        }
           
         case 'relevance':
         default:
@@ -393,24 +397,24 @@ export const UnifiedFeed = ({
 
   return (
     <div className="min-h-screen synth-gradient-card">
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-4 mb-2">
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-4">
             <SynthSLogo size="md" />
-            <h1 className="synth-heading text-3xl">Concert Feed</h1>
+            <h1 className="synth-heading text-4xl bg-gradient-to-r from-synth-pink to-synth-pink-light bg-clip-text text-transparent">Concert Feed</h1>
           </div>
-          <p className="synth-text text-muted-foreground">Discover concerts, reviews, and connect with the community</p>
+          <p className="synth-text text-muted-foreground text-lg">Discover concerts, reviews, and connect with the community</p>
         </div>
         
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
           {/* Sort Controls */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Sort by:</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">Sort by:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
+              className="synth-input text-sm"
             >
               <option value="relevance">Relevance</option>
               <option value="date">Date</option>
@@ -422,7 +426,7 @@ export const UnifiedFeed = ({
               variant="outline"
               size="sm"
               onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="p-1"
+              className="p-2"
             >
               {sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
             </Button>
@@ -447,12 +451,12 @@ export const UnifiedFeed = ({
 
         {/* Feed Tabs */}
         <Tabs defaultValue="events" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="events" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-2 mb-6 bg-white/60 backdrop-blur-sm border border-white/20 rounded-2xl p-1">
+            <TabsTrigger value="events" className="flex items-center gap-2 data-[state=active]:bg-synth-pink data-[state=active]:text-white rounded-xl">
               <Calendar className="w-4 h-4" />
               Events
             </TabsTrigger>
-            <TabsTrigger value="reviews" className="flex items-center gap-2">
+            <TabsTrigger value="reviews" className="flex items-center gap-2 data-[state=active]:bg-synth-pink data-[state=active]:text-white rounded-xl">
               <Star className="w-4 h-4" />
               Reviews
             </TabsTrigger>
@@ -460,37 +464,37 @@ export const UnifiedFeed = ({
 
           <TabsContent
             value="events"
-            className="space-y-4 overflow-y-auto"
+            className="space-y-4 overflow-y-auto synth-scrollbar"
             style={{ maxHeight: 'calc(100vh - 220px)', paddingBottom: '80px' }}
           >
             {/* Demo Ad for Events Tab */}
-            <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-              <CardContent className="p-4">
+            <Card className="border-2 border-blue-200/50 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 backdrop-blur-sm">
+              <CardContent className="p-6">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                      <Music className="w-6 h-6 text-white" />
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Music className="w-7 h-7 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Madison Square Garden</h3>
+                      <h3 className="font-bold text-gray-900 text-lg">Madison Square Garden</h3>
                       <p className="text-sm text-gray-600">Premium venue advertising</p>
                     </div>
                   </div>
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
                     Ad
                   </Badge>
-            </div>
-                <div className="mt-3">
-                  <p className="text-sm text-gray-700 mb-2">
+                </div>
+                <div className="mt-4">
+                  <p className="text-sm text-gray-700 mb-3">
                     🎵 <strong>Taylor Swift - The Eras Tour</strong> coming to MSG!
                   </p>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-600 leading-relaxed">
                     Experience the magic of live music at the world's most famous arena. 
                     Book your tickets now for an unforgettable night!
                   </p>
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Events Feed Items */}
         <div className="space-y-4">
@@ -499,7 +503,7 @@ export const UnifiedFeed = ({
                 .map((item, index) => (
               <Card 
                 key={`event-${item.id}-${index}`} 
-                className="hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
+                className="cursor-pointer overflow-hidden group"
                 onClick={async (e) => {
                   if (e.defaultPrevented) return;
                   if (item.event_data) {
@@ -517,18 +521,12 @@ export const UnifiedFeed = ({
                   }
                 }}
               >
-                {/* Simple gradient header (original) */}
-                {item.event_data?.artist_name && (
-                  <div className="h-40 w-full bg-gradient-to-r from-gray-100 to-white flex items-center px-4">
-                    <div className="text-sm text-gray-600">{item.event_data.artist_name}</div>
-                  </div>
-                )}
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Avatar className="w-8 h-8">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-10 h-10 ring-2 ring-synth-pink/20">
                         <AvatarImage src={item.author?.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs">
+                        <AvatarFallback className="text-sm font-semibold bg-synth-pink/10 text-synth-pink">
                           {item.author?.name?.split(' ').map(n => n[0]).join('') || 'U'}
                         </AvatarFallback>
                       </Avatar>
@@ -540,12 +538,12 @@ export const UnifiedFeed = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                          <Badge className="bg-blue-100 text-blue-800 text-xs">
-                            <Calendar className="w-3 h-3 mr-1" />
-                            Event
-                        </Badge>
+                      <Badge className="synth-badge text-xs">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        Event
+                      </Badge>
                       {item.distance_miles && (
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs bg-synth-beige/20 text-synth-black border-synth-beige-dark">
                           <MapPin className="w-3 h-3 mr-1" />
                           {Math.round(item.distance_miles)} mi
                         </Badge>
@@ -553,24 +551,29 @@ export const UnifiedFeed = ({
                     </div>
                   </div>
 
-                  <div className="mb-3">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                  <div className="mb-4">
+                    <h4 className="text-xl font-bold text-gray-900 mb-2 synth-heading">
                       {item.event_info?.event_name || item.title}
                     </h4>
                     {item.event_info && (
-                      <p className="text-sm text-gray-600 mb-2">
-                        {item.event_info.venue_name} • {(() => {
-                          try {
-                            return format(parseISO(item.event_info.event_date || item.created_at), 'MMM d, yyyy');
-                          } catch {
-                            return item.event_info.event_date || item.created_at;
-                          }
-                        })()}
-                        {item.event_info.artist_name && ` • ${item.event_info.artist_name}`}
+                      <p className="text-sm text-gray-600 mb-3 flex items-center gap-2">
+                        <span className="bg-synth-beige/20 px-2 py-1 rounded-lg text-xs font-medium">
+                          {item.event_info.venue_name}
+                        </span>
+                        <span>•</span>
+                        <span className="bg-synth-pink/10 px-2 py-1 rounded-lg text-xs font-medium text-synth-pink">
+                          {(() => {
+                            try {
+                              return format(parseISO(item.event_info.event_date || item.created_at), 'MMM d, yyyy');
+                            } catch {
+                              return item.event_info.event_date || item.created_at;
+                            }
+                          })()}
+                        </span>
                       </p>
                     )}
                     {item.content && (
-                      <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
+                      <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 bg-gray-50/50 p-3 rounded-lg">
                         {item.content}
                       </p>
                     )}
@@ -658,10 +661,10 @@ export const UnifiedFeed = ({
               
               {/* Empty state for events */}
               {sortedFeedItems.filter(item => item.type === 'event').length === 0 && (
-                <div className="text-center py-12 bg-white rounded-lg">
-                  <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Events Yet</h3>
-                  <p className="text-gray-600 text-sm">
+                <div className="text-center py-16 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
+                  <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-3 synth-heading">No Events Yet</h3>
+                  <p className="text-gray-600 text-sm max-w-md mx-auto">
                     Check back later for upcoming concert events in your area!
                   </p>
                 </div>
@@ -671,31 +674,31 @@ export const UnifiedFeed = ({
 
           <TabsContent
             value="reviews"
-            className="space-y-4 overflow-y-auto"
+            className="space-y-4 overflow-y-auto synth-scrollbar"
             style={{ maxHeight: 'calc(100vh - 220px)', paddingBottom: '80px' }}
           >
             {/* Demo Ad for Reviews Tab */}
-            <Card className="border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
-              <CardContent className="p-4">
+            <Card className="border-2 border-purple-200/50 bg-gradient-to-r from-purple-50/80 to-pink-50/80 backdrop-blur-sm">
+              <CardContent className="p-6">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                      <Star className="w-6 h-6 text-white" />
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Star className="w-7 h-7 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Billie Eilish</h3>
+                      <h3 className="font-bold text-gray-900 text-lg">Billie Eilish</h3>
                       <p className="text-sm text-gray-600">Artist profile promotion</p>
                     </div>
                   </div>
-                  <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full">
                     Ad
                   </Badge>
                 </div>
-                <div className="mt-3">
-                  <p className="text-sm text-gray-700 mb-2">
+                <div className="mt-4">
+                  <p className="text-sm text-gray-700 mb-3">
                     ⭐ <strong>Follow Billie Eilish</strong> for exclusive tour updates!
                   </p>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-600 leading-relaxed">
                     Get early access to concert announcements and behind-the-scenes content. 
                     Don't miss out on her next world tour!
                   </p>
@@ -710,7 +713,7 @@ export const UnifiedFeed = ({
                 .map((item, index) => (
                   <Card 
                     key={`review-${item.id}-${index}`} 
-                    className="hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
+                    className="cursor-pointer overflow-hidden group"
                     onClick={() => {
                       setSelectedReviewForView(item);
                       setShowCommentsInModal(false);
@@ -719,12 +722,12 @@ export const UnifiedFeed = ({
                   >
                     {/* Review hero image (user photo → artist image → popular review image) */}
                     <ReviewHeroImage item={item} />
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10 ring-2 ring-purple-100">
+                          <Avatar className="w-12 h-12 ring-2 ring-purple-100">
                             <AvatarImage src={item.author?.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs">
+                            <AvatarFallback className="text-sm font-semibold bg-purple-100 text-purple-700">
                               {item.author?.name?.split(' ').map(n => n[0]).join('') || 'U'}
                             </AvatarFallback>
                           </Avatar>
@@ -740,7 +743,7 @@ export const UnifiedFeed = ({
                         </div>
                         <div className="flex items-center gap-2">
                           {!item.is_public && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
                               {item.is_public ? <Globe className="w-3 h-3 mr-1" /> : <Users className="w-3 h-3 mr-1" />}
                               {item.is_public ? 'Public' : 'Private'}
                             </Badge>
@@ -748,16 +751,16 @@ export const UnifiedFeed = ({
                         </div>
                       </div>
 
-                      {/* Prominent Star Rating Display */}
+                      {/* Enhanced Star Rating Display */}
                       {item.rating && (
-                        <div className="mb-4 p-3 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border border-yellow-200">
+                        <div className="mb-4 p-4 bg-gradient-to-r from-yellow-50/80 to-amber-50/80 rounded-2xl border border-yellow-200/50 backdrop-blur-sm">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-0.5">
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-1">
                                 {Array.from({ length: 5 }, (_, i) => (
                                   <Star
                                     key={i}
-                                    className={`w-5 h-5 ${
+                                    className={`w-6 h-6 ${
                                       i < Math.floor(item.rating) 
                                         ? 'text-yellow-500 fill-yellow-500' 
                                         : i < item.rating 
@@ -767,34 +770,39 @@ export const UnifiedFeed = ({
                                   />
                                 ))}
                               </div>
-                              <span className="text-2xl font-bold text-gray-900">{item.rating.toFixed(1)}</span>
+                              <span className="text-3xl font-bold text-gray-900">{item.rating.toFixed(1)}</span>
                             </div>
-                            <Badge className={`${getRatingColor(item.rating)} border`}>
+                            <Badge className={`${getRatingColor(item.rating)} border px-3 py-1 rounded-full`}>
                               {getRatingIcon(item.rating)}
-                              <span className="ml-1">{getRatingText(item.rating)}</span>
+                              <span className="ml-1 font-medium">{getRatingText(item.rating)}</span>
                             </Badge>
                           </div>
                         </div>
                       )}
 
-                      <div className="mb-3">
-                        <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                      <div className="mb-4">
+                        <h4 className="text-xl font-bold text-gray-900 mb-2 synth-heading">
                           {item.event_info?.event_name || item.title}
                         </h4>
                         {item.event_info && (
-                          <p className="text-sm text-gray-600 mb-2">
-                            {item.event_info.venue_name} • {(() => {
-                              try {
-                                return format(parseISO(item.event_info.event_date || item.created_at), 'MMM d, yyyy');
-                              } catch {
-                                return item.event_info.event_date || item.created_at;
-                              }
-                            })()}
-                            {item.event_info.artist_name && ` • ${item.event_info.artist_name}`}
+                          <p className="text-sm text-gray-600 mb-3 flex items-center gap-2">
+                            <span className="bg-synth-beige/20 px-2 py-1 rounded-lg text-xs font-medium">
+                              {item.event_info.venue_name}
+                            </span>
+                            <span>•</span>
+                            <span className="bg-synth-pink/10 px-2 py-1 rounded-lg text-xs font-medium text-synth-pink">
+                              {(() => {
+                                try {
+                                  return format(parseISO(item.event_info.event_date || item.created_at), 'MMM d, yyyy');
+                                } catch {
+                                  return item.event_info.event_date || item.created_at;
+                                }
+                              })()}
+                            </span>
                           </p>
                         )}
                         {item.content && (
-                          <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
+                          <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 bg-gray-50/50 p-3 rounded-lg">
                             {item.content}
                           </p>
                         )}
@@ -929,10 +937,10 @@ export const UnifiedFeed = ({
               
               {/* Empty state for reviews */}
               {sortedFeedItems.filter(item => item.type === 'review').length === 0 && (
-                <div className="text-center py-12 bg-white rounded-lg">
-                  <Star className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Reviews Yet</h3>
-                  <p className="text-gray-600 text-sm">
+                <div className="text-center py-16 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
+                  <Star className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-3 synth-heading">No Reviews Yet</h3>
+                  <p className="text-gray-600 text-sm max-w-md mx-auto">
                     Start writing reviews about concerts you've attended to help others discover great shows!
                   </p>
                 </div>
@@ -943,18 +951,18 @@ export const UnifiedFeed = ({
           
           {/* Loading more indicator */}
           {loadingMore && (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-500 mx-auto mb-2"></div>
-              <p className="text-sm text-gray-600">Loading more...</p>
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-synth-pink mx-auto mb-3"></div>
+              <p className="text-sm text-gray-600 font-medium">Loading more...</p>
             </div>
           )}
           
           {/* End of feed indicator */}
           {!hasMore && sortedFeedItems.length > 0 && (
-            <div className="text-center py-8">
-              <div className="w-16 h-px bg-gray-300 mx-auto mb-3"></div>
-              <p className="text-sm text-gray-500">You're all caught up!</p>
-              <p className="text-xs text-gray-400 mt-1">Check back later for new content</p>
+            <div className="text-center py-12">
+              <div className="w-20 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent mx-auto mb-4"></div>
+              <p className="text-sm text-gray-500 font-medium">You're all caught up!</p>
+              <p className="text-xs text-gray-400 mt-2">Check back later for new content</p>
             </div>
           )}
       </div>

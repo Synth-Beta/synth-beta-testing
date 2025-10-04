@@ -58,7 +58,9 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
 
   const updateOverlayState = (next?: { genres?: boolean; locations?: boolean; date?: boolean }) => {
     const open = (next?.genres ?? genresOpen) || (next?.locations ?? locationsOpen) || (next?.date ?? showDatePicker);
-    onOverlayChange && onOverlayChange(open);
+    if (onOverlayChange) {
+      onOverlayChange(open);
+    }
   };
 
   const handleGenreToggle = (genre: string) => {
@@ -157,29 +159,33 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
   ];
 
   return (
-    <div className={cn('space-y-3', className)}>
-      <div className="flex flex-wrap items-center gap-2">
+    <div className={cn('space-y-4', className)}>
+      <div className="flex flex-wrap items-center gap-3 bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
         {/* Genres pill */}
         <Popover open={genresOpen} onOpenChange={(o) => { setGenresOpen(o); updateOverlayState({ genres: o }); }}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-full">
+            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40">
               <Music className="h-4 w-4 mr-1" />
               Genres
               {filters.genres.length > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 rounded-full px-2">
+                <Badge variant="secondary" className="ml-2 h-5 rounded-full px-2 bg-synth-pink/20 text-synth-pink border-synth-pink/30">
                   {filters.genres.length}
                 </Badge>
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 z-[60] bg-white border border-gray-200">
-            <div className="space-y-3">
+          <PopoverContent className="w-80 z-[60] bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-xl">
+            <div className="space-y-4 p-2">
               <div className="flex flex-wrap gap-2">
                 {availableGenres.map((genre) => (
                   <Badge
                     key={genre}
                     variant={filters.genres.includes(genre) ? 'default' : 'outline'}
-                    className="cursor-pointer hover:bg-primary/80 hover:text-primary-foreground"
+                    className={`cursor-pointer transition-all duration-200 ${
+                      filters.genres.includes(genre) 
+                        ? 'bg-synth-pink text-white hover:bg-synth-pink-dark' 
+                        : 'hover:bg-synth-pink/10 hover:text-synth-pink hover:border-synth-pink/30'
+                    }`}
                     onClick={() => handleGenreToggle(genre)}
                   >
                     {genre}
@@ -188,7 +194,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
               </div>
               
               {/* Custom Genre Input */}
-              <div className="border-t pt-3">
+              <div className="border-t border-gray-200/50 pt-4">
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -196,13 +202,13 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                     value={customGenre}
                     onChange={(e) => setCustomGenre(e.target.value)}
                     onKeyPress={handleCustomGenreKeyPress}
-                    className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="synth-input flex-1 h-9 text-sm"
                   />
                   <Button
                     size="sm"
                     onClick={handleCustomGenreAdd}
                     disabled={!customGenre.trim() || filters.genres.includes(customGenre.trim())}
-                    className="h-8 px-3"
+                    className="h-9 px-4"
                   >
                     Add
                   </Button>
@@ -215,25 +221,25 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
         {/* Locations pill */}
         <Popover open={locationsOpen} onOpenChange={(o) => { setLocationsOpen(o); updateOverlayState({ locations: o }); }}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-full">
+            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40">
               <MapPin className="h-4 w-4 mr-1" />
               Locations
               {(filters.selectedCities?.length || 0) > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 rounded-full px-2">
+                <Badge variant="secondary" className="ml-2 h-5 rounded-full px-2 bg-synth-pink/20 text-synth-pink border-synth-pink/30">
                   {filters.selectedCities.length}
                 </Badge>
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-96 z-[60] bg-white border border-gray-200">
-            <div className="space-y-2">
+          <PopoverContent className="w-96 z-[60] bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-xl">
+            <div className="space-y-4 p-2">
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   placeholder="Search cities..."
                   value={cityQuery}
                   onChange={(e) => setCityQuery(e.target.value)}
-                  className="flex-1 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="synth-input flex-1 h-9 text-sm"
                 />
                 <Button size="sm" onClick={handleCitiesApply} disabled={tempSelectedCities.length === (filters.selectedCities?.length || 0) && tempSelectedCities.every(c => filters.selectedCities.includes(c))}>
                   Apply
@@ -244,11 +250,11 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                   </Button>
                 )}
               </div>
-              <div className="max-h-48 overflow-auto pr-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              <div className="max-h-48 overflow-auto pr-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 synth-scrollbar">
                 {filteredCities.map((city) => {
                   const checked = tempSelectedCities.includes(city);
                   return (
-                    <label key={city} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                    <label key={city} className="flex items-center gap-2 text-sm cursor-pointer select-none p-2 rounded-lg hover:bg-synth-pink/5 transition-colors">
                       <Checkbox
                         checked={checked}
                         onCheckedChange={(val) => {
@@ -261,7 +267,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                   );
                 })}
                 {filteredCities.length === 0 && (
-                  <div className="text-xs text-muted-foreground col-span-full">No cities match your search.</div>
+                  <div className="text-xs text-muted-foreground col-span-full text-center py-4">No cities match your search.</div>
                 )}
               </div>
             </div>
@@ -271,13 +277,13 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
         {/* Date range pill */}
         <Popover open={showDatePicker} onOpenChange={(o) => { setShowDatePicker(o); updateOverlayState({ date: o }); }}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-full">
+            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40">
               <CalendarIcon className="h-4 w-4 mr-1" />
               {filters.dateRange.from || filters.dateRange.to ? getDateRangeText() : 'Any date'}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-3 z-[60] bg-white border border-gray-200" align="start">
-            <div className="flex flex-col gap-3">
+          <PopoverContent className="w-auto p-4 z-[60] bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-xl" align="start">
+            <div className="flex flex-col gap-4">
               <div className="flex flex-wrap gap-2">
                 {getQuickDateOptions().map((option) => (
                   <Button
@@ -285,7 +291,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={() => handleDateRangeSelect(option.value)}
-                    className="text-xs"
+                    className="text-xs bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40"
                   >
                     <Clock className="h-3 w-3 mr-1" />
                     {option.label}
@@ -301,7 +307,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                 numberOfMonths={2}
               />
               {(filters.dateRange.from || filters.dateRange.to) && (
-                <Button variant="outline" size="sm" onClick={handleDateRangeClear}>
+                <Button variant="outline" size="sm" onClick={handleDateRangeClear} className="bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40">
                   <X className="h-4 w-4" />
                 </Button>
               )}
@@ -315,7 +321,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             variant="ghost"
             size="sm"
             onClick={handleClearAllFilters}
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground bg-white/60 backdrop-blur-sm border border-white/20 hover:bg-white/80"
           >
             <X className="h-4 w-4 mr-1" />
             Clear all
@@ -325,9 +331,9 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
 
       {/* Active Filters Summary as chips */}
       {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 bg-white/40 backdrop-blur-sm rounded-2xl p-3 border border-white/20">
           {filters.genres.map((genre) => (
-            <Badge key={genre} variant="secondary" className="flex items-center gap-1">
+            <Badge key={genre} variant="secondary" className="flex items-center gap-1 bg-synth-pink/20 text-synth-pink border-synth-pink/30 hover:bg-synth-pink/30 transition-colors">
               <Music className="h-3 w-3" />
               {genre}
               <X 
@@ -337,7 +343,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             </Badge>
           ))}
           {(filters.selectedCities || []).map((city) => (
-            <Badge key={city} variant="secondary" className="flex items-center gap-1">
+            <Badge key={city} variant="secondary" className="flex items-center gap-1 bg-synth-beige/30 text-synth-black border-synth-beige-dark hover:bg-synth-beige/50 transition-colors">
               <MapPin className="h-3 w-3" />
               {city}
               <X 
@@ -347,7 +353,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             </Badge>
           ))}
           {(filters.dateRange.from || filters.dateRange.to) && (
-            <Badge variant="secondary" className="flex items-center gap-1">
+            <Badge variant="secondary" className="flex items-center gap-1 bg-synth-pink/20 text-synth-pink border-synth-pink/30 hover:bg-synth-pink/30 transition-colors">
               <CalendarIcon className="h-3 w-3" />
               {getDateRangeText()}
               <X 

@@ -758,8 +758,8 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                 ...reviews.map((review) => ({
                   id: `review-${review.id}`,
                   type: 'review' as const,
-                  title: `${review.event?.event_name || 'Concert'} live at ${review.event?.location || 'Venue'}`,
-                  subtitle: new Date(review.event?.event_date || review.created_at).toLocaleDateString(),
+                  title: review.event?.event_name || 'Concert Review',
+                  subtitle: `Posted by: ${profile?.name || 'User'}`,
                   rating: typeof review.rating === 'string' ? parseInt(review.rating) : review.rating,
                   date: review.created_at,
                   likes: 0,

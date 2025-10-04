@@ -842,7 +842,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   image: Array.isArray((review as any)?.photos) && (review as any).photos.length > 0 ? (review as any).photos[0] : undefined,
                   images: Array.isArray((review as any)?.photos) ? (review as any).photos : [],
                   title: review.event?.event_name || 'Concert Review',
-                  subtitle: (review as any).event?.venue_name || review.event?.location || 'Unknown Venue',
+                  subtitle: `Posted by: ${profile?.name || 'User'}`,
                   rating: (() => {
                     // Prefer category average if present to preserve .5 increments
                     const parts: number[] = [];

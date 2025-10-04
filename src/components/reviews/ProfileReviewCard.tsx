@@ -293,15 +293,6 @@ export function ProfileReviewCard({
               {event.artist_name}
             </Badge>
           )}
-          {event.venue_name && (
-            <Badge
-              variant="outline"
-              className="cursor-pointer"
-              onClick={() => onOpenVenue?.(event.venue_id || null, event.venue_name || null)}
-            >
-              {event.venue_name}
-            </Badge>
-          )}
           <span className="text-gray-500">
             {new Date(event.event_date).toLocaleDateString()}
           </span>

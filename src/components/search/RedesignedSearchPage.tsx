@@ -90,27 +90,30 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
       let comparison = 0;
       
       switch (sortBy) {
-        case 'date':
+        case 'date': {
           const dateA = new Date(a.event_date).getTime();
           const dateB = new Date(b.event_date).getTime();
           comparison = dateA - dateB;
           break;
+        }
           
-        case 'price':
+        case 'price': {
           const priceA = extractNumericPrice(a.price_range || '');
           const priceB = extractNumericPrice(b.price_range || '');
           comparison = priceA - priceB;
           break;
+        }
           
-        case 'popularity':
+        case 'popularity': {
           // For now, use a simple popularity metric based on venue size or other factors
           // This could be enhanced with actual engagement data
           const popularityA = a.venue_name?.length || 0; // Simple heuristic
           const popularityB = b.venue_name?.length || 0;
           comparison = popularityA - popularityB;
           break;
+        }
           
-        case 'distance':
+        case 'distance': {
           // Calculate distance if user location is available
           if (userLocation && a.latitude && a.longitude && b.latitude && b.longitude) {
             const distanceA = calculateDistance(userLocation.lat, userLocation.lng, a.latitude, a.longitude);
@@ -120,9 +123,10 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
             comparison = 0;
           }
           break;
+        }
           
         case 'relevance':
-        default:
+        default: {
           // Default relevance based on date proximity and other factors
           const now = Date.now();
           const eventDateA = new Date(a.event_date).getTime();
@@ -131,6 +135,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           const relevanceB = Math.abs(eventDateB - now);
           comparison = relevanceA - relevanceB;
           break;
+        }
       }
       
       return sortOrder === 'asc' ? comparison : -comparison;
@@ -500,12 +505,12 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div id="search-layout-root" className="max-w-7xl mx-auto p-4 space-y-6">
+    <div className="min-h-screen synth-gradient-card">
+      <div id="search-layout-root" className="max-w-7xl mx-auto p-6 space-y-8">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Discover Events</h1>
-          <p className="text-muted-foreground">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold tracking-tight synth-heading bg-gradient-to-r from-synth-pink to-synth-pink-light bg-clip-text text-transparent">Discover Events</h1>
+          <p className="text-muted-foreground text-lg">
             Find concerts, festivals, and music events near you
           </p>
         </div>
@@ -547,11 +552,11 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         </div>
 
         {/* Search Results Summary */}
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <div className="flex items-center justify-between text-sm text-muted-foreground bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
           <div>
-            Showing {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}
+            Showing <span className="font-semibold text-synth-pink">{filteredEvents.length}</span> event{filteredEvents.length !== 1 ? 's' : ''}
             {searchQuery && ` for "${searchQuery}"`}
-            <span className="ml-2 text-xs">
+            <span className="ml-2 text-xs bg-synth-beige/20 px-2 py-1 rounded-lg">
               (sorted by {sortBy} {sortOrder === 'asc' ? '↑' : '↓'})
             </span>
           </div>
@@ -568,7 +573,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                   showFilters: false
                 });
               }}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground bg-white/60 backdrop-blur-sm border border-white/20 hover:bg-white/80"
             >
               Clear all filters
             </Button>
@@ -577,9 +582,9 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
 
         {/* Loading State */}
         {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin mr-2" />
-            <span>Loading events...</span>
+          <div className="flex items-center justify-center py-16 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
+            <Loader2 className="h-8 w-8 animate-spin mr-3 text-synth-pink" />
+            <span className="font-medium">Loading events...</span>
           </div>
         )}
 
@@ -668,29 +673,31 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="h-96">
+                    <ScrollArea className="h-96 synth-scrollbar">
                       <div className="space-y-4">
                         {sortedEvents.slice(0, 50).map((event) => (
                           <div
                             key={event.id}
-                            className="p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                            className="p-4 border border-white/20 rounded-2xl hover:bg-white/60 hover:shadow-lg cursor-pointer transition-all duration-300 backdrop-blur-sm bg-white/40"
                             onClick={() => handleEventClick(event)}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-lg mb-1 line-clamp-1">
+                                <h3 className="font-bold text-lg mb-2 line-clamp-1 synth-heading">
                                   {event.title || event.artist_name}
                                 </h3>
                                 {event.artist_name && event.artist_name !== event.title && (
-                                  <p className="text-muted-foreground mb-2 flex items-center gap-1">
-                                    <Music className="h-4 w-4" />
-                                    {event.artist_name}
+                                  <p className="text-muted-foreground mb-3 flex items-center gap-2">
+                                    <Music className="h-4 w-4 text-synth-pink" />
+                                    <span className="bg-synth-beige/20 px-2 py-1 rounded-lg text-xs font-medium">
+                                      {event.artist_name}
+                                    </span>
                                   </p>
                                 )}
-                                <div className="space-y-2">
+                                <div className="space-y-3">
                                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Calendar className="h-4 w-4" />
-                                    <span>
+                                    <Calendar className="h-4 w-4 text-synth-pink" />
+                                    <span className="bg-synth-pink/10 px-2 py-1 rounded-lg text-xs font-medium text-synth-pink">
                                       {(() => {
                                         try {
                                           return format(parseISO(event.event_date), 'EEEE, MMMM d, yyyy');
@@ -701,27 +708,27 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <MapPin className="h-4 w-4" />
-                                    <span>
+                                    <MapPin className="h-4 w-4 text-synth-beige" />
+                                    <span className="bg-synth-beige/20 px-2 py-1 rounded-lg text-xs font-medium">
                                       {event.venue_name}
                                       {event.venue_city && `, ${event.venue_city}`}
                                     </span>
                                   </div>
                                   {event.doors_time && (
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                      <Clock className="h-4 w-4" />
-                                      <span>Doors: {event.doors_time}</span>
+                                      <Clock className="h-4 w-4 text-synth-pink" />
+                                      <span className="bg-synth-pink/10 px-2 py-1 rounded-lg text-xs font-medium text-synth-pink">Doors: {event.doors_time}</span>
                                     </div>
                                   )}
                                   {event.genres && event.genres.length > 0 && (
                                     <div className="flex flex-wrap gap-1">
                                       {event.genres.slice(0, 3).map((genre, index) => (
-                                        <Badge key={index} variant="outline" className="text-xs">
+                                        <Badge key={index} variant="outline" className="text-xs bg-synth-beige/20 text-synth-black border-synth-beige-dark">
                                           {genre}
                                         </Badge>
                                       ))}
                                       {event.genres.length > 3 && (
-                                        <Badge variant="outline" className="text-xs">
+                                        <Badge variant="outline" className="text-xs bg-synth-pink/10 text-synth-pink border-synth-pink/30">
                                           +{event.genres.length - 3}
                                         </Badge>
                                       )}
@@ -729,13 +736,13 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                                   )}
                                 </div>
                               </div>
-                              <div className="flex flex-col items-end gap-2 ml-4">
+                              <div className="flex flex-col items-end gap-3 ml-4">
                                 {event.price_range && (
-                                  <Badge variant="secondary">
+                                  <Badge variant="secondary" className="bg-synth-pink/20 text-synth-pink border-synth-pink/30 px-3 py-1 rounded-full">
                                     {formatPrice(event.price_range)}
                                   </Badge>
                                 )}
-                                <div className="flex gap-1">
+                                <div className="flex gap-2">
                                   <Button 
                                     size="sm" 
                                     variant={interestedEvents.has(event.id) ? "default" : "outline"}
@@ -743,6 +750,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                                       e.stopPropagation();
                                       handleInterestToggle(event.id, !interestedEvents.has(event.id));
                                     }}
+                                    className={interestedEvents.has(event.id) ? "bg-synth-pink hover:bg-synth-pink-dark" : "bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40"}
                                   >
                                     <Users className="h-4 w-4 mr-1" />
                                     {interestedEvents.has(event.id) ? "Interested" : "Show Interest"}
@@ -754,6 +762,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                                         e.stopPropagation();
                                         window.open(event.ticket_urls![0], '_blank');
                                       }}
+                                      className="bg-synth-beige hover:bg-synth-beige-dark text-synth-black border-synth-beige-dark"
                                     >
                                       <Ticket className="h-4 w-4 mr-1" />
                                       Tickets
@@ -767,9 +776,9 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                         
                         {/* Empty state for date filtering */}
                         {selectedDate && dateFilteredEvents.length === 0 && (
-                          <div className="text-center py-8">
-                            <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                            <h3 className="text-lg font-semibold text-muted-foreground mb-2">
+                          <div className="text-center py-12 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
+                            <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                            <h3 className="text-xl font-bold text-muted-foreground mb-3 synth-heading">
                               No Events Found
                             </h3>
                             <p className="text-sm text-muted-foreground mb-4">
@@ -778,7 +787,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                             <Button
                               variant="outline"
                               onClick={() => handleDateSelect(undefined)}
-                              className="text-sm"
+                              className="text-sm bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40"
                             >
                               View All Events
                             </Button>
@@ -793,11 +802,11 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
               
             </div>
           ) : (
-            <Card>
-              <CardContent className="text-center py-12">
-                <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No events found</h3>
-                <p className="text-muted-foreground mb-4">
+            <Card className="bg-white/60 backdrop-blur-sm border border-white/20">
+              <CardContent className="text-center py-16">
+                <Search className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-bold mb-3 synth-heading">No events found</h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                   Try adjusting your search criteria or filters
                 </p>
                 <Button
@@ -811,6 +820,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                       showFilters: false
                     });
                   }}
+                  className="bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40"
                 >
                   Clear all filters
                 </Button>
