@@ -2,6 +2,84 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  /* Fixed z-index hierarchy to prevent navigation covering modals */
+  .synth-nav {
+    @apply bg-card/95 backdrop-blur-md border-t border-border/50;
+    box-shadow: 0 -4px 20px -2px rgba(0, 0, 0, 0.1);
+    z-index: 40; /* Reduced from potential higher value */
+  }
+
+  /* Ensure modals and dialogs appear above navigation */
+  [role="dialog"],
+  [data-radix-dialog-content],
+  .dialog-overlay {
+    z-index: 50 !important;
+  }
+
+  [data-radix-dialog-overlay] {
+    z-index: 50 !important;
+  }
+
+  /* Enhanced skeleton loading animations */
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: .5;
+    }
+  }
+
+  /* Shimmer effect for skeleton cards */
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  /* Floating animation for Synth logo in skeleton */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Enhanced pulse for skeleton elements */
+  .animate-breathe {
+    animation: breathe 2.5s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+}
+
 /* Synth Design System - Bold, modern, music-focused */
 
 @layer base {

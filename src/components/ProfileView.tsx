@@ -28,6 +28,8 @@ import { ArtistCard } from '@/components/ArtistCard';
 import { VenueCard } from '@/components/reviews/VenueCard';
 import { ProfileReviewCard } from '@/components/reviews/ProfileReviewCard';
 import { SynthSLogo } from '@/components/SynthSLogo';
+import { SkeletonProfileCard } from '@/components/skeleton/SkeletonProfileCard';
+import { SkeletonCard } from '@/components/SkeletonCard';
 import type { Artist } from '@/types/concertSearch';
 
 interface ProfileViewProps {
@@ -110,8 +112,14 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const { user, sessionExpired } = useAuth();
 
   useEffect(() => {
+    console.log('🔍 ProfileView useEffect triggered! TIMESTAMP:', Date.now());
+    console.log('🔍 ProfileView sessionExpired:', sessionExpired);
+    console.log('🔍 ProfileView user:', user?.id);
+    console.log('🔍 ProfileView currentUserId:', currentUserId);
+    
     // Don't fetch data if session is expired
     if (sessionExpired) {
+      console.log('🔍 ProfileView: Session expired, skipping');
       setLoading(false);
       return;
     }
@@ -123,11 +131,147 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     }
     
     console.log('🔍 ProfileView: User is available, fetching data...');
-    fetchProfile();
-    fetchUserEvents();
-    fetchReviews();
-    fetchFriends();
+    setLoading(true);
+    console.log('🔍 ProfileView: Loading state set to TRUE');
+    
+    // Ensure we wait for both minimum time AND data fetching
+    const fetchData = async () => {
+      try {
+        console.log('🔍 ProfileView: About to fetch profile...');
+        await fetchProfile();
+        console.log('🔍 ProfileView: Profile fetched successfully');
+      } catch (error) {
+        console.error('🔍 ProfileView: Error fetching profile:', error);
+      }
+    };
+
+    const minTime = new Promise(resolve => setTimeout(resolve, 800));
+    
+    Promise.all([fetchData(), minTime]).finally(() => {
+      setLoading(false);
+      console.log('🔍 ProfileView: Loading state set to FALSE');
+    });
   }, [currentUserId, sessionExpired, user]);
+
+
+  const fetchProfile = async () => {
+    try {
+      console.log('Fetching profile for user:', currentUserId);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at')
+        .eq('user_id', currentUserId)
+        .single();
+
+      if (error) {
+        console.error('Profile fetch error:', error);
+        // Create a fallback profile
+        const fallbackProfile = {
+          id: 'temp',
+          user_id: currentUserId,
+          name: 'New User',
+          avatar_url: null,
+          bio: null,
+          instagram_handle: null,
+          music_streaming_profile: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        setProfile(fallbackProfile);
+        return;
+      }
+
+      console.log('Profile found:', data);
+      setProfile(data);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      const fallbackProfile = {
+        id: 'temp',
+        user_id: currentUserId,
+        name: 'New User',
+        avatar_url: null,
+        bio: null,
+        instagram_handle: null,
+        music_streaming_profile: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      setProfile(fallbackProfile);
+    }
+  };
+
+  const fetchReviews = async () => {
+    try {
+      console.log('🔍 ProfileView: Fetching reviews for user:', currentUserId);
+      const result = await ReviewService.getUserReviewHistory(currentUserId);
+      console.log('🔍 ProfileView: Raw review data:', result);
+      
+      const transformedReviews = result.reviews.map((item: any) => ({
+        id: item.review.id,
+        user_id: item.review.user_id,
+        event_id: item.review.event_id,
+        rating: item.review.rating,
+        review_text: item.review.review_text,
+        is_public: item.review.is_public,
+        created_at: item.review.created_at,
+        likes_count: item.review.likes_count,
+        comments_count: item.review.comments_count,
+        shares_count: item.review.shares_count,
+        event: {
+          event_name: item.event?.event_name || 'Concert Review',
+          location: item.event?.venue_name || '',
+          event_date: item.event?.event_date || '',
+          event_time: '8:00 PM',
+          artist_name: item.event?.artist_name || null,
+          artist_id: item.event?.artist_id || null,
+          venue_name: item.event?.venue_name || null,
+          venue_id: item.event?.venue_id || null,
+        }
+      }));
+      
+      setReviews(transformedReviews);
+    } catch (error) {
+      console.error('❌ ProfileView: Error fetching reviews:', error);
+      setReviews([]);
+    }
+  };
+
+  const fetchFriends = async () => {
+    try {
+      console.log('🔍 ProfileView: Fetching friends for user:', currentUserId);
+      const { data, error } = await supabase
+        .from('friends')
+        .select(`
+          id,
+          user1_id,
+          user2_id,
+          created_at
+        `)
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
+
+      if (error) {
+        console.error('Error fetching friends:', error);
+        setFriends([]);
+        return;
+      }
+
+      const friendsList = (data || []).map((friendship) => {
+        const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
+        
+        return {
+          id: otherUserId,
+          name: 'Friend',
+          avatar_url: null,
+          friendship_created_at: friendship.created_at
+        };
+      });
+
+      setFriends(friendsList);
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+      setFriends([]);
+    }
+  };
 
   useEffect(() => {
     // Check for hash in URL to determine active tab
@@ -173,122 +317,6 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     fetchInterestedEvents();
   }, [currentUserId]);
 
-  const fetchProfile = async () => {
-    try {
-      console.log('🔍 ProfileView: Starting profile fetch...');
-      console.log('🔍 ProfileView: sessionExpired:', sessionExpired);
-      console.log('🔍 ProfileView: user:', user);
-      console.log('🔍 ProfileView: currentUserId:', currentUserId);
-      
-      // Check if session is expired before making any requests
-      if (sessionExpired || !user) {
-        console.log('❌ Session expired or no user, skipping profile fetch');
-        setLoading(false);
-        return;
-      }
-
-      console.log('✅ Fetching profile for user:', currentUserId);
-      
-      // First try to get the profile
-      console.log('ProfileView: Fetching profile for user:', currentUserId);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at')
-        .eq('user_id', currentUserId)
-        .single();
-      
-      console.log('ProfileView: Profile query result:', { data, error });
-
-      if (error) {
-        console.error('Profile query error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        console.error('Error details:', error.details);
-        
-        // Handle session/authentication errors
-        if (error.message?.includes('invalid') || error.message?.includes('API key') || error.message?.includes('JWT') || error.message?.includes('expired')) {
-          console.error('Session error in ProfileView:', error);
-          toast({
-            title: "Session Expired",
-            description: "Your session has expired. Please sign in again.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
-        }
-        
-        // If no profile exists, create a default one
-        if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
-          console.log('No profile found for user:', currentUserId);
-          
-          console.log('Creating default profile for user:', currentUserId);
-          
-          // Get user metadata from auth
-          const { data: { user } } = await supabase.auth.getUser();
-          const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'New User';
-          
-          console.log('Creating profile with name:', userName);
-          
-          const { data: newProfile, error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              user_id: currentUserId,
-              name: userName,
-              bio: 'Music lover looking to connect at events!',
-              instagram_handle: null,
-              music_streaming_profile: null
-            })
-            .select()
-            .single();
-          
-          console.log('Profile creation result:', { newProfile, insertError });
-          
-          if (insertError) {
-            console.error('Error creating profile:', insertError);
-            console.error('Insert error details:', insertError.details);
-            console.error('Insert error hint:', insertError.hint);
-            
-            // If we can't create a profile, show a fallback
-            setProfile({
-              id: 'temp',
-              user_id: currentUserId,
-              name: userName,
-              avatar_url: null,
-              bio: 'Music lover looking to connect at events!',
-              instagram_handle: null,
-              music_streaming_profile: null,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-          } else {
-            console.log('Profile created successfully:', newProfile);
-            setProfile(newProfile);
-          }
-        } else {
-          throw error;
-        }
-      } else {
-        console.log('Profile found:', data);
-        setProfile(data);
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      // Show a fallback profile instead of error
-        setProfile({
-          id: 'temp',
-          user_id: currentUserId,
-          name: 'New User',
-          avatar_url: null,
-          bio: null,
-          instagram_handle: null,
-          music_streaming_profile: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchUserEvents = async () => {
     try {
@@ -363,8 +391,6 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     } catch (error) {
       console.error('Error fetching user events:', error);
       setUserEvents([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -573,12 +599,37 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
   // Session expiration is handled by MainApp, so we don't need to handle it here
 
+  console.log('🔍 ProfileView: Current loading state:', loading);
+  
   if (loading) {
+    console.log('🔍 ProfileView: Loading skeleton is being rendered!');
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading profile...</p>
+      <div className="min-h-screen synth-gradient-card p-4 pb-20">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Debug info */}
+          <div className="bg-red-100 p-4 rounded-lg text-sm">
+            <strong>DEBUG:</strong> Skeleton should be showing! Loading: {loading.toString()}
+          </div>
+          
+          {/* Header skeleton */}
+          <div className="flex items-center gap-4 mb-6">
+            <SynthSLogo size="md" className="animate-breathe" />
+            <div className="h-8 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse w-24"></div>
+          </div>
+
+          {/* Profile skeleton */}
+          <SkeletonProfileCard />
+
+          {/* Reviews grid skeleton */}
+          <div className="space-y-4">
+            <div className="h-6 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse w-32"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          </div>
         </div>
       </div>
     );

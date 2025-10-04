@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { fetchUserNotifications, type Notification } from '@/utils/notificationUtils';
+import { SkeletonNotificationCard } from '@/components/skeleton/SkeletonNotificationCard';
 
 
 interface NotificationsPageProps {
@@ -368,10 +369,23 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading notifications...</p>
+      <div className="min-h-screen synth-gradient-card p-4 pb-20">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Header skeleton */}
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-8 h-8 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse"></div>
+            <SynthSLogo size="md" className="animate-breathe" />
+            <div className="h-8 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse w-36"></div>
+          </div>
+
+          {/* Notifications skeleton */}
+          <div className="space-y-3">
+            <SkeletonNotificationCard />
+            <SkeletonNotificationCard />
+            <SkeletonNotificationCard />
+            <SkeletonNotificationCard />
+            <SkeletonNotificationCard />
+          </div>
         </div>
       </div>
     );

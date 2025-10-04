@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -7,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SkeletonCard } from '@/components/SkeletonCard';
+import { EmptyState } from '@/components/EmptyState';
 import { 
   Music, 
   Heart, 
@@ -140,12 +144,18 @@ export const UnifiedFeed = ({
         setLoadingMore(true);
       }
 
-      const items = await UnifiedFeedService.getFeedItems({
-        userId: currentUserId,
-        limit: 20,
-        offset,
-        includePrivateReviews: true
-      });
+      // Add minimum loading time for better UX demonstration
+      const minLoadingTime = offset === 0 ? new Promise(resolve => setTimeout(resolve, 800)) : Promise.resolve();
+
+      const [items] = await Promise.all([
+        UnifiedFeedService.getFeedItems({
+          userId: currentUserId,
+          limit: 20,
+          offset,
+          includePrivateReviews: true
+        }),
+        minLoadingTime
+      ]);
 
       if (offset === 0) {
         setFeedItems(items);
@@ -387,9 +397,10 @@ export const UnifiedFeed = ({
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p>Loading feed...</p>
+        <div className="max-w-4xl mx-auto p-6 space-y-6 w-full">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       </div>
     );
@@ -660,14 +671,16 @@ export const UnifiedFeed = ({
                 ))}
               
               {/* Empty state for events */}
-              {sortedFeedItems.filter(item => item.type === 'event').length === 0 && (
-                <div className="text-center py-16 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
-                  <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-gray-900 mb-3 synth-heading">No Events Yet</h3>
-                  <p className="text-gray-600 text-sm max-w-md mx-auto">
-                    Check back later for upcoming concert events in your area!
-                  </p>
-                </div>
+              {sortedFeedItems.filter(item => item.type === 'event').length === 0 && !loading && (
+                <EmptyState
+                  icon={<Calendar className="w-16 h-16" />}
+                  title="No Events Yet"
+                  description="Check back later for upcoming concert events in your area!"
+                  action={{
+                    label: "Refresh Feed",
+                    onClick: () => loadFeedData()
+                  }}
+                />
               )}
             </div>
           </TabsContent>
@@ -936,14 +949,16 @@ export const UnifiedFeed = ({
                 ))}
               
               {/* Empty state for reviews */}
-              {sortedFeedItems.filter(item => item.type === 'review').length === 0 && (
-                <div className="text-center py-16 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
-                  <Star className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-gray-900 mb-3 synth-heading">No Reviews Yet</h3>
-                  <p className="text-gray-600 text-sm max-w-md mx-auto">
-                    Start writing reviews about concerts you've attended to help others discover great shows!
-                  </p>
-                </div>
+              {sortedFeedItems.filter(item => item.type === 'review').length === 0 && !loading && (
+                <EmptyState
+                  icon={<Star className="w-16 h-16" />}
+                  title="No Reviews Yet"
+                  description="Start writing reviews about concerts you've attended to help others discover great shows!"
+                  action={{
+                    label: "Write First Review",
+                    onClick: () => setShowReviewModal(true)
+                  }}
+                />
               )}
             </div>
           </TabsContent>

@@ -24,6 +24,9 @@ import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
 import { EventDetailsModal } from '../events/EventDetailsModal';
 import { MusicTasteCard } from './MusicTasteCard';
 import { HolisticStatsCard } from './HolisticStatsCard';
+import { SynthSLogo } from '@/components/SynthSLogo';
+import { SkeletonProfileCard } from '@/components/skeleton/SkeletonProfileCard';
+import { SkeletonCard } from '@/components/SkeletonCard';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -113,13 +116,32 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     }
     
     console.log('🔍 ProfileView: User is available, fetching data...');
-    fetchProfile();
-    fetchUserEvents();
-    fetchReviews();
-    fetchFriends();
-    if (!isViewingOwnProfile) {
-      checkFriendStatus();
-    }
+    setLoading(true);
+    console.log('🔍 ProfileView: Loading state set to TRUE');
+    
+    // Ensure we wait for both minimum time AND data fetching
+    const fetchData = async () => {
+      try {
+        console.log('🔍 ProfileView: About to fetch profile...');
+        await fetchProfile();
+        await fetchUserEvents();
+        await fetchReviews();
+        await fetchFriends();
+        if (!isViewingOwnProfile) {
+          await checkFriendStatus();
+        }
+        console.log('🔍 ProfileView: All data fetched successfully');
+      } catch (error) {
+        console.error('🔍 ProfileView: Error fetching data:', error);
+      }
+    };
+
+    const minTime = new Promise(resolve => setTimeout(resolve, 800));
+    
+    Promise.all([fetchData(), minTime]).finally(() => {
+      setLoading(false);
+      console.log('🔍 ProfileView: Loading state set to FALSE');
+    });
   }, [targetUserId, sessionExpired, user]);
 
   useEffect(() => {
@@ -632,12 +654,37 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   // Session expiration is handled by MainApp, so we don't need to handle it here
 
+  console.log('🔍 ProfileView: Current loading state:', loading);
+  
   if (loading) {
+    console.log('🔍 ProfileView: Loading skeleton is being rendered!');
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading profile...</p>
+      <div className="min-h-screen synth-gradient-card p-4 pb-20">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Debug info */}
+          <div className="bg-red-100 p-4 rounded-lg text-sm">
+            <strong>DEBUG:</strong> Skeleton should be showing! Loading: {loading.toString()}
+          </div>
+          
+          {/* Header skeleton */}
+          <div className="flex items-center gap-4 mb-6">
+            <SynthSLogo size="md" className="animate-breathe" />
+            <div className="h-8 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse w-24"></div>
+          </div>
+
+          {/* Profile skeleton */}
+          <SkeletonProfileCard />
+
+          {/* Reviews grid skeleton */}
+          <div className="space-y-4">
+            <div className="h-6 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse w-32"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          </div>
         </div>
       </div>
     );

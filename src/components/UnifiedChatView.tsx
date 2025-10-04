@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { SkeletonChatMessage } from '@/components/skeleton/SkeletonChatMessage';
+import { SkeletonNotificationCard } from '@/components/skeleton/SkeletonNotificationCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -67,7 +69,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [groupName, setGroupName] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -106,6 +108,11 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       setChats(data || []);
     } catch (error) {
       console.error('Error fetching chats:', error);
+    } finally {
+      // Add minimum loading time to show skeleton
+      setTimeout(() => {
+        setLoading(false);
+      }, 800);
     }
   };
 
@@ -493,6 +500,49 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
     const otherUser = users.find(u => u.user_id === otherUserId);
     return otherUser?.avatar_url || null;
   };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 flex h-screen synth-gradient-card z-50">
+        {/* Left Sidebar skeleton */}
+        <div className="w-1/3 border-r border-synth-black/10 bg-white/95 backdrop-blur-sm flex flex-col">
+          {/* Header skeleton */}
+          <div className="p-6 border-b border-synth-black/10 bg-gradient-to-r from-synth-beige to-synth-beige-light">
+            <div className="flex items-center gap-3 mb-4">
+              <SynthSLogo size="sm" className="animate-breathe" />
+              <div className="h-8 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse w-24"></div>
+            </div>
+          </div>
+          
+          {/* Chat list skeleton */}
+          <div className="flex-1 p-6 space-y-3">
+            <SkeletonNotificationCard />
+            <SkeletonNotificationCard />
+            <SkeletonNotificationCard />
+          </div>
+        </div>
+        
+        {/* Main chat area skeleton */}
+        <div className="flex-1 flex flex-col bg-white/95">
+          <div className="p-6 border-b border-synth-black/10 bg-gradient-to-r from-synth-beige to-synth-beige-light">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-pink-100 to-pink-200 rounded-full animate-pulse"></div>
+              <div className="space-y-2">
+                <div className="h-4 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse w-24"></div>
+                <div className="h-3 bg-gradient-to-r from-pink-50 to-white rounded animate-pulse w-16"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-6 space-y-3">
+            <SkeletonChatMessage />
+            <SkeletonChatMessage />
+            <SkeletonChatMessage />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 flex h-screen synth-gradient-card z-50">
