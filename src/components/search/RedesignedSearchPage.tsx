@@ -179,6 +179,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     initializeLocationAndEvents();
   }, []);
 
+
   // Filter events when filters change (debounced) - but skip if venue is selected
   useEffect(() => {
     // Skip filtering if a venue is selected (venue filtering is handled directly in handleVenueClick)
@@ -806,14 +807,6 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   return (
     <div className="min-h-screen synth-gradient-card">
       <div id="search-layout-root" className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Header */}
-        <div className="glass-card inner-glow text-center space-y-2 p-4 mb-6 floating-shadow">
-          <div className="flex items-center justify-center gap-3">
-            <SynthSLogo size="sm" className="hover-icon" />
-            <h1 className="gradient-text text-2xl font-bold">Discover Events</h1>
-          </div>
-          <p className="text-gray-600 text-sm">Find concerts, festivals, and music events near you</p>
-        </div>
 
          {/* Compact Search Bar */}
          <div className="glass-card inner-glow p-4 rounded-2xl floating-shadow mb-6 relative z-[100]">
@@ -852,37 +845,6 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           </div>
         </div>
 
-        {/* Search Results Summary */}
-        <div className="glass-card inner-glow flex items-center justify-between text-sm text-gray-600 rounded-2xl p-4 floating-shadow">
-          <div>
-            Showing <span className="gradient-text-bold font-semibold">{filteredEvents.length}</span> event{filteredEvents.length !== -1 ? 's' : ''}
-            {searchQuery && ` for "${searchQuery}"`}
-            <span className="ml-2 text-xs bg-white/30 px-2 py-1 rounded-lg backdrop-blur-sm">
-              (sorted by {sortBy} {sortOrder === 'asc' ? '↑' : '↓'})
-            </span>
-          </div>
-          {(searchQuery || filters.genres.length > 0 || (filters.selectedCities && filters.selectedCities.length > 0) || filters.dateRange.from || filters.dateRange.to) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSearchQuery('');
-                setSearchType('all');
-                setFilteredEvents(events);
-                setFilters({
-                  genres: [],
-                  selectedCities: [],
-                  dateRange: { from: undefined, to: undefined },
-                  showFilters: false,
-                  radiusMiles: 30
-                });
-              }}
-              className="hover-button text-gray-500 hover:text-gray-700 hover:bg-white/80"
-            >
-              Clear all filters
-            </Button>
-          )}
-        </div>
 
         {/* Loading State */}
         {isLoading && (

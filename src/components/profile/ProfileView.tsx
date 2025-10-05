@@ -49,17 +49,8 @@ interface UserProfile {
   updated_at: string;
 }
 
-interface UserEvent {
-  id: string;
-  title: string;
-  artist_name: string;
-  venue_name: string;
-  venue_city: string;
-  venue_state: string;
-  event_date: string;
-  doors_time?: string;
-  created_at: string;
-}
+// Use JamBaseEvent type directly instead of custom UserEvent interface
+import type { JamBaseEvent } from '@/services/jambaseService';
 
 interface ConcertReview {
   id: string;
@@ -79,8 +70,9 @@ interface ConcertReview {
 
 export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut }: ProfileViewProps) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [userEvents, setUserEvents] = useState<UserEvent[]>([]);
+  const [userEvents, setUserEvents] = useState<JamBaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPastEvents, setShowPastEvents] = useState(false);
   const [showAddReview, setShowAddReview] = useState(false);
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [reviewModalEvent, setReviewModalEvent] = useState<any>(null);
@@ -298,15 +290,31 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       const data = await JamBaseService.getUserEvents(targetUserId);
       
       const events = data?.map(item => ({
-        id: item.jambase_event.id,
-        title: item.jambase_event.title,
-        artist_name: item.jambase_event.artist_name,
-        venue_name: item.jambase_event.venue_name,
-        venue_city: item.jambase_event.venue_city,
-        venue_state: item.jambase_event.venue_state,
-        event_date: item.jambase_event.event_date,
-        doors_time: item.jambase_event.doors_time,
-        created_at: item.created_at
+        // Ensure all required fields are present with proper defaults
+        id: item?.jambase_event?.id ?? '',
+        jambase_event_id: item?.jambase_event?.jambase_event_id ?? item?.jambase_event?.id ?? '',
+        title: item?.jambase_event?.title ?? '',
+        artist_name: item?.jambase_event?.artist_name ?? '',
+        artist_id: item?.jambase_event?.artist_id ?? null,
+        venue_name: item?.jambase_event?.venue_name ?? '',
+        venue_id: item?.jambase_event?.venue_id ?? null,
+        venue_address: item?.jambase_event?.venue_address ?? null,
+        venue_city: item?.jambase_event?.venue_city ?? null,
+        venue_state: item?.jambase_event?.venue_state ?? null,
+        venue_zip: item?.jambase_event?.venue_zip ?? null,
+        event_date: item?.jambase_event?.event_date ?? '',
+        doors_time: item?.jambase_event?.doors_time ?? null,
+        description: item?.jambase_event?.description ?? null,
+        genres: Array.isArray(item?.jambase_event?.genres) ? item.jambase_event.genres : [],
+        latitude: item?.jambase_event?.latitude ?? null,
+        longitude: item?.jambase_event?.longitude ?? null,
+        ticket_available: Boolean(item?.jambase_event?.ticket_available),
+        price_range: item?.jambase_event?.price_range ?? null,
+        ticket_urls: item?.jambase_event?.ticket_urls || [],
+        setlist: null,
+        tour_name: null,
+        created_at: item.created_at,
+        updated_at: item.created_at
       })) || [];
 
       setUserEvents(events);
@@ -317,6 +325,22 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       setLoading(false);
     }
   };
+
+  // Filter events based on showPastEvents toggle
+  const filteredUserEvents = userEvents.filter(event => {
+    if (!event.event_date) return false;
+    
+    const eventDate = new Date(event.event_date);
+    const now = new Date();
+    
+    if (showPastEvents) {
+      // Show only past events
+      return eventDate < now;
+    } else {
+      // Show only upcoming events
+      return eventDate >= now;
+    }
+  });
 
   const fetchReviews = async () => {
     try {
@@ -552,6 +576,49 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     }
   };
 
+  const unfriendUser = async (friendUserId: string) => {
+    try {
+      if (sessionExpired || !user) {
+        return;
+      }
+
+      // Show confirmation dialog
+      const confirmed = window.confirm('Are you sure you want to unfriend this person?');
+      if (!confirmed) {
+        return;
+      }
+
+      console.log('Unfriending user:', friendUserId);
+      
+      // Call the database function to unfriend the user
+      const { error } = await supabase.rpc('unfriend_user', {
+        friend_user_id: friendUserId
+      });
+
+      if (error) {
+        console.error('Error unfriending user:', error);
+        throw error;
+      }
+
+      // Update local state
+      setFriends(prevFriends => prevFriends.filter(friend => friend.user_id !== friendUserId));
+      setFriendStatus('none');
+      
+      toast({
+        title: "Friend Removed",
+        description: "You are no longer friends with this person.",
+      });
+    } catch (error: any) {
+      console.error('Error unfriending user:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unfriend user. Please try again.",
+        variant: "destructive",
+      });
+      throw error; // Re-throw to let the calling component handle it
+    }
+  };
+
   const handleOpenReviewModal = () => {
     // Create a mock event for the review modal
     setReviewModalEvent({
@@ -768,8 +835,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                       </Button>
                     )}
                     {friendStatus === 'friends' && (
-                      <Button disabled variant="outline" size="sm">
-                        Friends
+                      <Button 
+                        onClick={() => unfriendUser(targetUserId)} 
+                        variant="outline" 
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:border-red-300"
+                      >
+                        Unfriend
                       </Button>
                     )}
                   </div>
@@ -1016,37 +1088,85 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
             {canViewInterested && (
             <TabsContent value="interested" className="mt-6">
+              {/* Toggle between Upcoming and Archive */}
+              {userEvents.length > 0 && (
+                <div className="flex justify-center mb-4">
+                  <div className="bg-gray-100 rounded-lg p-1 flex">
+                    <button
+                      onClick={() => setShowPastEvents(false)}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        !showPastEvents
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Upcoming
+                    </button>
+                    <button
+                      onClick={() => setShowPastEvents(true)}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        showPastEvents
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Archive
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {userEvents.length === 0 ? (
                 <div className="text-center py-12 bg-gray-50 rounded-lg">
                   <Heart className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <h3 className="text-lg font-semibold">No Interested Events Yet</h3>
                   <p className="text-sm text-muted-foreground">Tap the heart on events to add them here.</p>
                 </div>
+              ) : filteredUserEvents.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <Heart className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold">
+                    {showPastEvents ? 'No Past Events' : 'No Upcoming Events'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {showPastEvents 
+                      ? 'You haven\'t marked any past events as interested.' 
+                      : 'You don\'t have any upcoming events marked as interested.'}
+                  </p>
+                </div>
               ) : (
                 <div className="grid grid-cols-3 gap-1 md:gap-2">
-                  {userEvents
+                  {filteredUserEvents
                     .sort((a,b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
                     .slice(0, 9)
                     .map((ev) => (
                       <div
                         key={ev.id}
-                        className="aspect-square cursor-pointer rounded-md overflow-hidden border bg-white hover:shadow-md transition-shadow"
-                        onClick={() => { setSelectedEvent(ev as any); setDetailsOpen(true); }}
+                        className={`aspect-square cursor-pointer rounded-md overflow-hidden border bg-white hover:shadow-md transition-shadow relative ${
+                          showPastEvents ? 'opacity-75' : ''
+                        }`}
+                        onClick={() => { 
+                          console.log('ProfileView: Event data being passed to modal:', ev);
+                          setSelectedEvent(ev as any); 
+                          setDetailsOpen(true); 
+                        }}
                       >
                         <div className="h-full flex flex-col">
-                          <div className="h-2/3 w-full bg-gray-100">
-                            <img
-                              src={
-                                (ev as any).artist_image_url ||
-                                (ev as any).artist_image ||
-                                (ev as any).image_url ||
-                                (ev as any).image ||
-                                '/placeholder.svg'
-                              }
-                              alt={ev.title}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
+                          <div className="h-2/3 w-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center relative">
+                            {/* Always show the heart icon instead of trying to load images */}
+                            <Heart className="w-1/3 h-1/3 text-white" />
+                            {/* Interested badge - only show for upcoming events */}
+                            {!showPastEvents && (
+                              <div className="absolute top-1 right-1 bg-white text-black text-[8px] px-1 py-0.5 rounded font-medium">
+                                Interested
+                              </div>
+                            )}
+                            {/* Past badge - only show for archive events */}
+                            {showPastEvents && (
+                              <div className="absolute top-1 right-1 bg-white text-black text-[8px] px-1 py-0.5 rounded font-medium">
+                                Past
+                              </div>
+                            )}
                           </div>
                           <div className="p-2 flex-1 flex flex-col justify-between">
                             <div>
@@ -1058,11 +1178,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                               <span className="truncate">{[ev.venue_city, ev.venue_state].filter(Boolean).join(', ')}</span>
                             </div>
                           </div>
-
-            {/* Music Taste Card (public, compact) */}
-            <div className="mt-4">
-              <MusicTasteCard userId={currentUserId} />
-            </div>
                         </div>
                       </div>
                     ))}
@@ -1155,6 +1270,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           // Close the modal after navigation
           setShowFollowersModal(false);
         }}
+        onUnfriend={unfriendUser}
       />
 
       {/* Event Details Modal - mount only when needed to avoid React static flag warning */}
@@ -1164,6 +1280,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         currentUserId={currentUserId}
         isOpen={detailsOpen}
         onClose={() => setDetailsOpen(false)}
+        isInterested={true}
       />
       )}
     </div>

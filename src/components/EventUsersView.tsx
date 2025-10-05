@@ -462,23 +462,23 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         }
         setShowAllEvents(false);
       }}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto" aria-describedby={undefined}>
+        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto mx-4 sm:max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="text-center">Profile</DialogTitle>
           </DialogHeader>
           {currentUser && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Profile Header */}
               <div className="text-center">
-                <Avatar className="w-24 h-24 mx-auto mb-4">
+                <Avatar className="w-20 h-20 mx-auto mb-3">
                   <AvatarImage src={currentUser.avatar_url || undefined} />
-                  <AvatarFallback className="text-3xl">
+                  <AvatarFallback className="text-2xl">
                     {currentUser.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <h3 className="text-2xl font-bold mb-2">{currentUser.name}</h3>
+                <h3 className="text-xl font-bold mb-1">{currentUser.name}</h3>
                 {currentUser.bio && (
-                  <p className="text-muted-foreground text-sm leading-relaxed">
+                  <p className="text-muted-foreground text-sm leading-relaxed px-2">
                     {currentUser.bio}
                   </p>
                 )}
@@ -486,19 +486,19 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
 
               {/* Social Media Links */}
               {(currentUser.instagram_handle || currentUser.snapchat_handle) && (
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-lg">Social Media</h4>
-                  <div className="flex flex-col gap-3">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-base">Social Media</h4>
+                  <div className="flex flex-col gap-2">
                     {currentUser.instagram_handle && (
                       <a
                         href={`https://instagram.com/${currentUser.instagram_handle}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3 rounded-lg border hover:bg-pink-50 transition-colors"
+                        className="flex items-center gap-2 p-2 rounded-lg border hover:bg-pink-50 transition-colors"
                       >
-                        <Instagram className="w-5 h-5 text-pink-600" />
-                        <span className="text-pink-600 font-medium">@{currentUser.instagram_handle}</span>
-                        <ExternalLink className="w-4 h-4 text-pink-600 ml-auto" />
+                        <Instagram className="w-4 h-4 text-pink-600" />
+                        <span className="text-pink-600 font-medium text-sm">@{currentUser.instagram_handle}</span>
+                        <ExternalLink className="w-3 h-3 text-pink-600 ml-auto" />
                       </a>
                     )}
                     {currentUser.snapchat_handle && (
@@ -506,11 +506,11 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                         href={`https://snapchat.com/add/${currentUser.snapchat_handle}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3 rounded-lg border hover:bg-yellow-50 transition-colors"
+                        className="flex items-center gap-2 p-2 rounded-lg border hover:bg-yellow-50 transition-colors"
                       >
-                        <Camera className="w-5 h-5 text-yellow-600" />
-                        <span className="text-yellow-600 font-medium">@{currentUser.snapchat_handle}</span>
-                        <ExternalLink className="w-4 h-4 text-yellow-600 ml-auto" />
+                        <Camera className="w-4 h-4 text-yellow-600" />
+                        <span className="text-yellow-600 font-medium text-sm">@{currentUser.snapchat_handle}</span>
+                        <ExternalLink className="w-3 h-3 text-yellow-600 ml-auto" />
                       </a>
                     )}
                   </div>
@@ -518,9 +518,9 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
               )}
 
               {/* Current Event Interest */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-lg">Current Event</h4>
-                <div className="p-4 rounded-lg border bg-blue-50">
+              <div className="space-y-2">
+                <h4 className="font-semibold text-base">Current Event</h4>
+                <div className="p-3 rounded-lg border bg-blue-50">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                     <Calendar className="w-4 h-4" />
                     <span>{(() => {
@@ -552,11 +552,11 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
 
               {/* Other Events */}
               {otherEvents.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-lg">Other Events</h4>
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-base">Other Events</h4>
                   <div className="space-y-2">
                     {(showAllEvents ? otherEvents : otherEvents.slice(0, 3)).map((otherEvent) => (
-                      <div key={otherEvent.id} className="p-3 rounded-lg border bg-gray-50">
+                      <div key={otherEvent.id} className="p-2 rounded-lg border bg-gray-50">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                           <Calendar className="w-4 h-4" />
                           <span>{(() => {
@@ -596,11 +596,12 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t">
+              <div className="flex gap-2 pt-3 border-t">
                 <Button
                   variant="outline"
                   onClick={() => setShowProfile(false)}
-                  className="flex-1"
+                  className="flex-1 text-sm"
+                  size="sm"
                 >
                   Close
                 </Button>
@@ -609,9 +610,10 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                     setShowProfile(false);
                     handleSwipe('like');
                   }}
-                  className="flex-1 btn-swipe-like"
+                  className="flex-1 btn-swipe-like text-sm"
+                  size="sm"
                 >
-                  <Heart className="w-4 h-4 mr-2" />
+                  <Heart className="w-4 h-4 mr-1" />
                   Connect
                 </Button>
               </div>

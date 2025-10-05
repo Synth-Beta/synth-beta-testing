@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { User, UserPlus, MessageCircle } from 'lucide-react';
+import { Eye, UserPlus, MessageCircle, UserMinus, User } from 'lucide-react';
 
 interface Friend {
   id: string;
@@ -22,6 +22,7 @@ interface FollowersModalProps {
   count: number;
   onStartChat?: (friendId: string) => void;
   onViewProfile?: (friend: Friend) => void;
+  onUnfriend?: (friendUserId: string) => Promise<void>;
 }
 
 export const FollowersModal = ({
@@ -31,22 +32,22 @@ export const FollowersModal = ({
   friends,
   count,
   onStartChat,
-  onViewProfile
+  onViewProfile,
+  onUnfriend
 }: FollowersModalProps) => {
   const title = type === 'friends' ? 'Friends' : type === 'followers' ? 'Followers' : 'Following';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className="sm:max-w-md cursor-pointer" 
+        className="sm:max-w-lg w-[95vw] max-h-[80vh] flex flex-col" 
         aria-describedby={undefined}
-        onClick={onClose}
       >
-        <DialogHeader>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-center">{title}</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-96">
-          <div className="space-y-3 p-4">
+        <ScrollArea className="flex-1 max-h-[60vh]">
+          <div className="space-y-2 py-2">
             {friends.length === 0 ? (
               <div className="text-center py-8">
                 <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -58,40 +59,59 @@ export const FollowersModal = ({
               friends.map((friend) => (
                 <div
                   key={friend.id}
-                  className="flex items-center gap-3 cursor-pointer hover:bg-muted/40 rounded-md p-2"
-                  onClick={() => onViewProfile && onViewProfile(friend)}
+                  className="flex items-center gap-3 hover:bg-muted/40 rounded-lg p-3 transition-colors mx-2"
                 >
-                  <Avatar className="w-12 h-12">
+                  <Avatar className="w-10 h-10 flex-shrink-0">
                     <AvatarImage src={friend.avatar_url || undefined} />
-                    <AvatarFallback>
+                    <AvatarFallback className="text-sm">
                       {friend.name ? friend.name.split(' ').map(n => n[0]).join('') : 'U'}
                     </AvatarFallback>
                   </Avatar>
                   
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{friend.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">@{friend.username}</p>
+                  <div className="flex-1 min-w-0 mr-2" onClick={() => onViewProfile && onViewProfile(friend)}>
+                    <p className="font-semibold text-sm truncate">{friend.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
                     {friend.bio && (
-                      <p className="text-xs text-muted-foreground truncate">{friend.bio}</p>
+                      <p className="text-xs text-muted-foreground truncate mt-1">{friend.bio}</p>
                     )}
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex gap-1 flex-shrink-0">
                     {onViewProfile && (
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 hover:bg-gray-100"
                         onClick={(e) => { e.stopPropagation(); onViewProfile(friend); }}
                       >
-                        <User className="w-4 h-4" />
+                        <Eye className="w-4 h-4" />
                       </Button>
                     )}
                     {onStartChat && (
                       <Button
                         size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 hover:bg-gray-100"
                         onClick={(e) => { e.stopPropagation(); onStartChat(friend.user_id); }}
                       >
                         <MessageCircle className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {onUnfriend && type === 'friends' && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={async (e) => { 
+                          e.stopPropagation(); 
+                          try {
+                            await onUnfriend(friend.user_id);
+                          } catch (error) {
+                            console.error('Error unfriending user:', error);
+                          }
+                        }}
+                      >
+                        <UserMinus className="w-4 h-4" />
                       </Button>
                     )}
                   </div>

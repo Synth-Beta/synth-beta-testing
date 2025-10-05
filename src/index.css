@@ -10,15 +10,15 @@
     z-index: 40; /* Reduced from potential higher value */
   }
 
-  /* Ensure modals and dialogs appear above navigation */
+  /* Ensure modals and dialogs appear above navigation and maps */
   [role="dialog"],
   [data-radix-dialog-content],
   .dialog-overlay {
-    z-index: 50 !important;
+    z-index: 10000 !important;
   }
 
   [data-radix-dialog-overlay] {
-    z-index: 50 !important;
+    z-index: 9999 !important;
   }
 
   /* Enhanced skeleton loading animations */

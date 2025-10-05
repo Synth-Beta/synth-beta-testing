@@ -1005,6 +1005,12 @@ export type Database = {
         }
         Returns: string[]
       }
+      unfriend_user: {
+        Args: {
+          friend_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

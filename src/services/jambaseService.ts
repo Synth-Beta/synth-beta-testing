@@ -152,17 +152,25 @@ export class JamBaseService {
         created_at,
         jambase_event:jambase_events(
           id,
+          jambase_event_id,
           title,
           artist_name,
+          artist_id,
           venue_name,
+          venue_id,
           venue_city,
           venue_state,
+          venue_address,
+          venue_zip,
           event_date,
           doors_time,
           description,
           genres,
+          latitude,
+          longitude,
           price_range,
-          ticket_available
+          ticket_available,
+          ticket_urls
         )
       `)
       .eq('user_id', userId)

@@ -62,7 +62,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
   };
   
   const getEventDate = () => {
-    return 'event_date' in event ? event.event_date : event.event_date;
+    return event.event_date;
   };
   
   const getEventTime = () => {
@@ -136,21 +136,30 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
 
       if (profilesError) throw profilesError;
 
-      const usersWithData: UserWithProfile[] = (profiles || [])
-        .filter(p => !swipeMap.has(p.user_id))
-        .map(p => ({
-          id: p.id,
-          user_id: p.user_id,
-          name: p.name,
-          avatar_url: p.avatar_url,
-          bio: p.bio,
-          instagram_handle: p.instagram_handle,
-          snapchat_handle: p.snapchat_handle,
-          created_at: p.created_at,
-          updated_at: p.updated_at,
-          hasSwipedRight: swipeMap.get(p.user_id) === true,
-          isMatch: matchSet.has(p.user_id)
-        }));
+      // Fix: Ensure we only include profiles with a valid user_id and that have not been swiped on
+      const usersWithData: UserWithProfile[] = Array.isArray(profiles)
+        ? profiles
+            .filter(
+              (p: any) =>
+                p &&
+                typeof p === "object" &&
+                p.user_id &&
+                !swipeMap.has(p.user_id)
+            )
+            .map((p: any) => ({
+              id: p.id,
+              user_id: p.user_id,
+              name: p.name,
+              avatar_url: p.avatar_url,
+              bio: p.bio,
+              instagram_handle: p.instagram_handle,
+              snapchat_handle: p.snapchat_handle,
+              created_at: p.created_at,
+              updated_at: p.updated_at,
+              hasSwipedRight: swipeMap.get(p.user_id) === true,
+              isMatch: matchSet.has(p.user_id)
+            }))
+        : [];
 
       setUsers(usersWithData);
     } catch (error) {
@@ -415,23 +424,23 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         }
         setShowAllEvents(false);
       }}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-center">Profile</DialogTitle>
+        <DialogContent className="max-w-[85vw] max-h-[75vh] overflow-y-auto mx-4 sm:max-w-md">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="text-center text-lg">Profile</DialogTitle>
           </DialogHeader>
           {currentUser && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Profile Header */}
               <div className="text-center">
-                <Avatar className="w-24 h-24 mx-auto mb-4">
+                <Avatar className="w-16 h-16 mx-auto mb-3">
                   <AvatarImage src={currentUser.avatar_url || undefined} />
-                  <AvatarFallback className="text-3xl">
+                  <AvatarFallback className="text-xl">
                     {currentUser.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <h3 className="text-2xl font-bold mb-2">{currentUser.name}</h3>
+                <h3 className="text-lg font-bold mb-1">{currentUser.name}</h3>
                 {currentUser.bio && (
-                  <p className="text-muted-foreground text-sm leading-relaxed">
+                  <p className="text-muted-foreground text-xs leading-relaxed line-clamp-2">
                     {currentUser.bio}
                   </p>
                 )}
@@ -439,19 +448,19 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
 
               {/* Social Media Links */}
               {(currentUser.instagram_handle || currentUser.snapchat_handle) && (
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-lg">Social Media</h4>
-                  <div className="flex flex-col gap-3">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Social Media</h4>
+                  <div className="flex flex-col gap-2">
                     {currentUser.instagram_handle && (
                       <a
                         href={`https://instagram.com/${currentUser.instagram_handle}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3 rounded-lg border hover:bg-pink-50 transition-colors"
+                        className="flex items-center gap-2 p-2 rounded-lg border hover:bg-pink-50 transition-colors"
                       >
-                        <Instagram className="w-5 h-5 text-pink-600" />
-                        <span className="text-pink-600 font-medium">@{currentUser.instagram_handle}</span>
-                        <ExternalLink className="w-4 h-4 text-pink-600 ml-auto" />
+                        <Instagram className="w-4 h-4 text-pink-600" />
+                        <span className="text-pink-600 font-medium text-sm">@{currentUser.instagram_handle}</span>
+                        <ExternalLink className="w-3 h-3 text-pink-600 ml-auto" />
                       </a>
                     )}
                     {currentUser.snapchat_handle && (
@@ -459,11 +468,11 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                         href={`https://snapchat.com/add/${currentUser.snapchat_handle}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3 rounded-lg border hover:bg-yellow-50 transition-colors"
+                        className="flex items-center gap-2 p-2 rounded-lg border hover:bg-yellow-50 transition-colors"
                       >
-                        <Camera className="w-5 h-5 text-yellow-600" />
-                        <span className="text-yellow-600 font-medium">@{currentUser.snapchat_handle}</span>
-                        <ExternalLink className="w-4 h-4 text-yellow-600 ml-auto" />
+                        <Camera className="w-4 h-4 text-yellow-600" />
+                        <span className="text-yellow-600 font-medium text-sm">@{currentUser.snapchat_handle}</span>
+                        <ExternalLink className="w-3 h-3 text-yellow-600 ml-auto" />
                       </a>
                     )}
                   </div>
@@ -471,11 +480,11 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
               )}
 
               {/* Current Event Interest */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-lg">Current Event</h4>
-                <div className="p-4 rounded-lg border bg-blue-50">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                    <Calendar className="w-4 h-4" />
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">Current Event</h4>
+                <div className="p-3 rounded-lg border bg-blue-50">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                    <Calendar className="w-3 h-3" />
                     <span>{(() => {
                       try {
                         // Handle both old format (separate date/time) and new format (full timestamp)
@@ -493,11 +502,11 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                       }
                     })()}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                    <MapPin className="w-4 h-4" />
-                    <span>{getEventLocation()}</span>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                    <MapPin className="w-3 h-3" />
+                    <span className="truncate">{getEventLocation()}</span>
                   </div>
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
                     Interested in {getEventName()}
                   </Badge>
                 </div>
@@ -505,13 +514,13 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
 
               {/* Other Events */}
               {otherEvents.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-lg">Other Events</h4>
-                  <div className="space-y-2">
-                    {(showAllEvents ? otherEvents : otherEvents.slice(0, 3)).map((otherEvent) => (
-                      <div key={otherEvent.id} className="p-3 rounded-lg border bg-gray-50">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                          <Calendar className="w-4 h-4" />
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Other Events</h4>
+                  <div className="space-y-1">
+                    {(showAllEvents ? otherEvents : otherEvents.slice(0, 2)).map((otherEvent) => (
+                      <div key={otherEvent.id} className="p-2 rounded-lg border bg-gray-50">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                          <Calendar className="w-3 h-3" />
                           <span>{(() => {
                             try {
                               // Handle both old format (separate date/time) and new format (full timestamp)
@@ -525,23 +534,23 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                             }
                           })()}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                          <MapPin className="w-4 h-4" />
-                          <span>{otherEvent.venue_city && otherEvent.venue_state 
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                          <MapPin className="w-3 h-3" />
+                          <span className="truncate">{otherEvent.venue_city && otherEvent.venue_state 
                             ? `${otherEvent.venue_city}, ${otherEvent.venue_state}` 
                             : otherEvent.location || 'Location TBD'}</span>
                         </div>
-                        <p className="font-medium text-sm">{otherEvent.title || otherEvent.event_name}</p>
+                        <p className="font-medium text-xs truncate">{otherEvent.title || otherEvent.event_name}</p>
                       </div>
                     ))}
-                    {otherEvents.length > 3 && (
+                    {otherEvents.length > 2 && (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setShowAllEvents(!showAllEvents)}
-                        className="w-full"
+                        className="w-full text-xs py-1"
                       >
-                        {showAllEvents ? 'Show Less' : `Show ${otherEvents.length - 3} More Events`}
+                        {showAllEvents ? 'Show Less' : `Show ${otherEvents.length - 2} More`}
                       </Button>
                     )}
                   </div>
@@ -549,22 +558,24 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t">
+              <div className="flex gap-2 pt-3 border-t">
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={() => setShowProfile(false)}
-                  className="flex-1"
+                  className="flex-1 text-xs"
                 >
                   Close
                 </Button>
                 <Button
+                  size="sm"
                   onClick={() => {
                     setShowProfile(false);
                     handleSwipe('like');
                   }}
-                  className="flex-1 btn-swipe-like"
+                  className="flex-1 btn-swipe-like text-xs"
                 >
-                  <Heart className="w-4 h-4 mr-2" />
+                  <Heart className="w-3 h-3 mr-1" />
                   Connect
                 </Button>
               </div>

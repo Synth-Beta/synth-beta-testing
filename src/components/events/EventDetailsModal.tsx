@@ -51,7 +51,7 @@ export function EventDetailsModal({
   const [friendModalOpen, setFriendModalOpen] = useState(false);
   const [friendModalUser, setFriendModalUser] = useState<{ id: string; user_id: string; name: string; username: string; avatar_url?: string | null; bio?: string | null; created_at: string } | null>(null);
   const [showInterestedUsers, setShowInterestedUsers] = useState(false);
-  const [interestedUsers, setInterestedUsers] = useState<Array<{ id: string; name: string; avatar_url?: string }>>([]);
+  const [interestedUsers, setInterestedUsers] = useState<Array<{ id: string; user_id: string; name: string; avatar_url?: string }>>([]);
   const [usersPage, setUsersPage] = useState(1);
   const pageSize = 3;
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -118,18 +118,20 @@ export function EventDetailsModal({
           const { count, error } = await supabase
             .from('user_jambase_events')
             .select('*', { count: 'exact', head: true })
-            .eq('jambase_event_id', eventId);
+            .eq('jambase_event_id', eventId)
+            .neq('user_id', currentUserId);
           if (error) throw error;
           const dbCount = count ?? 0;
           setInterestedCount(dbCount);
           return;
         }
         
-        // Use the UUID id to get the count
+        // Use the UUID id to get the count, excluding current user
         const { count, error } = await supabase
           .from('user_jambase_events')
           .select('*', { count: 'exact', head: true })
-          .eq('jambase_event_id', jambaseEvent.id);
+          .eq('jambase_event_id', jambaseEvent.id)
+          .neq('user_id', currentUserId);
         if (error) throw error;
         const dbCount = count ?? 0;
         setInterestedCount(dbCount);
@@ -238,7 +240,7 @@ export function EventDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl w-[95vw] h-[85vh] my-4 p-0 overflow-y-auto" aria-describedby="event-details-desc">
+      <DialogContent className="max-w-6xl w-[95vw] h-[90vh] my-4 p-0 overflow-y-auto" aria-describedby="event-details-desc">
         <DialogHeader className="px-6 pt-6 pb-4">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -280,7 +282,7 @@ export function EventDetailsModal({
           </div>
         </DialogHeader>
 
-        <div className="flex flex-col px-6 pb-28" id="event-details-desc">
+        <div className={`flex flex-col px-6 pb-28 ${friendModalOpen ? 'pb-40' : ''}`} id="event-details-desc">
           {/* Event Status Badges */}
           <div className="flex flex-wrap gap-2 mb-4">
             {isPastEvent && (
@@ -344,10 +346,17 @@ export function EventDetailsModal({
             <div className="mb-6 rounded-md border p-3">
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                {interestedCount === null ? 'Loading people going…' : `${interestedCount} people are interested`}
+                {interestedCount === null ? 'Loading people going…' : 
+                 interestedCount === 0 ? 'You are the only interested user' : 
+                 `${interestedCount} other user${interestedCount === 1 ? '' : 's'} ${interestedCount === 1 ? 'is' : 'are'} interested`}
               </div>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => { setShowInterestedUsers(true); fetchInterestedUsers(1); setUsersPage(1); }}>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  disabled={interestedCount === 0}
+                  onClick={() => { setShowInterestedUsers(true); fetchInterestedUsers(1); setUsersPage(1); }}
+                >
                   <Users className="w-4 h-4 mr-1" />
                   Meet people going
                 </Button>
@@ -399,22 +408,21 @@ export function EventDetailsModal({
           )}
 
           {/* Main Content: Map and Reviews */}
-          <div className="grid grid-cols-2 gap-6 min-h-[400px]">
-            {/* Left: Map */}
+          <div className={`grid gap-6 min-h-[400px] ${friendModalOpen ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            {/* Map Section */}
             <div className="flex flex-col">
               <h3 className="text-lg font-semibold mb-2">Location</h3>
               {event.latitude != null && event.longitude != null && !Number.isNaN(Number(event.latitude)) && !Number.isNaN(Number(event.longitude)) ? (
-                <div className="flex-1 rounded-lg overflow-hidden border">
+                <div className={`rounded-lg overflow-hidden border ${friendModalOpen ? 'h-[300px]' : 'flex-1'}`}>
                   <EventMap
                     center={[Number(event.latitude), Number(event.longitude)]}
                     zoom={13}
                     events={[event as any]}
                     onEventClick={() => {}}
-                    showCountBadge={false}
                   />
                 </div>
               ) : (
-                <div className="flex-1 bg-gray-100 rounded-lg flex items-center justify-center">
+                <div className={`bg-gray-100 rounded-lg flex items-center justify-center ${friendModalOpen ? 'h-[300px]' : 'flex-1'}`}>
                   <div className="text-center text-gray-500">
                     <MapPin className="w-8 h-8 mx-auto mb-2" />
                     <p>Location not available</p>
@@ -423,17 +431,17 @@ export function EventDetailsModal({
               )}
             </div>
 
-            {/* Right: Reviews */}
+            {/* Reviews Section */}
             <div className="flex flex-col">
               <h3 className="text-lg font-semibold mb-2">Reviews</h3>
-              <div className="h-[400px] overflow-y-auto">
+              <div className={`overflow-y-auto ${friendModalOpen ? 'h-[300px]' : 'h-[400px]'}`}>
                 <EventReviewsSection event={event as any} userId={currentUserId} />
               </div>
             </div>
           </div>
 
           {/* Bottom: Ticketing and Actions */}
-          <div className="mt-4 pt-4 border-t">
+          <div className={`pt-4 border-t ${friendModalOpen ? 'mt-2' : 'mt-4'}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 {/* Interest button moved to header; no duplicate here */}
@@ -505,7 +513,7 @@ export function EventDetailsModal({
             {/* interested section rendered above under event info when interested */}
           </div>
           {/* Spacer to ensure ticketing controls are not overlapped by footers */}
-          <div className="h-6" />
+          <div className={`${friendModalOpen ? 'h-20' : 'h-6'}`} />
         </div>
         {/* Friend Profile Modal (inline) */}
         {friendModalOpen && friendModalUser && (

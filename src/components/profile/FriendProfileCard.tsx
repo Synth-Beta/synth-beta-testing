@@ -11,7 +11,8 @@ import {
   Music, 
   X,
   Star,
-  Heart
+  Heart,
+  UserMinus
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -28,19 +29,22 @@ interface FriendProfileCardProps {
   isOpen: boolean;
   onClose: () => void;
   onStartChat?: (friendId: string) => void;
+  onUnfriend?: (friendUserId: string) => Promise<void>;
 }
 
 export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
   friend,
   isOpen,
   onClose,
-  onStartChat
+  onStartChat,
+  onUnfriend
 }) => {
   if (!isOpen) return null;
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+      style={{ zIndex: 10000 }}
       onClick={onClose}
     >
       <Card 
@@ -135,35 +139,57 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={() => {
-              console.log('View full profile for:', friend.name);
-              // Emit custom event to navigate to friend's profile
-              const event = new CustomEvent('open-user-profile', {
-                detail: { userId: friend.user_id }
-              });
-              window.dispatchEvent(event);
-              onClose(); // Close the modal
-            }}
-          >
-              <User className="w-4 h-4 mr-2" />
-              Full Profile
-            </Button>
-            <Button
-              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
-              onClick={() => {
-                if (onStartChat) {
-                  onStartChat(friend.user_id);
-                }
-                onClose();
-              }}
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Start Chat
-            </Button>
+          <div className="flex flex-col gap-3 pt-4 border-t">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  console.log('View full profile for:', friend.name);
+                  // Emit custom event to navigate to friend's profile
+                  const event = new CustomEvent('open-user-profile', {
+                    detail: { userId: friend.user_id }
+                  });
+                  window.dispatchEvent(event);
+                  onClose(); // Close the modal
+                }}
+              >
+                <User className="w-4 h-4 mr-2" />
+                Full Profile
+              </Button>
+              <Button
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+                onClick={() => {
+                  if (onStartChat) {
+                    onStartChat(friend.user_id);
+                  }
+                  onClose();
+                }}
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Start Chat
+              </Button>
+            </div>
+            
+            {/* Unfriend Button */}
+            {onUnfriend && (
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={async () => {
+                  try {
+                    await onUnfriend(friend.user_id);
+                    onClose(); // Close the modal after unfriending
+                  } catch (error) {
+                    console.error('Error unfriending user:', error);
+                    // Don't close modal on error, let the parent handle the error
+                  }
+                }}
+              >
+                <UserMinus className="w-4 h-4 mr-2" />
+                Unfriend
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

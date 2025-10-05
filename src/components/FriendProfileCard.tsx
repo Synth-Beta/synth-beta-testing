@@ -11,7 +11,8 @@ import {
   Music, 
   X,
   Star,
-  Heart
+  Heart,
+  UserMinus
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -29,6 +30,7 @@ interface FriendProfileCardProps {
   onClose: () => void;
   onStartChat?: (friendId: string) => void;
   onAddFriend?: (friendUserId: string) => Promise<void> | void;
+  onUnfriend?: (friendUserId: string) => Promise<void>;
 }
 
 export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
@@ -36,13 +38,14 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
   isOpen,
   onClose,
   onStartChat,
-  onAddFriend
+  onAddFriend,
+  onUnfriend
 }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 10000 }}>
+      <Card className="w-full max-w-md max-h-[80vh] overflow-y-auto">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-xl font-bold">Profile</CardTitle>
@@ -57,20 +60,20 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
           </div>
         </CardHeader>
         
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
           {/* Profile Header */}
           <div className="text-center">
-            <Avatar className="w-24 h-24 mx-auto mb-4">
+            <Avatar className="w-20 h-20 mx-auto mb-3">
               <AvatarImage src={friend.avatar_url || undefined} />
-              <AvatarFallback className="text-2xl">
+              <AvatarFallback className="text-xl">
                 {friend.name ? friend.name.split(' ').map(n => n[0]).join('') : 'F'}
               </AvatarFallback>
             </Avatar>
             
-            <h2 className="text-2xl font-bold text-gray-900 mb-1">{friend.name}</h2>
-            <p className="text-gray-600 mb-2">@{friend.username}</p>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">{friend.name}</h2>
+            <p className="text-gray-600 mb-2 text-sm">@{friend.username}</p>
             
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+            <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
               <User className="w-3 h-3 mr-1" />
               Friend
             </Badge>
@@ -79,14 +82,14 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
           {/* Bio Section */}
           {friend.bio && (
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">About</h3>
-              <p className="text-gray-700 text-sm leading-relaxed">{friend.bio}</p>
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm">About</h3>
+              <p className="text-gray-700 text-sm leading-relaxed px-2">{friend.bio}</p>
             </div>
           )}
 
           {/* Member Since */}
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Calendar className="w-4 h-4" />
+          <div className="flex items-center gap-2 text-xs text-gray-600">
+            <Calendar className="w-3 h-3" />
             <span>Member since {(() => {
               try {
                 return format(parseISO(friend.created_at), 'MMMM yyyy');
@@ -98,8 +101,8 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
 
           {/* Music Preferences Placeholder */}
           <div>
-            <h3 className="font-semibold text-gray-900 mb-3">Music Preferences</h3>
-            <div className="flex flex-wrap gap-2">
+            <h3 className="font-semibold text-gray-900 mb-2 text-sm">Music Preferences</h3>
+            <div className="flex flex-wrap gap-1">
               <Badge variant="outline" className="text-xs">
                 <Music className="w-3 h-3 mr-1" />
                 Concert Lover
@@ -117,55 +120,81 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
 
           {/* Recent Activity Placeholder */}
           <div>
-            <h3 className="font-semibold text-gray-900 mb-3">Recent Activity</h3>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+            <h3 className="font-semibold text-gray-900 mb-2 text-sm">Recent Activity</h3>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs text-gray-600">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span>Active now</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Music className="w-4 h-4" />
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <Music className="w-3 h-3" />
                 <span>Recently reviewed a concert</span>
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t">
-            {onAddFriend && (
+          <div className="flex flex-col gap-2 pt-3 border-t">
+            <div className="flex gap-2">
+              {onAddFriend && (
+                <Button
+                  variant="outline"
+                  className="flex-1 text-sm"
+                  size="sm"
+                  onClick={async () => {
+                    await onAddFriend(friend.user_id);
+                  }}
+                >
+                  Add Friend
+                </Button>
+              )}
               <Button
                 variant="outline"
-                className="flex-1"
-                onClick={async () => {
-                  await onAddFriend(friend.user_id);
+                className="flex-1 text-sm"
+                size="sm"
+                onClick={() => {
+                  console.log('View full profile for:', friend.name);
+                  // TODO: Navigate to full profile page
                 }}
               >
-                Add Friend
+                <User className="w-3 h-3 mr-1" />
+                Full Profile
+              </Button>
+              <Button
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-sm"
+                size="sm"
+                onClick={() => {
+                  if (onStartChat) {
+                    onStartChat(friend.user_id);
+                  }
+                  onClose();
+                }}
+              >
+                <MessageCircle className="w-3 h-3 mr-1" />
+                Start Chat
+              </Button>
+            </div>
+            
+            {/* Unfriend Button */}
+            {onUnfriend && (
+              <Button
+                variant="destructive"
+                className="w-full text-sm"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await onUnfriend(friend.user_id);
+                    onClose(); // Close the modal after unfriending
+                  } catch (error) {
+                    console.error('Error unfriending user:', error);
+                    // Don't close modal on error, let the parent handle the error
+                  }
+                }}
+              >
+                <UserMinus className="w-3 h-3 mr-1" />
+                Unfriend
               </Button>
             )}
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => {
-                console.log('View full profile for:', friend.name);
-                // TODO: Navigate to full profile page
-              }}
-            >
-              <User className="w-4 h-4 mr-2" />
-              Full Profile
-            </Button>
-            <Button
-              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
-              onClick={() => {
-                if (onStartChat) {
-                  onStartChat(friend.user_id);
-                }
-                onClose();
-              }}
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Start Chat
-            </Button>
           </div>
         </CardContent>
       </Card>
