@@ -1,12 +1,66 @@
-import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import React, { useRef } from 'react';
+import { MapContainer, TileLayer, Marker, useMap, Circle } from 'react-leaflet';
 import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Calendar, MapPin, Music, Ticket } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { format, parseISO } from 'date-fns';
 import { JamBaseEventResponse } from '@/services/jambaseEventsService';
+import { useEffect } from 'react';
+
+// Venue grouping interface
+interface VenueWithEvents {
+  venueId: string;
+  venueName: string;
+  venueAddress: string;
+  venueCity: string;
+  venueState: string;
+  latitude: number;
+  longitude: number;
+  events: (JamBaseEventResponse & { distance_miles?: number })[];
+}
+
+// Utility function to group events by venue
+const groupEventsByVenue = (events: (JamBaseEventResponse & { distance_miles?: number })[]): VenueWithEvents[] => {
+  const venueMap = new Map<string, VenueWithEvents>();
+
+  events.forEach(event => {
+    // Skip events without coordinates
+    if (!event.latitude || !event.longitude) return;
+    
+    const lat = Number(event.latitude);
+    const lng = Number(event.longitude);
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    // Create a unique key for the venue (using coordinates as fallback if venue_id is missing)
+    const venueKey = event.venue_id || `${event.venue_name}-${lat}-${lng}`;
+    
+    if (venueMap.has(venueKey)) {
+      // Add event to existing venue
+      venueMap.get(venueKey)!.events.push(event);
+    } else {
+      // Create new venue entry
+      venueMap.set(venueKey, {
+        venueId: event.venue_id || venueKey,
+        venueName: event.venue_name || 'Unknown Venue',
+        venueAddress: event.venue_address || '',
+        venueCity: event.venue_city || '',
+        venueState: event.venue_state || '',
+        latitude: lat,
+        longitude: lng,
+        events: [event]
+      });
+    }
+  });
+
+  // Sort events within each venue by date
+  venueMap.forEach(venue => {
+    venue.events.sort((a, b) => {
+      const dateA = new Date(a.event_date);
+      const dateB = new Date(b.event_date);
+      return dateA.getTime() - dateB.getTime();
+    });
+  });
+
+  return Array.from(venueMap.values());
+};
 
 // Fix for default markers in React Leaflet
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -27,9 +81,12 @@ const eventIcon = new Icon({
 interface EventMapProps {
   center: [number, number];
   zoom: number;
-  events: JamBaseEventResponse[];
+  events: (JamBaseEventResponse & { distance_miles?: number })[];
   onEventClick: (event: JamBaseEventResponse) => void;
-  showCountBadge?: boolean;
+  onMapMove?: (bounds: { north: number; south: number; east: number; west: number }) => void;
+  showRadius?: boolean;
+  radiusMiles?: number;
+  onVenueClick?: (venueId: string, venueName: string, latitude: number, longitude: number) => void;
 }
 
 // Component to update map view when center/zoom changes
@@ -43,7 +100,49 @@ const MapUpdater = ({ center, zoom }: { center: [number, number]; zoom: number }
   return null;
 };
 
-export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEventClick, showCountBadge = true }) => {
+// Component to handle map move events and notify parent
+const MapMoveHandler = ({ onMapMove }: { onMapMove?: (bounds: { north: number; south: number; east: number; west: number }) => void }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (!onMapMove) return;
+    
+    const handleMoveEnd = () => {
+      const bounds = map.getBounds();
+      onMapMove({
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest()
+      });
+    };
+    
+    // Initial call
+    handleMoveEnd();
+    
+    // Add event listeners
+    map.on('moveend', handleMoveEnd);
+    map.on('zoomend', handleMoveEnd);
+    
+    return () => {
+      map.off('moveend', handleMoveEnd);
+      map.off('zoomend', handleMoveEnd);
+    };
+  }, [map, onMapMove]);
+  
+  return null;
+};
+
+export const EventMap: React.FC<EventMapProps> = ({ 
+  center, 
+  zoom, 
+  events, 
+  onEventClick, 
+  onMapMove,
+  showRadius = false,
+  radiusMiles = 30,
+  onVenueClick
+}) => {
   const mapRef = useRef<any>(null);
 
   // Filter events that have valid numeric coordinates
@@ -53,8 +152,34 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
     return event.latitude != null && event.longitude != null && !Number.isNaN(lat) && !Number.isNaN(lon);
   });
 
+  // Group events by venue
+  const venuesWithEvents = groupEventsByVenue(validEvents);
+
   return (
     <div className="w-full h-full">
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #cbd5e1;
+        }
+        .venue-popup .leaflet-popup-content {
+          margin: 0;
+          padding: 0;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+      `}</style>
       <MapContainer
         center={center}
         zoom={zoom}
@@ -67,117 +192,41 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
         />
         
         <MapUpdater center={center} zoom={zoom} />
+        <MapMoveHandler onMapMove={onMapMove} />
         
-        {validEvents.map((event) => (
+        {/* Show radius circle when location filter is active */}
+        {showRadius && (
+          <Circle
+            center={center}
+            radius={radiusMiles * 1609.34} // Convert miles to meters
+            pathOptions={{
+              color: '#ec4899',
+              fillColor: '#ec4899',
+              fillOpacity: 0.1,
+              weight: 2,
+              opacity: 0.6
+            }}
+          />
+        )}
+        
+        {venuesWithEvents.map((venue) => (
           <Marker
-            key={event.id}
-            position={[Number(event.latitude), Number(event.longitude)]}
+            key={venue.venueId}
+            position={[venue.latitude, venue.longitude]}
             icon={eventIcon}
-          >
-            <Popup maxWidth={300} className="event-popup">
-              <div className="p-2">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm text-gray-900 mb-1 truncate">
-                      {event.title}
-                    </h3>
-                    <p className="text-sm text-blue-600 font-medium mb-1">
-                      {event.artist_name}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="text-xs ml-2">
-                    <Music className="w-3 h-3 mr-1" />
-                    Event
-                  </Badge>
-                </div>
-                
-                <div className="space-y-2 mb-3">
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <MapPin className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{event.venue_name}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <Calendar className="w-3 h-3 flex-shrink-0" />
-                    <span>
-                      {(() => {
-                        try {
-                          return format(parseISO(event.event_date), 'MMM d, yyyy h:mm a');
-                        } catch {
-                          return event.event_date;
-                        }
-                      })()}
-                    </span>
-                  </div>
-                  
-                  {event.venue_address && (
-                    <p className="text-xs text-gray-500 line-clamp-2">
-                      {event.venue_address}
-                      {event.venue_city && `, ${event.venue_city}`}
-                      {event.venue_state && `, ${event.venue_state}`}
-                    </p>
-                  )}
-                  
-                  {event.genres && event.genres.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {event.genres.slice(0, 3).map((genre, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {genre}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {event.price_range && (
-                    <div className="flex items-center gap-2 text-xs text-green-600">
-                      <Ticket className="w-3 h-3" />
-                      <span>{event.price_range}</span>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEventClick(event);
-                    }}
-                    className="flex-1 text-xs bg-pink-500 hover:bg-pink-600"
-                  >
-                    <Music className="w-3 h-3 mr-1" />
-                    Review
-                  </Button>
-                  
-                  {event.ticket_urls && event.ticket_urls.length > 0 && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(event.ticket_urls![0], '_blank');
-                      }}
-                      className="text-xs"
-                    >
-                      <Ticket className="w-3 h-3 mr-1" />
-                      Tickets
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </Popup>
-          </Marker>
+            eventHandlers={{
+              click: () => {
+                if (onVenueClick) {
+                  // Venue clicked
+                  onVenueClick(venue.venueId, venue.venueName, venue.latitude, venue.longitude);
+                }
+              }
+            }}
+          />
         ))}
       </MapContainer>
       
-      {/* Event count indicator */}
-      {showCountBadge && validEvents.length > 0 && (
-        <div className="absolute top-2 left-2 bg-white rounded-lg shadow-md px-3 py-1 z-[1000]">
-          <span className="text-sm font-medium text-gray-700">
-            {validEvents.length} event{validEvents.length !== 1 ? 's' : ''} shown
-          </span>
-        </div>
-      )}
+      {/* Venue count indicator removed - user wants nothing to show on map */}
     </div>
   );
 };

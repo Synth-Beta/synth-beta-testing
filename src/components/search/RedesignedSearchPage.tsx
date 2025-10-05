@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { 
   Search, 
@@ -32,10 +33,12 @@ import { CompactSearchBar } from './CompactSearchBar';
 import { ViewToggle } from './ViewToggle';
 import { EventFilters, FilterState } from './EventFilters';
 import { EventCalendarView } from './EventCalendarView';
-import { EventMap } from '../events/EventMap';
+import { EventMap } from '../EventMap';
 import { EventDetailsModal } from '../events/EventDetailsModal';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { normalizeCityName } from '@/utils/cityNormalization';
+import { RadiusSearchService } from '@/services/radiusSearchService';
 
 interface RedesignedSearchPageProps {
   userId: string;
@@ -53,12 +56,20 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   const [dateFilteredEvents, setDateFilteredEvents] = useState<JamBaseEventResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<JamBaseEventResponse | null>(null);
+  
+  // Debug selectedEvent changes
+  useEffect(() => {
+    // selectedEvent changed
+  }, [selectedEvent]);
+  
+  // Debug eventDetailsOpen changes
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | undefined>();
   const [mapCenter, setMapCenter] = useState<[number, number]>([39.8283, -98.5795]);
   const [mapZoom, setMapZoom] = useState(4);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
+  const [selectedVenue, setSelectedVenue] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'price' | 'popularity' | 'distance' | 'relevance'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
@@ -66,9 +77,11 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     genres: [],
     selectedCities: [],
     dateRange: { from: undefined, to: undefined },
-    showFilters: false
+    showFilters: false,
+    radiusMiles: 30
   });
   const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [mapBounds, setMapBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null);
 
   const { toast } = useToast();
 
@@ -166,10 +179,34 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     initializeLocationAndEvents();
   }, []);
 
-  // Filter events when filters change
+  // Filter events when filters change (debounced) - but skip if venue is selected
   useEffect(() => {
-    filterEvents();
+    // Skip filtering if a venue is selected (venue filtering is handled directly in handleVenueClick)
+    if (selectedVenue) return;
+    
+    const timeoutId = setTimeout(() => {
+      filterEvents();
+    }, 100); // Debounce by 100ms
+    
+    return () => clearTimeout(timeoutId);
   }, [events, filters]);
+
+  // Update map center when location filters change
+  useEffect(() => {
+    if (filters.selectedCities && filters.selectedCities.length > 0) {
+      updateMapCenterForLocation(filters.selectedCities);
+    } else {
+      updateMapCenterForLocation([]);
+    }
+  }, [filters.selectedCities]);
+  
+  // Clear venue selection when city filter is applied
+  useEffect(() => {
+    if (filters.selectedCities && filters.selectedCities.length > 0 && selectedVenue) {
+      // Clearing venue selection due to city filter change
+      setSelectedVenue(null);
+    }
+  }, [filters.selectedCities]);
 
   // Update date filtered events when filteredEvents or selectedDate changes
   useEffect(() => {
@@ -197,7 +234,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         setMapCenter([location.latitude, location.longitude]);
         setMapZoom(10);
       } catch (error) {
-        console.log('Could not get user location:', error);
+        // Could not get user location
       }
 
       // Load events and cities from database
@@ -205,7 +242,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
       await loadCities();
       await loadInterestedEvents();
     } catch (error) {
-      console.error('Error initializing search page:', error);
+      // Error initializing search page
       toast({
         title: "Error",
         description: "Failed to load events. Please try again.",
@@ -222,8 +259,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         .from('jambase_events')
         .select('*')
         .gte('event_date', new Date().toISOString())
-        .order('event_date', { ascending: true })
-        .limit(100);
+        .order('event_date', { ascending: true });
 
       if (error) throw error;
 
@@ -255,8 +291,19 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
       }));
 
       setEvents(transformedEvents);
+      
+      // Loaded events from database
+      
+      // Log coordinate statistics
+      if (transformedEvents.length > 0) {
+        const eventsWithCoords = transformedEvents.filter(e => e.latitude && e.longitude);
+        const eventsWithValidCoords = eventsWithCoords.filter(e => 
+          !isNaN(Number(e.latitude)) && !isNaN(Number(e.longitude))
+        );
+        // Coordinate statistics calculated
+      }
     } catch (error) {
-      console.error('Error loading events:', error);
+      // Error loading events
       throw error;
     }
   };
@@ -271,7 +318,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
       const unique = Array.from(new Set((data || []).map((r: any) => (r.venue_city as string).trim()).filter(Boolean))).sort();
       setAvailableCities(unique);
     } catch (error) {
-      console.warn('Failed to load cities:', error);
+      // Failed to load cities
       setAvailableCities([]);
     }
   };
@@ -288,14 +335,99 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
       const interestedSet = new Set((data || []).map((item: any) => item.jambase_event_id));
       setInterestedEvents(interestedSet);
     } catch (error) {
-      console.warn('Failed to load interested events:', error);
+      // Failed to load interested events
       setInterestedEvents(new Set());
     }
   };
 
-  const filterEvents = () => {
+  const updateMapCenterForLocation = async (selectedCities: string[]) => {
+    // updateMapCenterForLocation called
+    
+    if (selectedCities.length > 0) {
+      try {
+        // Get coordinates for the first selected city
+        const cityName = selectedCities[0];
+        const coordinates = await RadiusSearchService.getCityCoordinates(cityName);
+        
+        if (coordinates) {
+          setMapCenter([coordinates.lat, coordinates.lng]);
+          setMapZoom(10);
+          
+          toast({
+            title: "Map Updated",
+            description: `Map centered on ${cityName}`,
+          });
+        } else {
+          // Could not find coordinates for city
+          toast({
+            title: "Location Not Found",
+            description: `Could not find coordinates for ${cityName}`,
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        // Error updating map center for location
+        toast({
+          title: "Map Error",
+          description: "Failed to update map center",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Reset to user location or default center when no city filter
+      if (userLocation) {
+        setMapCenter([userLocation.lat, userLocation.lng]);
+        setMapZoom(10);
+      } else {
+        setMapCenter([39.8283, -98.5795]);
+        setMapZoom(4);
+      }
+    }
+  };
+
+  const handleMapMove = (bounds: { north: number; south: number; east: number; west: number }) => {
+    setMapBounds(bounds);
+    
+    // If no location filter is active, show events in visible area
+    if (!filters.selectedCities || filters.selectedCities.length === 0) {
+      filterEventsInBounds(bounds);
+    }
+  };
+
+  const filterEventsInBounds = (bounds: { north: number; south: number; east: number; west: number }) => {
+    // Filtering events in bounds
+    
+    const eventsInBounds = events.filter(event => {
+      if (!event.latitude || !event.longitude) return false;
+      
+      const lat = Number(event.latitude);
+      const lng = Number(event.longitude);
+      
+      if (isNaN(lat) || isNaN(lng)) return false;
+      
+      return lat >= bounds.south && lat <= bounds.north && 
+             lng >= bounds.west && lng <= bounds.east;
+    });
+    
+    // If no events found in bounds, show all events with valid coordinates as fallback
+    if (eventsInBounds.length === 0) {
+      const eventsWithValidCoords = events.filter(event => {
+        if (!event.latitude || !event.longitude) return false;
+        const lat = Number(event.latitude);
+        const lng = Number(event.longitude);
+        return !isNaN(lat) && !isNaN(lng);
+      });
+      setFilteredEvents(eventsWithValidCoords);
+    } else {
+      setFilteredEvents(eventsInBounds);
+    }
+  };
+
+  const filterEvents = async () => {
     let filtered = [...events];
 
+
+    // Normal filtering when no venue is selected
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -319,10 +451,56 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
       );
     }
 
-    // Filter by selected cities (exact match from database list)
+    // Filter by selected cities using radius search
     if (filters.selectedCities && filters.selectedCities.length > 0) {
-      const citySet = new Set(filters.selectedCities.map(c => c.toLowerCase()));
-      filtered = filtered.filter(event => event.venue_city && citySet.has(event.venue_city.toLowerCase()));
+      try {
+        const cityName = filters.selectedCities[0];
+        // Use radius search service to get events within selected radius
+        const radiusEvents = await RadiusSearchService.getEventsNearCity({
+          city: cityName,
+          radiusMiles: filters.radiusMiles,
+          limit: 500
+        });
+        
+        // Convert radius search results to our event format
+        const radiusEventIds = new Set(radiusEvents.map(e => e.id));
+        
+        // Filter the existing events to only include those in the radius
+        filtered = filtered.filter(event => radiusEventIds.has(event.id));
+        
+        // Update map center when location filter is applied
+        updateMapCenterForLocation(filters.selectedCities);
+      } catch (error) {
+        // Error performing radius search
+        // Fallback to exact city matching if radius search fails
+      const selectedCitySet = new Set(filters.selectedCities.map(c => normalizeCityName(c)));
+      filtered = filtered.filter(event => {
+        if (!event.venue_city) return false;
+        const normalizedEventCity = normalizeCityName(event.venue_city);
+        return selectedCitySet.has(normalizedEventCity);
+      });
+        
+        updateMapCenterForLocation(filters.selectedCities);
+      }
+    } else {
+      // Reset map center when no location filter
+      updateMapCenterForLocation([]);
+      
+      // If we have map bounds, filter events to visible area
+      if (mapBounds) {
+        filterEventsInBounds(mapBounds);
+        return; // Skip the rest of the filtering
+      } else {
+        // If no map bounds yet, show all events with valid coordinates
+        const eventsWithValidCoords = filtered.filter(event => {
+          if (!event.latitude || !event.longitude) return false;
+          const lat = Number(event.latitude);
+          const lng = Number(event.longitude);
+          return !isNaN(lat) && !isNaN(lng);
+        });
+        setFilteredEvents(eventsWithValidCoords);
+        return; // Skip the rest of the filtering
+      }
     }
 
     // Filter by date range
@@ -344,7 +522,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           
           return true;
         } catch (error) {
-          console.error('Error parsing event date:', event.event_date);
+          // Error parsing event date
           return true;
         }
       });
@@ -380,7 +558,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           description: `Showing events for "${query}"`,
         });
       } catch (error) {
-        console.error('Error filtering events by artist:', error);
+        // Error filtering events by artist
         toast({
           title: "Error",
           description: "Failed to filter events by artist",
@@ -448,6 +626,57 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     setEventDetailsOpen(true);
   };
 
+  const handleVenueClick = (venueId: string, venueName: string, latitude: number, longitude: number) => {
+    // Filter events for this venue immediately
+    const venueEvents = events.filter(event => {
+      if (!event.venue_name) return false;
+      
+      const eventVenue = event.venue_name.trim();
+      const selectedVenueTrimmed = venueName.trim();
+      
+      // Try exact match first
+      if (eventVenue === selectedVenueTrimmed) return true;
+      
+      // Try case-insensitive exact match
+      if (eventVenue.toLowerCase() === selectedVenueTrimmed.toLowerCase()) return true;
+      
+      // Try normalized match (remove special characters, extra spaces)
+      const normalizeVenue = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\s+/g, '');
+      if (normalizeVenue(eventVenue) === normalizeVenue(selectedVenueTrimmed)) return true;
+      
+      // Try partial match (selected venue contains event venue or vice versa)
+      if (eventVenue.toLowerCase().includes(selectedVenueTrimmed.toLowerCase()) ||
+          selectedVenueTrimmed.toLowerCase().includes(eventVenue.toLowerCase())) return true;
+      
+      return false;
+    });
+    
+    // Set selected venue and update filtered events immediately
+    setSelectedVenue(venueName);
+    setFilteredEvents(venueEvents);
+    
+    // Clear any city filters since venue selection takes precedence
+    if (filters.selectedCities && filters.selectedCities.length > 0) {
+      setFilters(prev => ({
+        ...prev,
+        selectedCities: []
+      }));
+    }
+    
+    // Zoom all the way in on the venue (max zoom level 20)
+    // Use setTimeout to ensure state updates happen in the right order
+    setTimeout(() => {
+      setMapCenter([latitude, longitude]);
+      setMapZoom(20);
+    }, 0);
+    
+    // Show toast notification
+    toast({
+      title: "Venue Selected",
+      description: `Showing ${venueEvents.length} events from ${venueName}`,
+    });
+  };
+
   const handleInterestToggle = async (eventId: string, interested: boolean) => {
     try {
       if (interested) {
@@ -487,7 +716,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         });
       }
     } catch (error) {
-      console.error('Error toggling interest:', error);
+      // Error toggling interest
       toast({
         title: "Error",
         description: "Failed to update your interest in this event",
@@ -602,6 +831,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
             filters={filters}
             onFiltersChange={setFilters}
             availableGenres={availableGenres}
+            onClearVenueSelection={() => setSelectedVenue(null)}
             availableCities={availableCities}
             onOverlayChange={(open) => {
               // When filter popovers are open, raise z-index of filters and ensure map/calendar are below
@@ -643,7 +873,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                   genres: [],
                   selectedCities: [],
                   dateRange: { from: undefined, to: undefined },
-                  showFilters: false
+                  showFilters: false,
+                  radiusMiles: 30
                 });
               }}
               className="hover-button text-gray-500 hover:text-gray-700 hover:bg-white/80"
@@ -669,11 +900,38 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
               <div className="order-1 lg:order-1 lg:col-span-1 relative z-10">
                 {viewMode === 'map' ? (
                   <Card className="glass-card inner-glow relative z-10 floating-shadow">
-                    <CardHeader>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2 gradient-text">
                         <Map className="h-5 w-5 hover-icon" />
                         Events Map
                       </CardTitle>
+                        {filters.selectedCities && filters.selectedCities.length > 0 && (
+                          <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-gray-200 shadow-md hover:shadow-lg transition-shadow">
+                            <span className="text-xs text-gray-700 font-medium">Search Radius:</span>
+                            <Select 
+                              value={filters.radiusMiles.toString()} 
+                              onValueChange={(value) => {
+                                setFilters(prev => ({ ...prev, radiusMiles: parseInt(value) }));
+                              }}
+                            >
+                              <SelectTrigger className="w-16 h-7 text-xs font-medium border-gray-300 focus:border-pink-400 focus:ring-pink-400 bg-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="z-[60] shadow-xl border border-gray-300 bg-white">
+                                <SelectItem value="5" className="text-xs hover:bg-gray-100">5 mi</SelectItem>
+                                <SelectItem value="10" className="text-xs hover:bg-gray-100">10 mi</SelectItem>
+                                <SelectItem value="15" className="text-xs hover:bg-gray-100">15 mi</SelectItem>
+                                <SelectItem value="25" className="text-xs hover:bg-gray-100">25 mi</SelectItem>
+                                <SelectItem value="30" className="text-xs hover:bg-gray-100">30 mi</SelectItem>
+                                <SelectItem value="50" className="text-xs hover:bg-gray-100">50 mi</SelectItem>
+                                <SelectItem value="75" className="text-xs hover:bg-gray-100">75 mi</SelectItem>
+                                <SelectItem value="100" className="text-xs hover:bg-gray-100">100 mi</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </div>
                     </CardHeader>
                     <CardContent className="relative z-10">
                       <div className="w-full h-96 rounded-lg overflow-hidden relative z-10">
@@ -682,6 +940,10 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                           zoom={mapZoom}
                           events={filteredEvents}
                           onEventClick={handleEventClick}
+                          onMapMove={handleMapMove}
+                          showRadius={filters.selectedCities && filters.selectedCities.length > 0}
+                          radiusMiles={filters.radiusMiles}
+                          onVenueClick={handleVenueClick}
                         />
                       </div>
                     </CardContent>
@@ -709,6 +971,27 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                         {selectedDate ? `Events on ${format(selectedDate, 'MMM d, yyyy')}` : 'Upcoming Events'}
                       </CardTitle>
                       <div className="flex items-center gap-2">
+                        {/* Clear Venue Filter */}
+                        {selectedVenue && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedVenue(null);
+                              // Reset filtered events to show all events
+                              setFilteredEvents(events);
+                              // Reset map zoom to default
+                              setMapZoom(4);
+                              toast({
+                                title: "Venue Filter Cleared",
+                                description: "Showing all events again",
+                              });
+                            }}
+                            className="text-xs px-2 py-1 h-6"
+                          >
+                            Clear venue
+                          </Button>
+                        )}
                         {/* Sort Controls */}
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-muted-foreground">Sort:</span>
@@ -748,7 +1031,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                   <CardContent>
                     <ScrollArea className="h-96 synth-scrollbar">
                       <div className="space-y-4">
-                        {sortedEvents.slice(0, 50).map((event) => (
+                        {sortedEvents.map((event) => (
                           <div
                             key={event.id}
                             className="glass-card inner-glow p-4 rounded-2xl hover-card cursor-pointer floating-shadow"
@@ -892,7 +1175,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                       genres: [],
                       selectedCities: [],
                       dateRange: { from: undefined, to: undefined },
-                      showFilters: false
+                      showFilters: false,
+                      radiusMiles: 30
                     });
                   }}
                   className="hover-button border-gray-200 hover:border-pink-400 hover:text-pink-500"

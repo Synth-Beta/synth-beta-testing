@@ -32,7 +32,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
 
   useEffect(() => {
-    console.log('🚀 MainApp useEffect starting...');
+    // MainApp useEffect starting
     loadEvents();
 
     // Check for URL fragment to determine initial view
@@ -47,7 +47,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'l') {
         event.preventDefault();
-        console.log('🔐 Login shortcut triggered');
+        // Login shortcut triggered
         setShowAuth(true);
       }
     };
@@ -68,7 +68,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   // Handle session expiration
   useEffect(() => {
     if (sessionExpired) {
-      console.log('🔐 Session expired, redirecting to login');
+      // Session expired, redirecting to login
       toast({
         title: "Session Expired",
         description: "Your session has expired. Please sign in again.",
@@ -84,7 +84,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   useEffect(() => {
     const handleApiError = (event: CustomEvent) => {
       if (event.detail?.message?.includes('Invalid API key')) {
-        console.log('🔐 API key error detected, treating as session expiration');
+        // API key error detected, treating as session expiration
         setShowAuth(true);
         toast({
           title: "Configuration Error",
@@ -115,11 +115,11 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   const loadEvents = async () => {
-    console.log('📅 Loading events...');
+    // Loading events
     try {
       // Check if session is expired before making any requests
       if (sessionExpired || !user) {
-        console.log('Session expired or no user, skipping events load');
+        // Session expired or no user, skipping events load
         return;
       }
 
@@ -129,7 +129,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         .order('event_date', { ascending: true });
 
       if (error) throw error;
-      console.log('✅ Events loaded:', data?.length || 0, 'events');
+      // Events loaded
       
       // Transform database events to EventCard format
       const transformedEvents: EventCardEvent[] = (data || []).map((event: any) => ({
@@ -147,7 +147,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       
       setEvents(transformedEvents);
     } catch (error) {
-      console.error('Error loading events:', error);
+      // Error loading events
       toast({
         title: "Error",
         description: "Failed to load events",
@@ -177,7 +177,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         });
       }
     } catch (error) {
-      console.error('Error handling event swipe:', error);
+      // Error handling event swipe
       toast({
         title: "Error",
         description: "Failed to process your action",
@@ -187,7 +187,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   const handleViewChange = (view: ViewType) => {
-    console.log('🔄 View changing from', currentView, 'to', view);
+    // View changing
     setCurrentView(view);
     // Clear profileUserId when navigating away from profile
     if (view !== 'profile') {
@@ -197,7 +197,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   const handleProfileEdit = () => {
     // Navigate to profile edit view
-    console.log('Navigating to profile edit');
+    // Navigating to profile edit
     setCurrentView('profile-edit');
   };
 
@@ -207,7 +207,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   const handleProfileSave = () => {
     // Navigate back to profile view after saving
-    console.log('Profile saved, navigating back to profile view');
+    // Profile saved, navigating back to profile view
     setCurrentView('profile');
   };
 
@@ -221,7 +221,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         description: "You've been successfully signed out.",
       });
     } catch (error: any) {
-      console.error('Error signing out:', error);
+      // Error signing out
       toast({
         title: "Error",
         description: "Failed to sign out. Please try again.",
@@ -248,7 +248,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   // Show auth modal if requested or session expired
   if (showAuth || sessionExpired) {
-    console.log('🔐 Showing auth modal. showAuth:', showAuth, 'sessionExpired:', sessionExpired);
+    // Showing auth modal
     return <Auth onAuthSuccess={handleAuthSuccess} />;
   }
 
@@ -261,7 +261,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const showApiKeyError = false; // Set to true if you want to force show the API key error banner
 
   const renderCurrentView = () => {
-    console.log('🎨 Rendering current view:', currentView);
+    // Rendering current view
     switch (currentView) {
       case 'feed':
         return (

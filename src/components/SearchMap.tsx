@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EventMap } from './EventMap';
 import { LocationService } from '@/services/locationService';
 import { JamBaseEventsService, JamBaseEventResponse } from '@/services/jambaseEventsService';
 import { JamBaseLocationService } from '@/services/jambaseLocationService';
+import { RadiusSearchService, EventWithDistance } from '@/services/radiusSearchService';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   MapPin,
@@ -24,9 +26,10 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
   const [mapLocation, setMapLocation] = useState('');
   const [mapCenter, setMapCenter] = useState<[number, number]>([39.8283, -98.5795]); // Center of US
   const [mapZoom, setMapZoom] = useState(4);
-  const [upcomingEvents, setUpcomingEvents] = useState<JamBaseEventResponse[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<EventWithDistance[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | undefined>();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [radiusMiles, setRadiusMiles] = useState(25);
   const { toast } = useToast();
 
   // Initialize user location and load events
@@ -135,35 +138,76 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
     if (!mapLocation.trim()) return;
 
     try {
-      console.log(`🔍 Searching for events near: ${mapLocation} via cities...`);
-      const result = await JamBaseLocationService.searchEventsViaCities(mapLocation, 100);
+      console.log(`🔍 Searching for events near: ${mapLocation} with radius: ${radiusMiles} miles...`);
       
-      if (result.location) {
-        setMapCenter([result.location.lat, result.location.lng]);
-        setMapZoom(10);
-        setUpcomingEvents(result.events);
+      // Check if it's a zip code or city
+      const isZipCode = /^\d{5}(-\d{4})?$/.test(mapLocation.trim());
+      
+      let events: EventWithDistance[] = [];
+      let mapConfig;
+      
+      if (isZipCode) {
+        // Search by zip code
+        events = await RadiusSearchService.getEventsNearZip({
+          zipCode: mapLocation.trim(),
+          radiusMiles,
+          limit: 100
+        });
         
-        if (result.events.length > 0) {
-          toast({
-            title: "Events Found",
-            description: `Found ${result.events.length} events near ${result.location.name} (${result.source})`,
-          });
-          console.log(`✅ Found ${result.events.length} events from ${result.source} for ${result.location.name}`);
-        } else {
-          toast({
-            title: "No Events Found",
-            description: `No events found near ${result.location.name}. Try a different location.`,
-            variant: "default",
-          });
-          console.log(`📭 No events found for ${result.location.name}`);
+        // Get coordinates for the zip code to center the map
+        const zipCoords = await RadiusSearchService.getZipCoordinates(mapLocation.trim());
+        if (zipCoords) {
+          mapConfig = {
+            center: [zipCoords.lat, zipCoords.lng] as [number, number],
+            zoom: 10
+          };
         }
       } else {
-        toast({
-          title: "Location Not Found",
-          description: "Try searching for a major city like 'New York' or 'Los Angeles'",
-          variant: "destructive",
+        // Search by city
+        const [city, state] = mapLocation.split(',').map(s => s.trim());
+        events = await RadiusSearchService.getEventsNearCity({
+          city,
+          state: state || undefined,
+          radiusMiles,
+          limit: 100
         });
-        console.log(`❌ Location not found: ${mapLocation}`);
+        
+        // Get coordinates for the city to center the map
+        const cityCoords = await RadiusSearchService.getCityCoordinates(city, state);
+        if (cityCoords) {
+          mapConfig = {
+            center: [cityCoords.lat, cityCoords.lng] as [number, number],
+            zoom: 10
+          };
+        }
+      }
+      
+      // Update map configuration based on events found
+      if (events.length > 0) {
+        const eventMapConfig = RadiusSearchService.getMapConfigForEvents(events, mapConfig?.center);
+        setMapCenter(eventMapConfig.center);
+        setMapZoom(eventMapConfig.zoom);
+        setUpcomingEvents(events);
+        
+        toast({
+          title: "Events Found",
+          description: `Found ${events.length} events within ${radiusMiles} miles of ${mapLocation}`,
+        });
+        console.log(`✅ Found ${events.length} events within ${radiusMiles} miles of ${mapLocation}`);
+      } else {
+        // Center on the searched location even if no events found
+        if (mapConfig) {
+          setMapCenter(mapConfig.center);
+          setMapZoom(mapConfig.zoom);
+        }
+        setUpcomingEvents([]);
+        
+        toast({
+          title: "No Events Found",
+          description: `No events found within ${radiusMiles} miles of ${mapLocation}. Try a different location or increase the radius.`,
+          variant: "default",
+        });
+        console.log(`📭 No events found within ${radiusMiles} miles of ${mapLocation}`);
       }
     } catch (error) {
       console.error('Error searching location:', error);
@@ -187,23 +231,33 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
 
     setIsRefreshing(true);
     try {
-      console.log('🔄 Refreshing events for user location via cities...');
-      const result = await JamBaseLocationService.searchEventsViaCities(userLocation, 100);
+      console.log(`🔄 Refreshing events for user location with ${radiusMiles} mile radius...`);
       
-      if (result.events.length > 0) {
-        setUpcomingEvents(result.events);
+      // Use radius search service to find events near user location
+      const events = await RadiusSearchService.getEventsNearCity({
+        city: 'Current Location', // This will use the coordinates directly
+        radiusMiles,
+        limit: 100
+      });
+      
+      if (events.length > 0) {
+        const mapConfig = RadiusSearchService.getMapConfigForEvents(events);
+        setMapCenter(mapConfig.center);
+        setMapZoom(mapConfig.zoom);
+        setUpcomingEvents(events);
+        
         toast({
           title: "Events Refreshed",
-          description: `Found ${result.events.length} updated events near your location (${result.source})`,
+          description: `Found ${events.length} events within ${radiusMiles} miles of your location`,
         });
-        console.log(`✅ Refreshed ${result.events.length} events from ${result.source}`);
+        console.log(`✅ Refreshed ${events.length} events within ${radiusMiles} miles`);
       } else {
         toast({
           title: "No New Events",
-          description: "No new events found near your location",
+          description: `No events found within ${radiusMiles} miles of your location`,
           variant: "default",
         });
-        console.log('📭 No new events found after refresh');
+        console.log(`📭 No events found within ${radiusMiles} miles after refresh`);
       }
     } catch (error) {
       console.error('Error refreshing events:', error);
@@ -225,27 +279,45 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
           <MapPin className="w-5 h-5" />
           Upcoming Events Near You
         </CardTitle>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Enter city name (e.g., New York, Los Angeles)"
-            value={mapLocation}
-            onChange={(e) => setMapLocation(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleLocationSearch()}
-            className="flex-1"
-          />
-          <Button onClick={handleLocationSearch} variant="outline">
-            <Search className="w-4 h-4" />
-          </Button>
-          {userLocation && (
-            <Button 
-              onClick={handleRefreshEvents} 
-              variant="outline"
-              disabled={isRefreshing}
-              title="Refresh events for your location"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Enter city name or zip code (e.g., New York, 10001)"
+              value={mapLocation}
+              onChange={(e) => setMapLocation(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleLocationSearch()}
+              className="flex-1"
+            />
+            <Button onClick={handleLocationSearch} variant="outline">
+              <Search className="w-4 h-4" />
             </Button>
-          )}
+            {userLocation && (
+              <Button 
+                onClick={handleRefreshEvents} 
+                variant="outline"
+                disabled={isRefreshing}
+                title="Refresh events for your location"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Search radius:</span>
+            <Select value={radiusMiles.toString()} onValueChange={(value) => setRadiusMiles(Number(value))}>
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 mi</SelectItem>
+                <SelectItem value="25">25 mi</SelectItem>
+                <SelectItem value="50">50 mi</SelectItem>
+                <SelectItem value="100">100 mi</SelectItem>
+                <SelectItem value="200">200 mi</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
