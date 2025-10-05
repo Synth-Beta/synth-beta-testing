@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ProfileReviewCard } from '../reviews/ProfileReviewCard';
 import type { Artist } from '@/types/concertSearch';
 import { ReviewService } from '@/services/reviewService';
+import { getEventStatus, isEventPast, getPastEvents, getUpcomingEvents } from '@/utils/eventStatusUtils';
 import { ReviewCard } from '../reviews/ReviewCard';
 import { UnifiedStreamingStats, detectStreamingServiceType } from '../streaming/UnifiedStreamingStats';
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
@@ -326,21 +327,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     }
   };
 
-  // Filter events based on showPastEvents toggle
-  const filteredUserEvents = userEvents.filter(event => {
-    if (!event.event_date) return false;
-    
-    const eventDate = new Date(event.event_date);
-    const now = new Date();
-    
-    if (showPastEvents) {
-      // Show only past events
-      return eventDate < now;
-    } else {
-      // Show only upcoming events
-      return eventDate >= now;
-    }
-  });
+  // Filter events based on showPastEvents toggle using new utilities
+  const filteredUserEvents = showPastEvents ? getPastEvents(userEvents) : getUpcomingEvents(userEvents);
 
   const fetchReviews = async () => {
     try {

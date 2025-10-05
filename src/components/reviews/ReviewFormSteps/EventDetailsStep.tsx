@@ -9,6 +9,7 @@ import type { Artist } from '@/types/concertSearch';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
 import { supabase } from '@/integrations/supabase/client';
+import { isEventPast, getEventStatus } from '@/utils/eventStatusUtils';
 
 interface EventDetailsStepProps {
   formData: ReviewFormData;
@@ -30,14 +31,24 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
       try {
         setEventLoading(true);
         // Search by artist, title, or venue with OR conditions
+        // Prioritize past events for reviews by ordering past events first
         const { data, error } = await supabase
           .from('jambase_events')
-          .select('id, title, artist_name, venue_name, event_date')
+          .select('id, title, artist_name, venue_name, event_date, artist_id, venue_id')
           .or(`artist_name.ilike.%${q}%,title.ilike.%${q}%,venue_name.ilike.%${q}%`)
           .order('event_date', { ascending: false })
-          .limit(20);
-        if (!error) {
-          setEventResults(data || []);
+          .limit(50); // Increased limit to get more results
+        
+        if (!error && data) {
+          // Filter to ONLY show past events for reviews
+          const pastEventsOnly = data.filter(event => isEventPast(event.event_date));
+          
+          // Sort past events by date (most recent first)
+          const sortedResults = pastEventsOnly.sort((a, b) => 
+            new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
+          );
+          
+          setEventResults(sortedResults);
           setShowEventResults(true);
         } else {
           setEventResults([]);
@@ -122,19 +133,29 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
               {eventLoading && (
                 <div className="px-3 py-2 text-sm text-muted-foreground">Searching…</div>
               )}
-              {!eventLoading && eventResults.map(ev => (
-                <button
-                  key={ev.id}
-                  type="button"
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                  onClick={() => applyEventSelection(ev)}
-                >
-                  <div className="font-medium text-gray-900">{ev.title || `${ev.artist_name} @ ${ev.venue_name}`}</div>
-                  <div className="text-xs text-gray-500">{ev.artist_name} • {ev.venue_name} • {new Date(ev.event_date).toLocaleDateString()}</div>
-                </button>
-              ))}
+              {!eventLoading && eventResults.map(ev => {
+                const eventStatus = getEventStatus(ev.event_date);
+                const isPast = isEventPast(ev.event_date);
+                
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-l-4 border-l-green-500 bg-green-50/30"
+                    onClick={() => applyEventSelection(ev)}
+                  >
+                    <div className="font-medium text-gray-900">{ev.title || `${ev.artist_name} @ ${ev.venue_name}`}</div>
+                    <div className="text-xs text-gray-500 flex items-center justify-between">
+                      <span>{ev.artist_name} • {ev.venue_name} • {new Date(ev.event_date).toLocaleDateString()}</span>
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Past Event
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
               {!eventLoading && eventResults.length === 0 && (
-                <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground">No past events found</div>
               )}
             </div>
           )}

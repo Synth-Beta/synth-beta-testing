@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Heart, X, Calendar, MapPin, Users } from "lucide-react"
+import { Heart, X, Calendar, MapPin, Users, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { isEventPast, getEventStatus } from "@/utils/eventStatusUtils"
 
 export interface Event {
   id: string
@@ -11,6 +12,7 @@ export interface Event {
   venue: string
   date: string
   time: string
+  event_date?: string // Add event_date for status checking
   category: "music" | "food" | "arts" | "sports" | "social"
   description: string
   image: string
@@ -28,6 +30,11 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
   const [isAnimating, setIsAnimating] = useState(false)
   const [swipeDirection, setSwipeDirection] = useState<"like" | "pass" | null>(null)
 
+  // Determine if this is a past event
+  const eventDate = event.event_date || event.date
+  const isPast = isEventPast(eventDate)
+  const eventStatus = getEventStatus(eventDate)
+
   const handleSwipe = (direction: "like" | "pass") => {
     setSwipeDirection(direction)
     setIsAnimating(true)
@@ -37,6 +44,11 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
       setIsAnimating(false)
       setSwipeDirection(null)
     }, 300)
+  }
+
+  const handleWriteReview = () => {
+    // TODO: Implement review functionality for past events
+    console.log('Write review for past event:', event.id)
   }
 
   const getCategoryColor = (category: string) => {
@@ -83,6 +95,12 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
             {event.price}
           </div>
         )}
+        {/* Event Status Badge */}
+        {isPast && (
+          <div className="absolute top-4 left-4 bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium shadow-lg">
+            Past Event
+          </div>
+        )}
       </div>
 
      <div className="p-6 space-y-5">
@@ -108,29 +126,56 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons - Different for past vs upcoming events */}
         <div className="flex gap-4 pt-2">
-          <Button
-            onClick={() => handleSwipe("pass")}
-            variant="outline"
-            size="lg"
-            className="hover-button flex-1 border-2 border-gray-300 hover:border-red-400 hover:text-red-500 btn-swipe-pass h-14 text-base font-semibold transition-all duration-200"
-            disabled={isAnimating}
-            aria-label="Pass on this event"
-          >
-            <X className="w-6 h-6 mr-2 hover-icon" aria-hidden="true" />
-            Pass
-          </Button>
-          <Button
-            onClick={() => handleSwipe("like")}
-            size="lg"
-            className="hover-button gradient-button flex-1 h-14 text-base font-semibold"
-            disabled={isAnimating}
-            aria-label="Like this event"
-          >
-            <Heart className="w-6 h-6 mr-2 hover-heart" aria-hidden="true" />
-            Interested
-          </Button>
+          {isPast ? (
+            // Past event actions
+            <>
+              <Button
+                onClick={handleWriteReview}
+                size="lg"
+                className="hover-button gradient-button flex-1 h-14 text-base font-semibold"
+                aria-label="Write a review for this past event"
+              >
+                <Star className="w-6 h-6 mr-2 hover-icon" aria-hidden="true" />
+                Write Review
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="hover-button flex-1 border-2 border-gray-300 hover:border-gray-400 hover:text-gray-600 h-14 text-base font-semibold transition-all duration-200"
+                aria-label="View event details"
+              >
+                <Calendar className="w-6 h-6 mr-2 hover-icon" aria-hidden="true" />
+                View Details
+              </Button>
+            </>
+          ) : (
+            // Upcoming event actions
+            <>
+              <Button
+                onClick={() => handleSwipe("pass")}
+                variant="outline"
+                size="lg"
+                className="hover-button flex-1 border-2 border-gray-300 hover:border-red-400 hover:text-red-500 btn-swipe-pass h-14 text-base font-semibold transition-all duration-200"
+                disabled={isAnimating}
+                aria-label="Pass on this event"
+              >
+                <X className="w-6 h-6 mr-2 hover-icon" aria-hidden="true" />
+                Pass
+              </Button>
+              <Button
+                onClick={() => handleSwipe("like")}
+                size="lg"
+                className="hover-button gradient-button flex-1 h-14 text-base font-semibold"
+                disabled={isAnimating}
+                aria-label="Like this event"
+              >
+                <Heart className="w-6 h-6 mr-2 hover-heart" aria-hidden="true" />
+                Interested
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </Card>

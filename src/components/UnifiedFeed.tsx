@@ -38,6 +38,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { format, parseISO } from 'date-fns';
 import { Navigation } from '@/components/Navigation';
 import { SynthSLogo } from '@/components/SynthSLogo';
+import { getEventStatus, isEventPast, getPastEvents, getUpcomingEvents } from '@/utils/eventStatusUtils';
 import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
 import { ReviewCard as FeedReviewCard } from '@/components/reviews/ReviewCard';
