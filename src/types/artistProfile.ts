@@ -99,10 +99,10 @@ export function transformJamBaseArtistToProfile(
   const artist = jambaseResponse.artist;
   
   return {
-    jambase_artist_id: artist.identifier.split(':')[1] || artist.identifier,
+    jambase_artist_id: artist.identifier ? (artist.identifier.split(':')[1] || artist.identifier) : artist.name?.toLowerCase().replace(/\s+/g, '-'),
     artist_data_source: artistDataSource as ArtistProfile['artist_data_source'],
     name: artist.name,
-    identifier: artist.identifier,
+    identifier: artist.identifier || `jambase:${artist.name?.toLowerCase().replace(/\s+/g, '-')}`,
     url: artist.url,
     image_url: artist.image,
     date_published: artist.datePublished,

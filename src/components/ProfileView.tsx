@@ -329,7 +329,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       // Try RPC to avoid RLS recursion issues
       let events: any[] = [];
       try {
-        const { data: rpcData, error: rpcErr } = await supabase.rpc('get_user_interested_events' as any, {
+        const { data: rpcData, error: rpcErr } = await supabase.rpc('get_user_interested_events', {
           target_user_id: currentUserId
         });
         if (!rpcErr && Array.isArray(rpcData)) {
@@ -345,7 +345,9 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
             created_at: e.created_at || e.event_date
           }));
         }
-      } catch {}
+      } catch (rpcError) {
+        console.warn('RPC function failed, falling back to direct query:', rpcError);
+      }
 
       if (events.length === 0) {
         // Fallback to direct join (may be blocked by RLS in some setups)

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Search, X, Loader2 } from 'lucide-react';
 import { UnifiedArtistSearchService, ArtistSearchResult } from '@/services/unifiedArtistSearchService';
 import { supabase } from '@/integrations/supabase/client';
+import { ContentTypeSearchResults } from './ContentTypeSearchResults';
 
 interface CompactSearchBarProps {
   onSearch: (query: string, type: 'artists' | 'events' | 'all') => void;
@@ -31,6 +32,11 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [contentResults, setContentResults] = useState<{
+    artists: ArtistSearchResult[];
+    events: any[];
+    users: any[];
+  } | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -60,21 +66,29 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
   const loadSuggestions = async (searchQuery: string) => {
     setIsLoadingSuggestions(true);
     try {
-      // Search both artists and users
-      const [artistResults, userResults] = await Promise.all([
-        searchArtists(searchQuery, 3),
-        searchUsers(searchQuery, 2)
-      ]);
-
+      console.log(`🔍 CompactSearchBar: Searching for "${searchQuery}"`);
+      
+      // Search all content types
+      const results = await UnifiedArtistSearchService.searchAllContent(searchQuery, 20);
+      
+      console.log(`📊 CompactSearchBar: Received results:`, {
+        artists: results.artists.length,
+        events: results.events.length,
+        users: results.users.length
+      });
+      
+      setContentResults(results);
+      
+      // For backward compatibility, still create simple suggestions
       const combinedSuggestions: SearchResult[] = [
-        ...artistResults.map(artist => ({
+        ...results.artists.slice(0, 2).map(artist => ({
           id: artist.id,
           name: artist.name,
           type: 'artist' as const,
           image_url: artist.image_url,
           genres: artist.genres,
         })),
-        ...userResults.map(user => ({
+        ...results.users.slice(0, 1).map(user => ({
           id: user.user_id,
           name: user.name,
           type: 'user' as const,
@@ -83,11 +97,12 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
       ];
 
       setSuggestions(combinedSuggestions);
-      setShowSuggestions(combinedSuggestions.length > 0);
+      setShowSuggestions(results.artists.length > 0 || results.events.length > 0 || results.users.length > 0);
     } catch (error) {
       console.error('Error loading suggestions:', error);
       setSuggestions([]);
       setShowSuggestions(false);
+      setContentResults(null);
     } finally {
       setIsLoadingSuggestions(false);
     }
@@ -156,10 +171,38 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
     setShowSuggestions(false);
   };
 
+  const handleArtistSelect = (artist: ArtistSearchResult) => {
+    setQuery(artist.name);
+    onSearch(artist.name, 'artists');
+    setShowSuggestions(false);
+  };
+
+  const handleEventSelect = (event: any) => {
+    setQuery(event.title);
+    onSearch(event.title, 'events');
+    setShowSuggestions(false);
+    
+    // Dispatch event to open event details modal
+    window.dispatchEvent(new CustomEvent('open-event-details', { 
+      detail: { 
+        event: event,
+        eventId: event.id || event.jambase_event_id 
+      }
+    }));
+  };
+
+  const handleUserSelect = (user: any) => {
+    // For now, just dispatch the profile event
+    // In the future, this could also show events the user is interested in
+    window.dispatchEvent(new CustomEvent('open-user-profile', { detail: { userId: user.user_id }}));
+    setShowSuggestions(false);
+  };
+
   const handleClear = () => {
     setQuery('');
     setSuggestions([]);
     setShowSuggestions(false);
+    setContentResults(null);
     onClear();
     inputRef.current?.focus();
   };
@@ -176,7 +219,7 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
   };
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full z-[100] search-container">
       <div className="relative">
         <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 z-10">
           <Search className="h-5 w-5 hover-icon" />
@@ -224,60 +267,73 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
 
       {/* Search Suggestions Dropdown */}
       {showSuggestions && (
-        <div className="absolute top-full left-0 right-0 mt-1 glass-card inner-glow rounded-lg shadow-lg z-[100] max-h-64 overflow-y-auto floating-shadow">
+        <div className="mt-1 glass-card inner-glow rounded-lg shadow-lg z-[9999] max-h-96 overflow-y-auto floating-shadow search-suggestions-dropdown w-full">
           {isLoadingSuggestions ? (
             <div className="p-4 text-center">
               <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">Searching...</p>
             </div>
           ) : (
-            <div className="py-2">
-              {suggestions.map((suggestion) => (
-                <button
-                  key={`${suggestion.type}-${suggestion.id}`}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className="w-full px-4 py-3 text-left hover:bg-muted/50 flex items-center gap-3 transition-colors"
-                >
-                  <div className="flex-shrink-0">
-                    {suggestion.image_url ? (
-                      <img
-                        src={suggestion.image_url}
-                        alt={suggestion.name}
-                        className="w-8 h-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                        <span className="text-xs font-medium">
-                          {suggestion.name.charAt(0).toUpperCase()}
-                        </span>
+            <div className="p-4 max-h-96 overflow-y-auto">
+              {contentResults ? (
+                <ContentTypeSearchResults
+                  artists={contentResults.artists}
+                  events={contentResults.events}
+                  users={contentResults.users}
+                  onArtistSelect={handleArtistSelect}
+                  onEventSelect={handleEventSelect}
+                  onUserSelect={handleUserSelect}
+                />
+              ) : (
+                <div className="py-2">
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={`${suggestion.type}-${suggestion.id}`}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="w-full px-4 py-3 text-left hover:bg-muted/50 flex items-center gap-3 transition-colors"
+                    >
+                      <div className="flex-shrink-0">
+                        {suggestion.image_url ? (
+                          <img
+                            src={suggestion.image_url}
+                            alt={suggestion.name}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                            <span className="text-xs font-medium">
+                              {suggestion.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{suggestion.name}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="capitalize">{suggestion.type}</span>
+                          {suggestion.genres && suggestion.genres.length > 0 && (
+                            <>
+                              <span>•</span>
+                              <span>{suggestion.genres.slice(0, 2).join(', ')}</span>
+                            </>
+                          )}
+                          {suggestion.location && (
+                            <>
+                              <span>•</span>
+                              <span className="truncate">{suggestion.location}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                   
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{suggestion.name}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="capitalize">{suggestion.type}</span>
-                      {suggestion.genres && suggestion.genres.length > 0 && (
-                        <>
-                          <span>•</span>
-                          <span>{suggestion.genres.slice(0, 2).join(', ')}</span>
-                        </>
-                      )}
-                      {suggestion.location && (
-                        <>
-                          <span>•</span>
-                          <span className="truncate">{suggestion.location}</span>
-                        </>
-                      )}
+                  {suggestions.length === 0 && query.length >= 2 && (
+                    <div className="px-4 py-3 text-center text-sm text-muted-foreground">
+                      No suggestions found for "{query}"
                     </div>
-                  </div>
-                </button>
-              ))}
-              
-              {suggestions.length === 0 && query.length >= 2 && (
-                <div className="px-4 py-3 text-center text-sm text-muted-foreground">
-                  No suggestions found for "{query}"
+                  )}
                 </div>
               )}
             </div>

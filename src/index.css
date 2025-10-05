@@ -840,6 +840,75 @@
     100% { background-position: 200% 0; }
   }
   
+  /* Search Page Layout Fixes */
+  #search-layout-root.filters-open {
+    position: relative;
+    z-index: 1;
+  }
+  
+  #search-layout-root.filters-open .relative.z-10 {
+    z-index: 0;
+  }
+  
+  #search-layout-root.filters-open .relative.z-0 {
+    z-index: -1;
+  }
+  
+  /* Ensure filter popovers appear above everything */
+  [data-radix-popover-content] {
+    z-index: 60 !important;
+  }
+  
+  [data-radix-popover-overlay] {
+    z-index: 59 !important;
+  }
+  
+  /* Fix for search page grid layout */
+  .search-grid-fix {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .search-grid-fix .lg\\:col-span-1 {
+    position: relative;
+    z-index: 10;
+  }
+  
+  .search-grid-fix .lg\\:col-span-2 {
+    position: relative;
+    z-index: 10;
+  }
+  
+  /* Search suggestions dropdown - highest priority */
+  .search-suggestions-dropdown {
+    z-index: 9999 !important;
+    position: relative !important;
+    margin-bottom: 2rem !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  /* Search container - ensure proper stacking context */
+  .search-container {
+    position: relative;
+    z-index: 100;
+  }
+
+  /* When search suggestions are open, push content down */
+  .search-suggestions-dropdown:not(:empty) {
+    margin-bottom: 3rem;
+  }
+
+  /* Ensure search results have proper spacing and visibility */
+  .search-suggestions-dropdown .space-y-6 > * + * {
+    margin-top: 1.5rem;
+  }
+
+  .search-suggestions-dropdown .mb-6 {
+    margin-bottom: 1.5rem;
+  }
+
   /* Enhanced Hover Effects */
   .synth-hover-lift {
     transition: var(--transition-smooth);

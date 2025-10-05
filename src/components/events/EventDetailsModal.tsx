@@ -103,13 +103,33 @@ export function EventDetailsModal({
 
   useEffect(() => {
     const fetchInterestedCount = async () => {
-      if (!isInterested) { setInterestedCount(null); return; }
       try {
+        const eventId = event.jambase_event_id || event.id;
+        
+        // First, find the UUID id from jambase_events table
+        const { data: jambaseEvent, error: jambaseError } = await supabase
+          .from('jambase_events')
+          .select('id')
+          .eq('jambase_event_id', eventId.toString())
+          .single();
+          
+        if (jambaseError) {
+          // Try using the eventId directly as UUID (in case it's already the UUID id)
+          const { count, error } = await supabase
+            .from('user_jambase_events')
+            .select('*', { count: 'exact', head: true })
+            .eq('jambase_event_id', eventId);
+          if (error) throw error;
+          const dbCount = count ?? 0;
+          setInterestedCount(dbCount);
+          return;
+        }
+        
+        // Use the UUID id to get the count
         const { count, error } = await supabase
           .from('user_jambase_events')
           .select('*', { count: 'exact', head: true })
-          .eq('jambase_event_id', event.id)
-          .neq('user_id', currentUserId);
+          .eq('jambase_event_id', jambaseEvent.id);
         if (error) throw error;
         const dbCount = count ?? 0;
         setInterestedCount(dbCount);
@@ -118,22 +138,100 @@ export function EventDetailsModal({
       }
     };
     fetchInterestedCount();
-  }, [isInterested, event.id, currentUserId]);
+  }, [event.id]);
 
   const fetchInterestedUsers = async (page: number) => {
     try {
+      console.log('Fetching interested users for event:', event.id);
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
-      const { data, error } = await (supabase
+      
+      // First, we need to find the UUID id from jambase_events table
+      // because user_jambase_events.jambase_event_id references jambase_events.id (UUID)
+      const eventId = event.jambase_event_id || event.id;
+      console.log('Event ID being used:', eventId, 'Type:', typeof eventId);
+      
+      // Get the UUID id from jambase_events table using the jambase_event_id (TEXT)
+      const { data: jambaseEvent, error: jambaseError } = await supabase
+        .from('jambase_events')
+        .select('id')
+        .eq('jambase_event_id', eventId.toString())
+        .single();
+        
+      if (jambaseError) {
+        console.error('Error finding jambase event:', jambaseError);
+        // Try using the eventId directly as UUID (in case it's already the UUID id)
+        const { data: interestedUserIds, error: interestsError } = await supabase
+          .from('user_jambase_events')
+          .select('user_id')
+          .eq('jambase_event_id', eventId)
+          .neq('user_id', currentUserId)
+          .range(from, to);
+          
+        if (interestsError) {
+          console.error('Error fetching interested user IDs:', interestsError);
+          throw interestsError;
+        }
+        
+        if (!interestedUserIds || interestedUserIds.length === 0) {
+          setInterestedUsers([]);
+          return;
+        }
+        
+        // Get profile details
+        const userIds = interestedUserIds.map(row => row.user_id);
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, user_id, name, avatar_url')
+          .in('user_id', userIds);
+          
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+          throw profilesError;
+        }
+        
+        setInterestedUsers(profiles || []);
+        return;
+      }
+      
+      console.log('Found jambase event UUID:', jambaseEvent.id);
+      
+      // Now get the user_ids using the UUID id
+      const { data: interestedUserIds, error: interestsError } = await supabase
         .from('user_jambase_events')
-        .select('profiles:profiles(id, name, avatar_url)', { count: 'exact' }) as any)
-        .eq('jambase_event_id', event.id)
+        .select('user_id')
+        .eq('jambase_event_id', jambaseEvent.id)
         .neq('user_id', currentUserId)
         .range(from, to);
-      if (error) throw error;
-      const users = (data || []).map((row: any) => row.profiles).filter(Boolean);
-      setInterestedUsers(users);
-    } catch {
+        
+      if (interestsError) {
+        console.error('Error fetching interested user IDs:', interestsError);
+        throw interestsError;
+      }
+      
+      console.log('Found interested user IDs:', interestedUserIds);
+      
+      if (!interestedUserIds || interestedUserIds.length === 0) {
+        setInterestedUsers([]);
+        return;
+      }
+      
+      // Then get the profile details for those users
+      const userIds = interestedUserIds.map(row => row.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, user_id, name, avatar_url')
+        .in('user_id', userIds);
+        
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
+      
+      console.log('Found profiles:', profiles);
+      setInterestedUsers(profiles || []);
+    } catch (error) {
+      console.error('Error fetching interested users:', error);
       setInterestedUsers([]);
     }
   };
@@ -241,17 +339,19 @@ export function EventDetailsModal({
             </div>
           </div>
 
-          {/* Interested People (only after user is interested) */}
+          {/* Interested People - Only show if current user is interested */}
           {isInterested && (
             <div className="mb-6 rounded-md border p-3">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  {interestedCount === null ? 'Loading people going…' : `${interestedCount} others are interested`}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={() => { setShowInterestedUsers(true); fetchInterestedUsers(1); setUsersPage(1); }}>
-                    Meet people going
-                  </Button>
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                {interestedCount === null ? 'Loading people going…' : `${interestedCount} people are interested`}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => { setShowInterestedUsers(true); fetchInterestedUsers(1); setUsersPage(1); }}>
+                  <Users className="w-4 h-4 mr-1" />
+                  Meet people going
+                </Button>
+                {showInterestedUsers && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Button size="sm" variant="ghost" className="px-2" onClick={() => { if (usersPage > 1) { const p = usersPage - 1; setUsersPage(p); fetchInterestedUsers(p); } }}>
                       Prev
@@ -261,21 +361,22 @@ export function EventDetailsModal({
                       Next
                     </Button>
                   </div>
-                </div>
+                )}
               </div>
+            </div>
 
-              {showInterestedUsers && (
-                <div className="mt-3 grid grid-cols-3 gap-3">
-                  {interestedUsers.length === 0 ? (
-                    <div className="col-span-3 text-sm text-muted-foreground">No other interested users yet.</div>
-                  ) : interestedUsers.map((u) => (
+            {showInterestedUsers && (
+              <div className="mt-3 grid grid-cols-3 gap-3">
+                {interestedUsers.length === 0 ? (
+                  <div className="col-span-3 text-sm text-muted-foreground">No interested users yet.</div>
+                ) : interestedUsers.map((u) => (
                     <div
                       key={u.id}
                       className="flex items-center gap-2 rounded border p-2 cursor-pointer hover:bg-gray-50"
                       onClick={() => {
                         setFriendModalUser({
                           id: u.id,
-                          user_id: u.id,
+                          user_id: u.user_id,
                           name: u.name,
                           username: u.name.replace(/\s+/g, '').toLowerCase(),
                           avatar_url: u.avatar_url || null,
@@ -285,16 +386,16 @@ export function EventDetailsModal({
                         setFriendModalOpen(true);
                       }}
                     >
-                      <img src={u.avatar_url || '/placeholder.svg'} alt={u.name} className="w-8 h-8 rounded-full" />
-                      <div className="text-sm">
-                        <div className="font-medium leading-none">{u.name}</div>
-                        <div className="text-xs text-muted-foreground">Tap to add friend • Chat</div>
-                      </div>
+                    <img src={u.avatar_url || '/placeholder.svg'} alt={u.name} className="w-8 h-8 rounded-full" />
+                    <div className="text-sm">
+                      <div className="font-medium leading-none">{u.name}</div>
+                      <div className="text-xs text-muted-foreground">Tap to add friend • Chat</div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           )}
 
           {/* Main Content: Map and Reviews */}

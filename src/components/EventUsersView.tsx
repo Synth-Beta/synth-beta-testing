@@ -88,21 +88,47 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         return;
       }
 
-      // Get all users interested in this event (excluding current user)
-      const { data: interests, error: interestsError } = await supabase
-        .from('user_jambase_events')
-        .select('user_id')
-        .eq('jambase_event_id', event.id)
-        .neq('user_id', currentUserId);
+      // Try using the new RPC function first
+      let profiles: any[] = [];
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_users_interested_in_event', {
+          event_id: event.id
+        });
+        
+        if (!rpcError && Array.isArray(rpcData)) {
+          profiles = rpcData.filter(p => p.user_id !== currentUserId);
+        }
+      } catch (rpcErr) {
+        console.warn('RPC function failed, falling back to direct query:', rpcErr);
+      }
 
-      if (interestsError) throw interestsError;
+      // Fallback to direct query if RPC fails
+      if (profiles.length === 0) {
+        // Get all users interested in this event (excluding current user)
+        const { data: interests, error: interestsError } = await supabase
+          .from('user_jambase_events')
+          .select('user_id')
+          .eq('jambase_event_id', event.id)
+          .neq('user_id', currentUserId);
 
-      const interestedUserIds = (interests || []).map(i => i.user_id);
+        if (interestsError) throw interestsError;
 
-      // Early exit if nobody else is interested
-      if (interestedUserIds.length === 0) {
-        setUsers([]);
-        return;
+        const interestedUserIds = (interests || []).map(i => i.user_id);
+
+        // Early exit if nobody else is interested
+        if (interestedUserIds.length === 0) {
+          setUsers([]);
+          return;
+        }
+
+        // Fetch profiles for those interested users
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, user_id, name, avatar_url, bio, instagram_handle, snapchat_handle, created_at, updated_at')
+          .in('user_id', interestedUserIds);
+
+        if (profilesError) throw profilesError;
+        profiles = profilesData || [];
       }
 
       // Get swipe data for current user
@@ -128,15 +154,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         m.user1_id === currentUserId ? m.user2_id : m.user1_id
       ) || []);
 
-      // Fetch profiles for those interested users
-      const { data: profiles, error: profilesError } = await (supabase as any)
-        .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, snapchat_handle, created_at, updated_at')
-        .in('user_id', interestedUserIds);
-
-      if (profilesError) throw profilesError;
-
-      const usersWithData: UserWithProfile[] = ((profiles as any[]) || [])
+      const usersWithData: UserWithProfile[] = profiles
         .filter(p => !swipeMap.has(p.user_id))
         .map(p => ({
           id: p.id,

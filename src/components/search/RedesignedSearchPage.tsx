@@ -362,17 +362,86 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
       return;
     }
     
-    // For artist searches, we could integrate with the existing artist search
-    toast({
-      title: "Artist Search",
-      description: `Searching for artists matching "${query}"`,
-    });
+    if (type === 'artists') {
+      // Filter events to show only events for this artist
+      try {
+        setIsLoading(true);
+        
+        // Filter events by artist name
+        const artistFilteredEvents = events.filter(event => 
+          event.artist_name?.toLowerCase().includes(query.toLowerCase()) ||
+          event.title?.toLowerCase().includes(query.toLowerCase())
+        );
+        
+        setFilteredEvents(artistFilteredEvents);
+        
+        toast({
+          title: "Artist Events",
+          description: `Showing events for "${query}"`,
+        });
+      } catch (error) {
+        console.error('Error filtering events by artist:', error);
+        toast({
+          title: "Error",
+          description: "Failed to filter events by artist",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   const handleClearSearch = () => {
     setSearchQuery('');
     setSearchType('all');
+    // Reset filtered events to show all events
+    setFilteredEvents(events);
   };
+
+  // Handle event details events (when event is selected from search)
+  useEffect(() => {
+    const handleEventDetailsEvent = (event: CustomEvent) => {
+      const { event: eventData, eventId } = event.detail;
+      
+      if (eventData) {
+        // Convert the event data to the format expected by EventDetailsModal
+        const convertedEvent = {
+          id: eventData.id || eventData.jambase_event_id,
+          jambase_event_id: eventData.jambase_event_id || eventData.id,
+          title: eventData.title,
+          artist_name: eventData.artist_name,
+          artist_id: eventData.artist_id || '',
+          venue_name: eventData.venue_name,
+          venue_id: eventData.venue_id || '',
+          event_date: eventData.event_date,
+          doors_time: eventData.doors_time,
+          description: eventData.description,
+          genres: eventData.genres || [],
+          venue_address: eventData.venue_address,
+          venue_city: eventData.venue_city,
+          venue_state: eventData.venue_state,
+          venue_zip: eventData.venue_zip,
+          latitude: eventData.latitude ? Number(eventData.latitude) : undefined,
+          longitude: eventData.longitude ? Number(eventData.longitude) : undefined,
+          ticket_available: eventData.ticket_available,
+          price_range: eventData.price_range,
+          ticket_urls: eventData.ticket_urls || [],
+          created_at: eventData.created_at || new Date().toISOString(),
+          updated_at: eventData.updated_at || new Date().toISOString()
+        };
+        
+        setSelectedEvent(convertedEvent);
+        setEventDetailsOpen(true);
+      }
+    };
+
+    window.addEventListener('open-event-details', handleEventDetailsEvent as EventListener);
+    
+    return () => {
+      window.removeEventListener('open-event-details', handleEventDetailsEvent as EventListener);
+    };
+  }, []);
 
   const handleEventClick = (event: JamBaseEventResponse) => {
     setSelectedEvent(event);
@@ -518,7 +587,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         </div>
 
          {/* Compact Search Bar */}
-         <div className="glass-card inner-glow p-4 rounded-2xl floating-shadow mb-6">
+         <div className="glass-card inner-glow p-4 rounded-2xl floating-shadow mb-6 relative z-[100]">
            <CompactSearchBar
              onSearch={handleSearch}
              onClear={handleClearSearch}
@@ -568,6 +637,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
               size="sm"
               onClick={() => {
                 setSearchQuery('');
+                setSearchType('all');
+                setFilteredEvents(events);
                 setFilters({
                   genres: [],
                   selectedCities: [],
@@ -593,7 +664,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         {/* Main Content */}
         {!isLoading && (
           filteredEvents.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-0 search-grid-fix">
               {/* Left: Map or Calendar */}
               <div className="order-1 lg:order-1 lg:col-span-1 relative z-10">
                 {viewMode === 'map' ? (
@@ -815,6 +886,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                   variant="outline"
                   onClick={() => {
                     setSearchQuery('');
+                    setSearchType('all');
+                    setFilteredEvents(events);
                     setFilters({
                       genres: [],
                       selectedCities: [],

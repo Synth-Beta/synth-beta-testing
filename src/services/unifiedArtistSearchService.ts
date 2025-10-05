@@ -10,6 +10,7 @@ export interface ArtistSearchResult {
   band_or_musician?: 'band' | 'musician';
   num_upcoming_events?: number;
   match_score: number;
+  combinedScore?: number;
   is_from_database: boolean;
 }
 
@@ -55,20 +56,27 @@ export class UnifiedArtistSearchService {
         console.warn('⚠️  Could not get fuzzy results from database, continuing with API results:', fuzzyError);
       }
 
-      // If no fuzzy results from database, return the JamBase results directly
+      // If no fuzzy results from database, filter and return JamBase results
       if (fuzzyResults.length === 0 && jamBaseResults.length > 0) {
-        console.log(`🔄 No database results, returning JamBase results directly`);
-        return jamBaseResults.map(artist => ({
-          id: artist.id,
-          name: artist.name,
-          identifier: artist.identifier,
-          image_url: artist.image,
-          genres: artist.genres,
-          band_or_musician: artist['x-bandOrMusician'] as 'band' | 'musician',
-          num_upcoming_events: artist['x-numUpcomingEvents'],
-          match_score: this.calculateFuzzyMatchScore(query, artist.name),
-          is_from_database: false,
-        }));
+        console.log(`🔄 No database results, filtering JamBase results`);
+        const filteredJamBaseResults = jamBaseResults
+          .map(artist => ({
+            id: artist.id,
+            name: artist.name,
+            identifier: artist.identifier,
+            image_url: artist.image,
+            genres: artist.genres,
+            band_or_musician: artist['x-bandOrMusician'] as 'band' | 'musician',
+            num_upcoming_events: artist['x-numUpcomingEvents'] || 0,
+            match_score: this.calculateFuzzyMatchScore(query, artist.name),
+            is_from_database: false,
+          }))
+          .filter(artist => artist.match_score > 15) // Original threshold for better artist matching
+          .sort((a, b) => b.match_score - a.match_score)
+          .slice(0, limit);
+        
+        console.log(`🎯 Filtered JamBase results: ${filteredJamBaseResults.length} matches`);
+        return filteredJamBaseResults;
       }
 
       // If we have fuzzy results, return them
@@ -104,7 +112,7 @@ export class UnifiedArtistSearchService {
         image_url: artist.image,
         genres: artist.genres,
         band_or_musician: artist['x-bandOrMusician'] as 'band' | 'musician',
-        num_upcoming_events: artist['x-numUpcomingEvents'],
+        num_upcoming_events: artist['x-numUpcomingEvents'] || 0,
         match_score: this.calculateFuzzyMatchScore(query, artist.name),
         is_from_database: false,
       }));
@@ -120,7 +128,7 @@ export class UnifiedArtistSearchService {
         image_url: artist.image,
         genres: artist.genres,
         band_or_musician: artist['x-bandOrMusician'] as 'band' | 'musician',
-        num_upcoming_events: artist['x-numUpcomingEvents'],
+        num_upcoming_events: artist['x-numUpcomingEvents'] || 0,
         match_score: this.calculateFuzzyMatchScore(query, artist.name),
         is_from_database: false,
       }));
@@ -202,6 +210,15 @@ export class UnifiedArtistSearchService {
   private static getFallbackArtists(query: string, limit: number): any[] {
     const fallbackArtists = [
       {
+        id: 'cage-the-elephant-1',
+        name: 'Cage The Elephant',
+        identifier: 'jambase:cage-the-elephant-1',
+        image: 'https://via.placeholder.com/300x300/8B5CF6/FFFFFF?text=Cage+The+Elephant',
+        genres: ['alternative rock', 'indie rock', 'garage rock'],
+        'x-bandOrMusician': 'band',
+        'x-numUpcomingEvents': 12
+      },
+      {
         id: 'goose-1',
         name: 'Goose',
         identifier: 'jambase:goose-1',
@@ -272,20 +289,41 @@ export class UnifiedArtistSearchService {
         genres: ['hip-hop', 'r&b', 'pop'],
         'x-bandOrMusician': 'musician',
         'x-numUpcomingEvents': 30
+      },
+      {
+        id: 'joe-russo-1',
+        name: 'Joe Russo',
+        identifier: 'jambase:joe-russo-1',
+        image: 'https://via.placeholder.com/300x300/DC2626/FFFFFF?text=Joe+Russo',
+        genres: ['rock', 'jam band', 'drummer'],
+        'x-bandOrMusician': 'musician',
+        'x-numUpcomingEvents': 5
+      },
+      {
+        id: 'joe-russo-almost-dead-1',
+        name: 'Joe Russo\'s Almost Dead',
+        identifier: 'jambase:joe-russo-almost-dead-1',
+        image: 'https://via.placeholder.com/300x300/059669/FFFFFF?text=JRAD',
+        genres: ['jam band', 'rock', 'grateful dead'],
+        'x-bandOrMusician': 'band',
+        'x-numUpcomingEvents': 15
       }
     ];
 
-    // Filter artists that match the query
-    const matchingArtists = fallbackArtists.filter(artist => 
-      artist.name.toLowerCase().includes(query.toLowerCase())
-    );
+    // Filter artists that match the query using fuzzy matching
+    const scoredArtists = fallbackArtists.map(artist => ({
+      ...artist,
+      match_score: this.calculateFuzzyMatchScore(query, artist.name)
+    }));
 
-    // If no matches found, return all artists (better than nothing)
-    if (matchingArtists.length === 0) {
-      return fallbackArtists.slice(0, limit);
-    }
+    // Only return artists with good matches (above 15% similarity)
+    const matchingArtists = scoredArtists
+      .filter(artist => artist.match_score > 15)
+      .sort((a, b) => b.match_score - a.match_score)
+      .slice(0, limit);
 
-    return matchingArtists.slice(0, limit);
+    console.log(`🎯 Fallback search for "${query}": ${matchingArtists.length} matches found`);
+    return matchingArtists;
   }
 
   /**
@@ -347,8 +385,20 @@ export class UnifiedArtistSearchService {
           fullArtistData = jamBaseArtist;
         }
         
+        // Check if artist has required properties
+        if (!fullArtistData || !fullArtistData.name || !fullArtistData.identifier) {
+          console.warn(`⚠️  Skipping artist ${fullArtistData?.name || 'unknown'} - missing required properties`);
+          continue;
+        }
+
         // Transform and save to database
-        const profileData = transformJamBaseArtistToProfile(fullArtistData, 'jambase');
+        let profileData;
+        try {
+          profileData = transformJamBaseArtistToProfile(fullArtistData, 'jambase');
+        } catch (transformError) {
+          console.warn(`⚠️  Error transforming artist ${fullArtistData.name}:`, transformError);
+          continue;
+        }
         
         const { data: savedArtist, error } = await supabase
           .from('artist_profile')
@@ -465,7 +515,7 @@ export class UnifiedArtistSearchService {
 
       // Filter out very low matches and sort by score
       return scoredArtists
-        .filter(artist => artist.match_score > 20) // Only show matches above 20%
+        .filter(artist => artist.match_score > 15) // Original threshold for better artist matching
         .sort((a, b) => b.match_score - a.match_score)
         .slice(0, limit);
     } catch (error) {
@@ -476,6 +526,7 @@ export class UnifiedArtistSearchService {
 
   /**
    * Calculate fuzzy match score between query and artist name
+   * Enhanced algorithm to handle band names with apostrophes and special cases
    */
   static calculateFuzzyMatchScore(query: string, artistName: string): number {
     const queryLower = query.toLowerCase().trim();
@@ -486,52 +537,160 @@ export class UnifiedArtistSearchService {
       return 100;
     }
     
-    // Starts with query
+    // Starts with query (high priority)
     if (nameLower.startsWith(queryLower)) {
       return 95;
     }
     
-    // Contains query as whole word
-    const queryWords = queryLower.split(/\s+/);
-    const nameWords = nameLower.split(/\s+/);
-    
-    let wholeWordMatches = 0;
-    for (const queryWord of queryWords) {
-      if (nameWords.includes(queryWord)) {
-        wholeWordMatches++;
+    // Contains query as substring (boosted priority for band names)
+    if (nameLower.includes(queryLower)) {
+      const coverage = queryLower.length / nameLower.length;
+      // Higher score when query is contained in artist name (like "Joe Russo" in "Joe Russo's Almost Dead")
+      if (coverage >= 0.3) {
+        return 85 + Math.round(coverage * 10);
+      } else {
+        return 70 + Math.round(coverage * 15);
       }
     }
     
-    if (wholeWordMatches > 0) {
-      return 85 + (wholeWordMatches / queryWords.length) * 10;
+    // Handle word-based matching with special characters
+    const queryWords = queryLower.split(/[\s']+/).filter(w => w.length > 0);
+    const nameWords = nameLower.split(/[\s']+/).filter(w => w.length > 0);
+    
+    if (queryWords.length > 1) {
+      let wordMatches = 0;
+      for (const queryWord of queryWords) {
+        if (nameWords.includes(queryWord)) {
+          wordMatches++;
+        }
+      }
+      
+      // For multi-word queries, require at least 50% word match
+      if (wordMatches >= Math.ceil(queryWords.length * 0.5)) {
+        return 80 + (wordMatches / queryWords.length) * 15;
+      }
     }
     
-    // Contains query as substring
-    if (nameLower.includes(queryLower)) {
-      return 75;
+    // Single word exact match in multi-word artist name
+    if (queryWords.length === 1 && nameWords.includes(queryWords[0])) {
+      return 85;
     }
     
-    // Partial word matches
-    let partialWordMatches = 0;
+    // Partial word matches (more permissive)
+    let partialMatches = 0;
     for (const queryWord of queryWords) {
       for (const nameWord of nameWords) {
         if (nameWord.includes(queryWord) || queryWord.includes(nameWord)) {
-          partialWordMatches++;
+          partialMatches++;
           break;
         }
       }
     }
     
-    if (partialWordMatches > 0) {
-      return 60 + (partialWordMatches / queryWords.length) * 15;
+    if (partialMatches > 0) {
+      return 50 + (partialMatches / queryWords.length) * 30;
     }
     
-    // Levenshtein distance-based scoring
+    // Levenshtein distance (more permissive)
     const distance = this.levenshteinDistance(queryLower, nameLower);
     const maxLength = Math.max(queryLower.length, nameLower.length);
     const similarity = 1 - (distance / maxLength);
     
-    return Math.round(similarity * 50);
+    if (similarity > 0.5) {
+      return Math.round(similarity * 60);
+    }
+    
+    return 0;
+  }
+
+  /**
+   * Search for all content types (artists, events, users) based on query
+   */
+  static async searchAllContent(query: string, limit: number = 20): Promise<{
+    artists: ArtistSearchResult[];
+    events: any[];
+    users: any[];
+  }> {
+    try {
+      console.log(`🔍 Searching all content for: "${query}" with limit: ${limit}`);
+
+      // Search artists
+      console.log(`🎤 Searching artists with limit: ${Math.floor(limit * 0.5)}`);
+      const artists = await this.searchArtists(query, Math.floor(limit * 0.5));
+      
+      // Search events (from jambase_events table)
+      console.log(`🎵 Searching events with limit: ${Math.floor(limit * 0.3)}`);
+      const events = await this.searchEvents(query, Math.floor(limit * 0.3));
+      
+      // Search users (from profiles table)
+      console.log(`👤 Searching users with limit: ${Math.floor(limit * 0.2)}`);
+      const users = await this.searchUsers(query, Math.floor(limit * 0.2));
+
+      console.log(`📊 Search results summary:`, {
+        artists: artists.length,
+        events: events.length,
+        users: users.length
+      });
+
+      return { artists, events, users };
+    } catch (error) {
+      console.error('❌ Error searching all content:', error);
+      return { artists: [], events: [], users: [] };
+    }
+  }
+
+  /**
+   * Search for events by artist name or venue
+   */
+  private static async searchEvents(query: string, limit: number): Promise<any[]> {
+    try {
+      console.log(`🎵 Searching events for: "${query}" with limit: ${limit}`);
+      
+      const { data: events, error } = await (supabase as any)
+        .from('jambase_events')
+        .select('*')
+        .or(`artist_name.ilike.%${query}%,venue_name.ilike.%${query}%,title.ilike.%${query}%`)
+        .order('event_date', { ascending: true })
+        .limit(limit);
+
+      if (error) {
+        console.warn('⚠️  Error searching events:', error);
+        return [];
+      }
+
+      console.log(`🎵 Found ${events?.length || 0} events:`, events?.map(e => e.title || e.artist_name));
+      return events || [];
+    } catch (error) {
+      console.error('❌ Error searching events:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Search for users by name or bio
+   */
+  private static async searchUsers(query: string, limit: number): Promise<any[]> {
+    try {
+      console.log(`👤 Searching users for: "${query}" with limit: ${limit}`);
+      
+      const { data: users, error } = await (supabase as any)
+        .from('profiles')
+        .select('user_id, name, bio, avatar_url, instagram_handle')
+        .or(`name.ilike.%${query}%,bio.ilike.%${query}%,instagram_handle.ilike.%${query}%`)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.warn('⚠️  Error searching users:', error);
+        return [];
+      }
+
+      console.log(`👤 Found ${users?.length || 0} users:`, users?.map(u => u.name));
+      return users || [];
+    } catch (error) {
+      console.error('❌ Error searching users:', error);
+      return [];
+    }
   }
 
   /**
