@@ -79,7 +79,8 @@ export class NotificationService {
           message: 0,
           review_liked: 0,
           review_commented: 0,
-          comment_replied: 0
+          comment_replied: 0,
+          event_interest: 0
         }
       };
 
@@ -287,6 +288,8 @@ export class NotificationService {
         return '🎯';
       case 'message':
         return '📨';
+      case 'event_interest':
+        return '🎵';
       default:
         return '🔔';
     }
@@ -311,6 +314,8 @@ export class NotificationService {
         return 'bg-pink-100 text-pink-800 border-pink-200';
       case 'message':
         return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'event_interest':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }

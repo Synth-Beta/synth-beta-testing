@@ -7,7 +7,8 @@ export type NotificationType =
   | 'message'
   | 'review_liked'
   | 'review_commented'
-  | 'comment_replied';
+  | 'comment_replied'
+  | 'event_interest';
 
 export interface Notification {
   id: string;
@@ -64,6 +65,14 @@ export interface NotificationData {
   };
   friend_accepted: {
     friend_id: string;
+  };
+  event_interest: {
+    interested_user_id: string;
+    event_id: string;
+    event_title: string;
+    event_venue: string;
+    event_date: string;
+    user_name: string;
   };
 }
 
