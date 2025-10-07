@@ -82,13 +82,13 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
             </div>
           </Card>
 
-          {/* MVP Access */}
+          {/* Demo Access */}
           <Card className="synth-card p-8 bg-card/80 backdrop-blur-sm border-border/50 hover-card h-full flex flex-col">
             <div className="text-center flex flex-col h-full">
               <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl flex items-center justify-center">
                 <Music className="w-8 h-8 text-white" />
               </div>
-              <h3 className="synth-heading text-xl mb-4">Try MVP</h3>
+              <h3 className="synth-heading text-xl mb-4">Try Demo</h3>
               <p className="synth-text text-muted-foreground mb-6 flex-grow">
                 Experience the full Synth platform - discover events, connect with others, and share your music journey
               </p>
