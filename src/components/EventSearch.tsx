@@ -21,6 +21,7 @@ import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchServic
 import type { Artist, PaginatedEvents, Event } from '@/types/concertSearch';
 import { safeFormatEventDateTime } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
+import { EventDetailsModal } from './events/EventDetailsModal';
 
 interface EventSearchProps {
   userId: string;
@@ -40,6 +41,8 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
   const [error, setError] = useState<string | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedEventForDetails, setSelectedEventForDetails] = useState<Event | null>(null);
+  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -326,7 +329,11 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
     return (
       <div
         key={event.id}
-        className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+        className="p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+        onClick={() => {
+          setSelectedEventForDetails(event);
+          setEventDetailsOpen(true);
+        }}
       >
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
@@ -382,9 +389,24 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
           
           <div className="flex items-center gap-2 ml-4">
             <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedEventForDetails(event);
+                setEventDetailsOpen(true);
+              }}
+              className="text-xs"
+            >
+              View Details
+            </Button>
+            <Button
               variant="ghost"
               size="sm"
-              onClick={() => handleEventInterest(event)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEventInterest(event);
+              }}
               className="h-8 w-8 p-0 text-gray-400 hover:text-green-600"
             >
               <PlusCircle className="w-4 h-4" />
@@ -754,6 +776,19 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
           )}
         </CardContent>
       </Card>
+
+      {/* Event Details Modal */}
+      {selectedEventForDetails && (
+        <EventDetailsModal
+          event={selectedEventForDetails}
+          currentUserId={userId}
+          isOpen={eventDetailsOpen}
+          onClose={() => {
+            setEventDetailsOpen(false);
+            setSelectedEventForDetails(null);
+          }}
+        />
+      )}
     </div>
   );
 }

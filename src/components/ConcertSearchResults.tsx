@@ -1,18 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Music, Ticket, ExternalLink, Clock } from 'lucide-react';
 import { safeFormatEventDateTime } from '@/lib/dateUtils';
 import type { Event } from '@/types/concertSearch';
+import { EventDetailsModal } from './events/EventDetailsModal';
 
 interface ConcertSearchResultsProps {
   event: Event | null;
   isNewEvent: boolean;
   source: string;
+  currentUserId?: string;
 }
 
-export function ConcertSearchResults({ event, isNewEvent, source }: ConcertSearchResultsProps) {
+export function ConcertSearchResults({ event, isNewEvent, source, currentUserId = '' }: ConcertSearchResultsProps) {
+  const [showEventDetails, setShowEventDetails] = useState(false);
   const formatEventDate = (dateString: string, timeString?: string) => {
     return safeFormatEventDateTime({ event_date: dateString, event_time: timeString });
   };
@@ -55,6 +58,13 @@ export function ConcertSearchResults({ event, isNewEvent, source }: ConcertSearc
               <p className="text-gray-600">{event.artist_name}</p>
             </div>
             <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowEventDetails(true)}
+              >
+                View Details
+              </Button>
               <Badge variant={isNewEvent ? "default" : "secondary"}>
                 {isNewEvent ? "Added to Database" : "Found in Database"}
               </Badge>
@@ -180,6 +190,14 @@ export function ConcertSearchResults({ event, isNewEvent, source }: ConcertSearc
           )}
         </div>
       </CardContent>
+
+      {/* Event Details Modal */}
+      <EventDetailsModal
+        event={event}
+        currentUserId={currentUserId}
+        isOpen={showEventDetails}
+        onClose={() => setShowEventDetails(false)}
+      />
     </Card>
   );
 }

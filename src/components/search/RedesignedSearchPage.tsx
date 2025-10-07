@@ -550,24 +550,65 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     }
     
     if (type === 'artists') {
-      // Filter events to show only events for this artist
+      // Fetch events for this artist from the database
       try {
         setIsLoading(true);
         
-        // Filter events by artist name
-        const artistFilteredEvents = events.filter(event => 
-          event.artist_name?.toLowerCase().includes(query.toLowerCase()) ||
-          event.title?.toLowerCase().includes(query.toLowerCase())
-        );
+        console.log('🔍 handleSearch for artist:', query);
         
-        setFilteredEvents(artistFilteredEvents);
+        // Fetch events for this artist from the database
+        const { data: artistEvents, error } = await supabase
+          .from('jambase_events')
+          .select('*')
+          .ilike('artist_name', query)
+          .order('event_date', { ascending: true });
+        
+        if (error) {
+          console.error('Error fetching artist events:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load artist events",
+          });
+          return;
+        }
+        
+        console.log('🎯 Fetched artist events from DB:', artistEvents?.length || 0, 'events');
+        console.log('🎯 Artist events:', artistEvents?.map(e => ({ title: e.title, artist: e.artist_name })));
+        
+        // Convert to the format expected by the component
+        const formattedEvents = artistEvents?.map(event => ({
+          id: event.id,
+          jambase_event_id: event.id,
+          title: event.title || event.artist_name,
+          artist_name: event.artist_name,
+          artist_id: event.artist_id,
+          venue_name: event.venue_name,
+          venue_id: event.venue_id,
+          event_date: event.event_date,
+          doors_time: event.doors_time,
+          description: event.description,
+          genres: event.genres || [],
+          venue_address: event.venue_address,
+          venue_city: event.venue_city,
+          venue_state: event.venue_state,
+          venue_zip: event.venue_zip,
+          latitude: event.latitude ? Number(event.latitude) : undefined,
+          longitude: event.longitude ? Number(event.longitude) : undefined,
+          ticket_available: event.ticket_available,
+          price_range: event.price_range,
+          ticket_urls: event.ticket_urls || [],
+          created_at: event.created_at || new Date().toISOString(),
+          updated_at: event.updated_at || new Date().toISOString()
+        })) || [];
+        
+        setFilteredEvents(formattedEvents);
         
         toast({
           title: "Artist Events",
-          description: `Showing events for "${query}"`,
+          description: `Showing ${formattedEvents.length} events for "${query}"`,
         });
       } catch (error) {
-        // Error filtering events by artist
+        console.error('Error fetching artist events:', error);
         toast({
           title: "Error",
           description: "Failed to filter events by artist",
@@ -589,6 +630,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   // Handle event details events (when event is selected from search)
   useEffect(() => {
     const handleEventDetailsEvent = (event: CustomEvent) => {
+      console.log('📨 RedesignedSearchPage: Received open-event-details event:', event.detail);
       const { event: eventData, eventId } = event.detail;
       
       if (eventData) {
@@ -618,6 +660,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           updated_at: eventData.updated_at || new Date().toISOString()
         };
         
+        console.log('✅ RedesignedSearchPage: Setting selected event and opening modal');
         setSelectedEvent(convertedEvent);
         setEventDetailsOpen(true);
       }

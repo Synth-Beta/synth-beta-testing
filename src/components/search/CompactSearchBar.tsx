@@ -178,11 +178,13 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
   };
 
   const handleEventSelect = (event: any) => {
+    console.log('🎯 CompactSearchBar: Event selected:', event);
     setQuery(event.title);
     onSearch(event.title, 'events');
     setShowSuggestions(false);
     
     // Dispatch event to open event details modal
+    console.log('📡 Dispatching open-event-details event');
     window.dispatchEvent(new CustomEvent('open-event-details', { 
       detail: { 
         event: event,

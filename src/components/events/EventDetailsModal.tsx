@@ -328,24 +328,13 @@ export function EventDetailsModal({
             </div>
           </div>
 
-          {/* Reviews Section - Conditional based on event status */}
-          {isUpcomingEvent ? (
-            // For upcoming events, show artist and venue reviews
-            <ArtistVenueReviews
-              artistName={event.artist_name}
-              venueName={event.venue_name}
-              artistId={event.artist_id}
-              venueId={event.venue_id}
-            />
-          ) : (
-            // For past events, show event-specific reviews
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-4">Event Reviews</h3>
-              <div className="h-[400px] overflow-y-auto">
-                <EventReviewsSection event={event as any} userId={currentUserId} />
-              </div>
-            </div>
-          )}
+          {/* Reviews Section - Show artist and venue reviews for all events */}
+          <ArtistVenueReviews
+            artistName={event.artist_name}
+            venueName={event.venue_name}
+            artistId={event.artist_id}
+            venueId={event.venue_id}
+          />
 
           {/* Interested People - Only show if current user is interested */}
           {isInterested && (

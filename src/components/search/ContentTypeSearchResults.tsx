@@ -30,6 +30,13 @@ const ContentGroup: React.FC<ContentGroupProps> = ({
   const [showAll, setShowAll] = useState(false);
   const displayedResults = showAll ? results : results.slice(0, 3);
 
+  console.log(`📊 ContentGroup [${type}]:`, {
+    title,
+    resultsCount: results.length,
+    displayedCount: displayedResults.length,
+    results: results.slice(0, 2) // Show first 2 results for debugging
+  });
+
   if (results.length === 0) return null;
 
   const renderArtist = (artist: ArtistSearchResult, index: number) => (
@@ -80,36 +87,39 @@ const ContentGroup: React.FC<ContentGroupProps> = ({
     </div>
   );
 
-  const renderEvent = (event: any, index: number) => (
-    <div
-      key={`event-${event.jambase_event_id}-${index}`}
-      onClick={() => onSelect(event)}
-      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors group"
-    >
-      {/* Event Icon */}
-      <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
-        <span className="text-blue-600 dark:text-blue-400 text-sm">🎵</span>
-      </div>
+  const renderEvent = (event: any, index: number) => {
+    console.log(`🎵 Rendering event ${index}:`, event);
+    return (
+      <div
+        key={`event-${event.jambase_event_id}-${index}`}
+        onClick={() => onSelect(event)}
+        className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors group"
+      >
+        {/* Event Icon */}
+        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+          <span className="text-blue-600 dark:text-blue-400 text-sm">🎵</span>
+        </div>
 
-      {/* Event Info */}
-      <div className="flex-1 min-w-0">
-        <h4 className="font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
-          {event.title}
-        </h4>
-        <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-          <span>{event.artist_name}</span>
-          <span>•</span>
-          <span>{event.venue_name}</span>
-          {event.event_date && (
-            <>
-              <span>•</span>
-              <span>{new Date(event.event_date).toLocaleDateString()}</span>
-            </>
-          )}
+        {/* Event Info */}
+        <div className="flex-1 min-w-0">
+          <h4 className="font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
+            {event.title}
+          </h4>
+          <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+            <span>{event.artist_name}</span>
+            <span>•</span>
+            <span>{event.venue_name}</span>
+            {event.event_date && (
+              <>
+                <span>•</span>
+                <span>{new Date(event.event_date).toLocaleDateString()}</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderUser = (user: any, index: number) => (
     <div
@@ -182,6 +192,7 @@ const ContentGroup: React.FC<ContentGroupProps> = ({
       {/* Results List */}
       <div className="space-y-2">
         {displayedResults.map((item, index) => {
+          console.log(`🎨 Rendering ${type} item ${index}:`, item);
           if (type === 'artists') return renderArtist(item, index);
           if (type === 'events') return renderEvent(item, index);
           if (type === 'users') return renderUser(item, index);
@@ -221,6 +232,15 @@ export const ContentTypeSearchResults: React.FC<ContentTypeSearchResultsProps> =
     users: users.length,
     total: totalResults
   });
+  
+  if (events.length > 0) {
+    console.log('🎵 Events data:', events.map(e => ({ 
+      id: e.id || e.jambase_event_id, 
+      title: e.title, 
+      artist: e.artist_name,
+      venue: e.venue_name 
+    })));
+  }
   
   if (users.length > 0) {
     console.log('👤 Users data:', users.map(u => ({ name: u.name, id: u.user_id })));
