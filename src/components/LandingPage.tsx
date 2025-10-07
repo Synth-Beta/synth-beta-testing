@@ -44,7 +44,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl flex items-center justify-center">
                 <Star className="w-8 h-8 text-white" />
               </div>
-              <h3 className="synth-heading text-xl mb-4">Market Validation</h3>
+              <h3 className="synth-heading text-xl mb-4">Take Our Survey</h3>
               <p className="synth-text text-muted-foreground mb-6 flex-grow">
                 Help us understand what you're looking for in a music community platform
               </p>
