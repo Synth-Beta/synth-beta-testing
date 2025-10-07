@@ -36,6 +36,8 @@ interface ProfileViewProps {
   onEdit: () => void;
   onSettings: () => void;
   onSignOut?: () => void;
+  onNavigateToProfile?: (userId: string) => void;
+  onNavigateToChat?: (userId: string) => void;
 }
 
 interface UserProfile {
@@ -69,7 +71,7 @@ interface ConcertReview {
   };
 }
 
-export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut }: ProfileViewProps) => {
+export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat }: ProfileViewProps) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<JamBaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1246,8 +1248,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         friends={Array.isArray(friends) ? friends : []}
         count={Array.isArray(friends) ? friends.length : 0}
         onStartChat={(friendId: string) => {
-          // TODO: Implement chat functionality
           console.log('Start chat with friend:', friendId);
+          if (onNavigateToChat) {
+            onNavigateToChat(friendId);
+          }
         }}
         onViewProfile={(friend) => {
           // Navigate to friend's profile using the same pattern as MainApp
@@ -1269,6 +1273,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         isOpen={detailsOpen}
         onClose={() => setDetailsOpen(false)}
         isInterested={true}
+        onNavigateToProfile={onNavigateToProfile}
+        onNavigateToChat={onNavigateToChat}
       />
       )}
     </div>

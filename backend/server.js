@@ -55,6 +55,11 @@ streamingProfileRoutes.stack.forEach((route) => {
     console.log(`${Object.keys(route.route.methods).join(', ').toUpperCase()} ${route.route.path}`);
   }
 });
+locationSearchRoutes.stack.forEach((route) => {
+  if (route.route) {
+    console.log(`${Object.keys(route.route.methods).join(', ').toUpperCase()} ${route.route.path}`);
+  }
+});
 
 // Health check
 app.get('/health', (req, res) => {

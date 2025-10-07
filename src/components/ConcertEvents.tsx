@@ -31,9 +31,11 @@ interface ConcertEvent {
 interface ConcertEventsProps {
   currentUserId: string;
   onBack: () => void;
+  onNavigateToProfile?: (userId: string) => void;
+  onNavigateToChat?: (userId: string) => void;
 }
 
-export const ConcertEvents = ({ currentUserId, onBack }: ConcertEventsProps) => {
+export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNavigateToChat }: ConcertEventsProps) => {
   const [concerts, setConcerts] = useState<ConcertEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

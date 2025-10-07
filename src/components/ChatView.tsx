@@ -48,10 +48,11 @@ interface Chat {
 
 interface ChatViewProps {
   currentUserId: string;
+  chatUserId?: string; // Optional user ID to start a chat with
   onBack: () => void;
 }
 
-export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
+export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -70,6 +71,13 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
     fetchFriends();
   }, [currentUserId]);
 
+  // Handle starting a direct chat with a specific user
+  useEffect(() => {
+    if (chatUserId && currentUserId) {
+      createOrFindDirectChat(chatUserId);
+    }
+  }, [chatUserId, currentUserId]);
+
   useEffect(() => {
     if (selectedChat) {
       fetchMessages(selectedChat.id);
@@ -82,6 +90,66 @@ export const ChatView = ({ currentUserId, onBack }: ChatViewProps) => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const createOrFindDirectChat = async (targetUserId: string) => {
+    try {
+      console.log('💬 Creating or finding direct chat with:', targetUserId);
+      
+      // Use the create_direct_chat function from Supabase
+      const { data: chatId, error } = await supabase.rpc('create_direct_chat', {
+        user1_id: currentUserId,
+        user2_id: targetUserId
+      });
+
+      if (error) {
+        console.error('Error creating direct chat:', error);
+        toast({
+          title: "Error",
+          description: "Failed to start chat. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('✅ Direct chat created/found with ID:', chatId);
+
+      // Fetch the chat details and set it as selected
+      const { data: chatData, error: fetchError } = await supabase
+        .from('chats')
+        .select('*')
+        .eq('id', chatId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching chat details:', fetchError);
+        return;
+      }
+
+      // Transform to match our Chat interface
+      const directChat: Chat = {
+        id: chatData.id,
+        name: 'Direct Chat', // Will be updated with actual user name
+        type: 'direct',
+        created_at: chatData.created_at,
+        participants: [],
+        last_message: undefined,
+        unread_count: 0
+      };
+
+      setSelectedChat(directChat);
+      
+      // Refresh the chats list to include the new chat
+      fetchChats();
+
+    } catch (error) {
+      console.error('Error in createOrFindDirectChat:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start chat. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const fetchChats = async () => {

@@ -42,12 +42,14 @@ import { RadiusSearchService } from '@/services/radiusSearchService';
 
 interface RedesignedSearchPageProps {
   userId: string;
+  onNavigateToProfile?: (userId: string) => void;
+  onNavigateToChat?: (userId: string) => void;
 }
 
 type ViewMode = 'map' | 'calendar';
 type SearchType = 'artists' | 'events' | 'all';
 
-export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ userId }) => {
+export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ userId, onNavigateToProfile, onNavigateToChat }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<SearchType>('all');
@@ -389,8 +391,9 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   const handleMapMove = (bounds: { north: number; south: number; east: number; west: number }) => {
     setMapBounds(bounds);
     
-    // If no location filter is active, show events in visible area
-    if (!filters.selectedCities || filters.selectedCities.length === 0) {
+    // Only filter by map bounds if no location filter is active AND no search query is active
+    // Search results should show ALL matching events regardless of map bounds
+    if ((!filters.selectedCities || filters.selectedCities.length === 0) && !searchQuery.trim()) {
       filterEventsInBounds(bounds);
     }
   };
@@ -487,21 +490,26 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
       // Reset map center when no location filter
       updateMapCenterForLocation([]);
       
-      // If we have map bounds, filter events to visible area
-      if (mapBounds) {
-        filterEventsInBounds(mapBounds);
-        return; // Skip the rest of the filtering
-      } else {
-        // If no map bounds yet, show all events with valid coordinates
-        const eventsWithValidCoords = filtered.filter(event => {
-          if (!event.latitude || !event.longitude) return false;
-          const lat = Number(event.latitude);
-          const lng = Number(event.longitude);
-          return !isNaN(lat) && !isNaN(lng);
-        });
-        setFilteredEvents(eventsWithValidCoords);
-        return; // Skip the rest of the filtering
+      // Only apply map bounds filtering if there's no active search query
+      // Search results should show ALL matching events regardless of map bounds
+      if (!searchQuery.trim()) {
+        // If we have map bounds, filter events to visible area
+        if (mapBounds) {
+          filterEventsInBounds(mapBounds);
+          return; // Skip the rest of the filtering
+        } else {
+          // If no map bounds yet, show all events with valid coordinates
+          const eventsWithValidCoords = filtered.filter(event => {
+            if (!event.latitude || !event.longitude) return false;
+            const lat = Number(event.latitude);
+            const lng = Number(event.longitude);
+            return !isNaN(lat) && !isNaN(lng);
+          });
+          setFilteredEvents(eventsWithValidCoords);
+          return; // Skip the rest of the filtering
+        }
       }
+      // If there's a search query, continue with the filtered results (don't apply map bounds)
     }
 
     // Filter by date range
@@ -857,7 +865,9 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         {/* Main Content */}
         {!isLoading && (
           filteredEvents.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-0 search-grid-fix">
+            <>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-0 search-grid-fix">
               {/* Left: Map or Calendar */}
               <div className="order-1 lg:order-1 lg:col-span-1 relative z-10">
                 {viewMode === 'map' ? (
@@ -1119,6 +1129,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
 
               
             </div>
+            </>
           ) : (
             <Card className="glass-card inner-glow floating-shadow">
               <CardContent className="text-center py-16">
@@ -1164,6 +1175,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
             onReview={handleReview}
             isInterested={interestedEvents.has(selectedEvent.id)}
             hasReviewed={false} // You could track this if needed
+            onNavigateToProfile={onNavigateToProfile}
+            onNavigateToChat={onNavigateToChat}
           />
         )}
       </div>

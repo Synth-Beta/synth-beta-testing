@@ -30,19 +30,53 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
     onUpdateFormData({ reviewText: e.target.value });
   };
 
+  const handleVenueReviewTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onUpdateFormData({ venueReviewText: e.target.value });
+  };
+
   const handlePhotosChange = (urls: string[]) => {
     onUpdateFormData({ photos: urls });
   };
 
   const characterCount = formData.reviewText.length;
+  const venueReviewCharacterCount = formData.venueReviewText.length;
   const maxCharacters = 500;
+  const maxVenueCharacters = 300;
   const isNearLimit = characterCount > maxCharacters * 0.8;
+  const isVenueNearLimit = venueReviewCharacterCount > maxVenueCharacters * 0.8;
 
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Share Your Experience</h2>
         <p className="text-sm text-gray-600">Tell others about the artist performance and venue experience</p>
+      </div>
+
+      {/* Venue qualitative review (optional) */}
+      <div className="space-y-3">
+          <Label htmlFor="venueReviewText" className="text-sm font-medium">
+            Venue Experience (Optional)
+          </Label>
+          <Textarea
+            id="venueReviewText"
+            placeholder="Share your thoughts about the venue - sound quality, staff, facilities, atmosphere..."
+            value={formData.venueReviewText}
+            onChange={handleVenueReviewTextChange}
+            rows={3}
+            className="resize-none"
+            maxLength={maxVenueCharacters}
+          />
+          <div className="flex justify-end items-center">
+            <span className={cn(
+              "text-xs",
+              isVenueNearLimit ? "text-orange-600" : "text-gray-500"
+            )}>
+              {venueReviewCharacterCount}/{maxVenueCharacters}
+            </span>
+          </div>
+          {errors.venueReviewText && (
+            <p className="text-sm text-red-600">{errors.venueReviewText}</p>
+          )}
       </div>
 
       {/* Event qualitative review (required) */}

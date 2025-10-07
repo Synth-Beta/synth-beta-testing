@@ -9,16 +9,17 @@ import { ProfileView } from './profile/ProfileView';
 import { ProfileEdit } from './ProfileEdit';
 import { ConcertEvents } from './ConcertEvents';
 import { Event as EventCardEvent } from './EventCard';
-import { WelcomeScreen } from './WelcomeScreen';
+import { LandingPage } from './LandingPage';
 import Auth from '@/pages/Auth';
 import { EventSeeder } from './EventSeeder';
 import { SettingsModal } from './SettingsModal';
 import { NotificationsPage } from './NotificationsPage';
+import { ChatView } from './ChatView';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
-type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications';
+type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat';
 
 interface MainAppProps {
   onSignOut?: () => void;
@@ -28,6 +29,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [currentView, setCurrentView] = useState<ViewType>('feed');
   const [events, setEvents] = useState<EventCardEvent[]>([]);
   const [profileUserId, setProfileUserId] = useState<string | undefined>(undefined);
+  const [chatUserId, setChatUserId] = useState<string | undefined>(undefined);
   const { toast } = useToast();
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
 
@@ -193,6 +195,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     if (view !== 'profile') {
       setProfileUserId(undefined);
     }
+    // Clear chatUserId when navigating away from chat
+    if (view !== 'chat') {
+      setChatUserId(undefined);
+    }
   };
 
   const handleProfileEdit = () => {
@@ -232,11 +238,25 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   const handleBack = () => {
     setCurrentView('feed');
+    // Clear chatUserId when going back to feed
+    setChatUserId(undefined);
   };
 
   const handleNavigateToNotifications = () => {
     setCurrentView('notifications');
   };
+
+  const handleNavigateToProfile = (userId: string) => {
+    setProfileUserId(userId);
+    setCurrentView('profile');
+  };
+
+  const handleNavigateToChat = (userId: string) => {
+    setChatUserId(userId);
+    setCurrentView('chat');
+  };
+
+
 
   if (loading) {
     return (
@@ -252,9 +272,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     return <Auth onAuthSuccess={handleAuthSuccess} />;
   }
 
-  // Show welcome screen if no user
+  // Show landing page if no user
   if (!user?.id) {
-    return <WelcomeScreen onGetStarted={handleGetStarted} onLogin={handleForceLogin} />;
+    return <LandingPage onGetStarted={handleGetStarted} />;
   }
 
   // Show API key error banner only when there are actual API key issues
@@ -270,12 +290,16 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onBack={handleBack}
             onViewChange={handleViewChange}
             onNavigateToNotifications={handleNavigateToNotifications}
+            onNavigateToProfile={handleNavigateToProfile}
+            onNavigateToChat={handleNavigateToChat}
           />
         );
       case 'search':
         return (
           <RedesignedSearchPage 
             userId={user.id}
+            onNavigateToProfile={handleNavigateToProfile}
+            onNavigateToChat={handleNavigateToChat}
           />
         );
       case 'profile':
@@ -287,6 +311,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onEdit={handleProfileEdit}
             onSettings={handleProfileSettings}
             onSignOut={handleSignOut}
+            onNavigateToProfile={handleNavigateToProfile}
+            onNavigateToChat={handleNavigateToChat}
           />
         );
       case 'profile-edit':
@@ -304,12 +330,23 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onBack={handleBack}
           />
         );
+      case 'chat':
+        return (
+          <ChatView
+            currentUserId={user.id}
+            chatUserId={chatUserId}
+            onBack={handleBack}
+          />
+        );
       default:
         return (
           <UnifiedFeed 
             currentUserId={user.id}
             onBack={handleBack}
+            onViewChange={handleViewChange}
             onNavigateToNotifications={handleNavigateToNotifications}
+            onNavigateToProfile={handleNavigateToProfile}
+            onNavigateToChat={handleNavigateToChat}
           />
         );
     }

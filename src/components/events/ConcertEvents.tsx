@@ -33,9 +33,11 @@ interface ConcertEvent {
 interface ConcertEventsProps {
   currentUserId: string;
   onBack: () => void;
+  onNavigateToProfile?: (userId: string) => void;
+  onNavigateToChat?: (userId: string) => void;
 }
 
-export const ConcertEvents = ({ currentUserId, onBack }: ConcertEventsProps) => {
+export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNavigateToChat }: ConcertEventsProps) => {
   const [concerts, setConcerts] = useState<ConcertEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -346,6 +348,8 @@ export const ConcertEvents = ({ currentUserId, onBack }: ConcertEventsProps) => 
         onClose={() => setDetailsOpen(false)}
         onInterestToggle={(eventId) => handleInterestToggle(eventId)}
         isInterested={selectedEvent ? interestedEvents.has(selectedEvent.id) : false}
+        onNavigateToProfile={onNavigateToProfile}
+        onNavigateToChat={onNavigateToChat}
       />
     </div>
   );

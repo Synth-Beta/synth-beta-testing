@@ -61,18 +61,26 @@ import { extractNumericPrice } from '@/utils/currencyUtils';
 interface UnifiedFeedProps {
   currentUserId: string;
   onBack: () => void;
-  onNavigateToChat?: () => void;
   onNavigateToNotifications?: () => void;
   onViewChange?: (view: 'feed' | 'search' | 'profile') => void;
+  onNavigateToProfile?: (userId: string) => void;
+  onNavigateToChat?: (userId: string) => void;
 }
 
 export const UnifiedFeed = ({ 
   currentUserId, 
   onBack, 
-  onNavigateToChat, 
   onNavigateToNotifications, 
-  onViewChange 
+  onViewChange,
+  onNavigateToProfile,
+  onNavigateToChat
 }: UnifiedFeedProps) => {
+  // Debug: Check if navigation handlers are provided
+  console.log('🔍 UnifiedFeed navigation handlers:', {
+    onNavigateToProfile: !!onNavigateToProfile,
+    onNavigateToChat: !!onNavigateToChat
+  });
+  
   const [feedItems, setFeedItems] = useState<UnifiedFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -1041,6 +1049,8 @@ export const UnifiedFeed = ({
           }
         }}
         isInterested={selectedEventInterested}
+        onNavigateToProfile={onNavigateToProfile}
+        onNavigateToChat={onNavigateToChat}
       />
 
       {/* Inline Event Comments Modal from feed */}

@@ -31,6 +31,7 @@ interface FriendProfileCardProps {
   onStartChat?: (friendId: string) => void;
   onAddFriend?: (friendUserId: string) => Promise<void> | void;
   onUnfriend?: (friendUserId: string) => Promise<void>;
+  onNavigateToProfile?: (userId: string) => void;
 }
 
 export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
@@ -39,9 +40,12 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
   onClose,
   onStartChat,
   onAddFriend,
-  onUnfriend
+  onUnfriend,
+  onNavigateToProfile
 }) => {
   if (!isOpen) return null;
+  
+  // Debug: Check if navigation handlers are provided
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 10000 }}>
@@ -141,8 +145,16 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
                   variant="outline"
                   className="flex-1 text-sm"
                   size="sm"
-                  onClick={async () => {
-                    await onAddFriend(friend.user_id);
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('👥 Add Friend button clicked for:', friend.name, 'ID:', friend.user_id);
+                    try {
+                      await onAddFriend(friend.user_id);
+                      console.log('✅ Add friend request completed');
+                    } catch (error) {
+                      console.error('❌ Error in Add Friend:', error);
+                    }
                   }}
                 >
                   Add Friend
@@ -152,9 +164,13 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
                 variant="outline"
                 className="flex-1 text-sm"
                 size="sm"
-                onClick={() => {
-                  console.log('View full profile for:', friend.name);
-                  // TODO: Navigate to full profile page
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (onNavigateToProfile) {
+                    onNavigateToProfile(friend.user_id);
+                    onClose();
+                  }
                 }}
               >
                 <User className="w-3 h-3 mr-1" />
@@ -163,7 +179,9 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
               <Button
                 className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-sm"
                 size="sm"
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   if (onStartChat) {
                     onStartChat(friend.user_id);
                   }

@@ -1174,4 +1174,105 @@ export class ReviewService {
       throw new Error(`Failed to get venue reviews: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
+  /**
+   * Get reviews for a specific artist
+   */
+  static async getArtistReviews(
+    artistId: string,
+    userId?: string
+  ): Promise<{
+    reviews: ReviewWithEngagement[];
+    averageRating: number;
+    totalReviews: number;
+  }> {
+    try {
+      // Get reviews with user engagement data
+      const { data: reviews, error } = await (supabase as any)
+        .from('user_reviews')
+        .select(`
+          *,
+          review_likes!left(id, user_id)
+        `)
+        .eq('artist_id', artistId)
+        .eq('is_public', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Check if current user has liked any of these reviews
+      let userLikes: string[] = [];
+      if (userId) {
+        const { data: likes } = await supabase
+          .from('review_likes')
+          .select('review_id')
+          .eq('user_id', userId)
+          .in('review_id', reviews?.map(r => r.id) || []);
+        
+        userLikes = likes?.map(l => l.review_id) || [];
+      }
+
+      // Process reviews with engagement data
+      const processedReviews: ReviewWithEngagement[] = (((reviews as any[]) || [])).map((review: any) => ({
+        ...review,
+        is_liked_by_user: userLikes.includes(review.id),
+        user_like_id: userLikes.includes(review.id)
+          ? review.review_likes?.find((l: any) => l.user_id === userId)?.id
+          : undefined,
+        review_type: review.review_type,
+        is_public: review.is_public
+      })) as unknown as ReviewWithEngagement[];
+
+      const totalReviews = processedReviews.length;
+      const averageRating = totalReviews > 0 
+        ? processedReviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
+        : 0;
+
+      return {
+        reviews: processedReviews,
+        averageRating,
+        totalReviews
+      };
+    } catch (error) {
+      console.error('Error getting artist reviews:', error);
+      throw new Error(`Failed to get artist reviews: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get artist statistics
+   */
+  static async getArtistStats(artistId: string): Promise<{
+    total_reviews: number;
+    average_rating: number;
+    rating_distribution: {
+      '1_star': number;
+      '2_star': number;
+      '3_star': number;
+      '4_star': number;
+      '5_star': number;
+    };
+  }> {
+    try {
+      const { data, error } = await (supabase as any)
+        .rpc('get_artist_stats', { artist_uuid: artistId });
+
+      if (error) throw error;
+
+      return data[0] || {
+        total_reviews: 0,
+        average_rating: 0,
+        rating_distribution: {
+          '1_star': 0,
+          '2_star': 0,
+          '3_star': 0,
+          '4_star': 0,
+          '5_star': 0,
+        }
+      };
+    } catch (error) {
+      console.error('Error getting artist stats:', error);
+      throw new Error(`Failed to get artist stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 }

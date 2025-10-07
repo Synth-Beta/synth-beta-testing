@@ -767,30 +767,6 @@
   }
   
   /* Enhanced Synth Glow Effects */
-  .synth-glow {
-    box-shadow: var(--shadow-glow);
-    position: relative;
-  }
-  
-  .synth-glow::after {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    background: linear-gradient(45deg, rgba(255, 51, 153, 0.3), rgba(255, 102, 179, 0.3));
-    border-radius: inherit;
-    z-index: -1;
-    filter: blur(8px);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-  
-  .synth-glow:hover::after {
-    opacity: 1;
-  }
-  
   .synth-glow-hover:hover {
     box-shadow: var(--shadow-glow);
   }

@@ -248,14 +248,28 @@ export const ContentTypeSearchResults: React.FC<ContentTypeSearchResultsProps> =
       </div>
 
       {/* Artists */}
-      <ContentGroup
-        title="Artists"
-        icon="🎤"
-        iconColor="bg-purple-500"
-        results={artists}
-        type="artists"
-        onSelect={onArtistSelect}
-      />
+      {artists.length > 0 ? (
+        <ContentGroup
+          title="Artists"
+          icon="🎤"
+          iconColor="bg-purple-500"
+          results={artists}
+          type="artists"
+          onSelect={onArtistSelect}
+        />
+      ) : (
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center">
+              <span className="text-white text-sm font-bold">🎤</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white">Artists</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">No artist found</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Events */}
       <ContentGroup

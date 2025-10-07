@@ -31,10 +31,10 @@ import { format, parseISO } from 'date-fns';
 import { MatchesView } from '@/components/MatchesView';
 import { ChatView } from '@/components/ChatView';
 import { UnifiedChatView } from '@/components/UnifiedChatView';
-import { Navigation } from '@/components/Navigation';
 import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
 import { FriendProfileCard } from '@/components/FriendProfileCard';
+import { Navigation } from '@/components/Navigation';
 import { ReviewCard } from '@/components/ReviewCard';
 
 interface ConcertReview {

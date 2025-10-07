@@ -84,54 +84,14 @@ export class UnifiedArtistSearchService {
         return fuzzyResults;
       }
 
-      // If no results from any source, use fallback data
-      console.log('📭 No results found from any source, using fallback data');
-      const fallbackResults = this.getFallbackArtists(query, limit);
-      const filteredResults = fallbackResults.filter(artist => 
-        artist.name.toLowerCase().includes(query.toLowerCase())
-      );
-      
-      if (filteredResults.length === 0) {
-        // If no fallback matches, create a manual entry
-        const manualArtist = {
-          id: `manual-${Date.now()}`,
-          name: query,
-          identifier: `manual-${query.toLowerCase().replace(/\s+/g, '-')}`,
-          image: undefined,
-          genres: [],
-          'x-bandOrMusician': 'band',
-          'x-numUpcomingEvents': 0,
-        };
-        filteredResults.push(manualArtist);
-      }
-      
-      return filteredResults.map(artist => ({
-        id: artist.id,
-        name: artist.name,
-        identifier: artist.identifier,
-        image_url: artist.image,
-        genres: artist.genres,
-        band_or_musician: artist['x-bandOrMusician'] as 'band' | 'musician',
-        num_upcoming_events: artist['x-numUpcomingEvents'] || 0,
-        match_score: this.calculateFuzzyMatchScore(query, artist.name),
-        is_from_database: false,
-      }));
+      // If no results from any source, return empty array instead of fallback data
+      console.log('📭 No results found from any source, returning empty results');
+      return [];
     } catch (error) {
       console.error('❌ Error in unified artist search:', error);
-      // Return fallback results instead of throwing
-      console.log('🔄 Using fallback data due to error');
-      const fallbackResults = this.getFallbackArtists(query, limit);
-      return fallbackResults.map(artist => ({
-        id: artist.id,
-        name: artist.name,
-        identifier: artist.identifier,
-        image_url: artist.image,
-        genres: artist.genres,
-        band_or_musician: artist['x-bandOrMusician'] as 'band' | 'musician',
-        num_upcoming_events: artist['x-numUpcomingEvents'] || 0,
-        match_score: this.calculateFuzzyMatchScore(query, artist.name),
-        is_from_database: false,
-      }));
+      // Return empty results instead of fallback data
+      console.log('🔄 Returning empty results due to error');
+      return [];
     }
   }
 
@@ -141,8 +101,8 @@ export class UnifiedArtistSearchService {
   private static async searchJamBaseAPI(query: string, limit: number): Promise<any[]> {
     if (!this.API_KEY) {
       console.error('❌ JamBase API key not configured. Environment variable VITE_JAMBASE_API_KEY is missing.');
-      console.warn('Using fallback data due to missing API key');
-      return this.getFallbackArtists(query, limit);
+      console.warn('Returning empty results due to missing API key');
+      return [];
     }
     
     console.log(`🔑 Using JamBase API key: ${this.API_KEY.substring(0, 8)}...`);
@@ -166,16 +126,16 @@ export class UnifiedArtistSearchService {
       if (!response.ok) {
         const errorText = await response.text();
         console.warn(`JamBase API error: ${response.status} ${response.statusText}`, errorText);
-        console.warn('Using fallback data due to API error');
-        return this.getFallbackArtists(query, limit);
+        console.warn('Returning empty results due to API error');
+        return [];
       }
 
       const data = await response.json();
       console.log(`📊 JamBase API response data:`, { success: data.success, artistCount: data.artists?.length });
       
       if (!data.success || !data.artists || !Array.isArray(data.artists)) {
-        console.warn('Invalid JamBase API response format, using fallback data', data);
-        return this.getFallbackArtists(query, limit);
+        console.warn('Invalid JamBase API response format, returning empty results', data);
+        return [];
       }
 
       // Transform JamBase artists to our format
@@ -199,8 +159,8 @@ export class UnifiedArtistSearchService {
       }));
     } catch (error) {
       console.error('❌ JamBase API search error:', error);
-      console.warn('Using fallback data due to API error');
-      return this.getFallbackArtists(query, limit);
+      console.warn('Returning empty results due to API error');
+      return [];
     }
   }
 
@@ -213,7 +173,7 @@ export class UnifiedArtistSearchService {
         id: 'cage-the-elephant-1',
         name: 'Cage The Elephant',
         identifier: 'jambase:cage-the-elephant-1',
-        image: 'https://via.placeholder.com/300x300/8B5CF6/FFFFFF?text=Cage+The+Elephant',
+        image: 'https://picsum.photos/300/300?random=1',
         genres: ['alternative rock', 'indie rock', 'garage rock'],
         'x-bandOrMusician': 'band',
         'x-numUpcomingEvents': 12
@@ -222,7 +182,7 @@ export class UnifiedArtistSearchService {
         id: 'goose-1',
         name: 'Goose',
         identifier: 'jambase:goose-1',
-        image: 'https://via.placeholder.com/300x300/10B981/FFFFFF?text=Goose',
+        image: 'https://picsum.photos/300/300?random=2',
         genres: ['jam band', 'rock', 'funk'],
         'x-bandOrMusician': 'band',
         'x-numUpcomingEvents': 25
@@ -231,7 +191,7 @@ export class UnifiedArtistSearchService {
         id: 'phish-1',
         name: 'Phish',
         identifier: 'jambase:194164',
-        image: 'https://via.placeholder.com/300x300/4F46E5/FFFFFF?text=Phish',
+        image: 'https://picsum.photos/300/300?random=3',
         genres: ['rock', 'jam band', 'psychedelic rock'],
         'x-bandOrMusician': 'band',
         'x-numUpcomingEvents': 12
@@ -240,7 +200,7 @@ export class UnifiedArtistSearchService {
         id: 'dead-company-1',
         name: 'Dead & Company',
         identifier: 'jambase:123456',
-        image: 'https://via.placeholder.com/300x300/059669/FFFFFF?text=Dead+%26+Company',
+        image: 'https://picsum.photos/300/300?random=4',
         genres: ['rock', 'jam band', 'psychedelic rock'],
         'x-bandOrMusician': 'band',
         'x-numUpcomingEvents': 8
@@ -249,7 +209,7 @@ export class UnifiedArtistSearchService {
         id: 'grateful-dead-1',
         name: 'Grateful Dead',
         identifier: 'jambase:789012',
-        image: 'https://via.placeholder.com/300x300/DC2626/FFFFFF?text=Grateful+Dead',
+        image: 'https://picsum.photos/300/300?random=5',
         genres: ['rock', 'jam band', 'psychedelic rock'],
         'x-bandOrMusician': 'band',
         'x-numUpcomingEvents': 0
@@ -258,7 +218,7 @@ export class UnifiedArtistSearchService {
         id: 'tame-impala-1',
         name: 'Tame Impala',
         identifier: 'jambase:345678',
-        image: 'https://via.placeholder.com/300x300/7C3AED/FFFFFF?text=Tame+Impala',
+        image: 'https://picsum.photos/300/300?random=6',
         genres: ['psychedelic rock', 'indie rock', 'electronic'],
         'x-bandOrMusician': 'band',
         'x-numUpcomingEvents': 15
@@ -267,7 +227,7 @@ export class UnifiedArtistSearchService {
         id: 'radiohead-1',
         name: 'Radiohead',
         identifier: 'jambase:901234',
-        image: 'https://via.placeholder.com/300x300/EA580C/FFFFFF?text=Radiohead',
+        image: 'https://picsum.photos/300/300?random=7',
         genres: ['alternative rock', 'electronic', 'experimental'],
         'x-bandOrMusician': 'band',
         'x-numUpcomingEvents': 6
@@ -276,7 +236,7 @@ export class UnifiedArtistSearchService {
         id: 'taylor-swift-1',
         name: 'Taylor Swift',
         identifier: 'jambase:taylor-swift-1',
-        image: 'https://via.placeholder.com/300x300/F59E0B/FFFFFF?text=Taylor+Swift',
+        image: 'https://picsum.photos/300/300?random=8',
         genres: ['pop', 'country', 'folk'],
         'x-bandOrMusician': 'musician',
         'x-numUpcomingEvents': 50
@@ -285,7 +245,7 @@ export class UnifiedArtistSearchService {
         id: 'drake-1',
         name: 'Drake',
         identifier: 'jambase:drake-1',
-        image: 'https://via.placeholder.com/300x300/8B5CF6/FFFFFF?text=Drake',
+        image: 'https://picsum.photos/300/300?random=9',
         genres: ['hip-hop', 'r&b', 'pop'],
         'x-bandOrMusician': 'musician',
         'x-numUpcomingEvents': 30
@@ -294,7 +254,7 @@ export class UnifiedArtistSearchService {
         id: 'joe-russo-1',
         name: 'Joe Russo',
         identifier: 'jambase:joe-russo-1',
-        image: 'https://via.placeholder.com/300x300/DC2626/FFFFFF?text=Joe+Russo',
+        image: 'https://picsum.photos/300/300?random=10',
         genres: ['rock', 'jam band', 'drummer'],
         'x-bandOrMusician': 'musician',
         'x-numUpcomingEvents': 5
@@ -303,7 +263,7 @@ export class UnifiedArtistSearchService {
         id: 'joe-russo-almost-dead-1',
         name: 'Joe Russo\'s Almost Dead',
         identifier: 'jambase:joe-russo-almost-dead-1',
-        image: 'https://via.placeholder.com/300x300/059669/FFFFFF?text=JRAD',
+        image: 'https://picsum.photos/300/300?random=11',
         genres: ['jam band', 'rock', 'grateful dead'],
         'x-bandOrMusician': 'band',
         'x-numUpcomingEvents': 15
@@ -479,42 +439,65 @@ export class UnifiedArtistSearchService {
   }
 
   /**
-   * Get fuzzy matched results from Supabase
+   * Get fuzzy matched results from Supabase by searching events table
    */
   private static async getFuzzyMatchedResults(query: string, limit: number): Promise<ArtistSearchResult[]> {
     try {
-      // Get all artists from database
-      const { data: allArtists, error } = await (supabase as any)
-        .from('artist_profile')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(Math.max(50, limit * 5));
+      // Get events from database to extract unique artists
+      const { data: events, error } = await (supabase as any)
+        .from('jambase_events')
+        .select('artist_name, artist_id, genres')
+        .ilike('artist_name', `%${query}%`)
+        .order('event_date', { ascending: false })
+        .limit(Math.max(100, limit * 10)); // Get more events to find unique artists
 
       if (error) {
-        console.warn(`⚠️  Database error getting artists: ${error.message}`);
+        console.warn(`⚠️  Database error getting events: ${error.message}`);
         return [];
       }
 
-      if (!allArtists || allArtists.length === 0) {
-        console.log('📭 No artists found in database');
+      if (!events || events.length === 0) {
+        console.log('📭 No events found in database for artist search');
         return [];
       }
 
-      // Calculate fuzzy match scores for all artists
-      const scoredArtists = allArtists.map(artist => ({
-        id: artist.jambase_artist_id,
+      // Get unique artists and count their events
+      const artistMap = new Map<string, any>();
+      
+      events.forEach(event => {
+        if (event.artist_name) {
+          const artistName = event.artist_name;
+          if (!artistMap.has(artistName)) {
+            artistMap.set(artistName, {
+              id: event.artist_id || artistName.toLowerCase().replace(/\s+/g, '-'),
+              name: artistName,
+              identifier: `jambase:${event.artist_id || artistName.toLowerCase().replace(/\s+/g, '-')}`,
+              image_url: null,
+              genres: event.genres || [],
+              band_or_musician: 'band' as 'band' | 'musician',
+              num_upcoming_events: 0,
+              eventCount: 0
+            });
+          }
+          artistMap.get(artistName)!.eventCount++;
+        }
+      });
+
+      // Convert to array and calculate match scores
+      const artists = Array.from(artistMap.values()).map(artist => ({
+        id: artist.id,
         name: artist.name,
         identifier: artist.identifier,
         image_url: artist.image_url,
         genres: artist.genres,
-        band_or_musician: artist.band_or_musician as 'band' | 'musician',
-        num_upcoming_events: artist.num_upcoming_events,
+        band_or_musician: artist.band_or_musician,
+        num_upcoming_events: artist.eventCount,
         match_score: this.calculateFuzzyMatchScore(query, artist.name),
         is_from_database: true,
       }));
 
       // Filter out very low matches and sort by score
-      return scoredArtists
+      return artists
         .filter(artist => artist.match_score > 15) // Original threshold for better artist matching
         .sort((a, b) => b.match_score - a.match_score)
         .slice(0, limit);
