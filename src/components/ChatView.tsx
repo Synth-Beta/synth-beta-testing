@@ -126,13 +126,26 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
         return;
       }
 
+      // Get the other user's profile information
+      const otherUserId = targetUserId;
+      const { data: otherUserProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('name, avatar_url')
+        .eq('user_id', otherUserId)
+        .single();
+
       // Transform to match our Chat interface
       const directChat: Chat = {
         id: chatData.id,
-        name: 'Direct Chat', // Will be updated with actual user name
+        name: otherUserProfile?.name || 'Unknown User', // Use actual user name
         type: 'direct',
         created_at: chatData.created_at,
-        participants: [],
+        participants: [{
+          user_id: otherUserId,
+          name: otherUserProfile?.name || 'Unknown User',
+          avatar_url: otherUserProfile?.avatar_url || null,
+          role: 'member'
+        }],
         last_message: undefined,
         unread_count: 0
       };
@@ -167,25 +180,54 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
       }
 
       // Transform the data
-      const chatsList = (data || []).map(chat => ({
-        id: chat.id,
-        name: chat.chat_name,
-        type: (chat.is_group_chat ? 'group' : 'direct') as 'direct' | 'group',
-        created_at: chat.created_at,
-        participants: [], // Will be populated separately
-        last_message: chat.latest_message ? {
-          id: chat.latest_message_id,
-          chat_id: chat.id,
-          sender_id: '',
-          message: chat.latest_message,
-          created_at: chat.latest_message_created_at,
-          sender: {
-            name: chat.latest_message_sender_name || 'Unknown',
-            avatar_url: null
+      // For each chat, get participant information
+      const chatsWithParticipants = await Promise.all((data || []).map(async (chat) => {
+        let participants = [];
+        let displayName = chat.chat_name;
+
+        if (!chat.is_group_chat) {
+          // For direct chats, get the other user's profile
+          const otherUserId = chat.users.find((id: string) => id !== currentUserId);
+          if (otherUserId) {
+            const { data: otherUserProfile } = await supabase
+              .from('profiles')
+              .select('name, avatar_url')
+              .eq('user_id', otherUserId)
+              .single();
+            
+            participants = [{
+              user_id: otherUserId,
+              name: otherUserProfile?.name || 'Unknown User',
+              avatar_url: otherUserProfile?.avatar_url || null,
+              role: 'member' as const
+            }];
+            
+            displayName = otherUserProfile?.name || 'Unknown User';
           }
-        } : undefined,
-        unread_count: 0 // Will be calculated separately
+        }
+
+        return {
+          id: chat.id,
+          name: displayName,
+          type: (chat.is_group_chat ? 'group' : 'direct') as 'direct' | 'group',
+          created_at: chat.created_at,
+          participants,
+          last_message: chat.latest_message ? {
+            id: chat.latest_message_id,
+            chat_id: chat.id,
+            sender_id: '',
+            message: chat.latest_message,
+            created_at: chat.latest_message_created_at,
+            sender: {
+              name: chat.latest_message_sender_name || 'Unknown',
+              avatar_url: null
+            }
+          } : undefined,
+          unread_count: 0 // Will be calculated separately
+        };
       }));
+
+      const chatsList = chatsWithParticipants;
 
       console.log('💬 Fetched chats:', chatsList);
       setChats(chatsList);
@@ -514,13 +556,18 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-100 to-white flex items-center justify-center">
-                        {chat.type === 'group' ? (
+                      {chat.type === 'group' ? (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-100 to-white flex items-center justify-center">
                           <Users className="w-5 h-5 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        ) : (
-                          <MessageCircle className="w-5 h-5 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={chat.participants[0]?.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs bg-gradient-to-r from-pink-100 to-white">
+                            {chat.participants[0]?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold gradient-text truncate">
                           {chat.name || 'Direct Chat'}

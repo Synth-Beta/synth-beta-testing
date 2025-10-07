@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Music, CheckCircle, AlertCircle } from 'lucide-react';
 import { appleMusicService } from '@/services/appleMusicService';
+import { spotifyService } from '@/services/spotifyService';
 import { useToast } from '@/hooks/use-toast';
 
 interface UnifiedStreamingStatsProps {
@@ -36,6 +37,30 @@ export const UnifiedStreamingStats = ({
   useEffect(() => {
     checkLastSyncTime();
   }, [detectedService]);
+
+  // Listen for Spotify authentication changes
+  useEffect(() => {
+    const handleSpotifyAuthChange = () => {
+      console.log('🔄 Spotify auth state changed, re-detecting service...');
+      detectStreamingService();
+    };
+
+    // Listen for Spotify token cleared events
+    window.addEventListener('spotify-token-cleared', handleSpotifyAuthChange);
+    
+    // Also listen for storage changes (when Spotify tokens are added/removed)
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'spotify_access_token' || e.key === 'spotify_token_expiry') {
+        console.log('🔄 Spotify localStorage changed, re-detecting service...');
+        detectStreamingService();
+      }
+    });
+
+    return () => {
+      window.removeEventListener('spotify-token-cleared', handleSpotifyAuthChange);
+      window.removeEventListener('storage', handleSpotifyAuthChange);
+    };
+  }, []);
 
   const checkLastSyncTime = () => {
     if (detectedService === 'apple-music') {
@@ -120,6 +145,15 @@ export const UnifiedStreamingStats = ({
   };
 
   const detectStreamingService = (): StreamingService => {
+    // First check if Spotify is already authenticated via localStorage
+    if (spotifyService.checkStoredToken()) {
+      console.log('🎵 Spotify already authenticated, showing Spotify stats');
+      setDetectedService('spotify');
+      setShowServiceSelector(false);
+      return 'spotify';
+    }
+
+    // If no music streaming profile in database, check if we should show selector
     if (!musicStreamingProfile) {
       setDetectedService('unknown');
       setShowServiceSelector(true);

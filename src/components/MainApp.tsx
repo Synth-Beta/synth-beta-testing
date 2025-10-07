@@ -191,10 +191,18 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const handleViewChange = (view: ViewType) => {
     // View changing
     setCurrentView(view);
-    // Clear profileUserId when navigating away from profile
-    if (view !== 'profile') {
+    
+    // Special handling for profile navigation
+    if (view === 'profile') {
+      // If we're already on profile and clicking profile again, go to own profile
+      if (currentView === 'profile') {
+        setProfileUserId(undefined); // Clear to show own profile
+      }
+    } else {
+      // Clear profileUserId when navigating away from profile
       setProfileUserId(undefined);
     }
+    
     // Clear chatUserId when navigating away from chat
     if (view !== 'chat') {
       setChatUserId(undefined);
