@@ -258,10 +258,10 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
 
   const loadEvents = async () => {
     try {
+      // Load both past and future events to show setlists for past events
       const { data: eventsData, error } = await supabase
         .from('jambase_events')
         .select('*')
-        .gte('event_date', new Date().toISOString())
         .order('event_date', { ascending: true });
 
       if (error) throw error;
@@ -288,6 +288,10 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         price_range: event.price_range,
         ticket_urls: event.ticket_urls,
         setlist: event.setlist,
+        setlist_enriched: event.setlist_enriched,
+        setlist_song_count: event.setlist_song_count,
+        setlist_fm_id: event.setlist_fm_id,
+        setlist_fm_url: event.setlist_fm_url,
         tour_name: event.tour_name,
         created_at: event.created_at,
         updated_at: event.updated_at
@@ -413,15 +417,10 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
              lng >= bounds.west && lng <= bounds.east;
     });
     
-    // If no events found in bounds, show all events with valid coordinates as fallback
+    // If no events found in bounds, show all events (including those without coordinates)
+    // This ensures past events with setlists are visible even if they lack coordinates
     if (eventsInBounds.length === 0) {
-      const eventsWithValidCoords = events.filter(event => {
-        if (!event.latitude || !event.longitude) return false;
-        const lat = Number(event.latitude);
-        const lng = Number(event.longitude);
-        return !isNaN(lat) && !isNaN(lng);
-      });
-      setFilteredEvents(eventsWithValidCoords);
+      setFilteredEvents(events);
     } else {
       setFilteredEvents(eventsInBounds);
     }
@@ -498,14 +497,9 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           filterEventsInBounds(mapBounds);
           return; // Skip the rest of the filtering
         } else {
-          // If no map bounds yet, show all events with valid coordinates
-          const eventsWithValidCoords = filtered.filter(event => {
-            if (!event.latitude || !event.longitude) return false;
-            const lat = Number(event.latitude);
-            const lng = Number(event.longitude);
-            return !isNaN(lat) && !isNaN(lng);
-          });
-          setFilteredEvents(eventsWithValidCoords);
+          // If no map bounds yet, show all events (including those without coordinates)
+          // This ensures past events with setlists are visible even if they lack coordinates
+          setFilteredEvents(filtered);
           return; // Skip the rest of the filtering
         }
       }
@@ -805,13 +799,19 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
       venue_zip: event.venue_zip || null,
       latitude: event.latitude || null,
       longitude: event.longitude || null,
-      ticket_available: event.ticket_available || null,
+      ticket_available: event.ticket_available || false,
       price_range: event.price_range || null,
       ticket_urls: event.ticket_urls || null,
       setlist: event.setlist || null,
+      setlist_enriched: event.setlist_enriched || null,
+      setlist_song_count: event.setlist_song_count || null,
+      setlist_fm_id: event.setlist_fm_id || null,
+      setlist_fm_url: event.setlist_fm_url || null,
+      setlist_source: null,
+      setlist_last_updated: null,
       tour_name: event.tour_name || null,
-      created_at: event.created_at,
-      updated_at: event.updated_at
+      created_at: event.created_at || new Date().toISOString(),
+      updated_at: event.updated_at || new Date().toISOString()
     };
   };
 

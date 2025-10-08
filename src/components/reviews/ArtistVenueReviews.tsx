@@ -22,6 +22,8 @@ interface ReviewStats {
 }
 
 interface Review {
+  artist_name: boolean;
+  venue_name: boolean;
   id: string;
   rating: number;
   performance_rating: number;
@@ -162,6 +164,8 @@ export function ArtistVenueReviews({
               .map(review => {
                 const profile = profiles?.find(p => p.user_id === review.user_id);
                 const event = events?.find(e => e.id === review.event_id);
+                
+                
                 return {
                   id: review.id,
                   rating: review.rating,
@@ -325,6 +329,8 @@ export function ArtistVenueReviews({
               .map(review => {
                 const profile = profiles?.find(p => p.user_id === review.user_id);
                 const event = events?.find(e => e.id === review.event_id);
+                
+                
                 return {
                   id: review.id,
                   rating: review.rating,
@@ -462,6 +468,18 @@ export function ArtistVenueReviews({
                 <Calendar className="w-3 h-3" />
                 {formatDate(review.event_date)}
               </div>
+              {isArtistReview && review.venue_name && (
+                <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                  <MapPin className="w-3 h-3" />
+                  {review.venue_name}
+                </div>
+              )}
+              {!isArtistReview && review.artist_name && (
+                <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                  <Music className="w-3 h-3" />
+                  {review.artist_name}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-1">

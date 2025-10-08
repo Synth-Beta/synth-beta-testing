@@ -235,6 +235,12 @@ export type Database = {
           price_range: string | null
           ticket_urls: string[] | null
           setlist: Json | null
+          setlist_enriched: boolean | null
+          setlist_song_count: number | null
+          setlist_fm_id: string | null
+          setlist_fm_url: string | null
+          setlist_source: string | null
+          setlist_last_updated: string | null
           tour_name: string | null
           created_at: string
           updated_at: string
@@ -261,6 +267,12 @@ export type Database = {
           price_range?: string | null
           ticket_urls?: string[] | null
           setlist?: Json | null
+          setlist_enriched?: boolean | null
+          setlist_song_count?: number | null
+          setlist_fm_id?: string | null
+          setlist_fm_url?: string | null
+          setlist_source?: string | null
+          setlist_last_updated?: string | null
           tour_name?: string | null
           created_at?: string
           updated_at?: string
@@ -287,6 +299,12 @@ export type Database = {
           price_range?: string | null
           ticket_urls?: string[] | null
           setlist?: Json | null
+          setlist_enriched?: boolean | null
+          setlist_song_count?: number | null
+          setlist_fm_id?: string | null
+          setlist_fm_url?: string | null
+          setlist_source?: string | null
+          setlist_last_updated?: string | null
           tour_name?: string | null
           created_at?: string
           updated_at?: string

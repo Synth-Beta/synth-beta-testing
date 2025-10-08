@@ -26,7 +26,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
         <div className="text-center mb-16">
           <div className="w-80 h-80 mx-auto mb-8">
             <img
-              src="/Logos/Backup Logo - with crowd (BLACK BACKGROUND).png"
+              src="/Logos/Main logo black background.png"
               alt="Synth Logo"
               className="w-full h-full object-contain"
             />

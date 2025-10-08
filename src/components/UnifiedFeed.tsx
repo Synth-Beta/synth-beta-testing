@@ -308,8 +308,13 @@ export const UnifiedFeed = ({
       
       switch (sortBy) {
         case 'date': {
-          const dateA = new Date(a.created_at).getTime();
-          const dateB = new Date(b.created_at).getTime();
+          // For events, prefer event_date over created_at
+          const dateA = a.type === 'event' && a.event_data?.event_date 
+            ? new Date(a.event_data.event_date).getTime()
+            : new Date(a.created_at).getTime();
+          const dateB = b.type === 'event' && b.event_data?.event_date 
+            ? new Date(b.event_data.event_date).getTime()
+            : new Date(b.created_at).getTime();
           comparison = dateA - dateB;
           break;
         }
@@ -338,7 +343,10 @@ export const UnifiedFeed = ({
           
         case 'relevance':
         default:
-          comparison = a.relevance_score - b.relevance_score;
+          // Handle undefined relevance scores
+          const relevanceA = a.relevance_score ?? 0;
+          const relevanceB = b.relevance_score ?? 0;
+          comparison = relevanceA - relevanceB;
           break;
       }
       
@@ -349,7 +357,8 @@ export const UnifiedFeed = ({
   // Extract numeric price from price_range string
   const extractPrice = (item: UnifiedFeedItem): number => {
     if (item.type === 'event' && item.event_data?.price_range) {
-      return extractNumericPrice(item.event_data.price_range);
+      const price = extractNumericPrice(item.event_data.price_range);
+      return price;
     }
     return 0;
   };
@@ -457,14 +466,17 @@ export const UnifiedFeed = ({
           <p className="text-gray-600 text-sm">Discover concerts, reviews, and connect with the community</p>
         </div>
         
-        <div className="glass-card inner-glow flex items-center justify-between px-6 py-2 sticky top-4 z-30">
+        <div className="glass-card inner-glow flex items-center justify-between px-6 py-3 sticky top-4 z-30">
           {/* Sort Controls */}
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-gray-700">Sort by:</span>
+            <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <ArrowUpDown className="w-4 h-4" />
+              Sort by:
+            </span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="synth-input text-sm"
+              className="synth-input text-sm bg-white/80 backdrop-blur-sm border border-border/50 rounded-xl px-3 py-2 min-w-[120px]"
             >
               <option value="relevance">Relevance</option>
               <option value="date">Date</option>
@@ -476,7 +488,8 @@ export const UnifiedFeed = ({
               variant="outline"
               size="sm"
               onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="p-2"
+              className="p-2 bg-white/80 backdrop-blur-sm border border-border/50 hover:border-synth-pink/50"
+              title={`Sort ${sortOrder === 'asc' ? 'Ascending' : 'Descending'}`}
             >
               {sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
             </Button>
@@ -623,6 +636,19 @@ export const UnifiedFeed = ({
                       <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 bg-gray-50/50 p-3 rounded-lg">
                         {item.content}
                       </p>
+                    )}
+                    {/* Setlist display for past events */}
+                    {item.event_data && isEventPast(item.event_data.event_date) && item.event_data.setlist && (
+                      <div className="mt-3 p-3 bg-gradient-to-r from-purple-50/80 to-pink-50/80 rounded-lg border border-purple-200/50">
+                        <div className="flex items-center gap-2">
+                          <Music className="w-4 h-4 text-purple-600" />
+                          <span className="text-sm font-semibold text-purple-900">Setlist Available</span>
+                          <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">
+                            {item.event_data.setlist_song_count ? `${item.event_data.setlist_song_count} songs` : 'Setlist'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-purple-700 mt-1">Click to view the full setlist from this show</p>
+                      </div>
                     )}
                   </div>
 

@@ -399,4 +399,145 @@ export class UserEventService {
       throw new Error(`Failed to get user upcoming events: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
+  /**
+   * Mark user as having attended an event (without requiring a review)
+   */
+  static async markUserAttendance(
+    userId: string,
+    eventId: string,
+    wasThere: boolean
+  ): Promise<void> {
+    try {
+      // Check if user already has a review for this event
+      const { data: existingReview, error: checkError } = await (supabase as any)
+        .from('user_reviews')
+        .select('id, was_there')
+        .eq('user_id', userId)
+        .eq('event_id', eventId)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      if (existingReview) {
+        // Update existing review with attendance status
+        const { error } = await (supabase as any)
+          .from('user_reviews')
+          .update({
+            was_there: wasThere,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .eq('event_id', eventId);
+
+        if (error) throw error;
+      } else {
+        // Create a minimal review record just for attendance tracking
+        const { error } = await (supabase as any)
+          .from('user_reviews')
+          .insert({
+            user_id: userId,
+            event_id: eventId,
+            rating: 1, // Minimum valid rating for attendance-only records
+            review_text: 'ATTENDANCE_ONLY', // Special marker for attendance-only records
+            was_there: wasThere,
+            is_public: false, // Keep attendance private by default
+            likes_count: 0,
+            comments_count: 0,
+            shares_count: 0,
+            review_type: 'event', // Use valid enum value
+            performance_rating: null, // No specific rating for attendance-only records
+            venue_rating_new: null, // No specific rating for attendance-only records
+            overall_experience_rating: null, // No specific rating for attendance-only records
+            rank_order: 0
+          });
+
+        if (error) throw error;
+      }
+
+      try {
+        trackInteraction.interest('event', eventId, wasThere, { action: 'attendance' });
+      } catch {}
+    } catch (error) {
+      console.error('Error marking user attendance:', error);
+      throw new Error(`Failed to mark attendance: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Check if user attended an event
+   */
+  static async getUserAttendance(userId: string, eventId: string): Promise<boolean> {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('user_reviews')
+        .select('was_there')
+        .eq('user_id', userId)
+        .eq('event_id', eventId)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return Boolean((data as any)?.was_there);
+    } catch (error) {
+      console.error('Error checking user attendance:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get attendance count for an event
+   */
+  static async getEventAttendanceCount(eventId: string): Promise<number> {
+    try {
+      const { count, error } = await (supabase as any)
+        .from('user_reviews')
+        .select('*', { count: 'exact', head: true })
+        .eq('event_id', eventId)
+        .eq('was_there', true);
+
+      if (error) throw error;
+      return count || 0;
+    } catch (error) {
+      console.error('Error getting event attendance count:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get users who attended an event (for display purposes)
+   */
+  static async getEventAttendees(eventId: string, limit: number = 10): Promise<Array<{
+    user_id: string;
+    name: string;
+    avatar_url?: string;
+  }>> {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('user_reviews')
+        .select(`
+          user_id,
+          profiles(
+            user_id,
+            name,
+            avatar_url
+          )
+        `)
+        .eq('event_id', eventId)
+        .eq('was_there', true)
+        .limit(limit);
+
+      if (error) throw error;
+
+      return (data || []).map((row: any) => ({
+        user_id: row.user_id,
+        name: row.profiles.name,
+        avatar_url: row.profiles.avatar_url
+      }));
+    } catch (error) {
+      console.error('Error getting event attendees:', error);
+      return [];
+    }
+  }
 }

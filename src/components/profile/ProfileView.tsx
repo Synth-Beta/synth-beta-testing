@@ -69,6 +69,18 @@ interface ConcertReview {
     event_date: string;
     event_time: string;
   };
+  jambase_events?: {
+    id: string;
+    title: string;
+    artist_name: string;
+    venue_name: string;
+    event_date: string;
+    venue_city?: string | null;
+    venue_state?: string | null;
+    setlist?: any;
+    setlist_song_count?: number | null;
+    setlist_fm_url?: string | null;
+  };
 }
 
 export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat }: ProfileViewProps) => {
@@ -80,8 +92,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
   const [reviewModalEvent, setReviewModalEvent] = useState<any>(null);
   const [friends, setFriends] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState('posts');
-  const [rankingMode, setRankingMode] = useState(false);
+  const [activeTab, setActiveTab] = useState('my-events');
+  const [rankingMode, setRankingMode] = useState<boolean | 'unreviewed'>(false);
+  const [attendedEvents, setAttendedEvents] = useState<any[]>([]);
+  const [attendedEventsLoading, setAttendedEventsLoading] = useState(false);
   const [canViewInterested, setCanViewInterested] = useState<boolean>(true);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -98,8 +112,16 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const isViewingOwnProfile = !profileUserId || profileUserId === currentUserId;
 
   useEffect(() => {
+    console.log('🔍 ProfileView: useEffect triggered with:', {
+      targetUserId,
+      sessionExpired,
+      user: user?.id,
+      hasUser: !!user
+    });
+    
     // Don't fetch data if session is expired
     if (sessionExpired) {
+      console.log('🔍 ProfileView: Session expired, skipping data fetch');
       setLoading(false);
       return;
     }
@@ -117,11 +139,17 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     // Ensure we wait for both minimum time AND data fetching
     const fetchData = async () => {
       try {
+        console.log('🔍 ProfileView: fetchData function called');
         console.log('🔍 ProfileView: About to fetch profile...');
         await fetchProfile();
+        console.log('🔍 ProfileView: About to fetch user events...');
         await fetchUserEvents();
+        console.log('🔍 ProfileView: About to fetch reviews...');
         await fetchReviews();
+        console.log('🔍 ProfileView: About to fetch friends...');
         await fetchFriends();
+        console.log('🔍 ProfileView: About to fetch attended events...');
+        await fetchAttendedEvents();
         if (!isViewingOwnProfile) {
           await checkFriendStatus();
         }
@@ -284,45 +312,112 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   const fetchUserEvents = async () => {
     try {
+      console.log('🔍 ProfileView: fetchUserEvents called for user:', targetUserId);
+      
       // Check if session is expired before making any requests
       if (sessionExpired || !user) {
         console.log('Session expired or no user, skipping user events fetch');
         return;
       }
 
+      console.log('🔍 ProfileView: Calling JamBaseService.getUserEvents...');
       const data = await JamBaseService.getUserEvents(targetUserId);
+      console.log('🔍 ProfileView: JamBaseService.getUserEvents returned:', data?.length, 'events');
       
-      const events = data?.map(item => ({
+      // Get events that user has attended to exclude them from interested events
+      const { data: attendanceData } = await (supabase as any)
+        .from('user_reviews')
+        .select('event_id')
+        .eq('user_id', targetUserId)
+        .eq('was_there', true);
+      
+      const attendedEventIds = new Set(attendanceData?.map((a: any) => a.event_id) || []);
+      
+      const events = data?.map(item => {
+        const jambaseEvent = item?.jambase_event as any; // Type assertion to include setlist fields
+        
+        // Debug all events to see what we're getting
+        console.log('ProfileView: Processing event in getUserEvents:', {
+          title: jambaseEvent?.title,
+          artist_name: jambaseEvent?.artist_name,
+          venue_name: jambaseEvent?.venue_name
+        });
+        
+        // Debug specific event if it's the Anotha event
+        if (jambaseEvent?.title?.includes('Anotha')) {
+          console.log('ProfileView: Found Anotha event in getUserEvents:', {
+            item,
+            jambaseEvent,
+            title: jambaseEvent?.title,
+            artist_name: jambaseEvent?.artist_name,
+            venue_name: jambaseEvent?.venue_name,
+            venue_city: jambaseEvent?.venue_city,
+            venue_state: jambaseEvent?.venue_state
+          });
+        }
+        
+        const processedEvent = {
         // Ensure all required fields are present with proper defaults
-        id: item?.jambase_event?.id ?? '',
-        jambase_event_id: item?.jambase_event?.jambase_event_id ?? item?.jambase_event?.id ?? '',
-        title: item?.jambase_event?.title ?? '',
-        artist_name: item?.jambase_event?.artist_name ?? '',
-        artist_id: item?.jambase_event?.artist_id ?? null,
-        venue_name: item?.jambase_event?.venue_name ?? '',
-        venue_id: item?.jambase_event?.venue_id ?? null,
-        venue_address: item?.jambase_event?.venue_address ?? null,
-        venue_city: item?.jambase_event?.venue_city ?? null,
-        venue_state: item?.jambase_event?.venue_state ?? null,
-        venue_zip: item?.jambase_event?.venue_zip ?? null,
-        event_date: item?.jambase_event?.event_date ?? '',
-        doors_time: item?.jambase_event?.doors_time ?? null,
-        description: item?.jambase_event?.description ?? null,
-        genres: Array.isArray(item?.jambase_event?.genres) ? item.jambase_event.genres : [],
-        latitude: item?.jambase_event?.latitude ?? null,
-        longitude: item?.jambase_event?.longitude ?? null,
-        ticket_available: Boolean(item?.jambase_event?.ticket_available),
-        price_range: item?.jambase_event?.price_range ?? null,
-        ticket_urls: item?.jambase_event?.ticket_urls || [],
+          id: jambaseEvent?.id ?? '',
+          jambase_event_id: jambaseEvent?.jambase_event_id ?? jambaseEvent?.id ?? '',
+          title: jambaseEvent?.title ?? '',
+          artist_name: jambaseEvent?.artist_name ?? '',
+          artist_id: jambaseEvent?.artist_id ?? null,
+          venue_name: jambaseEvent?.venue_name ?? '',
+          venue_id: jambaseEvent?.venue_id ?? null,
+          venue_address: jambaseEvent?.venue_address ?? null,
+          venue_city: jambaseEvent?.venue_city ?? null,
+          venue_state: jambaseEvent?.venue_state ?? null,
+          venue_zip: jambaseEvent?.venue_zip ?? null,
+          event_date: jambaseEvent?.event_date ?? '',
+          doors_time: jambaseEvent?.doors_time ?? null,
+          description: jambaseEvent?.description ?? null,
+          genres: Array.isArray(jambaseEvent?.genres) ? jambaseEvent.genres : [],
+          latitude: jambaseEvent?.latitude ?? null,
+          longitude: jambaseEvent?.longitude ?? null,
+          ticket_available: Boolean(jambaseEvent?.ticket_available),
+          price_range: jambaseEvent?.price_range ?? null,
+          ticket_urls: jambaseEvent?.ticket_urls || [],
         setlist: null,
-        tour_name: null,
+        setlist_enriched: null,
+        setlist_song_count: null,
+        setlist_fm_id: null,
+        setlist_fm_url: null,
+        setlist_source: null,
+        setlist_last_updated: null,
+          tour_name: jambaseEvent?.tour_name ?? null,
         created_at: item.created_at,
         updated_at: item.created_at
-      })) || [];
+        };
+        
+        // Debug specific event if it's the Anotha event
+        if (jambaseEvent?.title?.includes('Anotha')) {
+          console.log('ProfileView: Processed Anotha event:', {
+            processedEvent,
+            title: processedEvent.title,
+            artist_name: processedEvent.artist_name,
+            venue_name: processedEvent.venue_name,
+            venue_city: processedEvent.venue_city,
+            venue_state: processedEvent.venue_state
+          });
+        }
+        
+        return processedEvent;
+      }) || [];
 
-      setUserEvents(events);
+      // Filter out events that user has attended (moved to My Events)
+      const filteredEvents = events.filter(event => !attendedEventIds.has(event.id));
+
+      console.log('ProfileView: Final filtered events:', filteredEvents.map(ev => ({
+        title: ev.title,
+        artist_name: ev.artist_name,
+        venue_name: ev.venue_name
+      })));
+
+      setUserEvents(filteredEvents);
+      console.log('🔍 ProfileView: fetchUserEvents completed successfully');
     } catch (error) {
-      console.error('Error fetching user events:', error);
+      console.error('❌ ProfileView: Error fetching user events:', error);
       setUserEvents([]);
     } finally {
       setLoading(false);
@@ -462,6 +557,103 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     } catch (error) {
       console.warn('Warning: Error fetching friends:', error);
       setFriends([]);
+    }
+  };
+
+  const fetchAttendedEvents = async () => {
+    try {
+      // Check if session is expired before making any requests
+      if (sessionExpired || !user) {
+        console.log('Session expired or no user, skipping attended events fetch');
+        return;
+      }
+
+      console.log('🔍 ProfileView: Fetching attended events for user:', targetUserId);
+      setAttendedEventsLoading(true);
+      
+      // Fetch events where user has reviews (implies attendance)
+      // Also include events where was_there = true (attendance without review)
+    const { data, error } = await (supabase as any)
+      .from('user_reviews')
+      .select(`
+        id, 
+        event_id, 
+        rating, 
+        review_text, 
+        was_there, 
+        is_public, 
+        created_at, 
+        updated_at,
+        jambase_events(
+          id,
+          title,
+          artist_name,
+          venue_name,
+          event_date,
+          venue_city,
+          venue_state,
+          setlist,
+          setlist_enriched,
+          setlist_song_count,
+          setlist_fm_id,
+          setlist_fm_url,
+          setlist_source,
+          setlist_last_updated
+        )
+      `)
+      .eq('user_id', targetUserId)
+      .or('was_there.eq.true,review_text.not.is.null')
+      .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching attended events:', error);
+        setAttendedEvents([]);
+        return;
+      }
+
+      console.log('🔍 ProfileView: Attended events data:', data);
+      console.log('🔍 ProfileView: Total attended events fetched:', data?.length);
+      
+      // Log breakdown of event types
+      const withReviews = data?.filter(item => item.review_text && item.review_text !== 'ATTENDANCE_ONLY').length || 0;
+      const attendanceOnly = data?.filter(item => item.review_text === 'ATTENDANCE_ONLY').length || 0;
+      const noReview = data?.filter(item => !item.review_text).length || 0;
+      
+      console.log('📊 Event breakdown:');
+      console.log(`   With reviews: ${withReviews}`);
+      console.log(`   Attendance only: ${attendanceOnly}`);
+      console.log(`   No review: ${noReview}`);
+      console.log(`   Total: ${data?.length}`);
+      
+      // Fetch event details for each attendance record
+      if (data && data.length > 0) {
+        const eventIds = data.map(item => item.event_id);
+        const { data: events, error: eventsError } = await supabase
+          .from('jambase_events')
+          .select('id, title, artist_name, venue_name, event_date, venue_city, venue_state')
+          .in('id', eventIds);
+          
+        if (eventsError) {
+          console.error('Error fetching event details:', eventsError);
+          setAttendedEvents([]);
+          return;
+        }
+        
+        // Combine attendance records with event data
+        const combinedData = data.map(attendance => ({
+          ...attendance,
+          jambase_events: events?.find(event => event.id === attendance.event_id)
+        }));
+        
+        setAttendedEvents(combinedData);
+      } else {
+        setAttendedEvents([]);
+      }
+    } catch (error) {
+      console.error('Error fetching attended events:', error);
+      setAttendedEvents([]);
+    } finally {
+      setAttendedEventsLoading(false);
     }
   };
 
@@ -622,8 +814,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   };
 
   const handleReviewSubmitted = (review: any) => {
-    // Refresh reviews after submission
+    // Refresh reviews and attended events after submission
     fetchReviews();
+    fetchAttendedEvents();
     setShowAddReview(false);
     setReviewModalEvent(null);
     
@@ -907,9 +1100,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         {/* Instagram-style Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="glass-card inner-glow grid w-full grid-cols-3 mb-6 p-1 floating-shadow">
-            <TabsTrigger value="posts" className="flex items-center gap-2">
-              <Grid className="w-4 h-4" />
-              Posts
+            <TabsTrigger value="my-events" className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              My Events
             </TabsTrigger>
             {canViewInterested && (
               <TabsTrigger value="interested" className="flex items-center gap-2">
@@ -923,21 +1116,56 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="posts" className="mt-6 mb-40">
-            <div className="flex items-center justify-between mb-3 p-4">
-              <h3 className="gradient-text text-sm font-medium">{isViewingOwnProfile ? 'Your Reviews' : 'Reviews'}</h3>
+          {/* My Events Tab - Show attended events with review/ranking toggle */}
+          <TabsContent value="my-events" className="mt-6 mb-40">
+            <div className="flex items-center justify-between mb-6 p-4">
+              <h3 className="gradient-text text-lg font-semibold">
+                {isViewingOwnProfile ? 'My Events' : `${profile?.name || 'User'}'s Events`}
+              </h3>
               {isViewingOwnProfile && (
-                <Button variant={rankingMode ? 'default' : 'outline'} size="sm" onClick={() => setRankingMode(v => !v)} className="hover-button gradient-button">
-                  {rankingMode ? 'Done' : 'Ranking mode'}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">View mode:</span>
+                  <div className="bg-gray-100 rounded-lg p-1 flex">
+                    <button
+                      onClick={() => setRankingMode(false)}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        !rankingMode
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Reviews
+                    </button>
+                    <button
+                      onClick={() => setRankingMode(true)}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        rankingMode
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Rankings
+                    </button>
+                    <button
+                      onClick={() => setRankingMode('unreviewed')}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        rankingMode === 'unreviewed'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Unreviewed
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
 
-            {!rankingMode && (
+            {rankingMode === false && (
             <PostsGrid 
               posts={[
-                // Transform reviews into posts
-                ...reviews.map((review) => ({
+                  // Transform reviews into posts (exclude attendance-only records)
+                  ...reviews.filter(review => (review as any).review_text !== 'ATTENDANCE_ONLY').map((review) => ({
                   id: `review-${review.id}`,
                   type: 'review' as const,
                   image: Array.isArray((review as any)?.photos) && (review as any).photos.length > 0 ? (review as any).photos[0] : undefined,
@@ -979,18 +1207,26 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   const review = reviews.find(r => r.id === reviewId);
                   if (review) {
                     // Open view modal first (same cool card as feed)
+                    console.log('ProfileView: Setting selectedReview from reviews array:', {
+                      review,
+                      'review.jambase_events': review.jambase_events,
+                      'review.jambase_events?.title': review.jambase_events?.title,
+                      'review.jambase_events?.artist_name': review.jambase_events?.artist_name,
+                      'review.jambase_events?.venue_name': review.jambase_events?.venue_name
+                    });
                     setSelectedReview(review as any);
                     try { console.log('🔎 Opening review modal for', review.id); } catch {}
                     setViewReviewOpen(true);
                   }
                 }
               }}
-            />)}
+              />
+            )}
 
-            {rankingMode && isViewingOwnProfile && (
+            {rankingMode === true && isViewingOwnProfile && (
               <div className="space-y-6">
                 {[5,4.5,4,3.5,3,2.5,2,1.5,1].map(ratingGroup => {
-                  const group = reviews.filter(r => getDisplayRating(r) === ratingGroup);
+                  const group = reviews.filter(r => (r as any).review_text !== 'ATTENDANCE_ONLY' && getDisplayRating(r) === ratingGroup); // Exclude attendance-only records
                   if (group.length === 0) return null as any;
                   return (
                     <div key={ratingGroup}>
@@ -1063,8 +1299,159 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               </div>
             )}
             
-            {/* Floating Add Button - only show for own profile */}
-            {!rankingMode && isViewingOwnProfile && (
+            {rankingMode === 'unreviewed' && isViewingOwnProfile && (
+              <div className="space-y-4">
+                {attendedEventsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
+                    <p className="text-sm text-gray-600">Loading unreviewed events...</p>
+                  </div>
+                ) : (
+                  (() => {
+                    // Filter for events that were attended but not reviewed
+                    const unreviewedEvents = attendedEvents.filter(attendance => {
+                      const isAttendanceOnly = attendance.review_text === 'ATTENDANCE_ONLY'; // Special marker for attendance-only records
+                      return isAttendanceOnly;
+                    });
+
+                    if (unreviewedEvents.length === 0) {
+                      return (
+                        <div className="text-center py-12">
+                          <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
+                          <p className="text-gray-600 mb-4">
+                            You've reviewed all the events you've attended. Great job!
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-4">
+                        {unreviewedEvents.map((attendance) => {
+                          const event = attendance.jambase_events;
+                          
+                          return (
+                            <Card key={attendance.id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {
+                              // Ensure we have complete event data for the modal
+                              // Handle both direct event objects and nested jambase_event objects
+                              const eventData = event.jambase_event || event;
+                              const completeEvent = {
+                                ...eventData,
+                                // Ensure all required fields are present with proper fallbacks
+                                id: eventData.id || event.id || attendance.event_id,
+                                title: eventData.title || event.title || 'Unknown Event',
+                                artist_name: eventData.artist_name || event.artist_name || 'Unknown Artist',
+                                venue_name: eventData.venue_name || event.venue_name || 'Unknown Venue',
+                                event_date: eventData.event_date || event.event_date || new Date().toISOString(),
+                                venue_city: eventData.venue_city || event.venue_city || null,
+                                venue_state: eventData.venue_state || event.venue_state || null,
+                                setlist: eventData.setlist || event.setlist || null,
+                                setlist_song_count: eventData.setlist_song_count || event.setlist_song_count || null,
+                                setlist_fm_url: eventData.setlist_fm_url || event.setlist_fm_url || null
+                              };
+                              
+                              console.log('ProfileView: Complete event data for modal:', {
+                                originalEvent: event,
+                                completeEvent,
+                                attendanceEventId: attendance.event_id
+                              });
+                              setSelectedEvent(completeEvent);
+                              setDetailsOpen(true);
+                            }}>
+                              <CardContent className="p-6">
+                                <div className="flex items-start justify-between mb-4">
+                                  <div className="flex-1">
+                                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                                      {event.title}
+                                    </h4>
+                                    <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                                      <div className="flex items-center gap-1">
+                                        <Music className="w-4 h-4" />
+                                        <span>{event.artist_name}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <MapPin className="w-4 h-4" />
+                                        <span>{event.venue_name}</span>
+                                        {event.venue_city && (
+                                          <span className="text-gray-400">• {event.venue_city}, {event.venue_state}</span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <Calendar className="w-4 h-4" />
+                                        <span>{new Date(event.event_date).toLocaleDateString()}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-orange-600 border-orange-300">
+                                      <Calendar className="w-3 h-3 mr-1" />
+                                      Needs Review
+                                    </Badge>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-gray-500">
+                                    Attended on {new Date(attendance.created_at).toLocaleDateString()}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Ensure we have complete event data for the modal
+                                        // Handle both direct event objects and nested jambase_event objects
+                                        const eventData = event.jambase_event || event;
+                                        const completeEvent = {
+                                          ...eventData,
+                                          // Ensure all required fields are present with proper fallbacks
+                                          id: eventData.id || event.id || attendance.event_id,
+                                          title: eventData.title || event.title || 'Unknown Event',
+                                          artist_name: eventData.artist_name || event.artist_name || 'Unknown Artist',
+                                          venue_name: eventData.venue_name || event.venue_name || 'Unknown Venue',
+                                          event_date: eventData.event_date || event.event_date || new Date().toISOString(),
+                                          venue_city: eventData.venue_city || event.venue_city || null,
+                                          venue_state: eventData.venue_state || event.venue_state || null,
+                                          setlist: eventData.setlist || event.setlist || null,
+                                          setlist_song_count: eventData.setlist_song_count || event.setlist_song_count || null,
+                                          setlist_fm_url: eventData.setlist_fm_url || event.setlist_fm_url || null
+                                        };
+                                        setSelectedEvent(completeEvent);
+                                        setDetailsOpen(true);
+                                      }}
+                                    >
+                                      <ExternalLink className="w-4 h-4 mr-2" />
+                                      View Event
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setReviewModalEvent(event);
+                                        setShowAddReview(true);
+                                      }}
+                                      className="bg-primary hover:bg-primary/90"
+                                    >
+                                      <Star className="w-4 h-4 mr-2" />
+                                      Add Review
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+            )}
+            
+            {/* Floating Add Button - only show for own profile in reviews mode */}
+            {rankingMode === false && isViewingOwnProfile && (
             <div className="fixed bottom-20 right-4 z-10">
               <Button 
                 onClick={handleOpenReviewModal} 
@@ -1136,8 +1523,34 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                           showPastEvents ? 'opacity-75' : ''
                         }`}
                         onClick={() => { 
-                          console.log('ProfileView: Event data being passed to modal:', ev);
-                          setSelectedEvent(ev as any); 
+                          console.log('ProfileView: Event data being passed to modal from interested events:', ev);
+                          // Ensure we have complete event data for the modal
+                          // The event from fetchUserEvents is already processed, so use it directly
+                          const completeEvent = {
+                            ...ev,
+                            // Ensure all required fields are present with proper fallbacks
+                            id: ev.id || ev.jambase_event_id,
+                            title: ev.title || 'Unknown Event',
+                            artist_name: ev.artist_name || 'Unknown Artist',
+                            venue_name: ev.venue_name || 'Unknown Venue',
+                            event_date: ev.event_date || new Date().toISOString(),
+                            venue_city: ev.venue_city || null,
+                            venue_state: ev.venue_state || null,
+                            setlist: ev.setlist || null,
+                            setlist_song_count: ev.setlist_song_count || null,
+                            setlist_fm_url: ev.setlist_fm_url || null
+                          };
+                          
+                          console.log('ProfileView: Complete event data for modal from interested events:', {
+                            originalEvent: ev,
+                            completeEvent,
+                            artist_name: completeEvent.artist_name,
+                            venue_name: completeEvent.venue_name,
+                            venue_city: completeEvent.venue_city,
+                            venue_state: completeEvent.venue_state
+                          });
+                          
+                          setSelectedEvent(completeEvent); 
                           setDetailsOpen(true); 
                         }}
                       >
@@ -1200,38 +1613,209 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         onReviewSubmitted={handleReviewSubmitted}
       />
 
-      {/* Review View Dialog - same card as feed, opens from profile grid */}
+      {/* Review View Dialog - Instagram-style layout */}
       {viewReviewOpen && selectedReview && (
         <Dialog open={viewReviewOpen} onOpenChange={setViewReviewOpen}>
-          <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
-            <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
-              <DialogTitle>Review</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
-              <ProfileReviewCard
-                title={selectedReview.event?.event_name || 'Concert Review'}
-                rating={selectedReview.rating}
-                reviewText={selectedReview.review_text}
-                event={{
-                  event_name: selectedReview.event?.event_name,
-                  event_date: selectedReview.event?.event_date,
-                  artist_name: selectedReview.event?.artist_name,
-                  artist_id: null,
-                  venue_name: selectedReview.event?.venue_name,
-                  venue_id: selectedReview.event?.venue_id
-                }}
-                reviewId={selectedReview.id}
-                currentUserId={currentUserId}
-                initialIsLiked={Boolean(selectedReview.is_liked)}
-                initialLikesCount={selectedReview.likes_count || 0}
-                initialCommentsCount={selectedReview.comments_count || 0}
-                onOpenArtist={(_id, _name) => {}}
-                onOpenVenue={(_id, _name) => {}}
-              />
-              <div className="flex justify-end gap-2 pb-2">
+          <DialogContent className="max-w-5xl w-[90vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden flex" aria-describedby={undefined}>
+            {/* Left side - Image/Graphic */}
+            <div className="flex-1 bg-black flex items-center justify-center min-h-0">
+              {Array.isArray((selectedReview as any)?.photos) && (selectedReview as any).photos.length > 0 ? (
+                <img 
+                  src={(selectedReview as any).photos[0]} 
+                  alt="Review photo"
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : (
+                <div className="text-center text-white">
+                  <div className="text-6xl font-bold mb-4">
+                    <span className="text-pink-500">S</span>ynth
+                  </div>
+                  <div className="w-32 h-0.5 bg-white mx-auto mb-4"></div>
+                  <div className="text-sm opacity-80">Concert Review</div>
+                </div>
+              )}
+            </div>
+            
+            {/* Right side - Content */}
+            <div className="flex-1 flex flex-col bg-white">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-bold">
+                      {profile?.name?.charAt(0) || 'U'}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm">{profile?.name || 'User'}</div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(selectedReview.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setViewReviewOpen(false)}>
+                  ✕
+                </Button>
+              </div>
+              
+              {/* Content */}
+              <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+                {/* Event Info */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h2 className="text-lg font-semibold mb-1">
+                        {selectedReview.jambase_events?.title || 'Concert Review'}
+                      </h2>
+                      <p className="text-sm text-gray-600">
+                        {selectedReview.jambase_events?.artist_name} • {new Date(selectedReview.jambase_events?.event_date).toLocaleDateString()}
+                      </p>
+                      {selectedReview.jambase_events?.venue_name && (
+                        <p className="text-sm text-gray-500">
+                          {selectedReview.jambase_events.venue_name}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setViewReviewOpen(false);
+                        // Ensure we have complete event data for the modal
+                        // The event data is nested under jambase_events in the review object
+                        const eventData = selectedReview.jambase_events;
+                        
+                        
+                        const completeEvent = {
+                          ...eventData,
+                          // Ensure all required fields are present with proper fallbacks
+                          id: eventData?.id || selectedReview.event_id,
+                          title: eventData?.title || 'Unknown Event',
+                          artist_name: eventData?.artist_name || 'Unknown Artist',
+                          venue_name: eventData?.venue_name || 'Unknown Venue',
+                          event_date: eventData?.event_date || new Date().toISOString(),
+                          venue_city: eventData?.venue_city || null,
+                          venue_state: eventData?.venue_state || null,
+                          setlist: eventData?.setlist || null,
+                          setlist_song_count: eventData?.setlist_song_count || null,
+                          setlist_fm_url: eventData?.setlist_fm_url || null
+                        };
+                        
+                        setSelectedEvent(completeEvent);
+                        setDetailsOpen(true);
+                      }}
+                      className="ml-3 flex-shrink-0"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      View Event
+                    </Button>
+                  </div>
+                  
+                  {/* Event Status Badge */}
+                  <div className="flex items-center gap-2">
+                    {new Date(selectedReview.event?.event_date) < new Date() ? (
+                      <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        Past Event
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        Upcoming
+                      </Badge>
+                    )}
+                    {selectedReview.event?.venue_city && selectedReview.event?.venue_state && (
+                      <Badge variant="outline" className="text-xs">
+                        <MapPin className="w-3 h-3 mr-1" />
+                        {selectedReview.event.venue_city}, {selectedReview.event.venue_state}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Rating */}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-5 h-5 ${
+                          i < Math.floor(selectedReview.rating) 
+                            ? 'text-yellow-500 fill-yellow-500' 
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                    <span className="text-sm font-medium ml-1">{selectedReview.rating}/5</span>
+                  </div>
+                </div>
+                
+                {/* Category Ratings */}
+                {((selectedReview as any).performance_rating || (selectedReview as any).venue_rating_new || (selectedReview as any).overall_experience_rating) && (
+                  <div className="flex flex-wrap gap-2">
+                    {(selectedReview as any).performance_rating && (
+                      <Badge variant="secondary" className="text-xs">
+                        Performance {(selectedReview as any).performance_rating}
+                      </Badge>
+                    )}
+                    {(selectedReview as any).venue_rating_new && (
+                      <Badge variant="secondary" className="text-xs">
+                        Venue {(selectedReview as any).venue_rating_new}
+                      </Badge>
+                    )}
+                    {(selectedReview as any).overall_experience_rating && (
+                      <Badge variant="secondary" className="text-xs">
+                        Experience {(selectedReview as any).overall_experience_rating}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+                
+                {/* Review Text */}
+                {selectedReview.review_text && (
+                  <div>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {selectedReview.review_text}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Additional Review Texts */}
+                {((selectedReview as any).performance_review_text || (selectedReview as any).venue_review_text || (selectedReview as any).overall_experience_review_text) && (
+                  <div className="space-y-3">
+                    {(selectedReview as any).performance_review_text && (
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 mb-1">Performance</h4>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          {(selectedReview as any).performance_review_text}
+                        </p>
+                      </div>
+                    )}
+                    {(selectedReview as any).venue_review_text && (
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 mb-1">Venue</h4>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          {(selectedReview as any).venue_review_text}
+                        </p>
+                      </div>
+                    )}
+                    {(selectedReview as any).overall_experience_review_text && (
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 mb-1">Overall Experience</h4>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          {(selectedReview as any).overall_experience_review_text}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Actions */}
+              <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
                 <Button variant="outline" onClick={() => setViewReviewOpen(false)}>Close</Button>
                 {isViewingOwnProfile && selectedReview?.user_id === currentUserId && (
-                  <Button onClick={() => { setViewReviewOpen(false); handleEditReview(selectedReview); }}>Edit</Button>
+                  <Button onClick={() => { setViewReviewOpen(false); handleEditReview(selectedReview); }}>Edit Review</Button>
                 )}
               </div>
             </div>

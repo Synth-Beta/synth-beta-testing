@@ -170,7 +170,15 @@ export class JamBaseService {
           longitude,
           price_range,
           ticket_available,
-          ticket_urls
+          ticket_urls,
+          setlist,
+          setlist_enriched,
+          setlist_song_count,
+          setlist_fm_id,
+          setlist_fm_url,
+          setlist_source,
+          setlist_last_updated,
+          tour_name
         )
       `)
       .eq('user_id', userId)
@@ -247,7 +255,15 @@ export class JamBaseService {
           description,
           genres,
           price_range,
-          ticket_available
+          ticket_available,
+          setlist,
+          setlist_enriched,
+          setlist_song_count,
+          setlist_fm_id,
+          setlist_fm_url,
+          setlist_source,
+          setlist_last_updated,
+          tour_name
         )
       `)
       .eq('user_id', userId)

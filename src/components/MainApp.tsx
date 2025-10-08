@@ -268,8 +268,18 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
+        <div className="text-center space-y-6">
+          <div className="w-32 h-32 mx-auto">
+            <img
+              src="/Logos/Main logo black background.png"
+              alt="Synth Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }

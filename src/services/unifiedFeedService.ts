@@ -249,6 +249,10 @@ export class UnifiedFeedService {
             price_range: event.price_range,
             ticket_urls: event.ticket_urls,
             setlist: event.setlist,
+            setlist_enriched: event.setlist_enriched,
+            setlist_song_count: event.setlist_song_count,
+            setlist_fm_id: event.setlist_fm_id,
+            setlist_fm_url: event.setlist_fm_url,
             tour_name: event.tour_name,
             created_at: event.created_at,
             updated_at: event.updated_at

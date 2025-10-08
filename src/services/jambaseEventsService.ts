@@ -48,6 +48,10 @@ export interface JamBaseEventResponse {
   price_range?: string;
   ticket_urls?: string[];
   setlist?: any;
+  setlist_enriched?: boolean;
+  setlist_song_count?: number;
+  setlist_fm_id?: string;
+  setlist_fm_url?: string;
   tour_name?: string;
   created_at?: string;
   updated_at?: string;

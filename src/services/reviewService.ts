@@ -253,6 +253,7 @@ export class ReviewService {
           venue_tags: reviewData.venue_tags,
           artist_tags: reviewData.artist_tags,
           photos: reviewData.photos, // Add photos field
+          was_there: true, // If someone writes a review, they obviously attended
           updated_at: new Date().toISOString()
         };
 
@@ -283,6 +284,7 @@ export class ReviewService {
             reaction_emoji: reviewData.reaction_emoji,
             is_public: reviewData.is_public,
             photos: reviewData.photos, // Add photos field to legacy update
+            was_there: true, // If someone writes a review, they obviously attended
             updated_at: new Date().toISOString()
           };
 
@@ -321,7 +323,8 @@ export class ReviewService {
         review_type: reviewData.review_type,
         venue_tags: reviewData.venue_tags,
         artist_tags: reviewData.artist_tags,
-        photos: reviewData.photos // Add photos field
+        photos: reviewData.photos, // Add photos field
+        was_there: true // If someone writes a review, they obviously attended
       } as UserReviewInsert;
 
       // Try full insert first
@@ -357,7 +360,8 @@ export class ReviewService {
           reaction_emoji: reviewData.reaction_emoji,
           review_text: reviewData.review_text,
           is_public: reviewData.is_public ?? true,
-          photos: reviewData.photos // Add photos field to legacy insert
+          photos: reviewData.photos, // Add photos field to legacy insert
+          was_there: true // If someone writes a review, they obviously attended
         };
 
         const retry = await supabase

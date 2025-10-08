@@ -1,10 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Heart, X, Calendar, MapPin, Users, Star } from "lucide-react"
+import { Heart, X, Calendar, MapPin, Users, Star, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { isEventPast, getEventStatus } from "@/utils/eventStatusUtils"
+import { useSetlist } from "@/hooks/useSetlist"
 
 export interface Event {
   id: string
@@ -34,6 +36,9 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
   const eventDate = event.event_date || event.date
   const isPast = isEventPast(eventDate)
   const eventStatus = getEventStatus(eventDate)
+
+  // Fetch setlist data for past events
+  const { setlist, loading: setlistLoading, hasSetlist, songCount } = useSetlist(event.id)
 
   const handleSwipe = (direction: "like" | "pass") => {
     setSwipeDirection(direction)
@@ -124,6 +129,26 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
             <Users className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
             <span className="font-medium">{event.attendeeCount} interested</span>
           </div>
+          {/* Setlist information for past events */}
+          {isPast && (
+            <div className="flex items-center gap-3 text-sm text-foreground">
+              <Music className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+              <div className="flex items-center gap-2">
+                {setlistLoading ? (
+                  <span className="text-muted-foreground">Loading setlist...</span>
+                ) : hasSetlist ? (
+                  <>
+                    <span className="font-medium">Setlist available</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {songCount} songs
+                    </Badge>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">No setlist available</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons - Different for past vs upcoming events */}
@@ -144,10 +169,19 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
                 variant="outline"
                 size="lg"
                 className="hover-button flex-1 border-2 border-gray-300 hover:border-gray-400 hover:text-gray-600 h-14 text-base font-semibold transition-all duration-200"
-                aria-label="View event details"
+                aria-label="View event details and setlist"
               >
-                <Calendar className="w-6 h-6 mr-2 hover-icon" aria-hidden="true" />
-                View Details
+                {hasSetlist ? (
+                  <>
+                    <Music className="w-6 h-6 mr-2 hover-icon" aria-hidden="true" />
+                    View Setlist
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="w-6 h-6 mr-2 hover-icon" aria-hidden="true" />
+                    View Details
+                  </>
+                )}
               </Button>
             </>
           ) : (
