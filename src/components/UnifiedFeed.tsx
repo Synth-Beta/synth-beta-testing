@@ -128,6 +128,35 @@ export const UnifiedFeed = ({
       });
   }, [currentUserId, sessionExpired]);
 
+  // Check if we need to re-open an event modal after returning from artist/venue page
+  useEffect(() => {
+    // Check localStorage for an event ID to re-open
+    const reopenEventId = localStorage.getItem('reopenEventId');
+    console.log('🔍 UnifiedFeed: Checking for reopenEventId in localStorage:', reopenEventId);
+    console.log('🔍 UnifiedFeed: feedItems.length:', feedItems.length);
+    
+    if (reopenEventId && feedItems.length > 0) {
+      console.log('🔍 UnifiedFeed: Looking for event with id:', reopenEventId);
+      
+      // Find the event in feed items
+      const eventItem = feedItems.find(item => 
+        item.type === 'event' && item.event_data?.id === reopenEventId
+      );
+      
+      console.log('🔍 UnifiedFeed: Found eventItem:', eventItem);
+      
+      if (eventItem && eventItem.event_data) {
+        console.log('✅ UnifiedFeed: Re-opening modal for event:', eventItem.event_data);
+        // Re-open the modal for this event
+        setSelectedEventForDetails(eventItem.event_data);
+        setDetailsOpen(true);
+        
+        // Clear localStorage so we don't re-open it again
+        localStorage.removeItem('reopenEventId');
+      }
+    }
+  }, [feedItems]);
+
   // Infinite scroll effect
   useEffect(() => {
     const handleScroll = () => {

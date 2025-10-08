@@ -9,6 +9,8 @@ import SpotifyCallback from "./pages/SpotifyCallback";
 import Landing from "./pages/Landing";
 import About from "./pages/About";
 import AppPage from "./pages/App";
+import ArtistEvents from "./pages/ArtistEvents";
+import VenueEvents from "./pages/VenueEvents";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +29,8 @@ const App = () => {
               <Route path="/home" element={<Landing />} />
               <Route path="/about" element={<About />} />
               <Route path="/app" element={<AppPage />} />
+              <Route path="/artist/:artistId" element={<ArtistEvents />} />
+              <Route path="/venue/:venueId" element={<VenueEvents />} />
               <Route path="/auth/spotify/callback" element={<SpotifyCallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

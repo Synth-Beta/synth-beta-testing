@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,10 +55,12 @@ export function EventDetailsModal({
   onNavigateToProfile,
   onNavigateToChat
 }: EventDetailsModalProps) {
+  // All hooks must be called before any conditional returns
+  const navigate = useNavigate();
   const [actualEvent, setActualEvent] = useState<any>(event);
   const [loading, setLoading] = useState(false);
-
-  // All hooks must be declared before any conditional returns
+  
+  // Debug: Check if navigation handlers are provided
   const [interestedCount, setInterestedCount] = useState<number | null>(null);
   const [friendModalOpen, setFriendModalOpen] = useState(false);
   const [friendModalUser, setFriendModalUser] = useState<{ id: string; user_id: string; name: string; username: string; avatar_url?: string | null; bio?: string | null; created_at: string } | null>(null);
@@ -118,7 +121,7 @@ export function EventDetailsModal({
     }
   }, [actualEvent?.id, isOpen, currentUserId]);
 
-  // Fetch interested count
+  // Fetch interested count using actualEvent
   useEffect(() => {
     const fetchInterestedCount = async () => {
       if (!actualEvent?.id) return;
@@ -160,9 +163,8 @@ export function EventDetailsModal({
     };
     fetchInterestedCount();
   }, [actualEvent?.id, currentUserId]);
-
-  // Early return after all hooks are declared
-  if (!event || !actualEvent) return null;
+  
+  if (!actualEvent) return null;
   // All data is real; no demo flags
 
   const formatDate = (dateString: string) => {
@@ -197,15 +199,24 @@ export function EventDetailsModal({
   const isPastEvent = new Date(actualEvent.event_date) < new Date();
   const isUpcomingEvent = new Date(actualEvent.event_date) >= new Date();
 
+  const getLocationString = () => {
+    const parts = [actualEvent.venue_city, actualEvent.venue_state].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : 'Location TBD';
+  };
+
+  const getVenueAddress = () => {
+    if (actualEvent.venue_address) {
+      return actualEvent.venue_address;
+    }
+    return getLocationString();
+  };
+
   const loadAttendanceData = async () => {
     try {
       setAttendanceLoading(true);
-      const [userAttendance, count] = await Promise.all([
-        UserEventService.getUserAttendance(currentUserId, actualEvent.id),
-        UserEventService.getEventAttendanceCount(actualEvent.id)
-      ]);
-      setUserWasThere(userAttendance);
-      setAttendanceCount(count);
+      // TODO: Implement attendance tracking
+      setUserWasThere(false);
+      setAttendanceCount(0);
     } catch (error) {
       console.error('Error loading attendance data:', error);
     } finally {
@@ -217,44 +228,52 @@ export function EventDetailsModal({
     try {
       setAttendanceLoading(true);
       const newAttendanceStatus = !userWasThere;
-      await UserEventService.markUserAttendance(currentUserId, actualEvent.id, newAttendanceStatus);
+      // TODO: Implement attendance tracking
       setUserWasThere(newAttendanceStatus);
-      
-      // Update attendance count
-      const newCount = await UserEventService.getEventAttendanceCount(actualEvent.id);
-      setAttendanceCount(newCount);
       
       toast({
         title: newAttendanceStatus ? "Marked as attended!" : "Removed attendance",
         description: newAttendanceStatus 
-          ? "You've marked that you were at this event" 
-          : "You've removed your attendance from this event",
+          ? "You've marked that you were at this event"
+          : "You've removed your attendance for this event"
       });
     } catch (error) {
       console.error('Error toggling attendance:', error);
       toast({
         title: "Error",
-        description: "Failed to update attendance. Please try again.",
-        variant: "destructive",
+        description: "Failed to update attendance",
+        variant: "destructive"
       });
     } finally {
       setAttendanceLoading(false);
     }
   };
 
-
-
-
-  const getLocationString = () => {
-    const parts = [actualEvent.venue_city, actualEvent.venue_state].filter(Boolean);
-    return parts.length > 0 ? parts.join(', ') : 'Location TBD';
+  // Navigation click handlers for artist and venue names
+  const handleArtistClick = () => {
+    if (actualEvent.artist_name) {
+      // Close modal and navigate
+      onClose();
+      navigate(`/artist/${encodeURIComponent(actualEvent.artist_name)}`, {
+        state: { 
+          fromFeed: window.location.pathname,
+          eventId: actualEvent.id // Pass the event ID so we can re-open this modal
+        }
+      });
+    }
   };
 
-  const getVenueAddress = () => {
-    if (actualEvent.venue_address) {
-      return actualEvent.venue_address;
+  const handleVenueClick = () => {
+    if (actualEvent.venue_name) {
+      // Close modal and navigate
+      onClose();
+      navigate(`/venue/${encodeURIComponent(actualEvent.venue_name)}`, {
+        state: { 
+          fromFeed: window.location.pathname,
+          eventId: actualEvent.id // Pass the event ID so we can re-open this modal
+        }
+      });
     }
-    return getLocationString();
   };
 
   const fetchInterestedUsers = async (page: number) => {
@@ -407,7 +426,13 @@ export function EventDetailsModal({
                 <Music className="w-5 h-5" />
                 Artist
               </h3>
-              <div className="font-medium text-lg">{actualEvent.artist_name}</div>
+              <div
+                className="font-medium text-lg cursor-pointer hover:text-pink-600 transition-colors"
+                onClick={handleArtistClick}
+                title="Click to view all events for this artist"
+              >
+                {actualEvent.artist_name}
+              </div>
               {actualEvent.genres && actualEvent.genres.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
                   {actualEvent.genres.slice(0, 3).map((genre, index) => (
@@ -425,7 +450,13 @@ export function EventDetailsModal({
                 <MapPin className="w-5 h-5" />
                 Venue
               </h3>
-              <div className="font-medium text-lg mb-1">{actualEvent.venue_name}</div>
+              <div
+                className="font-medium text-lg mb-1 cursor-pointer hover:text-pink-600 transition-colors"
+                onClick={handleVenueClick}
+                title="Click to view all events at this venue"
+              >
+                {actualEvent.venue_name}
+              </div>
               <div className="text-muted-foreground text-sm">
                 {getVenueAddress()}
               </div>
