@@ -102,7 +102,7 @@ export function ArtistSearchBox({
           id: result.id,
           jambase_artist_id: result.identifier,
           name: result.name,
-          description: `Artist with ${result.num_upcoming_events || 0} upcoming events`,
+          description: `${result.num_upcoming_events || 0} upcoming events`,
           genres: result.genres || [],
           image_url: result.image_url,
           popularity_score: result.num_upcoming_events || 0,
@@ -250,7 +250,7 @@ export function ArtistSearchBox({
                     
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-medium text-gray-900 truncate">
+                          <h3 className="font-semibold text-gray-900 truncate text-base">
                             {artist.name}
                           </h3>
                           {artist.popularity_score && artist.popularity_score > 0 && (
@@ -276,7 +276,7 @@ export function ArtistSearchBox({
                         </div>
                       
                       {artist.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                        <p className="text-sm text-gray-500 line-clamp-1 mb-2">
                           {artist.description}
                         </p>
                       )}
