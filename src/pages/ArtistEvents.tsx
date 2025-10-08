@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import { EventDetailsModal } from '@/components/events/EventDetailsModal';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ArtistEventsPageProps {}
 
@@ -22,10 +24,13 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
   const { artistId } = useParams<{ artistId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [events, setEvents] = useState<JamBaseEvent[]>([]);
   const [artistName, setArtistName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<JamBaseEvent | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     if (!artistId) {
@@ -135,9 +140,8 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
   };
 
   const handleEventClick = (event: JamBaseEvent) => {
-    // Navigate to event details - you might want to open a modal or navigate to a detail page
-    console.log('Event clicked:', event);
-    // For now, we'll just log it. You can implement navigation to event details modal here
+    setSelectedEvent(event);
+    setModalOpen(true);
   };
 
   const handleVenueClick = (venueId: string) => {
@@ -428,6 +432,17 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
           </div>
         )}
       </div>
+
+      {/* Event Details Modal */}
+      <EventDetailsModal
+        event={selectedEvent}
+        currentUserId={user?.id || ''}
+        isOpen={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setSelectedEvent(null);
+        }}
+      />
     </div>
   );
 }
