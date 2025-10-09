@@ -464,13 +464,42 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
             <div className="p-3 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full">
               <Music className="w-8 h-8 text-white" />
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="text-3xl font-bold gradient-text">
                 {artistName || 'Unknown Artist'}
               </h1>
               <p className="text-muted-foreground">
                 All events for this artist
               </p>
+              
+              {/* Music Platform Links */}
+              {artistName && (
+                <div className="flex items-center gap-3 mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(`https://open.spotify.com/search/${encodeURIComponent(artistName)}`, '_blank')}
+                    className="flex items-center gap-2 hover:bg-green-50 hover:border-green-300"
+                  >
+                    <div className="w-4 h-4 bg-green-500 rounded-sm flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">♪</span>
+                    </div>
+                    Spotify
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(`https://music.apple.com/search?term=${encodeURIComponent(artistName)}`, '_blank')}
+                    className="flex items-center gap-2 hover:bg-gray-50 hover:border-gray-400"
+                  >
+                    <div className="w-4 h-4 bg-black rounded-sm flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">♫</span>
+                    </div>
+                    Apple Music
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
