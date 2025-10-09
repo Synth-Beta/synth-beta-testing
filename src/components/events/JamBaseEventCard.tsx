@@ -13,7 +13,8 @@ import {
   Star,
   StarOff,
   MessageSquare,
-  Users
+  Users,
+  Share2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
@@ -21,6 +22,15 @@ import { EventMap } from '@/components/EventMap';
 import { formatPrice } from '@/utils/currencyUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { trackInteraction } from '@/services/interactionTrackingService';
+import { EventShareModal } from '@/components/events/EventShareModal';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ShareService } from '@/services/shareService';
+import { useToast } from '@/hooks/use-toast';
 
 interface JamBaseEventCardProps {
   event: JamBaseEvent;
@@ -52,6 +62,8 @@ export function JamBaseEventCard({
   const [isLoading, setIsLoading] = useState(false);
   const [interestedCount, setInterestedCount] = useState<number | null>(null);
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const { toast } = useToast();
   // All data is real; no demo flags or mock avatars
 
   const formatDate = (dateString: string) => {
@@ -358,6 +370,87 @@ export function JamBaseEventCard({
 
           {/* External Links */}
           <div className="flex items-center gap-2">
+            {/* Unified Share Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className="text-pink-600 hover:text-pink-700 hover:bg-pink-50"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span className="hidden sm:inline ml-1">Share</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52 bg-white/95 backdrop-blur-sm border shadow-lg">
+                {currentUserId && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShareModalOpen(true);
+                    }}
+                    className="cursor-pointer bg-white hover:bg-gray-50"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Share with Synth Friends
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
+                      
+                      // Try Web Share API first
+                      if (navigator.share) {
+                        await navigator.share({
+                          title: event.title,
+                          text: event.description || 'Check out this event!',
+                          url: url
+                        });
+                      } else {
+                        // Fallback to copying link
+                        await navigator.clipboard.writeText(url);
+                        toast({ title: 'Link copied', description: url });
+                      }
+                    } catch (error) {
+                      // Fallback to copying link if Web Share fails
+                      try {
+                        const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
+                        await navigator.clipboard.writeText(url);
+                        toast({ title: 'Link copied', description: url });
+                      } catch (fallbackError) {
+                        toast({ title: 'Error', description: 'Failed to share', variant: 'destructive' });
+                      }
+                    }
+                  }}
+                  className="cursor-pointer bg-white hover:bg-gray-50"
+                >
+                  <Globe className="w-4 h-4 mr-2" />
+                  Share
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
+                      await navigator.clipboard.writeText(url);
+                      toast({ title: 'Link copied', description: url });
+                    } catch (error) {
+                      toast({ title: 'Error', description: 'Failed to copy link', variant: 'destructive' });
+                    }
+                  }}
+                  className="cursor-pointer bg-white hover:bg-gray-50"
+                >
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Copy Link
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
             {event.ticket_urls && event.ticket_urls.length > 0 && (
               <Button
                 variant="ghost"
@@ -406,6 +499,16 @@ export function JamBaseEventCard({
           </div>
         )}
       </CardContent>
+
+      {/* Event Share Modal */}
+      {currentUserId && (
+        <EventShareModal
+          event={event}
+          currentUserId={currentUserId}
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+        />
+      )}
     </Card>
   );
 }

@@ -21,6 +21,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { SynthSLogo } from '@/components/SynthSLogo';
+import { EventMessageCard } from '@/components/chat/EventMessageCard';
+import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import { EventDetailsModal } from '@/components/events/EventDetailsModal';
+import { UserEventService } from '@/services/userEventService';
 
 interface Chat {
   id: string;
@@ -44,6 +48,9 @@ interface Message {
   created_at: string;
   sender_name: string;
   sender_avatar: string | null;
+  message_type?: 'text' | 'event_share' | 'system';
+  shared_event_id?: string | null;
+  metadata?: any;
 }
 
 interface User {
@@ -72,6 +79,12 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  // Event details modal state
+  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<JamBaseEvent | null>(null);
+  const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   useEffect(() => {
     fetchChats();
     fetchUsers();
@@ -93,6 +106,59 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       fetchMessages(selectedChat.id);
     }
   }, [selectedChat]);
+
+  // Event handlers
+  const handleEventClick = async (event: JamBaseEvent) => {
+    setSelectedEvent(event);
+    
+    // Check if user is interested in this event
+    try {
+      const interested = await UserEventService.isUserInterested(currentUserId, event.id);
+      setSelectedEventInterested(interested);
+    } catch (error) {
+      console.error('Error checking interest:', error);
+      setSelectedEventInterested(false);
+    }
+    
+    setEventDetailsOpen(true);
+  };
+
+  const handleInterestToggle = async (eventId: string, interested: boolean) => {
+    try {
+      await UserEventService.setEventInterest(currentUserId, eventId, interested);
+      setSelectedEventInterested(interested);
+      
+      toast({
+        title: interested ? 'Added to interested events!' : 'Removed from interested events',
+        description: interested ? 'This event will appear in your profile' : 'Event removed from your interested list'
+      });
+    } catch (error) {
+      console.error('Error toggling interest:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update interest',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleAttendanceToggle = async (eventId: string, attended: boolean) => {
+    try {
+      await UserEventService.markUserAttendance(currentUserId, eventId, attended);
+      
+      toast({
+        title: attended ? 'Marked as attended!' : 'Removed attendance',
+        description: attended ? 'This event will appear in your attended events' : 'Attendance removed'
+      });
+    } catch (error) {
+      console.error('Error toggling attendance:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update attendance',
+        variant: 'destructive'
+      });
+    }
+  };
 
   const fetchChats = async () => {
     try {
@@ -232,7 +298,10 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
           chat_id,
           sender_id,
           content,
-          created_at
+          created_at,
+          message_type,
+          shared_event_id,
+          metadata
         `)
         .eq('chat_id', chatId)
         .order('created_at', { ascending: true });
@@ -258,7 +327,10 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
           content: msg.content,
           created_at: msg.created_at,
           sender_name: profile?.name || 'Unknown',
-          sender_avatar: profile?.avatar_url || null
+          sender_avatar: profile?.avatar_url || null,
+          message_type: msg.message_type || 'text',
+          shared_event_id: msg.shared_event_id,
+          metadata: msg.metadata
         };
       });
 
@@ -719,20 +791,42 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                       message.sender_id === currentUserId ? 'justify-end' : 'justify-start'
                     }`}
                   >
-                    <div
-                      className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm transition-all duration-200 ${
-                        message.sender_id === currentUserId
-                          ? 'bg-synth-pink text-white shadow-lg hover:shadow-xl'
-                          : 'bg-white text-synth-black border border-synth-black/10 hover:shadow-md'
-                      }`}
-                    >
-                      <p className="text-sm leading-relaxed">{message.content}</p>
-                      <p className={`text-xs mt-2 ${
-                        message.sender_id === currentUserId ? 'text-white/70' : 'text-synth-black/50'
-                      }`}>
-                        {format(parseISO(message.created_at), 'h:mm a')}
-                      </p>
-                    </div>
+                    {message.message_type === 'event_share' && message.shared_event_id ? (
+                      // Event Share Message Card
+                      <div className="max-w-md">
+                        <div className="text-xs text-gray-500 mb-1">
+                          {message.sender_id === currentUserId ? 'You' : message.sender_name} shared an event
+                        </div>
+                        <EventMessageCard
+                          eventId={message.shared_event_id}
+                          customMessage={message.metadata?.custom_message}
+                          onEventClick={handleEventClick}
+                          onInterestToggle={handleInterestToggle}
+                          onAttendanceToggle={handleAttendanceToggle}
+                          currentUserId={currentUserId}
+                          refreshTrigger={refreshTrigger}
+                        />
+                        <p className="text-xs text-gray-400 mt-1 text-right">
+                          {format(parseISO(message.created_at), 'h:mm a')}
+                        </p>
+                      </div>
+                    ) : (
+                      // Regular Text Message
+                      <div
+                        className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm transition-all duration-200 ${
+                          message.sender_id === currentUserId
+                            ? 'bg-synth-pink text-white shadow-lg hover:shadow-xl'
+                            : 'bg-white text-synth-black border border-synth-black/10 hover:shadow-md'
+                        }`}
+                      >
+                        <p className="text-sm leading-relaxed">{message.content}</p>
+                        <p className={`text-xs mt-2 ${
+                          message.sender_id === currentUserId ? 'text-white/70' : 'text-synth-black/50'
+                        }`}>
+                          {format(parseISO(message.created_at), 'h:mm a')}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -927,6 +1021,23 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
             </Button>
           </div>
         </div>
+      )}
+
+      {/* Event Details Modal */}
+      {selectedEvent && (
+        <EventDetailsModal
+          event={selectedEvent}
+          currentUserId={currentUserId}
+          isOpen={eventDetailsOpen}
+          onClose={() => {
+            setEventDetailsOpen(false);
+            setSelectedEvent(null);
+            // Trigger refresh of event message cards when modal closes
+            setRefreshTrigger(prev => prev + 1);
+          }}
+          onInterestToggle={handleInterestToggle}
+          isInterested={selectedEventInterested}
+        />
       )}
     </div>
   );

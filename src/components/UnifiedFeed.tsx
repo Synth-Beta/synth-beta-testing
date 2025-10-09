@@ -48,7 +48,14 @@ import { EventCommentsModal } from '@/components/events/EventCommentsModal';
 import { ReviewCommentsModal } from '@/components/reviews/ReviewCommentsModal';
 import { EventLikersModal } from '@/components/events/EventLikersModal';
 import { EventLikesService } from '@/services/eventLikesService';
+import { EventShareModal } from '@/components/events/EventShareModal';
 import { ShareService } from '@/services/shareService';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { UnifiedFeedService, UnifiedFeedItem } from '@/services/unifiedFeedService';
 import { LocationService } from '@/services/locationService';
 import { EventMap } from './EventMap';
@@ -104,6 +111,10 @@ export const UnifiedFeed = ({
   const [showCommentsInModal, setShowCommentsInModal] = useState(false);
   const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'price' | 'popularity' | 'distance'>('relevance');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  
+  // In-app sharing state
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [selectedEventForShare, setSelectedEventForShare] = useState<any>(null);
 
   useEffect(() => {
     if (sessionExpired) {
@@ -700,23 +711,84 @@ export const UnifiedFeed = ({
                       >
                         See likes
                       </button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onMouseDown={(e) => { e.stopPropagation(); }}
-                        onClick={async (e) => { 
-                          e.preventDefault(); 
-                          e.stopPropagation(); 
-                          if (item.event_data) {
-                            const url = await ShareService.shareEvent(item.event_data.id, item.title, item.content || undefined);
-                            toast({ title: 'Link copied', description: url });
-                          }
-                        }}
-                        className="flex items-center gap-1 text-xs text-gray-500"
-                      >
-                        <Share2 className="w-3 h-3" />
-                        {item.shares_count || 0}
-                      </Button>
+                      {/* Unified Share Dropdown */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onMouseDown={(e) => { e.stopPropagation(); }}
+                            className="flex items-center gap-1 text-xs text-pink-500 hover:text-pink-600"
+                            title="Share event"
+                          >
+                            <Share2 className="w-3 h-3" />
+                            Share
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52 bg-white/95 backdrop-blur-sm border shadow-lg">
+                          {currentUserId && (
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (item.event_data) {
+                                  setSelectedEventForShare(item.event_data);
+                                  setShareModalOpen(true);
+                                }
+                              }}
+                              className="cursor-pointer bg-white hover:bg-gray-50"
+                            >
+                              <Users className="w-4 h-4 mr-2" />
+                              Share with Synth Friends
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (item.event_data) {
+                                try {
+                                  const url = await ShareService.shareEvent(item.event_data.id, item.title, item.content || undefined);
+                                  
+                                  // Try Web Share API first
+                                  if (navigator.share) {
+                                    await navigator.share({
+                                      title: item.title,
+                                      text: item.content || 'Check out this event!',
+                                      url: url
+                                    });
+                                  } else {
+                                    // Fallback to copying link
+                                    await navigator.clipboard.writeText(url);
+                                    toast({ title: 'Link copied', description: url });
+                                  }
+                                } catch (error) {
+                                  // Fallback to copying link if Web Share fails
+                                  const url = await ShareService.shareEvent(item.event_data.id, item.title, item.content || undefined);
+                                  await navigator.clipboard.writeText(url);
+                                  toast({ title: 'Link copied', description: url });
+                                }
+                              }
+                            }}
+                            className="cursor-pointer bg-white hover:bg-gray-50"
+                          >
+                            <Globe className="w-4 h-4 mr-2" />
+                            Share
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (item.event_data) {
+                                const url = await ShareService.shareEvent(item.event_data.id, item.title, item.content || undefined);
+                                await navigator.clipboard.writeText(url);
+                                toast({ title: 'Link copied', description: url });
+                              }
+                            }}
+                            className="cursor-pointer bg-white hover:bg-gray-50"
+                          >
+                            <Share2 className="w-4 h-4 mr-2" />
+                            Copy Link
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     <span className="text-xs text-gray-500">
                       {(() => {
@@ -1242,6 +1314,19 @@ export const UnifiedFeed = ({
         <Navigation 
           currentView="feed" 
           onViewChange={onViewChange} 
+        />
+      )}
+
+      {/* In-App Event Share Modal */}
+      {selectedEventForShare && currentUserId && (
+        <EventShareModal
+          event={selectedEventForShare}
+          currentUserId={currentUserId}
+          isOpen={shareModalOpen}
+          onClose={() => {
+            setShareModalOpen(false);
+            setSelectedEventForShare(null);
+          }}
         />
       )}
       </div>
