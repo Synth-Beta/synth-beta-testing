@@ -274,8 +274,45 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
         <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <h3 className="text-sm font-medium text-blue-900 mb-2">Event Summary</h3>
           <div className="text-sm text-blue-800">
-            <p><strong>{formData.selectedArtist.name}</strong></p>
-            <p>at <strong>{formData.selectedVenue.name}</strong></p>
+            <p>
+              <button
+                className="font-bold hover:text-blue-600 hover:underline cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const ev = new CustomEvent('open-artist-card', { 
+                    detail: { 
+                      artistId: formData.selectedArtist?.id, 
+                      artistName: formData.selectedArtist?.name 
+                    } 
+                  });
+                  document.dispatchEvent(ev);
+                }}
+                aria-label={`View artist ${formData.selectedArtist.name}`}
+              >
+                {formData.selectedArtist.name}
+              </button>
+            </p>
+            <p>
+              at{' '}
+              <button
+                className="font-bold hover:text-blue-600 hover:underline cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const ev = new CustomEvent('open-venue-card', { 
+                    detail: { 
+                      venueId: formData.selectedVenue?.id, 
+                      venueName: formData.selectedVenue?.name 
+                    } 
+                  });
+                  document.dispatchEvent(ev);
+                }}
+                aria-label={`View venue ${formData.selectedVenue.name}`}
+              >
+                {formData.selectedVenue.name}
+              </button>
+            </p>
             <p>on {new Date(formData.eventDate).toLocaleDateString('en-US', {
               weekday: 'long',
               month: 'long',

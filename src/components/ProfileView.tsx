@@ -153,6 +153,62 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     });
   }, [currentUserId, sessionExpired, user]);
 
+  // Add event listeners for artist and venue card opening
+  useEffect(() => {
+    const openVenue = (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      setVenueDialog({ 
+        open: true, 
+        venueId: detail.venueId || null, 
+        venueName: detail.venueName || 'Venue' 
+      });
+    };
+
+    const openArtist = async (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      if (detail.artistName) {
+        try {
+          // Try to fetch artist data from database if we have an ID
+          if (detail.artistId && detail.artistId !== 'manual') {
+            const { data: artistData } = await supabase
+              .from('artists')
+              .select('*')
+              .eq('id', detail.artistId)
+              .single();
+            
+            if (artistData) {
+              const artist: Artist = {
+                id: artistData.id,
+                name: artistData.name,
+                image_url: artistData.image_url,
+                popularity_score: 0,
+                source: 'database',
+                events: []
+              } as any;
+              setArtistDialog({ open: true, artist });
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching artist:', error);
+        }
+      }
+      // Fallback: open with name only
+      const artist: Artist = { 
+        id: detail.artistId || 'manual', 
+        name: detail.artistName || 'Unknown Artist' 
+      } as any;
+      setArtistDialog({ open: true, artist });
+    };
+
+    document.addEventListener('open-venue-card', openVenue as EventListener);
+    document.addEventListener('open-artist-card', openArtist as EventListener);
+    
+    return () => {
+      document.removeEventListener('open-venue-card', openVenue as EventListener);
+      document.removeEventListener('open-artist-card', openArtist as EventListener);
+    };
+  }, []);
 
   const fetchProfile = async () => {
     try {
@@ -200,78 +256,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     }
   };
 
-  const fetchReviews = async () => {
-    try {
-      console.log('🔍 ProfileView: Fetching reviews for user:', currentUserId);
-      const result = await ReviewService.getUserReviewHistory(currentUserId);
-      console.log('🔍 ProfileView: Raw review data:', result);
-      
-      const transformedReviews = result.reviews.map((item: any) => ({
-        id: item.review.id,
-        user_id: item.review.user_id,
-        event_id: item.review.event_id,
-        rating: item.review.rating,
-        review_text: item.review.review_text,
-        is_public: item.review.is_public,
-        created_at: item.review.created_at,
-        likes_count: item.review.likes_count,
-        comments_count: item.review.comments_count,
-        shares_count: item.review.shares_count,
-        event: {
-          event_name: item.event?.event_name || 'Concert Review',
-          location: item.event?.venue_name || '',
-          event_date: item.event?.event_date || '',
-          event_time: '8:00 PM',
-          artist_name: item.event?.artist_name || null,
-          artist_id: item.event?.artist_id || null,
-          venue_name: item.event?.venue_name || null,
-          venue_id: item.event?.venue_id || null,
-        }
-      }));
-      
-      setReviews(transformedReviews);
-    } catch (error) {
-      console.error('❌ ProfileView: Error fetching reviews:', error);
-      setReviews([]);
-    }
-  };
 
-  const fetchFriends = async () => {
-    try {
-      console.log('🔍 ProfileView: Fetching friends for user:', currentUserId);
-      const { data, error } = await supabase
-        .from('friends')
-        .select(`
-          id,
-          user1_id,
-          user2_id,
-          created_at
-        `)
-        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
-
-      if (error) {
-        console.error('Error fetching friends:', error);
-        setFriends([]);
-        return;
-      }
-
-      const friendsList = (data || []).map((friendship) => {
-        const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
-        
-        return {
-          id: otherUserId,
-          name: 'Friend',
-          avatar_url: null,
-          friendship_created_at: friendship.created_at
-        };
-      });
-
-      setFriends(friendsList);
-    } catch (error) {
-      console.error('Error fetching friends:', error);
-      setFriends([]);
-    }
-  };
 
   useEffect(() => {
     // Check for hash in URL to determine active tab
@@ -311,7 +296,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       const allEvents = (data || []).map((item: any) => item.jambase_event).filter(Boolean);
       
       // Get event IDs that have been marked as attended (have a review record with was_there=true)
-      const { data: attendedData, error: attendedError } = await supabase
+      const { data: attendedData, error: attendedError } = await (supabase as any)
         .from('user_reviews')
         .select('event_id')
         .eq('user_id', currentUserId)
@@ -355,7 +340,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       // Try RPC to avoid RLS recursion issues
       let events: any[] = [];
       try {
-        const { data: rpcData, error: rpcErr } = await supabase.rpc('get_user_interested_events', {
+        const { data: rpcData, error: rpcErr } = await (supabase as any).rpc('get_user_interested_events', {
           target_user_id: currentUserId
         });
         if (!rpcErr && Array.isArray(rpcData)) {
