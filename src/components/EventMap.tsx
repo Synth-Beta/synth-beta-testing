@@ -147,6 +147,9 @@ export const EventMap: React.FC<EventMapProps> = ({
 
   // Filter events that have valid numeric coordinates
   const validEvents = events.filter(event => {
+    // Check if event exists first
+    if (!event) return false;
+    
     const lat = Number(event.latitude);
     const lon = Number(event.longitude);
     return event.latitude != null && event.longitude != null && !Number.isNaN(lat) && !Number.isNaN(lon);
