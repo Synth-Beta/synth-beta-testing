@@ -60,9 +60,9 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
     const containerSize = size === 'large' ? 'w-14 h-14' : 'w-8 h-8 md:w-9 md:h-9';
     
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 h-full flex flex-col">
         <div className="text-center min-h-[84px] md:min-h-[96px] flex flex-col items-center justify-end">
-          <Label className={cn('font-medium text-gray-900', size === 'large' ? 'text-lg' : 'text-sm')}>{label} *</Label>
+          <Label className={cn('font-medium text-gray-900', size === 'large' ? 'text-lg' : 'text-sm')}>{label}</Label>
           <p className={cn('text-gray-600 mt-1', size === 'large' ? 'text-sm' : 'text-xs')}>{description}</p>
         </div>
         <div className="flex items-center justify-center gap-2 md:gap-2 flex-nowrap">
@@ -182,14 +182,14 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
       </div>
 
       {/* Three categories laid out horizontally with subtle separators */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        <div className="space-y-4 h-full flex flex-col">
           {renderStarRating('performanceRating', 'Performance', 'How was the artist/band performance?')}
         </div>
-        <div className="space-y-4 border-t md:border-t-0 md:border-l md:border-gray-200 md:pl-6 pt-6 md:pt-0">
+        <div className="space-y-4 border-t md:border-t-0 md:border-l md:border-gray-200 md:pl-6 pt-6 md:pt-0 h-full flex flex-col">
           {renderStarRating('venueRating', 'Venue', 'How was the venue experience (sound, staff, facilities)?')}
         </div>
-        <div className="space-y-4 border-t md:border-t-0 md:border-l md:border-gray-200 md:pl-6 pt-6 md:pt-0">
+        <div className="space-y-4 border-t md:border-t-0 md:border-l md:border-gray-200 md:pl-6 pt-6 md:pt-0 h-full flex flex-col">
           {renderStarRating('overallExperienceRating', 'Overall Experience', 'How was the overall atmosphere and crowd?')}
         </div>
       </div>

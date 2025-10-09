@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Send } from 'lucide-react';
 import { ShareService } from '@/services/shareService';
 import { formatDistanceToNow } from 'date-fns';
+import { SetlistDisplay } from './SetlistDisplay';
 
 interface ReviewCardProps {
   review: ReviewWithEngagement;
@@ -348,6 +349,27 @@ export function ReviewCard({
           <p className="text-[15px] leading-6 text-gray-800 mb-3">
             {review.review_text}
           </p>
+        )}
+
+        {/* Setlist Display - API Verified */}
+        {(() => {
+          console.log('🎵 ReviewCard: Full review object:', review);
+          console.log('🎵 ReviewCard: Checking setlist for review:', review.id, 'setlist:', (review as any).setlist);
+          console.log('🎵 ReviewCard: Setlist exists?', !!(review as any).setlist);
+          console.log('🎵 ReviewCard: Custom setlist exists?', !!(review as any).custom_setlist);
+          return null;
+        })()}
+        {(review as any).setlist && (
+          <div className="mb-3">
+            <SetlistDisplay setlist={(review as any).setlist} compact={true} type="api" />
+          </div>
+        )}
+
+        {/* Custom Setlist Display - User Created */}
+        {(review as any).custom_setlist && (review as any).custom_setlist.length > 0 && (
+          <div className="mb-3">
+            <SetlistDisplay customSetlist={(review as any).custom_setlist} compact={true} type="custom" />
+          </div>
         )}
 
         {/* Event Info / Artist & Venue chips (view mode only) */}

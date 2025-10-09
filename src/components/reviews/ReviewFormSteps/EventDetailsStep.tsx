@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Check, Calendar } from 'lucide-react';
+import { Check, Calendar, Music } from 'lucide-react';
 import { ArtistSearchBox } from '@/components/ArtistSearchBox';
 import { VenueSearchBox } from '@/components/VenueSearchBox';
+import { SetlistModal } from '@/components/reviews/SetlistModal';
 import type { Artist } from '@/types/concertSearch';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
@@ -23,6 +24,14 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
   const [eventResults, setEventResults] = React.useState<Array<any>>([]);
   const [eventLoading, setEventLoading] = React.useState(false);
   const [showEventResults, setShowEventResults] = React.useState(false);
+  
+  // Setlist modal state
+  const [showSetlistModal, setShowSetlistModal] = React.useState(false);
+  
+  const handleSetlistSelect = (setlist: any) => {
+    console.log('🎵 EventDetailsStep: Setlist selected:', setlist);
+    onUpdateFormData({ selectedSetlist: setlist });
+  };
 
   React.useEffect(() => {
     const handler = setTimeout(async () => {
@@ -90,7 +99,12 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
       is_from_database: venue.is_from_database,
       identifier: venue.identifier,
     });
+    console.log('🎯 Before update - formData.selectedVenue:', formData.selectedVenue);
+    console.log('🎯 Before update - venueLocked:', venueLocked);
+    
     onUpdateFormData({ selectedVenue: venue });
+    
+    console.log('🎯 After update - setting venueLocked to true');
     // Lock immediately to prevent race condition
     setVenueLocked(true);
   };
@@ -175,13 +189,26 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
               onArtistSelect={handleArtistSelect}
               placeholder="Search for an artist or band..."
               className="w-full"
+              hideClearButton={!!formData.selectedArtist}
             />
           ) : (
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
-              <div>
-                <p className="text-sm font-medium text-green-800">{formData.selectedArtist.name}</p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                <div>
+                  <p className="text-sm font-medium text-green-800">{formData.selectedArtist.name}</p>
+                </div>
+                <button className="text-xs text-red-600" onClick={()=>{ onUpdateFormData({ selectedArtist: null }); setArtistLocked(false); }}>×</button>
               </div>
-              <button className="text-xs text-red-600" onClick={()=>{ onUpdateFormData({ selectedArtist: null }); setArtistLocked(false); }}>×</button>
+              <Button
+                type="button"
+                variant={formData.selectedSetlist ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowSetlistModal(true)}
+                className="w-full text-xs"
+              >
+                <Music className="w-3 h-3 mr-1" />
+                {formData.selectedSetlist ? 'Setlist Selected' : 'View Setlist'}
+              </Button>
             </div>
           )}
           {errors.selectedArtist && (
@@ -191,11 +218,21 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
 
         <div className="space-y-2">
           <Label htmlFor="venue" className="text-sm font-medium">Venue *</Label>
+          {(() => {
+            console.log('🎯 Venue render check:', {
+              hasSelectedVenue: !!formData.selectedVenue,
+              venueLocked,
+              selectedVenueName: formData.selectedVenue?.name,
+              shouldShowSearch: !formData.selectedVenue || !venueLocked
+            });
+            return null;
+          })()}
           {!formData.selectedVenue || !venueLocked ? (
             <VenueSearchBox
               onVenueSelect={handleVenueSelect}
               placeholder="Search for a venue..."
               className="w-full"
+              hideClearButton={!!formData.selectedVenue}
             />
           ) : (
             <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
@@ -248,6 +285,16 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
           </div>
         </div>
       )}
+
+      {/* Setlist Modal */}
+      <SetlistModal
+        isOpen={showSetlistModal}
+        onClose={() => setShowSetlistModal(false)}
+        artistName={formData.selectedArtist?.name || ''}
+        venueName={formData.selectedVenue?.name}
+        eventDate={formData.eventDate}
+        onSetlistSelect={handleSetlistSelect}
+      />
     </div>
   );
 }

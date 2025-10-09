@@ -29,7 +29,7 @@ export function EventReviewModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl w-[95vw] h-[90dvh] max-h-[90dvh] md:max-h-[85vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
+      <DialogContent className="max-w-3xl w-[95vw] h-[90dvh] max-h-[90dvh] md:max-h-[85vh] p-0 overflow-hidden flex flex-col">
         <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-white sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-lg font-semibold">Share Your Concert Experience</DialogTitle>

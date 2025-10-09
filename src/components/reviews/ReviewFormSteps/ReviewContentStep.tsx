@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
 import { PhotoUpload } from '@/components/ui/photo-upload';
 import { useAuth } from '@/hooks/useAuth';
+import { CustomSetlistInput, type CustomSetlistSong } from '@/components/reviews/CustomSetlistInput';
 
 interface ReviewContentStepProps {
   formData: ReviewFormData;
@@ -36,6 +37,10 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
 
   const handlePhotosChange = (urls: string[]) => {
     onUpdateFormData({ photos: urls });
+  };
+
+  const handleCustomSetlistChange = (songs: CustomSetlistSong[]) => {
+    onUpdateFormData({ customSetlist: songs });
   };
 
   const characterCount = formData.reviewText.length;
@@ -82,7 +87,7 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
       {/* Event qualitative review (required) */}
       <div className="space-y-3">
           <Label htmlFor="reviewText" className="text-sm font-medium">
-            Overall Experience (Required)
+            Overall Experience *
           </Label>
           <Textarea
             id="reviewText"
@@ -105,6 +110,12 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
             <p className="text-sm text-red-600">{errors.reviewText}</p>
           )}
       </div>
+
+      {/* Custom Setlist Input */}
+      <CustomSetlistInput
+        songs={formData.customSetlist}
+        onChange={handleCustomSetlistChange}
+      />
 
       {/* Photo Upload */}
       {user && (

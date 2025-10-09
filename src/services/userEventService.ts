@@ -412,7 +412,7 @@ export class UserEventService {
       // Check if user already has a review for this event
       const { data: existingReview, error: checkError } = await (supabase as any)
         .from('user_reviews')
-        .select('id, was_there')
+        .select('id, was_there, review_text')
         .eq('user_id', userId)
         .eq('event_id', eventId)
         .maybeSingle();
@@ -422,40 +422,106 @@ export class UserEventService {
       }
 
       if (existingReview) {
-        // Update existing review with attendance status
-        const { error } = await (supabase as any)
-          .from('user_reviews')
-          .update({
-            was_there: wasThere,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', userId)
-          .eq('event_id', eventId);
+        if (wasThere) {
+          // Update existing review to mark as attended
+          const { error } = await (supabase as any)
+            .from('user_reviews')
+            .update({
+              was_there: wasThere,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', userId)
+            .eq('event_id', eventId);
 
-        if (error) throw error;
-      } else {
+          if (error) throw error;
+        } else {
+          // If unmarking attendance and it's an attendance-only record, delete it entirely
+          if (existingReview.review_text === 'ATTENDANCE_ONLY') {
+            console.log('🗑️ Deleting ATTENDANCE_ONLY record for:', { userId, eventId });
+            const { error } = await (supabase as any)
+              .from('user_reviews')
+              .delete()
+              .eq('user_id', userId)
+              .eq('event_id', eventId);
+
+            if (error) {
+              console.error('❌ Error deleting ATTENDANCE_ONLY record:', error);
+              throw error;
+            }
+            console.log('✅ Successfully deleted ATTENDANCE_ONLY record');
+          } else {
+            // If it's a real review, just update was_there to false
+            const { error } = await (supabase as any)
+              .from('user_reviews')
+              .update({
+                was_there: wasThere,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', userId)
+              .eq('event_id', eventId);
+
+            if (error) throw error;
+          }
+        }
+      } else if (wasThere) {
+        // Only create a new record if marking as attended
         // Create a minimal review record just for attendance tracking
-        const { error } = await (supabase as any)
+        // IMPORTANT: These records should NOT appear in public feeds
+        console.log('🎯 Creating ATTENDANCE_ONLY record for:', { userId, eventId, wasThere });
+        
+        const attendanceRecord = {
+          user_id: userId,
+          event_id: eventId,
+          rating: 1, // Minimum valid rating for attendance-only records
+          review_text: 'ATTENDANCE_ONLY', // Special marker for attendance-only records
+          was_there: wasThere,
+          is_public: false, // EXPLICITLY keep attendance private - should NOT appear in feeds
+          is_draft: false, // Not a draft, but also not a public review
+          draft_data: null, // No draft data
+          likes_count: 0,
+          comments_count: 0,
+          shares_count: 0,
+          review_type: 'event', // Use valid enum value
+          performance_rating: null, // No specific rating for attendance-only records
+          venue_rating_new: null, // No specific rating for attendance-only records
+          overall_experience_rating: null, // No specific rating for attendance-only records
+          rank_order: 0
+        };
+        
+        console.log('🎯 ATTENDANCE_ONLY record data:', attendanceRecord);
+        
+        const { data, error } = await (supabase as any)
           .from('user_reviews')
-          .insert({
-            user_id: userId,
-            event_id: eventId,
-            rating: 1, // Minimum valid rating for attendance-only records
-            review_text: 'ATTENDANCE_ONLY', // Special marker for attendance-only records
-            was_there: wasThere,
-            is_public: false, // Keep attendance private by default
-            likes_count: 0,
-            comments_count: 0,
-            shares_count: 0,
-            review_type: 'event', // Use valid enum value
-            performance_rating: null, // No specific rating for attendance-only records
-            venue_rating_new: null, // No specific rating for attendance-only records
-            overall_experience_rating: null, // No specific rating for attendance-only records
-            rank_order: 0
-          });
+          .insert(attendanceRecord)
+          .select('id, is_public, review_text')
+          .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Error creating ATTENDANCE_ONLY record:', error);
+          throw error;
+        }
+        
+        console.log('✅ ATTENDANCE_ONLY record created:', data);
+        
+        // Double-check that the record was created with is_public = false
+        if (data && data.is_public === true) {
+          console.error('🚨 CRITICAL: ATTENDANCE_ONLY record was created as PUBLIC! This should not happen!');
+          console.error('🚨 Record data:', data);
+          
+          // Try to fix it immediately
+          const { error: fixError } = await (supabase as any)
+            .from('user_reviews')
+            .update({ is_public: false })
+            .eq('id', data.id);
+            
+          if (fixError) {
+            console.error('❌ Failed to fix is_public flag:', fixError);
+          } else {
+            console.log('✅ Fixed is_public flag for ATTENDANCE_ONLY record');
+          }
+        }
       }
+      // If wasThere is false and no existing review, do nothing (no record to delete)
 
       try {
         trackInteraction.interest('event', eventId, wasThere, { action: 'attendance' });
@@ -473,13 +539,47 @@ export class UserEventService {
     try {
       const { data, error } = await (supabase as any)
         .from('user_reviews')
-        .select('was_there')
+        .select('was_there, review_text, id, created_at')
         .eq('user_id', userId)
         .eq('event_id', eventId)
         .maybeSingle();
 
+      console.log('🔍 getUserAttendance:', { userId, eventId, data, error });
+
       if (error && error.code !== 'PGRST116') throw error;
-      return Boolean((data as any)?.was_there);
+      
+      // If there's a review record, they attended (even if was_there is null/false)
+      if (data) {
+        const hasReview = data.review_text && data.review_text !== 'ATTENDANCE_ONLY';
+        const wasThere = Boolean(data.was_there);
+        console.log('🔍 Attendance check:', { hasReview, wasThere, reviewText: data.review_text, reviewId: data.id });
+        
+        // If they have a review but was_there is false/null, fix it
+        if (hasReview && !wasThere) {
+          console.log('🔧 Auto-fixing attendance for review:', eventId);
+          await (supabase as any)
+            .from('user_reviews')
+            .update({ was_there: true })
+            .eq('user_id', userId)
+            .eq('event_id', eventId);
+          return true;
+        }
+        
+        return wasThere;
+      }
+      
+      // Debug: Let's see if there are ANY reviews for this user/event combination
+      console.log('🔍 No review found, checking for any reviews for this user...');
+      const { data: allUserReviews, error: allError } = await (supabase as any)
+        .from('user_reviews')
+        .select('id, event_id, review_text, was_there, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      console.log('🔍 Recent reviews for user:', { allUserReviews, allError });
+      
+      return false;
     } catch (error) {
       console.error('Error checking user attendance:', error);
       return false;

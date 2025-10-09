@@ -1,12 +1,15 @@
 import { useState, useCallback } from 'react';
 import type { Artist } from '@/types/concertSearch';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
+import type { CustomSetlistSong } from '@/services/reviewService';
 
 export interface ReviewFormData {
   // Step 1: Event Details
   selectedArtist: Artist | null;
   selectedVenue: VenueSearchResult | null;
   eventDate: string;
+  selectedSetlist: any | null; // SetlistData from setlistService (API verified)
+  customSetlist: CustomSetlistSong[]; // User-created custom setlist
   
   // Step 2: Rating - Three separate categories
   performanceRating: number; // Rating for artist/band performance quality (0.5-5.0)
@@ -43,6 +46,8 @@ const initialFormData: ReviewFormData = {
   selectedArtist: null,
   selectedVenue: null,
   eventDate: '',
+  selectedSetlist: null,
+  customSetlist: [],
   performanceRating: 0,
   venueRating: 0,
   overallExperienceRating: 0,
@@ -73,6 +78,13 @@ export function useReviewForm() {
 
     switch (step) {
       case 1:
+        console.log('🔍 validateStep 1 - checking:', {
+          selectedArtist: !!data.selectedArtist,
+          selectedVenue: !!data.selectedVenue,
+          eventDate: !!data.eventDate,
+          selectedVenueName: data.selectedVenue?.name
+        });
+        
         if (!data.selectedArtist) {
           errors.selectedArtist = 'Please select an artist';
         }
@@ -82,6 +94,8 @@ export function useReviewForm() {
         if (!data.eventDate) {
           errors.eventDate = 'Please select a date';
         }
+        
+        console.log('🔍 validateStep 1 - errors:', errors);
         break;
       case 2:
         // Validate all three rating categories
@@ -143,8 +157,12 @@ export function useReviewForm() {
   }, []);
 
   const updateFormData = useCallback((updates: Partial<ReviewFormData>) => {
+    console.log('🔄 useReviewForm: updateFormData called with:', updates);
     setState(prev => {
       const newFormData = { ...prev.formData, ...updates };
+      
+      console.log('🔄 useReviewForm: Previous formData:', prev.formData);
+      console.log('🔄 useReviewForm: New formData:', newFormData);
       
       // Auto-calculate overall rating if any of the three ratings are updated
       if (updates.performanceRating !== undefined || updates.venueRating !== undefined || updates.overallExperienceRating !== undefined) {
@@ -157,6 +175,9 @@ export function useReviewForm() {
       
       const stepErrors = validateStep(prev.currentStep, newFormData);
       const isValid = Object.keys(stepErrors).length === 0;
+      
+      console.log('🔄 useReviewForm: Step validation errors:', stepErrors);
+      console.log('🔄 useReviewForm: Form is valid:', isValid);
       
       return {
         ...prev,

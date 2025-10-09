@@ -29,7 +29,7 @@ export function EventReviewModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
+      <DialogContent className="max-w-3xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col" hideCloseButton>
         <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-lg font-semibold">Share Your Concert Experience</DialogTitle>
@@ -53,6 +53,7 @@ export function EventReviewModal({
                 if (onReviewSubmitted) onReviewSubmitted(null as any);
                 onClose();
               }}
+              onClose={onClose}
             />
           </div>
         </div>

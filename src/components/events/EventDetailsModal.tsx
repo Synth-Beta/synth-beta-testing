@@ -37,6 +37,7 @@ interface EventDetailsModalProps {
   onClose: () => void;
   onInterestToggle?: (eventId: string, interested: boolean) => void;
   onReview?: (eventId: string) => void;
+  onAttendanceChange?: (eventId: string, attended: boolean) => void;
   isInterested?: boolean;
   hasReviewed?: boolean;
   onNavigateToProfile?: (userId: string) => void;
@@ -50,6 +51,7 @@ export function EventDetailsModal({
   onClose,
   onInterestToggle,
   onReview,
+  onAttendanceChange,
   isInterested = false,
   hasReviewed = false,
   onNavigateToProfile,
@@ -97,6 +99,18 @@ export function EventDetailsModal({
             setActualEvent(event); // Fallback to passed event
           } else {
             console.log('✅ EventDetailsModal: Fetched event data from jambase_events:', data);
+            console.log('🎵 EventDetailsModal: Setlist data from database:', {
+              eventId: data.id,
+              eventTitle: data.title,
+              artistName: data.artist_name,
+              venueName: data.venue_name,
+              eventDate: data.event_date,
+              setlist: data.setlist,
+              hasSetlist: !!data.setlist,
+              setlistType: typeof data.setlist,
+              setlistKeys: data.setlist ? Object.keys(data.setlist) : null,
+              allFields: Object.keys(data)
+            });
             setActualEvent(data);
           }
         } catch (error) {
@@ -214,11 +228,24 @@ export function EventDetailsModal({
   const loadAttendanceData = async () => {
     try {
       setAttendanceLoading(true);
-      // TODO: Implement attendance tracking
-      setUserWasThere(false);
-      setAttendanceCount(0);
+      
+      if (!actualEvent?.id || !currentUserId) {
+        setUserWasThere(false);
+        setAttendanceCount(0);
+        return;
+      }
+
+      // Check if current user attended
+      const userAttended = await UserEventService.getUserAttendance(currentUserId, actualEvent.id);
+      setUserWasThere(userAttended);
+
+      // Get total attendance count
+      const count = await UserEventService.getEventAttendanceCount(actualEvent.id);
+      setAttendanceCount(count);
     } catch (error) {
       console.error('Error loading attendance data:', error);
+      setUserWasThere(false);
+      setAttendanceCount(0);
     } finally {
       setAttendanceLoading(false);
     }
@@ -228,15 +255,39 @@ export function EventDetailsModal({
     try {
       setAttendanceLoading(true);
       const newAttendanceStatus = !userWasThere;
-      // TODO: Implement attendance tracking
+      
+      if (!actualEvent?.id) {
+        throw new Error('Event ID is missing');
+      }
+
+      // Call the service to mark attendance
+      await UserEventService.markUserAttendance(
+        currentUserId,
+        actualEvent.id,
+        newAttendanceStatus
+      );
+      
+      // Update local state
       setUserWasThere(newAttendanceStatus);
+      
+      // Update attendance count
+      const newCount = await UserEventService.getEventAttendanceCount(actualEvent.id);
+      setAttendanceCount(newCount);
+      
+      // Notify parent component that attendance changed
+      if (onAttendanceChange) {
+        onAttendanceChange(actualEvent.id, newAttendanceStatus);
+      }
       
       toast({
         title: newAttendanceStatus ? "Marked as attended!" : "Removed attendance",
         description: newAttendanceStatus 
-          ? "You've marked that you were at this event"
+          ? "You've marked that you were at this event. Add a review to share your experience!"
           : "You've removed your attendance for this event"
       });
+
+      // Reload attendance data to ensure consistency
+      await loadAttendanceData();
     } catch (error) {
       console.error('Error toggling attendance:', error);
       toast({
@@ -394,6 +445,19 @@ export function EventDetailsModal({
                 )}
               </div>
             </div>
+            
+            {/* Remove Interest Button for Past Events - Top Right */}
+            {isPastEvent && onInterestToggle && isInterested && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onInterestToggle(actualEvent.id, false)}
+                className="text-gray-600 hover:text-red-600 hover:border-red-300 ml-4"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Remove Interest
+              </Button>
+            )}
           </div>
         </DialogHeader>
 
@@ -478,7 +542,14 @@ export function EventDetailsModal({
           />
 
           {/* Setlist Accordion - Only show for past events with setlists */}
-          {isPastEvent && actualEvent.setlist_enriched && actualEvent.setlist_song_count && actualEvent.setlist_song_count > 0 && (
+          {(() => {
+            // Check if we have setlist data (either in setlist field or setlist_enriched)
+            const hasSetlistData = actualEvent.setlist && actualEvent.setlist !== null && actualEvent.setlist !== '{}';
+            const hasSetlistEnriched = actualEvent.setlist_enriched === true;
+            const hasSetlist = isPastEvent && (hasSetlistData || hasSetlistEnriched);
+            
+            return hasSetlist;
+          })() && (
             <Accordion 
               type="single" 
               collapsible 
@@ -494,7 +565,16 @@ export function EventDetailsModal({
                     </div>
                     <div className="flex-1 text-left">
                       <h3 className="text-lg font-bold text-purple-900">Setlist from this Show</h3>
-                      <p className="text-sm text-purple-700">{actualEvent.setlist_song_count} songs performed</p>
+                      <p className="text-sm text-purple-700">
+                        {(() => {
+                          // Use song count from database if available, otherwise calculate from setlist data
+                          if (actualEvent.setlist_song_count && actualEvent.setlist_song_count > 0) {
+                            return actualEvent.setlist_song_count;
+                          }
+                          const setlistData = actualEvent.setlist as any;
+                          return setlistData && setlistData.songs ? setlistData.songs.length : 'Multiple';
+                        })()} songs performed
+                      </p>
                     </div>
                     {actualEvent.setlist_fm_url && (
                       <Button
@@ -517,18 +597,18 @@ export function EventDetailsModal({
                     )}
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="px-6 pb-6">
+                <AccordionContent className="px-6 pb-6 max-h-96 overflow-y-auto">
                   {(() => {
                     const setlistData = actualEvent.setlist as any;
                     
                     // Handle different setlist data formats
                     let songs = [];
-                    if (setlistData) {
+                    if (setlistData && typeof setlistData === 'object') {
                       if (Array.isArray(setlistData)) {
                         // If setlist is directly an array of songs
                         songs = setlistData;
                       } else if (setlistData.songs && Array.isArray(setlistData.songs)) {
-                        // If setlist has a songs property
+                        // If setlist has a songs property (most common format)
                         songs = setlistData.songs;
                       } else if (setlistData.setlist && Array.isArray(setlistData.setlist)) {
                         // If setlist has a setlist property
@@ -540,13 +620,7 @@ export function EventDetailsModal({
                       return (
                         <div className="text-center py-4">
                           <p className="text-purple-700">Setlist data is available but in an unexpected format.</p>
-                          {actualEvent.setlist_fm_url && (
-                            <p className="text-sm text-purple-600 mt-2">
-                              <a href={actualEvent.setlist_fm_url} target="_blank" rel="noopener noreferrer" className="underline">
-                                View on setlist.fm
-                              </a>
-                            </p>
-                          )}
+                          <p className="text-xs text-gray-500 mt-2">Data keys: {setlistData ? Object.keys(setlistData).join(', ') : 'none'}</p>
                         </div>
                       );
                     }
@@ -564,80 +638,49 @@ export function EventDetailsModal({
                                 <Music className="w-4 h-4" />
                                 {setName}
                               </h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {(() => {
-                                  // Split songs into two columns for vertical numbering
-                                  const songsPerColumn = Math.ceil(setSongs.length / 2);
-                                  const firstColumn = setSongs.slice(0, songsPerColumn);
-                                  const secondColumn = setSongs.slice(songsPerColumn);
-                                  
-                                  return (
-                                    <>
-                                      {/* First Column */}
-                                      <div className="space-y-2">
-                                        {firstColumn.map((song: any, idx: number) => (
-                                          <div key={idx} className="flex items-start gap-2 text-sm">
-                                            <span className="text-purple-600 font-medium min-w-[24px]">
-                                              {song.position || (idx + 1)}.
-                                            </span>
-                                            <div className="flex-1">
-                                              <span className="text-gray-900">
-                                                {song.name || song.title || song.song || 'Unknown Song'}
-                                              </span>
-                                              {song.cover && (
-                                                <span className="text-xs text-purple-600 ml-2">
-                                                  ({song.cover.artist || song.cover} cover)
-                                                </span>
-                                              )}
-                                              {(song.info || song.notes) && (
-                                                <p className="text-xs text-gray-600 mt-1">
-                                                  {song.info || song.notes}
-                                                </p>
-                                              )}
-                                            </div>
-                                          </div>
-                                        ))}
+                              <div className="space-y-1">
+                                {setSongs.map((song: any, idx: number) => (
+                                  <div key={song.position || idx} className="flex items-start gap-3 py-1">
+                                    <span className="text-purple-600 font-medium min-w-[28px] text-sm">
+                                      {song.position || (idx + 1)}.
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-gray-900 text-sm font-medium">
+                                          {song.name || song.title || song.song || 'Unknown Song'}
+                                        </span>
+                                        {song.cover && (
+                                          <span className="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+                                            {song.cover.artist || song.cover} cover
+                                          </span>
+                                        )}
                                       </div>
-                                      
-                                      {/* Second Column */}
-                                      {secondColumn.length > 0 && (
-                                        <div className="space-y-2">
-                                          {secondColumn.map((song: any, idx: number) => (
-                                            <div key={idx + songsPerColumn} className="flex items-start gap-2 text-sm">
-                                              <span className="text-purple-600 font-medium min-w-[24px]">
-                                                {song.position || (idx + songsPerColumn + 1)}.
-                                              </span>
-                                              <div className="flex-1">
-                                                <span className="text-gray-900">
-                                                  {song.name || song.title || song.song || 'Unknown Song'}
-                                                </span>
-                                                {song.cover && (
-                                                  <span className="text-xs text-purple-600 ml-2">
-                                                    ({song.cover.artist || song.cover} cover)
-                                                  </span>
-                                                )}
-                                                {(song.info || song.notes) && (
-                                                  <p className="text-xs text-gray-600 mt-1">
-                                                    {song.info || song.notes}
-                                                  </p>
-                                                )}
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
+                                      {(song.info || song.notes) && (
+                                        <p className="text-xs text-gray-600 mt-1 italic">
+                                          {song.info || song.notes}
+                                        </p>
                                       )}
-                                    </>
-                                  );
-                                })()}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           );
                         })}
                         
                         {setlistData.info && (
-                          <div className="bg-purple-100/50 rounded-lg p-3">
+                          <div className="bg-purple-100/50 rounded-lg p-3 mt-4">
                             <p className="text-sm text-purple-900">
                               <span className="font-semibold">Note:</span> {setlistData.info}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Tour information */}
+                        {setlistData.tour && (
+                          <div className="bg-blue-100/50 rounded-lg p-3 mt-4">
+                            <p className="text-sm text-blue-900">
+                              <span className="font-semibold">Tour:</span> {setlistData.tour}
                             </p>
                           </div>
                         )}

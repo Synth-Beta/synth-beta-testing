@@ -27,6 +27,13 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
   const [genreTags, setGenreTags] = useState<string[]>([]);
   const { toast } = useToast();
 
+  // Update form data when initialQuery changes
+  React.useEffect(() => {
+    if (open && initialQuery) {
+      setFormData(prev => ({ ...prev, name: initialQuery }));
+    }
+  }, [open, initialQuery]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -66,7 +73,7 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
     setIsSubmitting(true);
 
     try {
-      // Create artist in database
+      // Create artist in database using the correct 'artists' table schema
       const { data: artistProfile, error: profileError } = await supabase
         .from('artists')
         .insert([
@@ -74,10 +81,10 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
             jambase_artist_id: `user-created-${Date.now()}`,
             name: formData.name.trim(),
             identifier: `user-created-${formData.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
-            genres: genreTags.length > 0 ? genreTags : null,
+            url: null,
             image_url: formData.imageUrl.trim() || null,
-            is_user_created: true,
-            bio: formData.description.trim() || null,
+            date_published: new Date().toISOString(),
+            date_modified: new Date().toISOString(),
           }
         ])
         .select()
@@ -90,14 +97,17 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
         description: `${formData.name} has been added to your database.`,
       });
 
-      // Convert to the expected format
+      // Convert to the expected format with client-side metadata
+      // Store description and genres in memory for this session since they're not in DB
       const artist = {
         id: artistProfile.id,
         jambase_artist_id: artistProfile.jambase_artist_id,
         name: artistProfile.name,
+        identifier: artistProfile.identifier,
         description: formData.description.trim() || '',
-        genres: (artistProfile as any).genres || [],
+        genres: genreTags,
         image_url: artistProfile.image_url,
+        url: artistProfile.url,
         popularity_score: 0,
         source: 'user_created',
         created_at: artistProfile.created_at,

@@ -28,7 +28,7 @@ export function EventLikersModal({ eventId, isOpen, onClose }: EventLikersModalP
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Likes</DialogTitle>
           <DialogDescription>People who liked this event</DialogDescription>

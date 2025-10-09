@@ -1,6 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
+// Custom setlist song structure
+export interface CustomSetlistSong {
+  song_name: string;
+  cover_artist?: string;
+  notes?: string;
+  position: number;
+}
+
 // Review system types with venue support
 export interface ReviewData {
   rating?: number; // Overall rating (calculated automatically)
@@ -19,6 +27,8 @@ export interface ReviewData {
   is_public?: boolean;
   venue_tags?: string[]; // Venue-specific tags
   artist_tags?: string[]; // Artist-specific tags
+  setlist?: any; // Selected setlist data from Setlist.fm (API verified)
+  custom_setlist?: CustomSetlistSong[]; // User-created custom setlist (review-only)
 }
 
 export interface UserReview {
@@ -44,6 +54,8 @@ export interface UserReview {
   context_tags?: string[];
   venue_tags?: string[];
   artist_tags?: string[];
+  setlist?: any; // Selected setlist data from Setlist.fm (API verified)
+  custom_setlist?: CustomSetlistSong[]; // User-created custom setlist (review-only)
   likes_count: number;
   comments_count: number;
   shares_count: number;
@@ -209,17 +221,24 @@ export class ReviewService {
         return 3;
       };
 
-      // Check if user already has a review for this event (guard against non-UUID eventId)
+      // Check if user already has a PUBLISHED review for this event (guard against non-UUID eventId)
+      // We filter by is_draft = false to only find published reviews, not drafts
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId);
       // If eventId is not a UUID, skip .single() to avoid 400s and treat as not found
-      const { data: existingReview, error: checkError } = isUuid
-        ? await supabase
-            .from('user_reviews')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('event_id', eventId)
-            .maybeSingle()
-        : { data: null as any, error: null as any };
+      let existingReview: any = null;
+      let checkError: any = null;
+      
+      if (isUuid) {
+        const result = await (supabase as any)
+          .from('user_reviews')
+          .select('id, is_draft')
+          .eq('user_id', userId)
+          .eq('event_id', eventId)
+          .eq('is_draft', false) // Only find published reviews, not drafts
+          .maybeSingle();
+        existingReview = result.data;
+        checkError = result.error;
+      }
 
       if (checkError && checkError.code !== 'PGRST116' && (checkError as any).status !== 406) {
         throw checkError;
@@ -240,6 +259,8 @@ export class ReviewService {
           review_text: reviewData.review_text,
           reaction_emoji: reviewData.reaction_emoji,
           is_public: reviewData.is_public,
+          is_draft: false, // Mark as published (not a draft)
+          draft_data: null, // Clear draft data when publishing
           performance_rating: reviewData.performance_rating,
           // Do not write decimals to legacy integer venue_rating; use new decimal column instead
           overall_experience_rating: reviewData.overall_experience_rating,
@@ -253,6 +274,7 @@ export class ReviewService {
           venue_tags: reviewData.venue_tags,
           artist_tags: reviewData.artist_tags,
           photos: reviewData.photos, // Add photos field
+          setlist: reviewData.setlist, // Add setlist field
           was_there: true, // If someone writes a review, they obviously attended
           updated_at: new Date().toISOString()
         };
@@ -283,6 +305,8 @@ export class ReviewService {
             review_text: reviewData.review_text,
             reaction_emoji: reviewData.reaction_emoji,
             is_public: reviewData.is_public,
+            is_draft: false, // Mark as published (not a draft)
+            draft_data: null, // Clear draft data when publishing
             photos: reviewData.photos, // Add photos field to legacy update
             was_there: true, // If someone writes a review, they obviously attended
             updated_at: new Date().toISOString()
@@ -302,7 +326,63 @@ export class ReviewService {
         return data as any as UserReview;
       }
 
-      // Create new review
+      // Before creating a new review, check if there's an existing draft for this event
+      // If there is, we should update it instead of creating a new one
+      let draftId: string | null = null;
+      if (isUuid) {
+        const draftResult = await (supabase as any)
+          .from('user_reviews')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('event_id', eventId)
+          .eq('is_draft', true)
+          .maybeSingle();
+        
+        if (draftResult.data) {
+          draftId = draftResult.data.id;
+          console.log('🔄 Found existing draft, will convert to published review:', draftId);
+        }
+      }
+
+      // If we found a draft, update it instead of creating a new review
+      if (draftId) {
+        const draftUpdate: any = {
+          ...(venueId ? { venue_id: venueId } : {}),
+          rating: deriveRating(reviewData),
+          reaction_emoji: reviewData.reaction_emoji,
+          review_text: reviewData.review_text,
+          is_public: reviewData.is_public ?? true,
+          is_draft: false, // Mark as published
+          draft_data: null, // Clear draft data
+          performance_rating: reviewData.performance_rating,
+          overall_experience_rating: reviewData.overall_experience_rating,
+          performance_review_text: reviewData.performance_review_text,
+          venue_review_text: reviewData.venue_review_text,
+          overall_experience_review_text: reviewData.overall_experience_review_text,
+          venue_rating_new: (reviewData as any).venue_rating ?? undefined,
+          artist_rating: reviewData.artist_rating,
+          review_type: reviewData.review_type,
+          venue_tags: reviewData.venue_tags,
+          artist_tags: reviewData.artist_tags,
+          photos: reviewData.photos,
+          setlist: reviewData.setlist,
+          was_there: true,
+          updated_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+          .from('user_reviews')
+          .update(draftUpdate)
+          .eq('id', draftId)
+          .select()
+          .maybeSingle();
+
+        if (error) throw error;
+        console.log('✅ Converted draft to published review:', draftId);
+        return data as any as UserReview;
+      }
+
+      // Create new review (no draft exists)
       const insertPayload: UserReviewInsert = {
         user_id: userId,
         event_id: eventId,
@@ -311,6 +391,8 @@ export class ReviewService {
         reaction_emoji: reviewData.reaction_emoji,
         review_text: reviewData.review_text,
         is_public: reviewData.is_public ?? true,
+        is_draft: false, // Explicitly mark as published (not a draft)
+        draft_data: null, // No draft data for published reviews
         performance_rating: reviewData.performance_rating,
         // Do not write decimals to legacy integer venue_rating; use new decimal column instead
         overall_experience_rating: reviewData.overall_experience_rating,
@@ -324,6 +406,7 @@ export class ReviewService {
         venue_tags: reviewData.venue_tags,
         artist_tags: reviewData.artist_tags,
         photos: reviewData.photos, // Add photos field
+        setlist: reviewData.setlist, // Add setlist field
         was_there: true // If someone writes a review, they obviously attended
       } as UserReviewInsert;
 
@@ -360,6 +443,8 @@ export class ReviewService {
           reaction_emoji: reviewData.reaction_emoji,
           review_text: reviewData.review_text,
           is_public: reviewData.is_public ?? true,
+          is_draft: false, // Explicitly mark as published
+          draft_data: null, // No draft data for published reviews
           photos: reviewData.photos, // Add photos field to legacy insert
           was_there: true // If someone writes a review, they obviously attended
         };
@@ -374,6 +459,29 @@ export class ReviewService {
       }
 
       if (error) throw error as any;
+      
+      // Cleanup: Delete any orphaned drafts for this event after successfully creating the final review
+      // This ensures we don't have leftover draft reviews cluttering the database
+      if (isUuid && data) {
+        try {
+          const deleteResult = await (supabase as any)
+            .from('user_reviews')
+            .delete()
+            .eq('user_id', userId)
+            .eq('event_id', eventId)
+            .eq('is_draft', true);
+          
+          if (deleteResult.error) {
+            console.warn('⚠️ Failed to delete draft reviews after publishing:', deleteResult.error);
+          } else {
+            console.log('🧹 Cleaned up any orphaned draft reviews for event:', eventId);
+          }
+        } catch (cleanupError) {
+          console.warn('⚠️ Error during draft cleanup:', cleanupError);
+          // Don't throw - cleanup is not critical
+        }
+      }
+      
       return data as any as UserReview;
     } catch (error) {
       // Surface deeper Supabase details when possible
@@ -521,6 +629,7 @@ export class ReviewService {
           )
         `)
         .eq('user_id', userId)
+        .eq('is_draft', false) // Only show published reviews, not drafts
         .order('rating', { ascending: false })
         .order('rank_order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false });
@@ -545,6 +654,7 @@ export class ReviewService {
             review_text: item.review_text,
             photos: item.photos,
             videos: item.videos,
+            setlist: item.setlist,
             mood_tags: item.mood_tags,
             genre_tags: item.genre_tags,
             context_tags: item.context_tags,

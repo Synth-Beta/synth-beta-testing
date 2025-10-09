@@ -18,16 +18,16 @@ export function VenueCard({ venueId, venueName, onClose }: VenueCardProps) {
 
   useEffect(() => {
     (async () => {
-      // 1) Geo from venue_profile when available
+      // 1) Geo from venues table when available
       try {
         if (venueId) {
           const { data } = await (supabase as any)
-            .from('venue_profile')
-            .select('geo')
+            .from('venues')
+            .select('latitude, longitude')
             .eq('id', venueId)
             .single();
-          if (data?.geo) {
-            setGeo({ lat: data.geo.latitude, lng: data.geo.longitude });
+          if (data?.latitude && data?.longitude) {
+            setGeo({ lat: data.latitude, lng: data.longitude });
           }
         }
       } catch {}

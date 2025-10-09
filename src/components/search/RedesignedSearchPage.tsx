@@ -1216,6 +1216,17 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
             }}
             onInterestToggle={handleInterestToggle}
             onReview={handleReview}
+            onAttendanceChange={(eventId, attended) => {
+              console.log('🎯 Attendance changed in search:', eventId, attended);
+              // Remove from interested events if user marked attendance
+              if (attended) {
+                setInterestedEvents(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(eventId);
+                  return newSet;
+                });
+              }
+            }}
             isInterested={interestedEvents.has(selectedEvent.id)}
             hasReviewed={false} // You could track this if needed
             onNavigateToProfile={onNavigateToProfile}

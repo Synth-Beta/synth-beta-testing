@@ -303,7 +303,7 @@ export class UnifiedArtistSearchService {
         
         // Check if artist already exists
         const { data: existingArtist, error: checkError } = await supabase
-          .from('artist_profile')
+          .from('artists')
           .select('*')
           .eq('jambase_artist_id', artistId)
           .single();
@@ -322,51 +322,30 @@ export class UnifiedArtistSearchService {
             id: jamBaseArtist.id,
             jambase_artist_id: artistId,
             name: jamBaseArtist.name,
-            description: jamBaseArtist.description || `Artist: ${jamBaseArtist.name}`,
-            genres: jamBaseArtist.genres || [],
-            image_url: jamBaseArtist.image,
-            popularity_score: jamBaseArtist['x-numUpcomingEvents'] || 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
             identifier: jamBaseArtist.identifier,
-            band_or_musician: jamBaseArtist['x-bandOrMusician'] || 'band',
-            num_upcoming_events: jamBaseArtist['x-numUpcomingEvents'] || 0,
-            last_synced_at: new Date().toISOString()
+            url: jamBaseArtist.url,
+            image_url: jamBaseArtist.image,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           } as any);
           continue;
         }
 
-        // Try to fetch full artist details from JamBase (optional)
-        let fullArtistData;
-        try {
-          fullArtistData = await this.fetchFullArtistDetails(artistId);
-        } catch (fetchError) {
-          console.warn(`⚠️  Could not fetch full details for ${jamBaseArtist.name}, using basic data`);
-          fullArtistData = jamBaseArtist;
-        }
-        
-        // Check if artist has required properties
-        if (!fullArtistData || !fullArtistData.name || !fullArtistData.identifier) {
-          console.warn(`⚠️  Skipping artist ${fullArtistData?.name || 'unknown'} - missing required properties`);
-          continue;
-        }
-
-        // Transform and save to database
-        let profileData;
-        try {
-          profileData = transformJamBaseArtistToProfile(fullArtistData, 'jambase');
-        } catch (transformError) {
-          console.warn(`⚠️  Error transforming artist ${fullArtistData.name}:`, transformError);
-          continue;
-        }
+        // Save to database using the actual 'artists' table schema
+        const artistData = {
+          jambase_artist_id: artistId,
+          name: jamBaseArtist.name,
+          identifier: jamBaseArtist.identifier,
+          url: jamBaseArtist.url || null,
+          image_url: jamBaseArtist.image || null,
+          date_published: new Date().toISOString(),
+          date_modified: new Date().toISOString()
+        };
         
         const { data: savedArtist, error } = await supabase
-          .from('artist_profile')
-          .upsert({
-            ...profileData,
-            last_synced_at: new Date().toISOString(),
-          } as any, {
-            onConflict: 'identifier'
+          .from('artists')
+          .upsert(artistData as any, {
+            onConflict: 'jambase_artist_id'
           })
           .select()
           .single();
@@ -716,7 +695,7 @@ export class UnifiedArtistSearchService {
    */
   static async getArtistById(artistId: string): Promise<ArtistProfile | null> {
     const { data, error } = await supabase
-      .from('artist_profile')
+      .from('artists')
       .select('*')
       .eq('jambase_artist_id', artistId)
       .single();
@@ -736,7 +715,7 @@ export class UnifiedArtistSearchService {
    */
   static async getAllArtists(limit: number = 50): Promise<ArtistProfile[]> {
     const { data, error } = await supabase
-      .from('artist_profile')
+      .from('artists')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -753,7 +732,7 @@ export class UnifiedArtistSearchService {
    */
   static async clearAllArtists(): Promise<void> {
     const { error } = await supabase
-      .from('artist_profile')
+      .from('artists')
       .delete()
       .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
 

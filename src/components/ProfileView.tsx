@@ -283,6 +283,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
   const fetchInterestedEvents = async () => {
     try {
+      // First, get all events the user is interested in
       const { data, error } = await supabase
         .from('user_jambase_events')
         .select(`
@@ -304,9 +305,34 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         `)
         .eq('user_id', currentUserId)
         .order('created_at', { ascending: false });
+      
       if (error) throw error;
-      const events = (data || []).map((item: any) => item.jambase_event).filter(Boolean);
-      setInterestedEvents(events);
+      
+      const allEvents = (data || []).map((item: any) => item.jambase_event).filter(Boolean);
+      
+      // Get event IDs that have been marked as attended (have a review record with was_there=true)
+      const { data: attendedData, error: attendedError } = await supabase
+        .from('user_reviews')
+        .select('event_id')
+        .eq('user_id', currentUserId)
+        .eq('was_there', true);
+      
+      if (attendedError) {
+        console.warn('Error fetching attended events:', attendedError);
+        // If we can't fetch attended events, just show all interested events
+        setInterestedEvents(allEvents);
+        return;
+      }
+      
+      // Create a Set of attended event IDs for fast lookup
+      const attendedEventIds = new Set(attendedData?.map(item => item.event_id) || []);
+      
+      // Filter out events that have been marked as attended
+      const interestedOnly = allEvents.filter(event => !attendedEventIds.has(event.id));
+      
+      console.log(`📊 Interested Events: ${allEvents.length} total, ${attendedEventIds.size} attended, ${interestedOnly.length} still interested`);
+      
+      setInterestedEvents(interestedOnly);
     } catch (e) {
       console.error('Error fetching interested events:', e);
       setInterestedEvents([]);
@@ -698,7 +724,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               {/* Stats Row */}
               <div className="flex gap-6 mb-4">
                 <div className="text-center">
-                  <span className="font-semibold">{reviews.length}</span>
+                  <span className="font-semibold">{reviews.filter(review => (review as any).review_text !== 'ATTENDANCE_ONLY').length}</span>
                   <p className="text-sm text-muted-foreground">reviews</p>
                 </div>
                 <button 
@@ -906,7 +932,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
       {/* Review View Dialog */}
       <Dialog open={viewReviewOpen} onOpenChange={setViewReviewOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
+        <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col">
           <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
             <DialogTitle>Review</DialogTitle>
           </DialogHeader>
@@ -948,7 +974,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
       {/* Venue Dialog */}
       <Dialog open={venueDialog.open} onOpenChange={(open) => setVenueDialog(prev => ({ ...prev, open }))}>
-        <DialogContent className="max-w-2xl w-[95vw]" aria-describedby={undefined}>
+        <DialogContent className="max-w-2xl w-[95vw]">
           <DialogHeader>
             <DialogTitle>Venue</DialogTitle>
           </DialogHeader>
@@ -960,7 +986,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
 
       {/* Artist Dialog */}
       <Dialog open={artistDialog.open} onOpenChange={(open) => setArtistDialog(prev => ({ ...prev, open }))}>
-        <DialogContent className="max-w-4xl w-[95vw]" aria-describedby={undefined}>
+        <DialogContent className="max-w-4xl w-[95vw]">
           <DialogHeader>
             <DialogTitle>Artist</DialogTitle>
           </DialogHeader>
@@ -1036,6 +1062,16 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               variant: "destructive",
             });
           }
+        }}
+        onAttendanceChange={async (eventId, attended) => {
+          console.log('🎯 Attendance changed:', eventId, attended);
+          // If user marked attendance, remove event from interested list immediately
+          if (attended && selectedEvent) {
+            console.log('📤 Removing event from interested list:', selectedEvent.id);
+            setInterestedEvents(prev => prev.filter(event => event.id !== selectedEvent.id));
+          }
+          // Refetch interested events to ensure consistency
+          await fetchInterestedEvents();
         }}
         isInterested={selectedEventInterested}
       />

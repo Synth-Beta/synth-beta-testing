@@ -69,7 +69,7 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Event Comments</DialogTitle>
           <DialogDescription>Discuss this event.</DialogDescription>

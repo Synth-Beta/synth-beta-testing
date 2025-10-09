@@ -17,8 +17,12 @@ interface ManualVenueFormProps {
 
 export function ManualVenueForm({ open, onClose, onVenueCreated, initialQuery = '' }: ManualVenueFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Debug logging
+  React.useEffect(() => {
+  }, [open, initialQuery]);
   const [formData, setFormData] = useState({
-    name: initialQuery,
+    name: '',
     streetAddress: '',
     city: '',
     state: '',
@@ -27,6 +31,13 @@ export function ManualVenueForm({ open, onClose, onVenueCreated, initialQuery = 
     capacity: '',
     imageUrl: '',
   });
+
+  // Update form data when modal opens or initialQuery changes
+  React.useEffect(() => {
+    if (open && initialQuery) {
+      setFormData(prev => ({ ...prev, name: initialQuery }));
+    }
+  }, [open, initialQuery]);
   const { toast } = useToast();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -49,55 +60,61 @@ export function ManualVenueForm({ open, onClose, onVenueCreated, initialQuery = 
     setIsSubmitting(true);
 
     try {
-      // Create venue in database
+      // Create venue in database using the correct 'venues' table
       const venueData = {
         jambase_venue_id: `user-created-${Date.now()}`,
         name: formData.name.trim(),
         identifier: `user-created-${formData.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+        url: null,
+        image_url: formData.imageUrl.trim() || null,
         address: formData.streetAddress.trim() || null,
         city: formData.city.trim() || null,
         state: formData.state.trim() || null,
         zip: formData.zipCode.trim() || null,
         country: formData.country.trim() || 'US',
-        image_url: formData.imageUrl.trim() || null,
-        is_user_created: true,
+        latitude: null,
+        longitude: null,
+        date_published: new Date().toISOString(),
+        date_modified: new Date().toISOString(),
       };
 
-      const { data: venueProfile, error: profileError } = await supabase
+      const { data: venue, error: insertError } = await supabase
         .from('venues')
         .insert([venueData])
         .select()
         .single();
 
-      if (profileError) throw profileError;
+      if (insertError) {
+        console.error('🏗️ ManualVenueForm: Database error:', insertError);
+        throw insertError;
+      }
+
 
       toast({
         title: "Venue Created! 📍",
         description: `${formData.name} has been added to your database.`,
       });
 
-      // Convert to the expected format
-      const venue = {
-        id: venueProfile.id,
-        name: venueProfile.name,
-        identifier: venueProfile.identifier,
-        address: {
-          streetAddress: venueProfile.address,
-          addressLocality: venueProfile.city,
-          addressRegion: venueProfile.state,
-          postalCode: venueProfile.zip,
-          addressCountry: venueProfile.country,
-        },
-        geo: { latitude: venueProfile.latitude, longitude: venueProfile.longitude },
-        maximumAttendeeCapacity: null,
-        image_url: venueProfile.image_url,
-        num_upcoming_events: 0,
+      // Convert to the expected format for the callback
+      const venueFormatted = {
+        id: venue.id,
+        name: venue.name,
+        identifier: venue.identifier,
+        address: venue.address,
+        city: venue.city,
+        state: venue.state,
+        zip: venue.zip,
+        country: venue.country,
+        latitude: venue.latitude,
+        longitude: venue.longitude,
+        image_url: venue.image_url,
+        url: venue.url,
         match_score: 100,
         is_from_database: true,
         source: 'user_created',
       };
 
-      onVenueCreated(venue);
+      onVenueCreated(venueFormatted);
       handleClose();
     } catch (error) {
       console.error('Error creating venue:', error);
@@ -125,6 +142,7 @@ export function ManualVenueForm({ open, onClose, onVenueCreated, initialQuery = 
     onClose();
   };
 
+  
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">

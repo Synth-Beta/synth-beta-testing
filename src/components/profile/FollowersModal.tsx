@@ -41,7 +41,6 @@ export const FollowersModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
         className="sm:max-w-lg w-[95vw] max-h-[80vh] flex flex-col" 
-        aria-describedby={undefined}
       >
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-center">{title}</DialogTitle>

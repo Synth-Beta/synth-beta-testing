@@ -382,20 +382,34 @@ export class UnifiedVenueSearchService {
         
         // Check if venue already exists
         const { data: existingVenue, error: checkError } = await supabase
-          .from('venue_profile' as any)
+          .from('venues' as any)
           .select('*')
           .eq('jambase_venue_id', venueId)
           .single();
 
         if (existingVenue && !checkError) {
           console.log(`♻️  Venue ${jamBaseVenue.name} already exists in database`);
-          populatedVenues.push(existingVenue as any);
+          // Transform flat columns back to JSONB format for consistency
+          populatedVenues.push({
+            ...existingVenue,
+            address: {
+              streetAddress: existingVenue.address,
+              addressLocality: existingVenue.city,
+              addressRegion: existingVenue.state,
+              postalCode: existingVenue.zip,
+              addressCountry: existingVenue.country
+            },
+            geo: {
+              latitude: existingVenue.latitude,
+              longitude: existingVenue.longitude
+            }
+          } as any);
           continue;
         }
 
         // If table doesn't exist or other database error, skip database operations
         if (checkError && (checkError.code === 'PGRST116' || checkError.code === '42P01')) {
-          console.warn(`⚠️  venue_profile table doesn't exist yet. Skipping database operations for ${jamBaseVenue.name}`);
+          console.warn(`⚠️  venues table doesn't exist yet. Skipping database operations for ${jamBaseVenue.name}`);
           // Still add the venue to results even if we can't store it
           populatedVenues.push({
             id: jamBaseVenue.id,
@@ -407,8 +421,7 @@ export class UnifiedVenueSearchService {
             num_upcoming_events: jamBaseVenue['x-numUpcomingEvents'] || 0,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            identifier: jamBaseVenue.identifier,
-            last_synced_at: new Date().toISOString()
+            identifier: jamBaseVenue.identifier
           } as any);
           continue;
         }
@@ -427,32 +440,35 @@ export class UnifiedVenueSearchService {
             num_upcoming_events: jamBaseVenue['x-numUpcomingEvents'] || 0,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            identifier: jamBaseVenue.identifier,
-            last_synced_at: new Date().toISOString()
+            identifier: jamBaseVenue.identifier
           } as any);
           continue;
         }
 
-        // Transform and save to database
+        // Transform JSONB format to flat columns for the venues table
         const venueData = {
           jambase_venue_id: venueId,
           name: jamBaseVenue.name,
           identifier: jamBaseVenue.identifier,
-          address: jamBaseVenue.address,
-          geo: jamBaseVenue.geo,
-          maximum_attendee_capacity: jamBaseVenue.maximumAttendeeCapacity,
-          num_upcoming_events: jamBaseVenue['x-numUpcomingEvents'] || 0,
+          address: jamBaseVenue.address?.streetAddress || null,
+          city: jamBaseVenue.address?.addressLocality || null,
+          state: jamBaseVenue.address?.addressRegion || null,
+          zip: jamBaseVenue.address?.postalCode || null,
+          country: jamBaseVenue.address?.addressCountry || 'US',
+          latitude: jamBaseVenue.geo?.latitude || null,
+          longitude: jamBaseVenue.geo?.longitude || null,
           image_url: jamBaseVenue.image,
           url: jamBaseVenue.url,
-          last_synced_at: new Date().toISOString(),
+          date_published: new Date().toISOString(),
+          date_modified: new Date().toISOString()
         };
         
         const { data: savedVenue, error } = await supabase
-          .from('venue_profile' as any)
+          .from('venues' as any)
           .upsert({
             ...venueData,
           } as any, {
-            onConflict: 'identifier'
+            onConflict: 'jambase_venue_id'
           })
           .select()
           .single();
@@ -470,14 +486,27 @@ export class UnifiedVenueSearchService {
             num_upcoming_events: jamBaseVenue['x-numUpcomingEvents'] || 0,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-            identifier: jamBaseVenue.identifier,
-            last_synced_at: new Date().toISOString()
+            identifier: jamBaseVenue.identifier
           } as any);
           continue;
         }
 
         console.log(`✅ Saved venue ${jamBaseVenue.name} to database`);
-        populatedVenues.push(savedVenue as any);
+        // Transform flat columns back to JSONB format for consistency
+        populatedVenues.push({
+          ...savedVenue,
+          address: {
+            streetAddress: savedVenue.address,
+            addressLocality: savedVenue.city,
+            addressRegion: savedVenue.state,
+            postalCode: savedVenue.zip,
+            addressCountry: savedVenue.country
+          },
+          geo: {
+            latitude: savedVenue.latitude,
+            longitude: savedVenue.longitude
+          }
+        } as any);
       } catch (error) {
         console.error(`❌ Error processing venue ${jamBaseVenue.name}:`, error);
         // Still add the venue to results even if we can't process it fully
@@ -508,14 +537,14 @@ export class UnifiedVenueSearchService {
     try {
       // Get all venues from database
       const { data: allVenues, error } = await supabase
-        .from('venue_profile' as any)
+        .from('venues' as any)
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
         // Handle table not existing or other database errors
         if (error.code === 'PGRST116' || error.code === '42P01') {
-          console.warn(`⚠️  venue_profile table doesn't exist yet. Returning empty results for fuzzy matching.`);
+          console.warn(`⚠️  venues table doesn't exist yet. Returning empty results for fuzzy matching.`);
         } else {
           console.warn(`⚠️  Database error getting venues: ${error.message}`);
         }
@@ -541,10 +570,13 @@ export class UnifiedVenueSearchService {
           name: string;
           identifier: string | null;
           image_url: string | null;
-          address: any;
-          geo: any;
-          maximum_attendee_capacity: number | null;
-          num_upcoming_events: number | null;
+          address: string | null;
+          city: string | null;
+          state: string | null;
+          zip: string | null;
+          country: string | null;
+          latitude: number | null;
+          longitude: number | null;
         } =>
           typeof venue === 'object' &&
           venue !== null &&
@@ -553,15 +585,25 @@ export class UnifiedVenueSearchService {
       );
 
       // Calculate fuzzy match scores for all venues
+      // Transform flat columns back to JSONB format for consistency
       const scoredVenues = venues.map(venue => ({
         id: venue.jambase_venue_id || venue.id,
         name: venue.name,
         identifier: venue.identifier || '',
         image_url: venue.image_url || undefined,
-        address: venue.address,
-        geo: venue.geo,
-        maximumAttendeeCapacity: venue.maximum_attendee_capacity || undefined,
-        num_upcoming_events: venue.num_upcoming_events || 0,
+        address: {
+          streetAddress: venue.address,
+          addressLocality: venue.city,
+          addressRegion: venue.state,
+          postalCode: venue.zip,
+          addressCountry: venue.country
+        },
+        geo: {
+          latitude: venue.latitude,
+          longitude: venue.longitude
+        },
+        maximumAttendeeCapacity: undefined,
+        num_upcoming_events: 0,
         match_score: this.calculateFuzzyMatchScore(query, venue.name),
         is_from_database: true,
       }));

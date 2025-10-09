@@ -210,7 +210,7 @@ export function EventReviewsSection({
       )}
 
       <Dialog open={venueDialog.open} onOpenChange={(open) => setVenueDialog(prev => ({ ...prev, open }))}>
-        <DialogContent className="max-w-2xl w-[95vw]" aria-describedby={undefined}>
+        <DialogContent className="max-w-2xl w-[95vw]">
           <DialogHeader>
             <DialogTitle>Venue</DialogTitle>
           </DialogHeader>
@@ -221,7 +221,7 @@ export function EventReviewsSection({
       </Dialog>
 
       <Dialog open={artistDialog.open} onOpenChange={(open) => setArtistDialog(prev => ({ ...prev, open }))}>
-        <DialogContent className="max-w-4xl w-[95vw]" aria-describedby={undefined}>
+        <DialogContent className="max-w-4xl w-[95vw]">
           <DialogHeader>
             <DialogTitle>Artist</DialogTitle>
           </DialogHeader>

@@ -14,12 +14,14 @@ interface ArtistSearchBoxProps {
   onArtistSelect: (artist: Artist) => void;
   placeholder?: string;
   className?: string;
+  hideClearButton?: boolean;
 }
 
 export function ArtistSearchBox({ 
   onArtistSelect, 
   placeholder = "Search for an artist...",
-  className 
+  className,
+  hideClearButton = false
 }: ArtistSearchBoxProps) {
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ArtistSearchResult | null>(null);
@@ -67,7 +69,8 @@ export function ArtistSearchBox({
             handleArtistSelect(searchResults.artists[selectedIndex]);
           } else if (query.trim()) {
             // If no item is selected but there's text, try manual selection
-            handleManualSelect();
+            setIsOpen(false);
+            setShowManualForm(true);
           }
           break;
         case 'Escape':
@@ -108,7 +111,7 @@ export function ArtistSearchBox({
           popularity_score: result.num_upcoming_events || 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          source: result.is_from_database ? 'database' : 'jambase'
+          source: result.is_from_database ? 'database' as const : 'jambase' as const
         })),
         totalFound: results.length,
         query: searchQuery
@@ -203,7 +206,7 @@ export function ArtistSearchBox({
           {isLoading && (
             <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
           )}
-          {query && !isLoading && (
+          {query && !isLoading && !hideClearButton && (
             <Button
               type="button"
               variant="ghost"
@@ -248,58 +251,11 @@ export function ArtistSearchBox({
                       )}
                     </div>
                     
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-medium text-gray-900 truncate">
-                            {artist.name}
-                          </h3>
-                          {artist.popularity_score && artist.popularity_score > 0 && (
-                            <div className="flex items-center gap-1">
-                              <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                              <span className="text-xs text-gray-500">
-                                {artist.popularity_score}
-                              </span>
-                            </div>
-                          )}
-                          {(artist as any).source && (
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${
-                                (artist as any).source === 'database' 
-                                  ? 'text-green-600 border-green-300' 
-                                  : 'text-blue-600 border-blue-300'
-                              }`}
-                            >
-                              {(artist as any).source === 'database' ? 'Database' : 'JamBase'}
-                            </Badge>
-                          )}
-                        </div>
-                      
-                      {artist.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                          {artist.description}
-                        </p>
-                      )}
-                      
-                      {artist.genres && artist.genres.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {artist.genres.slice(0, 3).map((genre, genreIndex) => (
-                            <Badge
-                              key={genreIndex}
-                              variant="secondary"
-                              className="text-xs px-2 py-0.5"
-                            >
-                              {genre}
-                            </Badge>
-                          ))}
-                          {artist.genres.length > 3 && (
-                            <span className="text-xs text-gray-500">
-                              +{artist.genres.length - 3} more
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 text-base leading-tight">
+                          {artist.name}
+                        </h3>
+                      </div>
                   </div>
                 ))}
                 
@@ -321,15 +277,15 @@ export function ArtistSearchBox({
                     setIsOpen(false);
                     setShowManualForm(true);
                   }}
-                  className="gap-2"
+                  className="gap-2 border-pink-200 text-pink-600 hover:bg-pink-50 hover:border-pink-300"
                 >
                   <PlusCircle className="w-4 h-4" />
-                  Add "{query}" Manually
+                  Add Manually
                 </Button>
               </div>
             )}
             {searchResults.artists.length > 0 && (
-              <div className="border-t px-4 py-3 bg-gray-50">
+              <div className="border-t px-4 py-3 bg-gradient-to-r from-pink-50 to-purple-50">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -337,10 +293,10 @@ export function ArtistSearchBox({
                     setIsOpen(false);
                     setShowManualForm(true);
                   }}
-                  className="w-full gap-2 text-blue-600 hover:text-blue-700"
+                  className="w-full gap-2 text-pink-600 hover:text-pink-700 hover:bg-pink-100 font-medium"
                 >
                   <PlusCircle className="w-4 h-4" />
-                  Can't find "{query}"? Add manually
+                  Add Manually
                 </Button>
               </div>
             )}

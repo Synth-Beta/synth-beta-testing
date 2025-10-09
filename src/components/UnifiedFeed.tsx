@@ -1103,6 +1103,27 @@ export const UnifiedFeed = ({
             });
           }
         }}
+        onAttendanceChange={(eventId, attended) => {
+          console.log('🎯 Attendance changed in feed:', eventId, attended);
+          // Update the feed to mark event as attended
+          if (attended) {
+            setFeedItems(prevItems => 
+              prevItems.map(item => {
+                if (item.type === 'event' && item.event_data?.id === eventId) {
+                  return {
+                    ...item,
+                    event_data: {
+                      ...item.event_data,
+                      isInterested: false, // Remove from interested when attended
+                      hasAttended: true
+                    }
+                  };
+                }
+                return item;
+              })
+            );
+          }
+        }}
         isInterested={selectedEventInterested}
         onNavigateToProfile={onNavigateToProfile}
         onNavigateToChat={onNavigateToChat}
@@ -1177,7 +1198,7 @@ export const UnifiedFeed = ({
           setShowCommentsInModal(false);
         }
       }}>
-        <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
+        <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col">
           <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
             <DialogTitle>Review</DialogTitle>
           </DialogHeader>

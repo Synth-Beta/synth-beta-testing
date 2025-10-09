@@ -462,7 +462,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         }
         setShowAllEvents(false);
       }}>
-        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto mx-4 sm:max-w-lg" aria-describedby={undefined}>
+        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto mx-4 sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-center">Profile</DialogTitle>
           </DialogHeader>

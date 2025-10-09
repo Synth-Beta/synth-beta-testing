@@ -146,6 +146,7 @@ export class JamBaseService {
    * Get user's interested JamBase events
    */
   static async getUserEvents(userId: string) {
+    // Get all user's interested events
     const { data, error } = await supabase
       .from('user_jambase_events')
       .select(`
@@ -185,7 +186,37 @@ export class JamBaseService {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data;
+    
+    // Filter out events that have been marked as attended (have a review with was_there=true)
+    // This ensures "Interested Events" only shows events user hasn't attended yet
+    try {
+      const { data: attendedData, error: attendedError } = await supabase
+        .from('user_reviews')
+        .select('event_id')
+        .eq('user_id', userId)
+        .eq('was_there', true);
+      
+      if (attendedError) {
+        console.warn('Could not fetch attended events, returning all interested events:', attendedError);
+        return data;
+      }
+      
+      // Create a Set of attended event IDs for fast lookup
+      const attendedEventIds = new Set(attendedData?.map(item => item.event_id) || []);
+      
+      // Filter out attended events from the interested events list
+      const filteredData = data?.filter(item => {
+        const eventId = item.jambase_event?.id;
+        return eventId && !attendedEventIds.has(eventId);
+      });
+      
+      console.log(`📊 JamBaseService.getUserEvents: ${data?.length} total interested, ${attendedEventIds.size} attended, ${filteredData?.length} still interested`);
+      
+      return filteredData;
+    } catch (err) {
+      console.warn('Error filtering attended events, returning all interested events:', err);
+      return data;
+    }
   }
 
   /**

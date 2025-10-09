@@ -108,6 +108,9 @@ export class UnifiedFeedService {
         .from('user_reviews')
         .select(`*, jambase_events: jambase_events (id, title, artist_name, venue_name, event_date)`)
         .eq('user_id', userId)
+        .eq('is_draft', false) // Only show published reviews, not drafts
+        .neq('review_text', 'ATTENDANCE_ONLY') // Exclude attendance-only records from review feed
+        .not('review_text', 'is', null) // Exclude null review_text
         .order('created_at', { ascending: false })
         .limit(20);
       
@@ -129,6 +132,7 @@ export class UnifiedFeedService {
         rating: review.rating,
         is_public: review.is_public,
         photos: (review as any).photos || undefined,
+        setlist: (review as any).setlist || undefined,
         likes_count: review.likes_count || 0,
         comments_count: review.comments_count || 0,
         shares_count: review.shares_count || 0,
@@ -155,6 +159,8 @@ export class UnifiedFeedService {
         .from('public_reviews_with_profiles')
         .select('*')
         .neq('user_id', userId) // Exclude user's own reviews
+        .neq('review_text', 'ATTENDANCE_ONLY') // Exclude attendance-only records from public feed
+        .not('review_text', 'is', null) // Exclude null review_text
         .order('created_at', { ascending: false })
         .limit(limit);
       
@@ -175,6 +181,7 @@ export class UnifiedFeedService {
         rating: review.rating,
         is_public: true,
         photos: (review as any).photos || undefined,
+        setlist: (review as any).setlist || undefined,
         likes_count: review.likes_count || 0,
         comments_count: review.comments_count || 0,
         shares_count: review.shares_count || 0,
