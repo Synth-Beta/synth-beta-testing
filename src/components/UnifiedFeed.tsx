@@ -30,7 +30,8 @@ import {
   Navigation as NavigationIcon,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Newspaper
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -65,6 +66,9 @@ import { extractNumericPrice } from '@/utils/currencyUtils';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { ArtistFollowService } from '@/services/artistFollowService';
 import { VenueFollowService } from '@/services/venueFollowService';
+import { NewsService } from '@/services/newsService';
+import { NewsCard, NewsCardSkeleton } from '@/components/news/NewsCard';
+import { NewsArticle } from '@/types/news';
 
 // Using UnifiedFeedItem from service instead of local interface
 
@@ -126,6 +130,38 @@ export const UnifiedFeed = ({
   // In-app sharing state
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedEventForShare, setSelectedEventForShare] = useState<any>(null);
+  
+  // News state
+  const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsSource, setNewsSource] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<string>('events');
+
+  // Fetch news function
+  const fetchNews = async () => {
+    setNewsLoading(true);
+    try {
+      const articles = await NewsService.fetchAllNews();
+      setNewsArticles(articles);
+    } catch (error) {
+      console.error('Error fetching news:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load news articles',
+        variant: 'destructive'
+      });
+    } finally {
+      setNewsLoading(false);
+    }
+  };
+
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    if (value === 'news' && newsArticles.length === 0) {
+      fetchNews();
+    }
+  };
 
   useEffect(() => {
     if (sessionExpired) {
@@ -626,8 +662,8 @@ export const UnifiedFeed = ({
         </div>
 
         {/* Feed Tabs */}
-        <Tabs defaultValue="events" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 bg-white/60 backdrop-blur-sm border border-white/20 rounded-2xl p-1">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6 bg-white/60 backdrop-blur-sm border border-white/20 rounded-2xl p-1">
             <TabsTrigger value="events" className="flex items-center gap-2 data-[state=active]:bg-synth-pink data-[state=active]:text-white rounded-xl">
               <Calendar className="w-4 h-4" />
               Events
@@ -635,6 +671,10 @@ export const UnifiedFeed = ({
             <TabsTrigger value="reviews" className="flex items-center gap-2 data-[state=active]:bg-synth-pink data-[state=active]:text-white rounded-xl">
               <Star className="w-4 h-4" />
               Reviews
+            </TabsTrigger>
+            <TabsTrigger value="news" className="flex items-center gap-2 data-[state=active]:bg-synth-pink data-[state=active]:text-white rounded-xl">
+              <Newspaper className="w-4 h-4" />
+              News
             </TabsTrigger>
           </TabsList>
 
@@ -1216,6 +1256,89 @@ export const UnifiedFeed = ({
                 />
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent
+            value="news"
+            className="space-y-4"
+          >
+            {/* News Source Filter */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Music News</h2>
+              <div className="flex items-center gap-2">
+                <select
+                  value={newsSource}
+                  onChange={(e) => setNewsSource(e.target.value)}
+                  className="px-3 py-1 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+                >
+                  <option value="all">All Sources</option>
+                  <option value="pitchfork">Pitchfork</option>
+                  <option value="rollingstone">Rolling Stone</option>
+                  <option value="nme">NME</option>
+                  <option value="billboard">Billboard</option>
+                </select>
+                <Button
+                  onClick={() => {
+                    NewsService.clearCache();
+                    fetchNews();
+                  }}
+                  variant="outline"
+                  size="sm"
+                  disabled={newsLoading}
+                  className="text-pink-600 border-pink-200 hover:bg-pink-50"
+                >
+                  {newsLoading ? (
+                    <div className="w-4 h-4 animate-spin rounded-full border-2 border-pink-500 border-t-transparent" />
+                  ) : (
+                    'Refresh'
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* News Loading State */}
+            {newsLoading && newsArticles.length === 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <NewsCardSkeleton key={index} />
+                ))}
+              </div>
+            )}
+
+            {/* News Articles */}
+            {!newsLoading && newsArticles.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {NewsService.filterBySource(newsArticles, newsSource).map((article) => (
+                  <NewsCard key={article.id} article={article} />
+                ))}
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!newsLoading && newsArticles.length === 0 && (
+              <EmptyState
+                icon={<Newspaper className="w-12 h-12 text-gray-400" />}
+                title="No news articles found"
+                description="Unable to load music news at the moment. Please try refreshing."
+                action={{
+                  label: "Refresh News",
+                  onClick: fetchNews
+                }}
+              />
+            )}
+
+            {/* Error State for filtered results */}
+            {!newsLoading && newsArticles.length > 0 && NewsService.filterBySource(newsArticles, newsSource).length === 0 && (
+              <EmptyState
+                icon={<Filter className="w-12 h-12 text-gray-400" />}
+                title="No articles from this source"
+                description={`No articles found from ${newsSource === 'all' ? 'all sources' : newsSource}. Try selecting a different source.`}
+                action={{
+                  label: "Show All Sources",
+                  onClick: () => setNewsSource('all')
+                }}
+              />
+            )}
           </TabsContent>
         </Tabs>
           
