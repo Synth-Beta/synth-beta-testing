@@ -25,6 +25,8 @@ interface FriendProfileCardProps {
     bio?: string;
     user_id: string;
     created_at: string;
+    gender?: string;
+    birthday?: string;
   };
   isOpen: boolean;
   onClose: () => void;
@@ -77,6 +79,31 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
             
             <h2 className="text-2xl font-bold text-gray-900 mb-1">{friend.name}</h2>
             <p className="text-gray-600 mb-2">@{friend.username}</p>
+            
+            {/* Gender and Age Display */}
+            {(friend.gender || friend.birthday) && (
+              <div className="flex items-center justify-center gap-2 mb-2 w-full">
+                {friend.gender && (
+                  <Badge variant="secondary" className="text-xs">
+                    {friend.gender}
+                  </Badge>
+                )}
+                {friend.birthday && (
+                  <Badge variant="secondary" className="text-xs">
+                    {(() => {
+                      const birthDate = new Date(friend.birthday);
+                      const today = new Date();
+                      let age = today.getFullYear() - birthDate.getFullYear();
+                      const monthDiff = today.getMonth() - birthDate.getMonth();
+                      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                        age--;
+                      }
+                      return `${age} years old`;
+                    })()}
+                  </Badge>
+                )}
+              </div>
+            )}
             
             <Badge variant="secondary" className="bg-blue-100 text-blue-800">
               <User className="w-3 h-3 mr-1" />

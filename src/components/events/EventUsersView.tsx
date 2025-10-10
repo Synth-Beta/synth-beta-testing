@@ -29,7 +29,8 @@ interface UserWithProfile {
   avatar_url: string | null;
   bio: string | null;
   instagram_handle: string | null;
-  snapchat_handle: string | null;
+  gender: string | null;
+  birthday: string | null;
   created_at: string;
   updated_at: string;
   hasSwipedRight?: boolean;
@@ -131,7 +132,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
       // Fetch profiles for those interested users
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, snapchat_handle, created_at, updated_at')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, gender, birthday, created_at, updated_at')
         .in('user_id', interestedUserIds);
 
       if (profilesError) throw profilesError;
@@ -153,7 +154,8 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
               avatar_url: p.avatar_url,
               bio: p.bio,
               instagram_handle: p.instagram_handle,
-              snapchat_handle: p.snapchat_handle,
+              gender: p.gender,
+              birthday: p.birthday,
               created_at: p.created_at,
               updated_at: p.updated_at,
               hasSwipedRight: swipeMap.get(p.user_id) === true,
@@ -444,37 +446,48 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                     {currentUser.bio}
                   </p>
                 )}
+                
+                {/* Gender and Age Display */}
+                {(currentUser.gender || currentUser.birthday) && (
+                  <div className="flex items-center justify-center gap-3 mt-3">
+                    {currentUser.gender && (
+                      <Badge variant="secondary" className="text-xs">
+                        {currentUser.gender}
+                      </Badge>
+                    )}
+                    {currentUser.birthday && (
+                      <Badge variant="secondary" className="text-xs">
+                        {(() => {
+                          const birthDate = new Date(currentUser.birthday);
+                          const today = new Date();
+                          let age = today.getFullYear() - birthDate.getFullYear();
+                          const monthDiff = today.getMonth() - birthDate.getMonth();
+                          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                            age--;
+                          }
+                          return `${age} years old`;
+                        })()}
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Social Media Links */}
-              {(currentUser.instagram_handle || currentUser.snapchat_handle) && (
+              {currentUser.instagram_handle && (
                 <div className="space-y-2">
                   <h4 className="font-semibold text-sm">Social Media</h4>
                   <div className="flex flex-col gap-2">
-                    {currentUser.instagram_handle && (
-                      <a
-                        href={`https://instagram.com/${currentUser.instagram_handle}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-2 rounded-lg border hover:bg-pink-50 transition-colors"
-                      >
-                        <Instagram className="w-4 h-4 text-pink-600" />
-                        <span className="text-pink-600 font-medium text-sm">@{currentUser.instagram_handle}</span>
-                        <ExternalLink className="w-3 h-3 text-pink-600 ml-auto" />
-                      </a>
-                    )}
-                    {currentUser.snapchat_handle && (
-                      <a
-                        href={`https://snapchat.com/add/${currentUser.snapchat_handle}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-2 rounded-lg border hover:bg-yellow-50 transition-colors"
-                      >
-                        <Camera className="w-4 h-4 text-yellow-600" />
-                        <span className="text-yellow-600 font-medium text-sm">@{currentUser.snapchat_handle}</span>
-                        <ExternalLink className="w-3 h-3 text-yellow-600 ml-auto" />
-                      </a>
-                    )}
+                    <a
+                      href={`https://instagram.com/${currentUser.instagram_handle}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 p-2 rounded-lg border hover:bg-pink-50 transition-colors"
+                    >
+                      <Instagram className="w-4 h-4 text-pink-600" />
+                      <span className="text-pink-600 font-medium text-sm">@{currentUser.instagram_handle}</span>
+                      <ExternalLink className="w-3 h-3 text-pink-600 ml-auto" />
+                    </a>
                   </div>
                 </div>
               )}

@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Save, Instagram, User, Music } from 'lucide-react';
+import { ArrowLeft, Save, Instagram, User, Music, Users, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
@@ -26,7 +27,9 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
     bio: '',
     instagram_handle: '',
     music_streaming_profile: '',
-    avatar_url: null as string | null
+    avatar_url: null as string | null,
+    gender: '',
+    birthday: ''
   });
   const { toast } = useToast();
 
@@ -39,7 +42,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
       console.log('Fetching profile for user:', currentUserId);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, gender, birthday, created_at, updated_at')
         .eq('user_id', currentUserId)
         .single();
 
@@ -58,7 +61,9 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
             bio: '',
             instagram_handle: '',
             music_streaming_profile: '',
-            avatar_url: null
+            avatar_url: null,
+            gender: '',
+            birthday: ''
           });
           setLoading(false);
           return;
@@ -74,7 +79,9 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         bio: data.bio || '',
         instagram_handle: data.instagram_handle || '',
         music_streaming_profile: data.music_streaming_profile || '',
-        avatar_url: data.avatar_url || null
+        avatar_url: data.avatar_url || null,
+        gender: data.gender || '',
+        birthday: data.birthday || ''
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -109,6 +116,8 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         instagram_handle: formData.instagram_handle.trim() || null,
         music_streaming_profile: formData.music_streaming_profile.trim() || null,
         avatar_url: formData.avatar_url || null,
+        gender: formData.gender.trim() || null,
+        birthday: formData.birthday.trim() || null,
         updated_at: new Date().toISOString()
       };
       
@@ -274,6 +283,55 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
               />
               <p className="text-xs text-muted-foreground">
                 Share your Spotify, Apple Music, or other streaming profile link. Will display as a clickable link on your profile.
+              </p>
+            </div>
+
+            {/* Gender Field */}
+            <div className="space-y-2">
+              <Label htmlFor="gender" className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Gender
+              </Label>
+              <Select
+                value={formData.gender}
+                onValueChange={(value) => handleInputChange('gender', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your gender (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Not specified</SelectItem>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="non-binary">Non-binary</SelectItem>
+                  <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Your gender will be shown to other users interested in the same events for trust and safety
+              </p>
+            </div>
+
+            {/* Birthday Field */}
+            <div className="space-y-2">
+              <Label htmlFor="birthday" className="flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                Birthday
+              </Label>
+              <Input
+                id="birthday"
+                type="date"
+                value={formData.birthday}
+                onChange={(e) => handleInputChange('birthday', e.target.value)}
+                max={(() => {
+                  const date = new Date();
+                  date.setFullYear(date.getFullYear() - 13);
+                  return date.toISOString().split('T')[0];
+                })()} // User must be at least 13 years old
+              />
+              <p className="text-xs text-muted-foreground">
+                Your age (not exact birthday) will be shown to other users interested in the same events. You must be at least 13 years old.
               </p>
             </div>
 

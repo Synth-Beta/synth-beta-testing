@@ -34,7 +34,6 @@ interface UserProfile {
   avatar_url: string | null;
   bio: string | null;
   instagram_handle: string | null;
-  snapchat_handle: string | null;
   username?: string;
   email?: string;
 }

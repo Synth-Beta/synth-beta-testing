@@ -65,11 +65,23 @@ export function EventDetailsModal({
   // Debug: Check if navigation handlers are provided
   const [interestedCount, setInterestedCount] = useState<number | null>(null);
   const [friendModalOpen, setFriendModalOpen] = useState(false);
-  const [friendModalUser, setFriendModalUser] = useState<{ id: string; user_id: string; name: string; username: string; avatar_url?: string | null; bio?: string | null; created_at: string } | null>(null);
+  const [friendModalUser, setFriendModalUser] = useState<{ id: string; user_id: string; name: string; username: string; avatar_url?: string | null; bio?: string | null; created_at: string; gender?: string; birthday?: string } | null>(null);
   const [showInterestedUsers, setShowInterestedUsers] = useState(false);
-  const [interestedUsers, setInterestedUsers] = useState<Array<{ id: string; user_id: string; name: string; avatar_url?: string }>>([]);
+  const [interestedUsers, setInterestedUsers] = useState<Array<{ 
+    id: string; 
+    user_id: string; 
+    name: string; 
+    avatar_url?: string; 
+    bio?: string;
+    created_at: string;
+    last_active_at?: string;
+    gender?: string; 
+    birthday?: string;
+    music_streaming_profile?: any;
+  }>>([]);
   const [usersPage, setUsersPage] = useState(1);
-  const pageSize = 3;
+  const pageSize = 5; // Show up to 5 mini profiles at once
+  const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [setlistExpanded, setSetlistExpanded] = useState(false);
   const [userWasThere, setUserWasThere] = useState<boolean | null>(null);
@@ -385,7 +397,7 @@ export function EventDetailsModal({
       const userIds = interestedUserIds.map(row => row.user_id);
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, user_id, name, avatar_url')
+        .select('id, user_id, name, avatar_url, bio, created_at, last_active_at, gender, birthday, music_streaming_profile')
         .in('user_id', userIds);
         
       console.log('Found interested user IDs:', interestedUserIds);
@@ -805,33 +817,129 @@ export function EventDetailsModal({
             </div>
 
             {showInterestedUsers && (
-              <div className="mt-3 grid grid-cols-3 gap-3">
+              <div className="mt-4">
                 {interestedUsers.length === 0 ? (
-                  <div className="col-span-3 text-sm text-muted-foreground">No interested users yet.</div>
-                ) : interestedUsers.map((u) => (
-                    <div
-                      key={u.id}
-                      className="flex items-center gap-2 rounded border p-2 cursor-pointer hover:bg-gray-50"
-                      onClick={() => {
-                        setFriendModalUser({
-                          id: u.id,
-                          user_id: u.user_id,
-                          name: u.name,
-                          username: u.name.replace(/\s+/g, '').toLowerCase(),
-                          avatar_url: u.avatar_url || null,
-                          bio: '',
-                          created_at: new Date().toISOString()
-                        });
-                        setFriendModalOpen(true);
-                      }}
-                    >
-                    <img src={u.avatar_url || '/placeholder.svg'} alt={u.name} className="w-8 h-8 rounded-full" />
-                    <div className="text-sm">
-                      <div className="font-medium leading-none">{u.name}</div>
-                      <div className="text-xs text-muted-foreground">Tap to add friend • Chat</div>
+                  <div className="text-sm text-muted-foreground text-center py-8">No interested users yet.</div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Mini Profiles Carousel */}
+                    <div className="flex flex-col items-center space-y-3 min-h-[200px]">
+                      {interestedUsers.slice(currentProfileIndex, currentProfileIndex + pageSize).map((u, index) => (
+                        <div
+                          key={u.id}
+                          className="flex flex-col items-center gap-3 rounded-lg border p-4 cursor-pointer hover:bg-gray-50 transition-colors w-full max-w-sm bg-white"
+                          onClick={() => {
+                            setFriendModalUser({
+                              id: u.id,
+                              user_id: u.user_id,
+                              name: u.name,
+                              username: u.name.replace(/\s+/g, '').toLowerCase(),
+                              avatar_url: u.avatar_url || null,
+                              bio: u.bio || '',
+                              created_at: u.created_at,
+                              gender: u.gender || undefined,
+                              birthday: u.birthday || undefined
+                            });
+                            setFriendModalOpen(true);
+                          }}
+                        >
+                          {/* Avatar */}
+                          <img src={u.avatar_url || '/placeholder.svg'} alt={u.name} className="w-16 h-16 rounded-full" />
+                          
+                          {/* Name and Username */}
+                          <div className="text-center">
+                            <div className="font-bold text-lg">{u.name}</div>
+                            <div className="text-sm text-muted-foreground">@{u.name.replace(/\s+/g, '').toLowerCase()}</div>
+                          </div>
+                          
+                          {/* Gender and Age Display */}
+                          {(u.gender || u.birthday) && (
+                            <div className="flex items-center gap-2">
+                              {u.gender && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {u.gender}
+                                </Badge>
+                              )}
+                              {u.birthday && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {(() => {
+                                    const birthDate = new Date(u.birthday);
+                                    const today = new Date();
+                                    let age = today.getFullYear() - birthDate.getFullYear();
+                                    const monthDiff = today.getMonth() - birthDate.getMonth();
+                                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                                      age--;
+                                    }
+                                    return `${age} years old`;
+                                  })()}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Member Since */}
+                          <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            Member since {new Date(u.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                          </div>
+                          
+                          {/* Music Preferences */}
+                          {u.music_streaming_profile && (
+                            <div className="flex flex-wrap gap-1 justify-center">
+                              <Badge variant="outline" className="text-xs">
+                                <Music className="w-3 h-3 mr-1" />
+                                Concert Lover
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                <Heart className="w-3 h-3 mr-1" />
+                                Live Music
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                <Star className="w-3 h-3 mr-1" />
+                                Music Enthusiast
+                              </Badge>
+                            </div>
+                          )}
+                          
+                          {/* Recent Activity */}
+                          {u.last_active_at && (
+                            <div className="flex items-center gap-1 text-xs text-green-600">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              Active now
+                            </div>
+                          )}
+                          
+                          <div className="text-xs text-muted-foreground mt-1">Tap to view full profile</div>
+                        </div>
+                      ))}
                     </div>
+
+                    {/* Navigation Controls */}
+                    {interestedUsers.length > pageSize && (
+                      <div className="flex justify-center items-center gap-4 mt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentProfileIndex(Math.max(0, currentProfileIndex - pageSize))}
+                          disabled={currentProfileIndex === 0}
+                        >
+                          Previous
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          {currentProfileIndex + 1}-{Math.min(currentProfileIndex + pageSize, interestedUsers.length)} of {interestedUsers.length}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentProfileIndex(Math.min(interestedUsers.length - pageSize, currentProfileIndex + pageSize))}
+                          disabled={currentProfileIndex + pageSize >= interestedUsers.length}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>

@@ -518,7 +518,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       // Fetch the profiles for those users
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, name, avatar_url, bio, user_id, created_at, last_active_at, is_public_profile')
+        .select('id, name, avatar_url, bio, user_id, created_at, last_active_at, is_public_profile, gender, birthday')
         .in('user_id', userIds);
 
       if (profilesError) {

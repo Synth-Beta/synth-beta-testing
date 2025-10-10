@@ -59,6 +59,8 @@ interface UserProfile {
   updated_at: string;
   last_active_at?: string;
   is_public_profile?: boolean;
+  gender?: string | null;
+  birthday?: string | null;
 }
 
 // Use JamBaseEvent type directly instead of custom UserEvent interface

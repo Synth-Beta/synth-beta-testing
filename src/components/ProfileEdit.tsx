@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Save, Instagram, User, Music } from 'lucide-react';
+import { ArrowLeft, Save, Instagram, User, Music, Users, Calendar } from 'lucide-react';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -27,7 +28,10 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
     name: '',
     bio: '',
     instagram_handle: '',
-    music_streaming_profile: ''
+    music_streaming_profile: '',
+    gender: '',
+    birthday: '',
+    similar_users_notifications: true // Default enabled
   });
   const { toast } = useToast();
 
@@ -40,7 +44,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
       console.log('Fetching profile for user:', currentUserId);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, gender, birthday, created_at, updated_at, similar_users_notifications')
         .eq('user_id', currentUserId)
         .single();
 
@@ -58,7 +62,10 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
             name: '',
             bio: '',
             instagram_handle: '',
-            music_streaming_profile: ''
+            music_streaming_profile: '',
+            gender: '',
+            birthday: '',
+            similar_users_notifications: true
           });
           setLoading(false);
           return;
@@ -73,7 +80,10 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         name: data.name || '',
         bio: data.bio || '',
         instagram_handle: data.instagram_handle || '',
-        music_streaming_profile: data.music_streaming_profile || ''
+        music_streaming_profile: data.music_streaming_profile || '',
+        gender: data.gender || '',
+        birthday: data.birthday || '',
+        similar_users_notifications: data.similar_users_notifications ?? true
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -107,6 +117,9 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         bio: formData.bio.trim() || null,
         instagram_handle: formData.instagram_handle.trim() || null,
         music_streaming_profile: formData.music_streaming_profile.trim() || null,
+        gender: formData.gender.trim() || null,
+        birthday: formData.birthday.trim() || null,
+        similar_users_notifications: formData.similar_users_notifications,
         updated_at: new Date().toISOString()
       };
       
@@ -175,7 +188,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -308,6 +321,88 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
               />
               <p className="text-xs text-muted-foreground">
                 Share your Spotify, Apple Music, or other streaming profile link. Will display as a clickable link on your profile.
+              </p>
+            </div>
+
+            {/* Gender Field */}
+            <div className="space-y-2">
+              <Label htmlFor="gender" className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Gender
+              </Label>
+              <Select
+                value={formData.gender || undefined}
+                onValueChange={(value) => handleInputChange('gender', value)}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Select your gender (optional)" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="non-binary">Non-binary</SelectItem>
+                  <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              {formData.gender && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleInputChange('gender', '')}
+                  className="h-6 px-2 text-xs"
+                >
+                  Clear selection
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Your gender will be shown to other users interested in the same events for trust and safety
+              </p>
+            </div>
+
+            {/* Birthday Field */}
+            <div className="space-y-2">
+              <Label htmlFor="birthday" className="flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                Birthday
+              </Label>
+              <Input
+                id="birthday"
+                type="date"
+                value={formData.birthday}
+                onChange={(e) => handleInputChange('birthday', e.target.value)}
+                max={(() => {
+                  const date = new Date();
+                  date.setFullYear(date.getFullYear() - 13);
+                  return date.toISOString().split('T')[0];
+                })()} // User must be at least 13 years old
+              />
+              <p className="text-xs text-muted-foreground">
+                Your age (not exact birthday) will be shown to other users interested in the same events. You must be at least 13 years old.
+              </p>
+            </div>
+
+            {/* Notification Settings */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                🔔
+                Similar Users Notifications
+              </Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="similar-users-notifications"
+                  checked={formData.similar_users_notifications}
+                  onChange={(e) => handleInputChange('similar_users_notifications', e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <Label htmlFor="similar-users-notifications" className="text-sm font-normal">
+                  Get notified when similar users (age, gender, interests) show interest in events
+                </Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Helps you connect with people who share your interests and demographics
               </p>
             </div>
 

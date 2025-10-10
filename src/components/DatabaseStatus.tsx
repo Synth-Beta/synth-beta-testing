@@ -109,12 +109,6 @@ export const DatabaseStatus = ({ currentUserId }: DatabaseStatusProps) => {
                 </Badge>
                 {profileData?.music_streaming_profile !== undefined ? '✅' : '❌'}
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={profileData?.snapchat_handle === undefined ? "default" : "destructive"}>
-                  Snapchat Handle (should be removed)
-                </Badge>
-                {profileData?.snapchat_handle === undefined ? '✅' : '❌'}
-              </div>
             </div>
           </div>
         </CardContent>

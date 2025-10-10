@@ -162,6 +162,9 @@ export type Database = {
           music_streaming_profile: string | null
           last_active_at: string
           is_public_profile: boolean
+          gender: string | null
+          birthday: string | null
+          similar_users_notifications: boolean | null
         }
         Insert: {
           avatar_url?: string | null
@@ -175,6 +178,9 @@ export type Database = {
           music_streaming_profile?: string | null
           last_active_at?: string
           is_public_profile?: boolean
+          gender?: string | null
+          birthday?: string | null
+          similar_users_notifications?: boolean | null
         }
         Update: {
           avatar_url?: string | null
@@ -188,6 +194,9 @@ export type Database = {
           music_streaming_profile?: string | null
           last_active_at?: string
           is_public_profile?: boolean
+          gender?: string | null
+          birthday?: string | null
+          similar_users_notifications?: boolean | null
         }
         Relationships: []
       }

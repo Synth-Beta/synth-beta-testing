@@ -28,6 +28,9 @@ export interface Profile {
   updated_at: string;
   last_active_at: string;
   is_public_profile: boolean;
+  gender: string | null;
+  birthday: string | null;
+  similar_users_notifications: boolean | null;
 }
 
 // Legacy interface - deprecated, use user_jambase_events instead

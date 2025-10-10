@@ -378,8 +378,7 @@ export class SupabaseService {
           name,
           avatar_url,
           bio,
-          instagram_handle,
-          snapchat_handle
+          instagram_handle
         )
       `)
       .eq('jambase_event_id', eventId)

@@ -42,7 +42,6 @@ interface MatchWithChat {
     avatar_url: string | null;
     bio: string | null;
     instagram_handle: string | null;
-    snapchat_handle: string | null;
   };
   other_user_events: {
     id: string;
@@ -115,34 +114,35 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
           user1_id,
           user2_id,
           event_id,
-          created_at,
-          event:jambase_events(
-            title,
-            venue_city,
-            venue_state,
-            event_date
-          ),
-          chats(
-            id,
-            created_at,
-            updated_at
-          )
+          created_at
         `)
         .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Get the other user's profile and their events for each match
+      // Get the other user's profile, event data, and their events for each match
       const matchesWithProfiles = await Promise.all(
         (data || []).map(async (match) => {
           const otherUserId = match.user1_id === currentUserId 
             ? match.user2_id 
             : match.user1_id;
 
+          // Fetch the event data separately
+          const { data: eventData, error: eventError } = await supabase
+            .from('jambase_events')
+            .select('title, venue_city, venue_state, event_date')
+            .eq('id', match.event_id)
+            .single();
+
+          if (eventError) {
+            console.error('Error fetching event data:', eventError);
+            return null;
+          }
+
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('id, user_id, name, avatar_url, bio, instagram_handle, snapchat_handle')
+            .select('id, user_id, name, avatar_url, bio, instagram_handle')
             .eq('user_id', otherUserId)
             .single();
 
@@ -169,15 +169,34 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
 
           const otherUserEvents = userEvents?.map(item => item.jambase_events).filter(Boolean) || [];
 
+          // Get chats for this match
+          const { data: chatsData, error: chatsError } = await supabase
+            .from('chats')
+            .select('id, created_at, updated_at')
+            .eq('match_id', match.id);
+
+          const chats = chatsError ? [] : (chatsData || []);
+
           return {
             ...match,
+            event: eventData,
             other_user: profile,
-            other_user_events: otherUserEvents
+            other_user_events: otherUserEvents,
+            chats: chats
           };
         })
       );
 
-      setMatches(matchesWithProfiles.filter(Boolean) as MatchWithChat[]);
+      // Avoid unsafe casting, do a runtime check for each match
+      const validMatches = matchesWithProfiles.filter(
+        (m): m is MatchWithChat =>
+          !!m &&
+          m.other_user &&
+          m.other_user.id !== undefined &&
+          m.other_user.name !== undefined &&
+          Array.isArray(m.other_user_events)
+      );
+      setMatches(validMatches);
     } catch (error) {
       console.error('Error fetching matches:', error);
       toast({
@@ -200,13 +219,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
           swiper_user_id,
           swiped_user_id,
           event_id,
-          created_at,
-          event:jambase_events(
-            title,
-            venue_city,
-            venue_state,
-            event_date
-          )
+          created_at
         `)
         .eq('swiped_user_id', currentUserId)
         .eq('is_interested', true);
@@ -240,26 +253,40 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
 
       if (profilesError) throw profilesError;
 
-      const invitationsWithProfiles: PendingInvitation[] = pendingSwipes.map(swipe => {
-        const profile = profiles?.find(p => p.user_id === swipe.swiper_user_id);
-        return {
-          id: swipe.id,
-          swiper_user_id: swipe.swiper_user_id,
-          swiped_user_id: swipe.swiped_user_id,
-          event_id: swipe.event_id,
-          created_at: swipe.created_at,
-          event: swipe.event,
-          swiper_user: profile || {
-            id: '',
-            user_id: swipe.swiper_user_id,
-            name: 'Unknown User',
-            avatar_url: null,
-            bio: null
-          }
-        };
-      });
+      // Fetch event data for all pending swipes
+      const invitationsWithProfiles = await Promise.all(
+        pendingSwipes.map(async (swipe) => {
+          const { data: eventData, error: eventError } = await supabase
+            .from('jambase_events')
+            .select('title, venue_city, venue_state, event_date')
+            .eq('id', swipe.event_id)
+            .single();
 
-      setPendingInvitations(invitationsWithProfiles);
+          if (eventError) {
+            console.error('Error fetching event data for invitation:', eventError);
+            return null;
+          }
+
+          const profile = profiles?.find(p => p.user_id === swipe.swiper_user_id);
+          return {
+            id: swipe.id,
+            swiper_user_id: swipe.swiper_user_id,
+            swiped_user_id: swipe.swiped_user_id,
+            event_id: swipe.event_id,
+            created_at: swipe.created_at,
+            event: eventData,
+            swiper_user: profile || {
+              id: '',
+              user_id: swipe.swiper_user_id,
+              name: 'Unknown User',
+              avatar_url: null,
+              bio: null
+            }
+          };
+        })
+      );
+
+      setPendingInvitations(invitationsWithProfiles.filter(Boolean) as PendingInvitation[]);
     } catch (error) {
       console.error('Error fetching pending invitations:', error);
     }
@@ -529,32 +556,18 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
                         </div>
 
                         {/* Social Media Links */}
-                        {(match.other_user.instagram_handle || match.other_user.snapchat_handle) && (
+                        {match.other_user.instagram_handle && (
                           <div className="flex items-center gap-3 mb-3">
-                            {match.other_user.instagram_handle && (
-                              <a
-                                href={`https://instagram.com/${match.other_user.instagram_handle}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-pink-600 hover:text-pink-700 transition-colors text-sm"
-                              >
-                                <Instagram className="w-3 h-3" />
-                                <span>@{match.other_user.instagram_handle}</span>
-                                <ExternalLink className="w-2 h-2" />
-                              </a>
-                            )}
-                            {match.other_user.snapchat_handle && (
-                              <a
-                                href={`https://snapchat.com/add/${match.other_user.snapchat_handle}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-yellow-600 hover:text-yellow-700 transition-colors text-sm"
-                              >
-                                <Camera className="w-3 h-3" />
-                                <span>@{match.other_user.snapchat_handle}</span>
-                                <ExternalLink className="w-2 h-2" />
-                              </a>
-                            )}
+                            <a
+                              href={`https://instagram.com/${match.other_user.instagram_handle}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-pink-600 hover:text-pink-700 transition-colors text-sm"
+                            >
+                              <Instagram className="w-3 h-3" />
+                              <span>@{match.other_user.instagram_handle}</span>
+                              <ExternalLink className="w-2 h-2" />
+                            </a>
                           </div>
                         )}
 

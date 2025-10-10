@@ -29,7 +29,8 @@ interface UserWithProfile {
   avatar_url: string | null;
   bio: string | null;
   instagram_handle: string | null;
-  snapchat_handle: string | null;
+  gender: string | null;
+  birthday: string | null;
   created_at: string;
   updated_at: string;
   hasSwipedRight?: boolean;
@@ -88,48 +89,31 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
         return;
       }
 
-      // Try using the new RPC function first
-      let profiles: any[] = [];
-      try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_users_interested_in_event', {
-          event_id: event.id
-        });
-        
-        if (!rpcError && Array.isArray(rpcData)) {
-          profiles = rpcData.filter(p => p.user_id !== currentUserId);
-        }
-      } catch (rpcErr) {
-        console.warn('RPC function failed, falling back to direct query:', rpcErr);
+      // Get all users interested in this event (excluding current user)
+      const { data: interests, error: interestsError } = await supabase
+        .from('user_jambase_events')
+        .select('user_id')
+        .eq('jambase_event_id', event.id)
+        .neq('user_id', currentUserId);
+
+      if (interestsError) throw interestsError;
+
+      const interestedUserIds = (interests || []).map(i => i.user_id);
+
+      // Early exit if nobody else is interested
+      if (interestedUserIds.length === 0) {
+        setUsers([]);
+        return;
       }
 
-      // Fallback to direct query if RPC fails
-      if (profiles.length === 0) {
-        // Get all users interested in this event (excluding current user)
-        const { data: interests, error: interestsError } = await supabase
-          .from('user_jambase_events')
-          .select('user_id')
-          .eq('jambase_event_id', event.id)
-          .neq('user_id', currentUserId);
+      // Fetch profiles for those interested users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, gender, birthday, created_at, updated_at')
+        .in('user_id', interestedUserIds);
 
-        if (interestsError) throw interestsError;
-
-        const interestedUserIds = (interests || []).map(i => i.user_id);
-
-        // Early exit if nobody else is interested
-        if (interestedUserIds.length === 0) {
-          setUsers([]);
-          return;
-        }
-
-        // Fetch profiles for those interested users
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, user_id, name, avatar_url, bio, instagram_handle, snapchat_handle, created_at, updated_at')
-          .in('user_id', interestedUserIds);
-
-        if (profilesError) throw profilesError;
-        profiles = profilesData || [];
-      }
+      if (profilesError) throw profilesError;
+      const profiles = profilesData || [];
 
       // Get swipe data for current user
       const { data: swipes, error: swipesError } = await supabase
@@ -163,7 +147,8 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
           avatar_url: p.avatar_url,
           bio: p.bio,
           instagram_handle: p.instagram_handle,
-          snapchat_handle: p.snapchat_handle,
+          gender: p.gender,
+          birthday: p.birthday,
           created_at: p.created_at,
           updated_at: p.updated_at,
           hasSwipedRight: swipeMap.get(p.user_id) === true,
@@ -485,34 +470,20 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
               </div>
 
               {/* Social Media Links */}
-              {(currentUser.instagram_handle || currentUser.snapchat_handle) && (
+              {currentUser.instagram_handle && (
                 <div className="space-y-2">
                   <h4 className="font-semibold text-base">Social Media</h4>
                   <div className="flex flex-col gap-2">
-                    {currentUser.instagram_handle && (
-                      <a
-                        href={`https://instagram.com/${currentUser.instagram_handle}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-2 rounded-lg border hover:bg-pink-50 transition-colors"
-                      >
-                        <Instagram className="w-4 h-4 text-pink-600" />
-                        <span className="text-pink-600 font-medium text-sm">@{currentUser.instagram_handle}</span>
-                        <ExternalLink className="w-3 h-3 text-pink-600 ml-auto" />
-                      </a>
-                    )}
-                    {currentUser.snapchat_handle && (
-                      <a
-                        href={`https://snapchat.com/add/${currentUser.snapchat_handle}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-2 rounded-lg border hover:bg-yellow-50 transition-colors"
-                      >
-                        <Camera className="w-4 h-4 text-yellow-600" />
-                        <span className="text-yellow-600 font-medium text-sm">@{currentUser.snapchat_handle}</span>
-                        <ExternalLink className="w-3 h-3 text-yellow-600 ml-auto" />
-                      </a>
-                    )}
+                    <a
+                      href={`https://instagram.com/${currentUser.instagram_handle}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 p-2 rounded-lg border hover:bg-pink-50 transition-colors"
+                    >
+                      <Instagram className="w-4 h-4 text-pink-600" />
+                      <span className="text-pink-600 font-medium text-sm">@{currentUser.instagram_handle}</span>
+                      <ExternalLink className="w-3 h-3 text-pink-600 ml-auto" />
+                    </a>
                   </div>
                 </div>
               )}
