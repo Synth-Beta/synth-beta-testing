@@ -44,8 +44,6 @@ export function ArtistFollowingPage() {
   const [sortBy, setSortBy] = useState<'date' | 'location' | 'price'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [filterBy, setFilterBy] = useState<'all' | 'artists' | 'venues'>('all');
-  const [showArtistDetailsModal, setShowArtistDetailsModal] = useState(false);
-  const [selectedArtistForModal, setSelectedArtistForModal] = useState<ArtistWithEvents | null>(null);
 
   const targetUserId = urlUserId || user?.id || '';
   const isOwnProfile = !urlUserId || urlUserId === user?.id;
@@ -277,8 +275,7 @@ export function ArtistFollowingPage() {
                   className="text-2xl font-bold text-left hover:text-pink-600 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 rounded"
                   onClick={() => {
                     console.log('🎯 Artist name clicked in header:', selectedArtist.artist_name);
-                    setSelectedArtistForModal(selectedArtist);
-                    setShowArtistDetailsModal(true);
+                    navigate(`/artist/${selectedArtist.artist_id || encodeURIComponent(selectedArtist.artist_name)}`);
                   }}
                   title={`Click to view ${selectedArtist.artist_name}'s full profile`}
                 >
@@ -894,156 +891,6 @@ export function ArtistFollowingPage() {
         </Dialog>
       )}
 
-      {/* Artist Details Modal */}
-      {showArtistDetailsModal && selectedArtistForModal && (
-        <Dialog open={showArtistDetailsModal} onOpenChange={setShowArtistDetailsModal}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b">
-              <div className="flex items-center gap-2">
-                <Music className="w-5 h-5 text-pink-500" />
-                <h2 className="text-xl font-semibold">{selectedArtistForModal.artist_name}</h2>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowArtistDetailsModal(false)}
-                className="h-8 w-8 p-0"
-              >
-                ×
-              </Button>
-            </div>
-
-            <div className="p-6">
-              {/* Artist Banner */}
-              <div className="flex items-center gap-4 mb-6 p-4 bg-pink-50 rounded-lg">
-                <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center">
-                  <Music className="w-8 h-8 text-pink-600" />
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold">{selectedArtistForModal.artist_name}</h2>
-                  <p className="text-gray-600">
-                    Following since {format(new Date(selectedArtistForModal.created_at), 'MMM d, yyyy')}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-pink-600 border-pink-200 hover:bg-pink-50"
-                  onClick={async () => {
-                    try {
-                      await ArtistFollowService.setArtistFollowByName(
-                        user?.id || '',
-                        selectedArtistForModal.artist_name,
-                        selectedArtistForModal.jambase_artist_id,
-                        false // unfollow
-                      );
-                      setShowArtistDetailsModal(false);
-                      // Refresh the data
-                      loadFollowedArtists();
-                    } catch (error) {
-                      console.error('Error unfollowing artist:', error);
-                    }
-                  }}
-                >
-                  Unfollow
-                </Button>
-              </div>
-
-              {/* Stats Section */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-white p-4 rounded-lg border text-center">
-                  <div className="text-2xl font-bold text-yellow-500 mb-1">5.0</div>
-                  <div className="text-sm text-gray-600">Average Rating</div>
-                </div>
-                <div className="bg-white p-4 rounded-lg border text-center">
-                  <div className="text-2xl font-bold text-gray-700 mb-1">1</div>
-                  <div className="text-sm text-gray-600">Total Reviews</div>
-                </div>
-                <div className="bg-white p-4 rounded-lg border text-center">
-                  <div className="text-2xl font-bold text-pink-500 mb-1">{selectedArtistForModal.upcomingEvents.length}</div>
-                  <div className="text-sm text-gray-600">Total Events</div>
-                </div>
-              </div>
-
-              {/* Reviews Section */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Star className="w-5 h-5 text-yellow-500" />
-                    Reviews
-                  </h3>
-                  <Button variant="outline" size="sm">
-                    View Reviews
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <div className="flex">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star key={star} className="w-4 h-4 text-yellow-500 fill-current" />
-                    ))}
-                  </div>
-                  <span>5.0 (1 review)</span>
-                </div>
-              </div>
-
-              {/* Upcoming Events Section */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Upcoming Events</h3>
-                  <Select value={sortBy} onValueChange={(value: 'date' | 'location' | 'price') => setSortBy(value)}>
-                    <SelectTrigger className="w-32 bg-white border border-gray-300">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      <SelectItem value="date">Date</SelectItem>
-                      <SelectItem value="location">Location</SelectItem>
-                      <SelectItem value="price">Price</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {selectedArtistForModal.upcomingEvents.length > 0 ? (
-                  <div className="space-y-4">
-                    {sortEvents(selectedArtistForModal.upcomingEvents).map((event) => (
-                      <div
-                        key={event.id}
-                        className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                        onClick={() => {
-                          setSelectedEvent(event);
-                          setShowArtistDetailsModal(false);
-                        }}
-                      >
-                        <h4 className="font-medium mb-2">{event.title}</h4>
-                        <div className="space-y-1 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {format(new Date(event.event_date), 'MMM d, yyyy')}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {event.venue_city}, {event.venue_state}
-                          </div>
-                        </div>
-                        {event.ticket_available && (
-                          <Badge variant="secondary" className="mt-2 text-xs bg-green-100 text-green-700">
-                            Tickets Available
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>No upcoming events found</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

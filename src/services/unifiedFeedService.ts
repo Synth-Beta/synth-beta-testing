@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { ReviewService } from './reviewService';
 import { JamBaseEventResponse } from './jambaseEventsService';
+import { PersonalizedFeedService, PersonalizedEvent } from './personalizedFeedService';
 
 export interface UnifiedFeedItem {
   id: string;
@@ -80,8 +81,8 @@ export class UnifiedFeedService {
       const publicReviews = await this.getPublicReviews(userId, limit);
       feedItems.push(...publicReviews);
       
-      // Fetch recent events (as "news" items)
-      const recentEvents = await this.getRecentEvents(userLocation, 20);
+      // Fetch recent events (as "news" items) - NOW PERSONALIZED!
+      const recentEvents = await this.getRecentEvents(userLocation, 20, userId);
       feedItems.push(...recentEvents);
       
       // Fetch friend activity
@@ -203,10 +204,42 @@ export class UnifiedFeedService {
   }
   
   /**
-   * Get recent events as feed items
+   * Get recent events as feed items - NOW WITH PERSONALIZATION
    */
-  private static async getRecentEvents(userLocation?: { lat: number; lng: number }, limit: number = 20): Promise<UnifiedFeedItem[]> {
+  private static async getRecentEvents(userLocation?: { lat: number; lng: number }, limit: number = 20, userId?: string): Promise<UnifiedFeedItem[]> {
     try {
+      // Try personalized feed first if userId provided
+      if (userId) {
+        console.log('🎯 Attempting personalized feed for user:', userId);
+        
+        try {
+          const personalizedEvents = await PersonalizedFeedService.getPersonalizedFeed(
+            userId,
+            limit,
+            0,
+            false // Only upcoming events
+          );
+          
+          if (personalizedEvents.length > 0) {
+            console.log('✅ Using PERSONALIZED feed:', {
+              count: personalizedEvents.length,
+              topScore: personalizedEvents[0]?.relevance_score,
+              topArtist: personalizedEvents[0]?.artist_name,
+              scores: personalizedEvents.slice(0, 5).map(e => ({
+                artist: e.artist_name,
+                score: e.relevance_score
+              }))
+            });
+            
+            return personalizedEvents.map(event => this.transformPersonalizedEventToFeedItem(event, userLocation));
+          }
+        } catch (error) {
+          console.warn('⚠️ Personalized feed failed, falling back to standard:', error);
+        }
+      }
+      
+      // Fallback: standard event loading (non-personalized)
+      console.log('📋 Using STANDARD feed (no personalization)');
       let query = supabase
         .from('jambase_events')
         .select('*')
@@ -215,8 +248,7 @@ export class UnifiedFeedService {
       
       // If user location is provided, prioritize nearby events
       if (userLocation) {
-        // Add location-based filtering here if needed
-        query = query.limit(limit * 2); // Get more to filter by distance
+        query = query.limit(limit * 2);
       } else {
         query = query.limit(limit);
       }
@@ -233,7 +265,7 @@ export class UnifiedFeedService {
           content: event.description || `${event.artist_name} is performing at ${event.venue_name}`,
           author: {
             id: 'system',
-            name: 'PlusOne Events',
+            name: 'Synth Events',
             avatar_url: undefined
           },
           created_at: event.created_at || event.event_date,
@@ -299,7 +331,7 @@ export class UnifiedFeedService {
       // Filter by distance if user location is provided
       if (userLocation) {
         eventItems = eventItems
-          .filter(item => !item.distance_miles || item.distance_miles <= 50) // Within 50 miles
+          .filter(item => !item.distance_miles || item.distance_miles <= 50)
           .slice(0, limit);
       }
       
@@ -308,6 +340,51 @@ export class UnifiedFeedService {
       console.error('Error fetching recent events:', error);
       return [];
     }
+  }
+  
+  /**
+   * Transform PersonalizedEvent to UnifiedFeedItem
+   */
+  private static transformPersonalizedEventToFeedItem(event: PersonalizedEvent, userLocation?: { lat: number; lng: number }): UnifiedFeedItem {
+    const item: UnifiedFeedItem = {
+      id: `event-${event.id}`,
+      type: 'event' as const,
+      title: `New Event: ${event.title}`,
+      content: event.description || `${event.artist_name} is performing at ${event.venue_name}`,
+      author: {
+        id: 'system',
+        name: 'Synth Events',
+        avatar_url: undefined
+      },
+      created_at: event.created_at,
+      event_data: event as JamBaseEventResponse,
+      event_info: {
+        event_name: event.title,
+        venue_name: event.venue_name,
+        event_date: event.event_date,
+        artist_name: event.artist_name,
+        artist_id: event.artist_id || undefined
+      },
+      location: event.latitude && event.longitude ? {
+        lat: Number(event.latitude),
+        lng: Number(event.longitude),
+        venue_name: event.venue_name,
+        venue_address: event.venue_address || undefined
+      } : undefined,
+      relevance_score: (event.relevance_score || 0) / 100 // Normalize 0-100 to 0-1
+    };
+    
+    // Calculate distance if user location is available
+    if (userLocation && item.location) {
+      item.distance_miles = this.calculateDistance(
+        userLocation.lat,
+        userLocation.lng,
+        item.location.lat,
+        item.location.lng
+      );
+    }
+    
+    return item;
   }
   
   /**

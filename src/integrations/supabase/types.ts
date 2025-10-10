@@ -936,6 +936,62 @@ export type Database = {
           }
         ]
       }
+      music_preference_signals: {
+        Row: {
+          id: string
+          user_id: string
+          preference_type: string
+          preference_value: string
+          preference_score: number
+          interaction_count: number
+          interaction_types: Json
+          first_interaction: string
+          last_interaction: string
+          trend: string | null
+          confidence: number
+          metadata: Json
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          preference_type: string
+          preference_value: string
+          preference_score?: number
+          interaction_count?: number
+          interaction_types?: Json
+          first_interaction: string
+          last_interaction: string
+          trend?: string | null
+          confidence?: number
+          metadata?: Json
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          preference_type?: string
+          preference_value?: string
+          preference_score?: number
+          interaction_count?: number
+          interaction_types?: Json
+          first_interaction?: string
+          last_interaction?: string
+          trend?: string | null
+          confidence?: number
+          metadata?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "music_preference_signals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       public_reviews_with_profiles: {
@@ -1106,6 +1162,87 @@ export type Database = {
           color: string
           mutual_friends_count: number
         }[]
+      }
+      calculate_event_relevance_score: {
+        Args: {
+          p_user_id: string
+          p_event_id: string
+        }
+        Returns: number
+      }
+      get_personalized_events_feed: {
+        Args: {
+          p_user_id: string
+          p_limit?: number
+          p_offset?: number
+          p_include_past?: boolean
+        }
+        Returns: {
+          event_id: string
+          jambase_event_id: string
+          title: string
+          artist_name: string
+          artist_id: string
+          venue_name: string
+          venue_id: string
+          event_date: string
+          doors_time: string | null
+          description: string | null
+          genres: string[]
+          venue_address: string | null
+          venue_city: string | null
+          venue_state: string | null
+          venue_zip: string | null
+          latitude: number | null
+          longitude: number | null
+          ticket_available: boolean
+          price_range: string | null
+          ticket_urls: string[]
+          setlist: Json | null
+          setlist_enriched: boolean | null
+          setlist_song_count: number | null
+          setlist_fm_id: string | null
+          setlist_fm_url: string | null
+          setlist_source: string | null
+          setlist_last_updated: string | null
+          tour_name: string | null
+          created_at: string
+          updated_at: string
+          relevance_score: number
+          user_is_interested: boolean
+          interested_count: number
+          friends_interested_count: number
+        }[]
+      }
+      get_user_top_genres: {
+        Args: {
+          p_user_id: string
+          p_limit?: number
+        }
+        Returns: {
+          genre: string
+          score: number
+          interaction_count: number
+        }[]
+      }
+      get_user_top_artists: {
+        Args: {
+          p_user_id: string
+          p_limit?: number
+        }
+        Returns: {
+          artist_name: string
+          artist_id: string
+          score: number
+          interaction_count: number
+          genres: string[]
+        }[]
+      }
+      get_user_music_profile_summary: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {
