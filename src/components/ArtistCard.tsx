@@ -16,12 +16,15 @@ import {
 import type { Artist } from '@/types/concertSearch';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { cn } from '@/lib/utils';
+import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ArtistCardProps {
   artist: Artist;
   events: JamBaseEvent[];
   totalEvents: number;
   source: 'database' | 'api';
+  userId?: string;
   onBack?: () => void;
   onViewAllEvents?: () => void;
   showAllEvents?: boolean;
@@ -32,12 +35,23 @@ export function ArtistCard({
   artist, 
   events, 
   totalEvents, 
-  source, 
+  source,
+  userId,
   onBack, 
   onViewAllEvents,
   showAllEvents = false,
   className 
 }: ArtistCardProps) {
+  const [currentUserId, setCurrentUserId] = React.useState<string | undefined>(userId);
+
+  // Get current user if not provided
+  React.useEffect(() => {
+    if (!userId) {
+      supabase.auth.getUser().then(({ data }) => {
+        setCurrentUserId(data.user?.id);
+      });
+    }
+  }, [userId]);
   const upcomingEvents = events.filter(event => 
     new Date(event.event_date) > new Date()
   );
@@ -109,7 +123,19 @@ export function ArtistCard({
             </Avatar>
             
             <div className="flex-1 min-w-0">
-              <CardTitle className="text-3xl mb-2">{artist.name}</CardTitle>
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <CardTitle className="text-3xl">{artist.name}</CardTitle>
+                {currentUserId && (
+                  <ArtistFollowButton
+                    artistName={artist.name}
+                    jambaseArtistId={artist.jambase_artist_id}
+                    userId={currentUserId}
+                    variant="outline"
+                    size="default"
+                    showFollowerCount={true}
+                  />
+                )}
+              </div>
               
               <div className="flex items-center gap-2 mb-3">
                 {artist.jambase_artist_id && (

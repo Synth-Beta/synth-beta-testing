@@ -27,6 +27,7 @@ import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 
 interface ArtistEventsPageProps {}
 
@@ -138,15 +139,15 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
 
       setArtistReviews(transformedReviews);
 
-      // Try to fetch artist description from database
+      // Try to fetch artist data from database (without description column)
       const { data: artistData } = await (supabase as any)
         .from('artists')
-        .select('description, image_url')
+        .select('id, name, jambase_artist_id, image_url')
         .eq('name', artistName)
         .single();
 
       if (artistData) {
-        setArtistDescription(artistData.description || '');
+        setArtistDescription(''); // No description column available
         setArtistImage(artistData.image_url || '');
       }
     } catch (error) {
@@ -464,13 +465,26 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
             <div className="p-3 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full">
               <Music className="w-8 h-8 text-white" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold gradient-text">
-                {artistName || 'Unknown Artist'}
-              </h1>
-              <p className="text-muted-foreground">
-                All events for this artist
-              </p>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold gradient-text">
+                    {artistName || 'Unknown Artist'}
+                  </h1>
+                  <p className="text-muted-foreground">
+                    All events for this artist
+                  </p>
+                </div>
+                {user?.id && (
+                  <ArtistFollowButton
+                    artistName={artistName}
+                    userId={user.id}
+                    variant="outline"
+                    size="default"
+                    showFollowerCount={true}
+                  />
+                )}
+              </div>
             </div>
           </div>
 

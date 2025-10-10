@@ -26,6 +26,8 @@ export interface Profile {
   music_streaming_profile: string | null;
   created_at: string;
   updated_at: string;
+  last_active_at: string;
+  is_public_profile: boolean;
 }
 
 // Legacy interface - deprecated, use user_jambase_events instead

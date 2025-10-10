@@ -6,7 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3, Clock } from 'lucide-react';
 import { FollowersModal } from './FollowersModal';
 import { PostsGrid } from './PostsGrid';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +31,10 @@ import { HolisticStatsCard } from './HolisticStatsCard';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { SkeletonProfileCard } from '@/components/skeleton/SkeletonProfileCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
+import { ArtistFollowService } from '@/services/artistFollowService';
+import { useNavigate } from 'react-router-dom';
+import { UserVisibilityService } from '@/services/userVisibilityService';
+import { WorkingConnectionBadge } from '../WorkingConnectionBadge';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -53,6 +57,8 @@ interface UserProfile {
   music_streaming_profile?: string | null; // Optional until migration is applied
   created_at: string;
   updated_at: string;
+  last_active_at?: string;
+  is_public_profile?: boolean;
 }
 
 // Use JamBaseEvent type directly instead of custom UserEvent interface
@@ -109,8 +115,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [followersModalType, setFollowersModalType] = useState<'followers' | 'following' | 'friends'>('friends');
   const [friendStatus, setFriendStatus] = useState<'none' | 'friends' | 'pending_sent' | 'pending_received'>('none');
+  const [followedArtistsCount, setFollowedArtistsCount] = useState(0);
   const { toast } = useToast();
   const { user, sessionExpired } = useAuth();
+  const navigate = useNavigate();
 
   // Determine which user's profile to show
   const targetUserId = profileUserId || currentUserId;
@@ -157,6 +165,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         await fetchAttendedEvents();
         console.log('🔍 ProfileView: About to fetch draft reviews...');
         await fetchDraftReviews();
+        console.log('🔍 ProfileView: About to fetch followed artists count...');
+        await fetchFollowedArtistsCount();
         if (!isViewingOwnProfile) {
           await checkFriendStatus();
         }
@@ -220,7 +230,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       console.log('ProfileView: Fetching profile for user:', targetUserId);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at, last_active_at, is_public_profile')
         .eq('user_id', targetUserId)
         .single();
       
@@ -542,7 +552,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       // Fetch the profiles for those users
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, name, avatar_url, bio, user_id, created_at')
+        .select('id, name, avatar_url, bio, user_id, created_at, last_active_at, is_public_profile')
         .in('user_id', userIds);
 
       if (profilesError) {
@@ -572,6 +582,26 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     } catch (error) {
       console.warn('Warning: Error fetching friends:', error);
       setFriends([]);
+    }
+  };
+
+  const fetchFollowedArtistsCount = async () => {
+    try {
+      // Check if session is expired before making any requests
+      if (sessionExpired || !user) {
+        console.log('Session expired or no user, skipping followed artists count fetch');
+        return;
+      }
+
+      console.log('🔍 ProfileView: Fetching followed artists count for user:', targetUserId);
+      
+      const followedArtists = await ArtistFollowService.getUserFollowedArtists(targetUserId);
+      setFollowedArtistsCount(followedArtists.length);
+      
+      console.log('🔍 ProfileView: Followed artists count:', followedArtists.length);
+    } catch (error) {
+      console.error('Error fetching followed artists count:', error);
+      setFollowedArtistsCount(0);
     }
   };
 
@@ -1038,10 +1068,29 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 <span className="gradient-text-bold font-semibold">{friends.length}</span>
                 <p className="text-sm text-muted-foreground">friends</p>
               </button>
+              <button
+                className="text-center hover:opacity-70 transition-opacity"
+                onClick={() => navigate(`/following${!isViewingOwnProfile ? `/${targetUserId}` : ''}`)}
+              >
+                <span className="gradient-text-bold font-semibold">{followedArtistsCount}</span>
+                <p className="text-sm text-muted-foreground">following</p>
+              </button>
               </div>
               
               <div className="flex items-center gap-4 mb-3">
                 <h2 className="text-xl font-semibold">{profile.name}</h2>
+                
+                {/* Connection Degree Badge */}
+                {!isViewingOwnProfile && (
+                  <WorkingConnectionBadge targetUserId={targetUserId} />
+                )}
+                
+                {!isViewingOwnProfile && profile.last_active_at && (
+                  <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                    <Clock className="w-3 h-3" />
+                    {UserVisibilityService.formatLastActive(profile.last_active_at)}
+                  </Badge>
+                )}
                 {isViewingOwnProfile ? (
                   <>
                     <Button onClick={onEdit} variant="outline" size="sm" className="hover-button gradient-button">Edit profile</Button>
@@ -2201,6 +2250,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         }}
       />
       )}
+
     </div>
   );
 };

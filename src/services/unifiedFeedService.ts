@@ -26,6 +26,7 @@ export interface UnifiedFeedItem {
     venue_name?: string;
     event_date?: string;
     artist_name?: string;
+    artist_id?: string;
   };
   
   // Event-specific fields
@@ -140,7 +141,8 @@ export class UnifiedFeedService {
           event_name: review.jambase_events?.title || 'Concert Review',
           venue_name: review.jambase_events?.venue_name || 'Unknown Venue',
           event_date: review.jambase_events?.event_date || review.created_at,
-          artist_name: review.jambase_events?.artist_name
+          artist_name: review.jambase_events?.artist_name,
+          artist_id: review.jambase_events?.artist_id
         },
         relevance_score: this.calculateReviewRelevance(review, true) // Higher score for own reviews
       }));
@@ -189,7 +191,8 @@ export class UnifiedFeedService {
           event_name: review.event_title || 'Concert Review',
           venue_name: review.venue_name || 'Unknown Venue',
           event_date: review.event_date || review.created_at,
-          artist_name: review.artist_name
+          artist_name: review.artist_name,
+          artist_id: review.artist_id
         },
         relevance_score: this.calculateReviewRelevance(review, false)
       }));
@@ -268,7 +271,8 @@ export class UnifiedFeedService {
             event_name: event.title,
             venue_name: event.venue_name,
             event_date: event.event_date,
-            artist_name: event.artist_name
+            artist_name: event.artist_name,
+            artist_id: event.artist_id
           },
           location: event.latitude && event.longitude ? {
             lat: Number(event.latitude),

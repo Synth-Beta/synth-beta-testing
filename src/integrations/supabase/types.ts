@@ -160,6 +160,8 @@ export type Database = {
           user_id: string
           instagram_handle: string | null
           music_streaming_profile: string | null
+          last_active_at: string
+          is_public_profile: boolean
         }
         Insert: {
           avatar_url?: string | null
@@ -171,6 +173,8 @@ export type Database = {
           user_id: string
           instagram_handle?: string | null
           music_streaming_profile?: string | null
+          last_active_at?: string
+          is_public_profile?: boolean
         }
         Update: {
           avatar_url?: string | null
@@ -182,6 +186,8 @@ export type Database = {
           user_id?: string
           instagram_handle?: string | null
           music_streaming_profile?: string | null
+          last_active_at?: string
+          is_public_profile?: boolean
         }
         Relationships: []
       }
@@ -1028,6 +1034,69 @@ export type Database = {
           friend_user_id: string
         }
         Returns: undefined
+      }
+      update_user_last_active: {
+        Args: {
+          user_id_param: string
+        }
+        Returns: undefined
+      }
+      get_first_degree_connections: {
+        Args: {
+          target_user_id: string
+        }
+        Returns: {
+          connected_user_id: string
+          name: string
+          avatar_url: string | null
+          last_active_at: string | null
+          is_public_profile: boolean
+        }[]
+      }
+      get_second_degree_connections: {
+        Args: {
+          target_user_id: string
+        }
+        Returns: {
+          connected_user_id: string
+          name: string
+          avatar_url: string | null
+          last_active_at: string | null
+          is_public_profile: boolean
+          mutual_friends_count: number
+        }[]
+      }
+      get_third_degree_connections: {
+        Args: {
+          target_user_id: string
+        }
+        Returns: {
+          connected_user_id: string
+          name: string
+          avatar_url: string | null
+          last_active_at: string | null
+          is_public_profile: boolean
+          mutual_friends_count: number
+        }[]
+      }
+      get_connection_degree: {
+        Args: {
+          current_user_id: string
+          target_user_id: string
+        }
+        Returns: number
+      }
+      get_connection_info: {
+        Args: {
+          current_user_id: string
+          target_user_id: string
+        }
+        Returns: {
+          degree: number
+          label: string
+          color: string
+          mutual_friends_count: number
+        }[]
       }
     }
     Enums: {

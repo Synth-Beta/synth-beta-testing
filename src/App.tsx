@@ -3,14 +3,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import SpotifyCallback from "./pages/SpotifyCallback";
-import Landing from "./pages/Landing";
-import About from "./pages/About";
 import AppPage from "./pages/App";
 import ArtistEvents from "./pages/ArtistEvents";
 import VenueEvents from "./pages/VenueEvents";
+import { ArtistFollowingPage } from "./pages/ArtistFollowingPage";
 
 const queryClient = new QueryClient();
 
@@ -25,12 +23,11 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/home" element={<Landing />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/app" element={<AppPage />} />
+              <Route path="/" element={<AppPage />} />
               <Route path="/artist/:artistId" element={<ArtistEvents />} />
               <Route path="/venue/:venueId" element={<VenueEvents />} />
+              <Route path="/following" element={<ArtistFollowingPage />} />
+              <Route path="/following/:userId" element={<ArtistFollowingPage />} />
               <Route path="/auth/spotify/callback" element={<SpotifyCallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

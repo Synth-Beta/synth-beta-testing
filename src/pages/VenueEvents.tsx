@@ -34,6 +34,7 @@ import { LocationService } from '@/services/locationService';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -549,10 +550,23 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
               <Building2 className="w-8 h-8 text-white" />
             </div>
             <div className="flex items-center gap-4 flex-1">
-              <div>
-                <h1 className="text-3xl font-bold gradient-text">
-                  {venueName || 'Unknown Venue'}
-                </h1>
+              <div className="flex-1">
+                <div className="flex items-center gap-4 mb-2">
+                  <h1 className="text-3xl font-bold gradient-text">
+                    {venueName || 'Unknown Venue'}
+                  </h1>
+                  {user?.id && venueName && (
+                    <VenueFollowButton
+                      venueName={venueName}
+                      venueCity={venueCity}
+                      venueState={venueState}
+                      userId={user.id}
+                      variant="outline"
+                      size="default"
+                      showFollowerCount={true}
+                    />
+                  )}
+                </div>
                 <p className="text-muted-foreground">
                   {venueLocation}
                 </p>

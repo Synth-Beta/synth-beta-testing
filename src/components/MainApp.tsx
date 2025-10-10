@@ -9,7 +9,6 @@ import { ProfileView } from './profile/ProfileView';
 import { ProfileEdit } from './ProfileEdit';
 import { ConcertEvents } from './ConcertEvents';
 import { Event as EventCardEvent } from './EventCard';
-import { LandingPage } from './LandingPage';
 import Auth from '@/pages/Auth';
 import { EventSeeder } from './EventSeeder';
 import { SettingsModal } from './SettingsModal';
@@ -18,6 +17,7 @@ import { ChatView } from './ChatView';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useActivityTracker } from '@/hooks/useActivityTracker';
 
 type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat';
 
@@ -32,6 +32,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [chatUserId, setChatUserId] = useState<string | undefined>(undefined);
   const { toast } = useToast();
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
+  
+  // Track user activity (updates last_active_at periodically)
+  useActivityTracker();
 
   useEffect(() => {
     // MainApp useEffect starting
@@ -43,6 +46,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       setCurrentView('profile');
       // Clear the hash to prevent re-triggering on refresh
       window.history.replaceState(null, '', window.location.pathname);
+    }
+
+    // Check for intended view from localStorage (for navigation from other pages)
+    const intendedView = localStorage.getItem('intendedView');
+    if (intendedView && ['feed', 'search', 'profile'].includes(intendedView)) {
+      setCurrentView(intendedView as ViewType);
+      // Clear the intended view to prevent re-triggering
+      localStorage.removeItem('intendedView');
     }
 
     // Add keyboard shortcut for testing login (Ctrl/Cmd + L)
@@ -102,10 +113,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   const [showAuth, setShowAuth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-
-  const handleGetStarted = () => {
-    setShowAuth(true);
-  };
 
   const handleForceLogin = () => {
     setShowAuth(true);
@@ -284,15 +291,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     );
   }
 
-  // Show auth modal if requested or session expired
-  if (showAuth || sessionExpired) {
+  // Show auth if no user, session expired, or auth requested
+  if (showAuth || sessionExpired || !user?.id) {
     // Showing auth modal
     return <Auth onAuthSuccess={handleAuthSuccess} />;
-  }
-
-  // Show landing page if no user
-  if (!user?.id) {
-    return <LandingPage onGetStarted={handleGetStarted} />;
   }
 
   // Show API key error banner only when there are actual API key issues

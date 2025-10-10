@@ -11,6 +11,8 @@ import { Loader2, Send } from 'lucide-react';
 import { ShareService } from '@/services/shareService';
 import { formatDistanceToNow } from 'date-fns';
 import { SetlistDisplay } from './SetlistDisplay';
+import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
+import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 
 interface ReviewCardProps {
   review: ReviewWithEngagement;
@@ -375,36 +377,62 @@ export function ReviewCard({
         {/* Event Info / Artist & Venue chips (view mode only) */}
         <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
           <p className="text-xs font-semibold tracking-wide text-gray-700 uppercase">Event</p>
-          <div className="mt-2 flex items-center gap-2 text-sm">
+          <div className="mt-2 flex items-center flex-wrap gap-2 text-sm">
             {review.artist_name && (
-              <button
-                className="px-2 py-1 rounded-full bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
-                onClick={(e) => {
-                  e.preventDefault(); e.stopPropagation();
-                  // Use artist_uuid if available, otherwise fall back to artist_id
-                  const artistId = (review as any).artist_uuid || review.artist_id;
-                  const ev = new CustomEvent('open-artist-card', { detail: { artistId, artistName: review.artist_name } });
-                  document.dispatchEvent(ev);
-                }}
-                aria-label={`View artist ${review.artist_name}`}
-              >
-                {review.artist_name}
-              </button>
+              <>
+                <button
+                  className="px-2 py-1 rounded-full bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
+                  onClick={(e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    // Use artist_uuid if available, otherwise fall back to artist_id
+                    const artistId = (review as any).artist_uuid || review.artist_id;
+                    const ev = new CustomEvent('open-artist-card', { detail: { artistId, artistName: review.artist_name } });
+                    document.dispatchEvent(ev);
+                  }}
+                  aria-label={`View artist ${review.artist_name}`}
+                >
+                  {review.artist_name}
+                </button>
+                {currentUserId && (
+                  <ArtistFollowButton
+                    artistName={review.artist_name}
+                    userId={currentUserId}
+                    variant="ghost"
+                    size="sm"
+                    showFollowerCount={false}
+                    className="h-7 text-xs"
+                  />
+                )}
+              </>
             )}
             {review.venue_name && (
-              <button
-                className="px-2 py-1 rounded-full bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
-                onClick={(e) => {
-                  e.preventDefault(); e.stopPropagation();
-                  // Use venue_uuid if available, otherwise fall back to venue_id
-                  const venueId = (review as any).venue_uuid || review.venue_id;
-                  const ev = new CustomEvent('open-venue-card', { detail: { venueId, venueName: review.venue_name } });
-                  document.dispatchEvent(ev);
-                }}
-                aria-label={`View venue ${review.venue_name}`}
-              >
-                {review.venue_name}
-              </button>
+              <>
+                <button
+                  className="px-2 py-1 rounded-full bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
+                  onClick={(e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    // Use venue_uuid if available, otherwise fall back to venue_id
+                    const venueId = (review as any).venue_uuid || review.venue_id;
+                    const ev = new CustomEvent('open-venue-card', { detail: { venueId, venueName: review.venue_name } });
+                    document.dispatchEvent(ev);
+                  }}
+                  aria-label={`View venue ${review.venue_name}`}
+                >
+                  {review.venue_name}
+                </button>
+                {currentUserId && (
+                  <VenueFollowButton
+                    venueName={review.venue_name}
+                    venueCity={(review as any).venue_city}
+                    venueState={(review as any).venue_state}
+                    userId={currentUserId}
+                    variant="ghost"
+                    size="sm"
+                    showFollowerCount={false}
+                    className="h-7 text-xs"
+                  />
+                )}
+              </>
             )}
           </div>
         </div>

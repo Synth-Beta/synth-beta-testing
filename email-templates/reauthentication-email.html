@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reauthentication Code - Synth</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            line-height: 1.6;
+            color: #000000;
+            background: linear-gradient(145deg, #FFFFFF, #F5F5DC);
+            min-height: 100vh;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #FFFFFF;
+            border-radius: 24px;
+            box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #FF3399, #FF66B3);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.1;
+        }
+        
+        .logo {
+            position: relative;
+            z-index: 1;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: #000000;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .logo-svg {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .header h1 {
+            color: #FFFFFF;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 18px;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .welcome-text {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .welcome-text h2 {
+            color: #000000;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+        
+        .welcome-text p {
+            color: #666666;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        
+        .token-section {
+            background: linear-gradient(145deg, #F5F5DC, #FAFAF5);
+            border: 1px solid #E6E6D1;
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .token-section h3 {
+            color: #000000;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        
+        .token-section p {
+            color: #666666;
+            font-size: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .token-code {
+            display: inline-block;
+            background: #FFFFFF;
+            color: #000000;
+            padding: 20px 40px;
+            border-radius: 12px;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+            border: 2px solid #FF3399;
+            box-shadow: 0 2px 8px rgba(255, 51, 153, 0.1);
+        }
+        
+        .security-notice {
+            background: rgba(255, 51, 153, 0.05);
+            border: 1px solid rgba(255, 51, 153, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        
+        .security-notice-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .security-icon {
+            width: 24px;
+            height: 24px;
+            color: #FF3399;
+            flex-shrink: 0;
+        }
+        
+        .security-notice h4 {
+            color: #000000;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .security-notice p {
+            color: #666666;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-left: 36px;
+        }
+        
+        .info-box {
+            background: #FFFFFF;
+            border: 1px solid #E6E6D1;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .info-box p {
+            color: #666666;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 0;
+        }
+        
+        .info-box strong {
+            color: #000000;
+            font-weight: 600;
+        }
+        
+        .footer {
+            background: #F5F5DC;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #E6E6D1;
+        }
+        
+        .footer p {
+            color: #666666;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .footer .brand {
+            color: #FF3399;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                border-radius: 0;
+            }
+            
+            .header, .content, .footer {
+                padding: 30px 20px;
+            }
+            
+            .header h1 {
+                font-size: 28px;
+            }
+            
+            .welcome-text h2 {
+                font-size: 24px;
+            }
+            
+            .token-code {
+                padding: 16px 32px;
+                font-size: 28px;
+                letter-spacing: 6px;
+            }
+            
+            .security-notice p {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <svg class="logo-svg" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#FFFFFF" d="M230.000000,501.000000 C153.333359,501.000000 77.166702,501.000000 1.000041,501.000000 C1.000027,334.333405 1.000027,167.666779 1.000014,1.000130 C167.666565,1.000087 334.333130,1.000087 500.999756,1.000043 C500.999847,167.666519 500.999847,334.333038 500.999939,500.999786 C410.833344,501.000000 320.666656,501.000000 230.000000,501.000000 M318.885162,217.638062 C303.336761,213.404541 287.773834,209.223419 272.247925,204.908997 C266.849243,203.408768 261.044952,202.444107 256.298340,199.716599 C246.842651,194.283157 246.898727,183.283600 255.670517,176.752808 C261.879944,172.129730 268.991211,170.953094 276.437897,170.960938 C300.223450,170.985962 324.008942,171.060471 347.794495,171.088562 C349.396271,171.090454 350.998322,170.865402 352.510834,170.752579 C352.510834,150.043808 352.510834,129.797867 352.510834,108.968300 C350.285950,108.968300 348.491760,108.968552 346.697540,108.968254 C321.869202,108.964188 297.028870,108.498283 272.217285,109.141006 C258.809540,109.488327 245.270721,110.787346 232.105789,113.303787 C200.157593,119.410629 178.518814,138.201660 168.426651,169.277267 C163.598480,184.144104 164.023849,199.597321 167.327805,214.747528 C172.869141,240.157043 187.343628,258.743835 212.304077,267.065094 C226.400299,271.764435 241.396942,273.739563 255.953033,277.093445 C262.398041,278.578461 269.209290,279.505341 275.052826,282.338531 C284.939392,287.131927 285.203949,300.300476 276.179504,306.641632 C270.278564,310.788055 263.469025,311.369781 256.594940,311.392426 C237.431274,311.455505 218.263672,311.179626 199.104706,311.483398 C188.747589,311.647583 178.502014,313.186432 169.289520,318.533813 C155.164658,326.732544 148.039047,340.177246 142.784744,354.795593 C140.166504,362.079926 138.524673,369.697693 139.275085,377.885315 C141.412506,377.885315 143.060455,377.885315 144.708405,377.885315 C183.702972,377.885864 222.699142,378.080627 261.691040,377.757507 C272.116791,377.671112 282.690765,376.846558 292.915863,374.891785 C317.208344,370.247711 337.666077,358.977692 351.170624,337.381134 C358.898712,325.022339 362.898804,311.395569 364.192413,296.896667 C367.101562,264.290588 354.496948,231.380234 318.885162,217.638062 z"/>
+                </svg>
+            </div>
+            <h1>Reauthentication Code</h1>
+            <p>Secure access to your account</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <div class="welcome-text">
+                <h2>Account Verification</h2>
+                <p>You requested to reauthenticate your Synth account. Use the code below to proceed.</p>
+            </div>
+
+            <div class="token-section">
+                <h3>Your Verification Code</h3>
+                <p>Enter this code to continue:</p>
+                <div class="token-code">{{ .Token }}</div>
+            </div>
+
+            <div class="info-box">
+                <p><strong>How to use this code:</strong></p>
+                <p>Copy the code above and paste it into the verification field in your browser or app.</p>
+            </div>
+
+            <div class="security-notice">
+                <div class="security-notice-header">
+                    <svg class="security-icon" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                    </svg>
+                    <h4>Security Notice</h4>
+                </div>
+                <p>This code is confidential. Do not share it with anyone. If you did not request this code, please ignore this email and contact support.</p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>This verification code will expire in <strong>10 minutes</strong> for your security.</p>
+            <p style="margin-top: 20px; color: #888888; font-size: 12px;">© 2025 <span class="brand">Synth</span>. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+

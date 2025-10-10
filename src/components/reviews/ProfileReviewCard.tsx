@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { ReviewService, type CommentWithUser } from '@/services/reviewService';
 import { ShareService } from '@/services/shareService';
 import { supabase } from '@/integrations/supabase/client';
+import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 
 interface ReviewEventMeta {
   event_name: string;
@@ -285,13 +286,25 @@ export function ProfileReviewCard({
         </CardTitle>
         <div className="mt-2 flex items-center flex-wrap gap-2 text-xs">
           {event.artist_name && (
-            <Badge
-              variant="secondary"
-              className="cursor-pointer"
-              onClick={() => onOpenArtist?.(event.artist_id || null, event.artist_name || null)}
-            >
-              {event.artist_name}
-            </Badge>
+            <>
+              <Badge
+                variant="secondary"
+                className="cursor-pointer"
+                onClick={() => onOpenArtist?.(event.artist_id || null, event.artist_name || null)}
+              >
+                {event.artist_name}
+              </Badge>
+              {currentUserId && (
+                <ArtistFollowButton
+                  artistName={event.artist_name}
+                  userId={currentUserId}
+                  variant="ghost"
+                  size="sm"
+                  showFollowerCount={false}
+                  className="h-6 text-xs"
+                />
+              )}
+            </>
           )}
           <span className="text-gray-500">
             {new Date(event.event_date).toLocaleDateString()}

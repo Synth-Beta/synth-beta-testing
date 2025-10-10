@@ -12,7 +12,8 @@ import {
   ChevronDown,
   Clock,
   Search,
-  Loader2
+  Loader2,
+  Users
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -29,6 +30,7 @@ export interface FilterState {
   };
   showFilters: boolean;
   radiusMiles: number;
+  filterByFollowing: 'all' | 'following';
 }
 
 interface CityData {
@@ -228,7 +230,8 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
       selectedCities: [],
       dateRange: { from: undefined, to: undefined },
       showFilters: filters.showFilters,
-      radiusMiles: filters.radiusMiles
+      radiusMiles: filters.radiusMiles,
+      filterByFollowing: 'all'
     });
     setTempSelectedCities([]);
     // Clear venue selection if callback is provided
@@ -237,7 +240,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
     }
   };
 
-  const hasActiveFilters = filters.genres.length > 0 || (filters.selectedCities && filters.selectedCities.length > 0) || filters.dateRange.from || filters.dateRange.to;
+  const hasActiveFilters = filters.genres.length > 0 || (filters.selectedCities && filters.selectedCities.length > 0) || filters.dateRange.from || filters.dateRange.to || filters.filterByFollowing === 'following';
 
   // Get major cities (top 10 by event count)
   const majorCities = useMemo(() => {
@@ -463,6 +466,24 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             </div>
           </PopoverContent>
         </Popover>
+
+        {/* Following Filter */}
+        <Button 
+          variant={filters.filterByFollowing === 'following' ? "default" : "outline"} 
+          size="sm" 
+          onClick={() => onFiltersChange({
+            ...filters,
+            filterByFollowing: filters.filterByFollowing === 'following' ? 'all' : 'following'
+          })}
+          className={`rounded-full backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 ${
+            filters.filterByFollowing === 'following' 
+              ? 'bg-synth-pink text-white' 
+              : 'bg-white/80'
+          }`}
+        >
+          <Users className="h-4 w-4 mr-1" />
+          Following
+        </Button>
 
         {/* Clear all */}
         {hasActiveFilters && (

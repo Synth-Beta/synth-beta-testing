@@ -12,9 +12,11 @@ import {
   X,
   Star,
   Heart,
-  UserMinus
+  UserMinus,
+  Clock
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { UserVisibilityService } from '@/services/userVisibilityService';
 
 interface FriendProfileCardProps {
   friend: {
@@ -25,6 +27,7 @@ interface FriendProfileCardProps {
     bio?: string;
     user_id: string;
     created_at: string;
+    last_active_at?: string;
   };
   isOpen: boolean;
   onClose: () => void;
@@ -76,6 +79,13 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
             
             <h2 className="text-xl font-bold text-gray-900 mb-1">{friend.name}</h2>
             <p className="text-gray-600 mb-2 text-sm">@{friend.username}</p>
+            
+            {friend.last_active_at && (
+              <Badge variant="secondary" className="mb-2 flex items-center gap-1 text-xs mx-auto w-fit">
+                <Clock className="w-3 h-3" />
+                {UserVisibilityService.formatLastActive(friend.last_active_at)}
+              </Badge>
+            )}
             
             <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
               <User className="w-3 h-3 mr-1" />

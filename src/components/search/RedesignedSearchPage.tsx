@@ -33,6 +33,8 @@ import { CompactSearchBar } from './CompactSearchBar';
 import { ViewToggle } from './ViewToggle';
 import { EventFilters, FilterState } from './EventFilters';
 import { EventCalendarView } from './EventCalendarView';
+import { ArtistFollowService } from '@/services/artistFollowService';
+import { VenueFollowService } from '@/services/venueFollowService';
 import { EventMap } from '../EventMap';
 import { EventDetailsModal } from '../events/EventDetailsModal';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
@@ -80,10 +82,16 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     selectedCities: [],
     dateRange: { from: undefined, to: undefined },
     showFilters: false,
-    radiusMiles: 30
+    radiusMiles: 30,
+    filterByFollowing: 'all'
   });
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [mapBounds, setMapBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null);
+  
+  // Following state for filtering
+  const [followedArtists, setFollowedArtists] = useState<string[]>([]);
+  const [followedVenues, setFollowedVenues] = useState<Array<{name: string, city?: string, state?: string}>>([]);
+  const [loadingFollows, setLoadingFollows] = useState(false);
 
   const { toast } = useToast();
 
@@ -192,7 +200,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     }, 100); // Debounce by 100ms
     
     return () => clearTimeout(timeoutId);
-  }, [events, filters]);
+  }, [events, filters, followedArtists, followedVenues]);
 
   // Update map center when location filters change
   useEffect(() => {
@@ -227,6 +235,30 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     }
   }, [filteredEvents, selectedDate]);
 
+  // Load followed artists and venues for filtering
+  const loadFollowedData = async () => {
+    if (!userId) return;
+    
+    setLoadingFollows(true);
+    try {
+      // Load followed artists
+      const artists = await ArtistFollowService.getUserFollowedArtists(userId);
+      setFollowedArtists(artists.map(artist => artist.artist_name));
+
+      // Load followed venues
+      const venues = await VenueFollowService.getUserFollowedVenues(userId);
+      setFollowedVenues(venues.map(venue => ({
+        name: venue.venue_name,
+        city: venue.venue_city,
+        state: venue.venue_state
+      })));
+    } catch (error) {
+      console.error('Error loading followed data:', error);
+    } finally {
+      setLoadingFollows(false);
+    }
+  };
+
   const initializeLocationAndEvents = async () => {
     setIsLoading(true);
     try {
@@ -244,6 +276,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
       await loadEvents();
       await loadCities();
       await loadInterestedEvents();
+      await loadFollowedData();
     } catch (error) {
       // Error initializing search page
       toast({
@@ -528,6 +561,27 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           // Error parsing event date
           return true;
         }
+      });
+    }
+
+    // Filter by following status
+    if (filters.filterByFollowing === 'following') {
+      filtered = filtered.filter(event => {
+        // Check if artist is followed
+        if (event.artist_name && followedArtists.includes(event.artist_name)) {
+          return true;
+        }
+        
+        // Check if venue is followed
+        if (event.venue_name) {
+          return followedVenues.some(venue => 
+            venue.name === event.venue_name &&
+            (!venue.city || venue.city === event.venue_city) &&
+            (!venue.state || venue.state === event.venue_state)
+          );
+        }
+        
+        return false;
       });
     }
 

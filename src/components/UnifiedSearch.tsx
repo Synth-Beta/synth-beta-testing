@@ -21,6 +21,7 @@ import {
   X,
   Calendar
 } from 'lucide-react';
+import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 
 interface UnifiedSearchProps {
   userId: string;
@@ -390,6 +391,7 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
         events={selectedArtist.events}
         totalEvents={selectedArtist.totalEvents}
         source={selectedArtist.source}
+        userId={userId}
         onBack={handleBackToSearch}
         showAllEvents={showAllEvents}
         onViewAllEvents={() => {
@@ -529,8 +531,16 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
                           </div>
                         </div>
 
-                        {/* Choose Button */}
-                        <div className="flex-shrink-0">
+                        {/* Follow & Choose Buttons */}
+                        <div className="flex-shrink-0 flex items-center gap-2">
+                          <ArtistFollowButton
+                            artistName={artist.name}
+                            jambaseArtistId={artist.identifier}
+                            userId={userId}
+                            variant="outline"
+                            size="sm"
+                            showFollowerCount={false}
+                          />
                           <Button
                             size="sm"
                             onClick={() => handleArtistSelect(artist)}

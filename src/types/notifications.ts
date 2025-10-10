@@ -8,7 +8,12 @@ export type NotificationType =
   | 'review_liked'
   | 'review_commented'
   | 'comment_replied'
-  | 'event_interest';
+  | 'event_interest'
+  | 'artist_followed'
+  | 'artist_new_event'
+  | 'artist_profile_updated'
+  | 'venue_new_event'
+  | 'venue_profile_updated';
 
 export interface Notification {
   id: string;

@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3, AlertCircle, Camera } from 'lucide-react';
 import { FollowersModal } from './FollowersModal';
 import { PostsGrid } from './PostsGrid';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +30,8 @@ import { VenueCard } from '@/components/reviews/VenueCard';
 import { ProfileReviewCard } from '@/components/reviews/ProfileReviewCard';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { SkeletonProfileCard } from '@/components/skeleton/SkeletonProfileCard';
+import { ArtistFollowService } from '@/services/artistFollowService';
+import { useNavigate } from 'react-router-dom';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import type { Artist } from '@/types/concertSearch';
 
@@ -108,8 +111,10 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
   const [artistDialog, setArtistDialog] = useState<{ open: boolean; artist?: Artist | null }>(() => ({ open: false }));
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [followersModalType, setFollowersModalType] = useState<'followers' | 'following' | 'friends'>('friends');
+  const [followedArtistsCount, setFollowedArtistsCount] = useState(0);
   const { toast } = useToast();
   const { user, sessionExpired } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     console.log('🔍 ProfileView useEffect triggered! TIMESTAMP:', Date.now());
@@ -139,6 +144,8 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       try {
         console.log('🔍 ProfileView: About to fetch profile...');
         await fetchProfile();
+        console.log('🔍 ProfileView: About to fetch followed artists count...');
+        await fetchFollowedArtistsCount();
         console.log('🔍 ProfileView: Profile fetched successfully');
       } catch (error) {
         console.error('🔍 ProfileView: Error fetching profile:', error);
@@ -215,7 +222,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       console.log('Fetching profile for user:', currentUserId);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at, last_active_at, is_public_profile')
         .eq('user_id', currentUserId)
         .single();
 
@@ -238,6 +245,8 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       }
 
       console.log('Profile found:', data);
+      console.log('Avatar URL from database:', data?.avatar_url);
+      console.log('Avatar URL type:', typeof data?.avatar_url);
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -256,7 +265,25 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
     }
   };
 
+  const fetchFollowedArtistsCount = async () => {
+    try {
+      // Check if session is expired before making any requests
+      if (sessionExpired || !user) {
+        console.log('Session expired or no user, skipping followed artists count fetch');
+        return;
+      }
 
+      console.log('🔍 ProfileView: Fetching followed artists count for user:', currentUserId);
+      
+      const followedArtists = await ArtistFollowService.getUserFollowedArtists(currentUserId);
+      setFollowedArtistsCount(followedArtists.length);
+      
+      console.log('🔍 ProfileView: Followed artists count:', followedArtists.length);
+    } catch (error) {
+      console.error('Error fetching followed artists count:', error);
+      setFollowedArtistsCount(0);
+    }
+  };
 
   useEffect(() => {
     // Check for hash in URL to determine active tab
@@ -491,7 +518,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       // Fetch the profiles for those users
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, name, avatar_url, bio, user_id, created_at')
+        .select('id, name, avatar_url, bio, user_id, created_at, last_active_at, is_public_profile')
         .in('user_id', userIds);
 
       if (profilesError) {
@@ -682,13 +709,44 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
           <h1 className="synth-heading text-2xl">Profile</h1>
         </div>
 
+        {/* Profile Picture Required Banner */}
+        {(!profile.avatar_url || profile.avatar_url.trim() === '') && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Profile Picture Required</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span>
+                Upload a profile picture to be visible to other users. Without a profile picture, other users won't be able to see your profile or connect with you.
+              </span>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="ml-4 whitespace-nowrap"
+                onClick={onEdit}
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                Add Photo
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Instagram-style Profile Header */}
         <div className="mb-6">
           {/* Profile Info Row */}
           <div className="flex items-start gap-6 mb-6">
             {/* Profile Picture */}
             <Avatar className="w-20 h-20 md:w-24 md:h-24">
-                <AvatarImage src={profile.avatar_url || undefined} />
+                <AvatarImage 
+                  src={profile.avatar_url || undefined} 
+                  onError={(e) => {
+                    console.log('Avatar image failed to load:', profile.avatar_url);
+                    console.log('Profile data:', profile);
+                  }}
+                  onLoad={() => {
+                    console.log('Avatar image loaded successfully:', profile.avatar_url);
+                  }}
+                />
                 <AvatarFallback className="text-2xl">
                   {profile.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
@@ -721,6 +779,13 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
                 >
                   <span className="font-semibold">{friends.length}</span>
                   <p className="text-sm text-muted-foreground">friends</p>
+                </button>
+                <button
+                  className="text-center hover:opacity-70 transition-opacity"
+                  onClick={() => navigate('/following')}
+                >
+                  <span className="font-semibold">{followedArtistsCount}</span>
+                  <p className="text-sm text-muted-foreground">following</p>
                 </button>
               </div>
             </div>
@@ -1060,6 +1125,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         }}
         isInterested={selectedEventInterested}
       />
+
     </div>
   );
 };

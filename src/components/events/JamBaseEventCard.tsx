@@ -14,7 +14,8 @@ import {
   StarOff,
   MessageSquare,
   Users,
-  Share2
+  Share2,
+  Globe
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
@@ -31,6 +32,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ShareService } from '@/services/shareService';
 import { useToast } from '@/hooks/use-toast';
+import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
+import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 
 interface JamBaseEventCardProps {
   event: JamBaseEvent;
@@ -256,7 +259,21 @@ export function JamBaseEventCard({
         <div className="flex items-start gap-3">
           <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <div className="font-medium text-sm">{event.venue_name}</div>
+            <div className="flex items-center gap-2">
+              <div className="font-medium text-sm">{event.venue_name}</div>
+              {currentUserId && event.venue_name && (
+                <VenueFollowButton
+                  venueName={event.venue_name}
+                  venueCity={event.venue_city}
+                  venueState={event.venue_state}
+                  userId={currentUserId}
+                  variant="ghost"
+                  size="sm"
+                  showFollowerCount={false}
+                  className="h-6 text-xs"
+                />
+              )}
+            </div>
             <div className="text-sm text-muted-foreground">
               {getVenueAddress()}
             </div>
@@ -272,7 +289,6 @@ export function JamBaseEventCard({
               // Cast to response shape for the map component
               events={[event as any]}
               onEventClick={() => { /* no-op in card */ }}
-              showCountBadge={false}
             />
           </div>
         )}
@@ -284,6 +300,28 @@ export function JamBaseEventCard({
               ? `${event.description.substring(0, 200)}...` 
               : event.description
             }
+          </div>
+        )}
+
+        {/* Artist Information with Follow Button */}
+        {event.artist_name && (
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                {event.artist_name}
+              </Badge>
+            </div>
+            {currentUserId && (
+              <ArtistFollowButton
+                artistId={event.artist_id}
+                artistName={event.artist_name}
+                userId={currentUserId}
+                variant="ghost"
+                size="sm"
+                showFollowerCount={false}
+                className="h-7 text-xs"
+              />
+            )}
           </div>
         )}
 
@@ -385,7 +423,7 @@ export function JamBaseEventCard({
                   <span className="hidden sm:inline ml-1">Share</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52 bg-white/95 backdrop-blur-sm border shadow-lg">
+              <DropdownMenuContent align="end" className="w-52 bg-white/95 backdrop-blur-sm border shadow-lg z-50">
                 {currentUserId && (
                   <DropdownMenuItem
                     onClick={(e) => {
@@ -466,7 +504,7 @@ export function JamBaseEventCard({
                   onClick={() => { try { trackInteraction.click('ticket', event.id, { providerUrl: getCheapestTicketUrl() || event.ticket_urls[0] }); } catch {} }}
                 >
                   <Ticket className="w-4 h-4" />
-                  <span className="hidden sm:inline">Cheapest Tickets</span>
+                  <span className="hidden sm:inline">Tickets</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </Button>

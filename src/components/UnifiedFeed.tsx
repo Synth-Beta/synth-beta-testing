@@ -62,6 +62,9 @@ import { EventMap } from './EventMap';
 import { UnifiedChatView } from './UnifiedChatView';
 import { UserEventService } from '@/services/userEventService';
 import { extractNumericPrice } from '@/utils/currencyUtils';
+import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
+import { ArtistFollowService } from '@/services/artistFollowService';
+import { VenueFollowService } from '@/services/venueFollowService';
 
 // Using UnifiedFeedItem from service instead of local interface
 
@@ -82,8 +85,10 @@ export const UnifiedFeed = ({
   onNavigateToProfile,
   onNavigateToChat
 }: UnifiedFeedProps) => {
-  // Debug: Check if navigation handlers are provided
-  console.log('🔍 UnifiedFeed navigation handlers:', {
+  // Debug: Check if navigation handlers and userId are provided
+  console.log('🔍 UnifiedFeed initialized:', {
+    currentUserId,
+    hasCurrentUserId: !!currentUserId,
     onNavigateToProfile: !!onNavigateToProfile,
     onNavigateToChat: !!onNavigateToChat
   });
@@ -111,6 +116,12 @@ export const UnifiedFeed = ({
   const [showCommentsInModal, setShowCommentsInModal] = useState(false);
   const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'price' | 'popularity' | 'distance'>('relevance');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [filterByFollowing, setFilterByFollowing] = useState<'all' | 'following'>('all');
+  
+  // Following state
+  const [followedArtists, setFollowedArtists] = useState<string[]>([]);
+  const [followedVenues, setFollowedVenues] = useState<Array<{name: string, city?: string, state?: string}>>([]);
+  const [loadingFollows, setLoadingFollows] = useState(false);
   
   // In-app sharing state
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -136,8 +147,33 @@ export const UnifiedFeed = ({
       .finally(() => {
         loadFeedData();
         loadUpcomingEvents();
+        loadFollowedData();
       });
   }, [currentUserId, sessionExpired]);
+
+  // Load followed artists and venues for filtering
+  const loadFollowedData = async () => {
+    if (!currentUserId) return;
+    
+    setLoadingFollows(true);
+    try {
+      // Load followed artists
+      const artists = await ArtistFollowService.getUserFollowedArtists(currentUserId);
+      setFollowedArtists(artists.map(artist => artist.artist_name));
+
+      // Load followed venues
+      const venues = await VenueFollowService.getUserFollowedVenues(currentUserId);
+      setFollowedVenues(venues.map(venue => ({
+        name: venue.venue_name,
+        city: venue.venue_city,
+        state: venue.venue_state
+      })));
+    } catch (error) {
+      console.error('Error loading followed data:', error);
+    } finally {
+      setLoadingFollows(false);
+    }
+  };
 
   // Check if we need to re-open an event modal after returning from artist/venue page
   useEffect(() => {
@@ -374,10 +410,59 @@ export const UnifiedFeed = ({
     return 0;
   };
 
-  // Get sorted feed items
-  const sortedFeedItems = useMemo(() => {
-    return sortFeedItems(feedItems);
-  }, [feedItems, sortBy, sortOrder]);
+  // Filter feed items by following status
+  const filterFeedItems = (items: UnifiedFeedItem[]) => {
+    if (filterByFollowing === 'all') {
+      return items;
+    }
+
+    return items.filter(item => {
+      // For event items
+      if (item.type === 'event' && item.event_data) {
+        const event = item.event_data;
+        
+        // Check if artist is followed
+        if (event.artist_name && followedArtists.includes(event.artist_name)) {
+          return true;
+        }
+        
+        // Check if venue is followed
+        if (event.venue_name) {
+          return followedVenues.some(venue => 
+            venue.name === event.venue_name &&
+            (!venue.city || venue.city === event.venue_city) &&
+            (!venue.state || venue.state === event.venue_state)
+          );
+        }
+      }
+      
+      // For review items
+      if (item.type === 'review' && item.event_info) {
+        const eventInfo = item.event_info;
+        
+        // Check if artist is followed
+        if (eventInfo.artist_name && followedArtists.includes(eventInfo.artist_name)) {
+          return true;
+        }
+        
+        // Check if venue is followed
+        if (eventInfo.venue_name) {
+          return followedVenues.some(venue => 
+            venue.name === eventInfo.venue_name
+            // Note: event_info doesn't have city/state, so we match by name only
+          );
+        }
+      }
+      
+      return false;
+    });
+  };
+
+  // Get filtered and sorted feed items
+  const processedFeedItems = useMemo(() => {
+    const filtered = filterFeedItems(feedItems);
+    return sortFeedItems(filtered);
+  }, [feedItems, filterByFollowing, followedArtists, followedVenues, sortBy, sortOrder]);
 
   // Hero image resolver for review items (mirrors JamBaseEventCard logic exactly)
   const ReviewHeroImage: React.FC<{ item: UnifiedFeedItem }> = ({ item }) => {
@@ -478,32 +563,51 @@ export const UnifiedFeed = ({
         </div>
         
         <div className="glass-card inner-glow flex items-center justify-between px-6 py-3 sticky top-4 z-30">
-          {/* Sort Controls */}
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <ArrowUpDown className="w-4 h-4" />
-              Sort by:
-            </span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="synth-input text-sm bg-white/80 backdrop-blur-sm border border-border/50 rounded-xl px-3 py-2 min-w-[120px]"
-            >
-              <option value="relevance">Relevance</option>
-              <option value="date">Date</option>
-              <option value="price">Price</option>
-              <option value="popularity">Popularity</option>
-              <option value="distance">Distance</option>
-            </select>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="p-2 bg-white/80 backdrop-blur-sm border border-border/50 hover:border-synth-pink/50"
-              title={`Sort ${sortOrder === 'asc' ? 'Ascending' : 'Descending'}`}
-            >
-              {sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
-            </Button>
+          {/* Filter and Sort Controls */}
+          <div className="flex items-center gap-4">
+            {/* Following Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                Filter:
+              </span>
+              <select
+                value={filterByFollowing}
+                onChange={(e) => setFilterByFollowing(e.target.value as 'all' | 'following')}
+                className="synth-input text-sm bg-white/80 backdrop-blur-sm border border-border/50 rounded-xl px-3 py-2 min-w-[100px]"
+              >
+                <option value="all">All</option>
+                <option value="following">Following</option>
+              </select>
+            </div>
+
+            {/* Sort Controls */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <ArrowUpDown className="w-4 h-4" />
+                Sort by:
+              </span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="synth-input text-sm bg-white/80 backdrop-blur-sm border border-border/50 rounded-xl px-3 py-2 min-w-[120px]"
+              >
+                <option value="relevance">Relevance</option>
+                <option value="date">Date</option>
+                <option value="price">Price</option>
+                <option value="popularity">Popularity</option>
+                <option value="distance">Distance</option>
+              </select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="p-2 bg-white/80 backdrop-blur-sm border border-border/50 hover:border-synth-pink/50"
+                title={`Sort ${sortOrder === 'asc' ? 'Ascending' : 'Descending'}`}
+              >
+                {sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
+              </Button>
+            </div>
           </div>
           
           <div className="flex items-center gap-3">
@@ -569,7 +673,7 @@ export const UnifiedFeed = ({
 
             {/* Events Feed Items */}
         <div className="space-y-4">
-              {sortedFeedItems
+              {processedFeedItems
                 .filter(item => item.type === 'event')
                 .map((item, index) => (
               <Card 
@@ -627,21 +731,39 @@ export const UnifiedFeed = ({
                       {item.event_info?.event_name || item.title}
                     </h4>
                     {item.event_info && (
-                      <p className="text-sm text-gray-600 mb-3 flex items-center gap-2">
-                        <span className="bg-synth-beige/20 px-2 py-1 rounded-lg text-xs font-medium">
-                          {item.event_info.venue_name}
-                        </span>
-                        <span>•</span>
-                        <span className="bg-synth-pink/10 px-2 py-1 rounded-lg text-xs font-medium text-synth-pink">
-                          {(() => {
-                            try {
-                              return format(parseISO(item.event_info.event_date || item.created_at), 'MMM d, yyyy');
-                            } catch {
-                              return item.event_info.event_date || item.created_at;
-                            }
-                          })()}
-                        </span>
-                      </p>
+                      <>
+                        <p className="text-sm text-gray-600 mb-3 flex items-center gap-2 flex-wrap">
+                          <span className="bg-synth-beige/20 px-2 py-1 rounded-lg text-xs font-medium">
+                            {item.event_info.venue_name}
+                          </span>
+                          <span>•</span>
+                          <span className="bg-synth-pink/10 px-2 py-1 rounded-lg text-xs font-medium text-synth-pink">
+                            {(() => {
+                              try {
+                                return format(parseISO(item.event_info.event_date || item.created_at), 'MMM d, yyyy');
+                              } catch {
+                                return item.event_info.event_date || item.created_at;
+                              }
+                            })()}
+                          </span>
+                        </p>
+                        {item.event_info?.artist_name && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="secondary" className="text-xs">
+                              <Music className="w-3 h-3 mr-1" />
+                              {item.event_info.artist_name}
+                            </Badge>
+                            <ArtistFollowButton
+                              artistName={item.event_info.artist_name}
+                              userId={currentUserId}
+                              variant="ghost"
+                              size="sm"
+                              showFollowerCount={false}
+                              className="h-6 text-xs"
+                            />
+                          </div>
+                        )}
+                      </>
                     )}
                     {item.content && (
                       <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 bg-gray-50/50 p-3 rounded-lg">
@@ -805,7 +927,7 @@ export const UnifiedFeed = ({
                 ))}
               
               {/* Empty state for events */}
-              {sortedFeedItems.filter(item => item.type === 'event').length === 0 && !loading && (
+              {processedFeedItems.filter(item => item.type === 'event').length === 0 && !loading && (
                 <EmptyState
                   icon={<Calendar className="w-16 h-16" />}
                   title="No Events Yet"
@@ -854,7 +976,7 @@ export const UnifiedFeed = ({
 
             {/* Reviews Feed Items */}
             <div className="space-y-4">
-              {sortedFeedItems
+              {processedFeedItems
                 .filter(item => item.type === 'review')
                 .map((item, index) => (
                   <Card 
@@ -1082,7 +1204,7 @@ export const UnifiedFeed = ({
                 ))}
               
               {/* Empty state for reviews */}
-              {sortedFeedItems.filter(item => item.type === 'review').length === 0 && !loading && (
+              {processedFeedItems.filter(item => item.type === 'review').length === 0 && !loading && (
                 <EmptyState
                   icon={<Star className="w-16 h-16" />}
                   title="No Reviews Yet"
@@ -1106,7 +1228,7 @@ export const UnifiedFeed = ({
           )}
           
           {/* End of feed indicator */}
-          {!hasMore && sortedFeedItems.length > 0 && (
+          {!hasMore && processedFeedItems.length > 0 && (
             <div className="text-center py-12">
               <div className="w-20 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent mx-auto mb-4"></div>
               <p className="text-sm text-gray-500 font-medium">You're all caught up!</p>
