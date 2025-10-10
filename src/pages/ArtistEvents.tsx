@@ -474,6 +474,35 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
                   <p className="text-muted-foreground">
                     All events for this artist
                   </p>
+                  
+                  {/* Music Platform Links */}
+                  {artistName && (
+                    <div className="flex items-center gap-3 mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(`https://open.spotify.com/search/${encodeURIComponent(artistName)}`, '_blank')}
+                        className="flex items-center gap-2 hover:bg-green-50 hover:border-green-300"
+                      >
+                        <div className="w-4 h-4 bg-green-500 rounded-sm flex items-center justify-center">
+                          <span className="text-white text-xs font-bold">♪</span>
+                        </div>
+                        Spotify
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(`https://music.apple.com/search?term=${encodeURIComponent(artistName)}`, '_blank')}
+                        className="flex items-center gap-2 hover:bg-gray-50 hover:border-gray-400"
+                      >
+                        <div className="w-4 h-4 bg-black rounded-sm flex items-center justify-center">
+                          <span className="text-white text-xs font-bold">♫</span>
+                        </div>
+                        Apple Music
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 {user?.id && (
                   <ArtistFollowButton
