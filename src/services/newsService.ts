@@ -1,4 +1,5 @@
 import { NewsArticle, NewsSource, NewsCache } from '@/types/news';
+import { PersonalizedFeedService } from './personalizedFeedService';
 
 export class NewsService {
   private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -311,5 +312,125 @@ export class NewsService {
   static clearCache(): void {
     localStorage.removeItem('news-cache');
     console.log('📰 News cache cleared - will fetch fresh articles with music filtering');
+  }
+
+  /**
+   * Score article relevance based on user's music preferences
+   * Uses same scoring logic as events: 60 artist + 40 genre = 100 total
+   */
+  private static scoreArticleRelevance(
+    article: NewsArticle,
+    topArtists: Array<{ artist_name: string; score: number }>,
+    topGenres: Array<{ genre: string; score: number }>
+  ): number {
+    let score = 0;
+    const articleText = `${article.title} ${article.description}`.toLowerCase();
+    
+    // ARTIST MATCH (60 points max) - adapted from event's 40pt artist scoring
+    // Scale up to 60 since news is more artist-focused
+    for (const artist of topArtists) {
+      if (articleText.includes(artist.artist_name.toLowerCase())) {
+        // Use the artist's preference_score from music_preference_signals
+        // Cap at 60 points (scaled from event's 40pt cap)
+        score += Math.min(artist.score * 1.5, 60);
+        console.log(`✅ Artist match: "${artist.artist_name}" in "${article.title}" (+${Math.min(artist.score * 1.5, 60)} pts)`);
+        break; // Only count first artist match
+      }
+    }
+    
+    // GENRE MATCH (40 points max) - adapted from event's 30pt genre scoring
+    // Scale up to 40 since genres are important for news discovery
+    let genreScore = 0;
+    let genreMatches = 0;
+    const matchedGenres: string[] = [];
+    
+    for (const genre of topGenres) {
+      if (articleText.includes(genre.genre.toLowerCase())) {
+        genreScore += genre.score;
+        genreMatches++;
+        matchedGenres.push(genre.genre);
+      }
+    }
+    
+    if (genreMatches > 0) {
+      // Normalize by matches and cap at 40
+      const genrePoints = Math.min((genreScore / genreMatches) * 1.33, 40);
+      score += genrePoints;
+      console.log(`✅ Genre match: [${matchedGenres.join(', ')}] in "${article.title}" (+${genrePoints.toFixed(1)} pts)`);
+    }
+    
+    const finalScore = Math.min(score, 100); // Cap at 100 total
+    
+    if (finalScore > 0) {
+      console.log(`🎯 Article scored: "${article.title}" = ${finalScore.toFixed(1)}/100`);
+    }
+    
+    return finalScore;
+  }
+
+  /**
+   * Get personalized news feed based on user's music preferences
+   * Mirrors the event personalization system
+   */
+  static async getPersonalizedNews(userId: string): Promise<NewsArticle[]> {
+    try {
+      console.log('🎯 Fetching personalized news for user:', userId);
+      
+      // Fetch all news articles (existing logic with music filtering)
+      const articles = await this.fetchAllNews();
+      
+      // Check if user has music preference data
+      const hasMusicData = await PersonalizedFeedService.userHasMusicData(userId);
+      if (!hasMusicData) {
+        console.log('⚠️ No music data for user, returning all news sorted by date');
+        return articles; // Fallback: show all news
+      }
+      
+      // Get user's music profile (same as events)
+      const topArtists = await PersonalizedFeedService.getUserTopArtists(userId, 50);
+      const topGenres = await PersonalizedFeedService.getUserTopGenres(userId, 20);
+      
+      console.log('📊 User music profile:', {
+        artists: topArtists.length,
+        genres: topGenres.length,
+        topArtist: topArtists[0]?.artist_name,
+        topGenre: topGenres[0]?.genre
+      });
+      
+      if (topArtists.length === 0 && topGenres.length === 0) {
+        console.log('⚠️ No artist/genre preferences found, returning all news');
+        return articles;
+      }
+      
+      // Score each article
+      const scoredArticles = articles.map(article => {
+        const relevance_score = this.scoreArticleRelevance(article, topArtists, topGenres);
+        return {
+          ...article,
+          relevance_score // Add hidden score for sorting
+        };
+      });
+      
+      // Sort by relevance score (highest first), then by date
+      const sorted = scoredArticles.sort((a, b) => {
+        if (b.relevance_score !== a.relevance_score) {
+          return (b.relevance_score || 0) - (a.relevance_score || 0);
+        }
+        return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
+      });
+      
+      console.log('✅ Personalized news complete:', {
+        total: sorted.length,
+        topScore: sorted[0]?.relevance_score?.toFixed(1),
+        topArticle: sorted[0]?.title,
+        personalizedCount: sorted.filter(a => (a.relevance_score || 0) > 0).length
+      });
+      
+      return sorted;
+    } catch (error) {
+      console.error('❌ Error in personalized news:', error);
+      // Fallback: return all news
+      return this.fetchAllNews();
+    }
   }
 }

@@ -137,12 +137,22 @@ export const UnifiedFeed = ({
   const [newsSource, setNewsSource] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<string>('events');
 
-  // Fetch news function
+  // Fetch news function - now with personalization
   const fetchNews = async () => {
     setNewsLoading(true);
     try {
-      const articles = await NewsService.fetchAllNews();
+      // Use personalized news fetch based on user's music preferences
+      const articles = await NewsService.getPersonalizedNews(currentUserId);
       setNewsArticles(articles);
+      
+      const personalizedCount = articles.filter(a => (a.relevance_score || 0) > 0).length;
+      
+      toast({
+        title: 'News updated',
+        description: personalizedCount > 0 
+          ? `Loaded ${articles.length} articles (${personalizedCount} personalized for you)`
+          : `Loaded ${articles.length} articles`
+      });
     } catch (error) {
       console.error('Error fetching news:', error);
       toast({
@@ -158,7 +168,9 @@ export const UnifiedFeed = ({
   // Handle tab change
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    if (value === 'news' && newsArticles.length === 0) {
+    if (value === 'news') {
+      // Always fetch fresh personalized results when clicking News tab
+      NewsService.clearCache(); // Clear cache for fresh results
       fetchNews();
     }
   };

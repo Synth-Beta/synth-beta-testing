@@ -7,6 +7,7 @@ export interface NewsArticle {
   source: string;
   imageUrl?: string;
   author?: string;
+  relevance_score?: number; // Hidden score for sorting (0-100)
 }
 
 export interface NewsSource {

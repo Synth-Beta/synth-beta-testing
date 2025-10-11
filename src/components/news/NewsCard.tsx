@@ -6,7 +6,8 @@ import {
   ExternalLink, 
   Calendar, 
   User,
-  Newspaper
+  Newspaper,
+  Star
 } from 'lucide-react';
 import { NewsArticle } from '@/types/news';
 import { format, parseISO } from 'date-fns';
@@ -67,13 +68,26 @@ export function NewsCard({ article, className = '' }: NewsCardProps) {
       <CardContent className="p-4">
         {/* Header with source badge */}
         <div className="flex items-center justify-between mb-3">
-          <Badge 
-            variant="secondary" 
-            className="flex items-center gap-1 text-xs bg-pink-100 text-pink-700 hover:bg-pink-200"
-          >
-            <Newspaper className="w-3 h-3" />
-            {article.source}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge 
+              variant="secondary" 
+              className="flex items-center gap-1 text-xs bg-pink-100 text-pink-700 hover:bg-pink-200"
+            >
+              <Newspaper className="w-3 h-3" />
+              {article.source}
+            </Badge>
+            
+            {/* Show "For You" badge for high-scoring personalized articles */}
+            {article.relevance_score && article.relevance_score > 50 && (
+              <Badge 
+                variant="secondary" 
+                className="flex items-center gap-1 text-xs bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 border-purple-200"
+              >
+                <Star className="w-3 h-3 fill-purple-500" />
+                For You
+              </Badge>
+            )}
+          </div>
           
           <div className="flex items-center gap-1 text-xs text-gray-500">
             <Calendar className="w-3 h-3" />
