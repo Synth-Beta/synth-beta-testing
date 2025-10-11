@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { UserEventService } from '@/services/userEventService';
 import { useToast } from '@/hooks/use-toast';
+import { addUTMToURL, extractTicketProvider, getDaysUntilEvent, extractEventMetadata } from '@/utils/trackingHelpers';
 
 interface EventDetailsModalProps {
   event: JamBaseEvent | null;
@@ -89,10 +90,48 @@ export function EventDetailsModal({
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const { toast } = useToast();
 
+  // 🎯 TRACKING: View duration tracking
+  const viewStartTime = useRef<number | null>(null);
+  const hasInteracted = useRef(false);
+
   // Update actualEvent when event prop changes
   useEffect(() => {
     setActualEvent(event);
   }, [event]);
+
+  // 🎯 TRACKING: Modal open/close tracking (view duration)
+  useEffect(() => {
+    if (isOpen && actualEvent?.id) {
+      // Track modal open
+      viewStartTime.current = Date.now();
+      hasInteracted.current = false;
+      
+      const eventMetadata = extractEventMetadata(actualEvent, {
+        source: 'event_modal',
+        has_ticket_urls: !!(actualEvent.ticket_urls?.length),
+        has_setlist: !!actualEvent.setlist,
+        price_range: actualEvent.price_range,
+        days_until_event: actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined
+      });
+
+      trackInteraction.view('event', actualEvent.id, undefined, eventMetadata);
+    }
+
+    // Cleanup: Track modal close on unmount or when modal closes
+    return () => {
+      if (viewStartTime.current && actualEvent?.id) {
+        const duration = Math.floor((Date.now() - viewStartTime.current) / 1000);
+        
+        trackInteraction.view('event', actualEvent.id, duration, {
+          source: 'event_modal_close',
+          duration_seconds: duration,
+          interacted: hasInteracted.current
+        });
+        
+        viewStartTime.current = null;
+      }
+    };
+  }, [isOpen, actualEvent?.id]);
 
   // Fetch the actual event data from jambase_events table
   useEffect(() => {
@@ -315,6 +354,17 @@ export function EventDetailsModal({
   // Navigation click handlers for artist and venue names
   const handleArtistClick = () => {
     if (actualEvent.artist_name) {
+      // 🎯 TRACK: Artist click from event modal
+      trackInteraction.click('artist', actualEvent.artist_name, {
+        source: 'event_modal',
+        event_id: actualEvent.id,
+        artist_name: actualEvent.artist_name,
+        from_view: window.location.pathname
+      });
+      
+      // Mark interaction for duration tracking
+      hasInteracted.current = true;
+      
       // Close modal and navigate
       onClose();
       navigate(`/artist/${encodeURIComponent(actualEvent.artist_name)}`, {
@@ -328,6 +378,19 @@ export function EventDetailsModal({
 
   const handleVenueClick = () => {
     if (actualEvent.venue_name) {
+      // 🎯 TRACK: Venue click from event modal
+      trackInteraction.click('venue', actualEvent.venue_name, {
+        source: 'event_modal',
+        event_id: actualEvent.id,
+        venue_name: actualEvent.venue_name,
+        venue_city: actualEvent.venue_city,
+        venue_state: actualEvent.venue_state,
+        from_view: window.location.pathname
+      });
+      
+      // Mark interaction for duration tracking
+      hasInteracted.current = true;
+      
       // Close modal and navigate
       onClose();
       navigate(`/venue/${encodeURIComponent(actualEvent.venue_name)}`, {
@@ -1026,20 +1089,42 @@ export function EventDetailsModal({
                     <Button
                       variant="default"
                       size="sm"
-                      asChild
                       className="bg-blue-600 hover:bg-blue-700"
+                      onClick={() => {
+                        // 🎯 TRACK: Ticket link click (CRITICAL FOR REVENUE!)
+                        const ticketUrl = actualEvent.ticket_urls[0];
+                        const ticketProvider = extractTicketProvider(ticketUrl);
+                        const daysUntilEvent = actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined;
+                        
+                        trackInteraction.click('ticket_link', actualEvent.id, {
+                          ticket_url: ticketUrl,
+                          ticket_provider: ticketProvider,
+                          price_range: actualEvent.price_range,
+                          event_date: actualEvent.event_date,
+                          artist_name: actualEvent.artist_name,
+                          venue_name: actualEvent.venue_name,
+                          days_until_event: daysUntilEvent,
+                          source: 'event_modal',
+                          user_interested: isInterested
+                        });
+                        
+                        // Mark interaction for duration tracking
+                        hasInteracted.current = true;
+                        
+                        // Add UTM parameters for commission tracking
+                        const urlWithUTM = addUTMToURL(ticketUrl, {
+                          eventId: actualEvent.id,
+                          userId: currentUserId,
+                          source: 'event_modal'
+                        });
+                        
+                        // Open ticket link in new tab
+                        window.open(urlWithUTM, '_blank', 'noopener,noreferrer');
+                      }}
                     >
-                      <a 
-                        href={actualEvent.ticket_urls[0]} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1"
-                        onClick={() => { try { trackInteraction.click('ticket', actualEvent.id, { providerUrl: actualEvent.ticket_urls[0] }); } catch {} }}
-                      >
-                        <Ticket className="w-4 h-4" />
-                        <span>Get Tickets</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                      <Ticket className="w-4 h-4" />
+                      <span>Get Tickets</span>
+                      <ExternalLink className="w-3 h-3" />
                     </Button>
                   )}
                 </div>

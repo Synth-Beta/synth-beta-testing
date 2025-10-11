@@ -12,6 +12,7 @@ import {
   SpotifyArtist
 } from '@/types/spotify';
 import { trackInteraction, interactionTracker } from '@/services/interactionTrackingService';
+import { supabase } from '@/integrations/supabase/client';
 
 export class SpotifyService {
   private static instance: SpotifyService;
@@ -218,6 +219,7 @@ export class SpotifyService {
   /**
    * Pulls user's listening data (top artists, top tracks, recently played)
    * and logs normalized interactions per item into user_interactions.
+   * Also saves to streaming_profiles to trigger database sync.
    */
   public async syncUserMusicPreferences(): Promise<void> {
     try {
@@ -235,6 +237,28 @@ export class SpotifyService {
       ]);
 
       const recentlyPlayed = await this.getRecentlyPlayed(50).catch(() => ({ items: [] } as SpotifyRecentlyPlayedResponse));
+      const userProfile = await this.getUserProfile().catch(() => null);
+
+      // Combine all data for streaming_profiles table
+      const allTopArtists = [
+        ...topArtistsShort.items,
+        ...topArtistsMed.items,
+        ...topArtistsLong.items
+      ];
+
+      const allTopTracks = [
+        ...topTracksShort.items,
+        ...topTracksMed.items,
+        ...topTracksLong.items
+      ];
+
+      // Save to streaming_profiles table to trigger database sync
+      await this.saveToStreamingProfiles({
+        topArtists: allTopArtists,
+        topTracks: allTopTracks,
+        recentlyPlayed: recentlyPlayed.items,
+        userProfile
+      });
 
       // Log artist preferences
       const pushArtist = (artist: SpotifyArtist, timeRange: SpotifyTimeRange) => {
@@ -311,6 +335,108 @@ export class SpotifyService {
     } catch (error) {
       console.error('Spotify sync error:', error);
       // Best-effort logging, do not throw
+    }
+  }
+
+  /**
+   * Save Spotify data to streaming_profiles table to trigger database sync
+   */
+  private async saveToStreamingProfiles(data: {
+    topArtists: SpotifyArtist[];
+    topTracks: SpotifyTrack[];
+    recentlyPlayed: any[];
+    userProfile: SpotifyUser | null;
+  }): Promise<void> {
+    try {
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.warn('No authenticated user for streaming profile save');
+        return;
+      }
+
+      // Prepare profile data for streaming_profiles table
+      const profileData = {
+        topArtists: data.topArtists,
+        topTracks: data.topTracks,
+        recentlyPlayed: data.recentlyPlayed,
+        userProfile: data.userProfile,
+        external_urls: data.userProfile?.external_urls,
+        followers: data.userProfile?.followers,
+        country: data.userProfile?.country,
+        display_name: data.userProfile?.display_name,
+        email: data.userProfile?.email,
+        images: data.userProfile?.images,
+        product: data.userProfile?.product,
+        type: data.userProfile?.type,
+        uri: data.userProfile?.uri
+      };
+
+      // Check if profile already exists
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('streaming_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('service_type', 'spotify')
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error checking existing streaming profile:', fetchError);
+        return;
+      }
+
+      if (existingProfile) {
+        // Update existing profile
+        const { error: updateError } = await supabase
+          .from('streaming_profiles')
+          .update({
+            profile_data: profileData,
+            sync_status: 'completed',
+            last_updated: new Date().toISOString()
+          })
+          .eq('id', existingProfile.id);
+
+        if (updateError) {
+          console.error('Error updating streaming profile:', updateError);
+        } else {
+          console.log('✅ Updated streaming profile for user:', user.id);
+        }
+      } else {
+        // Create new profile
+        const { error: insertError } = await supabase
+          .from('streaming_profiles')
+          .insert({
+            user_id: user.id,
+            service_type: 'spotify',
+            profile_data: profileData,
+            sync_status: 'completed'
+          });
+
+        if (insertError) {
+          console.error('Error creating streaming profile:', insertError);
+        } else {
+          console.log('✅ Created streaming profile for user:', user.id);
+        }
+      }
+
+      // Also update user's music_streaming_profile field in profiles table
+      if (data.userProfile?.external_urls?.spotify) {
+        const { error: userUpdateError } = await supabase
+          .from('profiles')
+          .update({
+            music_streaming_profile: data.userProfile.external_urls.spotify,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+
+        if (userUpdateError) {
+          console.warn('Warning: Failed to update user profile with Spotify URL:', userUpdateError);
+        } else {
+          console.log('✅ Updated user profile with Spotify URL');
+        }
+      }
+    } catch (error) {
+      console.error('Error saving to streaming profiles:', error);
     }
   }
 

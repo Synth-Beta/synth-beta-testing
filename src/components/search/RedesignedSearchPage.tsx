@@ -41,6 +41,7 @@ import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-f
 import { cn } from '@/lib/utils';
 import { normalizeCityName } from '@/utils/cityNormalization';
 import { RadiusSearchService } from '@/services/radiusSearchService';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface RedesignedSearchPageProps {
   userId: string;
@@ -589,11 +590,28 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   };
 
   const handleSearch = async (query: string, type: SearchType) => {
+    // 🎯 TRACK: Search query initiated
+    const searchStartTime = Date.now();
+    trackInteraction.search(query, 'search', type, {
+      search_type: type,
+      query_length: query.length,
+      from_view: 'search_page'
+    });
+
     setSearchQuery(query);
     setSearchType(type);
     
     if (type === 'events' || type === 'all') {
       // The filtering will be handled by the useEffect
+      // Track results after filter
+      setTimeout(() => {
+        trackInteraction.search(query, 'search', 'search_results', {
+          search_type: type,
+          result_count: filteredEvents.length,
+          load_time_ms: Date.now() - searchStartTime,
+          has_results: filteredEvents.length > 0
+        });
+      }, 500);
       return;
     }
     
@@ -651,12 +669,29 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         
         setFilteredEvents(formattedEvents);
         
+        // 🎯 TRACK: Search results for artist
+        const searchDuration = Date.now() - searchStartTime;
+        trackInteraction.search(query, 'search', 'search_results', {
+          search_type: 'artists',
+          result_count: formattedEvents.length,
+          event_count: formattedEvents.length,
+          load_time_ms: searchDuration,
+          has_results: formattedEvents.length > 0
+        });
+        
         toast({
           title: "Artist Events",
           description: `Showing ${formattedEvents.length} events for "${query}"`,
         });
       } catch (error) {
         console.error('Error fetching artist events:', error);
+        
+        // 🎯 TRACK: Search failed
+        trackInteraction.search(query, 'search', 'search_error', {
+          search_type: 'artists',
+          error: 'fetch_failed'
+        });
+        
         toast({
           title: "Error",
           description: "Failed to filter events by artist",
@@ -1246,7 +1281,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                       selectedCities: [],
                       dateRange: { from: undefined, to: undefined },
                       showFilters: false,
-                      radiusMiles: 30
+                      radiusMiles: 30,
+                      filterByFollowing: 'all'
                     });
                   }}
                   className="hover-button border-gray-200 hover:border-pink-400 hover:text-pink-500"

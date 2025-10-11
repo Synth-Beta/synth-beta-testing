@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,9 @@ import { EventLikersModal } from '@/components/events/EventLikersModal';
 import { EventLikesService } from '@/services/eventLikesService';
 import { EventShareModal } from '@/components/events/EventShareModal';
 import { ShareService } from '@/services/shareService';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { extractEventMetadata } from '@/utils/trackingHelpers';
+import { useIntersectionTrackingList } from '@/hooks/useIntersectionTracking';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -271,8 +274,12 @@ export const UnifiedFeed = ({
 
   const loadFeedData = async (offset: number = 0) => {
     try {
+      console.log('🔄 loadFeedData called with offset:', offset);
+      
       if (offset === 0) {
         setLoading(true);
+        setFeedItems([]); // Clear existing items for fresh load
+        setHasMore(true); // Reset hasMore state
       } else {
         setLoadingMore(true);
       }
@@ -296,7 +303,16 @@ export const UnifiedFeed = ({
         setFeedItems(prev => [...prev, ...items]);
       }
 
-      setHasMore(items.length === 20); // If we got fewer than requested, no more items
+      console.log('📊 Feed loading debug:', {
+        offset,
+        itemsReturned: items.length,
+        hasMore: items.length === 20,
+        totalItemsAfter: offset === 0 ? items.length : items.length + offset
+      });
+
+      const newHasMore = items.length === 20;
+      console.log('🎯 Setting hasMore to:', newHasMore);
+      setHasMore(newHasMore); // If we got fewer than requested, no more items
       
     } catch (error) {
       console.error('Error loading feed data:', error);
@@ -511,6 +527,32 @@ export const UnifiedFeed = ({
     const filtered = filterFeedItems(feedItems);
     return sortFeedItems(filtered);
   }, [feedItems, filterByFollowing, followedArtists, followedVenues, sortBy, sortOrder]);
+
+  // 🎯 TRACKING: Event impression tracking with IntersectionObserver
+  const eventItems = useMemo(() => 
+    processedFeedItems
+      .filter(item => item.type === 'event')
+      .map((item, index) => ({
+        id: item.event_data?.id || item.id,
+        metadata: {
+          source: 'feed',
+          position: index,
+          feed_tab: activeTab,
+          feed_type: filterByFollowing,
+          artist_name: item.event_data?.artist_name || item.event_info?.artist_name,
+          venue_name: item.event_data?.venue_name || item.event_info?.venue_name,
+          distance_miles: item.distance_miles,
+          relevance_score: item.relevance_score
+        }
+      })),
+    [processedFeedItems, activeTab, filterByFollowing]
+  );
+
+  const attachEventObserver = useIntersectionTrackingList('event', eventItems, {
+    threshold: 0.5,
+    trackOnce: true,
+    debounce: 500
+  });
 
   // Hero image resolver for review items (mirrors JamBaseEventCard logic exactly)
   const ReviewHeroImage: React.FC<{ item: UnifiedFeedItem }> = ({ item }) => {
@@ -731,9 +773,21 @@ export const UnifiedFeed = ({
               <Card 
                 key={`event-${item.id}-${index}`} 
                 className="cursor-pointer overflow-hidden group"
+                ref={(el) => el && attachEventObserver(el, item.event_data?.id || item.id)}
                 onClick={async (e) => {
                   if (e.defaultPrevented) return;
                   if (item.event_data) {
+                    // 🎯 TRACK: Event click from feed
+                    const eventMetadata = extractEventMetadata(item.event_data, {
+                      source: 'feed',
+                      position: index,
+                      feed_tab: activeTab,
+                      feed_type: filterByFollowing,
+                      distance_miles: item.distance_miles,
+                      relevance_score: item.relevance_score
+                    });
+                    trackInteraction.click('event', item.event_data.id, eventMetadata);
+
                     setSelectedEventForDetails(item.event_data);
                     try {
                       const interested = await UserEventService.isUserInterested(
@@ -1354,11 +1408,38 @@ export const UnifiedFeed = ({
           </TabsContent>
         </Tabs>
           
+          {/* Load More Button */}
+          {(() => {
+            const shouldShowLoadMore = hasMore && !loadingMore && processedFeedItems.length > 0;
+            console.log('🔍 Load More button check:', {
+              hasMore,
+              loadingMore,
+              processedFeedItemsLength: processedFeedItems.length,
+              shouldShowLoadMore
+            });
+            return shouldShowLoadMore;
+          })() && (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Button
+                onClick={() => loadFeedData(processedFeedItems.length)}
+                variant="outline"
+                size="lg"
+                className="bg-white hover:bg-synth-pink hover:text-white transition-all duration-300 shadow-md hover:shadow-lg border-2 border-synth-pink text-synth-pink font-semibold px-8 py-6 rounded-xl"
+              >
+                <ArrowDown className="w-5 h-5 mr-2" />
+                Load More Events
+              </Button>
+              <p className="text-xs text-gray-400 mt-3">
+                Showing {processedFeedItems.filter(item => item.type === 'event').length} events
+              </p>
+            </div>
+          )}
+
           {/* Loading more indicator */}
           {loadingMore && (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-synth-pink mx-auto mb-3"></div>
-              <p className="text-sm text-gray-600 font-medium">Loading more...</p>
+              <p className="text-sm text-gray-600 font-medium">Loading more events...</p>
             </div>
           )}
           
