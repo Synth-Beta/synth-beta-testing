@@ -26,7 +26,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/#onboarding`,
+          emailRedirectTo: 'https://synth-beta-testing.vercel.app/#onboarding',
           data: {
             name: name,
           }

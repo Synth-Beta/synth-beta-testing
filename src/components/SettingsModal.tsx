@@ -84,7 +84,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
     setIsResettingPassword(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: 'https://synth-beta-testing.vercel.app/reset-password',
       });
 
       if (error) {
