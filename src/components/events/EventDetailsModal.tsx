@@ -118,10 +118,6 @@ export function EventDetailsModal({
   const viewStartTime = useRef<number | null>(null);
   const hasInteracted = useRef(false);
 
-  // 🎯 TRACKING: View duration tracking
-  const viewStartTime = useRef<number | null>(null);
-  const hasInteracted = useRef(false);
-
   // Update actualEvent when event prop changes
   useEffect(() => {
     setActualEvent(event);
