@@ -10,7 +10,8 @@ import {
   SystemHealth, 
   UserSegment, 
   GeographicDistribution, 
-  AdminAchievement 
+  AdminAchievement,
+  NorthStarMetric
 } from '../../services/adminAnalyticsService';
 import { MetricCard } from '../../components/analytics/shared/MetricCard';
 import { TopListCard } from '../../components/analytics/shared/TopListCard';
@@ -42,7 +43,10 @@ import {
   Database,
   AlertTriangle,
   CheckCircle,
-  Flag
+  Flag,
+  Heart,
+  Target,
+  Compass
 } from 'lucide-react';
 
 export default function AdminAnalyticsDashboard() {
@@ -57,6 +61,7 @@ export default function AdminAnalyticsDashboard() {
   const [userSegments, setUserSegments] = useState<UserSegment[]>([]);
   const [geographicDistribution, setGeographicDistribution] = useState<GeographicDistribution[]>([]);
   const [achievements, setAchievements] = useState<AdminAchievement[]>([]);
+  const [northStarMetric, setNorthStarMetric] = useState<NorthStarMetric | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'revenue' | 'content' | 'system' | 'achievements' | 'claims' | 'moderation'>('overview');
 
   // Debug activeTab changes
@@ -85,7 +90,8 @@ export default function AdminAnalyticsDashboard() {
         systemHealthData,
         userSegmentsData,
         geographicDistributionData,
-        achievementsData
+        achievementsData,
+        northStarMetricData
       ] = await Promise.all([
         AdminAnalyticsService.getPlatformStats(),
         AdminAnalyticsService.getUserGrowth(),
@@ -95,7 +101,8 @@ export default function AdminAnalyticsDashboard() {
         AdminAnalyticsService.getSystemHealth(),
         AdminAnalyticsService.getUserSegments(),
         AdminAnalyticsService.getGeographicDistribution(),
-        AdminAnalyticsService.getAdminAchievements()
+        AdminAnalyticsService.getAdminAchievements(),
+        AdminAnalyticsService.getNorthStarMetric()
       ]);
 
       setPlatformStats(platformStatsData);
@@ -107,6 +114,7 @@ export default function AdminAnalyticsDashboard() {
       setUserSegments(userSegmentsData);
       setGeographicDistribution(geographicDistributionData);
       setAchievements(achievementsData);
+      setNorthStarMetric(northStarMetricData);
     } catch (error) {
       console.error('Error fetching admin data:', error);
     } finally {
@@ -187,6 +195,13 @@ export default function AdminAnalyticsDashboard() {
         {/* Key Platform Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <MetricCard
+            title="North Star: ECI/U"
+            value={northStarMetric?.eci_per_user || 0}
+            icon={<Target className="w-6 h-6" />}
+            trend={northStarMetric?.monthly_growth_rate > 0 ? "up" : northStarMetric?.monthly_growth_rate < 0 ? "down" : "neutral"}
+            subtitle="concert intents per user"
+          />
+          <MetricCard
             title="Total Users"
             value={platformStats?.total_users || 0}
             icon={<Users className="w-6 h-6" />}
@@ -211,13 +226,6 @@ export default function AdminAnalyticsDashboard() {
             icon={<Calendar className="w-6 h-6" />}
             trend={contentMetrics?.content_growth_rate > 0 ? "up" : contentMetrics?.content_growth_rate < 0 ? "down" : "neutral"}
             subtitle="events this month"
-          />
-          <MetricCard
-            title="Active Today"
-            value={platformStats?.active_users_today || 0}
-            icon={<Activity className="w-6 h-6" />}
-            trend="neutral"
-            subtitle="users active"
           />
         </div>
 
@@ -258,6 +266,88 @@ export default function AdminAnalyticsDashboard() {
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            {/* North Star Metric Section */}
+            <div className="bg-gradient-to-r from-pink-50 to-red-50 rounded-xl p-6 shadow-sm border border-pink-200">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-gradient-to-r from-pink-500 to-red-500 rounded-lg">
+                  <Target className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">North Star Metric</h3>
+                  <p className="text-sm text-gray-600">Engaged Concert Intent per User (ECI/U)</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-pink-600 mb-1">
+                    {northStarMetric?.eci_per_user || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">Average ECI per User</div>
+                  <div className="text-xs text-gray-500">This month</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-600 mb-1">
+                    {northStarMetric?.total_engaged_users || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">Engaged Users</div>
+                  <div className="text-xs text-gray-500">Active this month</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-600 mb-1">
+                    {northStarMetric?.total_concert_intents || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Concert Intents</div>
+                  <div className="text-xs text-gray-500">Saves + RSVPs + Shares</div>
+                </div>
+              </div>
+              
+              {/* Breakdown */}
+              <div className="mt-6 pt-6 border-t border-pink-200">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">Intent Breakdown</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-3 bg-white rounded-lg">
+                    <div className="text-lg font-semibold text-pink-600">{northStarMetric?.breakdown.saves || 0}</div>
+                    <div className="text-xs text-gray-600">Saves</div>
+                  </div>
+                  <div className="text-center p-3 bg-white rounded-lg">
+                    <div className="text-lg font-semibold text-blue-600">{northStarMetric?.breakdown.rsvps || 0}</div>
+                    <div className="text-xs text-gray-600">RSVPs</div>
+                  </div>
+                  <div className="text-center p-3 bg-white rounded-lg">
+                    <div className="text-lg font-semibold text-purple-600">{northStarMetric?.breakdown.shares || 0}</div>
+                    <div className="text-xs text-gray-600">Shares</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Top Engaged Users */}
+              {northStarMetric?.top_engaged_users && northStarMetric.top_engaged_users.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-pink-200">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Top Engaged Users</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {northStarMetric.top_engaged_users.slice(0, 6).map((user, index) => (
+                      <div key={user.user_id} className="flex items-center justify-between p-3 bg-white rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-gradient-to-r from-pink-400 to-red-400 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                            {index + 1}
+                          </div>
+                          <span className="text-sm font-medium text-gray-900 truncate">
+                            {user.user_name}
+                          </span>
+                        </div>
+                        <div className="text-sm font-semibold text-pink-600">
+                          {user.eci_score} ECI
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Engagement Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white rounded-xl p-6 shadow-sm">

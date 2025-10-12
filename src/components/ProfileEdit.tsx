@@ -30,8 +30,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
     instagram_handle: '',
     music_streaming_profile: '',
     gender: '',
-    birthday: '',
-    similar_users_notifications: true // Default enabled
+    birthday: ''
   });
   const { toast } = useToast();
 
@@ -44,7 +43,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
       console.log('Fetching profile for user:', currentUserId);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, gender, birthday, created_at, updated_at, similar_users_notifications')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, gender, birthday, created_at, updated_at')
         .eq('user_id', currentUserId)
         .single();
 
@@ -64,8 +63,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
             instagram_handle: '',
             music_streaming_profile: '',
             gender: '',
-            birthday: '',
-            similar_users_notifications: true
+            birthday: ''
           });
           setLoading(false);
           return;
@@ -82,8 +80,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         instagram_handle: data.instagram_handle || '',
         music_streaming_profile: data.music_streaming_profile || '',
         gender: data.gender || '',
-        birthday: data.birthday || '',
-        similar_users_notifications: data.similar_users_notifications ?? true
+        birthday: data.birthday || ''
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -119,7 +116,6 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         music_streaming_profile: formData.music_streaming_profile.trim() || null,
         gender: formData.gender.trim() || null,
         birthday: formData.birthday.trim() || null,
-        similar_users_notifications: formData.similar_users_notifications,
         updated_at: new Date().toISOString()
       };
       
@@ -383,28 +379,6 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
               </p>
             </div>
 
-            {/* Notification Settings */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                🔔
-                Similar Users Notifications
-              </Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="similar-users-notifications"
-                  checked={formData.similar_users_notifications}
-                  onChange={(e) => handleInputChange('similar_users_notifications', e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <Label htmlFor="similar-users-notifications" className="text-sm font-normal">
-                  Get notified when similar users (age, gender, interests) show interest in events
-                </Label>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Helps you connect with people who share your interests and demographics
-              </p>
-            </div>
 
             {/* Save Button */}
             <div className="flex gap-3 pt-4">

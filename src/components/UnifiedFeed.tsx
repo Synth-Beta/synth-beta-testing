@@ -797,6 +797,7 @@ export const UnifiedFeed = ({
                 key={`event-${item.id}-${index}`} 
                 className="cursor-pointer overflow-hidden group"
                 ref={(el) => el && attachEventObserver(el, item.event_data?.id || item.id)}
+                data-tour={index === 0 ? "event-card" : undefined}
                 onClick={async (e) => {
                   if (e.defaultPrevented) return;
                   if (item.event_data) {

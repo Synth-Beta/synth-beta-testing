@@ -15,16 +15,20 @@ import { SettingsModal } from './SettingsModal';
 import { NotificationsPage } from './NotificationsPage';
 import { ChatView } from './ChatView';
 import { MyEventsManagementPanel } from './events/MyEventsManagementPanel';
+import { OnboardingFlow } from './onboarding/OnboardingFlow';
+import { OnboardingReminderBanner } from './onboarding/OnboardingReminderBanner';
+import { OnboardingTour } from './onboarding/OnboardingTour';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
 import { useAccountType } from '@/hooks/useAccountType';
+import { OnboardingService } from '@/services/onboardingService';
 import CreatorAnalyticsDashboard from '@/pages/Analytics/CreatorAnalyticsDashboard';
 import BusinessAnalyticsDashboard from '@/pages/Analytics/BusinessAnalyticsDashboard';
 import AdminAnalyticsDashboard from '@/pages/Analytics/AdminAnalyticsDashboard';
 
-type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events';
+type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events' | 'onboarding';
 
 interface MainAppProps {
   onSignOut?: () => void;
@@ -35,6 +39,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [events, setEvents] = useState<EventCardEvent[]>([]);
   const [profileUserId, setProfileUserId] = useState<string | undefined>(undefined);
   const [chatUserId, setChatUserId] = useState<string | undefined>(undefined);
+  const [showOnboardingReminder, setShowOnboardingReminder] = useState(false);
+  const [runTour, setRunTour] = useState(false);
   const { toast } = useToast();
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
   const { accountInfo } = useAccountType();
@@ -42,13 +48,40 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   // Track user activity (updates last_active_at periodically)
   useActivityTracker();
 
+  // Check onboarding status on mount
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      if (!user) return;
+
+      const status = await OnboardingService.checkOnboardingStatus(user.id);
+      if (status) {
+        // If user hasn't completed onboarding and hasn't skipped it, redirect to onboarding
+        if (!status.onboarding_completed && !status.onboarding_skipped) {
+          setCurrentView('onboarding');
+        } else if (status.onboarding_skipped && !status.onboarding_completed) {
+          // Show reminder banner if they skipped
+          setShowOnboardingReminder(true);
+        }
+        // If onboarding is complete but tour is not, we'll trigger it after first navigation
+      }
+    };
+
+    if (!loading && user) {
+      checkOnboardingStatus();
+    }
+  }, [user, loading]);
+
   useEffect(() => {
     // MainApp useEffect starting
     loadEvents();
 
     // Check for URL fragment to determine initial view
     const hash = window.location.hash;
-    if (hash === '#profile') {
+    if (hash === '#onboarding') {
+      setCurrentView('onboarding');
+      // Clear the hash to prevent re-triggering on refresh
+      window.history.replaceState(null, '', window.location.pathname);
+    } else if (hash === '#profile') {
       setCurrentView('profile');
       // Clear the hash to prevent re-triggering on refresh
       window.history.replaceState(null, '', window.location.pathname);
@@ -56,7 +89,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
     // Check for intended view from localStorage (for navigation from other pages)
     const intendedView = localStorage.getItem('intendedView');
-    if (intendedView && ['feed', 'search', 'profile'].includes(intendedView)) {
+    if (intendedView && ['feed', 'search', 'profile', 'onboarding'].includes(intendedView)) {
       setCurrentView(intendedView as ViewType);
       // Clear the intended view to prevent re-triggering
       localStorage.removeItem('intendedView');
@@ -277,7 +310,23 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     setCurrentView('chat');
   };
 
+  const handleOnboardingComplete = async () => {
+    setCurrentView('feed');
+    setShowOnboardingReminder(false);
+    
+    // Check if user should see the tour
+    if (user) {
+      const status = await OnboardingService.checkOnboardingStatus(user.id);
+      if (status && !status.tour_completed) {
+        // Delay tour start slightly so feed loads first
+        setTimeout(() => setRunTour(true), 1000);
+      }
+    }
+  };
 
+  const handleTourFinish = () => {
+    setRunTour(false);
+  };
 
   if (loading) {
     return (
@@ -309,6 +358,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const renderCurrentView = () => {
     // Rendering current view
     switch (currentView) {
+      case 'onboarding':
+        return <OnboardingFlow onComplete={handleOnboardingComplete} />;
       case 'feed':
         return (
           <UnifiedFeed 
@@ -420,8 +471,18 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     }
   };
 
+  // Don't show normal UI if in onboarding
+  if (currentView === 'onboarding') {
+    return renderCurrentView();
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Onboarding Reminder Banner */}
+      {showOnboardingReminder && (
+        <OnboardingReminderBanner onComplete={() => setCurrentView('onboarding')} />
+      )}
+
       {/* API Key Error Banner - Only show if there's actually an API key issue */}
       {showApiKeyError && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
@@ -458,6 +519,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         onSignOut={handleSignOut}
         userEmail={user?.email}
       />
+
+      {/* Onboarding Tour */}
+      <OnboardingTour run={runTour} onFinish={handleTourFinish} />
     </div>
   );
 };

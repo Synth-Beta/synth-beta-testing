@@ -90,6 +90,23 @@ export interface AdminAchievement {
   category: 'platform' | 'revenue' | 'users' | 'content';
 }
 
+export interface NorthStarMetric {
+  eci_per_user: number;
+  total_engaged_users: number;
+  total_concert_intents: number;
+  monthly_growth_rate: number;
+  breakdown: {
+    saves: number;
+    rsvps: number;
+    shares: number;
+  };
+  top_engaged_users: Array<{
+    user_id: string;
+    user_name: string;
+    eci_score: number;
+  }>;
+}
+
 export class AdminAnalyticsService {
   /**
    * Get comprehensive platform stats
@@ -683,6 +700,157 @@ export class AdminAnalyticsService {
   }
 
   /**
+   * Get North Star Metric: Engaged Concert Intent per User (ECI/U)
+   * The number of concerts a user saves, RSVP's, or shares with friends per month
+   */
+  static async getNorthStarMetric(): Promise<NorthStarMetric> {
+    try {
+      // Get current month's start date
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+      // Get all users for total count
+      const { count: totalUsers } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+
+      // Get concert intent interactions for current month
+      // This includes: event interest (saves/RSVPs), shares, and attendance marking
+      const { data: currentMonthInteractions } = await (supabase as any)
+        .from('user_interactions')
+        .select('user_id, event_type, entity_type, metadata')
+        .gte('occurred_at', startOfMonth.toISOString())
+        .in('event_type', ['interest', 'share', 'attendance'])
+        .eq('entity_type', 'event');
+
+      // Get last month's interactions for growth calculation
+      const { data: lastMonthInteractions } = await (supabase as any)
+        .from('user_interactions')
+        .select('user_id, event_type, entity_type, metadata')
+        .gte('occurred_at', startOfLastMonth.toISOString())
+        .lt('occurred_at', endOfLastMonth.toISOString())
+        .in('event_type', ['interest', 'share', 'attendance'])
+        .eq('entity_type', 'event');
+
+      // Also get event interest from user_jambase_events table (RSVPs)
+      const { data: currentMonthRSVPs } = await (supabase as any)
+        .from('user_jambase_events')
+        .select('user_id, rsvp_status')
+        .gte('created_at', startOfMonth.toISOString())
+        .in('rsvp_status', ['going', 'interested']);
+
+      const { data: lastMonthRSVPs } = await (supabase as any)
+        .from('user_jambase_events')
+        .select('user_id, rsvp_status')
+        .gte('created_at', startOfLastMonth.toISOString())
+        .lt('created_at', endOfLastMonth.toISOString())
+        .in('rsvp_status', ['going', 'interested']);
+
+      // Calculate ECI per user
+      const userECIScores = new Map<string, number>();
+      const engagedUsers = new Set<string>();
+      let totalConcertIntents = 0;
+
+      // Count interactions from user_interactions table
+      currentMonthInteractions?.forEach((interaction: any) => {
+        const userId = interaction.user_id;
+        if (!userECIScores.has(userId)) {
+          userECIScores.set(userId, 0);
+        }
+        userECIScores.set(userId, userECIScores.get(userId)! + 1);
+        engagedUsers.add(userId);
+        totalConcertIntents++;
+      });
+
+      // Count RSVPs from user_jambase_events table
+      currentMonthRSVPs?.forEach((rsvp: any) => {
+        const userId = rsvp.user_id;
+        if (!userECIScores.has(userId)) {
+          userECIScores.set(userId, 0);
+        }
+        userECIScores.set(userId, userECIScores.get(userId)! + 1);
+        engagedUsers.add(userId);
+        totalConcertIntents++;
+      });
+
+      // Calculate breakdown by interaction type
+      const breakdown = {
+        saves: 0,
+        rsvps: 0,
+        shares: 0
+      };
+
+      // Count saves (interest events)
+      const saves = currentMonthInteractions?.filter((i: any) => i.event_type === 'interest').length || 0;
+      breakdown.saves = saves;
+
+      // Count RSVPs
+      const rsvps = currentMonthRSVPs?.length || 0;
+      breakdown.rsvps = rsvps;
+
+      // Count shares
+      const shares = currentMonthInteractions?.filter((i: any) => i.event_type === 'share').length || 0;
+      breakdown.shares = shares;
+
+      // Calculate average ECI per user
+      const eciPerUser = totalUsers > 0 ? totalConcertIntents / totalUsers : 0;
+
+      // Calculate growth rate
+      const lastMonthTotal = (lastMonthInteractions?.length || 0) + (lastMonthRSVPs?.length || 0);
+      const monthlyGrowthRate = lastMonthTotal > 0 
+        ? ((totalConcertIntents - lastMonthTotal) / lastMonthTotal) * 100 
+        : 0;
+
+      // Get top engaged users with their names
+      const topEngagedUsers = Array.from(userECIScores.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([userId, score]) => ({
+          user_id: userId,
+          user_name: `User ${userId.slice(0, 8)}`, // Placeholder name
+          eci_score: score
+        }));
+
+      // Get actual user names for top users
+      if (topEngagedUsers.length > 0) {
+        const userIds = topEngagedUsers.map(u => u.user_id);
+        const { data: profiles } = await (supabase as any)
+          .from('profiles')
+          .select('user_id, name')
+          .in('user_id', userIds);
+
+        profiles?.forEach((profile: any) => {
+          const user = topEngagedUsers.find(u => u.user_id === profile.user_id);
+          if (user) {
+            user.user_name = profile.name || `User ${profile.user_id.slice(0, 8)}`;
+          }
+        });
+      }
+
+      return {
+        eci_per_user: Math.round(eciPerUser * 100) / 100,
+        total_engaged_users: engagedUsers.size,
+        total_concert_intents: totalConcertIntents,
+        monthly_growth_rate: Math.round(monthlyGrowthRate * 100) / 100,
+        breakdown,
+        top_engaged_users: topEngagedUsers
+      };
+    } catch (error) {
+      console.error('Error calculating North Star Metric:', error);
+      return {
+        eci_per_user: 0,
+        total_engaged_users: 0,
+        total_concert_intents: 0,
+        monthly_growth_rate: 0,
+        breakdown: { saves: 0, rsvps: 0, shares: 0 },
+        top_engaged_users: []
+      };
+    }
+  }
+
+  /**
    * Export admin analytics data
    */
   static async exportAdminData(): Promise<{
@@ -695,6 +863,7 @@ export class AdminAnalyticsService {
     userSegments: UserSegment[];
     geographicDistribution: GeographicDistribution[];
     achievements: AdminAchievement[];
+    northStarMetric: NorthStarMetric;
   }> {
     const [
       platformStats,
@@ -705,7 +874,8 @@ export class AdminAnalyticsService {
       systemHealth,
       userSegments,
       geographicDistribution,
-      achievements
+      achievements,
+      northStarMetric
     ] = await Promise.all([
       this.getPlatformStats(),
       this.getUserGrowth(),
@@ -716,6 +886,7 @@ export class AdminAnalyticsService {
       this.getUserSegments(),
       this.getGeographicDistribution(),
       this.getAdminAchievements(),
+      this.getNorthStarMetric(),
     ]);
 
     return {
@@ -728,6 +899,7 @@ export class AdminAnalyticsService {
       userSegments,
       geographicDistribution,
       achievements,
+      northStarMetric,
     };
   }
 }

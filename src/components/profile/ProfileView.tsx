@@ -1150,7 +1150,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 {isViewingOwnProfile ? (
                   <>
                     <Button onClick={onEdit} variant="outline" size="sm" className="hover-button gradient-button">Edit profile</Button>
-                    <Button onClick={onSettings} variant="ghost" size="sm" className="hover-button"><Settings className="w-4 h-4 hover-icon" /></Button>
+                    <Button onClick={onSettings} variant="ghost" size="sm" className="hover-button" data-tour="settings"><Settings className="w-4 h-4 hover-icon" /></Button>
                   </>
                 ) : (
                   <div className="flex items-center gap-2 flex-wrap">

@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { LogOut, User, Bell, Shield, HelpCircle, Info, Mail, Key, AtSign, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { EmailPreferencesSettings } from '@/components/EmailPreferencesSettings';
+import { OnboardingPreferencesSettings } from '@/components/OnboardingPreferencesSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { UserVisibilityService } from '@/services/userVisibilityService';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,7 +22,7 @@ interface SettingsModalProps {
 
 export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: SettingsModalProps) => {
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [view, setView] = useState<'menu' | 'email-preferences' | 'security-actions'>('menu');
+  const [view, setView] = useState<'menu' | 'email-preferences' | 'onboarding-preferences' | 'security-actions'>('menu');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState('');
@@ -213,7 +214,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
       <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {(view === 'email-preferences' || view === 'security-actions') && (
+            {(view === 'email-preferences' || view === 'onboarding-preferences' || view === 'security-actions') && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -226,6 +227,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
             {view === 'menu' && <Shield className="w-5 h-5" />}
             {view === 'menu' ? 'Settings' : 
              view === 'email-preferences' ? 'Email Preferences' :
+             view === 'onboarding-preferences' ? 'Profile & Preferences' :
              view === 'security-actions' ? 'Security Actions' : 'Settings'}
           </DialogTitle>
         </DialogHeader>
@@ -283,12 +285,12 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-3 h-12"
-                onClick={() => handleComingSoon('Profile Settings')}
+                onClick={() => setView('onboarding-preferences')}
               >
                 <User className="w-5 h-5" />
                 <div className="text-left">
-                  <div className="font-medium">Profile Settings</div>
-                  <div className="text-sm text-muted-foreground">Manage your profile information</div>
+                  <div className="font-medium">Profile & Preferences</div>
+                  <div className="text-sm text-muted-foreground">Manage your profile information and preferences</div>
                 </div>
               </Button>
 
@@ -375,6 +377,8 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
           </div>
         ) : view === 'email-preferences' ? (
           <EmailPreferencesSettings />
+        ) : view === 'onboarding-preferences' ? (
+          <OnboardingPreferencesSettings onClose={onClose} />
         ) : view === 'security-actions' ? (
           <div className="space-y-6">
             {/* Header */}
