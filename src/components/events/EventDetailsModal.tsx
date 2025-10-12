@@ -118,6 +118,10 @@ export function EventDetailsModal({
   const viewStartTime = useRef<number | null>(null);
   const hasInteracted = useRef(false);
 
+  // 🎯 TRACKING: View duration tracking
+  const viewStartTime = useRef<number | null>(null);
+  const hasInteracted = useRef(false);
+
   // Update actualEvent when event prop changes
   useEffect(() => {
     setActualEvent(event);
@@ -146,6 +150,40 @@ export function EventDetailsModal({
       console.error('Error loading event groups:', error);
     }
   };
+
+  // 🎯 TRACKING: Modal open/close tracking (view duration)
+  useEffect(() => {
+    if (isOpen && actualEvent?.id) {
+      // Track modal open
+      viewStartTime.current = Date.now();
+      hasInteracted.current = false;
+      
+      const eventMetadata = extractEventMetadata(actualEvent, {
+        source: 'event_modal',
+        has_ticket_urls: !!(actualEvent.ticket_urls?.length),
+        has_setlist: !!actualEvent.setlist,
+        price_range: actualEvent.price_range,
+        days_until_event: actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined
+      });
+
+      trackInteraction.view('event', actualEvent.id, undefined, eventMetadata);
+    }
+
+    // Cleanup: Track modal close on unmount or when modal closes
+    return () => {
+      if (viewStartTime.current && actualEvent?.id) {
+        const duration = Math.floor((Date.now() - viewStartTime.current) / 1000);
+        
+        trackInteraction.view('event', actualEvent.id, duration, {
+          source: 'event_modal_close',
+          duration_seconds: duration,
+          interacted: hasInteracted.current
+        });
+        
+        viewStartTime.current = null;
+      }
+    };
+  }, [isOpen, actualEvent?.id]);
 
   // 🎯 TRACKING: Modal open/close tracking (view duration)
   useEffect(() => {
