@@ -112,7 +112,7 @@ export function EventDetailsModal({
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [canClaim, setCanClaim] = useState(false);
   const { toast } = useToast();
-  const { isCreator, isAdmin } = useAccountType();
+  const { isCreator, isAdmin, isBusiness } = useAccountType();
 
   // 🎯 TRACKING: View duration tracking
   const viewStartTime = useRef<number | null>(null);
@@ -122,8 +122,8 @@ export function EventDetailsModal({
   useEffect(() => {
     setActualEvent(event);
     
-    // Check if event can be claimed (not already claimed, user is creator)
-    if (event && (isCreator() || isAdmin())) {
+    // Check if event can be claimed (not already claimed, user is creator, business, or admin)
+    if (event && (isCreator() || isBusiness() || isAdmin())) {
       // Check if event has claimed_by_creator_id property (type-safe check)
       const eventWithClaim = event as JamBaseEvent & { claimed_by_creator_id?: string };
       setCanClaim(!eventWithClaim.claimed_by_creator_id);

@@ -250,7 +250,10 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
             const { data: chat, error: chatError } = await supabase
               .from('chats')
               .insert({
-                match_id: match.id
+                match_id: match.id,
+                chat_name: `Concert Buddy Chat`,
+                users: [currentUserId, targetUser.user_id],
+                is_group_chat: false
               })
               .select('id')
               .single();

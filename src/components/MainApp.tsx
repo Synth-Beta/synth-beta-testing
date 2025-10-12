@@ -376,18 +376,26 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           );
         }
         
+        console.log('🔍 MainApp: Account info for analytics:', accountInfo);
+        console.log('🔍 MainApp: Account type:', accountInfo.account_type);
+        
         switch (accountInfo.account_type) {
           case 'creator':
+            console.log('🔍 MainApp: Rendering CreatorAnalyticsDashboard');
             return <CreatorAnalyticsDashboard />;
           case 'business':
+            console.log('🔍 MainApp: Rendering BusinessAnalyticsDashboard');
             return <BusinessAnalyticsDashboard />;
           case 'admin':
+            console.log('🔍 MainApp: Rendering AdminAnalyticsDashboard');
             return <AdminAnalyticsDashboard />;
           default:
+            console.log('🔍 MainApp: Unknown account type, showing not available message');
             return (
               <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
                   <p className="text-gray-600">Analytics not available for your account type.</p>
+                  <p className="text-sm text-gray-500 mt-2">Account type: {accountInfo.account_type}</p>
                 </div>
               </div>
             );

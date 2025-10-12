@@ -17,7 +17,7 @@ import EventManagementService from '@/services/eventManagementService';
 import { Award, CheckCircle, XCircle, Loader2, Calendar, MapPin, ExternalLink } from 'lucide-react';
 
 export function AdminClaimReviewPanel() {
-  const { isAdmin } = useAccountType();
+  const { isAdmin, accountInfo, loading: accountLoading } = useAccountType();
   const { toast } = useToast();
   
   const [loading, setLoading] = useState(true);
@@ -29,10 +29,24 @@ export function AdminClaimReviewPanel() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    if (isAdmin()) {
-      loadClaims();
+    console.log('🔍 AdminClaimReviewPanel: useEffect triggered');
+    console.log('🔍 AdminClaimReviewPanel: accountLoading:', accountLoading);
+    console.log('🔍 AdminClaimReviewPanel: accountInfo:', accountInfo);
+    console.log('🔍 AdminClaimReviewPanel: isAdmin() check:', isAdmin());
+    
+    // Wait for account info to load before checking admin status
+    if (accountLoading) {
+      console.log('🔍 AdminClaimReviewPanel: Account still loading, waiting...');
+      return;
     }
-  }, []); // Remove isAdmin dependency to prevent infinite loop
+    
+    if (isAdmin()) {
+      console.log('🔍 AdminClaimReviewPanel: User is admin, calling loadClaims()');
+      loadClaims();
+    } else {
+      console.log('⚠️ AdminClaimReviewPanel: User is NOT admin, skipping loadClaims()');
+    }
+  }, [accountLoading, accountInfo]); // Now depends on account loading state
 
   const loadClaims = async () => {
     setLoading(true);

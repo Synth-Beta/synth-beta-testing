@@ -13,10 +13,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useAccountType } from '@/hooks/useAccountType';
 import AdminService from '@/services/adminService';
 import ContentModerationService, { FLAG_REASONS } from '@/services/contentModerationService';
+import { supabase } from '@/integrations/supabase/client';
 import { Flag, Trash2, AlertTriangle, X, Loader2, ExternalLink, Eye } from 'lucide-react';
 
 export function AdminModerationPanel() {
-  const { isAdmin } = useAccountType();
+  const { isAdmin, accountInfo, loading: accountLoading } = useAccountType();
   const { toast } = useToast();
   
   const [loading, setLoading] = useState(true);
@@ -28,27 +29,133 @@ export function AdminModerationPanel() {
   const [contentPreview, setContentPreview] = useState<any>(null);
 
   useEffect(() => {
-    if (isAdmin()) {
-      loadFlags();
+    console.log('🔍 AdminModerationPanel: useEffect triggered');
+    console.log('🔍 AdminModerationPanel: accountLoading:', accountLoading);
+    console.log('🔍 AdminModerationPanel: accountInfo:', accountInfo);
+    console.log('🔍 AdminModerationPanel: isAdmin() check:', isAdmin());
+    
+    // Wait for account info to load before checking admin status
+    if (accountLoading) {
+      console.log('🔍 AdminModerationPanel: Account still loading, waiting...');
+      return;
     }
-  }, []); // Remove isAdmin dependency to prevent infinite loop
+    
+    if (isAdmin()) {
+      console.log('🔍 AdminModerationPanel: User is admin, calling loadFlags()');
+      loadFlags();
+    } else {
+      console.log('⚠️ AdminModerationPanel: User is NOT admin, skipping loadFlags()');
+    }
+  }, [accountLoading, accountInfo]); // Now depends on account loading state
 
   const loadFlags = async () => {
     setLoading(true);
     try {
       console.log('🔍 AdminModerationPanel: Loading flags...');
-      const [pending, reviewed] = await Promise.all([
-        AdminService.getPendingFlags(),
-        AdminService.getAllFlags('resolved'),
-      ]);
+      console.log('🔍 AdminModerationPanel: isAdmin() result:', isAdmin());
       
-      console.log('🔍 AdminModerationPanel: Pending flags:', pending);
-      console.log('🔍 AdminModerationPanel: Reviewed flags:', reviewed);
+      // First get all flags to see what statuses exist
+      const { data: allFlags, error: allFlagsError } = await (supabase as any)
+        .from('moderation_flags')
+        .select('id, flag_status, flag_reason, created_at')
+        .order('created_at', { ascending: false });
+      
+      console.log('🔍 AdminModerationPanel: All flags in database:', allFlags);
+      console.log('🔍 AdminModerationPanel: All flags error:', allFlagsError);
+      
+      // Group flags by status
+      if (allFlags && Array.isArray(allFlags)) {
+        const statusGroups = allFlags.reduce((acc: any, flag: any) => {
+          acc[flag.flag_status] = (acc[flag.flag_status] || 0) + 1;
+          return acc;
+        }, {});
+        console.log('🔍 AdminModerationPanel: Flags by status:', statusGroups);
+      }
+
+      // Get pending flags - try direct query first
+      console.log('🔍 AdminModerationPanel: Trying direct pending flags query...');
+      const { data: pendingFlags, error: pendingError } = await (supabase as any)
+        .from('moderation_flags')
+        .select('*')
+        .eq('flag_status', 'pending')
+        .order('created_at', { ascending: true });
+      
+      console.log('🔍 AdminModerationPanel: Direct pending flags query result:', pendingFlags);
+      console.log('🔍 AdminModerationPanel: Direct pending flags query error:', pendingError);
+      
+      // Fetch flagger profiles for pending flags
+      let pending = pendingFlags || [];
+      if (pending.length > 0) {
+        const userIds = pending.map((f: any) => f.flagged_by_user_id);
+        console.log('🔍 AdminModerationPanel: Fetching profiles for pending flags user IDs:', userIds);
+        
+        const { data: profiles } = await (supabase as any)
+          .from('profiles')
+          .select('user_id, name, avatar_url')
+          .in('user_id', userIds);
+        
+        console.log('🔍 AdminModerationPanel: Profiles for pending flags:', profiles);
+        
+        // Merge profiles into flags
+        pending = pending.map((flag: any) => ({
+          ...flag,
+          flagger: profiles?.find(p => p.user_id === flag.flagged_by_user_id)
+        }));
+      }
+      
+      // Get all non-pending flags (reviewed, dismissed, etc.) - without join first
+      const { data: reviewedFlags, error: reviewedError } = await (supabase as any)
+        .from('moderation_flags')
+        .select('*')
+        .neq('flag_status', 'pending')
+        .order('reviewed_at', { ascending: false });
+      
+      console.log('🔍 AdminModerationPanel: Reviewed flags from DB:', reviewedFlags);
+      console.log('🔍 AdminModerationPanel: Reviewed flags error:', reviewedError);
+      
+      // Fetch flagger profiles separately if we have flags
+      let reviewed = reviewedFlags || [];
+      if (reviewed.length > 0) {
+        const userIds = reviewed.map((f: any) => f.flagged_by_user_id);
+        console.log('🔍 AdminModerationPanel: Fetching profiles for reviewed flags user IDs:', userIds);
+        
+        const { data: profiles } = await (supabase as any)
+          .from('profiles')
+          .select('user_id, name, avatar_url')
+          .in('user_id', userIds);
+        
+        console.log('🔍 AdminModerationPanel: Profiles for reviewed flags:', profiles);
+        
+        // Merge profiles into flags
+        reviewed = reviewed.map((flag: any) => ({
+          ...flag,
+          flagger: profiles?.find(p => p.user_id === flag.flagged_by_user_id)
+        }));
+      }
+      
+      console.log('🔍 AdminModerationPanel: Raw pending flags response:', pending);
+      console.log('🔍 AdminModerationPanel: Raw reviewed flags response:', reviewed);
+      console.log('🔍 AdminModerationPanel: Pending flags type:', typeof pending);
+      console.log('🔍 AdminModerationPanel: Pending flags is array:', Array.isArray(pending));
+      console.log('🔍 AdminModerationPanel: Pending flags length:', pending?.length || 'undefined');
+      console.log('🔍 AdminModerationPanel: Reviewed flags length:', reviewed?.length || 'undefined');
+      
+      // Log each individual flag
+      if (pending && Array.isArray(pending)) {
+        console.log('🔍 AdminModerationPanel: Individual pending flags:');
+        pending.forEach((flag, index) => {
+          console.log(`  [${index}] Flag ID: ${flag.id}, Status: ${flag.flag_status}, Reason: ${flag.flag_reason}`);
+        });
+      }
       
       setPendingFlags(pending);
       setReviewedFlags(reviewed.slice(0, 20)); // Show last 20
+      
+      console.log('🔍 AdminModerationPanel: State updated - pendingFlags.length:', pending?.length || 0);
+      console.log('🔍 AdminModerationPanel: State updated - reviewedFlags.length:', reviewed?.slice(0, 20)?.length || 0);
     } catch (error) {
       console.error('❌ AdminModerationPanel: Error loading flags:', error);
+      console.error('❌ AdminModerationPanel: Error details:', JSON.stringify(error, null, 2));
       toast({
         title: 'Error',
         description: 'Failed to load moderation flags',
@@ -56,6 +163,7 @@ export function AdminModerationPanel() {
       });
     } finally {
       setLoading(false);
+      console.log('🔍 AdminModerationPanel: Loading completed');
     }
   };
 

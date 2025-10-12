@@ -34,6 +34,7 @@ export function useAccountType() {
     try {
       setLoading(true);
       setError(null);
+      console.log('🔍 useAccountType: Fetching account info for user:', user.id);
 
       const { data, error: fetchError } = await supabase
         .from('profiles')
@@ -41,37 +42,47 @@ export function useAccountType() {
         .eq('user_id', user.id)
         .single();
 
+      console.log('🔍 useAccountType: Raw data from database:', data);
+      console.log('🔍 useAccountType: Fetch error:', fetchError);
+
       if (fetchError) {
-        console.error('Error fetching account info:', fetchError);
+        console.error('❌ useAccountType: Error fetching account info:', fetchError);
         setError(fetchError.message);
         // Default to 'user' if there's an error
-        setAccountInfo({
+        const defaultAccountInfo = {
           account_type: 'user',
           subscription_tier: 'free',
           verified: false,
           verification_level: 'none',
-        });
+        };
+        console.log('🔍 useAccountType: Setting default account info:', defaultAccountInfo);
+        setAccountInfo(defaultAccountInfo);
       } else {
-        setAccountInfo({
+        const processedAccountInfo = {
           account_type: data.account_type || 'user',
           subscription_tier: data.subscription_tier || 'free',
           verified: data.verified || false,
           verification_level: data.verification_level || 'none',
           business_info: data.business_info,
-        });
+        };
+        console.log('🔍 useAccountType: Setting processed account info:', processedAccountInfo);
+        setAccountInfo(processedAccountInfo);
       }
     } catch (err) {
-      console.error('Error in fetchAccountInfo:', err);
+      console.error('❌ useAccountType: Error in fetchAccountInfo:', err);
       setError('Failed to fetch account information');
       // Default to 'user' if there's an error
-      setAccountInfo({
+      const defaultAccountInfo = {
         account_type: 'user',
         subscription_tier: 'free',
         verified: false,
         verification_level: 'none',
-      });
+      };
+      console.log('🔍 useAccountType: Setting default account info (catch):', defaultAccountInfo);
+      setAccountInfo(defaultAccountInfo);
     } finally {
       setLoading(false);
+      console.log('🔍 useAccountType: Loading completed');
     }
   };
 

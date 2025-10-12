@@ -191,6 +191,37 @@ export class AdminService {
       console.log('🔍 AdminService: Current user ID:', user.data.user?.id);
       console.log('🔍 AdminService: User session:', !!user.data.user);
       
+      // First try using the dedicated function (with proper typing)
+      try {
+        const { data: flags, error } = await (supabase as any).rpc('get_pending_moderation_flags');
+        
+        if (!error && flags && Array.isArray(flags)) {
+          console.log('🔍 AdminService: Flags from function:', flags);
+          console.log('🔍 AdminService: Flags count from function:', flags.length);
+          return flags;
+        } else {
+          console.log('⚠️ AdminService: Function failed, trying simple function:', error);
+        }
+      } catch (functionError) {
+        console.log('⚠️ AdminService: Function not available, trying simple function:', functionError);
+      }
+      
+      // Try the simple function as fallback
+      try {
+        const { data: flags, error } = await (supabase as any).rpc('get_pending_flags_simple');
+        
+        if (!error && flags && Array.isArray(flags)) {
+          console.log('🔍 AdminService: Flags from simple function:', flags);
+          console.log('🔍 AdminService: Flags count from simple function:', flags.length);
+          return flags;
+        } else {
+          console.log('⚠️ AdminService: Simple function failed, falling back to direct query:', error);
+        }
+      } catch (functionError) {
+        console.log('⚠️ AdminService: Simple function not available, using direct query:', functionError);
+      }
+      
+      // Fallback to direct query
       const { data: flags, error } = await (supabase as any)
         .from('moderation_flags')
         .select('*')

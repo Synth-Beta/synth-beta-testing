@@ -38,7 +38,6 @@ import { useNavigate } from 'react-router-dom';
 import { UserVisibilityService } from '@/services/userVisibilityService';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { BlockUserModal } from '@/components/moderation/BlockUserModal';
-import { MyMatchesPanel } from '@/components/matching/MyMatchesPanel';
 import { FriendActivityFeed } from '@/components/social/FriendActivityFeed';
 import { WorkingConnectionBadge } from '../WorkingConnectionBadge';
 
@@ -1271,14 +1270,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
         {/* Instagram-style Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="glass-card inner-glow grid w-full grid-cols-5 mb-6 p-1 floating-shadow">
+          <TabsList className="glass-card inner-glow grid w-full grid-cols-4 mb-6 p-1 floating-shadow">
             <TabsTrigger value="my-events" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               Events
-            </TabsTrigger>
-            <TabsTrigger value="matches" className="flex items-center gap-2">
-              <Heart className="w-4 h-4" />
-              Matches
             </TabsTrigger>
             {canViewInterested && (
               <TabsTrigger value="interested" className="flex items-center gap-2">
@@ -1296,14 +1291,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             </TabsTrigger>
           </TabsList>
 
-          {/* Matches Tab */}
-          <TabsContent value="matches" className="mt-6 mb-40">
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-2">Concert Buddy Matches</h3>
-              <p className="text-sm text-gray-600">People you matched with for events</p>
-            </div>
-            <MyMatchesPanel onChatWithMatch={onNavigateToChat} />
-          </TabsContent>
 
           {/* My Events Tab - Show attended events with review/ranking toggle */}
           <TabsContent value="my-events" className="mt-6 mb-40">

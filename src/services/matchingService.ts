@@ -139,7 +139,7 @@ export class MatchingService {
         .from('user_jambase_events')
         .select(`
           user_id,
-          profiles:user_id (
+          profiles!user_jambase_events_user_id_fkey (
             user_id,
             name,
             avatar_url,

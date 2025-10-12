@@ -59,6 +59,11 @@ export default function AdminAnalyticsDashboard() {
   const [achievements, setAchievements] = useState<AdminAchievement[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'revenue' | 'content' | 'system' | 'achievements' | 'claims' | 'moderation'>('overview');
 
+  // Debug activeTab changes
+  useEffect(() => {
+    console.log('🔍 AdminAnalyticsDashboard: activeTab changed to:', activeTab);
+  }, [activeTab]);
+
   useEffect(() => {
     if (user) {
       fetchAdminData();
@@ -185,33 +190,34 @@ export default function AdminAnalyticsDashboard() {
             title="Total Users"
             value={platformStats?.total_users || 0}
             icon={<Users className="w-6 h-6" />}
-            trend={platformStats?.platform_growth_rate || 0}
-            trendLabel="growth this month"
-            color="blue"
+            trend={
+              platformStats?.platform_growth_rate > 0
+                ? "up"
+                : platformStats?.platform_growth_rate < 0
+                ? "down"
+                : "neutral"
+            }
           />
           <MetricCard
             title="Platform Revenue"
             value={`$${(platformStats?.total_revenue || 0).toLocaleString()}`}
             icon={<DollarSign className="w-6 h-6" />}
-            trend={revenueMetrics?.revenue_growth_rate || 0}
-            trendLabel="revenue growth"
-            color="green"
+            trend={revenueMetrics?.revenue_growth_rate > 0 ? "up" : revenueMetrics?.revenue_growth_rate < 0 ? "down" : "neutral"}
+            subtitle="revenue growth"
           />
           <MetricCard
             title="Total Events"
             value={platformStats?.total_events || 0}
             icon={<Calendar className="w-6 h-6" />}
-            trend={contentMetrics?.content_growth_rate || 0}
-            trendLabel="events this month"
-            color="purple"
+            trend={contentMetrics?.content_growth_rate > 0 ? "up" : contentMetrics?.content_growth_rate < 0 ? "down" : "neutral"}
+            subtitle="events this month"
           />
           <MetricCard
             title="Active Today"
             value={platformStats?.active_users_today || 0}
             icon={<Activity className="w-6 h-6" />}
-            trend={0}
-            trendLabel="users active"
-            color="orange"
+            trend="neutral"
+            subtitle="users active"
           />
         </div>
 
@@ -231,7 +237,10 @@ export default function AdminAnalyticsDashboard() {
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => {
+                    console.log('🔍 AdminAnalyticsDashboard: Tab clicked:', tab.id);
+                    setActiveTab(tab.id as any);
+                  }}
                   className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab.id
                       ? 'border-red-500 text-red-600'
@@ -683,6 +692,7 @@ export default function AdminAnalyticsDashboard() {
         {/* Moderation Tab */}
         {activeTab === 'moderation' && (
           <div className="space-y-6">
+            {(() => { console.log('🔍 AdminAnalyticsDashboard: Rendering moderation tab, activeTab:', activeTab); return null; })()}
             <AdminModerationPanel />
           </div>
         )}
