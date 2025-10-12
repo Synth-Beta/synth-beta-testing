@@ -47,7 +47,7 @@ export const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
               onClick={() => onViewChange(id)}
               aria-label={`Navigate to ${label}`}
               aria-current={currentView === id ? "page" : undefined}
-              className={`nav-button hover-button flex-1 ${
+              className={`nav-button hover-button ${hasAnalyticsAccess() ? 'flex-1' : 'flex-1'} ${
                 currentView === id 
                   ? "active" 
                   : ""
