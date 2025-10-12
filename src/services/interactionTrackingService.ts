@@ -109,12 +109,32 @@ class InteractionTrackingService {
     }
 
     try {
-      const { error } = await supabase.rpc('log_user_interactions_batch', {
-        p_interactions: batch as any
-      });
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.warn('No authenticated user for batch logging');
+        return;
+      }
+
+      // Map camelCase to snake_case for database
+      const dbBatch = batch.map(event => ({
+        user_id: user.id,
+        session_id: event.sessionId || this.sessionId,
+        event_type: event.eventType,
+        entity_type: event.entityType,
+        entity_id: event.entityId,
+        metadata: event.metadata || {}
+      }));
+
+      // Use direct insert instead of RPC for better compatibility
+      const { error } = await supabase
+        .from('user_interactions')
+        .insert(dbBatch);
 
       if (error) {
         console.error('Failed to log interaction batch:', error);
+      } else {
+        console.log(`✅ Logged ${dbBatch.length} interactions`);
       }
     } catch (error) {
       console.error('Error logging interaction batch:', error);

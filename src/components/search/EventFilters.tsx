@@ -31,6 +31,7 @@ export interface FilterState {
   showFilters: boolean;
   radiusMiles: number;
   filterByFollowing: 'all' | 'following';
+  daysOfWeek: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 }
 
 interface CityData {
@@ -72,6 +73,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
   const [customGenre, setCustomGenre] = useState('');
   const [citiesData, setCitiesData] = useState<CityData[]>([]);
   const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const [daysOfWeekOpen, setDaysOfWeekOpen] = useState(false);
 
   // Load cities data
   useEffect(() => {
@@ -159,8 +161,8 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
     }
   };
 
-  const updateOverlayState = (next?: { genres?: boolean; locations?: boolean; date?: boolean }) => {
-    const open = (next?.genres ?? genresOpen) || (next?.locations ?? locationsOpen) || (next?.date ?? showDatePicker);
+  const updateOverlayState = (next?: { genres?: boolean; locations?: boolean; date?: boolean; daysOfWeek?: boolean }) => {
+    const open = (next?.genres ?? genresOpen) || (next?.locations ?? locationsOpen) || (next?.date ?? showDatePicker) || (next?.daysOfWeek ?? daysOfWeekOpen);
     if (onOverlayChange) {
       onOverlayChange(open);
     }
@@ -224,6 +226,59 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
     });
   };
 
+  const handleDayToggle = (day: number) => {
+    const newDays = filters.daysOfWeek.includes(day)
+      ? filters.daysOfWeek.filter(d => d !== day)
+      : [...filters.daysOfWeek, day];
+    
+    onFiltersChange({
+      ...filters,
+      daysOfWeek: newDays
+    });
+  };
+
+  const handleWeekdaysSelect = () => {
+    // Weekdays: All days except Friday and Saturday (Su, M, T, W, Th)
+    const weekdays = [0, 1, 2, 3, 4];
+    const allWeekdaysSelected = weekdays.every(day => filters.daysOfWeek.includes(day));
+    
+    if (allWeekdaysSelected) {
+      // Deselect all weekdays
+      onFiltersChange({
+        ...filters,
+        daysOfWeek: filters.daysOfWeek.filter(d => !weekdays.includes(d))
+      });
+    } else {
+      // Select all weekdays
+      const newDays = [...new Set([...filters.daysOfWeek, ...weekdays])];
+      onFiltersChange({
+        ...filters,
+        daysOfWeek: newDays
+      });
+    }
+  };
+
+  const handleWeekendSelect = () => {
+    // Weekend: Friday (5) and Saturday (6)
+    const weekend = [5, 6];
+    const allWeekendSelected = weekend.every(day => filters.daysOfWeek.includes(day));
+    
+    if (allWeekendSelected) {
+      // Deselect all weekend days
+      onFiltersChange({
+        ...filters,
+        daysOfWeek: filters.daysOfWeek.filter(d => !weekend.includes(d))
+      });
+    } else {
+      // Select all weekend days
+      const newDays = [...new Set([...filters.daysOfWeek, ...weekend])];
+      onFiltersChange({
+        ...filters,
+        daysOfWeek: newDays
+      });
+    }
+  };
+
   const handleClearAllFilters = () => {
     onFiltersChange({
       genres: [],
@@ -231,7 +286,8 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
       dateRange: { from: undefined, to: undefined },
       showFilters: filters.showFilters,
       radiusMiles: filters.radiusMiles,
-      filterByFollowing: 'all'
+      filterByFollowing: 'all',
+      daysOfWeek: []
     });
     setTempSelectedCities([]);
     // Clear venue selection if callback is provided
@@ -240,7 +296,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
     }
   };
 
-  const hasActiveFilters = filters.genres.length > 0 || (filters.selectedCities && filters.selectedCities.length > 0) || filters.dateRange.from || filters.dateRange.to || filters.filterByFollowing === 'following';
+  const hasActiveFilters = filters.genres.length > 0 || (filters.selectedCities && filters.selectedCities.length > 0) || filters.dateRange.from || filters.dateRange.to || filters.filterByFollowing === 'following' || filters.daysOfWeek.length > 0;
 
   // Get major cities (top 10 by event count)
   const majorCities = useMemo(() => {
@@ -467,6 +523,95 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
           </PopoverContent>
         </Popover>
 
+        {/* Days of Week pill */}
+        <Popover open={daysOfWeekOpen} onOpenChange={(o) => { setDaysOfWeekOpen(o); updateOverlayState({ daysOfWeek: o }); }}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40">
+              <CalendarIcon className="h-4 w-4 mr-1" />
+              Days
+              {filters.daysOfWeek.length > 0 && (
+                <Badge variant="secondary" className="ml-2 h-5 rounded-full px-2 bg-synth-pink/20 text-synth-pink border-synth-pink/30">
+                  {filters.daysOfWeek.length}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 z-[60] bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-xl">
+            <div className="space-y-4 p-2">
+              {/* Quick Select Buttons */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleWeekdaysSelect}
+                  className={cn(
+                    "flex-1 text-xs",
+                    [0, 1, 2, 3, 4].every(d => filters.daysOfWeek.includes(d))
+                      ? "bg-synth-pink text-white hover:bg-synth-pink-dark"
+                      : "bg-white/80 border-synth-pink/20 hover:border-synth-pink/40"
+                  )}
+                >
+                  Weekday
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleWeekendSelect}
+                  className={cn(
+                    "flex-1 text-xs",
+                    [5, 6].every(d => filters.daysOfWeek.includes(d))
+                      ? "bg-synth-pink text-white hover:bg-synth-pink-dark"
+                      : "bg-white/80 border-synth-pink/20 hover:border-synth-pink/40"
+                  )}
+                >
+                  Weekend
+                </Button>
+              </div>
+
+              {/* Individual Day Buttons */}
+              <div className="grid grid-cols-7 gap-2">
+                {[
+                  { label: 'Su', value: 0 },
+                  { label: 'M', value: 1 },
+                  { label: 'T', value: 2 },
+                  { label: 'W', value: 3 },
+                  { label: 'Th', value: 4 },
+                  { label: 'F', value: 5 },
+                  { label: 'Sa', value: 6 }
+                ].map((day) => (
+                  <Button
+                    key={day.value}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDayToggle(day.value)}
+                    className={cn(
+                      "h-10 p-0 text-xs font-medium",
+                      filters.daysOfWeek.includes(day.value)
+                        ? "bg-synth-pink text-white hover:bg-synth-pink-dark border-synth-pink"
+                        : "bg-white/80 border-gray-300 hover:border-synth-pink/40 hover:bg-synth-pink/10"
+                    )}
+                  >
+                    {day.label}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Clear Button */}
+              {filters.daysOfWeek.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => onFiltersChange({ ...filters, daysOfWeek: [] })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear Days
+                </Button>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+
         {/* Following Filter */}
         <Button 
           variant={filters.filterByFollowing === 'following' ? "default" : "outline"} 
@@ -529,6 +674,17 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
               <X 
                 className="h-3 w-3 cursor-pointer hover:text-destructive" 
                 onClick={handleDateRangeClear}
+              />
+            </Badge>
+          )}
+          {filters.daysOfWeek.length > 0 && (
+            <Badge variant="secondary" className="flex items-center gap-1 bg-synth-beige/30 text-synth-black border-synth-beige-dark hover:bg-synth-beige/50 transition-colors">
+              <CalendarIcon className="h-3 w-3" />
+              {filters.daysOfWeek.length === 7 ? 'All Days' : 
+               filters.daysOfWeek.sort().map(d => ['Su', 'M', 'T', 'W', 'Th', 'F', 'Sa'][d]).join(', ')}
+              <X 
+                className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                onClick={() => onFiltersChange({ ...filters, daysOfWeek: [] })}
               />
             </Badge>
           )}

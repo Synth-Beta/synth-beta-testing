@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Star, Edit, Trash2 } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Star, Edit, Trash2, Flag } from 'lucide-react';
+import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { cn } from '@/lib/utils';
 import { PublicReviewWithProfile, ReviewService } from '@/services/reviewService';
 import { formatDistanceToNow } from 'date-fns';
@@ -25,7 +26,8 @@ export function PublicReviewCard({
   onComment,
   onShare,
   onEdit,
-  onDelete
+  onDelete,
+  onReport
 }: PublicReviewCardProps) {
   const [isLiked, setIsLiked] = useState(false); // Would need to check if user liked this review
   const [likesCount, setLikesCount] = useState(review.likes_count);
@@ -204,9 +206,35 @@ export function PublicReviewCard({
               <Share2 className="h-4 w-4" />
               <span className="text-sm">{review.shares_count}</span>
             </Button>
+
+            {/* Report Button - Only show for other users' reviews */}
+            {currentUserId && !isOwner && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportModalOpen(true); }}
+                className="flex items-center space-x-1 text-gray-500 hover:text-red-600 hover:bg-red-50"
+                title="Report this review"
+              >
+                <Flag className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
+
+      {/* Report Modal */}
+      <ReportContentModal
+        open={reportModalOpen}
+        onClose={() => setReportModalOpen(false)}
+        contentType="review"
+        contentId={review.id}
+        contentTitle={`Review for ${review.artist_name} at ${review.venue_name}`}
+        onReportSubmitted={() => {
+          setReportModalOpen(false);
+          onReport?.(review.id);
+        }}
+      />
     </Card>
   );
 }

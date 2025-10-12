@@ -18,6 +18,7 @@ interface ReviewCardProps {
   onEdit?: (review: ReviewWithEngagement) => void;
   onDelete?: (reviewId: string) => void;
   showEventInfo?: boolean;
+  onReport?: (reviewId: string) => void;
 }
 
 export function ReviewCard({
@@ -28,7 +29,8 @@ export function ReviewCard({
   onShare,
   onEdit,
   onDelete,
-  showEventInfo = false
+  showEventInfo = false,
+  onReport
 }: ReviewCardProps) {
   const [isLiked, setIsLiked] = useState(review.is_liked_by_user || false);
   const [likesCount, setLikesCount] = useState(review.likes_count);
@@ -38,6 +40,7 @@ export function ReviewCard({
   const [loadingComments, setLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
 
   const handleLike = async () => {
     if (!currentUserId || isLiking) return;
@@ -241,6 +244,20 @@ export function ReviewCard({
               <Share2 className="h-4 w-4" />
               <span className="text-sm">{review.shares_count}</span>
             </Button>
+
+            {/* Report Button - Only show for other users' reviews */}
+            {currentUserId && !isOwner && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onMouseDown={(e) => { e.stopPropagation(); }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportModalOpen(true); }}
+                className="flex items-center space-x-1 text-gray-500 hover:text-red-600 hover:bg-red-50"
+                title="Report this review"
+              >
+                <Flag className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
@@ -280,6 +297,19 @@ export function ReviewCard({
           </div>
         </div>
       )}
+
+      {/* Report Modal */}
+      <ReportContentModal
+        open={reportModalOpen}
+        onClose={() => setReportModalOpen(false)}
+        contentType="review"
+        contentId={review.id}
+        contentTitle={`Review for ${review.artist_name} at ${review.venue_name}`}
+        onReportSubmitted={() => {
+          setReportModalOpen(false);
+          onReport?.(review.id);
+        }}
+      />
     </Card>
   );
 }

@@ -80,7 +80,13 @@ export class NotificationService {
           review_liked: 0,
           review_commented: 0,
           comment_replied: 0,
-          event_interest: 0
+          event_interest: 0,
+          event_attendance_reminder: 0,
+          artist_followed: 0,
+          artist_new_event: 0,
+          artist_profile_updated: 0,
+          venue_new_event: 0,
+          venue_profile_updated: 0
         }
       };
 
@@ -290,6 +296,18 @@ export class NotificationService {
         return '📨';
       case 'event_interest':
         return '🎵';
+      case 'event_attendance_reminder':
+        return '📍';
+      case 'artist_followed':
+        return '🎤';
+      case 'artist_new_event':
+        return '🎸';
+      case 'artist_profile_updated':
+        return '✨';
+      case 'venue_new_event':
+        return '🏛️';
+      case 'venue_profile_updated':
+        return '🎭';
       default:
         return '🔔';
     }
@@ -316,6 +334,18 @@ export class NotificationService {
         return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       case 'event_interest':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'event_attendance_reminder':
+        return 'bg-teal-100 text-teal-800 border-teal-200';
+      case 'artist_followed':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'artist_new_event':
+        return 'bg-pink-100 text-pink-800 border-pink-200';
+      case 'artist_profile_updated':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'venue_new_event':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'venue_profile_updated':
+        return 'bg-cyan-100 text-cyan-800 border-cyan-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -339,6 +369,70 @@ export class NotificationService {
     } else {
       const days = Math.floor(diffInMinutes / 1440);
       return `${days}d ago`;
+    }
+  }
+
+  /**
+   * Handle attendance reminder notification action
+   * Marks attendance for an event from a notification
+   */
+  static async handleAttendanceReminderAction(
+    notificationId: string,
+    eventId: string,
+    attended: boolean
+  ): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Import dynamically to avoid circular dependencies
+      const { UserEventService } = await import('./userEventService');
+      
+      // Mark the user's attendance
+      await UserEventService.markUserAttendance(user.id, eventId, attended);
+
+      // Mark the notification as read
+      await this.markAsRead(notificationId);
+
+      console.log(`✅ Attendance marked for event ${eventId}: ${attended ? 'attended' : 'did not attend'}`);
+    } catch (error) {
+      console.error('Error handling attendance reminder action:', error);
+      throw new Error(`Failed to mark attendance: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Check if a notification requires action
+   */
+  static requiresAction(type: NotificationType): boolean {
+    return [
+      'friend_request',
+      'event_attendance_reminder'
+    ].includes(type);
+  }
+
+  /**
+   * Get action buttons for a notification
+   */
+  static getNotificationActions(type: NotificationType): Array<{
+    label: string;
+    action: 'accept' | 'decline' | 'attended' | 'not_attended' | 'dismiss';
+    variant?: 'primary' | 'secondary' | 'success' | 'danger';
+  }> {
+    switch (type) {
+      case 'friend_request':
+        return [
+          { label: 'Accept', action: 'accept', variant: 'success' },
+          { label: 'Decline', action: 'decline', variant: 'secondary' }
+        ];
+      case 'event_attendance_reminder':
+        return [
+          { label: 'Yes, I attended', action: 'attended', variant: 'primary' },
+          { label: 'No, I didn\'t go', action: 'not_attended', variant: 'secondary' },
+          { label: 'Dismiss', action: 'dismiss', variant: 'secondary' }
+        ];
+      default:
+        return [];
     }
   }
 }

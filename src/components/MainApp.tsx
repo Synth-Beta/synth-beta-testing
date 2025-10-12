@@ -14,12 +14,17 @@ import { EventSeeder } from './EventSeeder';
 import { SettingsModal } from './SettingsModal';
 import { NotificationsPage } from './NotificationsPage';
 import { ChatView } from './ChatView';
+import { MyEventsManagementPanel } from './events/MyEventsManagementPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
+import { useAccountType } from '@/hooks/useAccountType';
+import CreatorAnalyticsDashboard from '@/pages/Analytics/CreatorAnalyticsDashboard';
+import BusinessAnalyticsDashboard from '@/pages/Analytics/BusinessAnalyticsDashboard';
+import AdminAnalyticsDashboard from '@/pages/Analytics/AdminAnalyticsDashboard';
 
-type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat';
+type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events';
 
 interface MainAppProps {
   onSignOut?: () => void;
@@ -32,6 +37,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [chatUserId, setChatUserId] = useState<string | undefined>(undefined);
   const { toast } = useToast();
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
+  const { accountInfo } = useAccountType();
   
   // Track user activity (updates last_active_at periodically)
   useActivityTracker();
@@ -358,6 +364,40 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onBack={handleBack}
           />
         );
+      case 'analytics':
+        // Render the appropriate analytics dashboard based on account type
+        if (!accountInfo) {
+          return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+              <div className="text-center">
+                <p className="text-gray-600">Loading account information...</p>
+              </div>
+            </div>
+          );
+        }
+        
+        switch (accountInfo.account_type) {
+          case 'creator':
+            return <CreatorAnalyticsDashboard />;
+          case 'business':
+            return <BusinessAnalyticsDashboard />;
+          case 'admin':
+            return <AdminAnalyticsDashboard />;
+          default:
+            return (
+              <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-gray-600">Analytics not available for your account type.</p>
+                </div>
+              </div>
+            );
+        }
+      case 'events':
+        return (
+          <div className="min-h-screen bg-gray-50 p-6">
+            <MyEventsManagementPanel />
+          </div>
+        );
       default:
         return (
           <UnifiedFeed 
@@ -398,7 +438,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       {/* Only show navigation when not in profile-edit mode and not in feed (feed handles its own nav) */}
       {currentView !== 'profile-edit' && currentView !== 'feed' && (
         <Navigation 
-          currentView={currentView as 'search' | 'profile'} 
+          currentView={currentView as 'search' | 'profile' | 'analytics' | 'events'} 
           onViewChange={handleViewChange}
         />
       )}

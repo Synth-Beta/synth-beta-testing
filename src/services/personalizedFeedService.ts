@@ -10,8 +10,11 @@ import type { JamBaseEvent } from './jambaseEventsService';
 export interface PersonalizedEvent extends JamBaseEvent {
   relevance_score?: number; // Hidden from UI, used for sorting only
   user_is_interested?: boolean;
-  interested_count?: number;
-  friends_interested_count?: number;
+  interested_count?: number | bigint; // BIGINT from COUNT(*)
+  friends_interested_count?: number | bigint; // BIGINT from COUNT(*)
+  // Diversity control fields
+  artist_frequency_rank?: number | bigint; // 1 = first event from this artist, 2 = second, etc. (BIGINT from ROW_NUMBER)
+  diversity_penalty?: number; // 0 = no penalty, >0 = penalty applied for diversity
 }
 
 export interface UserMusicProfile {
@@ -42,10 +45,11 @@ export class PersonalizedFeedService {
     try {
       console.log('🎯 Fetching personalized feed for user:', userId);
       
-      const { data, error } = await supabase.rpc('get_personalized_events_feed', {
+      const { data, error } = await supabase.rpc('get_personalized_events_feed_with_diversity' as any, {
         p_user_id: userId,
         p_limit: limit,
         p_offset: offset,
+        p_max_per_artist: 3,  // Max 3 events per artist to prevent domination
         p_include_past: includePast
       });
       
@@ -59,10 +63,28 @@ export class PersonalizedFeedService {
         return this.getFallbackFeed(userId, limit, offset, includePast);
       }
       
+      // Log diversity information
+      const artistCounts = data.reduce((acc: Record<string, number>, event: any) => {
+        const artist = event.artist_name;
+        acc[artist] = (acc[artist] || 0) + 1;
+        return acc;
+      }, {});
+
+      const topArtist = Object.entries(artistCounts)
+        .sort(([,a], [,b]) => (b as number) - (a as number))[0];
+
       console.log('✅ Personalized feed loaded:', {
         count: data.length,
-        topScore: data[0]?.relevance_score,
-        hasScores: data[0]?.relevance_score !== undefined
+        topScore: (data[0] as any)?.relevance_score,
+        hasScores: (data[0] as any)?.relevance_score !== undefined,
+        topArtist: topArtist ? `${topArtist[0]} (${topArtist[1]} events)` : 'Unknown',
+        artistDiversity: Object.keys(artistCounts).length,
+        scores: data.slice(0, 5).map(e => ({ 
+          artist: (e as any).artist_name, 
+          score: (e as any).relevance_score,
+          diversity_penalty: (e as any).diversity_penalty || 0,
+          artist_rank: (e as any).artist_frequency_rank || 1
+        }))
       });
       
       return data.map((row: any) => ({
@@ -99,7 +121,10 @@ export class PersonalizedFeedService {
         relevance_score: row.relevance_score, // HIDDEN - only for internal sorting
         user_is_interested: row.user_is_interested,
         interested_count: row.interested_count,
-        friends_interested_count: row.friends_interested_count
+        friends_interested_count: row.friends_interested_count,
+        // New diversity fields
+        artist_frequency_rank: row.artist_frequency_rank,
+        diversity_penalty: row.diversity_penalty
       } as PersonalizedEvent));
     } catch (error) {
       console.error('❌ Exception in personalized feed:', error);

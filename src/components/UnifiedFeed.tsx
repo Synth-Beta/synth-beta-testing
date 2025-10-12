@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,8 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Newspaper
+  Newspaper,
+  Flag
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -51,6 +52,11 @@ import { EventLikersModal } from '@/components/events/EventLikersModal';
 import { EventLikesService } from '@/services/eventLikesService';
 import { EventShareModal } from '@/components/events/EventShareModal';
 import { ShareService } from '@/services/shareService';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { FriendActivityFeed } from '@/components/social/FriendActivityFeed';
+import { ReportContentModal } from '@/components/moderation/ReportContentModal';
+import { extractEventMetadata } from '@/utils/trackingHelpers';
+import { useIntersectionTrackingList } from '@/hooks/useIntersectionTracking';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -89,13 +95,17 @@ export const UnifiedFeed = ({
   onNavigateToProfile,
   onNavigateToChat
 }: UnifiedFeedProps) => {
-  // Debug: Check if navigation handlers and userId are provided
-  console.log('🔍 UnifiedFeed initialized:', {
-    currentUserId,
-    hasCurrentUserId: !!currentUserId,
-    onNavigateToProfile: !!onNavigateToProfile,
-    onNavigateToChat: !!onNavigateToChat
-  });
+  // Debug: Check if navigation handlers and userId are provided (only log once)
+  const hasLogged = useRef(false);
+  if (!hasLogged.current && currentUserId) {
+    console.log('🔍 UnifiedFeed initialized:', {
+      currentUserId,
+      hasCurrentUserId: !!currentUserId,
+      onNavigateToProfile: !!onNavigateToProfile,
+      onNavigateToChat: !!onNavigateToChat
+    });
+    hasLogged.current = true;
+  }
   
   const [feedItems, setFeedItems] = useState<UnifiedFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,6 +125,8 @@ export const UnifiedFeed = ({
   const [openEventCommentsFor, setOpenEventCommentsFor] = useState<string | null>(null);
   const [openReviewCommentsFor, setOpenReviewCommentsFor] = useState<string | null>(null);
   const [openLikersFor, setOpenLikersFor] = useState<string | null>(null);
+  const [openReportFor, setOpenReportFor] = useState<string | null>(null);
+  const [reportContentType, setReportContentType] = useState<'event' | 'review'>('review');
   const [viewReviewOpen, setViewReviewOpen] = useState(false);
   const [selectedReviewForView, setSelectedReviewForView] = useState<any>(null);
   const [showCommentsInModal, setShowCommentsInModal] = useState(false);
@@ -181,6 +193,10 @@ export const UnifiedFeed = ({
       return;
     }
     
+    if (!currentUserId) {
+      return;
+    }
+    
     // Try to get user's location for better recommendations
     LocationService.getCurrentLocation()
       .then(location => {
@@ -197,7 +213,7 @@ export const UnifiedFeed = ({
         loadUpcomingEvents();
         loadFollowedData();
       });
-  }, [currentUserId, sessionExpired]);
+  }, [sessionExpired]); // Remove currentUserId dependency to prevent infinite loop
 
   // Load followed artists and venues for filtering
   const loadFollowedData = async () => {
@@ -271,8 +287,12 @@ export const UnifiedFeed = ({
 
   const loadFeedData = async (offset: number = 0) => {
     try {
+      console.log('🔄 loadFeedData called with offset:', offset);
+      
       if (offset === 0) {
         setLoading(true);
+        setFeedItems([]); // Clear existing items for fresh load
+        setHasMore(true); // Reset hasMore state
       } else {
         setLoadingMore(true);
       }
@@ -296,7 +316,16 @@ export const UnifiedFeed = ({
         setFeedItems(prev => [...prev, ...items]);
       }
 
-      setHasMore(items.length === 20); // If we got fewer than requested, no more items
+      // console.log('📊 Feed loading debug:', {
+      //   offset,
+      //   itemsReturned: items.length,
+      //   hasMore: items.length === 20,
+      //   totalItemsAfter: offset === 0 ? items.length : items.length + offset
+      // });
+
+      const newHasMore = items.length === 20;
+      // console.log('🎯 Setting hasMore to:', newHasMore);
+      setHasMore(newHasMore); // If we got fewer than requested, no more items
       
     } catch (error) {
       console.error('Error loading feed data:', error);
@@ -512,6 +541,32 @@ export const UnifiedFeed = ({
     return sortFeedItems(filtered);
   }, [feedItems, filterByFollowing, followedArtists, followedVenues, sortBy, sortOrder]);
 
+  // 🎯 TRACKING: Event impression tracking with IntersectionObserver
+  const eventItems = useMemo(() => 
+    processedFeedItems
+      .filter(item => item.type === 'event')
+      .map((item, index) => ({
+        id: item.event_data?.id || item.id,
+        metadata: {
+          source: 'feed',
+          position: index,
+          feed_tab: activeTab,
+          feed_type: filterByFollowing,
+          artist_name: item.event_data?.artist_name || item.event_info?.artist_name,
+          venue_name: item.event_data?.venue_name || item.event_info?.venue_name,
+          distance_miles: item.distance_miles,
+          relevance_score: item.relevance_score
+        }
+      })),
+    [processedFeedItems, activeTab, filterByFollowing]
+  );
+
+  const attachEventObserver = useIntersectionTrackingList('event', eventItems, {
+    threshold: 0.5,
+    trackOnce: true,
+    debounce: 500
+  });
+
   // Hero image resolver for review items (mirrors JamBaseEventCard logic exactly)
   const ReviewHeroImage: React.FC<{ item: UnifiedFeedItem }> = ({ item }) => {
     const [url, setUrl] = useState<string | null>(null);
@@ -694,6 +749,16 @@ export const UnifiedFeed = ({
             value="events"
             className="space-y-4"
           >
+            {/* Friend Activity Section */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 px-2">Friend Activity</h3>
+              {/* TODO: FriendActivityFeed is not defined. Uncomment when implemented */}
+              {/* <FriendActivityFeed limit={3} /> */}
+              <div className="text-gray-400 text-sm italic px-2">
+                (Friend activity coming soon)
+              </div>
+            </div>
+
             {/* Demo Ad for Events Tab */}
             <Card className="border-2 border-blue-200/50 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 backdrop-blur-sm">
               <CardContent className="p-6">
@@ -731,9 +796,21 @@ export const UnifiedFeed = ({
               <Card 
                 key={`event-${item.id}-${index}`} 
                 className="cursor-pointer overflow-hidden group"
+                ref={(el) => el && attachEventObserver(el, item.event_data?.id || item.id)}
                 onClick={async (e) => {
                   if (e.defaultPrevented) return;
                   if (item.event_data) {
+                    // 🎯 TRACK: Event click from feed
+                    const eventMetadata = extractEventMetadata(item.event_data, {
+                      source: 'feed',
+                      position: index,
+                      feed_tab: activeTab,
+                      feed_type: filterByFollowing,
+                      distance_miles: item.distance_miles,
+                      relevance_score: item.relevance_score
+                    });
+                    trackInteraction.click('event', item.event_data.id, eventMetadata);
+
                     setSelectedEventForDetails(item.event_data);
                     try {
                       const interested = await UserEventService.isUserInterested(
@@ -885,6 +962,24 @@ export const UnifiedFeed = ({
                       >
                         See likes
                       </button>
+                      {/* Report Button for Events */}
+                      {item.event_data && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50"
+                          onMouseDown={(e) => { e.stopPropagation(); }}
+                          onClick={(e) => { 
+                            e.preventDefault(); 
+                            e.stopPropagation(); 
+                            setReportContentType('event');
+                            setOpenReportFor(item.event_data?.id || item.id);
+                          }}
+                          title="Report this event"
+                        >
+                          <Flag className="w-3 h-3" />
+                        </Button>
+                      )}
                       {/* Unified Share Dropdown */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -1240,6 +1335,24 @@ export const UnifiedFeed = ({
                             <Share2 className="w-3 h-3" />
                             {item.shares_count || 0}
                           </Button>
+                          {/* Report Button for Reviews */}
+                          {item.review_id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50"
+                              onMouseDown={(e) => { e.stopPropagation(); }}
+                              onClick={(e) => { 
+                                e.preventDefault(); 
+                                e.stopPropagation(); 
+                                setReportContentType('review');
+                                setOpenReportFor(item.review_id || item.id);
+                              }}
+                              title="Report this review"
+                            >
+                              <Flag className="w-3 h-3" />
+                            </Button>
+                          )}
                         </div>
                         <span className="text-xs text-gray-500">
                           {(() => {
@@ -1354,11 +1467,32 @@ export const UnifiedFeed = ({
           </TabsContent>
         </Tabs>
           
+          {/* Load More Button */}
+          {(() => {
+            const shouldShowLoadMore = hasMore && !loadingMore && processedFeedItems.length > 0;
+            return shouldShowLoadMore;
+          })() && (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Button
+                onClick={() => loadFeedData(processedFeedItems.length)}
+                variant="outline"
+                size="lg"
+                className="bg-white hover:bg-synth-pink hover:text-white transition-all duration-300 shadow-md hover:shadow-lg border-2 border-synth-pink text-synth-pink font-semibold px-8 py-6 rounded-xl"
+              >
+                <ArrowDown className="w-5 h-5 mr-2" />
+                Load More Events
+              </Button>
+              <p className="text-xs text-gray-400 mt-3">
+                Showing {processedFeedItems.filter(item => item.type === 'event').length} events
+              </p>
+            </div>
+          )}
+
           {/* Loading more indicator */}
           {loadingMore && (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-synth-pink mx-auto mb-3"></div>
-              <p className="text-sm text-gray-600 font-medium">Loading more...</p>
+              <p className="text-sm text-gray-600 font-medium">Loading more events...</p>
             </div>
           )}
           
@@ -1587,6 +1721,22 @@ export const UnifiedFeed = ({
         />
       )}
       </div>
+
+      {/* Report Modal */}
+      <ReportContentModal
+        open={!!openReportFor}
+        onClose={() => setOpenReportFor(null)}
+        contentType={reportContentType}
+        contentId={openReportFor || ''}
+        contentTitle={reportContentType === 'event' ? 'Event' : 'Review'}
+        onReportSubmitted={() => {
+          setOpenReportFor(null);
+          toast({
+            title: 'Report Submitted',
+            description: 'Thank you for reporting this content. We will review it shortly.',
+          });
+        }}
+      />
     </div>
   );
 };

@@ -6,7 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3, Clock } from 'lucide-react';
+import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3, Clock, Award, Trophy, Flag, Ban, MoreVertical } from 'lucide-react';
 import { FollowersModal } from './FollowersModal';
 import { PostsGrid } from './PostsGrid';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,12 +28,18 @@ import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
 import { EventDetailsModal } from '../events/EventDetailsModal';
 import { MusicTasteCard } from './MusicTasteCard';
 import { HolisticStatsCard } from './HolisticStatsCard';
+import { UserAnalyticsService, Achievement } from '@/services/userAnalyticsService';
+import { AchievementCard } from '@/components/analytics/shared/AchievementCard';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { SkeletonProfileCard } from '@/components/skeleton/SkeletonProfileCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { ArtistFollowService } from '@/services/artistFollowService';
 import { useNavigate } from 'react-router-dom';
 import { UserVisibilityService } from '@/services/userVisibilityService';
+import { ReportContentModal } from '@/components/moderation/ReportContentModal';
+import { BlockUserModal } from '@/components/moderation/BlockUserModal';
+import { MyMatchesPanel } from '@/components/matching/MyMatchesPanel';
+import { FriendActivityFeed } from '@/components/social/FriendActivityFeed';
 import { WorkingConnectionBadge } from '../WorkingConnectionBadge';
 
 interface ProfileViewProps {
@@ -109,11 +115,18 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [attendedEventsLoading, setAttendedEventsLoading] = useState(false);
   const [draftReviews, setDraftReviews] = useState<any[]>([]);
   const [draftReviewsLoading, setDraftReviewsLoading] = useState(false);
+  
+  // 🏆 Achievements state
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [achievementsLoading, setAchievementsLoading] = useState(false);
   const [canViewInterested, setCanViewInterested] = useState<boolean>(true);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [viewReviewOpen, setViewReviewOpen] = useState(false); // Only declare once
   const [selectedReview, setSelectedReview] = useState<any>(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [isUserBlocked, setIsUserBlocked] = useState(false);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [followersModalType, setFollowersModalType] = useState<'followers' | 'following' | 'friends'>('friends');
   const [friendStatus, setFriendStatus] = useState<'none' | 'friends' | 'pending_sent' | 'pending_received'>('none');
@@ -169,6 +182,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         await fetchDraftReviews();
         console.log('🔍 ProfileView: About to fetch followed artists count...');
         await fetchFollowedArtistsCount();
+        console.log('🔍 ProfileView: About to fetch achievements...');
+        await loadAchievements();
         if (!isViewingOwnProfile) {
           await checkFriendStatus();
         }
@@ -595,12 +610,26 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
-      console.log('🔍 ProfileView: Fetching followed artists count for user:', targetUserId);
+      console.log('🔍 ProfileView: Fetching total follows count (artists + venues) for user:', targetUserId);
       
+      // Get both artist and venue follows count
+      const artistFollowsCount = await UserAnalyticsService.getArtistFollowsCount(targetUserId);
+      const venueFollowsCount = await UserAnalyticsService.getVenueFollowsCount(targetUserId);
+      
+      console.log('🔍 ProfileView: Artist follows count:', artistFollowsCount);
+      console.log('🔍 ProfileView: Venue follows count:', venueFollowsCount);
+      
+      // Also get detailed data for debugging
       const followedArtists = await ArtistFollowService.getUserFollowedArtists(targetUserId);
-      setFollowedArtistsCount(followedArtists.length);
+      console.log('🔍 ProfileView: Artist names:', followedArtists.map(a => a.artist_name));
       
-      console.log('🔍 ProfileView: Followed artists count:', followedArtists.length);
+      // 🎯 FIX: Count artists + venues following
+      const totalFollowsCount = artistFollowsCount + venueFollowsCount;
+      console.log(`🔍 ProfileView: Total follows (artists + venues): ${totalFollowsCount} (${artistFollowsCount} artists + ${venueFollowsCount} venues)`);
+      
+      setFollowedArtistsCount(totalFollowsCount);
+      
+      console.log('🔍 ProfileView: Final total follows count set to:', totalFollowsCount);
     } catch (error) {
       console.error('Error fetching followed artists count:', error);
       setFollowedArtistsCount(0);
@@ -733,6 +762,32 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       setDraftReviews([]);
     } finally {
       setDraftReviewsLoading(false);
+    }
+  };
+
+  // 🏆 Load user achievements
+  const loadAchievements = async () => {
+    try {
+      if (sessionExpired || !user) {
+        console.log('Session expired or no user, skipping achievements fetch');
+        return;
+      }
+
+      console.log('🔍 ProfileView: Fetching achievements for user:', targetUserId);
+      setAchievementsLoading(true);
+      
+      const achievementsData = await UserAnalyticsService.getUserAchievements(targetUserId);
+      
+      console.log('🔍 ProfileView: Achievements data:', achievementsData);
+      console.log('🔍 ProfileView: Total achievements:', achievementsData?.length);
+      console.log('🔍 ProfileView: Unlocked achievements:', achievementsData?.filter(a => a.unlocked).length);
+      
+      setAchievements(achievementsData || []);
+    } catch (error) {
+      console.error('Error fetching achievements:', error);
+      setAchievements([]);
+    } finally {
+      setAchievementsLoading(false);
     }
   };
 
@@ -1099,7 +1154,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     <Button onClick={onSettings} variant="ghost" size="sm" className="hover-button"><Settings className="w-4 h-4 hover-icon" /></Button>
                   </>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {friendStatus === 'none' && (
                       <Button onClick={sendFriendRequest} variant="default" size="sm">
                         <Plus className="w-4 h-4 mr-1" />
@@ -1126,6 +1181,24 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                         Unfriend
                       </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setBlockModalOpen(true)}
+                      className="text-gray-600 hover:text-red-600"
+                    >
+                      <Ban className="w-4 h-4 mr-1" />
+                      {isUserBlocked ? 'Unblock' : 'Block'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setReportModalOpen(true)}
+                      className="text-gray-600 hover:text-red-600"
+                    >
+                      <Flag className="w-4 h-4 mr-1" />
+                      Report
+                    </Button>
                   </div>
                 )}
             </div>
@@ -1198,22 +1271,39 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
         {/* Instagram-style Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="glass-card inner-glow grid w-full grid-cols-3 mb-6 p-1 floating-shadow">
+          <TabsList className="glass-card inner-glow grid w-full grid-cols-5 mb-6 p-1 floating-shadow">
             <TabsTrigger value="my-events" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              My Events
+              Events
+            </TabsTrigger>
+            <TabsTrigger value="matches" className="flex items-center gap-2">
+              <Heart className="w-4 h-4" />
+              Matches
             </TabsTrigger>
             {canViewInterested && (
               <TabsTrigger value="interested" className="flex items-center gap-2">
                 <Heart className="w-4 h-4" />
-                Interested Events
+                Interested
               </TabsTrigger>
             )}
+            <TabsTrigger value="achievements" className="flex items-center gap-2">
+              <Award className="w-4 h-4" />
+              Achievements
+            </TabsTrigger>
             <TabsTrigger value="stats" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
-              Streaming Stats
+              Stats
             </TabsTrigger>
           </TabsList>
+
+          {/* Matches Tab */}
+          <TabsContent value="matches" className="mt-6 mb-40">
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-2">Concert Buddy Matches</h3>
+              <p className="text-sm text-gray-600">People you matched with for events</p>
+            </div>
+            <MyMatchesPanel onChatWithMatch={onNavigateToChat} />
+          </TabsContent>
 
           {/* My Events Tab - Show attended events with review/ranking toggle */}
           <TabsContent value="my-events" className="mt-6 mb-40">
@@ -1794,6 +1884,99 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
           
 
+          {/* 🏆 Achievements Tab */}
+          <TabsContent value="achievements" className="mt-6 mb-40">
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="flex items-center justify-center gap-3 mb-2">
+                  <Trophy className="w-8 h-8 text-yellow-500" />
+                  <h2 className="gradient-text text-2xl font-bold">Achievements</h2>
+                </div>
+                <p className="text-gray-600 text-sm">
+                  {isViewingOwnProfile 
+                    ? 'Track your concert journey milestones' 
+                    : `${profile?.name || 'User'}'s concert achievements`}
+                </p>
+              </div>
+
+              {achievementsLoading ? (
+                <div className="space-y-4">
+                  <SkeletonCard />
+                  <SkeletonCard />
+                </div>
+              ) : (
+                <>
+                  {/* Unlocked Achievements */}
+                  {achievements.filter(a => a.unlocked).length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Award className="w-5 h-5 text-yellow-500" />
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Unlocked ({achievements.filter(a => a.unlocked).length})
+                        </h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {achievements.filter(a => a.unlocked).map(achievement => (
+                          <AchievementCard
+                            key={achievement.id}
+                            name={achievement.name}
+                            description={achievement.description}
+                            icon={achievement.icon}
+                            progress={achievement.progress}
+                            goal={achievement.goal}
+                            unlocked={achievement.unlocked}
+                            unlockedAt={achievement.unlockedAt}
+                            compact
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* In Progress Achievements */}
+                  {achievements.filter(a => !a.unlocked).length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Award className="w-5 h-5 text-gray-400" />
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          In Progress ({achievements.filter(a => !a.unlocked).length})
+                        </h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {achievements.filter(a => !a.unlocked).map(achievement => (
+                          <AchievementCard
+                            key={achievement.id}
+                            name={achievement.name}
+                            description={achievement.description}
+                            icon={achievement.icon}
+                            progress={achievement.progress}
+                            goal={achievement.goal}
+                            unlocked={achievement.unlocked}
+                            compact
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {achievements.length === 0 && (
+                    <div className="text-center py-12">
+                      <Trophy className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">No Achievements Yet</h3>
+                      <p className="text-gray-600">
+                        {isViewingOwnProfile 
+                          ? 'Start attending events and writing reviews to unlock achievements!'
+                          : 'This user hasn\'t unlocked any achievements yet.'}
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </TabsContent>
+
           <TabsContent value="stats" className="mt-6">
             <UnifiedStreamingStats 
               musicStreamingProfile={profile.music_streaming_profile} 
@@ -2251,6 +2434,48 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           ]);
         }}
       />
+      )}
+
+      {/* Report Profile Modal */}
+      {!isViewingOwnProfile && profile && (
+        <ReportContentModal
+          open={reportModalOpen}
+          onClose={() => setReportModalOpen(false)}
+          contentType="profile"
+          contentId={targetUserId}
+          contentTitle={`${profile.name}'s profile`}
+          onReportSubmitted={() => {
+            setReportModalOpen(false);
+            toast({
+              title: 'Report Submitted',
+              description: 'Thank you for helping keep our community safe',
+            });
+          }}
+        />
+      )}
+
+      {/* Block User Modal */}
+      {!isViewingOwnProfile && profile && (
+        <BlockUserModal
+          open={blockModalOpen}
+          onClose={() => setBlockModalOpen(false)}
+          user={{
+            id: targetUserId,
+            name: profile.name,
+            avatar_url: profile.avatar_url || undefined,
+          }}
+          isBlocked={isUserBlocked}
+          onBlockToggled={() => {
+            setBlockModalOpen(false);
+            setIsUserBlocked(!isUserBlocked);
+            toast({
+              title: isUserBlocked ? 'User Unblocked' : 'User Blocked',
+              description: isUserBlocked 
+                ? `You can now see content from ${profile.name}` 
+                : `You won't see content from ${profile.name} anymore`,
+            });
+          }}
+        />
       )}
 
     </div>

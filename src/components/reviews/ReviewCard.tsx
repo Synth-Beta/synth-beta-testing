@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Star, Edit, Trash2 } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Star, Edit, Trash2, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ReviewWithEngagement, ReviewService, CommentWithUser } from '@/services/reviewService';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,6 +13,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { SetlistDisplay } from './SetlistDisplay';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
+import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 
 interface ReviewCardProps {
   review: ReviewWithEngagement;
@@ -23,6 +24,7 @@ interface ReviewCardProps {
   onEdit?: (review: ReviewWithEngagement) => void;
   onDelete?: (reviewId: string) => void;
   showEventInfo?: boolean;
+  onReport?: (reviewId: string) => void;
 }
 
 export function ReviewCard({
@@ -33,7 +35,8 @@ export function ReviewCard({
   onShare,
   onEdit,
   onDelete,
-  showEventInfo = false
+  showEventInfo = false,
+  onReport
 }: ReviewCardProps) {
   const [isLiked, setIsLiked] = useState(review.is_liked_by_user || false);
   const [likesCount, setLikesCount] = useState(review.likes_count);
@@ -47,6 +50,7 @@ export function ReviewCard({
   const photos: string[] = Array.isArray((review as any)?.photos) ? (review as any).photos : [];
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
 
   const handleLike = async () => {
     console.log('🔍 ReviewCard: handleLike called', {
@@ -529,6 +533,20 @@ export function ReviewCard({
               <Share2 className="h-4 w-4" />
               <span className="text-sm">{review.shares_count}</span>
             </Button>
+
+            {/* Report Button - Only show for other users' reviews */}
+            {currentUserId && !isOwner && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onMouseDown={(e) => { e.stopPropagation(); }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportModalOpen(true); }}
+                className="flex items-center space-x-1 text-gray-500 hover:text-red-600 hover:bg-red-50"
+                title="Report this review"
+              >
+                <Flag className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
     </CardContent>
@@ -601,6 +619,19 @@ export function ReviewCard({
         />
       </div>
     )}
+
+    {/* Report Modal */}
+    <ReportContentModal
+      open={reportModalOpen}
+      onClose={() => setReportModalOpen(false)}
+      contentType="review"
+      contentId={review.id}
+      contentTitle={`Review for ${review.artist_name} at ${review.venue_name}`}
+      onReportSubmitted={() => {
+        setReportModalOpen(false);
+        onReport?.(review.id);
+      }}
+    />
     </Card>
   );
 }

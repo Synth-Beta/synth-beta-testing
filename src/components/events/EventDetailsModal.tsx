@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { 
   Calendar, 
@@ -15,10 +16,23 @@ import {
   Heart,
   MessageSquare,
   Users,
-  Music
+  Music,
+  Award,
+  Flag,
+  MoreVertical
 } from 'lucide-react';
 import { EventCommentsModal } from './EventCommentsModal';
+import { EventClaimModal } from './EventClaimModal';
+import { ReportContentModal } from '../moderation/ReportContentModal';
 import { JamBaseEventCard } from './JamBaseEventCard';
+import { FriendsInterestedBadge } from '../social/FriendsInterestedBadge';
+import { TrendingBadge } from '../social/TrendingBadge';
+import { PopularityIndicator } from '../social/PopularityIndicator';
+import { ConcertBuddySwiper } from '../matching/ConcertBuddySwiper';
+import { EventPhotoGallery } from '../photos/EventPhotoGallery';
+import { EventGroupCard } from '../groups/EventGroupCard';
+import { CreateEventGroupModal } from '../groups/CreateEventGroupModal';
+import EventGroupService from '@/services/eventGroupService';
 import { FriendProfileCard } from '@/components/FriendProfileCard';
 import { formatPrice } from '@/utils/currencyUtils';
 import { EventReviewsSection } from '@/components/reviews/EventReviewsSection';
@@ -29,6 +43,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { UserEventService } from '@/services/userEventService';
 import { useToast } from '@/hooks/use-toast';
+import { useAccountType } from '@/hooks/useAccountType';
+import { addUTMToURL, extractTicketProvider, getDaysUntilEvent, extractEventMetadata } from '@/utils/trackingHelpers';
 
 interface EventDetailsModalProps {
   event: JamBaseEvent | null;
@@ -83,16 +99,87 @@ export function EventDetailsModal({
   const pageSize = 5; // Show up to 5 mini profiles at once
   const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [claimModalOpen, setClaimModalOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   const [setlistExpanded, setSetlistExpanded] = useState(false);
+  const [showBuddyFinder, setShowBuddyFinder] = useState(false);
+  const [showGroups, setShowGroups] = useState(false);
+  const [showPhotos, setShowPhotos] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [eventGroups, setEventGroups] = useState<any[]>([]);
   const [userWasThere, setUserWasThere] = useState<boolean | null>(null);
   const [attendanceCount, setAttendanceCount] = useState<number | null>(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [canClaim, setCanClaim] = useState(false);
   const { toast } = useToast();
+  const { isCreator, isAdmin } = useAccountType();
+
+  // 🎯 TRACKING: View duration tracking
+  const viewStartTime = useRef<number | null>(null);
+  const hasInteracted = useRef(false);
 
   // Update actualEvent when event prop changes
   useEffect(() => {
     setActualEvent(event);
-  }, [event]);
+    
+    // Check if event can be claimed (not already claimed, user is creator)
+    if (event && (isCreator() || isAdmin())) {
+      // Check if event has claimed_by_creator_id property (type-safe check)
+      const eventWithClaim = event as JamBaseEvent & { claimed_by_creator_id?: string };
+      setCanClaim(!eventWithClaim.claimed_by_creator_id);
+    } else {
+      setCanClaim(false);
+    }
+    
+    // Load event groups when modal opens
+    if (event) {
+      loadEventGroups();
+    }
+  }, [event, isCreator, isAdmin]);
+  
+  const loadEventGroups = async () => {
+    if (!actualEvent?.id) return;
+    try {
+      const groups = await EventGroupService.getEventGroups(actualEvent.id);
+      setEventGroups(groups);
+    } catch (error) {
+      console.error('Error loading event groups:', error);
+    }
+  };
+
+  // 🎯 TRACKING: Modal open/close tracking (view duration)
+  useEffect(() => {
+    if (isOpen && actualEvent?.id) {
+      // Track modal open
+      viewStartTime.current = Date.now();
+      hasInteracted.current = false;
+      
+      const eventMetadata = extractEventMetadata(actualEvent, {
+        source: 'event_modal',
+        has_ticket_urls: !!(actualEvent.ticket_urls?.length),
+        has_setlist: !!actualEvent.setlist,
+        price_range: actualEvent.price_range,
+        days_until_event: actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined
+      });
+
+      trackInteraction.view('event', actualEvent.id, undefined, eventMetadata);
+    }
+
+    // Cleanup: Track modal close on unmount or when modal closes
+    return () => {
+      if (viewStartTime.current && actualEvent?.id) {
+        const duration = Math.floor((Date.now() - viewStartTime.current) / 1000);
+        
+        trackInteraction.view('event', actualEvent.id, duration, {
+          source: 'event_modal_close',
+          duration_seconds: duration,
+          interacted: hasInteracted.current
+        });
+        
+        viewStartTime.current = null;
+      }
+    };
+  }, [isOpen, actualEvent?.id]);
 
   // Fetch the actual event data from jambase_events table
   useEffect(() => {
@@ -315,6 +402,17 @@ export function EventDetailsModal({
   // Navigation click handlers for artist and venue names
   const handleArtistClick = () => {
     if (actualEvent.artist_name) {
+      // 🎯 TRACK: Artist click from event modal
+      trackInteraction.click('artist', actualEvent.artist_name, {
+        source: 'event_modal',
+        event_id: actualEvent.id,
+        artist_name: actualEvent.artist_name,
+        from_view: window.location.pathname
+      });
+      
+      // Mark interaction for duration tracking
+      hasInteracted.current = true;
+      
       // Close modal and navigate
       onClose();
       navigate(`/artist/${encodeURIComponent(actualEvent.artist_name)}`, {
@@ -328,6 +426,19 @@ export function EventDetailsModal({
 
   const handleVenueClick = () => {
     if (actualEvent.venue_name) {
+      // 🎯 TRACK: Venue click from event modal
+      trackInteraction.click('venue', actualEvent.venue_name, {
+        source: 'event_modal',
+        event_id: actualEvent.id,
+        venue_name: actualEvent.venue_name,
+        venue_city: actualEvent.venue_city,
+        venue_state: actualEvent.venue_state,
+        from_view: window.location.pathname
+      });
+      
+      // Mark interaction for duration tracking
+      hasInteracted.current = true;
+      
       // Close modal and navigate
       onClose();
       navigate(`/venue/${encodeURIComponent(actualEvent.venue_name)}`, {
@@ -425,9 +536,9 @@ export function EventDetailsModal({
               <DialogTitle className="text-2xl font-bold leading-tight mb-2">
                 {actualEvent.title}
               </DialogTitle>
-              {/* Interest button placed directly under event name */}
-              {isUpcomingEvent && onInterestToggle && (
-                <div className="mb-3">
+              {/* Interest button and Claim button placed directly under event name */}
+              <div className="mb-3 flex gap-2 flex-wrap">
+                {isUpcomingEvent && onInterestToggle && (
                   <Button
                     variant={isInterested ? "default" : "outline"}
                     size="sm"
@@ -441,8 +552,28 @@ export function EventDetailsModal({
                     <Heart className={`w-4 h-4 mr-1 ${isInterested ? 'fill-current' : ''}`} />
                     {isInterested ? 'Interested' : "I'm Interested"}
                   </Button>
-                </div>
-              )}
+                )}
+                {canClaim && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setClaimModalOpen(true)}
+                    className="hover:bg-purple-50 hover:text-purple-600 hover:border-purple-300"
+                  >
+                    <Award className="w-4 h-4 mr-1" />
+                    Claim Event
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setReportModalOpen(true)}
+                  className="text-gray-600 hover:text-red-600"
+                >
+                  <Flag className="w-4 h-4 mr-1" />
+                  Report
+                </Button>
+              </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
                 <Calendar className="w-4 h-4" />
                 <span>{formatDate(actualEvent.event_date)}</span>
@@ -492,6 +623,9 @@ export function EventDetailsModal({
                 Tickets Available
               </Badge>
             )}
+            <TrendingBadge eventId={actualEvent.id} />
+            <FriendsInterestedBadge eventId={actualEvent.id} />
+            <PopularityIndicator interestedCount={interestedCount || 0} attendanceCount={attendanceCount || 0} />
           </div>
 
           {/* Artist and Venue Info */}
@@ -552,6 +686,116 @@ export function EventDetailsModal({
             artistId={actualEvent.artist_id}
             venueId={actualEvent.venue_id}
           />
+
+          {/* Social Features Tabs */}
+          <div className="mt-6 space-y-4">
+            <div className="flex gap-2 border-b pb-2">
+              <Button
+                variant={showPhotos ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => {
+                  setShowPhotos(!showPhotos);
+                  setShowGroups(false);
+                  setShowBuddyFinder(false);
+                }}
+              >
+                📸 Photos
+              </Button>
+              <Button
+                variant={showGroups ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => {
+                  setShowGroups(!showGroups);
+                  setShowPhotos(false);
+                  setShowBuddyFinder(false);
+                }}
+              >
+                <Users className="h-4 w-4 mr-1" />
+                Groups ({eventGroups.length})
+              </Button>
+              {isUpcomingEvent && (
+                <Button
+                  variant={showBuddyFinder ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => {
+                    setShowBuddyFinder(!showBuddyFinder);
+                    setShowPhotos(false);
+                    setShowGroups(false);
+                  }}
+                >
+                  <Heart className="h-4 w-4 mr-1" />
+                  Find Buddies
+                </Button>
+              )}
+            </div>
+
+            {/* Photo Gallery */}
+            {showPhotos && (
+              <EventPhotoGallery
+                eventId={actualEvent.id}
+                eventTitle={actualEvent.title}
+                canUpload={isPastEvent}
+              />
+            )}
+
+            {/* Event Groups */}
+            {showGroups && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">Event Groups</h3>
+                  <Button size="sm" onClick={() => setShowCreateGroup(true)}>
+                    Create Group
+                  </Button>
+                </div>
+                {eventGroups.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-8 text-center">
+                      <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-600 text-sm">No groups yet</p>
+                      <p className="text-xs text-gray-500 mt-1">Create the first group for this event!</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {eventGroups.map((group) => (
+                      <EventGroupCard
+                        key={group.id}
+                        group={group}
+                        onJoinLeave={loadEventGroups}
+                        onChatClick={(chatId) => {
+                          // Navigate to group chat if handler exists
+                          if (onNavigateToChat) {
+                            onClose(); // Close event modal first
+                            onNavigateToChat(chatId);
+                          } else {
+                            toast({
+                              title: 'Group Chat',
+                              description: 'Chat navigation handler not available',
+                              variant: 'destructive',
+                            });
+                          }
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Concert Buddy Finder */}
+            {showBuddyFinder && (
+              <ConcertBuddySwiper
+                eventId={actualEvent.id}
+                eventTitle={actualEvent.title}
+                onMatchCreated={(matchedUser) => {
+                  toast({
+                    title: 'New Match! 🎉',
+                    description: `You matched with ${matchedUser.name}!`,
+                  });
+                }}
+              />
+            )}
+          </div>
 
           {/* Setlist Accordion - Only show for past events with setlists */}
           {(() => {
@@ -1026,20 +1270,42 @@ export function EventDetailsModal({
                     <Button
                       variant="default"
                       size="sm"
-                      asChild
                       className="bg-blue-600 hover:bg-blue-700"
+                      onClick={() => {
+                        // 🎯 TRACK: Ticket link click (CRITICAL FOR REVENUE!)
+                        const ticketUrl = actualEvent.ticket_urls[0];
+                        const ticketProvider = extractTicketProvider(ticketUrl);
+                        const daysUntilEvent = actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined;
+                        
+                        trackInteraction.click('ticket_link', actualEvent.id, {
+                          ticket_url: ticketUrl,
+                          ticket_provider: ticketProvider,
+                          price_range: actualEvent.price_range,
+                          event_date: actualEvent.event_date,
+                          artist_name: actualEvent.artist_name,
+                          venue_name: actualEvent.venue_name,
+                          days_until_event: daysUntilEvent,
+                          source: 'event_modal',
+                          user_interested: isInterested
+                        });
+                        
+                        // Mark interaction for duration tracking
+                        hasInteracted.current = true;
+                        
+                        // Add UTM parameters for commission tracking
+                        const urlWithUTM = addUTMToURL(ticketUrl, {
+                          eventId: actualEvent.id,
+                          userId: currentUserId,
+                          source: 'event_modal'
+                        });
+                        
+                        // Open ticket link in new tab
+                        window.open(urlWithUTM, '_blank', 'noopener,noreferrer');
+                      }}
                     >
-                      <a 
-                        href={actualEvent.ticket_urls[0]} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1"
-                        onClick={() => { try { trackInteraction.click('ticket', actualEvent.id, { providerUrl: actualEvent.ticket_urls[0] }); } catch {} }}
-                      >
-                        <Ticket className="w-4 h-4" />
-                        <span>Get Tickets</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                      <Ticket className="w-4 h-4" />
+                      <span>Get Tickets</span>
+                      <ExternalLink className="w-3 h-3" />
                     </Button>
                   )}
                 </div>
@@ -1121,6 +1387,59 @@ export function EventDetailsModal({
           isOpen={commentsOpen}
           onClose={() => setCommentsOpen(false)}
           currentUserId={currentUserId}
+        />
+
+        {canClaim && (
+          <EventClaimModal
+            open={claimModalOpen}
+            onClose={() => setClaimModalOpen(false)}
+            event={{
+              id: actualEvent.id,
+              title: actualEvent.title,
+              artist_name: actualEvent.artist_name,
+              venue_name: actualEvent.venue_name,
+              event_date: actualEvent.event_date,
+            }}
+            onClaimSubmitted={() => {
+              setClaimModalOpen(false);
+              // Reload event to update claim status
+              // Could trigger a refetch here if needed
+            }}
+          />
+        )}
+
+        <ReportContentModal
+          open={reportModalOpen}
+          onClose={() => setReportModalOpen(false)}
+          contentType="event"
+          contentId={actualEvent.id}
+          contentTitle={actualEvent.title}
+          onReportSubmitted={() => {
+            setReportModalOpen(false);
+            toast({
+              title: 'Report Submitted',
+              description: 'Thank you for helping keep our community safe',
+            });
+          }}
+        />
+
+        <CreateEventGroupModal
+          open={showCreateGroup}
+          onClose={() => setShowCreateGroup(false)}
+          event={{
+            id: actualEvent.id,
+            title: actualEvent.title,
+            artist_name: actualEvent.artist_name,
+            event_date: actualEvent.event_date,
+          }}
+          onGroupCreated={(groupId) => {
+            setShowCreateGroup(false);
+            loadEventGroups();
+            toast({
+              title: 'Group Created! 🎉',
+              description: 'Your event group is ready',
+            });
+          }}
         />
       </DialogContent>
     </Dialog>

@@ -9,6 +9,7 @@ export type NotificationType =
   | 'review_commented'
   | 'comment_replied'
   | 'event_interest'
+  | 'event_attendance_reminder'
   | 'artist_followed'
   | 'artist_new_event'
   | 'artist_profile_updated'
@@ -78,6 +79,13 @@ export interface NotificationData {
     event_venue: string;
     event_date: string;
     user_name: string;
+  };
+  event_attendance_reminder: {
+    event_id: string;
+    event_title: string;
+    event_venue: string;
+    event_date: string;
+    artist_name?: string;
   };
 }
 
