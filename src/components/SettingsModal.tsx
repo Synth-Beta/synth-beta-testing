@@ -5,10 +5,10 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { LogOut, User, Bell, Shield, HelpCircle, Info, Mail, Key, AtSign, Eye, EyeOff } from 'lucide-react';
+import { LogOut, User, Bell, Shield, HelpCircle, Info, Mail, Key, AtSign, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { EmailPreferencesSettings } from '@/components/EmailPreferencesSettings';
-import { OnboardingPreferencesSettings } from '@/components/OnboardingPreferencesSettings';
+// import { EmailPreferencesSettings } from '@/components/EmailPreferencesSettings';
+// import { OnboardingPreferencesSettings } from '@/components/OnboardingPreferencesSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { UserVisibilityService } from '@/services/userVisibilityService';
 import { useAuth } from '@/hooks/useAuth';
@@ -157,21 +157,22 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
   const handleToggleProfileVisibility = async (checked: boolean) => {
     if (!user?.id) return;
 
-    // If trying to make profile public, check if user has a profile picture
-    if (checked) {
-      const hasProfilePic = await UserVisibilityService.hasProfilePicture(user.id);
-      if (!hasProfilePic) {
-        toast({
-          title: 'Profile Picture Required',
-          description: 'You must upload a profile picture before making your profile public. Go to Edit Profile to add a photo.',
-          variant: 'destructive',
-        });
-        return;
-      }
-    }
-
     setIsLoadingVisibility(true);
     try {
+      // If trying to make profile public, check if user has a profile picture
+      if (checked) {
+        const hasProfilePic = await UserVisibilityService.hasProfilePicture(user.id);
+        if (!hasProfilePic) {
+          toast({
+            title: 'Profile Picture Required',
+            description: 'You must upload a profile picture before making your profile public. Go to Edit Profile to add a photo.',
+            variant: 'destructive',
+          });
+          setIsLoadingVisibility(false);
+          return;
+        }
+      }
+
       const success = await UserVisibilityService.setProfileVisibility(user.id, checked);
       
       if (success) {
@@ -205,6 +206,11 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
           setIsPublicProfile(settings.is_public_profile);
           setHasProfilePicture(settings.has_avatar);
         }
+      }).catch(error => {
+        console.error('Error loading visibility settings:', error);
+        // Set default values if loading fails
+        setIsPublicProfile(true);
+        setHasProfilePicture(true);
       });
     }
   }, [isOpen, user?.id]);
@@ -376,9 +382,15 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
             </Button>
           </div>
         ) : view === 'email-preferences' ? (
-          <EmailPreferencesSettings />
+          <div className="p-4">
+            <p className="text-sm text-muted-foreground mb-4">Email preferences coming soon!</p>
+            <Button onClick={handleBack} variant="outline">Back</Button>
+          </div>
         ) : view === 'onboarding-preferences' ? (
-          <OnboardingPreferencesSettings onClose={onClose} />
+          <div className="p-4">
+            <p className="text-sm text-muted-foreground mb-4">Profile preferences coming soon!</p>
+            <Button onClick={handleBack} variant="outline">Back</Button>
+          </div>
         ) : view === 'security-actions' ? (
           <div className="space-y-6">
             {/* Header */}
