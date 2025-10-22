@@ -293,10 +293,12 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
 
   const loadEvents = async () => {
     try {
-      // Load both past and future events to show setlists for past events
+      // Load ONLY upcoming events (today and future)
+      const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
       const { data: eventsData, error } = await supabase
         .from('jambase_events')
         .select('*')
+        .gte('event_date', today) // Only events from today onwards
         .order('event_date', { ascending: true });
 
       if (error) throw error;
@@ -1212,24 +1214,92 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                                 </div>
                               </div>
                               <div className="flex flex-col items-end gap-3 ml-4">
-                                {event.price_range && (
-                                  <Badge variant="secondary" className="gradient-badge px-3 py-1 rounded-full">
-                                    {formatPrice(event.price_range)}
-                                  </Badge>
-                                )}
+                                <div className="flex flex-col items-end gap-2">
+                                  {/* Event status badges */}
+                                  <div className="flex gap-1">
+                                    {(() => {
+                                      const eventDate = new Date(event.event_date);
+                                      const today = new Date();
+                                      today.setHours(0, 0, 0, 0); // Reset time to start of day
+                                      const isPast = eventDate < today;
+                                      const isUpcoming = eventDate >= today;
+                                      
+                                      return (
+                                        <>
+                                          {isPast && (
+                                            <Badge variant="secondary" className="text-xs">
+                                              Past Event
+                                            </Badge>
+                                          )}
+                                          {isUpcoming && (
+                                            <Badge variant="default" className="text-xs">
+                                              Upcoming
+                                            </Badge>
+                                          )}
+                                        </>
+                                      );
+                                    })()}
+                                    {event.ticket_available && (
+                                      <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                                        <Ticket className="w-3 h-3 mr-1" />
+                                        Tickets Available
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {event.price_range && (
+                                    <Badge variant="secondary" className="gradient-badge px-3 py-1 rounded-full">
+                                      {formatPrice(event.price_range)}
+                                    </Badge>
+                                  )}
+                                </div>
                                 <div className="flex gap-2">
-                                  <Button 
-                                    size="sm" 
-                                    variant={interestedEvents.has(event.id) ? "default" : "outline"}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleInterestToggle(event.id, !interestedEvents.has(event.id));
-                                    }}
-                                    className={interestedEvents.has(event.id) ? "hover-button gradient-button" : "hover-button border-gray-300 hover:border-pink-400 hover:text-pink-500"}
-                                  >
-                                    <Users className="h-4 w-4 mr-1 hover-icon" />
-                                    {interestedEvents.has(event.id) ? "Interested" : "Show Interest"}
-                                  </Button>
+                                  {(() => {
+                                    const eventDate = new Date(event.event_date);
+                                    const today = new Date();
+                                    today.setHours(0, 0, 0, 0); // Reset time to start of day
+                                    const isPast = eventDate < today;
+                                    const isUpcoming = eventDate >= today;
+                                    
+                                    return (
+                                      <>
+                                        {/* Interest button for upcoming events */}
+                                        {isUpcoming && (
+                                          <Button 
+                                            size="sm" 
+                                            variant={interestedEvents.has(event.id) ? "default" : "outline"}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleInterestToggle(event.id, !interestedEvents.has(event.id));
+                                            }}
+                                            className={interestedEvents.has(event.id) ? "hover-button gradient-button" : "hover-button border-gray-300 hover:border-pink-400 hover:text-pink-500"}
+                                          >
+                                            <Users className="h-4 w-4 mr-1 hover-icon" />
+                                            {interestedEvents.has(event.id) ? "Interested" : "Show Interest"}
+                                          </Button>
+                                        )}
+                                        
+                                        {/* "I Was There" button for past events */}
+                                        {isPast && (
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              // TODO: Implement attendance tracking for past events
+                                              toast({
+                                                title: "Feature Coming Soon",
+                                                description: "Attendance tracking for past events will be available soon!",
+                                              });
+                                            }}
+                                            className="hover-button border-gray-300 hover:border-yellow-400 hover:text-yellow-500"
+                                          >
+                                            <Users className="h-4 w-4 mr-1 hover-icon" />
+                                            I Was There
+                                          </Button>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
                                    {event.ticket_urls && event.ticket_urls.length > 0 && (
                                      <Button
                                        size="sm"

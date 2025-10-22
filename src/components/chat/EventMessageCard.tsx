@@ -65,6 +65,7 @@ export function EventMessageCard({
     if (!event || !currentUserId) return;
     
     try {
+      console.log('🔍 checkInterest called with:', { eventId: event.id, currentUserId });
       const { data, error } = await supabase
         .from('user_jambase_events')
         .select('id')
@@ -72,8 +73,10 @@ export function EventMessageCard({
         .eq('jambase_event_id', event.id)
         .single();
       
+      console.log('🔍 checkInterest result:', { data, error });
       setIsInterested(!!data && !error);
     } catch (error) {
+      console.log('🔍 checkInterest error:', error);
       setIsInterested(false);
     }
   };
@@ -268,6 +271,7 @@ export function EventMessageCard({
                 setInterestLoading(true);
                 try {
                   const newInterestState = !isInterested;
+                  console.log('🔍 Interest button clicked:', { eventId: event.id, newInterestState, currentUserId });
                   await onInterestToggle(event.id, newInterestState);
                   setIsInterested(newInterestState);
                 } catch (error) {

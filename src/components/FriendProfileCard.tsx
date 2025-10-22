@@ -53,7 +53,7 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
   // Debug: Check if navigation handlers are provided
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 10000 }}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
       <Card className="w-full max-w-md max-h-[80vh] overflow-y-auto">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">

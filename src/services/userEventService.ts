@@ -27,13 +27,20 @@ export class UserEventService {
     interested: boolean
   ): Promise<UserJamBaseEvent> {
     try {
+      console.log('🔍 setEventInterest called with:', { userId, jambaseEventId, interested });
+      
       // Presence-based interest model: if interested=true ensure row exists; if false, delete it
       // Use SECURITY DEFINER function to avoid recursive RLS
       const { error } = await supabase.rpc('set_user_interest' as any, {
         event_id: jambaseEventId,
         interested
       });
-      if (error) throw error;
+      
+      console.log('🔍 RPC call result:', { error });
+      if (error) {
+        console.error('🔍 Detailed RPC error:', JSON.stringify(error, null, 2));
+        throw error;
+      }
 
       // Return fresh state
       const { data, error: fetchError } = await supabase

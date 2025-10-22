@@ -575,7 +575,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
 
   if (loading) {
     return (
-      <div className="fixed inset-0 flex h-screen synth-gradient-card z-50">
+      <div className="fixed inset-0 flex h-screen synth-gradient-card z-[9999]">
         {/* Left Sidebar skeleton */}
         <div className="w-1/3 border-r border-synth-black/10 bg-white/95 backdrop-blur-sm flex flex-col">
           {/* Header skeleton */}
@@ -617,7 +617,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   }
 
   return (
-    <div className="fixed inset-0 flex h-screen synth-gradient-card z-50">
+    <div className="fixed inset-0 flex h-screen synth-gradient-card z-[9999]">
       {/* Left Sidebar - Chat List */}
       <div className="w-1/3 border-r border-synth-black/10 bg-white/95 backdrop-blur-sm flex flex-col shadow-xl">
         {/* Header */}
@@ -868,7 +868,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
 
       {/* User Search Modal */}
       {showUserSearch && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Start New Chat</h2>
@@ -928,7 +928,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
 
       {/* Group Create Modal */}
       {showGroupCreate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Create Group Chat</h2>
