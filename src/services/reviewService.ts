@@ -410,6 +410,39 @@ export class ReviewService {
         was_there: true // If someone writes a review, they obviously attended
       } as UserReviewInsert;
 
+      // Debug: Check if the event has artist_uuid populated
+      console.log('🔍 ReviewService: Checking event artist_uuid for eventId:', eventId);
+      const { data: eventData, error: eventError } = await supabase
+        .from('jambase_events')
+        .select('id, artist_uuid, artist_id, artist_name, venue_id')
+        .eq('id', eventId)
+        .single();
+      
+      if (eventError) {
+        console.error('❌ ReviewService: Error fetching event data:', eventError);
+      } else {
+        console.log('🔍 ReviewService: Event data:', eventData);
+        
+        // If artist_uuid is available, use it directly instead of relying on trigger
+        if (eventData?.artist_uuid) {
+          console.log('🔍 ReviewService: Using artist_uuid from event:', eventData.artist_uuid);
+          (insertPayload as any).artist_id = eventData.artist_uuid;
+        } else {
+          console.log('⚠️ ReviewService: No artist_uuid found in event data');
+        }
+        
+        // Note: venue_uuid column doesn't exist in jambase_events, so we use the venueId parameter
+        if (venueId) {
+          console.log('🔍 ReviewService: Using venueId parameter:', venueId);
+          (insertPayload as any).venue_id = venueId;
+        } else {
+          console.log('⚠️ ReviewService: No venueId parameter provided');
+        }
+      }
+      
+      // Debug: Log the final insert payload
+      console.log('🔍 ReviewService: Final insert payload:', insertPayload);
+
       // Try full insert first
       let { data, error } = await supabase
         .from('user_reviews')

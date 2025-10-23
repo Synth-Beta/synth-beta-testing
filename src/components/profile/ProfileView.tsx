@@ -447,11 +447,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         venue_name: ev.venue_name
       })));
 
-      setUserEvents(filteredEvents);
+      // Ensure filteredEvents conforms to the expected type
+      setUserEvents(filteredEvents as any); // TODO: Ensure type safety
+
       console.log('🔍 ProfileView: fetchUserEvents completed successfully');
     } catch (error) {
       console.error('❌ ProfileView: Error fetching user events:', error);
-      setUserEvents([]);
+      setUserEvents([] as any); // TODO: Ensure type safety
     } finally {
       setLoading(false);
     }
@@ -1098,75 +1100,117 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       <div className="max-w-2xl mx-auto">
 
         {/* Enhanced Profile Header */}
-        <div className="mb-6 p-6">
-          {/* Profile Info Row */}
-          <div className="flex items-start gap-6 mb-6">
+        <div className="mb-8 bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 rounded-2xl p-8 border border-pink-100/50 shadow-sm">
+          {/* Main Profile Row */}
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-6">
             {/* Profile Picture */}
-            <Avatar className="w-20 h-20 md:w-24 md:h-24 profile-ring">
-                <AvatarImage src={profile.avatar_url || undefined} />
-                <AvatarFallback className="text-2xl">
+            <div className="relative">
+              <Avatar className="w-24 h-24 md:w-28 md:h-28 ring-4 ring-white shadow-lg">
+                <AvatarImage 
+                  src={profile.avatar_url || undefined} 
+                  alt={`${profile.name}'s avatar`}
+                  onError={(e) => {
+                    console.log('🔍 Avatar image failed to load:', profile.avatar_url);
+                    // Hide the image element to show fallback
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                  onLoad={() => {
+                    console.log('🔍 Avatar image loaded successfully:', profile.avatar_url);
+                  }}
+                />
+                <AvatarFallback className="text-3xl font-bold bg-gradient-to-br from-pink-500 to-purple-600 text-white">
                   {profile.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
+              {/* Online status indicator */}
+              {!isViewingOwnProfile && profile.last_active_at && (
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                </div>
+              )}
+            </div>
               
-            {/* Profile Stats and Actions */}
-            <div className="flex-1">
-              {/* Compact counts row above name */}
-              <div className="flex items-center gap-6 mb-2">
-              <div className="text-center">
-                <span className="gradient-text-bold font-semibold">{reviews.filter(review => (review as any).review_text !== 'ATTENDANCE_ONLY').length}</span>
-                <p className="text-sm text-muted-foreground">reviews</p>
-              </div>
-              <button
-                className="text-center hover:opacity-70 transition-opacity"
-                onClick={() => { setFollowersModalType('friends'); setShowFollowersModal(true); }}
-              >
-                <span className="gradient-text-bold font-semibold">{friends.length}</span>
-                <p className="text-sm text-muted-foreground">friends</p>
-              </button>
-              <button
-                className="text-center hover:opacity-70 transition-opacity"
-                onClick={() => navigate(`/following${!isViewingOwnProfile ? `/${targetUserId}` : ''}`)}
-              >
-                <span className="gradient-text-bold font-semibold">{followedArtistsCount}</span>
-                <p className="text-sm text-muted-foreground">following</p>
-              </button>
-              </div>
-              
-              <div className="flex items-center gap-4 mb-3">
-                <h2 className="text-xl font-semibold">{profile.name}</h2>
+            {/* Profile Info */}
+            <div className="flex-1 min-w-0">
+              {/* Name and Status Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">
+                    {profile.name}
+                  </h1>
+                  
+                  {/* Connection Degree Badge */}
+                  {!isViewingOwnProfile && (
+                    <WorkingConnectionBadge targetUserId={targetUserId} />
+                  )}
+                </div>
                 
-                {/* Connection Degree Badge */}
-                {!isViewingOwnProfile && (
-                  <WorkingConnectionBadge targetUserId={targetUserId} />
-                )}
-                
+                {/* Status Badges */}
                 {!isViewingOwnProfile && profile.last_active_at && (
-                  <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                  <Badge variant="secondary" className="flex items-center gap-1 text-xs bg-green-100 text-green-700 border-green-200">
                     <Clock className="w-3 h-3" />
                     {UserVisibilityService.formatLastActive(profile.last_active_at)}
                   </Badge>
                 )}
+              </div>
+              
+              {/* Stats Row */}
+              <div className="flex items-center gap-8 mb-6">
+                <button
+                  className="text-center hover:scale-105 transition-transform group"
+                  onClick={() => { setFollowersModalType('friends'); setShowFollowersModal(true); }}
+                >
+                  <div className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent group-hover:from-pink-700 group-hover:to-purple-700">
+                    {friends.length}
+                  </div>
+                  <p className="text-sm text-gray-600 font-medium">Friends</p>
+                </button>
+                
+                <div className="text-center">
+                  <div className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                    {reviews.filter(review => (review as any).review_text !== 'ATTENDANCE_ONLY').length}
+                  </div>
+                  <p className="text-sm text-gray-600 font-medium">Reviews</p>
+                </div>
+                
+                <button
+                  className="text-center hover:scale-105 transition-transform group"
+                  onClick={() => navigate(`/following${!isViewingOwnProfile ? `/${targetUserId}` : ''}`)}
+                >
+                  <div className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent group-hover:from-pink-700 group-hover:to-purple-700">
+                    {followedArtistsCount}
+                  </div>
+                  <p className="text-sm text-gray-600 font-medium">Following</p>
+                </button>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3">
                 {isViewingOwnProfile ? (
                   <>
-                    <Button onClick={onEdit} variant="outline" size="sm" className="hover-button gradient-button">Edit profile</Button>
-                    <Button onClick={onSettings} variant="ghost" size="sm" className="hover-button" data-tour="settings"><Settings className="w-4 h-4 hover-icon" /></Button>
+                    <Button onClick={onEdit} variant="default" size="sm" className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-md">
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Profile
+                    </Button>
+                    <Button onClick={onSettings} variant="outline" size="sm" className="border-gray-200 hover:border-gray-300">
+                      <Settings className="w-4 h-4" />
+                    </Button>
                   </>
                 ) : (
                   <div className="flex items-center gap-2 flex-wrap">
                     {friendStatus === 'none' && (
-                      <Button onClick={sendFriendRequest} variant="default" size="sm">
-                        <Plus className="w-4 h-4 mr-1" />
+                      <Button onClick={sendFriendRequest} variant="default" size="sm" className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md">
+                        <Plus className="w-4 h-4 mr-2" />
                         Add Friend
                       </Button>
                     )}
                     {friendStatus === 'pending_sent' && (
-                      <Button disabled variant="outline" size="sm">
+                      <Button disabled variant="outline" size="sm" className="border-orange-200 text-orange-600">
                         Friend Request Sent
                       </Button>
                     )}
                     {friendStatus === 'pending_received' && (
-                      <Button disabled variant="outline" size="sm">
+                      <Button disabled variant="outline" size="sm" className="border-blue-200 text-blue-600">
                         Respond to Request
                       </Button>
                     )}
@@ -1175,98 +1219,105 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                         onClick={() => unfriendUser(targetUserId)} 
                         variant="outline" 
                         size="sm"
-                        className="text-red-600 hover:text-red-700 hover:border-red-300"
+                        className="text-red-600 hover:text-red-700 hover:border-red-300 border-red-200"
                       >
                         Unfriend
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setBlockModalOpen(true)}
-                      className="text-gray-600 hover:text-red-600"
-                    >
-                      <Ban className="w-4 h-4 mr-1" />
-                      {isUserBlocked ? 'Unblock' : 'Block'}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setReportModalOpen(true)}
-                      className="text-gray-600 hover:text-red-600"
-                    >
-                      <Flag className="w-4 h-4 mr-1" />
-                      Report
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setBlockModalOpen(true)}
+                        className="text-gray-500 hover:text-red-600 hover:bg-red-50 p-2"
+                      >
+                        <Ban className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setReportModalOpen(true)}
+                        className="text-gray-500 hover:text-red-600 hover:bg-red-50 p-2"
+                      >
+                        <Flag className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 )}
-            </div>
+              </div>
             </div>
           </div>
           
           {/* Bio and Links */}
-          <div className="mb-4">
+          {(profile.bio || profile.instagram_handle || profile.music_streaming_profile) && (
+            <div className="border-t border-pink-100/50 pt-6">
               {profile.bio && (
-              <p className="text-sm mb-3">{profile.bio}</p>
+                <div className="mb-4">
+                  <p className="text-gray-700 leading-relaxed">{profile.bio}</p>
+                </div>
               )}
 
               {/* Social Media Links */}
               {(profile.instagram_handle || profile.music_streaming_profile) && (
-              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap gap-3">
                   {profile.instagram_handle && (
                     <a
                       href={`https://instagram.com/${profile.instagram_handle}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-pink-600 hover:text-pink-700 transition-colors text-sm"
+                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-pink-500/10 to-purple-500/10 hover:from-pink-500/20 hover:to-purple-500/20 rounded-lg border border-pink-200/50 text-pink-600 hover:text-pink-700 transition-all duration-200 text-sm font-medium"
                     >
                       <Instagram className="w-4 h-4" />
-                    <span>@{profile.instagram_handle}</span>
-                      <ExternalLink className="w-3 h-3" />
+                      <span>@{profile.instagram_handle}</span>
+                      <ExternalLink className="w-3 h-3 opacity-60" />
                     </a>
                   )}
-                {profile.music_streaming_profile && (() => {
-                  const serviceType = detectStreamingServiceType(profile.music_streaming_profile);
-                  const isSpotify = serviceType === 'spotify';
-                  const isAppleMusic = serviceType === 'apple-music';
-                  
-                  let href = profile.music_streaming_profile;
-                  let displayText = profile.music_streaming_profile;
-                  let colorClass = 'text-blue-600 hover:text-blue-700';
-                  
-                  if (isSpotify) {
-                    href = profile.music_streaming_profile.startsWith('http') 
-                      ? profile.music_streaming_profile 
-                      : `https://open.spotify.com/user/${profile.music_streaming_profile}`;
-                    displayText = 'Spotify Profile';
-                    colorClass = 'text-green-600 hover:text-green-700';
-                  } else if (isAppleMusic) {
-                    href = profile.music_streaming_profile.startsWith('http') 
-                      ? profile.music_streaming_profile 
-                      : profile.music_streaming_profile;
-                    displayText = 'Apple Music Profile';
-                    colorClass = 'text-red-500 hover:text-red-600';
-                  } else if (profile.music_streaming_profile.startsWith('http')) {
-                    displayText = 'Music Profile';
-                  }
-                  
-                  return (
-                    <a
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`flex items-center gap-2 hover:opacity-80 transition-opacity duration-200 text-sm ${colorClass}`}
-                    >
-                      <Music className="w-4 h-4" />
-                      <span>{displayText}</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  );
-                })()}
+                  {profile.music_streaming_profile && (() => {
+                    const serviceType = detectStreamingServiceType(profile.music_streaming_profile);
+                    const isSpotify = serviceType === 'spotify';
+                    const isAppleMusic = serviceType === 'apple-music';
+                    
+                    let href = profile.music_streaming_profile;
+                    let displayText = profile.music_streaming_profile;
+                    let bgClass = 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-200/50';
+                    let textClass = 'text-blue-600 hover:text-blue-700';
+                    
+                    if (isSpotify) {
+                      href = profile.music_streaming_profile.startsWith('http') 
+                        ? profile.music_streaming_profile 
+                        : `https://open.spotify.com/user/${profile.music_streaming_profile}`;
+                      displayText = 'Spotify Profile';
+                      bgClass = 'bg-green-500/10 hover:bg-green-500/20 border-green-200/50';
+                      textClass = 'text-green-600 hover:text-green-700';
+                    } else if (isAppleMusic) {
+                      href = profile.music_streaming_profile.startsWith('http') 
+                        ? profile.music_streaming_profile 
+                        : profile.music_streaming_profile;
+                      displayText = 'Apple Music Profile';
+                      bgClass = 'bg-red-500/10 hover:bg-red-500/20 border-red-200/50';
+                      textClass = 'text-red-600 hover:text-red-700';
+                    } else if (profile.music_streaming_profile.startsWith('http')) {
+                      displayText = 'Music Profile';
+                    }
+                    
+                    return (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center gap-2 px-3 py-2 ${bgClass} rounded-lg border ${textClass} transition-all duration-200 text-sm font-medium`}
+                      >
+                        <Music className="w-4 h-4" />
+                        <span>{displayText}</span>
+                        <ExternalLink className="w-3 h-3 opacity-60" />
+                      </a>
+                    );
+                  })()}
                 </div>
               )}
-              </div>
             </div>
+          )}
+        </div>
 
         {/* Instagram-style Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

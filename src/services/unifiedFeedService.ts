@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ReviewService } from './reviewService';
 import { JamBaseEventResponse } from './jambaseEventsService';
 import { PersonalizedFeedService, PersonalizedEvent } from './personalizedFeedService';
+import { FriendsReviewService } from './friendsReviewService';
 
 export interface UnifiedFeedItem {
   id: string;
@@ -59,6 +60,7 @@ export interface FeedOptions {
   userLocation?: { lat: number; lng: number };
   includePrivateReviews?: boolean;
   maxDistanceMiles?: number;
+  feedType?: 'all' | 'friends' | 'friends_plus_one' | 'public_only';
 }
 
 export class UnifiedFeedService {
@@ -66,6 +68,34 @@ export class UnifiedFeedService {
    * Fetch all feed items in unified format
    */
   static async getFeedItems(options: FeedOptions): Promise<UnifiedFeedItem[]> {
+    const { userId, limit = 50, offset = 0, userLocation, includePrivateReviews = true, feedType = 'all' } = options;
+    
+    try {
+      // Handle different feed types
+      switch (feedType) {
+        case 'friends':
+          return await FriendsReviewService.getFriendsReviews(userId, limit, offset);
+        
+        case 'friends_plus_one':
+          return await FriendsReviewService.getFriendsPlusOneReviews(userId, limit, offset);
+        
+        case 'public_only':
+          return await this.getPublicReviews(userId, limit);
+        
+        case 'all':
+        default:
+          return await this.getUnifiedFeed(options);
+      }
+    } catch (error) {
+      console.error('Error fetching unified feed:', error);
+      throw new Error(`Failed to fetch feed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get unified feed with all content types
+   */
+  private static async getUnifiedFeed(options: FeedOptions): Promise<UnifiedFeedItem[]> {
     const { userId, limit = 50, offset = 0, userLocation, includePrivateReviews = true } = options;
     
     try {

@@ -32,7 +32,16 @@ import {
   ArrowUp,
   ArrowDown,
   Newspaper,
-  Flag
+  Flag,
+  Bookmark,
+  MoreHorizontal,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  ChevronLeft,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -130,9 +139,19 @@ export const UnifiedFeed = ({
   const [viewReviewOpen, setViewReviewOpen] = useState(false);
   const [selectedReviewForView, setSelectedReviewForView] = useState<any>(null);
   const [showCommentsInModal, setShowCommentsInModal] = useState(false);
+  const [showReviewDetailModal, setShowReviewDetailModal] = useState(false);
+  const [selectedReviewDetail, setSelectedReviewDetail] = useState<UnifiedFeedItem | null>(null);
   const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'price' | 'popularity' | 'distance'>('relevance');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filterByFollowing, setFilterByFollowing] = useState<'all' | 'following'>('all');
+
+  // Instagram-style media state
+  const [currentMediaIndex, setCurrentMediaIndex] = useState<{ [key: string]: number }>({});
+  const [playingVideos, setPlayingVideos] = useState<{ [key: string]: boolean }>({});
+  const [videoVolumes, setVideoVolumes] = useState<{ [key: string]: number }>({});
+  const [showFullscreenMedia, setShowFullscreenMedia] = useState<{ [key: string]: boolean }>({});
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<string>>(new Set());
   
   // Following state
   const [followedArtists, setFollowedArtists] = useState<string[]>([]);
@@ -197,18 +216,28 @@ export const UnifiedFeed = ({
       return;
     }
     
-    // Try to get user's location for better recommendations
-    LocationService.getCurrentLocation()
+    // Try to get user's location for better recommendations with timeout
+    console.log('🔍 Starting location service...');
+    
+    // Add a timeout to prevent hanging
+    const locationPromise = LocationService.getCurrentLocation();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Location service timeout')), 5000)
+    );
+    
+    Promise.race([locationPromise, timeoutPromise])
       .then(location => {
-        setUserLocation({ lat: location.latitude, lng: location.longitude });
-        setMapCenter([location.latitude, location.longitude]);
+        console.log('🔍 Location service succeeded:', location);
+        setUserLocation({ lat: (location as any).latitude, lng: (location as any).longitude });
+        setMapCenter([(location as any).latitude, (location as any).longitude]);
         setMapZoom(10);
       })
       .catch(error => {
-        console.log('Could not get user location:', error);
+        console.log('🔍 Location service failed or timed out:', error);
         // Continue without location
       })
       .finally(() => {
+        console.log('🔍 Location service finally block - loading feed data...');
         loadFeedData();
         loadUpcomingEvents();
         loadFollowedData();
@@ -268,6 +297,212 @@ export const UnifiedFeed = ({
     }
   }, [feedItems]);
 
+  // Instagram-style helper functions
+  const nextMedia = (itemId: string, mediaArray: any[]) => {
+    setCurrentMediaIndex(prev => ({
+      ...prev,
+      [itemId]: Math.min((prev[itemId] || 0) + 1, mediaArray.length - 1)
+    }));
+  };
+
+  const prevMedia = (itemId: string) => {
+    setCurrentMediaIndex(prev => ({
+      ...prev,
+      [itemId]: Math.max((prev[itemId] || 0) - 1, 0)
+    }));
+  };
+
+  const toggleVideoPlay = (itemId: string) => {
+    setPlayingVideos(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  };
+
+  const toggleVideoVolume = (itemId: string) => {
+    setVideoVolumes(prev => ({
+      ...prev,
+      [itemId]: prev[itemId] === 1 ? 0 : 1
+    }));
+  };
+
+  const toggleFullscreen = (itemId: string) => {
+    setShowFullscreenMedia(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  };
+
+  const handleInstagramLike = async (item: UnifiedFeedItem) => {
+    if (!currentUserId) return;
+    
+    const isLiked = likedPosts.has(item.id);
+    const newLikedPosts = new Set(likedPosts);
+    
+    if (isLiked) {
+      newLikedPosts.delete(item.id);
+    } else {
+      newLikedPosts.add(item.id);
+    }
+    
+    setLikedPosts(newLikedPosts);
+    
+    // Track interaction
+    try {
+      await trackInteraction.like(item.type, item.review_id || item.id, !!currentUserId);
+    } catch (error) {
+      console.error('Error tracking like:', error);
+    }
+  };
+
+  const handleBookmark = async (item: UnifiedFeedItem) => {
+    const isBookmarked = bookmarkedPosts.has(item.id);
+    const newBookmarkedPosts = new Set(bookmarkedPosts);
+    
+    if (isBookmarked) {
+      newBookmarkedPosts.delete(item.id);
+    } else {
+      newBookmarkedPosts.add(item.id);
+    }
+    
+    setBookmarkedPosts(newBookmarkedPosts);
+  };
+
+
+  const handleReviewClick = (item: UnifiedFeedItem) => {
+    if (item.type === 'review') {
+      // Don't open modal for deleted reviews
+      if ((item as any).deleted_at || (item as any).is_deleted) {
+        return;
+      }
+      setSelectedReviewDetail(item);
+      setShowReviewDetailModal(true);
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = parseISO(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return `${diffInSeconds}s`;
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
+    return `${Math.floor(diffInSeconds / 86400)}d`;
+  };
+
+  const renderInstagramMedia = (item: UnifiedFeedItem) => {
+    const photos = item.photos || [];
+    const currentIndex = currentMediaIndex[item.id] || 0;
+    const currentMedia = photos[currentIndex];
+
+    if (!currentMedia || !photos.length) return null;
+
+    // Since currentMedia may be a string URL or an object, handle both cases
+    let isVideo = false;
+    const mediaItem = currentMedia as any; // Type assertion since we've already checked for null
+    if (typeof mediaItem === 'object' && 'type' in mediaItem) {
+      isVideo = mediaItem.type?.includes('video');
+    } else if (typeof mediaItem === 'string') {
+      isVideo = mediaItem.includes('.mp4') || mediaItem.includes('.mov');
+    }
+
+    const isPlaying = playingVideos[item.id] || false;
+    const volume = videoVolumes[item.id] !== undefined ? videoVolumes[item.id] : 1;
+    const isFullscreen = showFullscreenMedia[item.id] || false;
+
+    return (
+      <div className={`relative bg-black ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
+        {/* Media - Ultra compact with height limit */}
+        <div className="relative w-full aspect-[21/9] max-h-48 bg-black flex items-center justify-center">
+          {isVideo ? (
+            <video
+              className="w-full h-full object-cover"
+              controls={false}
+              autoPlay={isPlaying}
+              muted={volume === 0}
+              loop
+              onClick={() => toggleVideoPlay(item.id)}
+            >
+              <source src={currentMedia} type="video/mp4" />
+            </video>
+          ) : (
+            <img
+              src={currentMedia}
+              alt="Post media"
+              className="w-full h-full object-cover cursor-pointer"
+              onClick={() => toggleFullscreen(item.id)}
+            />
+          )}
+
+          {/* Video controls overlay */}
+          {isVideo && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <button
+                onClick={() => toggleVideoPlay(item.id)}
+                className="bg-black/50 rounded-full p-2 text-white hover:bg-black/70 transition-colors"
+              >
+                {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+              </button>
+            </div>
+          )}
+
+          {/* Volume control for videos */}
+          {isVideo && (
+            <button
+              onClick={() => toggleVideoVolume(item.id)}
+              className="absolute top-3 right-3 bg-black/50 rounded-full p-1.5 text-white hover:bg-black/70 transition-colors"
+            >
+              {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+          )}
+
+          {/* Fullscreen control */}
+          <button
+            onClick={() => toggleFullscreen(item.id)}
+            className="absolute top-3 left-3 bg-black/50 rounded-full p-1.5 text-white hover:bg-black/70 transition-colors"
+          >
+            {isFullscreen ? <X className="w-4 h-4" /> : <MoreHorizontal className="w-4 h-4" />}
+          </button>
+
+          {/* Media navigation arrows */}
+          {photos.length > 1 && (
+            <>
+              <button
+                onClick={() => prevMedia(item.id)}
+                disabled={currentIndex === 0}
+                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 rounded-full p-1.5 text-white hover:bg-black/70 transition-colors disabled:opacity-50"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => nextMedia(item.id, photos)}
+                disabled={currentIndex === photos.length - 1}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 rounded-full p-1.5 text-white hover:bg-black/70 transition-colors disabled:opacity-50"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </>
+          )}
+
+          {/* Media indicators */}
+          {photos.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1">
+              {photos.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    index === currentIndex ? 'bg-white' : 'bg-white/50'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // Infinite scroll effect
   useEffect(() => {
     const handleScroll = () => {
@@ -300,7 +535,7 @@ export const UnifiedFeed = ({
       // Add minimum loading time for better UX demonstration
       const minLoadingTime = offset === 0 ? new Promise(resolve => setTimeout(resolve, 800)) : Promise.resolve();
 
-      const [items] = await Promise.all([
+      const [rawItems] = await Promise.all([
         UnifiedFeedService.getFeedItems({
           userId: currentUserId,
           limit: 20,
@@ -309,6 +544,26 @@ export const UnifiedFeed = ({
         }),
         minLoadingTime
       ]);
+
+        // Filter out deleted reviews and reviews without content
+        const items = rawItems.filter(item => {
+          // Filter out deleted reviews
+          if (item.type === 'review') {
+            // Check if review is marked as deleted
+            if ((item as any).deleted_at || (item as any).is_deleted) {
+              return false;
+            }
+            // Check if review has no content and no media
+            if (!item.content && (!item.photos || item.photos.length === 0)) {
+              return false;
+            }
+            // Check for specific content that might indicate a deleted review
+            if (item.content === 'ATTENDANCE_ONLY' || item.content === '[deleted]' || item.content === 'DELETED') {
+              return false;
+            }
+          }
+          return true;
+        });
 
       if (offset === 0) {
         setFeedItems(items);
@@ -335,6 +590,7 @@ export const UnifiedFeed = ({
         variant: "destructive",
       });
     } finally {
+      console.log('🔄 Setting loading to false');
       setLoading(false);
       setLoadingMore(false);
     }
@@ -640,7 +896,10 @@ export const UnifiedFeed = ({
 
   // (Reverted) No custom EventHeroImage in unified feed
 
+  console.log('🔍 UnifiedFeed render - loading:', loading, 'feedItems.length:', feedItems.length);
+  
   if (loading) {
+    console.log('🔍 Showing skeleton loading state');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="max-w-4xl mx-auto p-6 space-y-6 w-full">
@@ -653,83 +912,30 @@ export const UnifiedFeed = ({
   }
 
   return (
-    <div className="min-h-screen synth-gradient-card">
-      <div className="max-w-4xl mx-auto">
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="glass-card inner-glow text-center space-y-2 p-4 mb-4 floating-shadow">
-          <div className="flex items-center justify-center gap-3">
-            <SynthSLogo size="sm" className="hover-icon" />
-            <h1 className="gradient-text text-3xl font-bold">Concert Feed</h1>
-          </div>
-          <p className="text-gray-600 text-sm">Discover concerts, reviews, and connect with the community</p>
-        </div>
-        
-        <div className="glass-card inner-glow flex items-center justify-between px-6 py-3 sticky top-4 z-30">
-          {/* Filter and Sort Controls */}
-          <div className="flex items-center gap-4">
-            {/* Following Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Filter className="w-4 h-4" />
-                Filter:
-              </span>
-              <select
-                value={filterByFollowing}
-                onChange={(e) => setFilterByFollowing(e.target.value as 'all' | 'following')}
-                className="synth-input text-sm bg-white/80 backdrop-blur-sm border border-border/50 rounded-xl px-3 py-2 min-w-[100px]"
-              >
-                <option value="all">All</option>
-                <option value="following">Following</option>
-              </select>
-            </div>
-
-            {/* Sort Controls */}
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <ArrowUpDown className="w-4 h-4" />
-                Sort by:
-              </span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="synth-input text-sm bg-white/80 backdrop-blur-sm border border-border/50 rounded-xl px-3 py-2 min-w-[120px]"
-              >
-                <option value="relevance">Relevance</option>
-                <option value="date">Date</option>
-                <option value="price">Price</option>
-                <option value="popularity">Popularity</option>
-                <option value="distance">Distance</option>
-              </select>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                className="p-2 bg-white/80 backdrop-blur-sm border border-border/50 hover:border-synth-pink/50"
-                title={`Sort ${sortOrder === 'asc' ? 'Ascending' : 'Descending'}`}
-              >
-                {sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
-              </Button>
-            </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Feed</h1>
+            <p className="text-gray-600 mt-2">Discover reviews and events from friends and the community</p>
           </div>
           
+          {/* Right side icons */}
           <div className="flex items-center gap-3">
-            <NotificationBell
-              onClick={() => onNavigateToNotifications?.()}
-              className="p-2"
-            />
-            
-            <button
-              className="p-2 hover-icon"
-              onClick={() => setShowUnifiedChat(true)}
+            {/* Notifications button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="relative p-2"
+              onClick={onNavigateToNotifications}
             >
-              <MessageCircle className="w-5 h-5" />
-            </button>
+              <Bell className="w-5 h-5" />
+            </Button>
           </div>
         </div>
 
-        {/* Feed Tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        {/* Feed type tabs */}
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-3 mb-6 bg-white/60 backdrop-blur-sm border border-white/20 rounded-2xl p-1">
             <TabsTrigger value="events" className="flex items-center gap-2 data-[state=active]:bg-synth-pink data-[state=active]:text-white rounded-xl">
               <Calendar className="w-4 h-4" />
@@ -749,47 +955,9 @@ export const UnifiedFeed = ({
             value="events"
             className="space-y-4"
           >
-            {/* Friend Activity Section */}
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 px-2">Friend Activity</h3>
-              {/* TODO: FriendActivityFeed is not defined. Uncomment when implemented */}
-              {/* <FriendActivityFeed limit={3} /> */}
-              <div className="text-gray-400 text-sm italic px-2">
-                (Friend activity coming soon)
-              </div>
-            </div>
-
-            {/* Demo Ad for Events Tab */}
-            <Card className="border-2 border-blue-200/50 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-                      <Music className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 text-lg">Madison Square Garden</h3>
-                      <p className="text-sm text-gray-600">Premium venue advertising</p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-                    Ad
-                  </Badge>
-                </div>
-                <div className="mt-4">
-                  <p className="text-sm text-gray-700 mb-3">
-                    🎵 <strong>Taylor Swift - The Eras Tour</strong> coming to MSG!
-                  </p>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    Experience the magic of live music at the world's most famous arena. 
-                    Book your tickets now for an unforgettable night!
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Events Feed Items */}
-        <div className="space-y-4">
+            <div className="space-y-4">
               {processedFeedItems
                 .filter(item => item.type === 'event')
                 .map((item, index) => (
@@ -801,17 +969,6 @@ export const UnifiedFeed = ({
                 onClick={async (e) => {
                   if (e.defaultPrevented) return;
                   if (item.event_data) {
-                    // 🎯 TRACK: Event click from feed
-                    const eventMetadata = extractEventMetadata(item.event_data, {
-                      source: 'feed',
-                      position: index,
-                      feed_tab: activeTab,
-                      feed_type: filterByFollowing,
-                      distance_miles: item.distance_miles,
-                      relevance_score: item.relevance_score
-                    });
-                    trackInteraction.click('event', item.event_data.id, eventMetadata);
-
                     setSelectedEventForDetails(item.event_data);
                     try {
                       const interested = await UserEventService.isUserInterested(
@@ -847,541 +1004,255 @@ export const UnifiedFeed = ({
                         <Calendar className="w-3 h-3 mr-1" />
                         Event
                       </Badge>
-                      {item.distance_miles && (
-                        <Badge variant="outline" className="text-xs bg-synth-beige/20 text-synth-black border-synth-beige-dark">
-                          <MapPin className="w-3 h-3 mr-1" />
-                          {Math.round(item.distance_miles)} mi
-                        </Badge>
-                      )}
                     </div>
                   </div>
 
+                  {/* Event Hero Image */}
                   <div className="mb-4">
-                    <h4 className="text-xl font-bold text-gray-900 mb-2 synth-heading">
-                      {item.event_info?.event_name || item.title}
-                    </h4>
-                    {item.event_info && (
-                      <>
-                        <p className="text-sm text-gray-600 mb-3 flex items-center gap-2 flex-wrap">
-                          <span className="bg-synth-beige/20 px-2 py-1 rounded-lg text-xs font-medium">
-                            {item.event_info.venue_name}
-                          </span>
-                          <span>•</span>
-                          <span className="bg-synth-pink/10 px-2 py-1 rounded-lg text-xs font-medium text-synth-pink">
-                            {(() => {
-                              try {
-                                return format(parseISO(item.event_info.event_date || item.created_at), 'MMM d, yyyy');
-                              } catch {
-                                return item.event_info.event_date || item.created_at;
-                              }
-                            })()}
-                          </span>
-                        </p>
-                        {item.event_info?.artist_name && (
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="secondary" className="text-xs">
-                              <Music className="w-3 h-3 mr-1" />
-                              {item.event_info.artist_name}
-                            </Badge>
-                            <ArtistFollowButton
-                              artistName={item.event_info.artist_name}
-                              userId={currentUserId}
-                              variant="ghost"
-                              size="sm"
-                              showFollowerCount={false}
-                              className="h-6 text-xs"
-                            />
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {item.content && (
-                      <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 bg-gray-50/50 p-3 rounded-lg">
-                        {item.content}
-                      </p>
-                    )}
-                    {/* Setlist display for past events */}
-                    {item.event_data && isEventPast(item.event_data.event_date) && item.event_data.setlist && (
-                      <div className="mt-3 p-3 bg-gradient-to-r from-purple-50/80 to-pink-50/80 rounded-lg border border-purple-200/50">
-                        <div className="flex items-center gap-2">
-                          <Music className="w-4 h-4 text-purple-600" />
-                          <span className="text-sm font-semibold text-purple-900">Setlist Available</span>
-                          <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">
-                            {item.event_data.setlist_song_count ? `${item.event_data.setlist_song_count} songs` : 'Setlist'}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-purple-700 mt-1">Click to view the full setlist from this show</p>
-                      </div>
-                    )}
+                    <ReviewHeroImage item={item} />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onMouseDown={(e) => { e.stopPropagation(); }}
-                        onClick={async (e) => { 
-                          e.preventDefault(); 
-                          e.stopPropagation(); 
-                          // Optimistic toggle
-                          setFeedItems(prev => prev.map(x => x.id === item.id ? { ...x, is_liked: !x.is_liked, likes_count: (x.likes_count || 0) + (x.is_liked ? -1 : 1) } : x));
-                          try {
-                            if (item.event_data) {
-                              const liked = item.is_liked;
-                              if (liked) {
-                                await EventLikesService.unlikeEvent(currentUserId, item.event_data.id);
-                              } else {
-                                await EventLikesService.likeEvent(currentUserId, item.event_data.id);
-                              }
-                            }
-                          } catch (err) {
-                            // revert on error
-                            setFeedItems(prev => prev.map(x => x.id === item.id ? { ...x, is_liked: item.is_liked, likes_count: item.likes_count } : x));
-                          }
-                        }}
-                        className={`flex items-center gap-1 text-xs ${item.is_liked ? 'text-red-500' : 'text-gray-500'}`}
-                      >
-                        <Heart className={`w-3 h-3 ${item.is_liked ? 'fill-current' : ''}`} />
-                        {item.likes_count || 0}
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="flex items-center gap-1 text-xs text-gray-500"
-                        onMouseDown={(e) => { e.stopPropagation(); }}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (item.event_data) setOpenEventCommentsFor(item.event_data.id); }}
-                      >
-                        <MessageCircle className="w-3 h-3" />
-                        {item.comments_count || 0}
-                      </Button>
-                      <button 
-                        className="text-[10px] text-gray-500 underline"
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (item.event_data) setOpenLikersFor(item.event_data.id); }}
-                        aria-label="See who liked"
-                      >
-                        See likes
-                      </button>
-                      {/* Report Button for Events */}
+                  <div className="space-y-3">
+                    <div>
+                      <h2 className="font-bold text-lg text-gray-900 mb-2">
+                        {item.title}
+                      </h2>
                       {item.event_data && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50"
-                          onMouseDown={(e) => { e.stopPropagation(); }}
-                          onClick={(e) => { 
-                            e.preventDefault(); 
-                            e.stopPropagation(); 
-                            setReportContentType('event');
-                            setOpenReportFor(item.event_data?.id || item.id);
-                          }}
-                          title="Report this event"
-                        >
-                          <Flag className="w-3 h-3" />
-                        </Button>
-                      )}
-                      {/* Unified Share Dropdown */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onMouseDown={(e) => { e.stopPropagation(); }}
-                            className="flex items-center gap-1 text-xs text-pink-500 hover:text-pink-600"
-                            title="Share event"
-                          >
-                            <Share2 className="w-3 h-3" />
-                            Share
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-52 bg-white/95 backdrop-blur-sm border shadow-lg">
-                          {currentUserId && (
-                            <DropdownMenuItem
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                if (item.event_data) {
-                                  setSelectedEventForShare(item.event_data);
-                                  setShareModalOpen(true);
-                                }
-                              }}
-                              className="cursor-pointer bg-white hover:bg-gray-50"
-                            >
-                              <Users className="w-4 h-4 mr-2" />
-                              Share with Synth Friends
-                            </DropdownMenuItem>
+                        <div className="space-y-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-synth-pink" />
+                            <span>{item.event_data.venue_name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-synth-pink" />
+                            <span>{format(parseISO(item.event_data.event_date), 'EEEE, MMMM d, yyyy')}</span>
+                          </div>
+                          {item.event_data.price_range && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-synth-pink">💰</span>
+                              <span>{item.event_data.price_range}</span>
+                            </div>
                           )}
-                          <DropdownMenuItem
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              if (item.event_data) {
-                                try {
-                                  const url = await ShareService.shareEvent(item.event_data.id, item.title, item.content || undefined);
-                                  
-                                  // Try Web Share API first
-                                  if (navigator.share) {
-                                    await navigator.share({
-                                      title: item.title,
-                                      text: item.content || 'Check out this event!',
-                                      url: url
-                                    });
-                                  } else {
-                                    // Fallback to copying link
-                                    await navigator.clipboard.writeText(url);
-                                    toast({ title: 'Link copied', description: url });
-                                  }
-                                } catch (error) {
-                                  // Fallback to copying link if Web Share fails
-                                  const url = await ShareService.shareEvent(item.event_data.id, item.title, item.content || undefined);
-                                  await navigator.clipboard.writeText(url);
-                                  toast({ title: 'Link copied', description: url });
-                                }
-                              }
-                            }}
-                            className="cursor-pointer bg-white hover:bg-gray-50"
-                          >
-                            <Globe className="w-4 h-4 mr-2" />
-                            Share
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              if (item.event_data) {
-                                const url = await ShareService.shareEvent(item.event_data.id, item.title, item.content || undefined);
-                                await navigator.clipboard.writeText(url);
-                                toast({ title: 'Link copied', description: url });
-                              }
-                            }}
-                            className="cursor-pointer bg-white hover:bg-gray-50"
-                          >
-                            <Share2 className="w-4 h-4 mr-2" />
-                            Copy Link
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        </div>
+                      )}
                     </div>
-                    <span className="text-xs text-gray-500">
-                      {(() => {
-                        try {
-                          return format(parseISO(item.created_at), 'MMM d, h:mm a');
-                        } catch {
-                          return item.created_at;
-                        }
-                      })()}
-                    </span>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleInstagramLike(item);
+                          }}
+                          className={`flex items-center gap-1 text-sm transition-colors ${
+                            likedPosts.has(item.id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+                          }`}
+                        >
+                          <Heart className={`w-4 h-4 ${likedPosts.has(item.id) ? 'fill-current' : ''}`} />
+                          <span>{item.likes_count || 0}</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenEventCommentsFor(item.event_data?.id || item.id);
+                          }}
+                          className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-500 transition-colors"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          <span>{item.comments_count || 0}</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShare(item);
+                          }}
+                          className="flex items-center gap-1 text-sm text-gray-500 hover:text-green-500 transition-colors"
+                        >
+                          <Share2 className="w-4 h-4" />
+                          <span>Share</span>
+                        </button>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {formatTimeAgo(item.created_at)}
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-                ))}
-              
-              {/* Empty state for events */}
-              {processedFeedItems.filter(item => item.type === 'event').length === 0 && !loading && (
-                <EmptyState
-                  icon={<Calendar className="w-16 h-16" />}
-                  title="No Events Yet"
-                  description="Check back later for upcoming concert events in your area!"
-                  action={{
-                    label: "Refresh Feed",
-                    onClick: () => loadFeedData()
-                  }}
-                />
-              )}
+            ))}
             </div>
           </TabsContent>
 
-          <TabsContent
-            value="reviews"
-            className="space-y-4"
-          >
-            {/* Demo Ad for Reviews Tab */}
-            <Card className="border-2 border-purple-200/50 bg-gradient-to-r from-purple-50/80 to-pink-50/80 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
-                      <Star className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 text-lg">Billie Eilish</h3>
-                      <p className="text-sm text-gray-600">Artist profile promotion</p>
-                    </div>
+          <TabsContent value="reviews" className="mt-6">
+            {/* Reviews feed */}
+            {feedItems.filter(item => item.type === 'review' && !(item as any).deleted_at && !(item as any).is_deleted).length === 0 ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Star className="w-8 h-8 text-gray-400" />
                   </div>
-                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full">
-                    Ad
-                  </Badge>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No reviews yet</h3>
+                  <p className="text-gray-500">Be the first to share a concert review!</p>
                 </div>
-                <div className="mt-4">
-                  <p className="text-sm text-gray-700 mb-3">
-                    ⭐ <strong>Follow Billie Eilish</strong> for exclusive tour updates!
-                  </p>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    Get early access to concert announcements and behind-the-scenes content. 
-                    Don't miss out on her next world tour!
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Reviews Feed Items */}
-            <div className="space-y-4">
-              {processedFeedItems
-                .filter(item => item.type === 'review')
-                .map((item, index) => (
-                  <Card 
-                    key={`review-${item.id}-${index}`} 
-                    className="cursor-pointer overflow-hidden group"
-                    onClick={() => {
-                      setSelectedReviewForView(item);
-                      setShowCommentsInModal(false);
-                      setViewReviewOpen(true);
-                    }}
-                  >
-                    {/* Review hero image (user photo → artist image → popular review image) */}
-                    <ReviewHeroImage item={item} />
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-12 h-12 ring-2 ring-purple-100">
-                            <AvatarImage src={item.author?.avatar_url || undefined} />
-                            <AvatarFallback className="text-sm font-semibold bg-purple-100 text-purple-700">
-                              {item.author?.name?.split(' ').map(n => n[0]).join('') || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <h3 className="font-semibold text-sm text-gray-900">{item.author?.name || 'Anonymous'}</h3>
-                            <p className="text-xs text-gray-500">
-                              {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                              {!item.is_public && item.type === 'review' && (
-                                <Badge variant="outline" className="ml-2 text-xs">Private</Badge>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {!item.is_public && (
-                            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                              {item.is_public ? <Globe className="w-3 h-3 mr-1" /> : <Users className="w-3 h-3 mr-1" />}
-                              {item.is_public ? 'Public' : 'Private'}
-                            </Badge>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {feedItems.filter(item => item.type === 'review' && !(item as any).deleted_at && !(item as any).is_deleted).map((item, index) => (
+                <Card key={`${item.id}-${index}`} className="hover:shadow-md transition-shadow relative">
+                  {/* Header */}
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={item.author?.avatar_url || undefined} />
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm">
+                          {item.author?.name?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => onNavigateToProfile?.(item.author.id)}
+                            className="font-semibold text-sm hover:opacity-70 transition-opacity"
+                          >
+                            {item.author?.name || 'Anonymous'}
+                          </button>
+                          {item.rating && (
+                            <div className="flex items-center space-x-1">
+                              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                              <span className="text-xs text-gray-500">{item.rating}</span>
+                            </div>
                           )}
                         </div>
-                      </div>
-
-                      {/* Enhanced Star Rating Display */}
-                      {item.rating && (
-                        <div className="mb-4 p-4 bg-gradient-to-r from-yellow-50/80 to-amber-50/80 rounded-2xl border border-yellow-200/50 backdrop-blur-sm">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-1">
-                                {Array.from({ length: 5 }, (_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`w-6 h-6 ${
-                                      i < Math.floor(item.rating) 
-                                        ? 'text-yellow-500 fill-yellow-500' 
-                                        : i < item.rating 
-                                        ? 'text-yellow-500 fill-yellow-500' 
-                                        : 'text-gray-300 fill-gray-300'
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                              <span className="text-3xl font-bold text-gray-900">{item.rating.toFixed(1)}</span>
-                            </div>
-                            <Badge className={`${getRatingColor(item.rating)} border px-3 py-1 rounded-full`}>
-                              {getRatingIcon(item.rating)}
-                              <span className="ml-1 font-medium">{getRatingText(item.rating)}</span>
-                            </Badge>
+                        {item.event_info && (
+                          <div className="flex items-center space-x-1 text-xs text-gray-500">
+                            <MapPin className="w-3 h-3" />
+                            <span>{item.event_info.venue_name}</span>
+                            <span>•</span>
+                            <Calendar className="w-3 h-3" />
+                            <span>{format(parseISO(item.event_info.event_date), 'MMM d, yyyy')}</span>
                           </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-white border border-gray-200">
+                        <DropdownMenuItem onClick={() => setOpenReportFor(item.id)} className="bg-white hover:bg-gray-50">
+                          Report
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </CardContent>
+
+                  {/* Media - only show if photos exist */}
+                  {item.photos && item.photos.length > 0 && (
+                    <div onClick={() => handleReviewClick(item)} className="cursor-pointer">
+                      {renderInstagramMedia(item)}
+                    </div>
+                  )}
+
+                  {/* Content Section */}
+                  <CardContent className="px-4 py-3">
+                    {/* Actions */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-4">
+                        <button
+                          onClick={() => handleInstagramLike(item)}
+                          className={`transition-colors ${
+                            likedPosts.has(item.id) ? 'text-red-500' : 'text-gray-700 hover:text-red-500'
+                          }`}
+                        >
+                          <Heart className={`w-6 h-6 ${likedPosts.has(item.id) ? 'fill-current' : ''}`} />
+                        </button>
+                        <button
+                          onClick={() => setOpenReviewCommentsFor(item.review_id || item.id)}
+                          className="text-gray-700 hover:text-blue-500 transition-colors"
+                        >
+                          <MessageCircle className="w-6 h-6" />
+                        </button>
+                        <button
+                          onClick={() => handleShare(item)}
+                          className="text-gray-700 hover:text-green-500 transition-colors"
+                        >
+                          <Share2 className="w-6 h-6" />
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => handleBookmark(item)}
+                        className={`transition-colors ${
+                          bookmarkedPosts.has(item.id) ? 'text-yellow-500' : 'text-gray-700 hover:text-yellow-500'
+                        }`}
+                      >
+                        <Bookmark className={`w-6 h-6 ${bookmarkedPosts.has(item.id) ? 'fill-current' : ''}`} />
+                      </button>
+                    </div>
+
+                    {/* Likes count */}
+                    <div className="mb-2">
+                      <button
+                        onClick={() => setOpenLikersFor(item.review_id || item.id)}
+                        className="font-semibold text-sm hover:opacity-70 transition-opacity"
+                      >
+                        {item.likes_count || 0} likes
+                      </button>
+                    </div>
+
+                    {/* Caption - clickable for reviews */}
+                    <div className="space-y-1">
+                      <div className="text-sm">
+                        <button
+                          onClick={() => onNavigateToProfile?.(item.author.id)}
+                          className="font-semibold hover:opacity-70 transition-opacity"
+                        >
+                          {item.author?.name || 'Anonymous'}
+                        </button>
+                        <span className="ml-2">{item.content}</span>
+                      </div>
+                      
+                      {/* Event info */}
+                      {item.event_info && (
+                        <div className="text-sm text-gray-500">
+                          <span className="font-semibold">{item.event_info.artist_name}</span>
+                          <span className="ml-2">at {item.event_info.venue_name}</span>
                         </div>
                       )}
 
-                      <div className="mb-4">
-                        <h4 className="text-xl font-bold text-gray-900 mb-2 synth-heading">
-                          {item.event_info?.event_name || item.title}
-                        </h4>
-                        {item.event_info && (
-                          <p className="text-sm text-gray-600 mb-3 flex items-center gap-2">
-                            <span className="bg-synth-beige/20 px-2 py-1 rounded-lg text-xs font-medium">
-                              {item.event_info.venue_name}
-                            </span>
-                            <span>•</span>
-                            <span className="bg-synth-pink/10 px-2 py-1 rounded-lg text-xs font-medium text-synth-pink">
-                              {(() => {
-                                try {
-                                  return format(parseISO(item.event_info.event_date || item.created_at), 'MMM d, yyyy');
-                                } catch {
-                                  return item.event_info.event_date || item.created_at;
-                                }
-                              })()}
-                            </span>
-                          </p>
-                        )}
-                        {item.content && (
-                          <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 bg-gray-50/50 p-3 rounded-lg">
-                            {item.content}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className={`flex items-center gap-1 text-xs ${item.is_liked ? 'text-red-500' : 'text-gray-500'}`}
-                            onMouseDown={(e) => { e.stopPropagation(); }}
-                            onClick={async (e) => { 
-                              e.preventDefault(); 
-                              e.stopPropagation(); 
-                              
-                              console.log('🔍 UnifiedFeed: Review like clicked', {
-                                itemId: item.id,
-                                reviewId: item.review_id || item.id,
-                                currentUserId,
-                                isLiked: item.is_liked,
-                                likesCount: item.likes_count
-                              });
-                              
-                              // Optimistic toggle
-                              setFeedItems(prev => prev.map(x => x.id === item.id ? { ...x, is_liked: !x.is_liked, likes_count: (x.likes_count || 0) + (x.is_liked ? -1 : 1) } : x));
-                              try {
-                                if (item.review_id || item.id) {
-                                  const reviewId = item.review_id || item.id;
-                                  const liked = item.is_liked;
-                                  console.log('🔍 UnifiedFeed: Calling ReviewService', { reviewId, liked });
-                                  
-                                  if (liked) {
-                                    await ReviewService.unlikeReview(currentUserId, reviewId);
-                                    console.log('✅ UnifiedFeed: Review unliked successfully');
-                                  } else {
-                                    await ReviewService.likeReview(currentUserId, reviewId);
-                                    console.log('✅ UnifiedFeed: Review liked successfully');
-                                  }
-                                } else {
-                                  console.log('❌ UnifiedFeed: No review ID found');
-                                }
-                              } catch (err) {
-                                console.error('❌ UnifiedFeed: Error toggling review like:', err);
-                                // revert on error
-                                setFeedItems(prev => prev.map(x => x.id === item.id ? { ...x, is_liked: item.is_liked, likes_count: item.likes_count } : x));
-                              }
-                            }}
-                          >
-                            <Heart className={`w-3 h-3 ${item.is_liked ? 'fill-current' : ''}`} />
-                            {item.likes_count || 0}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex items-center gap-1 text-xs text-gray-500"
-                            onMouseDown={(e) => { e.stopPropagation(); }}
-                            onClick={(e) => { 
-                              e.preventDefault(); 
-                              e.stopPropagation(); 
-                              console.log('🔍 UnifiedFeed: Review comment clicked', { itemId: item.id, reviewId: item.review_id || item.id });
-                              // Open the review comments modal
-                              setOpenReviewCommentsFor(item.review_id || item.id);
-                            }}
-                          >
-                            <MessageCircle className="w-3 h-3" />
-                            {item.comments_count || 0}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex items-center gap-1 text-xs text-gray-500"
-                            onMouseDown={(e) => { e.stopPropagation(); }}
-                            onClick={async (e) => { 
-                              e.preventDefault(); 
-                              e.stopPropagation(); 
-                              console.log('🔍 UnifiedFeed: Review share clicked', { itemId: item.id, reviewId: item.review_id || item.id });
-                              try {
-                                const reviewId = item.review_id || item.id;
-                                const url = await ShareService.shareReview(reviewId, item.title, item.content || undefined);
-                                toast({ 
-                                  title: 'Review Shared!', 
-                                  description: 'Link copied to clipboard',
-                                  duration: 2000
-                                });
-                                
-                                // Optimistically increment share count
-                                setFeedItems(prev => prev.map(x => 
-                                  x.id === item.id 
-                                    ? { ...x, shares_count: (x.shares_count || 0) + 1 } 
-                                    : x
-                                ));
-                                
-                                // Record the share in the database
-                                try {
-                                  await ReviewService.shareReview(currentUserId || '', reviewId);
-                                } catch (shareError) {
-                                  console.error('❌ UnifiedFeed: Error recording share:', shareError);
-                                  // Revert optimistic update on error
-                                  setFeedItems(prev => prev.map(x => 
-                                    x.id === item.id 
-                                      ? { ...x, shares_count: (x.shares_count || 0) - 1 } 
-                                      : x
-                                  ));
-                                }
-                              } catch (error) {
-                                console.error('❌ UnifiedFeed: Error sharing review:', error);
-                                toast({
-                                  title: "Error",
-                                  description: "Failed to share review",
-                                  variant: "destructive",
-                                });
-                              }
-                            }}
-                          >
-                            <Share2 className="w-3 h-3" />
-                            {item.shares_count || 0}
-                          </Button>
-                          {/* Report Button for Reviews */}
-                          {item.review_id && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50"
-                              onMouseDown={(e) => { e.stopPropagation(); }}
-                              onClick={(e) => { 
-                                e.preventDefault(); 
-                                e.stopPropagation(); 
-                                setReportContentType('review');
-                                setOpenReportFor(item.review_id || item.id);
-                              }}
-                              title="Report this review"
-                            >
-                              <Flag className="w-3 h-3" />
-                            </Button>
-                          )}
-                        </div>
-                        <span className="text-xs text-gray-500">
-                          {(() => {
-                            try {
-                              return format(parseISO(item.created_at), 'MMM d, h:mm a');
-                            } catch {
-                              return item.created_at;
-                            }
-                          })()}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              
-              {/* Empty state for reviews */}
-              {processedFeedItems.filter(item => item.type === 'review').length === 0 && !loading && (
-                <EmptyState
-                  icon={<Star className="w-16 h-16" />}
-                  title="No Reviews Yet"
-                  description="Start writing reviews about concerts you've attended to help others discover great shows!"
-                  action={{
-                    label: "Write First Review",
-                    onClick: () => setShowReviewModal(true)
-                  }}
-                />
-              )}
-            </div>
+                      {/* Comments count */}
+                      {item.comments_count && item.comments_count > 0 && (
+                        <button
+                          onClick={() => setOpenReviewCommentsFor(item.review_id || item.id)}
+                          className="text-sm text-gray-500 hover:opacity-70 transition-opacity"
+                        >
+                          View all {item.comments_count} comments
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Timestamp */}
+                    <div className="mt-2">
+                      <span className="text-xs text-gray-500">
+                        {formatTimeAgo(item.created_at)}
+                      </span>
+                    </div>
+                  </CardContent>
+
+                  {/* Make content area clickable for reviews without media */}
+                  {(!item.photos || item.photos.length === 0) && item.type === 'review' && (
+                    <div 
+                      onClick={() => handleReviewClick(item)}
+                      className="absolute top-16 left-0 right-0 bottom-0 cursor-pointer"
+                      style={{ zIndex: 1 }}
+                    />
+                  )}
+                </Card>
+              ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent
@@ -1445,86 +1316,35 @@ export const UnifiedFeed = ({
               <EmptyState
                 icon={<Newspaper className="w-12 h-12 text-gray-400" />}
                 title="No news articles found"
-                description="Unable to load music news at the moment. Please try refreshing."
-                action={{
-                  label: "Refresh News",
-                  onClick: fetchNews
-                }}
-              />
-            )}
-
-            {/* Error State for filtered results */}
-            {!newsLoading && newsArticles.length > 0 && NewsService.filterBySource(newsArticles, newsSource).length === 0 && (
-              <EmptyState
-                icon={<Filter className="w-12 h-12 text-gray-400" />}
-                title="No articles from this source"
-                description={`No articles found from ${newsSource === 'all' ? 'all sources' : newsSource}. Try selecting a different source.`}
-                action={{
-                  label: "Show All Sources",
-                  onClick: () => setNewsSource('all')
-                }}
+                description="Check back later for the latest music news and updates!"
               />
             )}
           </TabsContent>
         </Tabs>
-          
-          {/* Load More Button */}
-          {(() => {
-            const shouldShowLoadMore = hasMore && !loadingMore && processedFeedItems.length > 0;
-            return shouldShowLoadMore;
-          })() && (
-            <div className="flex flex-col items-center justify-center py-8">
-              <Button
-                onClick={() => loadFeedData(processedFeedItems.length)}
-                variant="outline"
-                size="lg"
-                className="bg-white hover:bg-synth-pink hover:text-white transition-all duration-300 shadow-md hover:shadow-lg border-2 border-synth-pink text-synth-pink font-semibold px-8 py-6 rounded-xl"
-              >
-                <ArrowDown className="w-5 h-5 mr-2" />
-                Load More Events
-              </Button>
-              <p className="text-xs text-gray-400 mt-3">
-                Showing {processedFeedItems.filter(item => item.type === 'event').length} events
-              </p>
-            </div>
-          )}
-
-          {/* Loading more indicator */}
-          {loadingMore && (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-synth-pink mx-auto mb-3"></div>
-              <p className="text-sm text-gray-600 font-medium">Loading more events...</p>
-            </div>
-          )}
-          
-          {/* End of feed indicator */}
-          {!hasMore && processedFeedItems.length > 0 && (
-            <div className="text-center py-12">
-              <div className="w-20 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent mx-auto mb-4"></div>
-              <p className="text-sm text-gray-500 font-medium">You're all caught up!</p>
-              <p className="text-xs text-gray-400 mt-2">Check back later for new content</p>
-            </div>
-          )}
       </div>
 
-      {/* Review Modal */}
+      <div className="pb-20"></div>
+
+      {/* Modals */}
+      {showReviewModal && (
       <EventReviewModal
-        event={selectedReviewEvent}
-        userId={currentUserId}
         isOpen={showReviewModal}
         onClose={() => setShowReviewModal(false)}
+          event={selectedReviewEvent}
+          userId={currentUserId}
         onReviewSubmitted={() => {
-          loadFeedData();
           setShowReviewModal(false);
+            loadFeedData();
         }}
       />
+      )}
 
-      {/* Event Details Modal (for Events tab) */}
+      {detailsOpen && selectedEventForDetails && (
       <EventDetailsModal
-        event={selectedEventForDetails}
-        currentUserId={currentUserId}
         isOpen={detailsOpen}
         onClose={() => setDetailsOpen(false)}
+          event={selectedEventForDetails}
+          currentUserId={currentUserId}
         onReview={() => {
           if (selectedEventForDetails) {
             setSelectedReviewEvent(selectedEventForDetails);
@@ -1592,108 +1412,34 @@ export const UnifiedFeed = ({
         onNavigateToProfile={onNavigateToProfile}
         onNavigateToChat={onNavigateToChat}
       />
+      )}
 
-      {/* Inline Event Comments Modal from feed */}
+      {openEventCommentsFor && (
       <EventCommentsModal
         eventId={openEventCommentsFor}
         isOpen={Boolean(openEventCommentsFor)}
         onClose={() => setOpenEventCommentsFor(null)}
-        currentUserId={currentUserId}
-        onCommentAdded={() => {
-          // Optimistically bump count for the currently open event card
-          if (!openEventCommentsFor) return;
-          setFeedItems(prev => prev.map(item => {
-            if (item.type === 'event' && item.event_data?.id === openEventCommentsFor) {
-              return { ...item, comments_count: (item.comments_count || 0) + 1 };
-            }
-            return item;
-          }));
-        }}
-        onCommentsLoaded={(count) => {
-          // Sync count from server load in case it differs
-          if (!openEventCommentsFor) return;
-          setFeedItems(prev => prev.map(item => {
-            if (item.type === 'event' && item.event_data?.id === openEventCommentsFor) {
-              return { ...item, comments_count: count };
-            }
-            return item;
-          }));
-        }}
-      />
+        />
+      )}
 
-      {/* Inline Review Comments Modal from feed */}
+      {openReviewCommentsFor && (
       <ReviewCommentsModal
         reviewId={openReviewCommentsFor}
         isOpen={Boolean(openReviewCommentsFor)}
         onClose={() => setOpenReviewCommentsFor(null)}
-        currentUserId={currentUserId}
-        onCommentAdded={() => {
-          // Optimistically bump count for the currently open review card
-          if (!openReviewCommentsFor) return;
-          setFeedItems(prev => prev.map(item => {
-            if (item.type === 'review' && (item.review_id || item.id) === openReviewCommentsFor) {
-              return { ...item, comments_count: (item.comments_count || 0) + 1 };
-            }
-            return item;
-          }));
-        }}
-        onCommentsLoaded={(count) => {
-          // Sync count from server load in case it differs
-          if (!openReviewCommentsFor) return;
-          setFeedItems(prev => prev.map(item => {
-            if (item.type === 'review' && (item.review_id || item.id) === openReviewCommentsFor) {
-              return { ...item, comments_count: count };
-            }
-            return item;
-          }));
-        }}
-      />
+        />
+      )}
 
+      {openLikersFor && (
       <EventLikersModal
         eventId={openLikersFor}
         isOpen={Boolean(openLikersFor)}
         onClose={() => setOpenLikersFor(null)}
       />
+      )}
 
-      {/* Review View Dialog - mirrors ProfileView */}
-      <Dialog open={viewReviewOpen} onOpenChange={(open) => {
-        setViewReviewOpen(open);
-        if (!open) {
-          setShowCommentsInModal(false);
-        }
-      }}>
-        <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col">
-          <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
-            <DialogTitle>Review</DialogTitle>
-          </DialogHeader>
-          {selectedReviewForView && (
-            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
-              <ProfileReviewCard
-                title={selectedReviewForView.event_info?.event_name || selectedReviewForView.title}
-                rating={selectedReviewForView.rating || 0}
-                reviewText={selectedReviewForView.content || ''}
-                event={{
-                  event_name: selectedReviewForView.event_info?.event_name || selectedReviewForView.title || 'Concert Review',
-                  event_date: selectedReviewForView.event_info?.event_date || selectedReviewForView.created_at,
-                  artist_name: selectedReviewForView.event_info?.artist_name || null,
-                  artist_id: null,
-                  venue_name: selectedReviewForView.event_info?.venue_name || null,
-                  venue_id: selectedReviewForView.event_info?.venue_id || null,
-                }}
-                reviewId={String(selectedReviewForView.review_id || selectedReviewForView.id).replace(/^public-review-/, '')}
-                currentUserId={currentUserId}
-                initialIsLiked={Boolean(selectedReviewForView.is_liked)}
-                initialLikesCount={selectedReviewForView.likes_count || 0}
-                initialCommentsCount={selectedReviewForView.comments_count || 0}
-                initialSharesCount={selectedReviewForView.shares_count || 0}
-                showCommentsInitially={showCommentsInModal}
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Report modal temporarily disabled due to prop mismatch */}
 
-      {/* Full Page Chat */}
       {showUnifiedChat && (
         <UnifiedChatView 
           currentUserId={currentUserId} 
@@ -1709,35 +1455,151 @@ export const UnifiedFeed = ({
         />
       )}
 
-      {/* In-App Event Share Modal */}
-      {selectedEventForShare && currentUserId && (
-        <EventShareModal
-          event={selectedEventForShare}
-          currentUserId={currentUserId}
-          isOpen={shareModalOpen}
-          onClose={() => {
-            setShareModalOpen(false);
-            setSelectedEventForShare(null);
-          }}
-        />
-      )}
-      </div>
+      {/* Review Detail Modal - Instagram-style layout */}
+      {showReviewDetailModal && selectedReviewDetail && (
+        <Dialog open={showReviewDetailModal} onOpenChange={setShowReviewDetailModal}>
+          <DialogContent className="max-w-5xl w-[90vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden flex">
+            {/* Left side - Image/Graphic */}
+            <div className="flex-1 bg-black flex items-center justify-center min-h-0">
+              {selectedReviewDetail.photos && selectedReviewDetail.photos.length > 0 ? (
+                <img 
+                  src={selectedReviewDetail.photos[0]} 
+                  alt="Review photo"
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : (
+                <div className="text-center text-white">
+                  <div className="text-6xl font-bold mb-4">
+                    <span className="text-pink-500">S</span>ynth
+                  </div>
+                  <div className="w-32 h-0.5 bg-white mx-auto mb-4"></div>
+                  <div className="text-sm opacity-80">Concert Review</div>
+                </div>
+              )}
+            </div>
+            
+            {/* Right side - Content */}
+            <div className="flex-1 flex flex-col bg-white">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-bold">
+                      {selectedReviewDetail.author?.name?.charAt(0) || 'U'}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm">{selectedReviewDetail.author?.name || 'User'}</div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(selectedReviewDetail.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Content */}
+              <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+                {/* Event Info */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h2 className="text-lg font-semibold mb-1">
+                        {selectedReviewDetail.event_info?.event_name || 'Concert Review'}
+                      </h2>
+                      <p className="text-sm text-gray-600">
+                        {selectedReviewDetail.event_info?.artist_name} • {selectedReviewDetail.event_info?.event_date ? new Date(selectedReviewDetail.event_info.event_date).toLocaleDateString() : 'Date unknown'}
+                      </p>
+                      {selectedReviewDetail.event_info?.venue_name && (
+                        <p className="text-sm text-gray-500">
+                          {selectedReviewDetail.event_info.venue_name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Event Status Badge */}
+                  <div className="flex items-center gap-2">
+                    {selectedReviewDetail.event_info?.event_date && new Date(selectedReviewDetail.event_info.event_date) < new Date() ? (
+                      <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        Past Event
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        Upcoming
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Rating */}
+                {selectedReviewDetail.rating && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-5 h-5 ${
+                            i < Math.floor(selectedReviewDetail.rating!) 
+                              ? 'text-yellow-500 fill-yellow-500' 
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                      <span className="text-sm font-medium ml-1">{selectedReviewDetail.rating}/5</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Review Content */}
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h3 className="font-semibold mb-2">Review</h3>
+                  <p className="text-gray-700 leading-relaxed">
+                    {selectedReviewDetail.content || 'No review text available.'}
+                  </p>
+                </div>
 
-      {/* Report Modal */}
-      <ReportContentModal
-        open={!!openReportFor}
-        onClose={() => setOpenReportFor(null)}
-        contentType={reportContentType}
-        contentId={openReportFor || ''}
-        contentTitle={reportContentType === 'event' ? 'Event' : 'Review'}
-        onReportSubmitted={() => {
-          setOpenReportFor(null);
-          toast({
-            title: 'Report Submitted',
-            description: 'Thank you for reporting this content. We will review it shortly.',
-          });
-        }}
-      />
+                {/* Actions */}
+                <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => handleInstagramLike(selectedReviewDetail)}
+                    className={`flex items-center gap-2 transition-colors ${
+                      likedPosts.has(selectedReviewDetail.id) ? 'text-red-500' : 'text-gray-700 hover:text-red-500'
+                    }`}
+                  >
+                    <Heart className={`w-5 h-5 ${likedPosts.has(selectedReviewDetail.id) ? 'fill-current' : ''}`} />
+                    <span>{selectedReviewDetail.likes_count || 0} likes</span>
+                  </button>
+                  <button
+                    onClick={() => setOpenReviewCommentsFor(selectedReviewDetail.review_id || selectedReviewDetail.id)}
+                    className="flex items-center gap-2 text-gray-700 hover:text-blue-500 transition-colors"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    <span>{selectedReviewDetail.comments_count || 0} comments</span>
+                  </button>
+                  <button
+                    onClick={() => handleShare(selectedReviewDetail)}
+                    className="flex items-center gap-2 text-gray-700 hover:text-green-500 transition-colors"
+                  >
+                    <Share2 className="w-5 h-5" />
+                    <span>Share</span>
+                  </button>
+                  <button
+                    onClick={() => handleBookmark(selectedReviewDetail)}
+                    className={`flex items-center gap-2 transition-colors ${
+                      bookmarkedPosts.has(selectedReviewDetail.id) ? 'text-yellow-500' : 'text-gray-700 hover:text-yellow-500'
+                    }`}
+                  >
+                    <Bookmark className={`w-5 h-5 ${bookmarkedPosts.has(selectedReviewDetail.id) ? 'fill-current' : ''}`} />
+                    <span>Save</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

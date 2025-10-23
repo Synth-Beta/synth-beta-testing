@@ -374,7 +374,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     try {
       const artistCandidate: any = (formData.selectedArtist || (event as any)?.artist) || null;
       const jambaseArtistId: string | undefined = artistCandidate?.id || (artistCandidate?.identifier?.split?.(':')?.[1]);
+      console.log('🔍 EventReviewForm: Artist resolution - candidate:', artistCandidate, 'jambaseArtistId:', jambaseArtistId);
       if (jambaseArtistId) {
+        console.log('🔍 EventReviewForm: Looking up artist with jambaseArtistId:', jambaseArtistId);
         // Try DB first
         const byId = await (supabase as any)
           .from('artists')
@@ -383,7 +385,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           .limit(1);
         if (Array.isArray(byId.data) && byId.data.length > 0) {
           artistProfileId = byId.data[0].id;
+          console.log('🔍 EventReviewForm: Found existing artist in DB:', artistProfileId);
         } else {
+          console.log('🔍 EventReviewForm: Artist not found in DB, searching...');
           // Populate cache via search (this populates DB), then re-select
           try {
             const { UnifiedArtistSearchService } = await import('@/services/unifiedArtistSearchService');
@@ -395,11 +399,49 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               .limit(1);
             if (Array.isArray(reSel.data) && reSel.data.length > 0) {
               artistProfileId = reSel.data[0].id;
+              console.log('🔍 EventReviewForm: Found artist after search:', artistProfileId);
+            } else {
+              console.log('⚠️ EventReviewForm: Artist still not found after search');
             }
           } catch {}
         }
       }
     } catch {}
+    
+    // Ensure venue exists in DB to save venue_id if possible
+    let venueId: string | undefined = formData.selectedVenue?.is_from_database ? formData.selectedVenue.id : undefined;
+    if (!venueId && formData.selectedVenue) {
+      try {
+        const candidateIdentifier = formData.selectedVenue.identifier;
+        const idLooksLikeUuid = typeof candidateIdentifier === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidateIdentifier);
+
+        // Prefer UUID identifier lookup if value is a UUID; otherwise skip identifier equality to avoid 400s
+        let foundId: string | undefined = undefined;
+        if (idLooksLikeUuid) {
+          const selByIdentifier = await (supabase as any)
+            .from('venues')
+            .select('id')
+            .eq('identifier', candidateIdentifier)
+            .limit(1);
+          foundId = Array.isArray(selByIdentifier.data) && selByIdentifier.data.length > 0 ? selByIdentifier.data[0].id : undefined;
+        }
+        if (foundId) {
+          venueId = foundId;
+        } else {
+          // Fallback: try name search with wildcards
+          const selByName = await (supabase as any)
+            .from('venues')
+            .select('id')
+            .ilike('name', `%${formData.selectedVenue.name}%`)
+            .limit(1);
+          foundId = Array.isArray(selByName.data) && selByName.data.length > 0 ? selByName.data[0].id : undefined;
+          if (foundId) {
+            venueId = foundId;
+          }
+        }
+      } catch {}
+    }
+
     const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId);
     if (!looksLikeUuid || event?.id?.startsWith('new-review')) {
       try {
@@ -433,14 +475,28 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             .select()
             .single();
         }
-        // If we resolved artist_profile, update event row with artist_id for future accuracy
+        // If we resolved artist_profile, update event row with artist_uuid for future accuracy
         if (!ins.error && artistProfileId) {
           try {
-            await (supabase as any)
+            console.log('🔍 EventReviewForm: Updating jambase_events with artist_uuid:', artistProfileId);
+            const updateResult = await (supabase as any)
               .from('jambase_events')
-              .update({ artist_id: artistProfileId })
+              .update({ artist_uuid: artistProfileId })
               .eq('id', ins.data.id);
-          } catch {}
+            console.log('🔍 EventReviewForm: Artist UUID update result:', updateResult);
+          } catch (error) {
+            console.error('❌ EventReviewForm: Error updating artist_uuid:', error);
+          }
+        } else {
+          console.log('⚠️ EventReviewForm: No artistProfileId to update:', { artistProfileId, hasError: !!ins.error });
+        }
+        
+        // Note: venue_uuid column doesn't exist in jambase_events table
+        // The venueId will be passed directly to ReviewService
+        if (!ins.error && venueId) {
+          console.log('🔍 EventReviewForm: VenueId resolved for ReviewService:', venueId);
+        } else {
+          console.log('⚠️ EventReviewForm: No venueId resolved:', { venueId, hasError: !!ins.error });
         }
         if (ins.error) throw ins.error;
         eventId = ins.data.id;

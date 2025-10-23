@@ -229,7 +229,7 @@ export const ProfilePictureUpload = ({
           className="text-xs"
         >
           <Upload className="w-3 h-3 mr-1" />
-          {currentAvatarUrl ? 'Change' : 'Upload'}
+          {currentAvatarUrl ? 'Change Photo' : 'Add Photo'}
         </Button>
         
         {currentAvatarUrl && (
@@ -253,6 +253,7 @@ export const ProfilePictureUpload = ({
         accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
         onChange={handleFileSelect}
         className="hidden"
+        capture="environment" // Prioritize rear camera on mobile
       />
     </div>
   );
