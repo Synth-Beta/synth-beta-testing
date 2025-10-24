@@ -27,6 +27,14 @@ import { TopListCard } from '@/components/analytics/shared/TopListCard';
 import { AchievementCard } from '@/components/analytics/shared/AchievementCard';
 import { useToast } from '@/hooks/use-toast';
 import { SkeletonCard } from '@/components/SkeletonCard';
+import { 
+  SessionAnalyticsCard, 
+  EngagementScoreGauge, 
+  TrendLineChart,
+  RevenueAttributionChart 
+} from '@/components/analytics/enhanced';
+import { interactionTracker } from '@/services/interactionTrackingService';
+import { RevenueEstimationService } from '@/services/revenueEstimationService';
 
 export function UserAnalyticsDashboard() {
   const { user } = useAuth();
@@ -39,6 +47,9 @@ export function UserAnalyticsDashboard() {
   const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [hasPremium, setHasPremium] = useState(false);
+  const [sessionMetrics, setSessionMetrics] = useState<any>(null);
+  const [revenueMetrics, setRevenueMetrics] = useState<any>(null);
+  const [engagementMetrics, setEngagementMetrics] = useState<any>(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -60,6 +71,31 @@ export function UserAnalyticsDashboard() {
         UserAnalyticsService.getUserAchievements(user.id),
         UserAnalyticsService.hasPremium(user.id)
       ]);
+
+      // Load enhanced analytics
+      const sessionData = interactionTracker.getSessionMetrics();
+      setSessionMetrics(sessionData);
+
+      // Load revenue metrics
+      const timeRange = {
+        start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        end: new Date()
+      };
+      const revenueData = await RevenueEstimationService.getUserRevenueMetrics(user.id, timeRange);
+      setRevenueMetrics(revenueData);
+
+      // Create engagement metrics
+      const engagementData = {
+        score: sessionData.engagementScore,
+        sessionDuration: sessionData.duration,
+        interactionCount: sessionData.interactionCount,
+        pageViews: sessionData.pageViews,
+        likes: statsData.reviews_liked,
+        shares: 0, // TODO: Add share tracking
+        comments: 0, // TODO: Add comment tracking
+        bounceRate: sessionData.bounceRate
+      };
+      setEngagementMetrics(engagementData);
 
       setStats(statsData);
       setTopArtists(artistsData);
@@ -185,6 +221,49 @@ export function UserAnalyticsDashboard() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Enhanced Analytics Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Session Analytics */}
+          {sessionMetrics && (
+            <SessionAnalyticsCard
+              metrics={sessionMetrics}
+              title="Your Session Analytics"
+              showTrends={false}
+            />
+          )}
+
+          {/* Engagement Score */}
+          {engagementMetrics && (
+            <EngagementScoreGauge
+              metrics={engagementMetrics}
+              title="Your Engagement Score"
+              showBreakdown={true}
+            />
+          )}
+        </div>
+
+        {/* Revenue Contribution */}
+        {revenueMetrics && revenueMetrics.total_revenue > 0 && (
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-synth-pink" />
+              Your Revenue Contribution
+            </h2>
+            <RevenueAttributionChart
+              sources={revenueMetrics.top_revenue_sources.map((source: any) => ({
+                source: source.source,
+                revenue: source.revenue,
+                percentage: source.percentage,
+                confidence_score: 0.8,
+                attribution_window: 24
+              }))}
+              totalRevenue={revenueMetrics.total_revenue}
+              title="Revenue Attribution"
+              showConfidenceScores={true}
+            />
+          </div>
         )}
 
         {/* Engagement Metrics */}

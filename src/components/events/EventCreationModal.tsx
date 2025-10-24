@@ -23,6 +23,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Calendar, Clock, MapPin, Ticket, ImageIcon, Loader2, Save } from 'lucide-react';
 import EventManagementService, { CreateEventData, TicketInfo } from '@/services/eventManagementService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface EventCreationModalProps {
   open: boolean;
@@ -150,6 +151,23 @@ export function EventCreationModal({
           ...ticketData,
           ticket_url: ticketData.ticket_url.trim(),
         });
+      }
+
+      // Track event creation analytics
+      try {
+        await trackInteraction.formSubmit('event_creation', event.id, true, {
+          event_title: event.title,
+          artist_name: event.artist_name,
+          venue_name: event.venue_name,
+          event_date: event.event_date,
+          event_status: event.event_status,
+          has_ticket: !!ticketData.ticket_url.trim(),
+          genres: event.genres || [],
+          account_type: 'creator' // This will be updated by the service
+        });
+      } catch (error) {
+        console.error('Error tracking event creation:', error);
+        // Don't fail the event creation if tracking fails
       }
 
       toast({

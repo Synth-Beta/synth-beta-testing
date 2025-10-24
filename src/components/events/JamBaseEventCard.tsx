@@ -34,6 +34,8 @@ import { ShareService } from '@/services/shareService';
 import { useToast } from '@/hooks/use-toast';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
+import { PromotedEventBadge } from '@/components/events/PromotedEventBadge';
+import { usePromotionImpression } from '@/hooks/usePromotionImpression';
 
 interface JamBaseEventCardProps {
   event: JamBaseEvent;
@@ -68,6 +70,12 @@ export function JamBaseEventCard({
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const { toast } = useToast();
   // All data is real; no demo flags or mock avatars
+
+  // Promotion impression tracking
+  const impressionRef = usePromotionImpression({
+    promotionId: event.active_promotion_id || '',
+    enabled: event.is_promoted && !!event.active_promotion_id
+  });
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -131,6 +139,19 @@ export function JamBaseEventCard({
     }
     return getLocationString();
   };
+
+  // Debug location data
+  console.log('🔍 JamBaseEventCard (events) location data:', {
+    venue_name: event.venue_name,
+    venue_address: event.venue_address,
+    venue_city: event.venue_city,
+    venue_state: event.venue_state,
+    venue_zip: event.venue_zip,
+    latitude: event.latitude,
+    longitude: event.longitude,
+    getVenueAddress: getVenueAddress(),
+    getLocationString: getLocationString()
+  });
 
   useEffect(() => {
     const fetchInterestedCount = async () => {
@@ -204,7 +225,13 @@ export function JamBaseEventCard({
 
   return (
     <Card 
-      className={cn("w-full transition-all duration-200 hover:shadow-lg", className)}
+      ref={impressionRef}
+      className={cn(
+        "w-full transition-all duration-200 hover:shadow-lg",
+        // Gold glow for promoted events
+        event.is_promoted && "ring-2 ring-yellow-400/50 shadow-lg shadow-yellow-200/30 border-yellow-200/50",
+        className
+      )}
       onClick={onClick}
     >
       {heroImageUrl && (
@@ -234,6 +261,9 @@ export function JamBaseEventCard({
           </div>
           
           <div className="flex items-center gap-2">
+            {event.is_promoted && event.promotion_tier && (
+              <PromotedEventBadge promotionTier={event.promotion_tier as 'basic' | 'premium' | 'featured'} />
+            )}
             {isPastEvent && (
               <Badge variant="secondary" className="text-xs">
                 Past Event

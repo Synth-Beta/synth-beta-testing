@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { trackInteraction } from './interactionTrackingService';
 
 export interface CreateEventData {
   title: string;
@@ -55,7 +56,7 @@ export interface EventClaimReview {
 
 export class EventManagementService {
   /**
-   * Create a new event (for business accounts)
+   * Create a new event (for business, creator, and admin accounts only)
    */
   static async createEvent(eventData: CreateEventData): Promise<any> {
     try {
@@ -72,12 +73,9 @@ export class EventManagementService {
 
       if (profileError) throw profileError;
 
-      // Only business, admin, or users creating manual events can create events
-      if (!['business', 'admin'].includes(profile.account_type)) {
-        // Allow regular users only if it's marked as user-created
-        if (!eventData.event_status || eventData.event_status !== 'draft') {
-          throw new Error('Only business accounts can create events');
-        }
+      // Only business, creator, and admin accounts can create events
+      if (!['business', 'creator', 'admin'].includes(profile.account_type)) {
+        throw new Error('Only business, creator, or admin accounts can create events');
       }
 
       // Create event
@@ -88,6 +86,8 @@ export class EventManagementService {
           created_by_user_id: user.id,
           owned_by_account_type: profile.account_type,
           is_user_created: profile.account_type === 'user',
+          // Auto-claim event for creators
+          claimed_by_creator_id: profile.account_type === 'creator' ? user.id : null,
           event_status: eventData.event_status || 'published',
           ticket_available: false, // Will be set when tickets are added
           created_at: new Date().toISOString(),
@@ -97,6 +97,47 @@ export class EventManagementService {
         .single();
 
       if (eventError) throw eventError;
+
+      // Auto-create claim record for creators
+      if (profile.account_type === 'creator') {
+        try {
+          await supabase
+            .from('event_claims')
+            .insert({
+              event_id: event.id,
+              claimer_user_id: user.id,
+              claim_reason: 'Event created by creator',
+              verification_proof: null,
+              claim_status: 'approved', // Auto-approve for creators who create events
+              reviewed_by_admin_id: null,
+              reviewed_at: new Date().toISOString(),
+              admin_notes: 'Auto-approved: Event created by creator'
+            });
+        } catch (claimError) {
+          console.error('Error creating auto-claim for creator:', claimError);
+          // Don't fail event creation if claim creation fails
+        }
+      }
+
+      // Track event creation analytics
+      try {
+        await trackInteraction.formSubmit('event_creation', event.id, true, {
+          event_title: event.title,
+          artist_name: event.artist_name,
+          venue_name: event.venue_name,
+          event_date: event.event_date,
+          event_status: event.event_status,
+          owned_by_account_type: profile.account_type,
+          created_by_user_id: user.id,
+          genres: event.genres || [],
+          has_ticket: false, // Will be updated when tickets are added
+          created_at: event.created_at,
+          auto_claimed: profile.account_type === 'creator'
+        });
+      } catch (trackingError) {
+        console.error('Error tracking event creation analytics:', trackingError);
+        // Don't fail event creation if analytics tracking fails
+      }
 
       return event;
     } catch (error) {
@@ -500,6 +541,7 @@ export class EventManagementService {
       return false;
     }
   }
+
 }
 
 export default EventManagementService;

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
   MessageCircle, 
   Send, 
@@ -11,13 +12,19 @@ import {
   Plus, 
   ArrowLeft,
   MoreVertical,
-  Phone,
-  Video,
-  Search
+  Search,
+  User,
+  Shield,
+  Bell,
+  BellOff,
+  Calendar,
+  Eye,
+  UserX
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
+import { ContentModerationService } from '@/services/contentModerationService';
 
 interface ChatMessage {
   id: string;
@@ -49,10 +56,12 @@ interface Chat {
 interface ChatViewProps {
   currentUserId: string;
   chatUserId?: string; // Optional user ID to start a chat with
+  chatId?: string; // Optional chat ID to open a specific chat
   onBack: () => void;
+  onNavigateToProfile?: (userId: string) => void;
 }
 
-export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) => {
+export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigateToProfile }: ChatViewProps) => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -65,6 +74,16 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  
+  // Settings menu state
+  const [isMuted, setIsMuted] = useState(false);
+  const [linkedEvent, setLinkedEvent] = useState<any>(null);
+  const [mutedChats, setMutedChats] = useState<Set<string>>(new Set());
+  const [showUsersModal, setShowUsersModal] = useState(false);
+  const [chatParticipants, setChatParticipants] = useState<any[]>([]);
+  const [showEditGroupModal, setShowEditGroupModal] = useState(false);
+  const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupDescription, setEditGroupDescription] = useState('');
 
   useEffect(() => {
     fetchChats();
@@ -78,11 +97,30 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
     }
   }, [chatUserId, currentUserId]);
 
+  // Handle opening a specific chat by ID
+  useEffect(() => {
+    if (chatId && chats.length > 0) {
+      const targetChat = chats.find(chat => chat.id === chatId);
+      if (targetChat) {
+        setSelectedChat(targetChat);
+      }
+    }
+  }, [chatId, chats]);
+
   useEffect(() => {
     if (selectedChat) {
       fetchMessages(selectedChat.id);
+      
+      // Fetch event information for group chats
+      if (selectedChat.type === 'group') {
+        fetchLinkedEvent(selectedChat.id);
+        fetchChatParticipants(selectedChat.id);
+      }
+      
+      // Check if this chat is muted
+      setIsMuted(mutedChats.has(selectedChat.id));
     }
-  }, [selectedChat]);
+  }, [selectedChat, mutedChats]);
 
   useEffect(() => {
     scrollToBottom();
@@ -96,6 +134,12 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
     try {
       console.log('💬 Creating or finding direct chat with:', targetUserId);
       
+      // Validate inputs to prevent circular reference issues
+      if (!currentUserId || !targetUserId) {
+        console.error('Missing user IDs:', { currentUserId, targetUserId });
+        return;
+      }
+      
       // Use the create_direct_chat function from Supabase
       const { data: chatId, error } = await supabase.rpc('create_direct_chat', {
         user1_id: currentUserId,
@@ -103,7 +147,7 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
       });
 
       if (error) {
-        console.error('Error creating direct chat:', error);
+        console.error('Error creating direct chat:', error.message || error);
         toast({
           title: "Error",
           description: "Failed to start chat. Please try again.",
@@ -122,7 +166,7 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
         .single();
 
       if (fetchError) {
-        console.error('Error fetching chat details:', fetchError);
+        console.error('Error fetching chat details:', fetchError.message || fetchError);
         return;
       }
 
@@ -229,7 +273,7 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
 
       const chatsList = chatsWithParticipants;
 
-      console.log('💬 Fetched chats:', chatsList);
+      console.log('💬 Fetched chats count:', chatsList.length);
       setChats(chatsList);
     } catch (error) {
       console.error('Error fetching chats:', error);
@@ -487,6 +531,267 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
     );
   };
 
+  // Fix chat name display by removing " Group Chat" suffix
+  const getChatDisplayName = (chatName: string) => {
+    return chatName.replace(/\s+Group\s+Chat\s*$/, '');
+  };
+
+  // Fetch event information for group chats
+  const fetchLinkedEvent = async (chatId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('event_groups')
+        .select(`
+          id,
+          name,
+          event:jambase_events (
+            id,
+            title,
+            artist_name,
+            venue_name,
+            event_date,
+            poster_image_url
+          )
+        `)
+        .eq('chat_id', chatId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching linked event:', error);
+        return;
+      }
+
+      if (data) {
+        setLinkedEvent(data);
+      }
+    } catch (error) {
+      console.error('Error fetching linked event:', error);
+    }
+  };
+
+  // Fetch chat participants for group chats
+  const fetchChatParticipants = async (chatId: string) => {
+    try {
+      // Get the chat with users array
+      const { data: chatData, error: chatError } = await supabase
+        .from('chats')
+        .select('users')
+        .eq('id', chatId)
+        .single();
+
+      if (chatError) {
+        console.error('Error fetching chat:', chatError);
+        return;
+      }
+
+      if (!chatData?.users || chatData.users.length === 0) {
+        setChatParticipants([]);
+        return;
+      }
+
+      // Get profiles for all users in the chat
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, name, avatar_url')
+        .in('user_id', chatData.users);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        return;
+      }
+
+      const participants = profiles?.map(p => ({
+        user_id: p.user_id,
+        name: p.name || 'Unknown User',
+        avatar_url: p.avatar_url || null
+      })) || [];
+
+      setChatParticipants(participants);
+    } catch (error) {
+      console.error('Error fetching chat participants:', error);
+    }
+  };
+
+  // Settings menu functions
+  const handleViewUsers = () => {
+    if (selectedChat && selectedChat.type === 'group') {
+      setShowUsersModal(true);
+    } else {
+      toast({
+        title: 'View Users',
+        description: 'This feature is only available for group chats',
+      });
+    }
+  };
+
+  const handleViewProfile = () => {
+    if (selectedChat && selectedChat.type === 'direct' && selectedChat.participants.length > 0) {
+      const otherUser = selectedChat.participants[0];
+      if (onNavigateToProfile) {
+        onNavigateToProfile(otherUser.user_id);
+      } else {
+        // Fallback: emit custom event for navigation
+        const event = new CustomEvent('open-user-profile', {
+          detail: { userId: otherUser.user_id }
+        });
+        window.dispatchEvent(event);
+      }
+    } else {
+      toast({
+        title: 'View Profile',
+        description: 'No user profile to view',
+      });
+    }
+  };
+
+  const handleBlockUser = async () => {
+    if (selectedChat && selectedChat.type === 'direct' && selectedChat.participants.length > 0) {
+      const otherUser = selectedChat.participants[0];
+      try {
+        await ContentModerationService.blockUser({
+          blocked_user_id: otherUser.user_id,
+          block_reason: 'Blocked from chat'
+        });
+        
+        toast({
+          title: 'User Blocked',
+          description: `You won't see content from ${otherUser.name} anymore`,
+        });
+        
+        // Navigate back to chat list after blocking
+        setSelectedChat(null);
+      } catch (error) {
+        console.error('Error blocking user:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to block user. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } else {
+      toast({
+        title: 'Block User',
+        description: 'No user to block',
+      });
+    }
+  };
+
+  const handleMuteNotifications = () => {
+    if (selectedChat) {
+      const newMutedChats = new Set(mutedChats);
+      if (mutedChats.has(selectedChat.id)) {
+        newMutedChats.delete(selectedChat.id);
+        setIsMuted(false);
+      } else {
+        newMutedChats.add(selectedChat.id);
+        setIsMuted(true);
+      }
+      setMutedChats(newMutedChats);
+      
+      toast({
+        title: isMuted ? 'Notifications Unmuted' : 'Notifications Muted',
+        description: isMuted ? 'You will receive notifications for this chat' : 'You will not receive notifications for this chat',
+      });
+    }
+  };
+
+  const handleViewEvent = () => {
+    if (linkedEvent) {
+      toast({
+        title: 'View Event',
+        description: 'Event view functionality will be implemented soon',
+      });
+    }
+  };
+
+  // Block user from users modal
+  const handleBlockUserFromModal = async (userId: string, userName: string) => {
+    try {
+      await ContentModerationService.blockUser({
+        blocked_user_id: userId,
+        block_reason: 'Blocked from group chat'
+      });
+      
+      toast({
+        title: 'User Blocked',
+        description: `You won't see content from ${userName} anymore`,
+      });
+      
+      // Close the modal
+      setShowUsersModal(false);
+    } catch (error) {
+      console.error('Error blocking user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to block user. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Edit group info handler
+  const handleEditGroupInfo = () => {
+    if (selectedChat && selectedChat.type === 'group') {
+      setEditGroupName(selectedChat.name || '');
+      setEditGroupDescription(''); // You might want to fetch this from the database
+      setShowEditGroupModal(true);
+    }
+  };
+
+  // Save group info changes
+  const handleSaveGroupInfo = async () => {
+    if (!selectedChat || selectedChat.type !== 'group') return;
+
+    try {
+      const { error } = await supabase
+        .from('chats')
+        .update({
+          chat_name: editGroupName.trim() || 'Group Chat',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedChat.id);
+
+      if (error) {
+        console.error('Error updating group info:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to update group info. Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Update local state
+      setSelectedChat({
+        ...selectedChat,
+        name: editGroupName.trim() || 'Group Chat'
+      });
+
+      // Update chats list
+      setChats(prevChats => 
+        prevChats.map(chat => 
+          chat.id === selectedChat.id 
+            ? { ...chat, name: editGroupName.trim() || 'Group Chat' }
+            : chat
+        )
+      );
+
+      toast({
+        title: 'Group Updated',
+        description: 'Group information has been updated successfully.',
+      });
+
+      setShowEditGroupModal(false);
+    } catch (error) {
+      console.error('Error saving group info:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save group info. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -569,9 +874,14 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
                         </Avatar>
                       )}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold gradient-text truncate">
-                          {chat.name || 'Direct Chat'}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold gradient-text truncate">
+                            {getChatDisplayName(chat.name || 'Direct Chat')}
+                          </h3>
+                          {mutedChats.has(chat.id) && (
+                            <BellOff className="w-4 h-4 text-gray-400" />
+                          )}
+                        </div>
                         {chat.last_message && (
                           <p className="text-sm text-gray-600 truncate">
                             {chat.last_message.sender.name}: {chat.last_message.message}
@@ -611,23 +921,92 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
                     </div>
                     <div>
                       <h2 className="font-semibold text-gray-900">
-                        {selectedChat.name || 'Direct Chat'}
+                        {getChatDisplayName(selectedChat.name || 'Direct Chat')}
                       </h2>
                       <p className="text-sm text-gray-600">
-                        {selectedChat.type === 'group' ? 'Group chat' : 'Direct message'}
+                        {selectedChat.type === 'group' 
+                          ? (linkedEvent?.description || 'Group chat')
+                          : 'Direct message'
+                        }
                       </p>
+                      {linkedEvent && linkedEvent.event && (
+                        <p 
+                          className="text-xs text-blue-600 mt-1 cursor-pointer hover:text-blue-800 hover:underline"
+                          onClick={() => {
+                            // Navigate to event details
+                            const event = new CustomEvent('open-event-details', {
+                              detail: { 
+                                event: linkedEvent.event,
+                                eventId: linkedEvent.event.id 
+                              }
+                            });
+                            window.dispatchEvent(event);
+                          }}
+                        >
+                          📅 {linkedEvent.event.title} - {linkedEvent.event.artist_name}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="hover-button">
-                      <Phone className="w-4 h-4 hover-icon" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="hover-button">
-                      <Video className="w-4 h-4 hover-icon" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="hover-button">
-                      <MoreVertical className="w-4 h-4 hover-icon" />
-                    </Button>
+                    {/* Settings Menu */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="hover-button">
+                          <MoreVertical className="w-4 h-4 hover-icon" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56 bg-white border border-gray-200 shadow-lg">
+                        {selectedChat.type === 'group' && (
+                          <>
+                            <DropdownMenuItem onClick={handleViewUsers}>
+                              <Users className="mr-2 h-4 w-4" />
+                              <span>View Users</span>
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuItem onClick={handleEditGroupInfo}>
+                              <User className="mr-2 h-4 w-4" />
+                              <span>Edit Group Info</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
+                        
+                        {selectedChat.type === 'direct' && (
+                          <>
+                            <DropdownMenuItem onClick={handleViewProfile}>
+                              <User className="mr-2 h-4 w-4" />
+                              <span>View Profile</span>
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuItem onClick={handleBlockUser}>
+                              <UserX className="mr-2 h-4 w-4" />
+                              <span>Block User</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
+                        
+                        <DropdownMenuItem onClick={handleMuteNotifications}>
+                          {isMuted ? (
+                            <Bell className="mr-2 h-4 w-4" />
+                          ) : (
+                            <BellOff className="mr-2 h-4 w-4" />
+                          )}
+                          <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>
+                        </DropdownMenuItem>
+                        
+                        {linkedEvent && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleViewEvent}>
+                              <Calendar className="mr-2 h-4 w-4" />
+                              <span>View Event</span>
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </div>
@@ -780,6 +1159,148 @@ export const ChatView = ({ currentUserId, chatUserId, onBack }: ChatViewProps) =
                 >
                   Create Group
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Users Modal */}
+      {showUsersModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Group Members</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowUsersModal(false)}
+                  className="hover-button"
+                >
+                  ✕
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {chatParticipants.map((participant) => {
+                  const isCurrentUser = participant.user_id === currentUserId;
+                  
+                  return (
+                    <div key={participant.user_id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div 
+                        className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 flex-1"
+                        onClick={() => {
+                          if (onNavigateToProfile) {
+                            onNavigateToProfile(participant.user_id);
+                            setShowUsersModal(false);
+                          } else {
+                            // Fallback: emit custom event for navigation
+                            const event = new CustomEvent('open-user-profile', {
+                              detail: { userId: participant.user_id }
+                            });
+                            window.dispatchEvent(event);
+                            setShowUsersModal(false);
+                          }
+                        }}
+                      >
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={participant.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {participant.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-sm">
+                            {participant.name}
+                            {isCurrentUser && (
+                              <span className="text-blue-600 text-xs ml-1">(You)</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {isCurrentUser ? 'You' : 'Group Member'}
+                          </p>
+                        </div>
+                      </div>
+                      {!isCurrentUser && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleBlockUserFromModal(participant.user_id, participant.name)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <UserX className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Group Info Modal */}
+      {showEditGroupModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Edit Group Info</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowEditGroupModal(false)}
+                  className="hover-button"
+                >
+                  ✕
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Group Name
+                  </label>
+                  <Input
+                    value={editGroupName}
+                    onChange={(e) => setEditGroupName(e.target.value)}
+                    placeholder="Enter group name"
+                    className="w-full"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    value={editGroupDescription}
+                    onChange={(e) => setEditGroupDescription(e.target.value)}
+                    placeholder="Enter group description"
+                    className="w-full p-2 border border-gray-300 rounded-md resize-none h-20"
+                  />
+                </div>
+                
+                <div className="flex gap-2 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowEditGroupModal(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveGroupInfo}
+                    disabled={!editGroupName.trim()}
+                    className="flex-1 gradient-button"
+                  >
+                    Save Changes
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

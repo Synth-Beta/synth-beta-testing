@@ -59,21 +59,88 @@ export class CreatorAnalyticsService {
         .select('*', { count: 'exact', head: true })
         .eq('artist_id', creatorId);
 
-      // Get event views and interactions
+      // Get events created or claimed by this creator
+      console.log('🔍 CreatorAnalyticsService: Searching for events with creatorId:', creatorId);
+      
+      const { data: creatorEvents, error: eventsError } = await (supabase as any)
+        .from('jambase_events')
+        .select('id, title, artist_name, venue_name, event_date, created_by_user_id, claimed_by_creator_id')
+        .or(`created_by_user_id.eq.${creatorId},claimed_by_creator_id.eq.${creatorId}`);
+
+      if (eventsError) {
+        console.error('❌ CreatorAnalyticsService: Error fetching events:', eventsError);
+      }
+
+      console.log('🔍 CreatorAnalyticsService: Found events for creator', creatorId, ':', creatorEvents?.length || 0);
+      if (creatorEvents && creatorEvents.length > 0) {
+        console.log('📊 CreatorAnalyticsService: Event details:', creatorEvents.map(e => ({
+          id: e.id,
+          title: e.title,
+          created_by: e.created_by_user_id,
+          claimed_by: e.claimed_by_creator_id
+        })));
+      } else {
+        console.log('⚠️ CreatorAnalyticsService: No events found. Let me check all events in database...');
+        
+        // Debug: Check all events to see what's in the database
+        const { data: allEvents, error: allEventsError } = await (supabase as any)
+          .from('jambase_events')
+          .select('id, title, artist_name, created_by_user_id, claimed_by_creator_id')
+          .limit(10);
+        
+        if (allEventsError) {
+          console.error('❌ CreatorAnalyticsService: Error fetching all events:', allEventsError);
+        } else {
+          console.log('📊 CreatorAnalyticsService: Sample events in database:', allEvents?.map(e => ({
+            id: e.id,
+            title: e.title,
+            created_by: e.created_by_user_id,
+            claimed_by: e.claimed_by_creator_id
+          })));
+        }
+      }
+
+      if (!creatorEvents || creatorEvents.length === 0) {
+        console.log('⚠️ CreatorAnalyticsService: No events found for creator', creatorId);
+        return {
+          total_followers: followerCount || 0,
+          engagement_rate: 0,
+          total_event_views: 0,
+          total_reviews: 0,
+          profile_visits: 0,
+          ticket_clicks: 0,
+          fan_growth_rate: 0,
+          top_venue_performance: 0,
+        };
+      }
+
+      // Get event views and interactions for creator's events
+      const eventIds = creatorEvents.map((e: any) => e.id);
       const { data: interactions } = await (supabase as any)
         .from('user_interactions')
         .select('*')
         .eq('entity_type', 'event')
-        .contains('metadata', { artist_id: creatorId });
+        .in('entity_id', eventIds);
+
+      console.log('🔍 CreatorAnalyticsService: Found interactions for events:', interactions?.length || 0);
+      if (interactions && interactions.length > 0) {
+        console.log('📊 CreatorAnalyticsService: Interaction details:', interactions.map(i => ({
+          event_type: i.event_type,
+          entity_id: i.entity_id,
+          user_id: i.user_id
+        })));
+      }
 
       // Get reviews for this creator's events
       const { data: reviews } = await (supabase as any)
         .from('user_reviews')
         .select(`
           *,
-          jambase_events!inner(artist_id, artist_name)
+          jambase_events!inner(id, artist_name)
         `)
-        .eq('jambase_events.artist_id', creatorId);
+        .in('jambase_events.id', eventIds);
+
+      console.log('🔍 CreatorAnalyticsService: Found reviews for events:', reviews?.length || 0);
 
       // Calculate metrics
       const totalFollowers = followerCount || 0;
@@ -92,7 +159,7 @@ export class CreatorAnalyticsService {
       // Calculate top venue performance (placeholder)
       const topVenuePerformance = 0; // TODO: Implement venue analysis
 
-      return {
+      const stats = {
         total_followers: totalFollowers,
         engagement_rate: Math.round(engagementRate * 100) / 100,
         total_event_views: totalEventViews,
@@ -102,6 +169,9 @@ export class CreatorAnalyticsService {
         fan_growth_rate: fanGrowthRate,
         top_venue_performance: topVenuePerformance,
       };
+
+      console.log('📊 CreatorAnalyticsService: Final stats for creator', creatorId, ':', stats);
+      return stats;
     } catch (error) {
       console.error('Error getting creator stats:', error);
       return {
@@ -122,11 +192,11 @@ export class CreatorAnalyticsService {
    */
   static async getFanInsights(creatorId: string): Promise<FanInsight[]> {
     try {
-      // Get events for this creator
+      // Get events created or claimed by this creator
       const { data: events } = await (supabase as any)
         .from('jambase_events')
         .select('*')
-        .eq('artist_id', creatorId);
+        .or(`created_by_user_id.eq.${creatorId},claimed_by_creator_id.eq.${creatorId}`);
 
       if (!events || events.length === 0) {
         return [];
@@ -200,11 +270,11 @@ export class CreatorAnalyticsService {
    */
   static async getGeographicInsights(creatorId: string): Promise<GeographicInsight[]> {
     try {
-      // Get events for this creator
+      // Get events created or claimed by this creator
       const { data: events } = await (supabase as any)
         .from('jambase_events')
         .select('*')
-        .eq('artist_id', creatorId);
+        .or(`created_by_user_id.eq.${creatorId},claimed_by_creator_id.eq.${creatorId}`);
 
       if (!events || events.length === 0) {
         return [];
@@ -282,12 +352,23 @@ export class CreatorAnalyticsService {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
+      // Get events created or claimed by this creator
+      const { data: events } = await (supabase as any)
+        .from('jambase_events')
+        .select('id')
+        .or(`created_by_user_id.eq.${creatorId},claimed_by_creator_id.eq.${creatorId}`);
+
+      if (!events || events.length === 0) {
+        return [];
+      }
+
       // Get interactions for this creator's events
+      const eventIds = events.map((e: any) => e.id);
       const { data: interactions } = await (supabase as any)
         .from('user_interactions')
         .select('*')
         .eq('entity_type', 'event')
-        .contains('metadata', { artist_id: creatorId })
+        .in('entity_id', eventIds)
         .gte('created_at', startDate.toISOString());
 
       // Group by date

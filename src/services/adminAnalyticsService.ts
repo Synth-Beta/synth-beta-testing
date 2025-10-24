@@ -134,9 +134,8 @@ export class AdminAnalyticsService {
         .select('*')
         .eq('event_type', 'click_ticket');
 
-      // Calculate estimated revenue
-      const estimatedRevenuePerClick = 50; // Average ticket price
-      const totalRevenue = (ticketClicks?.length || 0) * estimatedRevenuePerClick;
+      // Revenue calculation - only count actual revenue if we have real data
+      const totalRevenue = 0;
 
       // Get today's active users (users with interactions today)
       const today = new Date().toISOString().split('T')[0];
@@ -336,9 +335,9 @@ export class AdminAnalyticsService {
         .eq('event_type', 'click_ticket')
         .gte('created_at', startOfMonth.toISOString());
 
-      const estimatedRevenuePerClick = 50;
-      const totalRevenue = (ticketClicks?.length || 0) * estimatedRevenuePerClick;
-      const revenueThisMonth = (thisMonthClicks?.length || 0) * estimatedRevenuePerClick;
+      // Revenue calculation - only count actual revenue if we have real data
+      const totalRevenue = 0;
+      const revenueThisMonth = 0;
 
       // Get total users for average calculation
       const { count: totalUsers } = await (supabase as any)
@@ -350,12 +349,8 @@ export class AdminAnalyticsService {
       // Calculate growth rate (placeholder)
       const revenueGrowthRate = 0; // TODO: Implement with historical data
 
-      // Top revenue sources (placeholder)
-      const topRevenueSources = [
-        { source: 'Ticket Sales', revenue: totalRevenue * 0.7, percentage: 70 },
-        { source: 'Premium Subscriptions', revenue: totalRevenue * 0.2, percentage: 20 },
-        { source: 'Advertising', revenue: totalRevenue * 0.1, percentage: 10 },
-      ];
+      // Top revenue sources - empty until we have actual revenue data
+      const topRevenueSources: any[] = [];
 
       return {
         total_revenue: totalRevenue,
@@ -511,7 +506,8 @@ export class AdminAnalyticsService {
       ticketClicks?.forEach((click: any) => {
         const userId = click.user_id;
         if (userActivity.has(userId)) {
-          userActivity.get(userId)!.revenue += 50; // Estimated ticket price
+          // Revenue calculation - only count actual revenue if we have real data
+          userActivity.get(userId)!.revenue += 0;
         }
       });
 
@@ -566,14 +562,8 @@ export class AdminAnalyticsService {
   static async getGeographicDistribution(): Promise<GeographicDistribution[]> {
     try {
       // This would typically use IP geolocation or user-provided location data
-      // For now, return placeholder data
-      return [
-        { country: 'United States', users: 1250, events: 340, revenue: 12500, growth_rate: 12.5 },
-        { country: 'Canada', users: 320, events: 85, revenue: 3200, growth_rate: 8.2 },
-        { country: 'United Kingdom', users: 180, events: 45, revenue: 1800, growth_rate: 15.3 },
-        { country: 'Australia', users: 95, events: 25, revenue: 950, growth_rate: 6.7 },
-        { country: 'Germany', users: 75, events: 20, revenue: 750, growth_rate: 9.1 },
-      ];
+      // Return empty array until we have actual geographic data
+      return [];
     } catch (error) {
       console.error('Error getting geographic distribution:', error);
       return [];

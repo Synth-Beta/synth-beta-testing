@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, MessageCircle, Lock, Globe, UserPlus, UserMinus } from 'lucide-react';
+import { Users, MessageCircle, Lock, Globe, UserPlus, UserMinus, Loader2 } from 'lucide-react';
 import EventGroupService, { EventGroup } from '@/services/eventGroupService';
 
 interface EventGroupCardProps {
@@ -57,7 +57,14 @@ export function EventGroupCard({ group, onJoinLeave, onChatClick }: EventGroupCa
     group.max_members && group.member_count >= group.max_members;
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card 
+      className="hover:shadow-md transition-shadow cursor-pointer"
+      onClick={() => {
+        if (isMember && group.chat_id) {
+          onChatClick?.(group.chat_id);
+        }
+      }}
+    >
       <CardContent className="p-4">
         <div className="flex gap-4">
           {/* Group Icon/Image */}
@@ -122,7 +129,10 @@ export function EventGroupCard({ group, onJoinLeave, onChatClick }: EventGroupCa
                   {group.chat_id && (
                     <Button
                       size="sm"
-                      onClick={() => onChatClick?.(group.chat_id!)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onChatClick?.(group.chat_id!);
+                      }}
                       className="flex-1"
                     >
                       <MessageCircle className="h-4 w-4 mr-1" />
@@ -132,7 +142,10 @@ export function EventGroupCard({ group, onJoinLeave, onChatClick }: EventGroupCa
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={handleJoinLeave}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleJoinLeave();
+                    }}
                     disabled={isProcessing}
                     className="text-red-600 hover:text-red-700"
                   >
@@ -143,7 +156,10 @@ export function EventGroupCard({ group, onJoinLeave, onChatClick }: EventGroupCa
               ) : (
                 <Button
                   size="sm"
-                  onClick={handleJoinLeave}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleJoinLeave();
+                  }}
                   disabled={isProcessing || isGroupFull}
                   className="flex-1"
                 >

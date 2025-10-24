@@ -9,7 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import { SkeletonCard } from '@/components/SkeletonCard';
+import { PromotedEventBadge } from '@/components/events/PromotedEventBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { 
   Music, 
@@ -296,6 +298,29 @@ export const UnifiedFeed = ({
       }
     }
   }, [feedItems]);
+
+  // Handle events from localStorage (from chat navigation)
+  useEffect(() => {
+    const checkForSelectedEvent = () => {
+      const selectedEventData = localStorage.getItem('selectedEvent');
+      if (selectedEventData) {
+        try {
+          const eventData = JSON.parse(selectedEventData);
+          console.log('✅ UnifiedFeed: Opening event from localStorage:', eventData);
+          setSelectedEventForDetails(eventData);
+          setDetailsOpen(true);
+          
+          // Clear localStorage so we don't re-open it again
+          localStorage.removeItem('selectedEvent');
+        } catch (error) {
+          console.error('Error parsing selectedEvent from localStorage:', error);
+          localStorage.removeItem('selectedEvent');
+        }
+      }
+    };
+
+    checkForSelectedEvent();
+  }, []);
 
   // Instagram-style helper functions
   const nextMedia = (itemId: string, mediaArray: any[]) => {
@@ -931,6 +956,16 @@ export const UnifiedFeed = ({
             >
               <Bell className="w-5 h-5" />
             </Button>
+            
+            {/* Chat button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="p-2"
+              onClick={() => onNavigateToChat?.(currentUserId)}
+            >
+              <MessageCircle className="w-5 h-5" />
+            </Button>
           </div>
         </div>
 
@@ -963,7 +998,11 @@ export const UnifiedFeed = ({
                 .map((item, index) => (
               <Card 
                 key={`event-${item.id}-${index}`} 
-                className="cursor-pointer overflow-hidden group"
+                className={cn(
+                  "cursor-pointer overflow-hidden group",
+                  // Gold glow for promoted events
+                  item.event_data?.is_promoted && "ring-2 ring-yellow-400/50 shadow-lg shadow-yellow-200/30 border-yellow-200/50"
+                )}
                 ref={(el) => el && attachEventObserver(el, item.event_data?.id || item.id)}
                 data-tour={index === 0 ? "event-card" : undefined}
                 onClick={async (e) => {
@@ -984,28 +1023,31 @@ export const UnifiedFeed = ({
                 }}
               >
                 <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="w-10 h-10 ring-2 ring-synth-pink/20">
-                        <AvatarImage src={item.author?.avatar_url || undefined} />
-                        <AvatarFallback className="text-sm font-semibold bg-synth-pink/10 text-synth-pink">
-                          {item.author?.name?.split(' ').map(n => n[0]).join('') || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-semibold text-sm text-gray-900">{item.author?.name || 'Anonymous'}</h3>
-                        <p className="text-xs text-gray-500">
+                  {/* Only show author info for non-event items */}
+                  {item.type !== 'event' && (
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-10 h-10 ring-2 ring-synth-pink/20">
+                          <AvatarImage src={item.author?.avatar_url || undefined} />
+                          <AvatarFallback className="text-sm font-semibold bg-synth-pink/10 text-synth-pink">
+                            {item.author?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <h3 className="font-semibold text-sm text-gray-900">{item.author?.name || 'Anonymous'}</h3>
+                          <p className="text-xs text-gray-500">
+                            {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className="synth-badge text-xs">
+                          <Calendar className="w-3 h-3 mr-1" />
                           {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                        </p>
+                        </Badge>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className="synth-badge text-xs">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        Event
-                      </Badge>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Event Hero Image */}
                   <div className="mb-4">
@@ -1014,9 +1056,15 @@ export const UnifiedFeed = ({
 
                   <div className="space-y-3">
                     <div>
-                      <h2 className="font-bold text-lg text-gray-900 mb-2">
-                        {item.title}
-                      </h2>
+                      <div className="flex items-center justify-between mb-2">
+                        <h2 className="font-bold text-lg text-gray-900">
+                          {item.title}
+                        </h2>
+                        {/* Promoted Event Badge */}
+                        {item.event_data?.is_promoted && item.event_data?.promotion_tier && (
+                          <PromotedEventBadge promotionTier={item.event_data.promotion_tier as 'basic' | 'premium' | 'featured'} />
+                        )}
+                      </div>
                       {item.event_data && (
                         <div className="space-y-2 text-sm text-gray-600">
                           <div className="flex items-center gap-2">

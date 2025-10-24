@@ -235,7 +235,7 @@ export function EventPromotionModal({
             ) : (
               <>
                 <TrendingUp className="w-4 h-4 mr-2" />
-                Request Promotion
+                Promote
               </>
             )}
           </Button>

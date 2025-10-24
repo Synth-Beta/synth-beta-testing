@@ -655,20 +655,16 @@ export class UserAnalyticsService {
 
       // If we have follows, get the artist names for debugging
       if (countResult > 0 && data && data.length > 0) {
-        // Get artist names with joins for debugging
-        const { data: detailedData } = await (supabase as any)
-          .from('artist_follows')
-          .select(`
-            *,
-            artists(name),
-            artist_profile(name)
-          `)
+        // Get artist names with joins for debugging - use the view instead
+        const { data: detailedData, error: detailedError } = await (supabase as any)
+          .from('artist_follows_with_details')
+          .select('artist_name')
           .eq('user_id', userId);
 
-        if (detailedData && detailedData.length > 0) {
-          const artistNames = detailedData.map((follow: any) => 
-            follow.artists?.name || follow.artist_profile?.name || 'Unknown Artist'
-          );
+        if (detailedError) {
+          console.warn('⚠️ Could not fetch detailed artist data:', detailedError);
+        } else if (detailedData && detailedData.length > 0) {
+          const artistNames = detailedData.map((follow: any) => follow.artist_name || 'Unknown Artist');
           console.log(`🎯 Followed artist names:`, artistNames);
         }
       }
@@ -721,13 +717,127 @@ export class UserAnalyticsService {
    */
   static async hasPremium(userId: string): Promise<boolean> {
     try {
-      // For now, return false since subscription columns don't exist yet
-      // TODO: Implement when account types system is fully deployed
-      console.log('Premium check not available yet - subscription columns not deployed');
-      return false;
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('subscription_tier, subscription_expires_at')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error checking premium status:', error);
+        return false;
+      }
+
+      if (!profile) return false;
+
+      // Check if subscription is active
+      const isActive = profile.subscription_tier && 
+        profile.subscription_tier !== 'free' &&
+        (!profile.subscription_expires_at || new Date(profile.subscription_expires_at) > new Date());
+
+      return isActive;
     } catch (error) {
       console.error('Error checking premium status:', error);
       return false;
+    }
+  }
+
+  /**
+   * Track subscription lifecycle changes
+   */
+  static async trackSubscriptionChange(
+    userId: string,
+    oldTier: string,
+    newTier: string,
+    changeType: 'upgrade' | 'downgrade' | 'renewal' | 'cancellation'
+  ): Promise<void> {
+    try {
+      const { trackInteraction } = await import('./interactionTrackingService');
+      
+      await trackInteraction.profileUpdate('subscription_tier', userId, {
+        oldTier,
+        newTier,
+        changeType,
+        revenueImpact: this.calculateRevenueImpact(oldTier, newTier),
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error tracking subscription change:', error);
+    }
+  }
+
+  /**
+   * Calculate revenue impact of subscription change
+   */
+  private static calculateRevenueImpact(oldTier: string, newTier: string): number {
+    const tierValues = {
+      'free': 0,
+      'premium': 4.99,
+      'professional': 9.99,
+      'enterprise': 19.99
+    };
+
+    const oldValue = tierValues[oldTier as keyof typeof tierValues] || 0;
+    const newValue = tierValues[newTier as keyof typeof tierValues] || 0;
+
+    return newValue - oldValue;
+  }
+
+  /**
+   * Get subscription analytics
+   */
+  static async getSubscriptionAnalytics(userId: string): Promise<{
+    currentTier: string;
+    subscriptionStartDate?: string;
+    subscriptionExpiryDate?: string;
+    totalRevenue: number;
+    subscriptionHistory: Array<{
+      date: string;
+      tier: string;
+      changeType: string;
+      revenueImpact: number;
+    }>;
+  }> {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('subscription_tier, subscription_started_at, subscription_expires_at')
+        .eq('user_id', userId)
+        .single();
+
+      // Get subscription change history from interactions
+      const { data: subscriptionChanges } = await supabase
+        .from('user_interactions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('event_type', 'profile_update')
+        .eq('entity_type', 'profile')
+        .contains('metadata', { field: 'subscription_tier' })
+        .order('occurred_at', { ascending: true });
+
+      const subscriptionHistory = subscriptionChanges?.map(change => ({
+        date: change.occurred_at,
+        tier: change.metadata?.newTier || 'unknown',
+        changeType: change.metadata?.changeType || 'unknown',
+        revenueImpact: change.metadata?.revenueImpact || 0
+      })) || [];
+
+      const totalRevenue = subscriptionHistory.reduce((sum, change) => sum + change.revenueImpact, 0);
+
+      return {
+        currentTier: profile?.subscription_tier || 'free',
+        subscriptionStartDate: profile?.subscription_started_at,
+        subscriptionExpiryDate: profile?.subscription_expires_at,
+        totalRevenue,
+        subscriptionHistory
+      };
+    } catch (error) {
+      console.error('Error getting subscription analytics:', error);
+      return {
+        currentTier: 'free',
+        totalRevenue: 0,
+        subscriptionHistory: []
+      };
     }
   }
 }

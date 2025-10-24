@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
   MessageCircle, 
   Plus, 
@@ -15,7 +16,16 @@ import {
   Send,
   UserPlus,
   Trash2,
-  ArrowLeft
+  ArrowLeft,
+  Settings,
+  MoreVertical,
+  User,
+  Shield,
+  Bell,
+  BellOff,
+  Calendar,
+  Eye,
+  UserX
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -84,6 +94,15 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   const [selectedEvent, setSelectedEvent] = useState<JamBaseEvent | null>(null);
   const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Track which group chats are event-created
+  const [eventCreatedChats, setEventCreatedChats] = useState<Set<string>>(new Set());
+  
+  // Settings menu state
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [chatParticipants, setChatParticipants] = useState<any[]>([]);
+  const [isMuted, setIsMuted] = useState(false);
+  const [linkedEvent, setLinkedEvent] = useState<any>(null);
 
   useEffect(() => {
     fetchChats();
@@ -104,6 +123,8 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   useEffect(() => {
     if (selectedChat) {
       fetchMessages(selectedChat.id);
+      fetchChatParticipants(selectedChat.id);
+      fetchLinkedEvent(selectedChat.id);
     }
   }, [selectedChat]);
 
@@ -172,6 +193,18 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       }
 
       setChats(data || []);
+      
+      // Identify event-created group chats
+      const eventCreatedChatIds = new Set<string>();
+      for (const chat of data || []) {
+        if (chat.is_group_chat) {
+          const isEventCreated = await isEventCreatedGroupChat(chat.id);
+          if (isEventCreated) {
+            eventCreatedChatIds.add(chat.id);
+          }
+        }
+      }
+      setEventCreatedChats(eventCreatedChatIds);
     } catch (error) {
       console.error('Error fetching chats:', error);
     } finally {
@@ -334,7 +367,18 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         };
       });
 
-      setMessages(transformedMessages);
+      // Ensure message_type is assigned to the allowed union type
+      setMessages(
+        transformedMessages.map(msg => ({
+          ...msg,
+          message_type: 
+            msg.message_type === 'text' ||
+            msg.message_type === 'event_share' ||
+            msg.message_type === 'system'
+              ? msg.message_type
+              : 'text'
+        }))
+      );
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
@@ -553,13 +597,30 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
 
   const getChatDisplayName = (chat: Chat) => {
     if (chat.is_group_chat) {
-      return chat.chat_name;
+      // Remove any " Group Chat" suffix that might have been added
+      return chat.chat_name.replace(/\s+Group\s+Chat\s*$/, '');
     }
     
     // For direct chats, find the other user's name
     const otherUserId = chat.users.find(id => id !== currentUserId);
     const otherUser = users.find(u => u.user_id === otherUserId);
     return otherUser?.name || 'Unknown User';
+  };
+
+  // Check if a group chat is event-created by looking for event_groups relationship
+  const isEventCreatedGroupChat = async (chatId: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('event_groups')
+        .select('id')
+        .eq('chat_id', chatId)
+        .single();
+      
+      return !error && !!data;
+    } catch (error) {
+      console.error('Error checking if chat is event-created:', error);
+      return false;
+    }
   };
 
   const getChatAvatar = (chat: Chat) => {
@@ -571,6 +632,90 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
     const otherUserId = chat.users.find(id => id !== currentUserId);
     const otherUser = users.find(u => u.user_id === otherUserId);
     return otherUser?.avatar_url || null;
+  };
+
+  // Settings menu functions
+  const fetchChatParticipants = async (chatId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('chats')
+        .select('users')
+        .eq('id', chatId)
+        .single();
+
+      if (error) throw error;
+
+      const participantIds = data.users || [];
+      const participants = users.filter(user => participantIds.includes(user.user_id));
+      setChatParticipants(participants);
+    } catch (error) {
+      console.error('Error fetching chat participants:', error);
+    }
+  };
+
+  const fetchLinkedEvent = async (chatId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('event_groups')
+        .select(`
+          event_id,
+          jambase_events!inner(
+            id,
+            title,
+            artist_name,
+            venue_name,
+            event_date,
+            poster_image_url
+          )
+        `)
+        .eq('chat_id', chatId)
+        .single();
+
+      if (!error && data) {
+        setLinkedEvent(data.jambase_events);
+      }
+    } catch (error) {
+      console.error('Error fetching linked event:', error);
+    }
+  };
+
+  const handleViewUsers = () => {
+    // TODO: Implement view users modal
+    toast({
+      title: 'View Users',
+      description: 'User list functionality will be implemented soon',
+    });
+  };
+
+  const handleViewProfile = (userId: string) => {
+    // TODO: Implement view profile
+    toast({
+      title: 'View Profile',
+      description: 'Profile view functionality will be implemented soon',
+    });
+  };
+
+  const handleBlockUser = (userId: string) => {
+    // TODO: Implement block user
+    toast({
+      title: 'Block User',
+      description: 'Block user functionality will be implemented soon',
+    });
+  };
+
+  const handleMuteNotifications = () => {
+    setIsMuted(!isMuted);
+    toast({
+      title: isMuted ? 'Notifications Unmuted' : 'Notifications Muted',
+      description: isMuted ? 'You will receive notifications for this chat' : 'You will not receive notifications for this chat',
+    });
+  };
+
+  const handleViewEvent = () => {
+    if (linkedEvent) {
+      setSelectedEvent(linkedEvent);
+      setEventDetailsOpen(true);
+    }
   };
 
   if (loading) {
@@ -719,8 +864,15 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                             )}
                           </p>
                           {chat.is_group_chat && (
-                            <Badge variant="secondary" className="text-xs mt-1">
-                              Group
+                            <Badge 
+                              variant={eventCreatedChats.has(chat.id) ? "default" : "secondary"} 
+                              className={`text-xs mt-1 ${
+                                eventCreatedChats.has(chat.id) 
+                                  ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' 
+                                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                              }`}
+                            >
+                              {eventCreatedChats.has(chat.id) ? 'Event Group' : 'User Group'}
                             </Badge>
                           )}
                         </div>
@@ -751,27 +903,78 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
           <>
             {/* Chat Header */}
             <div className="p-6 border-b border-synth-black/10 bg-gradient-to-r from-synth-beige to-synth-beige-light">
-              <div className="flex items-center gap-4">
-                <Avatar className="w-12 h-12 ring-2 ring-synth-pink/20">
-                  <AvatarImage src={getChatAvatar(selectedChat) || undefined} />
-                  <AvatarFallback className="bg-synth-pink/10 text-synth-black font-semibold">
-                    {selectedChat.is_group_chat ? (
-                      <Users className="w-6 h-6" />
-                    ) : (
-                      getChatDisplayName(selectedChat).split(' ').map(n => n[0]).join('')
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Avatar className="w-12 h-12 ring-2 ring-synth-pink/20">
+                    <AvatarImage src={getChatAvatar(selectedChat) || undefined} />
+                    <AvatarFallback className="bg-synth-pink/10 text-synth-black font-semibold">
+                      {selectedChat.is_group_chat ? (
+                        <Users className="w-6 h-6" />
+                      ) : (
+                        getChatDisplayName(selectedChat).split(' ').map(n => n[0]).join('')
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h2 className="font-bold text-lg text-synth-black">
+                      {getChatDisplayName(selectedChat)}
+                    </h2>
+                    {selectedChat.is_group_chat && (
+                      <p className="text-sm text-synth-black/60">
+                        {selectedChat.users.length} members
+                      </p>
                     )}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h2 className="font-bold text-lg text-synth-black">
-                    {getChatDisplayName(selectedChat)}
-                  </h2>
-                  {selectedChat.is_group_chat && (
-                    <p className="text-sm text-synth-black/60">
-                      {selectedChat.users.length} members
-                    </p>
-                  )}
+                  </div>
                 </div>
+                
+                {/* Settings Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {selectedChat.is_group_chat && (
+                      <>
+                        <DropdownMenuItem onClick={handleViewUsers}>
+                          <Users className="mr-2 h-4 w-4" />
+                          <span>View Users</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    
+                    <DropdownMenuItem onClick={() => handleViewProfile(selectedChat.users.find(id => id !== currentUserId) || '')}>
+                      <User className="mr-2 h-4 w-4" />
+                      <span>View Profile</span>
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuItem onClick={() => handleBlockUser(selectedChat.users.find(id => id !== currentUserId) || '')}>
+                      <UserX className="mr-2 h-4 w-4" />
+                      <span>Block User</span>
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuItem onClick={handleMuteNotifications}>
+                      {isMuted ? (
+                        <Bell className="mr-2 h-4 w-4" />
+                      ) : (
+                        <BellOff className="mr-2 h-4 w-4" />
+                      )}
+                      <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>
+                    </DropdownMenuItem>
+                    
+                    {linkedEvent && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleViewEvent}>
+                          <Calendar className="mr-2 h-4 w-4" />
+                          <span>View Event</span>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 

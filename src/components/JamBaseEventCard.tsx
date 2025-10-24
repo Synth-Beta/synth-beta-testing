@@ -104,6 +104,19 @@ export function JamBaseEventCard({
     return getLocationString();
   };
 
+  // Debug location data
+  console.log('🔍 JamBaseEventCard location data:', {
+    venue_name: event.venue_name,
+    venue_address: event.venue_address,
+    venue_city: event.venue_city,
+    venue_state: event.venue_state,
+    venue_zip: event.venue_zip,
+    latitude: event.latitude,
+    longitude: event.longitude,
+    getVenueAddress: getVenueAddress(),
+    getLocationString: getLocationString()
+  });
+
   return (
     <Card className={cn("w-full transition-all duration-200 hover:shadow-lg", className)}>
       <CardHeader className="pb-3">

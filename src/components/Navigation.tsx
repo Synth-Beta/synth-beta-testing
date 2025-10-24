@@ -28,7 +28,7 @@ export const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
 
   // Add Analytics for Creator, Business, and Admin account types
   const navItems = hasAnalyticsAccess() 
-    ? [...baseNavItems, { id: "analytics" as const, icon: BarChart3, label: "Analytics" }]
+    ? [...baseNavItems, { id: "analytics" as const, icon: BarChart3, label: isAdmin() ? "Admin Portal" : "Analytics" }]
     : baseNavItems;
 
   const maxWidth = navItems.length >= 5 ? 'max-w-2xl' : navItems.length === 4 ? 'max-w-xl' : 'max-w-md';

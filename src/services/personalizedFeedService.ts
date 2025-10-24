@@ -45,11 +45,10 @@ export class PersonalizedFeedService {
     try {
       console.log('🎯 Fetching personalized feed for user:', userId);
       
-      const { data, error } = await supabase.rpc('get_personalized_events_feed_with_diversity' as any, {
+      const { data, error } = await supabase.rpc('get_personalized_events_feed' as any, {
         p_user_id: userId,
         p_limit: limit,
         p_offset: offset,
-        p_max_per_artist: 3,  // Max 3 events per artist to prevent domination
         p_include_past: includePast
       });
       
@@ -124,7 +123,13 @@ export class PersonalizedFeedService {
         friends_interested_count: row.friends_interested_count,
         // New diversity fields
         artist_frequency_rank: row.artist_frequency_rank,
-        diversity_penalty: row.diversity_penalty
+        diversity_penalty: row.diversity_penalty,
+        // Promotion fields
+        is_promoted: row.is_promoted || false,
+        promotion_tier: (row.promotion_tier === 'basic' || row.promotion_tier === 'premium' || row.promotion_tier === 'featured') 
+          ? row.promotion_tier as 'basic' | 'premium' | 'featured' 
+          : null,
+        active_promotion_id: row.active_promotion_id || null
       } as PersonalizedEvent));
     } catch (error) {
       console.error('❌ Exception in personalized feed:', error);
@@ -163,7 +168,11 @@ export class PersonalizedFeedService {
         relevance_score: 0,
         user_is_interested: false,
         interested_count: 0,
-        friends_interested_count: 0
+        friends_interested_count: 0,
+        // Promotion fields (default values for fallback feed)
+        is_promoted: false,
+        promotion_tier: null,
+        active_promotion_id: null
       }));
     } catch (error) {
       console.error('❌ Fallback feed error:', error);

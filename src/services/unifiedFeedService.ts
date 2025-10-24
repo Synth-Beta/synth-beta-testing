@@ -291,11 +291,11 @@ export class UnifiedFeedService {
         const item: UnifiedFeedItem = {
           id: `event-${event.id}`,
           type: 'event' as const,
-          title: `New Event: ${event.title}`,
+          title: event.title,
           content: event.description || `${event.artist_name} is performing at ${event.venue_name}`,
           author: {
             id: 'system',
-            name: 'Synth Events',
+            name: '',
             avatar_url: undefined
           },
           created_at: event.created_at || event.event_date,
@@ -379,11 +379,11 @@ export class UnifiedFeedService {
     const item: UnifiedFeedItem = {
       id: `event-${event.id}`,
       type: 'event' as const,
-      title: `New Event: ${event.title}`,
+      title: event.title,
       content: event.description || `${event.artist_name} is performing at ${event.venue_name}`,
       author: {
         id: 'system',
-        name: 'Synth Events',
+        name: '',
         avatar_url: undefined
       },
       created_at: event.created_at,

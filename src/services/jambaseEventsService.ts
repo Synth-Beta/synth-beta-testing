@@ -1,7 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-export type JamBaseEvent = Tables<'jambase_events'>;
+export type JamBaseEvent = Tables<'jambase_events'> & {
+  is_promoted?: boolean;
+  promotion_tier?: 'basic' | 'premium' | 'featured' | null;
+  active_promotion_id?: string;
+};
 export type JamBaseEventInsert = TablesInsert<'jambase_events'>;
 export type JamBaseEventUpdate = TablesUpdate<'jambase_events'>;
 
@@ -55,6 +59,10 @@ export interface JamBaseEventResponse {
   tour_name?: string;
   created_at?: string;
   updated_at?: string;
+  // Promotion fields
+  is_promoted?: boolean;
+  promotion_tier?: 'basic' | 'premium' | 'featured' | null;
+  active_promotion_id?: string;
 }
 
 export interface JamBaseEventsApiResponse {
@@ -212,7 +220,7 @@ export class JamBaseEventsService {
     perPage?: number;
     eventType?: 'past' | 'upcoming' | 'all';
   } = {}): Promise<{
-    events: JamBaseEvent[];
+    events: JamBaseEventResponse[];
     total: number;
     page: number;
     perPage: number;
@@ -263,8 +271,46 @@ export class JamBaseEventsService {
       const total = count || 0;
       const totalPages = Math.ceil(total / perPage);
 
+      // Transform database events to JamBaseEventResponse format
+      const transformedEvents: JamBaseEventResponse[] = (events || []).map(event => ({
+        id: event.id,
+        jambase_event_id: event.jambase_event_id,
+        title: event.title,
+        artist_name: event.artist_name,
+        artist_id: event.artist_id || '',
+        venue_name: event.venue_name,
+        venue_id: event.venue_id || '',
+        event_date: event.event_date,
+        doors_time: event.doors_time,
+        description: event.description,
+        genres: event.genres,
+        venue_address: event.venue_address,
+        venue_city: event.venue_city,
+        venue_state: event.venue_state,
+        venue_zip: event.venue_zip,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        ticket_available: event.ticket_available,
+        price_range: event.price_range,
+        ticket_urls: event.ticket_urls,
+        setlist: event.setlist,
+        setlist_enriched: event.setlist_enriched,
+        setlist_song_count: event.setlist_song_count,
+        setlist_fm_id: event.setlist_fm_id,
+        setlist_fm_url: event.setlist_fm_url,
+        tour_name: event.tour_name,
+        created_at: event.created_at,
+        updated_at: event.updated_at,
+        // Promotion fields (with safe access)
+        is_promoted: (event as any).is_promoted || false,
+        promotion_tier: ((event as any).promotion_tier === 'basic' || (event as any).promotion_tier === 'premium' || (event as any).promotion_tier === 'featured') 
+          ? (event as any).promotion_tier as 'basic' | 'premium' | 'featured' 
+          : null,
+        active_promotion_id: (event as any).active_promotion_id
+      }));
+
       return {
-        events: events || [],
+        events: transformedEvents,
         total,
         page,
         perPage,
@@ -287,7 +333,7 @@ export class JamBaseEventsService {
     eventType?: 'past' | 'upcoming' | 'all';
     forceRefresh?: boolean;
   } = {}): Promise<{
-    events: JamBaseEvent[];
+    events: JamBaseEventResponse[];
     total: number;
     page: number;
     perPage: number;
@@ -335,7 +381,7 @@ export class JamBaseEventsService {
           });
 
           // Use the filtered events directly from the API response
-          const dbEvents: JamBaseEvent[] = exactArtistEvents.map(event => ({
+          const dbEvents: JamBaseEventResponse[] = exactArtistEvents.map(event => ({
             id: event.id || `api-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             jambase_event_id: event.jambase_event_id || event.id || '',
             title: event.title,

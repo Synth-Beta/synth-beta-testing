@@ -136,9 +136,9 @@ export class BusinessAnalyticsService {
       // Calculate average event attendance
       const avgEventAttendance = totalEvents > 0 ? totalInterested / totalEvents : 0;
 
-      // Estimate revenue (placeholder - would need actual ticket sales data)
-      const estimatedRevenuePerClick = 50; // Average ticket price estimate
-      const totalRevenue = ticketClicks * estimatedRevenuePerClick;
+      // Revenue calculation - only count actual revenue if we have real data
+      // For now, return 0 until we have actual revenue tracking
+      const totalRevenue = 0;
 
       return {
         total_events: totalEvents,
@@ -213,8 +213,8 @@ export class BusinessAnalyticsService {
           ? eventReviews.reduce((sum: number, review: any) => sum + (review.rating || 0), 0) / eventReviews.length 
           : 0;
 
-        const estimatedRevenuePerClick = 50;
-        const revenueGenerated = ticketClicks * estimatedRevenuePerClick;
+        // Revenue calculation - only count actual revenue if we have real data
+        const revenueGenerated = 0;
         const attendanceRate = totalViews > 0 ? (eventInterested.length / totalViews) * 100 : 0;
 
         return {
@@ -385,7 +385,8 @@ export class BusinessAnalyticsService {
           stats.views++;
         } else if (interaction.event_type === 'click_ticket') {
           stats.ticketClicks++;
-          stats.revenue += 50; // Estimated ticket price
+          // Revenue calculation - only count actual revenue if we have real data
+          stats.revenue += 0;
         }
       });
 

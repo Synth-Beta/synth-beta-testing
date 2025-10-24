@@ -39,6 +39,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [events, setEvents] = useState<EventCardEvent[]>([]);
   const [profileUserId, setProfileUserId] = useState<string | undefined>(undefined);
   const [chatUserId, setChatUserId] = useState<string | undefined>(undefined);
+  const [chatId, setChatId] = useState<string | undefined>(undefined);
   const [showOnboardingReminder, setShowOnboardingReminder] = useState(false);
   const [runTour, setRunTour] = useState(false);
   const { toast } = useToast();
@@ -113,8 +114,26 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         setCurrentView('profile');
       }
     };
+    
+    // Listen for event details navigation
+    const handleOpenEventDetails = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { event?: any; eventId?: string };
+      if (detail?.event) {
+        // Store the event data in localStorage for the feed to pick up
+        localStorage.setItem('selectedEvent', JSON.stringify(detail.event));
+        // Navigate to feed where the event modal will open
+        setCurrentView('feed');
+      }
+    };
+    
     window.addEventListener('open-user-profile', handleOpenUserProfile as EventListener);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('open-event-details', handleOpenEventDetails as EventListener);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('open-user-profile', handleOpenUserProfile as EventListener);
+      window.removeEventListener('open-event-details', handleOpenEventDetails as EventListener);
+    };
   }, []);
 
   // Handle session expiration
@@ -305,8 +324,19 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     setCurrentView('profile');
   };
 
-  const handleNavigateToChat = (userId: string) => {
-    setChatUserId(userId);
+  const handleNavigateToChat = (userIdOrChatId: string) => {
+    // Check if this is a chatId (UUID format) or userId
+    const isChatId = userIdOrChatId.includes('-') && userIdOrChatId.length === 36;
+    
+    if (isChatId) {
+      // This is a group chat ID
+      setChatId(userIdOrChatId);
+      setChatUserId(undefined); // Clear direct chat
+    } else {
+      // This is a user ID for direct chat
+      setChatUserId(userIdOrChatId);
+      setChatId(undefined); // Clear group chat
+    }
     setCurrentView('chat');
   };
 
@@ -412,7 +442,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           <ChatView
             currentUserId={user.id}
             chatUserId={chatUserId}
+            chatId={chatId}
             onBack={handleBack}
+            onNavigateToProfile={handleNavigateToProfile}
           />
         );
       case 'analytics':

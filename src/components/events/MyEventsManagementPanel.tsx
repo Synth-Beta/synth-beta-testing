@@ -14,6 +14,7 @@ import { useAccountType } from '@/hooks/useAccountType';
 import EventManagementService from '@/services/eventManagementService';
 import { EventCreationModal } from './EventCreationModal';
 import { EventPromotionModal } from './EventPromotionModal';
+import { EventEditModal } from './EventEditModal';
 import { Calendar, MapPin, Clock, Edit, Trash2, Award, Loader2, Plus, TrendingUp } from 'lucide-react';
 
 export function MyEventsManagementPanel() {
@@ -27,7 +28,9 @@ export function MyEventsManagementPanel() {
   const [eventClaims, setEventClaims] = useState<any[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPromotionModal, setShowPromotionModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEventForPromotion, setSelectedEventForPromotion] = useState<any | null>(null);
+  const [selectedEventForEdit, setSelectedEventForEdit] = useState<any | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -122,6 +125,11 @@ export function MyEventsManagementPanel() {
     setShowPromotionModal(true);
   };
 
+  const handleEditEvent = (event: any) => {
+    setSelectedEventForEdit(event);
+    setShowEditModal(true);
+  };
+
   const EventCard = ({ event, showEdit = true, showClaim = false }: any) => (
     <Card key={event.id} className="hover:shadow-md transition-shadow">
       <CardContent className="p-4">
@@ -158,19 +166,36 @@ export function MyEventsManagementPanel() {
 
             {showEdit && (
               <div className="flex gap-2 mt-3 flex-wrap">
-                <Button size="sm" variant="outline">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => handleEditEvent(event)}
+                >
                   <Edit className="h-4 w-4 mr-1" />
                   Edit
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                  onClick={() => handlePromoteEvent(event)}
-                >
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  Promote
-                </Button>
+                {!event.is_promoted && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                    onClick={() => handlePromoteEvent(event)}
+                  >
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                    Promote
+                  </Button>
+                )}
+                {event.is_promoted && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    disabled
+                  >
+                    <Award className="h-4 w-4 mr-1" />
+                    Promoted
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -210,7 +235,7 @@ export function MyEventsManagementPanel() {
           <h2 className="text-2xl font-bold">My Events</h2>
           <p className="text-gray-600">Manage your events and claims</p>
         </div>
-        {(isBusiness() || isAdmin()) && (
+        {(isBusiness() || isCreator() || isAdmin()) && (
           <Button onClick={() => setShowCreateModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Create Event
@@ -223,32 +248,27 @@ export function MyEventsManagementPanel() {
           <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
         </div>
       ) : (
-        <Tabs defaultValue="created" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            {(isBusiness() || isAdmin()) && (
-              <TabsTrigger value="created">
-                Created Events ({createdEvents.length})
+        <Tabs defaultValue="my-events" className="w-full">
+          <TabsList className={`grid w-full ${(isCreator() || isBusiness() || isAdmin()) ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {(isBusiness() || isCreator() || isAdmin()) && (
+              <TabsTrigger value="my-events">
+                My Events ({createdEvents.length + claimedEvents.length})
               </TabsTrigger>
             )}
             {(isCreator() || isAdmin()) && (
-              <>
-                <TabsTrigger value="claimed">
-                  Claimed Events ({claimedEvents.length})
-                </TabsTrigger>
-                <TabsTrigger value="claims">
-                  Pending Claims ({eventClaims.filter((c) => c.claim_status === 'pending').length})
-                </TabsTrigger>
-              </>
+              <TabsTrigger value="claims">
+                Pending Claims ({eventClaims.filter((c) => c.claim_status === 'pending').length})
+              </TabsTrigger>
             )}
           </TabsList>
 
-          {(isBusiness() || isAdmin()) && (
-            <TabsContent value="created" className="space-y-4 mt-4">
-              {createdEvents.length === 0 ? (
+          {(isBusiness() || isCreator() || isAdmin()) && (
+            <TabsContent value="my-events" className="space-y-4 mt-4">
+              {createdEvents.length === 0 && claimedEvents.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 mb-4">You haven't created any events yet</p>
+                    <p className="text-gray-600 mb-4">You don't have any events yet</p>
                     <Button onClick={() => setShowCreateModal(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Create Your First Event
@@ -256,49 +276,57 @@ export function MyEventsManagementPanel() {
                   </CardContent>
                 </Card>
               ) : (
-                createdEvents.map((event) => <EventCard key={event.id} event={event} />)
+                <div className="space-y-4">
+                  {/* Created Events Section */}
+                  {createdEvents.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                        <Calendar className="h-5 w-5" />
+                        Created Events ({createdEvents.length})
+                      </h3>
+                      <div className="space-y-3">
+                        {createdEvents.map((event) => <EventCard key={event.id} event={event} />)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Claimed Events Section */}
+                  {claimedEvents.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                        <Award className="h-5 w-5" />
+                        Claimed Events ({claimedEvents.length})
+                      </h3>
+                      <div className="space-y-3">
+                        {claimedEvents.map((event) => <EventCard key={event.id} event={event} />)}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </TabsContent>
           )}
 
           {(isCreator() || isAdmin()) && (
-            <>
-              <TabsContent value="claimed" className="space-y-4 mt-4">
-                {claimedEvents.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-12 text-center">
-                      <Award className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">You haven't claimed any events yet</p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Find events featuring your performances and claim them to manage their details
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  claimedEvents.map((event) => <EventCard key={event.id} event={event} />)
-                )}
-              </TabsContent>
-
-              <TabsContent value="claims" className="space-y-4 mt-4">
-                {eventClaims.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-12 text-center">
-                      <Award className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No claim requests</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  eventClaims.map((claim) => (
-                    <EventCard
-                      key={claim.id}
-                      event={{ ...claim.event, claim_status: claim.claim_status, claim_reason: claim.claim_reason }}
-                      showEdit={false}
-                      showClaim={true}
-                    />
-                  ))
-                )}
-              </TabsContent>
-            </>
+            <TabsContent value="claims" className="space-y-4 mt-4">
+              {eventClaims.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <Award className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No claim requests</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                eventClaims.map((claim) => (
+                  <EventCard
+                    key={claim.id}
+                    event={{ ...claim.event, claim_status: claim.claim_status, claim_reason: claim.claim_reason }}
+                    showEdit={false}
+                    showClaim={true}
+                  />
+                ))
+              )}
+            </TabsContent>
           )}
         </Tabs>
       )}
@@ -327,6 +355,22 @@ export function MyEventsManagementPanel() {
               title: 'Success',
               description: 'Your promotion request has been submitted for review',
             });
+          }}
+        />
+      )}
+
+      {selectedEventForEdit && (
+        <EventEditModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedEventForEdit(null);
+          }}
+          event={selectedEventForEdit}
+          onEventUpdated={() => {
+            setShowEditModal(false);
+            setSelectedEventForEdit(null);
+            loadEvents(); // Reload events to show updated data
           }}
         />
       )}
