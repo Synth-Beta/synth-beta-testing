@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
 import { PhotoUpload } from '@/components/ui/photo-upload';
 import { useAuth } from '@/hooks/useAuth';
 import { CustomSetlistInput, type CustomSetlistSong } from '@/components/reviews/CustomSetlistInput';
+import { Music } from 'lucide-react';
+import { SetlistModal } from '@/components/reviews/SetlistModal';
 
 interface ReviewContentStepProps {
   formData: ReviewFormData;
@@ -26,6 +29,7 @@ const emojiOptions = [
 
 export function ReviewContentStep({ formData, errors, onUpdateFormData }: ReviewContentStepProps) {
   const { user } = useAuth();
+  const [showSetlistModal, setShowSetlistModal] = useState(false);
   
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onUpdateFormData({ reviewText: e.target.value });
@@ -42,6 +46,18 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
   const handleCustomSetlistChange = (songs: CustomSetlistSong[]) => {
     onUpdateFormData({ customSetlist: songs });
   };
+
+  const handleSetlistSelect = (setlist: any) => {
+    console.log('🎵 ReviewContentStep: Setlist selected:', setlist);
+    onUpdateFormData({ selectedSetlist: setlist });
+  };
+
+  console.log('🎵 ReviewContentStep: Modal data being passed:', {
+    artistName: formData.selectedArtist?.name,
+    venueName: formData.selectedVenue?.name,
+    eventDate: formData.eventDate,
+    hasSelectedSetlist: !!formData.selectedSetlist
+  });
 
   const characterCount = formData.reviewText.length;
   const venueReviewCharacterCount = formData.venueReviewText.length;
@@ -111,11 +127,59 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
           )}
       </div>
 
-      {/* Custom Setlist Input */}
-      <CustomSetlistInput
-        songs={formData.customSetlist}
-        onChange={handleCustomSetlistChange}
-        disabled={!!formData.selectedSetlist}
+      {/* Setlist Options - API and Custom Together */}
+      <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex items-center gap-2 mb-3">
+          <Music className="w-5 h-5 text-purple-600" />
+          <h3 className="text-sm font-semibold text-gray-900">Setlist (Optional)</h3>
+          {formData.selectedSetlist && (
+            <span className="text-xs text-green-600 font-medium">✓ Setlist Added</span>
+          )}
+        </div>
+        
+        {!formData.selectedSetlist ? (
+          <div className="space-y-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSetlistModal(true)}
+              className="w-full flex items-center justify-center gap-2"
+            >
+              <Music className="w-4 h-4" />
+              Find Setlist from Setlist.fm
+            </Button>
+            <CustomSetlistInput
+              songs={formData.customSetlist}
+              onChange={handleCustomSetlistChange}
+            />
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm text-gray-700">
+              Setlist added from Setlist.fm ({formData.selectedSetlist.songCount || 0} songs)
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onUpdateFormData({ selectedSetlist: null })}
+              className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              Clear setlist
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Setlist Modal */}
+      <SetlistModal
+        isOpen={showSetlistModal}
+        onClose={() => setShowSetlistModal(false)}
+        artistName={formData.selectedArtist?.name || ''}
+        venueName={formData.selectedVenue?.name}
+        eventDate={formData.eventDate}
+        onSetlistSelect={handleSetlistSelect}
       />
 
       {/* Photo Upload */}

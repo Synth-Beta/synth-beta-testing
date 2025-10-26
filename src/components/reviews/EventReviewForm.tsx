@@ -225,18 +225,40 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           // Pre-populate selected artist and venue
           try {
             const approxArtist = (event as any)?.artist_name || (event as any)?.artist?.name || review.artist_name;
+            const approxArtistId = (event as any)?.artist_id || (event as any)?.artist?.id;
             const approxVenue = (event as any)?.venue_name || (event as any)?.venue?.name || review.venue_name;
             const approxVenueId = review.venue_id;
             const selectedArtist = approxArtist
-              ? ({ id: (event as any)?.artist?.id || `manual-${approxArtist}`, name: approxArtist, is_from_database: false } as any)
+              ? ({ 
+                  id: approxArtistId || `manual-${approxArtist}`, 
+                  name: approxArtist, 
+                  is_from_database: !!approxArtistId 
+                } as any)
               : null;
             const selectedVenue = approxVenue
               ? ({ id: approxVenueId || (event as any)?.venue?.id || `manual-${approxVenue}`, name: approxVenue, is_from_database: !!approxVenueId } as any)
               : null;
-            const updates: any = {};
-            if (selectedArtist) updates.selectedArtist = selectedArtist;
-            if (selectedVenue) updates.selectedVenue = selectedVenue;
-            if (Object.keys(updates).length > 0) setFormData(updates);
+            // Get event date from the event object if available
+            const eventDateFromEvent = (event as any)?.event_date ? String((event as any).event_date).split('T')[0] : null;
+            const eventDateToUse = eventDateFromEvent || (review.event_date ? String(review.event_date).split('T')[0] : '');
+            
+            const updates: any = {
+              selectedArtist,
+              selectedVenue,
+              // Also set the setlist if it exists
+              selectedSetlist: event.setlist || (event as any)?.existing_review?.selectedSetlist || null,
+              // Ensure event date is set
+              eventDate: eventDateToUse || formData.eventDate
+            };
+            console.log('🎵 Pre-populating form data for edit:', { 
+              selectedArtist, 
+              selectedVenue, 
+              hasSetlist: !!updates.selectedSetlist,
+              eventDate: updates.eventDate,
+              eventDateFromEvent,
+              reviewEventDate: review.event_date
+            });
+            setFormData(updates);
           } catch {}
         } else {
           // No existing review - create new one

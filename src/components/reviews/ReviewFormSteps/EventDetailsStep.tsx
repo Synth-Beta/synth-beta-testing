@@ -115,17 +115,28 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
 
   const [artistLocked, setArtistLocked] = React.useState(!!formData.selectedArtist);
   const [venueLocked, setVenueLocked] = React.useState(!!formData.selectedVenue);
+  
+  console.log('🎵 EventDetailsStep: Debug:', {
+    hasSelectedArtist: !!formData.selectedArtist,
+    artistLocked,
+    shouldShowButton: !formData.selectedArtist || !artistLocked,
+    hasSetlist: !!formData.selectedSetlist
+  });
 
   React.useEffect(() => {
-    // Only unlock if artist is cleared, don't auto-lock
-    if (!formData.selectedArtist) {
+    // When artist is selected, lock it (don't allow changing when editing)
+    if (formData.selectedArtist) {
+      setArtistLocked(true);
+    } else {
       setArtistLocked(false);
     }
   }, [formData.selectedArtist]);
 
   React.useEffect(() => {
-    // Only unlock if venue is cleared, don't auto-lock
-    if (!formData.selectedVenue) {
+    // When venue is selected, lock it
+    if (formData.selectedVenue) {
+      setVenueLocked(true);
+    } else {
       setVenueLocked(false);
     }
   }, [formData.selectedVenue]);
@@ -199,16 +210,6 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
                 </div>
                 <button className="text-xs text-red-600" onClick={()=>{ onUpdateFormData({ selectedArtist: null }); setArtistLocked(false); }}>×</button>
               </div>
-              <Button
-                type="button"
-                variant={formData.selectedSetlist ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowSetlistModal(true)}
-                className="w-full text-xs"
-              >
-                <Music className="w-3 h-3 mr-1" />
-                {formData.selectedSetlist ? 'Setlist Selected' : 'View Setlist'}
-              </Button>
             </div>
           )}
           {errors.selectedArtist && (

@@ -32,19 +32,50 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
 
     if (compact) {
       return (
-        <div className={cn("flex items-center gap-2 p-2 bg-purple-50 rounded-lg border border-purple-200", className)}>
-          <User className="w-4 h-4 text-purple-600" />
-          <span className="text-sm font-medium text-purple-800">
-            Custom Setlist • {totalSongs} song{totalSongs !== 1 ? 's' : ''}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="h-6 w-6 p-0 text-purple-600 hover:text-purple-800"
+        <div>
+          <button
+            className={cn("flex items-center justify-between gap-2 p-3 bg-purple-50 rounded-lg border border-purple-200 hover:bg-purple-100 transition-colors w-full", className)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
           >
-            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </Button>
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-purple-600" />
+              <span className="text-sm font-medium text-purple-800">
+                Custom Setlist • {totalSongs} song{totalSongs !== 1 ? 's' : ''}
+              </span>
+            </div>
+            {isExpanded ? <ChevronUp className="w-4 h-4 text-purple-600" /> : <ChevronDown className="w-4 h-4 text-purple-600" />}
+          </button>
+          {isExpanded && (
+            <div className="mt-2 p-4 bg-white rounded-lg border border-purple-200">
+              <div className="space-y-2">
+                {songs.map((song, index) => (
+                  <div key={index} className="flex items-start gap-3 p-2 bg-purple-50/30 rounded">
+                    <span className="text-sm font-medium text-purple-500 w-8 text-right flex-shrink-0">
+                      {song.position}.
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-900 block">
+                        {song.song_name}
+                      </span>
+                      {song.cover_artist && (
+                        <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 mt-1">
+                          Cover: {song.cover_artist}
+                        </Badge>
+                      )}
+                      {song.notes && (
+                        <p className="text-xs text-gray-600 mt-1 italic">
+                          "{song.notes}"
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -140,19 +171,46 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
 
   if (compact) {
     return (
-      <div className={cn("flex items-center gap-2 p-2 bg-purple-50 rounded-lg", className)}>
-        <Music className="w-4 h-4 text-purple-600" />
-        <span className="text-sm font-medium text-purple-800">
-          {totalSongs} songs • {Object.keys(sets).length} set{Object.keys(sets).length !== 1 ? 's' : ''}
-        </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="h-6 w-6 p-0 text-purple-600 hover:text-purple-800"
+      <div>
+        <button
+          className={cn("flex items-center justify-between gap-2 p-3 bg-purple-50 rounded-lg border border-purple-200 hover:bg-purple-100 transition-colors w-full", className)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(!isExpanded);
+          }}
         >
-          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-        </Button>
+          <div className="flex items-center gap-2">
+            <Music className="w-4 h-4 text-purple-600" />
+            <span className="text-sm font-medium text-purple-800">
+              {totalSongs} songs • {Object.keys(sets).length} set{Object.keys(sets).length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          {isExpanded ? <ChevronUp className="w-4 h-4 text-purple-600" /> : <ChevronDown className="w-4 h-4 text-purple-600" />}
+        </button>
+        {isExpanded && (
+          <div className="mt-2 p-4 bg-white rounded-lg border border-purple-200">
+            {Object.entries(sets).map(([setNum, songs]) => (
+              <div key={setNum} className="mb-4 last:mb-0">
+                <h5 className="text-sm font-bold text-purple-900 mb-2">
+                  Set {setNum} ({songs.length} songs)
+                </h5>
+                <div className="space-y-1">
+                  {songs.map((song: any, idx: number) => (
+                    <div key={idx} className="flex items-start gap-2 text-sm">
+                      <span className="text-purple-400 font-medium w-6 text-right flex-shrink-0">
+                        {idx + 1}.
+                      </span>
+                      <div className="flex-1">
+                        <span className="text-gray-900">{song.name}</span>
+                        {song.info && <span className="text-gray-500 ml-2 text-xs">({song.info})</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

@@ -136,9 +136,16 @@ export class UnifiedFeedService {
    */
   private static async getUserReviews(userId: string): Promise<UnifiedFeedItem[]> {
     try {
+      // First, fetch the user's profile to get their name and avatar
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, avatar_url, verified, account_type')
+        .eq('user_id', userId)
+        .single();
+
       const { data: reviews, error } = await (supabase as any)
         .from('user_reviews')
-        .select(`*, jambase_events: jambase_events (id, title, artist_name, venue_name, event_date)`)
+        .select(`*, jambase_events: jambase_events (id, title, artist_name, venue_name, event_date, setlist)`)
         .eq('user_id', userId)
         .eq('is_draft', false) // Only show published reviews, not drafts
         .neq('review_text', 'ATTENDANCE_ONLY') // Exclude attendance-only records from review feed
@@ -148,35 +155,48 @@ export class UnifiedFeedService {
       
       if (error) throw error;
       
-      return (reviews || []).map((review: any) => ({
-        id: `review-${review.id}`,
-        type: 'review' as const,
-        review_id: review.id,
-        title: review.jambase_events?.title || (review.is_public ? 'Your Public Review' : 'Your Private Review'),
-        content: review.review_text || '',
-        author: {
-          id: userId,
-          name: 'You',
-          avatar_url: undefined
-        },
-        created_at: review.created_at,
-        updated_at: review.updated_at,
-        rating: review.rating,
-        is_public: review.is_public,
-        photos: (review as any).photos || undefined,
-        setlist: (review as any).setlist || undefined,
-        likes_count: review.likes_count || 0,
-        comments_count: review.comments_count || 0,
-        shares_count: review.shares_count || 0,
-        event_info: {
-          event_name: review.jambase_events?.title || 'Concert Review',
-          venue_name: review.jambase_events?.venue_name || 'Unknown Venue',
-          event_date: review.jambase_events?.event_date || review.created_at,
-          artist_name: review.jambase_events?.artist_name,
-          artist_id: review.jambase_events?.artist_id
-        },
-        relevance_score: this.calculateReviewRelevance(review, true) // Higher score for own reviews
-      }));
+      return (reviews || []).map((review: any) => {
+        // Use the setlist from user_reviews if available, otherwise fall back to event setlist
+        const setlistToUse = review.setlist || review.jambase_events?.setlist;
+        console.log('🎵 getUserReviews: Processing review:', {
+          reviewId: review.id,
+          hasUserReviewSetlist: !!review.setlist,
+          hasEventSetlist: !!review.jambase_events?.setlist,
+          setlistToUse: !!setlistToUse
+        });
+        
+        return {
+          id: `review-${review.id}`,
+          type: 'review' as const,
+          review_id: review.id,
+          title: review.jambase_events?.title || (review.is_public ? 'Your Public Review' : 'Your Private Review'),
+          content: review.review_text || '',
+          author: {
+            id: userId,
+            name: profile?.name || 'You',
+            avatar_url: profile?.avatar_url,
+            verified: profile?.verified,
+            account_type: profile?.account_type
+          },
+          created_at: review.created_at,
+          updated_at: review.updated_at,
+          rating: review.rating,
+          is_public: review.is_public,
+          photos: (review as any).photos || undefined,
+          setlist: setlistToUse || undefined,
+          likes_count: review.likes_count || 0,
+          comments_count: review.comments_count || 0,
+          shares_count: review.shares_count || 0,
+          event_info: {
+            event_name: review.jambase_events?.title || 'Concert Review',
+            venue_name: review.jambase_events?.venue_name || 'Unknown Venue',
+            event_date: review.jambase_events?.event_date || review.created_at,
+            artist_name: review.jambase_events?.artist_name,
+            artist_id: review.jambase_events?.artist_id
+          },
+          relevance_score: this.calculateReviewRelevance(review, true) // Higher score for own reviews
+        };
+      });
     } catch (error) {
       console.error('Error fetching user reviews:', error);
       return [];
@@ -208,7 +228,9 @@ export class UnifiedFeedService {
         author: {
           id: review.reviewer_id || review.user_id,
           name: review.reviewer_name || 'Anonymous',
-          avatar_url: review.reviewer_avatar
+          avatar_url: review.reviewer_avatar,
+          verified: review.reviewer_verified,
+          account_type: review.reviewer_account_type
         },
         created_at: review.created_at,
         rating: review.rating,
@@ -254,9 +276,9 @@ export class UnifiedFeedService {
             console.log('✅ Using PERSONALIZED feed:', {
               count: personalizedEvents.length,
               topScore: personalizedEvents[0]?.relevance_score,
-              topArtist: personalizedEvents[0]?.artist_name,
+              topArtist: (personalizedEvents[0] as any)?.artist_name,
               scores: personalizedEvents.slice(0, 5).map(e => ({
-                artist: e.artist_name,
+                artist: (e as any).artist_name,
                 score: e.relevance_score
               }))
             });
@@ -377,29 +399,29 @@ export class UnifiedFeedService {
    */
   private static transformPersonalizedEventToFeedItem(event: PersonalizedEvent, userLocation?: { lat: number; lng: number }): UnifiedFeedItem {
     const item: UnifiedFeedItem = {
-      id: `event-${event.id}`,
+      id: `event-${(event as any).id}`,
       type: 'event' as const,
-      title: event.title,
-      content: event.description || `${event.artist_name} is performing at ${event.venue_name}`,
+      title: (event as any).title,
+      content: (event as any).description || `${(event as any).artist_name} is performing at ${(event as any).venue_name}`,
       author: {
         id: 'system',
         name: '',
         avatar_url: undefined
       },
-      created_at: event.created_at,
+      created_at: (event as any).created_at,
       event_data: event as JamBaseEventResponse,
       event_info: {
-        event_name: event.title,
-        venue_name: event.venue_name,
-        event_date: event.event_date,
-        artist_name: event.artist_name,
-        artist_id: event.artist_id || undefined
+        event_name: (event as any).title,
+        venue_name: (event as any).venue_name,
+        event_date: (event as any).event_date,
+        artist_name: (event as any).artist_name,
+        artist_id: (event as any).artist_id || undefined
       },
-      location: event.latitude && event.longitude ? {
-        lat: Number(event.latitude),
-        lng: Number(event.longitude),
-        venue_name: event.venue_name,
-        venue_address: event.venue_address || undefined
+      location: (event as any).latitude && (event as any).longitude ? {
+        lat: Number((event as any).latitude),
+        lng: Number((event as any).longitude),
+        venue_name: (event as any).venue_name,
+        venue_address: (event as any).venue_address || undefined
       } : undefined,
       relevance_score: (event.relevance_score || 0) / 100 // Normalize 0-100 to 0-1
     };

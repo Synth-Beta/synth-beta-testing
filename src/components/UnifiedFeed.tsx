@@ -54,7 +54,7 @@ import { SynthSLogo } from '@/components/SynthSLogo';
 import { getEventStatus, isEventPast, getPastEvents, getUpcomingEvents } from '@/utils/eventStatusUtils';
 import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
-import { ReviewCard as FeedReviewCard } from '@/components/reviews/ReviewCard';
+import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
 import { ProfileReviewCard } from '@/components/reviews/ProfileReviewCard';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventCommentsModal } from '@/components/events/EventCommentsModal';
@@ -1161,161 +1161,194 @@ export const UnifiedFeed = ({
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                {feedItems.filter(item => item.type === 'review' && !(item as any).deleted_at && !(item as any).is_deleted).map((item, index) => (
-                <Card key={`${item.id}-${index}`} className="hover:shadow-md transition-shadow relative">
-                  {/* Header */}
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src={item.author?.avatar_url || undefined} />
-                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm">
-                          {item.author?.name?.charAt(0).toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => onNavigateToProfile?.(item.author.id)}
-                            className="font-semibold text-sm hover:opacity-70 transition-opacity"
-                          >
-                            {item.author?.name || 'Anonymous'}
-                          </button>
-                          {item.rating && (
-                            <div className="flex items-center space-x-1">
-                              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                              <span className="text-xs text-gray-500">{item.rating}</span>
-                            </div>
-                          )}
-                        </div>
-                        {item.event_info && (
-                          <div className="flex items-center space-x-1 text-xs text-gray-500">
-                            <MapPin className="w-3 h-3" />
-                            <span>{item.event_info.venue_name}</span>
-                            <span>•</span>
-                            <Calendar className="w-3 h-3" />
-                            <span>{format(parseISO(item.event_info.event_date), 'MMM d, yyyy')}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-white border border-gray-200">
-                        <DropdownMenuItem onClick={() => setOpenReportFor(item.id)} className="bg-white hover:bg-gray-50">
-                          Report
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </CardContent>
-
-                  {/* Media - only show if photos exist */}
-                  {item.photos && item.photos.length > 0 && (
-                    <div onClick={() => handleReviewClick(item)} className="cursor-pointer">
-                      {renderInstagramMedia(item)}
-                    </div>
-                  )}
-
-                  {/* Content Section */}
-                  <CardContent className="px-4 py-3">
-                    {/* Actions */}
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-4">
-                        <button
-                          onClick={() => handleInstagramLike(item)}
-                          className={`transition-colors ${
-                            likedPosts.has(item.id) ? 'text-red-500' : 'text-gray-700 hover:text-red-500'
-                          }`}
-                        >
-                          <Heart className={`w-6 h-6 ${likedPosts.has(item.id) ? 'fill-current' : ''}`} />
-                        </button>
-                        <button
-                          onClick={() => setOpenReviewCommentsFor(item.review_id || item.id)}
-                          className="text-gray-700 hover:text-blue-500 transition-colors"
-                        >
-                          <MessageCircle className="w-6 h-6" />
-                        </button>
-                        <button
-                          onClick={() => handleShare(item)}
-                          className="text-gray-700 hover:text-green-500 transition-colors"
-                        >
-                          <Share2 className="w-6 h-6" />
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => handleBookmark(item)}
-                        className={`transition-colors ${
-                          bookmarkedPosts.has(item.id) ? 'text-yellow-500' : 'text-gray-700 hover:text-yellow-500'
-                        }`}
-                      >
-                        <Bookmark className={`w-6 h-6 ${bookmarkedPosts.has(item.id) ? 'fill-current' : ''}`} />
-                      </button>
-                    </div>
-
-                    {/* Likes count */}
-                    <div className="mb-2">
-                      <button
-                        onClick={() => setOpenLikersFor(item.review_id || item.id)}
-                        className="font-semibold text-sm hover:opacity-70 transition-opacity"
-                      >
-                        {item.likes_count || 0} likes
-                      </button>
-                    </div>
-
-                    {/* Caption - clickable for reviews */}
-                    <div className="space-y-1">
-                      <div className="text-sm">
-                        <button
-                          onClick={() => onNavigateToProfile?.(item.author.id)}
-                          className="font-semibold hover:opacity-70 transition-opacity"
-                        >
-                          {item.author?.name || 'Anonymous'}
-                        </button>
-                        <span className="ml-2">{item.content}</span>
-                      </div>
+              <div className="space-y-6">
+                {feedItems.filter(item => item.type === 'review' && !(item as any).deleted_at && !(item as any).is_deleted).map((item, index) => {
+                  console.log('🖼️ Review item author data:', {
+                    id: item.id,
+                    authorName: item.author?.name,
+                    avatarUrl: item.author?.avatar_url,
+                    authorId: item.author?.id,
+                    fullAuthor: item.author
+                  });
+                  return (
+                  <BelliStyleReviewCard
+                    key={`${item.id}-${index}`}
+                    review={{
+                      id: item.review_id || item.id,
+                      user_id: item.author?.id || currentUserId,
+                      event_id: (item as any).event_id || '',
+                      rating: item.rating || 0,
+                      review_text: item.content || '',
+                      is_public: true,
+                      created_at: item.created_at,
+                      updated_at: item.created_at,
+                      likes_count: item.likes_count || 0,
+                      comments_count: item.comments_count || 0,
+                      shares_count: 0,
+                      is_liked_by_user: likedPosts.has(item.id),
+                      reaction_emoji: '',
+                      photos: item.photos || [],
+                      videos: [],
+                      mood_tags: [],
+                      genre_tags: [],
+                      context_tags: [],
+                      artist_name: item.event_info?.artist_name,
+                      venue_name: item.event_info?.venue_name,
+                      performance_rating: (item as any).performance_rating,
+                      venue_rating: (item as any).venue_rating,
+                      overall_experience_rating: (item as any).overall_experience_rating,
+                      performance_review_text: (item as any).performance_review_text,
+                      venue_review_text: (item as any).venue_review_text,
+                      overall_experience_review_text: (item as any).overall_experience_review_text,
+                      setlist: (item as any).setlist,
+                      custom_setlist: (item as any).custom_setlist
+                    }}
+                    currentUserId={currentUserId}
+                    onLike={(reviewId, isLiked) => {
+                      console.log('🔍 BelliStyle onLike:', { reviewId, isLiked, itemId: item.id });
+                      if (isLiked) {
+                        setLikedPosts(prev => new Set([...prev, item.id]));
+                      } else {
+                        setLikedPosts(prev => {
+                          const next = new Set(prev);
+                          next.delete(item.id);
+                          return next;
+                        });
+                      }
+                    }}
+                    onComment={() => setOpenReviewCommentsFor(item.review_id || item.id)}
+                    onShare={() => handleShare(item)}
+                    onEdit={() => {
+                      console.log('Edit button clicked for review:', item.review_id || item.id);
+                      console.log('Full item data:', item);
                       
-                      {/* Event info */}
-                      {item.event_info && (
-                        <div className="text-sm text-gray-500">
-                          <span className="font-semibold">{item.event_info.artist_name}</span>
-                          <span className="ml-2">at {item.event_info.venue_name}</span>
-                        </div>
-                      )}
-
-                      {/* Comments count */}
-                      {item.comments_count && item.comments_count > 0 && (
-                        <button
-                          onClick={() => setOpenReviewCommentsFor(item.review_id || item.id)}
-                          className="text-sm text-gray-500 hover:opacity-70 transition-opacity"
-                        >
-                          View all {item.comments_count} comments
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Timestamp */}
-                    <div className="mt-2">
-                      <span className="text-xs text-gray-500">
-                        {formatTimeAgo(item.created_at)}
-                      </span>
-                    </div>
-                  </CardContent>
-
-                  {/* Make content area clickable for reviews without media */}
-                  {(!item.photos || item.photos.length === 0) && item.type === 'review' && (
-                    <div 
-                      onClick={() => handleReviewClick(item)}
-                      className="absolute top-16 left-0 right-0 bottom-0 cursor-pointer"
-                      style={{ zIndex: 1 }}
-                    />
-                  )}
-                </Card>
-              ))}
+                      // Fetch the full review data from the database
+                      const fetchFullReviewData = async () => {
+                        try {
+                          // Get the event_id from the review
+                          const { data: reviewData, error: reviewError } = await supabase
+                            .from('user_reviews')
+                            .select(`
+                              *,
+                              jambase_events!inner (
+                                id,
+                                title,
+                                artist_name,
+                                artist_id,
+                                venue_name,
+                                venue_id,
+                                venue_city,
+                                venue_state,
+                                venue_zip,
+                                venue_address,
+                                event_date,
+                                doors_time,
+                                description,
+                                genres,
+                                price_range,
+                                ticket_urls,
+                                setlist
+                              )
+                            `)
+                            .eq('id', item.review_id || item.id)
+                            .single();
+                          
+                          if (reviewError) {
+                            console.error('Error fetching review:', reviewError);
+                            return;
+                          }
+                          
+                          if (reviewData && reviewData.jambase_events) {
+                            const event = reviewData.jambase_events;
+                            const review = reviewData;
+                            
+                            console.log('🎵 Setting up edit modal with event data:', {
+                              eventId: event.id,
+                              artistName: event.artist_name,
+                              venueName: event.venue_name,
+                              hasSetlist: !!event.setlist,
+                              reviewId: review.id
+                            });
+                            
+                            // Create complete event object
+                            setSelectedReviewEvent({
+                              id: event.id,
+                              jambase_event_id: (event as any).jambase_event_id,
+                              title: event.title || 'Concert Review',
+                              artist_name: event.artist_name,
+                              artist_id: event.artist_id,
+                              venue_name: event.venue_name,
+                              venue_id: event.venue_id,
+                              event_date: event.event_date,
+                              doors_time: event.doors_time,
+                              description: event.description,
+                              genres: event.genres,
+                              venue_city: event.venue_city,
+                              venue_state: event.venue_state,
+                              venue_zip: event.venue_zip,
+                              venue_address: event.venue_address,
+                              price_range: event.price_range,
+                              ticket_urls: event.ticket_urls,
+                              setlist: event.setlist, // This should show the setlist button
+                              existing_review_id: review.id,
+                              existing_review: {
+                                rating: review.rating,
+                                review_text: review.review_text,
+                                performance_rating: review.performance_rating,
+                                venue_rating: review.venue_rating,
+                                overall_experience_rating: review.overall_experience_rating,
+                                performance_review_text: review.performance_review_text,
+                                venue_review_text: review.venue_review_text,
+                                overall_experience_review_text: review.overall_experience_review_text,
+                                reaction_emoji: review.reaction_emoji,
+                                is_public: review.is_public,
+                                review_type: review.review_type,
+                                photos: review.photos,
+                                custom_setlist: review.custom_setlist,
+                                selectedSetlist: event.setlist, // Also set selectedSetlist so the button shows
+                                venue_tags: review.venue_tags,
+                                artist_tags: review.artist_tags,
+                                mood_tags: review.mood_tags,
+                                genre_tags: review.genre_tags,
+                                context_tags: review.context_tags
+                              }
+                            });
+                            setShowReviewModal(true);
+                          }
+                        } catch (error) {
+                          console.error('Error loading review data for edit:', error);
+                        }
+                      };
+                      
+                      fetchFullReviewData();
+                    }}
+                    onDelete={async (reviewId) => {
+                      try {
+                        await ReviewService.deleteEventReview(currentUserId, reviewId);
+                        loadFeedData(0); // Refresh feed
+                        toast({
+                          title: "Review Deleted",
+                          description: "Your review has been deleted.",
+                        });
+                      } catch (error) {
+                        console.error('Error deleting review:', error);
+                        toast({
+                          title: "Error",
+                          description: "Failed to delete review.",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    onReport={() => setOpenReportFor(item.id)}
+                    userProfile={{
+                      name: item.author?.name || 'User',
+                      avatar_url: item.author?.avatar_url || undefined,
+                      verified: (item.author as any)?.verified,
+                      account_type: (item.author as any)?.account_type
+                    }}
+                  />
+                  );
+                })}
               </div>
             )}
           </TabsContent>

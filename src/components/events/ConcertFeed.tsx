@@ -35,7 +35,7 @@ import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService
 import { EventReviewModal } from '@/components/EventReviewModal';
 import { FriendProfileCard } from '@/components/FriendProfileCard';
 import { Navigation } from '@/components/Navigation';
-import { ReviewCard } from '@/components/ReviewCard';
+import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
 
 interface ConcertReview {
   id: string;
@@ -811,7 +811,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                     </div>
                   ) : (
                     reviews.map((review) => (
-                      <ReviewCard
+                      <BelliStyleReviewCard
                         key={review.id}
                         review={{
                           id: review.id,
@@ -831,12 +831,20 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                           videos: [],
                           mood_tags: [],
                           genre_tags: [],
-                          context_tags: []
+                          context_tags: [],
+                          artist_name: review.artist_name,
+                          venue_name: review.venue_name
                         }}
                         currentUserId={currentUserId}
                         onEdit={handleEditReview}
                         onDelete={handleDeleteReview}
                         showEventInfo={true}
+                        userProfile={{
+                          name: review.reviewer_name || 'User',
+                          avatar_url: review.reviewer_avatar,
+                          verified: review.reviewer_verified,
+                          account_type: review.reviewer_account_type
+                        }}
                       />
                     ))
                   )}

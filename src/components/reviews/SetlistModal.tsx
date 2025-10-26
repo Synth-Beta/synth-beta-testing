@@ -41,31 +41,90 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
       
       // Try most specific search first (artist + venue + date)
       if (venueName && eventDate) {
-        console.log('🎵 Searching by artist, venue, and date:', { artistName, venueName, eventDate });
-        const results = await SetlistService.searchSetlistsByArtistAndVenue(artistName, venueName, eventDate);
-        if (results && results.length > 0) {
-          allResults = [...allResults, ...results];
+        try {
+          console.log('🎵 Searching by artist, venue, and date:', { artistName, venueName, eventDate });
+          const results = await SetlistService.searchSetlistsByArtistAndVenue(artistName, venueName, eventDate);
+          if (results && results.length > 0) {
+            console.log(`✅ Found ${results.length} results from venue+date search`);
+            allResults = [...allResults, ...results];
+          }
+        } catch (error) {
+          console.warn('⚠️ Venue+date search failed:', error);
         }
+      }
+      
+      // If we found results, no need to do more searches
+      if (allResults.length > 0) {
+        console.log('✅ Using venue+date results, skipping additional searches to avoid rate limits');
+        setSetlists(allResults);
+        setLoading(false);
+        return;
       }
       
       // Try artist + date search
       if (eventDate) {
-        console.log('🎵 Searching by artist and date:', { artistName, eventDate });
-        const results = await SetlistService.searchSetlistsByArtist(artistName, eventDate);
-        if (results && results.length > 0) {
-          allResults = [...allResults, ...results];
+        try {
+          console.log('🎵 Searching by artist and date:', { artistName, eventDate });
+          const results = await SetlistService.searchSetlistsByArtist(artistName, eventDate);
+          if (results && results.length > 0) {
+            console.log(`✅ Found ${results.length} results from artist+date search`);
+            allResults = [...allResults, ...results];
+          }
+        } catch (error) {
+          console.warn('⚠️ Artist+date search failed:', error);
         }
       }
       
-      // Try artist-only search for more results
-      console.log('🎵 Searching by artist only:', { artistName });
-      const results = await SetlistService.searchSetlistsByArtist(artistName);
-      if (results && results.length > 0) {
-        allResults = [...allResults, ...results];
+      // If we found results, no need to do more searches
+      if (allResults.length > 0) {
+        console.log('✅ Using artist+date results, skipping additional searches to avoid rate limits');
+        setSetlists(allResults);
+        setLoading(false);
+        return;
       }
       
-      // Remove duplicates and sort by relevance (exact date matches first)
-      const uniqueResults = allResults.filter((setlist, index, self) => 
+      // Try artist-only search as last resort
+      try {
+        console.log('🎵 Searching by artist only:', { artistName });
+        const results = await SetlistService.searchSetlistsByArtist(artistName);
+        if (results && results.length > 0) {
+          console.log(`✅ Found ${results.length} results from artist-only search`);
+          allResults = [...allResults, ...results];
+        }
+      } catch (error) {
+        console.warn('⚠️ Artist-only search failed:', error);
+      }
+      
+      // Filter out results that don't match the artist name
+      // For "Goose" we want only exact matches or close variations, not "Duck Fight Goose" or "Silly Goose"
+      const filteredResults = allResults.filter(setlist => {
+        const artistNameLower = artistName.toLowerCase().trim();
+        const setlistArtistLower = (setlist.artist?.name || '').toLowerCase().trim();
+        
+        // Exact match
+        if (setlistArtistLower === artistNameLower) {
+          return true;
+        }
+        
+        // Close match - artist name starts with search term and is within reasonable length
+        // This catches "Goose" but not "Silly Goose" or "Duck Fight Goose"
+        const wordsInSetlistName = setlistArtistLower.split(' ');
+        const firstWord = wordsInSetlistName[0];
+        
+        // Allow if first word matches and the total name isn't significantly longer
+        if (firstWord === artistNameLower && setlistArtistLower.length <= artistNameLower.length + 2) {
+          return true;
+        }
+        
+        // Disallow anything else
+        return false;
+      });
+      
+      console.log(`🎵 Filtered ${allResults.length} results to ${filteredResults.length} matching artist name`);
+      console.log('🎵 Filtered results:', filteredResults.map(r => r.artist?.name));
+      
+      // Remove duplicates
+      const uniqueResults = filteredResults.filter((setlist, index, self) => 
         index === self.findIndex(s => s.setlistFmId === setlist.setlistFmId)
       );
       
@@ -126,13 +185,19 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
 
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
+      const date = new Date(dateString);
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string:', dateString);
+        return 'Date TBD';
+      }
+      return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       });
     } catch {
-      return dateString;
+      return 'Date TBD';
     }
   };
 
