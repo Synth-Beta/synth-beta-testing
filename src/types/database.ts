@@ -31,6 +31,13 @@ export interface Profile {
   gender: string | null;
   birthday: string | null;
   similar_users_notifications: boolean | null;
+  account_type?: 'user' | 'creator' | 'business' | 'admin';
+  verified?: boolean;
+  verification_level?: string;
+  trust_score?: number;
+  verification_criteria_met?: any;
+  verified_at?: string | null;
+  verified_by?: string | null;
 }
 
 // Legacy interface - deprecated, use user_jambase_events instead

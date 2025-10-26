@@ -26,6 +26,9 @@ export interface PotentialMatch {
   name: string;
   avatar_url?: string;
   bio?: string;
+  gender?: string;
+  birthday?: string;
+  instagram_handle?: string;
   compatibility_score?: number;
   shared_artists?: string[];
   shared_genres?: string[];
@@ -186,7 +189,8 @@ export class MatchingService {
           bio,
           music_streaming_profile,
           gender,
-          birthday
+          birthday,
+          instagram_handle
         `)
         .in('user_id', userIds);
 
@@ -233,6 +237,9 @@ export class MatchingService {
             name: profile.name,
             avatar_url: profile.avatar_url,
             bio: profile.bio,
+            gender: profile.gender,
+            birthday: profile.birthday,
+            instagram_handle: profile.instagram_handle,
             compatibility_score: compatibilityScore,
             shared_artists: sharedPreferences.artists,
             shared_genres: sharedPreferences.genres,

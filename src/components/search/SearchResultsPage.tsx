@@ -17,6 +17,8 @@ import {
   Calendar,
   ArrowLeft
 } from 'lucide-react';
+import { VerificationBadge } from '@/components/verification/VerificationBadge';
+import type { AccountType } from '@/utils/verificationUtils';
 
 interface SearchResultsPageProps {
   searchQuery: string;
@@ -35,6 +37,8 @@ interface UserProfile {
   instagram_handle: string | null;
   username?: string;
   email?: string;
+  account_type?: AccountType;
+  verified?: boolean;
 }
 
 export function SearchResultsPage({ searchQuery, searchType, onBack, userId, onArtistSelect }: SearchResultsPageProps) {
@@ -251,9 +255,18 @@ export function SearchResultsPage({ searchQuery, searchType, onBack, userId, onA
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <h3 className="text-xl font-semibold text-gray-900">
-                            {(item as UserProfile).name || 'Unknown User'}
-                          </h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-xl font-semibold text-gray-900">
+                              {(item as UserProfile).name || 'Unknown User'}
+                            </h3>
+                            {(item as UserProfile).verified && (item as UserProfile).account_type && (
+                              <VerificationBadge
+                                accountType={(item as UserProfile).account_type!}
+                                verified={(item as UserProfile).verified!}
+                                size="md"
+                              />
+                            )}
+                          </div>
                           {(item as UserProfile).bio && (
                             <p className="text-gray-600 mt-1">{(item as UserProfile).bio}</p>
                           )}

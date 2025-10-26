@@ -5,13 +5,14 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { LogOut, User, Bell, Shield, HelpCircle, Info, Mail, Key, AtSign, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { LogOut, User, Bell, Shield, HelpCircle, Info, Mail, Key, AtSign, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 // import { EmailPreferencesSettings } from '@/components/EmailPreferencesSettings';
 // import { OnboardingPreferencesSettings } from '@/components/OnboardingPreferencesSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { UserVisibilityService } from '@/services/userVisibilityService';
 import { useAuth } from '@/hooks/useAuth';
+import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -22,13 +23,15 @@ interface SettingsModalProps {
 
 export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: SettingsModalProps) => {
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [view, setView] = useState<'menu' | 'email-preferences' | 'onboarding-preferences' | 'security-actions'>('menu');
+  const [view, setView] = useState<'menu' | 'email-preferences' | 'onboarding-preferences' | 'security-actions' | 'verification'>('menu');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [isPublicProfile, setIsPublicProfile] = useState(true);
   const [isLoadingVisibility, setIsLoadingVisibility] = useState(false);
   const [hasProfilePicture, setHasProfilePicture] = useState(true);
+  const [accountType, setAccountType] = useState<'user' | 'creator' | 'business' | 'admin'>('user');
+  const [isVerified, setIsVerified] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -198,7 +201,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
     }
   };
 
-  // Load profile visibility settings when modal opens
+  // Load profile visibility settings and verification status when modal opens
   useEffect(() => {
     if (isOpen && user?.id) {
       UserVisibilityService.getUserVisibilitySettings(user.id).then(settings => {
@@ -212,6 +215,19 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
         setIsPublicProfile(true);
         setHasProfilePicture(true);
       });
+
+      // Fetch verification status
+      supabase
+        .from('profiles')
+        .select('account_type, verified')
+        .eq('user_id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setAccountType(data.account_type || 'user');
+            setIsVerified(data.verified || false);
+          }
+        });
     }
   }, [isOpen, user?.id]);
 
@@ -220,7 +236,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
       <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {(view === 'email-preferences' || view === 'onboarding-preferences' || view === 'security-actions') && (
+            {(view === 'email-preferences' || view === 'onboarding-preferences' || view === 'security-actions' || view === 'verification') && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -234,7 +250,8 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
             {view === 'menu' ? 'Settings' : 
              view === 'email-preferences' ? 'Email Preferences' :
              view === 'onboarding-preferences' ? 'Profile & Preferences' :
-             view === 'security-actions' ? 'Security Actions' : 'Settings'}
+             view === 'security-actions' ? 'Security Actions' :
+             view === 'verification' ? 'Verification Status' : 'Settings'}
           </DialogTitle>
         </DialogHeader>
         
@@ -339,6 +356,21 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-3 h-12"
+                onClick={() => setView('verification')}
+              >
+                <CheckCircle className="w-5 h-5" />
+                <div className="text-left">
+                  <div className="font-medium flex items-center gap-2">
+                    Verification Status
+                    {isVerified && <span className="text-xs text-green-600">✓ Verified</span>}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Track your verification progress</div>
+                </div>
+              </Button>
+
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 h-12"
                 onClick={() => handleComingSoon('Help & Support')}
               >
                 <HelpCircle className="w-5 h-5" />
@@ -390,6 +422,16 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
           <div className="p-4">
             <p className="text-sm text-muted-foreground mb-4">Profile preferences coming soon!</p>
             <Button onClick={handleBack} variant="outline">Back</Button>
+          </div>
+        ) : view === 'verification' ? (
+          <div className="p-4">
+            {user?.id && (
+              <VerificationStatusCard
+                userId={user.id}
+                accountType={accountType}
+                verified={isVerified}
+              />
+            )}
           </div>
         ) : view === 'security-actions' ? (
           <div className="space-y-6">

@@ -9,6 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { DBEvent, Profile } from '@/types/database';
 import { Event } from '@/types/concertSearch';
 import { useAuth } from '@/hooks/useAuth';
+import { VerificationBadge } from '@/components/verification/VerificationBadge';
+import type { AccountType } from '@/utils/verificationUtils';
 
 // Union type to handle both old and new event formats
 type EventData = DBEvent | Event;
@@ -35,6 +37,8 @@ interface UserWithProfile {
   updated_at: string;
   hasSwipedRight?: boolean;
   isMatch?: boolean;
+  account_type?: AccountType;
+  verified?: boolean;
 }
 
 export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: EventUsersViewProps) => {
@@ -132,7 +136,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
       // Fetch profiles for those interested users
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, gender, birthday, created_at, updated_at')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, gender, birthday, created_at, updated_at, account_type, verified')
         .in('user_id', interestedUserIds);
 
       if (profilesError) throw profilesError;
@@ -372,7 +376,16 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                   </AvatarFallback>
                 </Avatar>
                 
-                <h2 className="text-xl font-bold mb-2">{currentUser.name}</h2>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <h2 className="text-xl font-bold">{currentUser.name}</h2>
+                  {currentUser.verified && currentUser.account_type && (
+                    <VerificationBadge
+                      accountType={currentUser.account_type}
+                      verified={currentUser.verified}
+                      size="md"
+                    />
+                  )}
+                </div>
                 
                 {currentUser.bio && (
                   <p className="text-muted-foreground mb-4 line-clamp-2">
@@ -443,7 +456,16 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                     {currentUser.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <h3 className="text-lg font-bold mb-1">{currentUser.name}</h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-lg font-bold">{currentUser.name}</h3>
+                  {currentUser.verified && currentUser.account_type && (
+                    <VerificationBadge
+                      accountType={currentUser.account_type}
+                      verified={currentUser.verified}
+                      size="sm"
+                    />
+                  )}
+                </div>
                 {currentUser.bio && (
                   <p className="text-muted-foreground text-xs leading-relaxed line-clamp-2">
                     {currentUser.bio}

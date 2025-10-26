@@ -921,6 +921,12 @@ export function EventDetailsModal({
                     description: `You matched with ${matchedUser.name}!`,
                   });
                 }}
+                onNavigateToProfile={(userId) => {
+                  if (onNavigateToProfile) {
+                    onNavigateToProfile(userId);
+                    onClose();
+                  }
+                }}
               />
             )}
           </div>

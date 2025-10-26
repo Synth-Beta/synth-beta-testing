@@ -40,6 +40,8 @@ import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { BlockUserModal } from '@/components/moderation/BlockUserModal';
 import { FriendActivityFeed } from '@/components/social/FriendActivityFeed';
 import { WorkingConnectionBadge } from '../WorkingConnectionBadge';
+import { VerificationBadge } from '@/components/verification/VerificationBadge';
+import type { AccountType } from '@/utils/verificationUtils';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -66,6 +68,9 @@ interface UserProfile {
   is_public_profile?: boolean;
   gender?: string | null;
   birthday?: string | null;
+  account_type?: 'user' | 'creator' | 'business' | 'admin';
+  verified?: boolean;
+  verification_level?: string | null;
 }
 
 // Use JamBaseEvent type directly instead of custom UserEvent interface
@@ -251,7 +256,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       console.log('ProfileView: Fetching profile for user:', targetUserId);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at, last_active_at, is_public_profile')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at, last_active_at, is_public_profile, account_type, verified, verification_level')
         .eq('user_id', targetUserId)
         .single();
       
@@ -1143,6 +1148,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">
                     {profile.name}
                   </h1>
+                  {profile.verified && profile.account_type && (
+                    <VerificationBadge
+                      accountType={profile.account_type as AccountType}
+                      verified={profile.verified}
+                      size="lg"
+                    />
+                  )}
                   
                   {/* Connection Degree Badge */}
                   {!isViewingOwnProfile && (

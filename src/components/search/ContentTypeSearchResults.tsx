@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { ArtistSearchResult } from '../../services/unifiedArtistSearchService';
+import { VerificationBadge } from '../verification/VerificationBadge';
+import type { AccountType } from '@/utils/verificationUtils';
 
 interface ContentTypeSearchResultsProps {
   artists: ArtistSearchResult[];
@@ -146,9 +148,19 @@ const ContentGroup: React.FC<ContentGroupProps> = ({
 
       {/* User Info */}
       <div className="flex-1 min-w-0">
-        <h4 className="font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
-          {user.name}
-        </h4>
+        <div className="flex items-center gap-1.5">
+          <h4 className="font-medium text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
+            {user.name}
+          </h4>
+          {user.verified && user.account_type && (
+            <VerificationBadge
+              accountType={user.account_type as AccountType}
+              verified={user.verified}
+              size="sm"
+              showTooltip={false}
+            />
+          )}
+        </div>
         <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
           {user.bio && (
             <span className="truncate">{user.bio}</span>

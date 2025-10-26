@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { UserVisibilityService } from '@/services/userVisibilityService';
+import { VerificationBadge } from '@/components/verification/VerificationBadge';
+import type { AccountType } from '@/utils/verificationUtils';
 
 interface FriendProfileCardProps {
   friend: {
@@ -30,6 +32,8 @@ interface FriendProfileCardProps {
     last_active_at?: string;
     gender?: string;
     birthday?: string;
+    account_type?: AccountType;
+    verified?: boolean;
   };
   isOpen: boolean;
   onClose: () => void;
@@ -79,7 +83,16 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
               </AvatarFallback>
             </Avatar>
             
-            <h2 className="text-xl font-bold text-gray-900 mb-1">{friend.name}</h2>
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <h2 className="text-xl font-bold text-gray-900">{friend.name}</h2>
+              {friend.verified && friend.account_type && (
+                <VerificationBadge
+                  accountType={friend.account_type}
+                  verified={friend.verified}
+                  size="md"
+                />
+              )}
+            </div>
             <p className="text-gray-600 mb-2 text-sm">@{friend.username}</p>
             
             {/* Gender and Age Display */}

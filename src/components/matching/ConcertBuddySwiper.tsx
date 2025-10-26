@@ -205,7 +205,9 @@ export function ConcertBuddySwiper({
           onClick={(e) => {
             e.stopPropagation();
             // Navigate to user profile
-            window.open(`/profile/${currentUser.user_id}`, '_blank');
+            if (onNavigateToProfile) {
+              onNavigateToProfile(currentUser.user_id);
+            }
           }}
         >
           <CardContent className="p-0">
@@ -225,18 +227,6 @@ export function ConcertBuddySwiper({
                 </div>
               )}
 
-              {/* Compatibility Badge */}
-              {currentUser.compatibility_score !== undefined && (
-                <div className="absolute top-4 right-4">
-                  <Badge
-                    className={`text-sm font-bold ${getCompatibilityColor(
-                      currentUser.compatibility_score
-                    )}`}
-                  >
-                    {currentUser.compatibility_score}% Match
-                  </Badge>
-                </div>
-              )}
             </div>
 
             {/* User Info */}
@@ -268,6 +258,33 @@ export function ConcertBuddySwiper({
                         {artist}
                       </Badge>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Profile Highlights */}
+              {(currentUser.gender || currentUser.birthday || currentUser.instagram_handle) && (
+                <div className="pt-4 border-t border-gray-200">
+                  <p className="text-xs text-gray-500 mb-2">Profile Highlights</p>
+                  <div className="flex flex-wrap gap-2">
+                    {currentUser.gender && (
+                      <Badge variant="outline" className="text-xs">
+                        {currentUser.gender}
+                      </Badge>
+                    )}
+                    {currentUser.birthday && (() => {
+                      const age = new Date().getFullYear() - new Date(currentUser.birthday).getFullYear();
+                      return (
+                        <Badge variant="outline" className="text-xs">
+                          {age} years old
+                        </Badge>
+                      );
+                    })()}
+                    {currentUser.instagram_handle && (
+                      <Badge variant="outline" className="text-xs">
+                        @{currentUser.instagram_handle}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               )}

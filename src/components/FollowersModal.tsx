@@ -4,6 +4,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, UserPlus, MessageCircle } from 'lucide-react';
+import { VerificationBadge } from '@/components/verification/VerificationBadge';
+import type { AccountType } from '@/utils/verificationUtils';
 
 interface Friend {
   id: string;
@@ -12,6 +14,8 @@ interface Friend {
   username: string;
   avatar_url: string | null;
   bio: string | null;
+  account_type?: AccountType;
+  verified?: boolean;
 }
 
 interface FollowersModalProps {
@@ -65,7 +69,17 @@ export const FollowersModal = ({
                   </Avatar>
                   
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{friend.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold truncate">{friend.name}</p>
+                      {friend.verified && friend.account_type && (
+                        <VerificationBadge
+                          accountType={friend.account_type}
+                          verified={friend.verified}
+                          size="sm"
+                          showTooltip={false}
+                        />
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground truncate">@{friend.username}</p>
                     {friend.bio && (
                       <p className="text-xs text-muted-foreground truncate">{friend.bio}</p>

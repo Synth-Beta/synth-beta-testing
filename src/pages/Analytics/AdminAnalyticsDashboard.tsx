@@ -17,8 +17,8 @@ import { MetricCard } from '../../components/analytics/shared/MetricCard';
 import { TopListCard } from '../../components/analytics/shared/TopListCard';
 import { AchievementCard } from '../../components/analytics/shared/AchievementCard';
 import { SkeletonCard } from '../../components/analytics/shared/SkeletonCard';
-import { AdminClaimReviewPanel } from '../../components/admin/AdminClaimReviewPanel';
 import { AdminModerationPanel } from '../../components/admin/AdminModerationPanel';
+import { VerificationManagement } from '../../components/admin/VerificationManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { 
   Shield, 
@@ -62,7 +62,7 @@ export default function AdminAnalyticsDashboard() {
   const [geographicDistribution, setGeographicDistribution] = useState<GeographicDistribution[]>([]);
   const [achievements, setAchievements] = useState<AdminAchievement[]>([]);
   const [northStarMetric, setNorthStarMetric] = useState<NorthStarMetric | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'revenue' | 'content' | 'system' | 'achievements' | 'claims' | 'moderation'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'revenue' | 'content' | 'system' | 'achievements' | 'verification' | 'moderation'>('overview');
 
   // Debug activeTab changes
   useEffect(() => {
@@ -238,7 +238,7 @@ export default function AdminAnalyticsDashboard() {
                 { id: 'users', label: 'Users', icon: Users },
                 { id: 'revenue', label: 'Revenue', icon: DollarSign },
                 { id: 'content', label: 'Content', icon: Calendar },
-                { id: 'claims', label: 'Claims', icon: Award },
+                { id: 'verification', label: 'Verification', icon: CheckCircle },
                 { id: 'moderation', label: 'Moderation', icon: Flag },
                 { id: 'system', label: 'System', icon: Server },
                 { id: 'achievements', label: 'Achievements', icon: Trophy },
@@ -772,10 +772,10 @@ export default function AdminAnalyticsDashboard() {
           </div>
         )}
 
-        {/* Claims Review Tab */}
-        {activeTab === 'claims' && (
+        {/* Verification Management Tab */}
+        {activeTab === 'verification' && user && (
           <div className="space-y-6">
-            <AdminClaimReviewPanel />
+            <VerificationManagement currentUserId={user.id} />
           </div>
         )}
 

@@ -17,6 +17,7 @@ import { ChatView } from './ChatView';
 import { MyEventsManagementPanel } from './events/MyEventsManagementPanel';
 import { OnboardingReminderBanner } from './onboarding/OnboardingReminderBanner';
 import { OnboardingTour } from './onboarding/OnboardingTour';
+import { OnboardingFlow } from './onboarding/OnboardingFlow';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';

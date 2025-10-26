@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,7 +10,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Upload } from 'lucide-react';
+import { Upload, Camera, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProfileSetupStepProps {
   initialData?: {
@@ -40,6 +43,76 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a JPEG, PNG, or WebP image.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: "Please select an image smaller than 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+
+    try {
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from('profile-avatars')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('profile-avatars')
+        .getPublicUrl(data.path);
+
+      setFormData({ ...formData, avatar_url: urlData.publicUrl });
+      
+      toast({
+        title: "Photo uploaded",
+        description: "Your profile photo has been uploaded successfully.",
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload photo. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,7 +166,7 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Profile Photo (Optional) */}
         <div className="space-y-2">
-          <Label htmlFor="avatar">Profile Photo (Optional)</Label>
+          <Label>Profile Photo (Optional)</Label>
           <div className="flex items-center gap-4">
             {formData.avatar_url ? (
               <img
@@ -106,16 +179,44 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
                 <Upload className="w-8 h-8 text-muted-foreground" />
               </div>
             )}
-            <Input
-              id="avatar"
-              type="url"
-              placeholder="Paste image URL"
-              value={formData.avatar_url}
-              onChange={(e) =>
-                setFormData({ ...formData, avatar_url: e.target.value })
-              }
-              className="bg-white"
-            />
+            <div className="flex-1 space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingPhoto}
+                className="w-full"
+              >
+                {isUploadingPhoto ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="w-4 h-4 mr-2" />
+                    Upload Photo
+                  </>
+                )}
+              </Button>
+              <Input
+                type="url"
+                placeholder="Or paste image URL"
+                value={formData.avatar_url}
+                onChange={(e) =>
+                  setFormData({ ...formData, avatar_url: e.target.value })
+                }
+                disabled={isUploadingPhoto}
+                className="bg-white"
+              />
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">
             You can add a photo now or skip and add it later

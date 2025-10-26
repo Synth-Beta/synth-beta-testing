@@ -34,6 +34,10 @@ import { ArtistFollowService } from '@/services/artistFollowService';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import type { Artist } from '@/types/concertSearch';
+import { VerificationBadge } from '@/components/verification/VerificationBadge';
+import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
+import { VerificationProgressWidget } from '@/components/verification/VerificationProgressWidget';
+import type { AccountType } from '@/utils/verificationUtils';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -53,6 +57,9 @@ interface UserProfile {
   music_streaming_profile?: string | null; // Optional until migration is applied
   created_at: string;
   updated_at: string;
+  account_type?: AccountType;
+  verified?: boolean;
+  verification_level?: string;
 }
 
 interface UserEvent {
@@ -222,7 +229,7 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
       console.log('Fetching profile for user:', currentUserId);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at, last_active_at, is_public_profile')
+        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at, last_active_at, is_public_profile, account_type, verified, verification_level')
         .eq('user_id', currentUserId)
         .single();
 
@@ -755,7 +762,21 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
             {/* Profile Stats and Actions */}
             <div className="flex-1">
               <div className="flex items-center gap-4 mb-4">
-                <h2 className="text-xl font-semibold">{profile.name}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-semibold">{profile.name}</h2>
+                  {console.log('🔍 BADGE RENDER CHECK:', {
+                    verified: profile.verified,
+                    account_type: profile.account_type,
+                    shouldShow: profile.verified && profile.account_type
+                  })}
+                  {profile.verified && profile.account_type && (
+                    <VerificationBadge
+                      accountType={profile.account_type}
+                      verified={profile.verified}
+                      size="md"
+                    />
+                  )}
+                </div>
                 <Button onClick={onEdit} variant="outline" size="sm">
                   Edit profile
                 </Button>
@@ -838,12 +859,22 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
             {/* Removed HolisticStatsCard per UX feedback */}
             {/* <HolisticStatsCard userId={currentUserId} /> */}
             <MusicTasteCard userId={currentUserId} />
+            
+            {/* Verification Progress Widget - Only show for own profile */}
+            {currentUserId === profile.user_id && (
+              <VerificationProgressWidget
+                userId={currentUserId}
+                accountType={profile.account_type || 'user'}
+                verified={profile.verified || false}
+                onViewDetails={() => setActiveTab('verification')}
+              />
+            )}
           </div>
         </div>
 
         {/* Instagram-style Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6 sticky top-0 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg">
+          <TabsList className={`grid w-full mb-6 sticky top-0 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg ${currentUserId === profile.user_id ? 'grid-cols-4' : 'grid-cols-3'}`}>
             <TabsTrigger value="posts" className="flex items-center gap-2">
               <Grid className="w-4 h-4" />
               Posts
@@ -856,6 +887,13 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               <BarChart3 className="w-4 h-4" />
               Streaming Stats
             </TabsTrigger>
+            {/* Only show Verification tab on own profile */}
+            {currentUserId === profile.user_id && (
+              <TabsTrigger value="verification" className="flex items-center gap-2">
+                <Star className="w-4 h-4" />
+                Verification
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="posts" className="mt-6">
@@ -964,6 +1002,17 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
           <TabsContent value="stats" className="mt-6">
             <SpotifyStats />
           </TabsContent>
+
+          {/* Only show Verification tab content on own profile */}
+          {currentUserId === profile.user_id && (
+            <TabsContent value="verification" className="mt-6">
+              <VerificationStatusCard
+                userId={currentUserId}
+                accountType={profile.account_type || 'user'}
+                verified={profile.verified || false}
+              />
+            </TabsContent>
+          )}
 
         </Tabs>
       </div>
