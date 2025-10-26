@@ -1,4 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
+import { AnalyticsErrorHandler } from './analyticsErrorHandler';
+import { AnalyticsDataService } from './analyticsDataService';
 
 export interface BusinessStats {
   total_events: number;
@@ -69,15 +71,26 @@ export class BusinessAnalyticsService {
   /**
    * Get comprehensive business stats
    */
-  static async getBusinessStats(businessId: string): Promise<BusinessStats> {
+  static async getBusinessStats(userId: string): Promise<BusinessStats> {
     try {
-      // Get events for this business (venue/promoter)
-      const { data: events } = await (supabase as any)
+      console.log('🔍 BusinessAnalyticsService: Getting business stats for user:', userId);
+
+      // Get events created by this user
+      const { data: events, error: eventsError } = await supabase
         .from('jambase_events')
         .select('*')
-        .eq('venue_name', businessId); // Assuming businessId is venue name for now
+        .eq('created_by_user_id', userId)
+        .eq('event_status', 'published');
+
+      if (eventsError) {
+        console.error('Error fetching business events:', eventsError);
+        throw eventsError;
+      }
+
+      console.log('🔍 BusinessAnalyticsService: Found events:', events?.length || 0);
 
       if (!events || events.length === 0) {
+        console.log('🔍 BusinessAnalyticsService: No events found, returning default stats');
         return {
           total_events: 0,
           total_attendees: 0,
@@ -92,24 +105,18 @@ export class BusinessAnalyticsService {
 
       const eventIds = events.map((e: any) => e.id);
 
-      // Get interactions for these events
-      const { data: interactions } = await (supabase as any)
-        .from('user_interactions')
-        .select('*')
-        .in('entity_id', eventIds)
-        .eq('entity_type', 'event');
+      // Get interactions for these events (all users)
+      const interactions = await AnalyticsDataService.getAllUserInteractions(
+        eventIds,
+        undefined,
+        ['event']
+      );
 
-      // Get reviews for these events
-      const { data: reviews } = await (supabase as any)
-        .from('user_reviews')
-        .select('*')
-        .in('event_id', eventIds);
+      // Get reviews for these events (all users)
+      const reviews = await AnalyticsDataService.getAllUserReviews(eventIds);
 
-      // Get interested users
-      const { data: interestedUsers } = await (supabase as any)
-        .from('user_jambase_events')
-        .select('*')
-        .in('event_id', eventIds);
+      // Get interested users (all users)
+      const interestedUsers = await AnalyticsDataService.getAllInterestedUsers(eventIds);
 
       // Calculate metrics
       const totalEvents = events.length;
@@ -168,44 +175,49 @@ export class BusinessAnalyticsService {
   /**
    * Get event performance analytics
    */
-  static async getEventPerformance(businessId: string): Promise<EventPerformance[]> {
+  static async getEventPerformance(userId: string): Promise<EventPerformance[]> {
     try {
-      // Get events for this business
-      const { data: events } = await (supabase as any)
+      console.log('🔍 BusinessAnalyticsService: Getting event performance for user:', userId);
+
+      // Get events created by this user
+      const { data: events, error: eventsError } = await supabase
         .from('jambase_events')
         .select('*')
-        .eq('venue_name', businessId);
+        .eq('created_by_user_id', userId)
+        .eq('event_status', 'published');
+
+      if (eventsError) {
+        console.error('Error fetching business events for performance:', eventsError);
+        throw eventsError;
+      }
+
+      console.log('🔍 BusinessAnalyticsService: Found events for performance:', events?.length || 0);
 
       if (!events || events.length === 0) {
+        console.log('🔍 BusinessAnalyticsService: No events found for performance, returning empty array');
         return [];
       }
 
       const eventIds = events.map((e: any) => e.id);
 
-      // Get interactions for these events
-      const { data: interactions } = await (supabase as any)
-        .from('user_interactions')
-        .select('*')
-        .in('entity_id', eventIds)
-        .eq('entity_type', 'event');
+      // Get interactions for these events (all users)
+      const interactions = await AnalyticsDataService.getAllUserInteractions(
+        eventIds,
+        undefined,
+        ['event']
+      );
 
-      // Get reviews for these events
-      const { data: reviews } = await (supabase as any)
-        .from('user_reviews')
-        .select('*')
-        .in('event_id', eventIds);
+      // Get reviews for these events (all users)
+      const reviews = await AnalyticsDataService.getAllUserReviews(eventIds);
 
-      // Get interested users
-      const { data: interestedUsers } = await (supabase as any)
-        .from('user_jambase_events')
-        .select('*')
-        .in('event_id', eventIds);
+      // Get interested users (all users)
+      const interestedUsers = await AnalyticsDataService.getAllInterestedUsers(eventIds);
 
       // Process each event
       const eventPerformance: EventPerformance[] = events.map((event: any) => {
         const eventInteractions = interactions?.filter((i: any) => i.entity_id === event.id) || [];
         const eventReviews = reviews?.filter((r: any) => r.event_id === event.id) || [];
-        const eventInterested = interestedUsers?.filter((u: any) => u.event_id === event.id) || [];
+        const eventInterested = interestedUsers?.filter((u: any) => u.jambase_event_id === event.id) || [];
 
         const totalViews = eventInteractions.filter((i: any) => i.event_type === 'view').length;
         const ticketClicks = eventInteractions.filter((i: any) => i.event_type === 'click_ticket').length;
@@ -244,15 +256,26 @@ export class BusinessAnalyticsService {
   /**
    * Get customer insights and segmentation
    */
-  static async getCustomerInsights(businessId: string): Promise<CustomerInsight[]> {
+  static async getCustomerInsights(userId: string): Promise<CustomerInsight[]> {
     try {
-      // Get events for this business
-      const { data: events } = await (supabase as any)
+      console.log('🔍 BusinessAnalyticsService: Getting customer insights for user:', userId);
+
+      // Get events created by this user
+      const { data: events, error: eventsError } = await supabase
         .from('jambase_events')
         .select('*')
-        .eq('venue_name', businessId);
+        .eq('created_by_user_id', userId)
+        .eq('event_status', 'published');
+
+      if (eventsError) {
+        console.error('Error fetching business events for customer insights:', eventsError);
+        throw eventsError;
+      }
+
+      console.log('🔍 BusinessAnalyticsService: Found events for customer insights:', events?.length || 0);
 
       if (!events || events.length === 0) {
+        console.log('🔍 BusinessAnalyticsService: No events found for customer insights, returning empty array');
         return [];
       }
 
@@ -262,7 +285,7 @@ export class BusinessAnalyticsService {
       const { data: interestedUsers } = await (supabase as any)
         .from('user_jambase_events')
         .select('*')
-        .in('event_id', eventIds);
+        .in('jambase_event_id', eventIds);
 
       // Get reviews to determine satisfaction
       const { data: reviews } = await (supabase as any)
@@ -337,17 +360,25 @@ export class BusinessAnalyticsService {
   /**
    * Get revenue insights over time
    */
-  static async getRevenueInsights(businessId: string, days: number = 30): Promise<RevenueInsight[]> {
+  static async getRevenueInsights(userId: string, days: number = 30): Promise<RevenueInsight[]> {
     try {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-      // Get events for this business
-      const { data: events } = await (supabase as any)
+      // Get events created by this user
+      const { data: events, error: eventsError } = await supabase
         .from('jambase_events')
         .select('*')
-        .eq('venue_name', businessId)
+        .eq('created_by_user_id', userId)
+        .eq('event_status', 'published')
         .gte('event_date', startDate.toISOString());
+
+      if (eventsError) {
+        console.error('Error fetching business events for revenue insights:', eventsError);
+        throw eventsError;
+      }
+
+      console.log('🔍 BusinessAnalyticsService: Found events for revenue insights:', events?.length || 0);
 
       if (!events || events.length === 0) {
         return [];
@@ -415,13 +446,21 @@ export class BusinessAnalyticsService {
   /**
    * Get artist performance analytics
    */
-  static async getArtistPerformance(businessId: string): Promise<ArtistPerformance[]> {
+  static async getArtistPerformance(userId: string): Promise<ArtistPerformance[]> {
     try {
-      // Get events for this business
-      const { data: events } = await (supabase as any)
+      // Get events created by this user
+      const { data: events, error: eventsError } = await supabase
         .from('jambase_events')
         .select('*')
-        .eq('venue_name', businessId);
+        .eq('created_by_user_id', userId)
+        .eq('event_status', 'published');
+
+      if (eventsError) {
+        console.error('Error fetching business events for artist performance:', eventsError);
+        throw eventsError;
+      }
+
+      console.log('🔍 BusinessAnalyticsService: Found events for artist performance:', events?.length || 0);
 
       if (!events || events.length === 0) {
         return [];
@@ -433,7 +472,7 @@ export class BusinessAnalyticsService {
       const [interactions, reviews, interestedUsers] = await Promise.all([
         (supabase as any).from('user_interactions').select('*').in('entity_id', eventIds).eq('entity_type', 'event'),
         (supabase as any).from('user_reviews').select('*').in('event_id', eventIds),
-        (supabase as any).from('user_jambase_events').select('*').in('event_id', eventIds),
+        (supabase as any).from('user_jambase_events').select('*').in('jambase_event_id', eventIds),
       ]);
 
       // Group by artist
@@ -519,11 +558,11 @@ export class BusinessAnalyticsService {
   /**
    * Get business achievements
    */
-  static async getBusinessAchievements(businessId: string): Promise<BusinessAchievement[]> {
+  static async getBusinessAchievements(userId: string): Promise<BusinessAchievement[]> {
     try {
-      const stats = await this.getBusinessStats(businessId);
-      const eventPerformance = await this.getEventPerformance(businessId);
-      const customerInsights = await this.getCustomerInsights(businessId);
+      const stats = await this.getBusinessStats(userId);
+      const eventPerformance = await this.getEventPerformance(userId);
+      const customerInsights = await this.getCustomerInsights(userId);
 
       const achievements: BusinessAchievement[] = [
         {
@@ -638,7 +677,7 @@ export class BusinessAnalyticsService {
   /**
    * Export business analytics data
    */
-  static async exportBusinessData(businessId: string): Promise<{
+  static async exportBusinessData(userId: string): Promise<{
     stats: BusinessStats;
     eventPerformance: EventPerformance[];
     customerInsights: CustomerInsight[];
@@ -654,12 +693,12 @@ export class BusinessAnalyticsService {
       artistPerformance,
       achievements
     ] = await Promise.all([
-      this.getBusinessStats(businessId),
-      this.getEventPerformance(businessId),
-      this.getCustomerInsights(businessId),
-      this.getRevenueInsights(businessId),
-      this.getArtistPerformance(businessId),
-      this.getBusinessAchievements(businessId),
+      this.getBusinessStats(userId),
+      this.getEventPerformance(userId),
+      this.getCustomerInsights(userId),
+      this.getRevenueInsights(userId),
+      this.getArtistPerformance(userId),
+      this.getBusinessAchievements(userId),
     ]);
 
     return {

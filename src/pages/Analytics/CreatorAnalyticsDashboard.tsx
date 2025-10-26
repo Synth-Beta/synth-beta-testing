@@ -15,6 +15,7 @@ import { ConversionFunnelService } from '../../services/conversionFunnelService'
 import { RevenueEstimationService } from '../../services/revenueEstimationService';
 import { PromotionAnalyticsService } from '../../services/promotionAnalyticsService';
 import { usePromotionRealtime } from '../../hooks/usePromotionRealtime';
+import { PromotionPerformanceChart } from '../../components/analytics/promotions/PromotionPerformanceChart';
 import { 
   Users, 
   TrendingUp, 
@@ -39,6 +40,36 @@ export default function CreatorAnalyticsDashboard() {
   const [contentPerformance, setContentPerformance] = useState<ContentPerformance[]>([]);
   const [achievements, setAchievements] = useState<CreatorAchievement[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'fans' | 'content' | 'achievements' | 'promotions'>('overview');
+  const [promotionLoading, setPromotionLoading] = useState(false);
+
+  // Load promotion data when promotions tab is activated
+  const loadPromotionData = async () => {
+    if (!user) return;
+    
+    setPromotionLoading(true);
+    try {
+      console.log('🔍 CreatorAnalyticsDashboard: Loading promotion data...');
+      const [promotionData, comparisonData, trendsData] = await Promise.all([
+        PromotionAnalyticsService.getUserPromotions(user.id),
+        PromotionAnalyticsService.getPromotionPerformanceComparison(user.id),
+        PromotionAnalyticsService.getPromotionTrends(user.id, 30)
+      ]);
+      
+      console.log('🔍 CreatorAnalyticsDashboard: Promotion data loaded:', {
+        promotions: promotionData.length,
+        comparisons: comparisonData.length,
+        trends: trendsData.length
+      });
+      
+      setPromotionMetrics(promotionData);
+      setPromotionComparison(comparisonData);
+      setPromotionTrends(trendsData);
+    } catch (error) {
+      console.error('Error loading promotion data:', error);
+    } finally {
+      setPromotionLoading(false);
+    }
+  };
   const [conversionFunnel, setConversionFunnel] = useState<any>(null);
   const [revenueMetrics, setRevenueMetrics] = useState<any>(null);
   const [followerTrends, setFollowerTrends] = useState<any[]>([]);
@@ -58,6 +89,13 @@ export default function CreatorAnalyticsDashboard() {
       fetchCreatorData();
     }
   }, [user]);
+
+  // Load promotion data when promotions tab is activated
+  useEffect(() => {
+    if (activeTab === 'promotions' && user) {
+      loadPromotionData();
+    }
+  }, [activeTab, user]);
 
   const fetchCreatorData = async () => {
     if (!user) return;
@@ -665,14 +703,16 @@ export default function CreatorAnalyticsDashboard() {
                 </div>
 
                 {/* Performance Chart */}
-                {promotionTrends.length > 0 && (
-                  <div className="bg-white rounded-xl p-6 shadow-sm border">
-                    <h3 className="text-lg font-semibold mb-4">Promotion Performance Over Time</h3>
-                    <div className="h-64 flex items-center justify-center text-gray-500">
-                      Performance chart would go here
-                    </div>
-                  </div>
-                )}
+                <PromotionPerformanceChart 
+                  data={promotionTrends.map(trend => ({
+                    date: trend.date,
+                    impressions: trend.impressions || 0,
+                    clicks: trend.clicks || 0,
+                    conversions: trend.conversions || 0,
+                    spend: trend.spend || 0
+                  }))}
+                  className="bg-white rounded-xl shadow-sm border"
+                />
 
                 {/* Comparison Table */}
                 {promotionComparison.length > 0 && (

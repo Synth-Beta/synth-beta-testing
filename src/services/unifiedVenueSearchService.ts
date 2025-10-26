@@ -381,27 +381,27 @@ export class UnifiedVenueSearchService {
         const venueId = jamBaseVenue.identifier?.split(':')[1] || jamBaseVenue.identifier;
         
         // Check if venue already exists
-        const { data: existingVenue, error: checkError } = await supabase
+        const { data: existingVenueData, error: checkError } = await supabase
           .from('venues' as any)
           .select('*')
           .eq('jambase_venue_id', venueId)
           .single();
 
-        if (existingVenue && !checkError) {
+        if (existingVenueData && !checkError) {
           console.log(`♻️  Venue ${jamBaseVenue.name} already exists in database`);
           // Transform flat columns back to JSONB format for consistency
           populatedVenues.push({
-            ...existingVenue,
+            ...existingVenueData,
             address: {
-              streetAddress: existingVenue.address,
-              addressLocality: existingVenue.city,
-              addressRegion: existingVenue.state,
-              postalCode: existingVenue.zip,
-              addressCountry: existingVenue.country
+              streetAddress: existingVenueData.address,
+              addressLocality: existingVenueData.city,
+              addressRegion: existingVenueData.state,
+              postalCode: existingVenueData.zip,
+              addressCountry: existingVenueData.country
             },
             geo: {
-              latitude: existingVenue.latitude,
-              longitude: existingVenue.longitude
+              latitude: existingVenueData.latitude,
+              longitude: existingVenueData.longitude
             }
           } as any);
           continue;
@@ -463,31 +463,47 @@ export class UnifiedVenueSearchService {
           date_modified: new Date().toISOString()
         };
         
-        const { data: savedVenue, error } = await supabase
-          .from('venues' as any)
-          .upsert({
-            ...venueData,
-          } as any, {
-            onConflict: 'jambase_venue_id'
-          })
-          .select()
+        // Check if venue already exists
+        const { data: existingVenueRecord } = await supabase
+          .from('venues')
+          .select('id')
+          .eq('jambase_venue_id', jamBaseVenue.id)
           .single();
+        
+        let savedVenue;
+        if (existingVenueRecord) {
+          // Update existing venue
+          const { data, error } = await supabase
+            .from('venues')
+            .update(venueData)
+            .eq('id', existingVenueRecord.id)
+            .select()
+            .single();
+          
+          if (error) {
+            console.error(`❌ Error updating venue ${jamBaseVenue.name}:`, error);
+            savedVenue = existingVenueRecord;
+          } else {
+            savedVenue = data;
+          }
+        } else {
+          // Insert new venue
+          const { data, error } = await supabase
+            .from('venues')
+            .insert(venueData)
+            .select()
+            .single();
+          
+          if (error) {
+            console.error(`❌ Error inserting venue ${jamBaseVenue.name}:`, error);
+            savedVenue = null;
+          } else {
+            savedVenue = data;
+          }
+        }
 
-        if (error) {
-          console.error(`❌ Error saving venue ${jamBaseVenue.name}:`, error);
-          // Still add the venue to results even if we can't store it
-          populatedVenues.push({
-            id: jamBaseVenue.id,
-            jambase_venue_id: venueId,
-            name: jamBaseVenue.name,
-            address: jamBaseVenue.address,
-            geo: jamBaseVenue.geo,
-            maximum_attendee_capacity: jamBaseVenue.maximumAttendeeCapacity,
-            num_upcoming_events: jamBaseVenue['x-numUpcomingEvents'] || 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            identifier: jamBaseVenue.identifier
-          } as any);
+        if (!savedVenue) {
+          console.error(`❌ Failed to save venue ${jamBaseVenue.name}`);
           continue;
         }
 

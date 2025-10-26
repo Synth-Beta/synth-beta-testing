@@ -60,19 +60,45 @@ export class ArtistProfileService {
   ): Promise<ArtistProfile> {
     const profileData = transformJamBaseArtistToProfile(jambaseResponse, artistDataSource);
     
-    const { data, error } = await supabase
+    // Check if artist profile already exists
+    const { data: existingProfile } = await supabase
       .from('artist_profile')
-      .upsert({
-        ...profileData,
-        last_synced_at: new Date().toISOString(),
-      }, {
-        onConflict: 'identifier'
-      })
-      .select()
+      .select('id')
+      .eq('identifier', profileData.identifier)
       .single();
-
-    if (error) {
-      throw new Error(`Failed to upsert artist profile: ${error.message}`);
+    
+    let data;
+    if (existingProfile) {
+      // Update existing profile
+      const { data: updatedData, error } = await supabase
+        .from('artist_profile')
+        .update({
+          ...profileData,
+          last_synced_at: new Date().toISOString(),
+        })
+        .eq('id', existingProfile.id)
+        .select()
+        .single();
+      
+      if (error) {
+        throw new Error(`Failed to update artist profile: ${error.message}`);
+      }
+      data = updatedData;
+    } else {
+      // Insert new profile
+      const { data: insertedData, error } = await supabase
+        .from('artist_profile')
+        .insert({
+          ...profileData,
+          last_synced_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        throw new Error(`Failed to insert artist profile: ${error.message}`);
+      }
+      data = insertedData;
     }
 
     return data;

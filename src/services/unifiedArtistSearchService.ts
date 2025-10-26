@@ -342,32 +342,47 @@ export class UnifiedArtistSearchService {
           date_modified: new Date().toISOString()
         };
         
-        const { data: savedArtist, error } = await supabase
+        // Check if artist already exists
+        const { data: existingArtistRecord } = await supabase
           .from('artists')
-          .upsert(artistData as any, {
-            onConflict: 'jambase_artist_id'
-          })
-          .select()
+          .select('id')
+          .eq('jambase_artist_id', jamBaseArtist.id)
           .single();
+        
+        let savedArtist;
+        if (existingArtistRecord) {
+          // Update existing artist
+          const { data, error } = await supabase
+            .from('artists')
+            .update(artistData)
+            .eq('id', existingArtistRecord.id)
+            .select()
+            .single();
+          
+          if (error) {
+            console.error(`❌ Error updating artist ${jamBaseArtist.name}:`, error);
+            savedArtist = existingArtistRecord;
+          } else {
+            savedArtist = data;
+          }
+        } else {
+          // Insert new artist
+          const { data, error } = await supabase
+            .from('artists')
+            .insert(artistData)
+            .select()
+            .single();
+          
+          if (error) {
+            console.error(`❌ Error inserting artist ${jamBaseArtist.name}:`, error);
+            savedArtist = null;
+          } else {
+            savedArtist = data;
+          }
+        }
 
-        if (error) {
-          console.error(`❌ Error saving artist ${jamBaseArtist.name}:`, error);
-          // Still add the artist to results even if we can't store it
-          populatedArtists.push({
-            id: jamBaseArtist.id,
-            jambase_artist_id: artistId,
-            name: jamBaseArtist.name,
-            description: jamBaseArtist.description || `Artist: ${jamBaseArtist.name}`,
-            genres: jamBaseArtist.genres || [],
-            image_url: jamBaseArtist.image,
-            popularity_score: jamBaseArtist['x-numUpcomingEvents'] || 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            identifier: jamBaseArtist.identifier,
-            band_or_musician: jamBaseArtist['x-bandOrMusician'] || 'band',
-            num_upcoming_events: jamBaseArtist['x-numUpcomingEvents'] || 0,
-            last_synced_at: new Date().toISOString()
-          } as any);
+        if (!savedArtist) {
+          console.error(`❌ Failed to save artist ${jamBaseArtist.name}`);
           continue;
         }
 

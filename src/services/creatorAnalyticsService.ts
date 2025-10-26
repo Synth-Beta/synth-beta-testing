@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { AnalyticsDataService } from './analyticsDataService';
 
 export interface CreatorStats {
   total_followers: number;
@@ -114,13 +115,13 @@ export class CreatorAnalyticsService {
         };
       }
 
-      // Get event views and interactions for creator's events
+      // Get event views and interactions for creator's events (all users)
       const eventIds = creatorEvents.map((e: any) => e.id);
-      const { data: interactions } = await (supabase as any)
-        .from('user_interactions')
-        .select('*')
-        .eq('entity_type', 'event')
-        .in('entity_id', eventIds);
+      const interactions = await AnalyticsDataService.getAllUserInteractions(
+        eventIds,
+        undefined,
+        ['event']
+      );
 
       console.log('🔍 CreatorAnalyticsService: Found interactions for events:', interactions?.length || 0);
       if (interactions && interactions.length > 0) {
@@ -202,13 +203,13 @@ export class CreatorAnalyticsService {
         return [];
       }
 
-      // Get interactions for these events
+      // Get interactions for these events (all users)
       const eventIds = events.map((e: any) => e.id);
-      const { data: interactions } = await (supabase as any)
-        .from('user_interactions')
-        .select('*')
-        .in('entity_id', eventIds)
-        .eq('entity_type', 'event');
+      const interactions = await AnalyticsDataService.getAllUserInteractions(
+        eventIds,
+        undefined,
+        ['event']
+      );
 
       // Group by venue and calculate metrics
       const venueStats = new Map<string, {
@@ -280,13 +281,13 @@ export class CreatorAnalyticsService {
         return [];
       }
 
-      // Get interactions for these events
+      // Get interactions for these events (all users)
       const eventIds = events.map((e: any) => e.id);
-      const { data: interactions } = await (supabase as any)
-        .from('user_interactions')
-        .select('*')
-        .in('entity_id', eventIds)
-        .eq('entity_type', 'event');
+      const interactions = await AnalyticsDataService.getAllUserInteractions(
+        eventIds,
+        undefined,
+        ['event']
+      );
 
       // Group by location
       const locationStats = new Map<string, {

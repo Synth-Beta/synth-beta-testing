@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAccountType } from '@/hooks/useAccountType';
 import AdminService from '@/services/adminService';
-import EventManagementService from '@/services/eventManagementService';
 import { Award, CheckCircle, XCircle, Loader2, Calendar, MapPin, ExternalLink } from 'lucide-react';
 
 export function AdminClaimReviewPanel() {

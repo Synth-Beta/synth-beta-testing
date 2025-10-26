@@ -6,6 +6,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { AnalyticsDataService } from './analyticsDataService';
 
 export interface UserStats {
   events_viewed: number;
@@ -815,12 +816,15 @@ export class UserAnalyticsService {
         .contains('metadata', { field: 'subscription_tier' })
         .order('occurred_at', { ascending: true });
 
-      const subscriptionHistory = subscriptionChanges?.map(change => ({
-        date: change.occurred_at,
-        tier: change.metadata?.newTier || 'unknown',
-        changeType: change.metadata?.changeType || 'unknown',
-        revenueImpact: change.metadata?.revenueImpact || 0
-      })) || [];
+      const subscriptionHistory = subscriptionChanges?.map(change => {
+        const metadata = change.metadata as any;
+        return {
+          date: change.occurred_at,
+          tier: metadata?.newTier || 'unknown',
+          changeType: metadata?.changeType || 'unknown',
+          revenueImpact: metadata?.revenueImpact || 0
+        };
+      }) || [];
 
       const totalRevenue = subscriptionHistory.reduce((sum, change) => sum + change.revenueImpact, 0);
 

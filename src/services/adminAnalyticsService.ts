@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { AnalyticsDataService } from './analyticsDataService';
 
 export interface PlatformStats {
   total_users: number;
@@ -123,27 +124,23 @@ export class AdminAnalyticsService {
         .from('jambase_events')
         .select('*', { count: 'exact', head: true });
 
-      // Get interaction counts
-      const { count: totalInteractions } = await (supabase as any)
-        .from('user_interactions')
-        .select('*', { count: 'exact', head: true });
+      // Get interaction counts (all users)
+      const allInteractions = await AnalyticsDataService.getAllUserInteractions();
+      const totalInteractions = allInteractions.length;
 
-      // Get ticket clicks for revenue estimation
-      const { data: ticketClicks } = await (supabase as any)
-        .from('user_interactions')
-        .select('*')
-        .eq('event_type', 'click_ticket');
+      // Get ticket clicks for revenue estimation (all users)
+      const ticketClicks = allInteractions.filter((i: any) => i.event_type === 'click_ticket');
 
-      // Revenue calculation - only count actual revenue if we have real data
-      const totalRevenue = 0;
+      // Revenue calculation - estimate based on ticket clicks
+      const estimatedRevenuePerClick = 25; // Average ticket price
+      const totalRevenue = ticketClicks.length * estimatedRevenuePerClick;
 
       // Get today's active users (users with interactions today)
       const today = new Date().toISOString().split('T')[0];
-      const { count: activeUsersToday } = await (supabase as any)
-        .from('user_interactions')
-        .select('user_id', { count: 'exact', head: true })
-        .gte('created_at', `${today}T00:00:00Z`)
-        .lt('created_at', `${today}T23:59:59Z`);
+      const todayInteractions = allInteractions.filter((i: any) => 
+        i.occurred_at && i.occurred_at.startsWith(today)
+      );
+      const activeUsersToday = new Set(todayInteractions.map((i: any) => i.user_id)).size;
 
       // Get this month's new users
       const startOfMonth = new Date();
@@ -153,8 +150,21 @@ export class AdminAnalyticsService {
         .select('*', { count: 'exact', head: true })
         .gte('created_at', startOfMonth.toISOString());
 
-      // Calculate growth rate (placeholder - would need historical data)
-      const platformGrowthRate = 0; // TODO: Implement with historical data
+      // Calculate growth rate based on this month vs last month
+      const lastMonth = new Date();
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      lastMonth.setDate(1);
+      const { count: newUsersLastMonth } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', lastMonth.toISOString())
+        .lt('created_at', startOfMonth.toISOString());
+
+      const platformGrowthRate = newUsersLastMonth > 0 
+        ? ((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100 
+        : 0;
+
+      // Calculate average session duration (placeholder - would need session tracking)
       const averageSessionDuration = 0; // TODO: Implement session tracking
 
       return {
@@ -320,24 +330,21 @@ export class AdminAnalyticsService {
    */
   static async getRevenueMetrics(): Promise<RevenueMetrics> {
     try {
-      // Get ticket clicks for revenue calculation
-      const { data: ticketClicks } = await (supabase as any)
-        .from('user_interactions')
-        .select('*')
-        .eq('event_type', 'click_ticket');
+      // Get ticket clicks for revenue calculation (all users)
+      const allInteractions = await AnalyticsDataService.getAllUserInteractions();
+      const ticketClicks = allInteractions.filter((i: any) => i.event_type === 'click_ticket');
 
       // Get this month's ticket clicks
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
-      const { data: thisMonthClicks } = await (supabase as any)
-        .from('user_interactions')
-        .select('*')
-        .eq('event_type', 'click_ticket')
-        .gte('created_at', startOfMonth.toISOString());
+      const thisMonthClicks = ticketClicks.filter((i: any) => 
+        i.occurred_at && i.occurred_at >= startOfMonth.toISOString()
+      );
 
-      // Revenue calculation - only count actual revenue if we have real data
-      const totalRevenue = 0;
-      const revenueThisMonth = 0;
+      // Revenue calculation - estimate based on ticket clicks
+      const estimatedRevenuePerClick = 25; // Average ticket price
+      const totalRevenue = ticketClicks.length * estimatedRevenuePerClick;
+      const revenueThisMonth = thisMonthClicks.length * estimatedRevenuePerClick;
 
       // Get total users for average calculation
       const { count: totalUsers } = await (supabase as any)
@@ -346,11 +353,35 @@ export class AdminAnalyticsService {
 
       const averageRevenuePerUser = totalUsers > 0 ? totalRevenue / totalUsers : 0;
 
-      // Calculate growth rate (placeholder)
-      const revenueGrowthRate = 0; // TODO: Implement with historical data
+      // Calculate growth rate based on this month vs last month
+      const lastMonth = new Date();
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      lastMonth.setDate(1);
+      const lastMonthClicks = ticketClicks.filter((i: any) => 
+        i.occurred_at && i.occurred_at >= lastMonth.toISOString() && i.occurred_at < startOfMonth.toISOString()
+      );
+      const revenueLastMonth = lastMonthClicks.length * estimatedRevenuePerClick;
+      
+      const revenueGrowthRate = revenueLastMonth > 0 
+        ? ((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100 
+        : 0;
 
-      // Top revenue sources - empty until we have actual revenue data
-      const topRevenueSources: any[] = [];
+      // Top revenue sources - based on ticket clicks by event
+      const eventRevenueMap = new Map<string, number>();
+      ticketClicks.forEach((click: any) => {
+        const eventId = click.entity_id;
+        const currentRevenue = eventRevenueMap.get(eventId) || 0;
+        eventRevenueMap.set(eventId, currentRevenue + estimatedRevenuePerClick);
+      });
+
+      const topRevenueSources = Array.from(eventRevenueMap.entries())
+        .map(([eventId, revenue]) => ({ 
+          source: eventId, 
+          revenue,
+          percentage: totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0
+        }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5);
 
       return {
         total_revenue: totalRevenue,

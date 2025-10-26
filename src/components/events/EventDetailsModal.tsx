@@ -22,7 +22,6 @@ import {
   MoreVertical
 } from 'lucide-react';
 import { EventCommentsModal } from './EventCommentsModal';
-import { EventClaimModal } from './EventClaimModal';
 import { ReportContentModal } from '../moderation/ReportContentModal';
 import { JamBaseEventCard } from './JamBaseEventCard';
 import { FriendsInterestedBadge } from '../social/FriendsInterestedBadge';
@@ -41,6 +40,7 @@ import { EventMap } from '@/components/EventMap';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { supabase } from '@/integrations/supabase/client';
 import { trackInteraction } from '@/services/interactionTrackingService';
+import { PromotionTrackingService } from '@/services/promotionTrackingService';
 import { UserEventService } from '@/services/userEventService';
 import { useToast } from '@/hooks/use-toast';
 import { useAccountType } from '@/hooks/useAccountType';
@@ -99,7 +99,6 @@ export function EventDetailsModal({
   const pageSize = 5; // Show up to 5 mini profiles at once
   const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [setlistExpanded, setSetlistExpanded] = useState(false);
   const [showBuddyFinder, setShowBuddyFinder] = useState(false);
@@ -110,7 +109,6 @@ export function EventDetailsModal({
   const [userWasThere, setUserWasThere] = useState<boolean | null>(null);
   const [attendanceCount, setAttendanceCount] = useState<number | null>(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
-  const [canClaim, setCanClaim] = useState(false);
   const { toast } = useToast();
   const { isCreator, isAdmin, isBusiness } = useAccountType();
 
@@ -121,15 +119,6 @@ export function EventDetailsModal({
   // Update actualEvent when event prop changes
   useEffect(() => {
     setActualEvent(event);
-    
-    // Check if event can be claimed (not already claimed, user is creator, business, or admin)
-    if (event && (isCreator() || isBusiness() || isAdmin())) {
-      // Check if event has claimed_by_creator_id property (type-safe check)
-      const eventWithClaim = event as JamBaseEvent & { claimed_by_creator_id?: string };
-      setCanClaim(!eventWithClaim.claimed_by_creator_id);
-    } else {
-      setCanClaim(false);
-    }
     
     // Load event groups when modal opens
     if (event) {
@@ -232,18 +221,20 @@ export function EventDetailsModal({
             setActualEvent(event); // Fallback to passed event
           } else {
             console.log('✅ EventDetailsModal: Fetched event data from jambase_events:', data);
-            console.log('🎵 EventDetailsModal: Setlist data from database:', {
-              eventId: data.id,
-              eventTitle: data.title,
-              artistName: data.artist_name,
-              venueName: data.venue_name,
-              eventDate: data.event_date,
-              setlist: data.setlist,
-              hasSetlist: !!data.setlist,
-              setlistType: typeof data.setlist,
-              setlistKeys: data.setlist ? Object.keys(data.setlist) : null,
-              allFields: Object.keys(data)
-            });
+            if (data) {
+              console.log('🎵 EventDetailsModal: Setlist data from database:', {
+                eventId: data.id,
+                eventTitle: data.title,
+                artistName: data.artist_name,
+                venueName: data.venue_name,
+                eventDate: data.event_date,
+                setlist: data.setlist,
+                hasSetlist: !!data.setlist,
+                setlistType: typeof data.setlist,
+                setlistKeys: data.setlist ? Object.keys(data.setlist) : null,
+                allFields: Object.keys(data)
+              });
+            }
             setActualEvent(data);
           }
         } catch (error) {
@@ -270,11 +261,21 @@ export function EventDetailsModal({
 
   // Fetch interested count using actualEvent
   useEffect(() => {
+    console.log('🔍 fetchInterestedCount useEffect triggered', { actualEventId: actualEvent?.id, isOpen });
     const fetchInterestedCount = async () => {
-      if (!actualEvent?.id) return;
+      if (!actualEvent?.id) {
+        console.log('🔍 fetchInterestedCount: No actualEvent.id, skipping');
+        return;
+      }
       
       try {
         const eventId = actualEvent.jambase_event_id || actualEvent.id;
+        console.log('🔍 fetchInterestedCount - Event data:', {
+          actualEventId: actualEvent.id,
+          jambaseEventId: actualEvent.jambase_event_id,
+          eventId,
+          currentUserId
+        });
         
         // If eventId is already a UUID (from jambase_events.id), use it directly
         // Otherwise, try to find the UUID by querying jambase_events table
@@ -282,6 +283,7 @@ export function EventDetailsModal({
         
         // Check if eventId is not a UUID format (contains hyphens)
         if (!eventId.includes('-')) {
+          console.log('🔍 EventId is not UUID format, looking up UUID...');
           // This is likely a jambase_event_id string, try to find the UUID
           const { data: jambaseEvent, error: jambaseError } = await supabase
             .from('jambase_events')
@@ -289,22 +291,61 @@ export function EventDetailsModal({
             .eq('jambase_event_id', eventId.toString())
             .single();
             
-          if (!jambaseError && jambaseEvent) {
+          console.log('🔍 Jambase event lookup result:', { jambaseEvent, jambaseError });
+          if (!jambaseError && jambaseEvent && 'id' in jambaseEvent) {
             uuidId = jambaseEvent.id;
           }
           // If there's an error, we'll try using the original eventId as UUID
         }
         
+        console.log('🔍 Using UUID for count query:', uuidId);
+        
         // Use the UUID id to get the count, excluding current user
+        // The user_jambase_events table stores the jambase_events.id (UUID) in jambase_event_id column
         const { count, error } = await supabase
           .from('user_jambase_events')
           .select('*', { count: 'exact', head: true })
           .eq('jambase_event_id', uuidId)
           .neq('user_id', currentUserId);
-        if (error) throw error;
-        const dbCount = count ?? 0;
-        setInterestedCount(dbCount);
-      } catch {
+          
+        console.log('🔍 Count query result:', { count, error });
+        console.log('🔍 Current user ID for exclusion:', currentUserId);
+        console.log('🔍 UUID being queried:', uuidId);
+        
+        // Also check what users are actually in the database for this event
+        const { data: allUsersCheck, error: allUsersCheckError } = await supabase
+          .from('user_jambase_events')
+          .select('user_id')
+          .eq('jambase_event_id', uuidId);
+        console.log('🔍 All users check (no exclusion):', { allUsersCheck, allUsersCheckError });
+        
+        if (error) {
+          console.error('🔍 Count query failed, trying alternative approach...');
+          // Try alternative approach - get all users and count manually
+          const { data: allUsers, error: allUsersError } = await supabase
+            .from('user_jambase_events')
+            .select('user_id')
+            .eq('jambase_event_id', uuidId);
+            
+          if (allUsersError) {
+            console.error('🔍 Alternative query also failed:', allUsersError);
+            throw allUsersError;
+          }
+          
+          console.log('🔍 All users in database:', allUsers);
+          console.log('🔍 Current user ID:', currentUserId);
+          const filteredUsers = allUsers?.filter(user => user && 'user_id' in user && user.user_id !== currentUserId) || [];
+          console.log('🔍 Filtered users (excluding current user):', filteredUsers);
+          const dbCount = filteredUsers.length;
+          console.log('🔍 Alternative count result:', dbCount);
+          setInterestedCount(dbCount);
+        } else {
+          const dbCount = count ?? 0;
+          console.log('🔍 Setting interested count to:', dbCount);
+          setInterestedCount(dbCount);
+        }
+      } catch (error) {
+        console.error('🔍 Error fetching interested count:', error);
         setInterestedCount(null);
       }
     };
@@ -444,6 +485,29 @@ export function EventDetailsModal({
         from_view: window.location.pathname
       });
       
+      // 🎯 TRACK: Event click (for promotion analytics)
+      trackInteraction.click('event', actualEvent.id, {
+        source: 'event_modal_artist_click',
+        artist_name: actualEvent.artist_name,
+        venue_name: actualEvent.venue_name,
+        event_date: actualEvent.event_date,
+        genres: actualEvent.genres,
+        price_range: actualEvent.price_range,
+        days_until_event: actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined
+      });
+      
+      // 🎯 TRACK: Promotion interaction if this event is promoted
+      PromotionTrackingService.trackPromotionInteraction(
+        actualEvent.id,
+        currentUserId || '',
+        'click',
+        {
+          source: 'event_modal_artist_click',
+          artist_name: actualEvent.artist_name,
+          venue_name: actualEvent.venue_name
+        }
+      );
+      
       // Mark interaction for duration tracking
       hasInteracted.current = true;
       
@@ -469,6 +533,29 @@ export function EventDetailsModal({
         venue_state: actualEvent.venue_state,
         from_view: window.location.pathname
       });
+      
+      // 🎯 TRACK: Event click (for promotion analytics)
+      trackInteraction.click('event', actualEvent.id, {
+        source: 'event_modal_venue_click',
+        artist_name: actualEvent.artist_name,
+        venue_name: actualEvent.venue_name,
+        event_date: actualEvent.event_date,
+        genres: actualEvent.genres,
+        price_range: actualEvent.price_range,
+        days_until_event: actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined
+      });
+      
+      // 🎯 TRACK: Promotion interaction if this event is promoted
+      PromotionTrackingService.trackPromotionInteraction(
+        actualEvent.id,
+        currentUserId || '',
+        'click',
+        {
+          source: 'event_modal_venue_click',
+          artist_name: actualEvent.artist_name,
+          venue_name: actualEvent.venue_name
+        }
+      );
       
       // Mark interaction for duration tracking
       hasInteracted.current = true;
@@ -515,7 +602,7 @@ export function EventDetailsModal({
           console.error('Error finding jambase event:', jambaseError);
           // Try using the eventId directly as UUID anyway
           uuidId = eventId;
-        } else {
+        } else if (jambaseEvent && 'id' in jambaseEvent) {
           uuidId = jambaseEvent.id;
         }
       }
@@ -539,7 +626,7 @@ export function EventDetailsModal({
       }
       
       // Get profile details
-      const userIds = interestedUserIds.map(row => row.user_id);
+      const userIds = interestedUserIds?.map(row => row && 'user_id' in row ? row.user_id : null).filter(Boolean) || [];
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, user_id, name, avatar_url, bio, created_at, last_active_at, gender, birthday, music_streaming_profile')
@@ -576,7 +663,24 @@ export function EventDetailsModal({
                   <Button
                     variant={isInterested ? "default" : "outline"}
                     size="sm"
-                    onClick={() => onInterestToggle(actualEvent.id, !isInterested)}
+                    onClick={async () => {
+                      // 🎯 TRACK: Promotion interaction for interest toggle
+                      if (!isInterested) {
+                        // User is expressing interest - this is a conversion
+                        PromotionTrackingService.trackPromotionInteraction(
+                          actualEvent.id,
+                          currentUserId || '',
+                          'conversion',
+                          {
+                            source: 'event_modal_interest_button',
+                            action: 'interested'
+                          }
+                        );
+                      }
+                      
+                      // Call the original handler
+                      onInterestToggle(actualEvent.id, !isInterested);
+                    }}
                     className={
                       isInterested 
                         ? "bg-red-500 hover:bg-red-600 text-white" 
@@ -585,17 +689,6 @@ export function EventDetailsModal({
                   >
                     <Heart className={`w-4 h-4 mr-1 ${isInterested ? 'fill-current' : ''}`} />
                     {isInterested ? 'Interested' : "I'm Interested"}
-                  </Button>
-                )}
-                {canClaim && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setClaimModalOpen(true)}
-                    className="hover:bg-purple-50 hover:text-purple-600 hover:border-purple-300"
-                  >
-                    <Award className="w-4 h-4 mr-1" />
-                    Claim Event
                   </Button>
                 )}
                 <Button
@@ -758,7 +851,7 @@ export function EventDetailsModal({
                   }}
                 >
                   <Heart className="h-4 w-4 mr-1" />
-                  Find Buddies
+                  Meet People Going ({interestedCount !== null ? interestedCount : 0})
                 </Button>
               )}
             </div>
@@ -821,6 +914,7 @@ export function EventDetailsModal({
               <ConcertBuddySwiper
                 eventId={actualEvent.id}
                 eventTitle={actualEvent.title}
+                {...(interestedCount !== null && { interestedCount })}
                 onMatchCreated={(matchedUser) => {
                   toast({
                     title: 'New Match! 🎉',
@@ -1034,194 +1128,6 @@ export function EventDetailsModal({
             </div>
           )}
 
-          {/* Interested People - Only show for upcoming events */}
-          {isInterested && !isPastEvent && (
-            <div className="mb-6 rounded-md border p-3">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                {interestedCount === null ? (isPastEvent ? 'Loading people who were there…' : 'Loading people going…') : 
-                 interestedCount === 0 ? (isPastEvent ? 'You were the only one there' : 'You are the only interested user') : 
-                 isPastEvent ? `${interestedCount} other user${interestedCount === 1 ? '' : 's'} ${interestedCount === 1 ? 'was' : 'were'} there` :
-                 `${interestedCount} other user${interestedCount === 1 ? '' : 's'} ${interestedCount === 1 ? 'is' : 'are'} interested`}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  disabled={interestedCount === 0}
-                  className="relative z-10"
-                  onClick={(e) => { 
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('🔘 Meet people going button clicked');
-                    console.log('📊 Current interestedCount:', interestedCount);
-                    console.log('📊 Current showInterestedUsers:', showInterestedUsers);
-                    setShowInterestedUsers(true); 
-                    fetchInterestedUsers(1); 
-                    setUsersPage(1); 
-                  }}
-                >
-                  <Users className="w-4 h-4 mr-1" />
-                  {isPastEvent ? 'Meet people who were there' : 'Meet people going'}
-                </Button>
-                {showInterestedUsers && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Button size="sm" variant="ghost" className="px-2 relative z-10" onClick={(e) => { 
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('🔘 Prev button clicked, current page:', usersPage);
-                      if (usersPage > 1) { 
-                        const p = usersPage - 1; 
-                        setUsersPage(p); 
-                        fetchInterestedUsers(p); 
-                      } 
-                    }}>
-                      Prev
-                    </Button>
-                    <span>|</span>
-                    <Button size="sm" variant="ghost" className="px-2 relative z-10" onClick={(e) => { 
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('🔘 Next button clicked, current page:', usersPage);
-                      const p = usersPage + 1; 
-                      setUsersPage(p); 
-                      fetchInterestedUsers(p); 
-                    }}>
-                      Next
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {showInterestedUsers && (
-              <div className="mt-4">
-                {interestedUsers.length === 0 ? (
-                  <div className="text-sm text-muted-foreground text-center py-8">No interested users yet.</div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Mini Profiles Carousel */}
-                    <div className="flex flex-col items-center space-y-3 min-h-[200px]">
-                      {interestedUsers.slice(currentProfileIndex, currentProfileIndex + pageSize).map((u, index) => (
-                        <div
-                          key={u.id}
-                          className="flex flex-col items-center gap-3 rounded-lg border p-4 cursor-pointer hover:bg-gray-50 transition-colors w-full max-w-sm bg-white"
-                          onClick={() => {
-                            setFriendModalUser({
-                              id: u.id,
-                              user_id: u.user_id,
-                              name: u.name,
-                              username: u.name.replace(/\s+/g, '').toLowerCase(),
-                              avatar_url: u.avatar_url || null,
-                              bio: u.bio || '',
-                              created_at: u.created_at,
-                              gender: u.gender || undefined,
-                              birthday: u.birthday || undefined
-                            });
-                            setFriendModalOpen(true);
-                          }}
-                        >
-                          {/* Avatar */}
-                          <img src={u.avatar_url || '/placeholder.svg'} alt={u.name} className="w-16 h-16 rounded-full" />
-                          
-                          {/* Name and Username */}
-                          <div className="text-center">
-                            <div className="font-bold text-lg">{u.name}</div>
-                            <div className="text-sm text-muted-foreground">@{u.name.replace(/\s+/g, '').toLowerCase()}</div>
-                          </div>
-                          
-                          {/* Gender and Age Display */}
-                          {(u.gender || u.birthday) && (
-                            <div className="flex items-center gap-2">
-                              {u.gender && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {u.gender}
-                                </Badge>
-                              )}
-                              {u.birthday && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {(() => {
-                                    const birthDate = new Date(u.birthday);
-                                    const today = new Date();
-                                    let age = today.getFullYear() - birthDate.getFullYear();
-                                    const monthDiff = today.getMonth() - birthDate.getMonth();
-                                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                                      age--;
-                                    }
-                                    return `${age} years old`;
-                                  })()}
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                          
-                          {/* Member Since */}
-                          <div className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            Member since {new Date(u.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                          </div>
-                          
-                          {/* Music Preferences */}
-                          {u.music_streaming_profile && (
-                            <div className="flex flex-wrap gap-1 justify-center">
-                              <Badge variant="outline" className="text-xs">
-                                <Music className="w-3 h-3 mr-1" />
-                                Concert Lover
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                <Heart className="w-3 h-3 mr-1" />
-                                Live Music
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                <Star className="w-3 h-3 mr-1" />
-                                Music Enthusiast
-                              </Badge>
-                            </div>
-                          )}
-                          
-                          {/* Recent Activity */}
-                          {u.last_active_at && (
-                            <div className="flex items-center gap-1 text-xs text-green-600">
-                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                              Active now
-                            </div>
-                          )}
-                          
-                          <div className="text-xs text-muted-foreground mt-1">Tap to view full profile</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Navigation Controls */}
-                    {interestedUsers.length > pageSize && (
-                      <div className="flex justify-center items-center gap-4 mt-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentProfileIndex(Math.max(0, currentProfileIndex - pageSize))}
-                          disabled={currentProfileIndex === 0}
-                        >
-                          Previous
-                        </Button>
-                        <span className="text-sm text-muted-foreground">
-                          {currentProfileIndex + 1}-{Math.min(currentProfileIndex + pageSize, interestedUsers.length)} of {interestedUsers.length}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentProfileIndex(Math.min(interestedUsers.length - pageSize, currentProfileIndex + pageSize))}
-                          disabled={currentProfileIndex + pageSize >= interestedUsers.length}
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          )}
 
           {/* Map Section - Only show for upcoming events */}
           {isUpcomingEvent && (
@@ -1323,6 +1229,18 @@ export function EventDetailsModal({
                           user_interested: isInterested
                         });
                         
+                        // 🎯 TRACK: Promotion interaction for ticket click
+                        PromotionTrackingService.trackPromotionInteraction(
+                          actualEvent.id,
+                          currentUserId || '',
+                          'click',
+                          {
+                            source: 'event_modal_ticket_click',
+                            ticket_url: ticketUrl,
+                            ticket_provider: ticketProvider
+                          }
+                        );
+                        
                         // Mark interaction for duration tracking
                         hasInteracted.current = true;
                         
@@ -1423,24 +1341,6 @@ export function EventDetailsModal({
           currentUserId={currentUserId}
         />
 
-        {canClaim && (
-          <EventClaimModal
-            open={claimModalOpen}
-            onClose={() => setClaimModalOpen(false)}
-            event={{
-              id: actualEvent.id,
-              title: actualEvent.title,
-              artist_name: actualEvent.artist_name,
-              venue_name: actualEvent.venue_name,
-              event_date: actualEvent.event_date,
-            }}
-            onClaimSubmitted={() => {
-              setClaimModalOpen(false);
-              // Reload event to update claim status
-              // Could trigger a refetch here if needed
-            }}
-          />
-        )}
 
         <ReportContentModal
           open={reportModalOpen}

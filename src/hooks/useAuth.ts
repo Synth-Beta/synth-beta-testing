@@ -70,7 +70,7 @@ export function useAuth() {
       } catch (error) {
         console.error('Error in periodic session check:', error);
       }
-    }, 30 * 1000); // Check every 30 seconds for testing
+    }, 5 * 60 * 1000); // Check every 5 minutes (optimized from 30 seconds)
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

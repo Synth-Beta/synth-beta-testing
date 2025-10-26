@@ -4,6 +4,8 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { AnalyticsDataService } from './analyticsDataService';
+import { PromotionTrackingService } from './promotionTrackingService';
 
 export interface PromotionMetrics {
   id: string;
@@ -69,7 +71,7 @@ export class PromotionAnalyticsService {
         .from('event_promotions')
         .select(`
           *,
-          event:jambase_events(
+          event:jambase_events!event_promotions_event_id_fkey(
             id,
             title,
             artist_name,
@@ -82,6 +84,47 @@ export class PromotionAnalyticsService {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
+      // Sync metrics from user_interactions for each promotion
+      if (data && data.length > 0) {
+        for (const promotion of data) {
+          try {
+            await PromotionTrackingService.syncPromotionMetrics(promotion.id);
+          } catch (syncError) {
+            console.error(`Error syncing metrics for promotion ${promotion.id}:`, syncError);
+          }
+        }
+      }
+
+      // Get real data using the same approach as events tab
+      const eventIds = data?.map((p: any) => p.event_id) || [];
+      if (eventIds.length > 0) {
+        // Get interactions for these events (all users)
+        const interactions = await AnalyticsDataService.getAllUserInteractions(
+          eventIds,
+          undefined,
+          ['event']
+        );
+
+        // Get interested users (all users)
+        const interestedUsers = await AnalyticsDataService.getAllInterestedUsers(eventIds);
+
+        // Update promotion data with real metrics
+        for (const promotion of data) {
+          const eventInteractions = interactions?.filter((i: any) => i.entity_id === promotion.event_id) || [];
+          const eventInterested = interestedUsers?.filter((u: any) => u.jambase_event_id === promotion.event_id) || [];
+          
+          const totalViews = eventInteractions.filter((i: any) => i.event_type === 'view').length;
+          const totalClicks = eventInteractions.filter((i: any) => i.event_type === 'click').length;
+          const totalConversions = eventInterested.length;
+          
+          // Update promotion object with real data (only existing properties)
+          promotion.impressions = totalViews;
+          promotion.clicks = totalClicks;
+          promotion.conversions = totalConversions;
+        }
+      }
+
       return data || [];
     } catch (error) {
       console.error('Error fetching user promotions:', error);
@@ -98,7 +141,7 @@ export class PromotionAnalyticsService {
         .from('event_promotions')
         .select(`
           *,
-          event:jambase_events(
+          event:jambase_events!event_promotions_event_id_fkey(
             id,
             title,
             artist_name,
@@ -151,7 +194,7 @@ export class PromotionAnalyticsService {
         .from('event_promotions')
         .select(`
           *,
-          event:jambase_events(
+          event:jambase_events!event_promotions_event_id_fkey(
             id,
             title,
             artist_name,
@@ -163,6 +206,47 @@ export class PromotionAnalyticsService {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
+      // Sync metrics from user_interactions for each promotion
+      if (data && data.length > 0) {
+        for (const promotion of data) {
+          try {
+            await PromotionTrackingService.syncPromotionMetrics(promotion.id);
+          } catch (syncError) {
+            console.error(`Error syncing metrics for promotion ${promotion.id}:`, syncError);
+          }
+        }
+      }
+
+      // Get real data using the same approach as events tab
+      const eventIds = data?.map((p: any) => p.event_id) || [];
+      if (eventIds.length > 0) {
+        // Get interactions for these events (all users)
+        const interactions = await AnalyticsDataService.getAllUserInteractions(
+          eventIds,
+          undefined,
+          ['event']
+        );
+
+        // Get interested users (all users)
+        const interestedUsers = await AnalyticsDataService.getAllInterestedUsers(eventIds);
+
+        // Update promotion data with real metrics
+        for (const promotion of data) {
+          const eventInteractions = interactions?.filter((i: any) => i.entity_id === promotion.event_id) || [];
+          const eventInterested = interestedUsers?.filter((u: any) => u.jambase_event_id === promotion.event_id) || [];
+          
+          const totalViews = eventInteractions.filter((i: any) => i.event_type === 'view').length;
+          const totalClicks = eventInteractions.filter((i: any) => i.event_type === 'click').length;
+          const totalConversions = eventInterested.length;
+          
+          // Update promotion object with real data
+          promotion.impressions = totalViews;
+          promotion.clicks = totalClicks;
+          promotion.conversions = totalConversions;
+        }
+      }
+
       if (!data) return [];
 
       return data.map(promotion => {
@@ -248,17 +332,30 @@ export class PromotionAnalyticsService {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-      const { data, error } = await supabase
+      // Get promotions for this user
+      const { data: promotions, error: promotionsError } = await supabase
         .from('event_promotions')
-        .select('impressions, clicks, conversions, price_paid, created_at')
+        .select('event_id, price_paid, created_at')
         .eq('promoted_by_user_id', userId)
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
-      if (!data) return [];
+      if (promotionsError) throw promotionsError;
+      if (!promotions || promotions.length === 0) return [];
 
-      // Group by date and aggregate metrics
+      const eventIds = promotions.map((p: any) => p.event_id);
+
+      // Get real interaction data using the same approach as other methods
+      const interactions = await AnalyticsDataService.getAllUserInteractions(
+        eventIds,
+        undefined,
+        ['event']
+      );
+
+      // Get real interested users data
+      const interestedUsers = await AnalyticsDataService.getAllInterestedUsers(eventIds);
+
+      // Group by date and aggregate metrics using real data
       const trendsMap = new Map<string, {
         impressions: number;
         clicks: number;
@@ -266,17 +363,32 @@ export class PromotionAnalyticsService {
         spend: number;
       }>();
 
-      data.forEach(promotion => {
-        const date = new Date(promotion.created_at).toISOString().split('T')[0];
-        const existing = trendsMap.get(date) || { impressions: 0, clicks: 0, conversions: 0, spend: 0 };
+      // Create date range for the last N days
+      for (let i = 0; i < days; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        trendsMap.set(dateStr, { impressions: 0, clicks: 0, conversions: 0, spend: 0 });
+      }
+
+      // Add real data to trends
+      for (const promotion of promotions) {
+        const promotionDate = promotion.created_at.split('T')[0];
+        const eventInteractions = interactions?.filter((i: any) => i.entity_id === promotion.event_id) || [];
+        const eventInterested = interestedUsers?.filter((u: any) => u.jambase_event_id === promotion.event_id) || [];
         
-        trendsMap.set(date, {
-          impressions: existing.impressions + promotion.impressions,
-          clicks: existing.clicks + promotion.clicks,
-          conversions: existing.conversions + promotion.conversions,
-          spend: existing.spend + promotion.price_paid
+        const totalViews = eventInteractions.filter((i: any) => i.event_type === 'view').length;
+        const totalClicks = eventInteractions.filter((i: any) => i.event_type === 'click').length;
+        const totalConversions = eventInterested.length;
+        
+        const existing = trendsMap.get(promotionDate) || { impressions: 0, clicks: 0, conversions: 0, spend: 0 };
+        trendsMap.set(promotionDate, {
+          impressions: existing.impressions + totalViews,
+          clicks: existing.clicks + totalClicks,
+          conversions: existing.conversions + totalConversions,
+          spend: existing.spend + (promotion.price_paid || 0)
         });
-      });
+      }
 
       return Array.from(trendsMap.entries()).map(([date, metrics]) => ({
         date,
@@ -297,7 +409,7 @@ export class PromotionAnalyticsService {
         .from('event_promotions')
         .select(`
           *,
-          event:jambase_events(
+          event:jambase_events!event_promotions_event_id_fkey(
             id,
             title,
             artist_name,

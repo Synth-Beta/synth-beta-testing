@@ -159,45 +159,50 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       return;
     }
     
-    console.log('🔍 ProfileView: User is available, fetching data...');
-    setLoading(true);
-    console.log('🔍 ProfileView: Loading state set to TRUE');
-    
-    // Ensure we wait for both minimum time AND data fetching
-    const fetchData = async () => {
-      try {
-        console.log('🔍 ProfileView: fetchData function called');
-        console.log('🔍 ProfileView: About to fetch profile...');
-        await fetchProfile();
-        console.log('🔍 ProfileView: About to fetch user events...');
-        await fetchUserEvents();
-        console.log('🔍 ProfileView: About to fetch reviews...');
-        await fetchReviews();
-        console.log('🔍 ProfileView: About to fetch friends...');
-        await fetchFriends();
-        console.log('🔍 ProfileView: About to fetch attended events...');
-        await fetchAttendedEvents();
-        console.log('🔍 ProfileView: About to fetch draft reviews...');
-        await fetchDraftReviews();
-        console.log('🔍 ProfileView: About to fetch followed artists count...');
-        await fetchFollowedArtistsCount();
-        console.log('🔍 ProfileView: About to fetch achievements...');
-        await loadAchievements();
-        if (!isViewingOwnProfile) {
-          await checkFriendStatus();
+    // Debounce data fetching to prevent excessive calls
+    const fetchTimeout = setTimeout(() => {
+      console.log('🔍 ProfileView: User is available, fetching data...');
+      setLoading(true);
+      console.log('🔍 ProfileView: Loading state set to TRUE');
+      
+      // Ensure we wait for both minimum time AND data fetching
+      const fetchData = async () => {
+        try {
+          console.log('🔍 ProfileView: fetchData function called');
+          console.log('🔍 ProfileView: About to fetch profile...');
+          await fetchProfile();
+          console.log('🔍 ProfileView: About to fetch user events...');
+          await fetchUserEvents();
+          console.log('🔍 ProfileView: About to fetch reviews...');
+          await fetchReviews();
+          console.log('🔍 ProfileView: About to fetch friends...');
+          await fetchFriends();
+          console.log('🔍 ProfileView: About to fetch attended events...');
+          await fetchAttendedEvents();
+          console.log('🔍 ProfileView: About to fetch draft reviews...');
+          await fetchDraftReviews();
+          console.log('🔍 ProfileView: About to fetch followed artists count...');
+          await fetchFollowedArtistsCount();
+          console.log('🔍 ProfileView: About to fetch achievements...');
+          await loadAchievements();
+          if (!isViewingOwnProfile) {
+            await checkFriendStatus();
+          }
+          console.log('🔍 ProfileView: All data fetched successfully');
+        } catch (error) {
+          console.error('🔍 ProfileView: Error fetching data:', error);
         }
-        console.log('🔍 ProfileView: All data fetched successfully');
-      } catch (error) {
-        console.error('🔍 ProfileView: Error fetching data:', error);
-      }
-    };
+      };
 
-    const minTime = new Promise(resolve => setTimeout(resolve, 800));
+      const minTime = new Promise(resolve => setTimeout(resolve, 800));
+      
+      Promise.all([fetchData(), minTime]).finally(() => {
+        setLoading(false);
+        console.log('🔍 ProfileView: Loading state set to FALSE');
+      });
+    }, 300); // Debounce by 300ms
     
-    Promise.all([fetchData(), minTime]).finally(() => {
-      setLoading(false);
-      console.log('🔍 ProfileView: Loading state set to FALSE');
-    });
+    return () => clearTimeout(fetchTimeout);
   }, [targetUserId, sessionExpired, user]);
 
   useEffect(() => {
@@ -564,7 +569,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
       // Get all the user IDs we need to fetch
       const userIds = friendships.map(f => 
-        f.user1_id === currentUserId ? f.user2_id : f.user1_id
+        f.user1_id === targetUserId ? f.user2_id : f.user1_id
       );
 
       // Fetch the profiles for those users
@@ -581,7 +586,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
       // Transform the data to get the other user's profile
       const friendsList = friendships.map(friendship => {
-        const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
+        const otherUserId = friendship.user1_id === targetUserId ? friendship.user2_id : friendship.user1_id;
         const profile = profiles?.find(p => p.user_id === otherUserId);
         
         return {
@@ -1422,7 +1427,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     }
                     return Math.round((review.rating || 0) * 2) / 2;
                   })(),
-                  date: review.created_at,
+                  date: review.event?.event_date || review.created_at,
                   likes: 0,
                   comments: 0,
                   badge: 'Review'

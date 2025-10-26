@@ -52,7 +52,10 @@ export class UserEventService {
       if (fetchError) throw fetchError;
       try {
         trackInteraction.interest('event', jambaseEventId, interested);
-      } catch {}
+        console.log('🎯 Tracked interest interaction:', { jambaseEventId, interested });
+      } catch (error) {
+        console.error('Error tracking interest interaction:', error);
+      }
       return (data as UserJamBaseEvent) || ({} as UserJamBaseEvent);
     } catch (error) {
       console.error('Error setting event interest:', error);

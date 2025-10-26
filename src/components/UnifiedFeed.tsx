@@ -218,33 +218,37 @@ export const UnifiedFeed = ({
       return;
     }
     
-    // Try to get user's location for better recommendations with timeout
-    console.log('🔍 Starting location service...');
+    // Debounce location service to prevent excessive calls
+    const locationTimeout = setTimeout(() => {
+      console.log('🔍 Starting location service...');
+      
+      // Add a timeout to prevent hanging
+      const locationPromise = LocationService.getCurrentLocation();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Location service timeout')), 3000) // Reduced timeout
+      );
+      
+      Promise.race([locationPromise, timeoutPromise])
+        .then(location => {
+          console.log('🔍 Location service succeeded:', location);
+          setUserLocation({ lat: (location as any).latitude, lng: (location as any).longitude });
+          setMapCenter([(location as any).latitude, (location as any).longitude]);
+          setMapZoom(10);
+        })
+        .catch(error => {
+          console.log('🔍 Location service failed or timed out:', error);
+          // Continue without location
+        })
+        .finally(() => {
+          console.log('🔍 Location service finally block - loading feed data...');
+          loadFeedData();
+          loadUpcomingEvents();
+          loadFollowedData();
+        });
+    }, 500); // Debounce by 500ms
     
-    // Add a timeout to prevent hanging
-    const locationPromise = LocationService.getCurrentLocation();
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Location service timeout')), 5000)
-    );
-    
-    Promise.race([locationPromise, timeoutPromise])
-      .then(location => {
-        console.log('🔍 Location service succeeded:', location);
-        setUserLocation({ lat: (location as any).latitude, lng: (location as any).longitude });
-        setMapCenter([(location as any).latitude, (location as any).longitude]);
-        setMapZoom(10);
-      })
-      .catch(error => {
-        console.log('🔍 Location service failed or timed out:', error);
-        // Continue without location
-      })
-      .finally(() => {
-        console.log('🔍 Location service finally block - loading feed data...');
-        loadFeedData();
-        loadUpcomingEvents();
-        loadFollowedData();
-      });
-  }, [sessionExpired]); // Remove currentUserId dependency to prevent infinite loop
+    return () => clearTimeout(locationTimeout);
+  }, [sessionExpired, currentUserId]); // Add currentUserId back with proper dependency management
 
   // Load followed artists and venues for filtering
   const loadFollowedData = async () => {
@@ -1008,6 +1012,19 @@ export const UnifiedFeed = ({
                 onClick={async (e) => {
                   if (e.defaultPrevented) return;
                   if (item.event_data) {
+                    // 🎯 TRACK: Promotion interaction for event card click
+                    const { PromotionTrackingService } = await import('@/services/promotionTrackingService');
+                    PromotionTrackingService.trackPromotionInteraction(
+                      item.event_data.id,
+                      currentUserId,
+                      'click',
+                      {
+                        source: 'feed_event_card_click',
+                        artist_name: item.event_data.artist_name,
+                        venue_name: item.event_data.venue_name
+                      }
+                    );
+                    
                     setSelectedEventForDetails(item.event_data);
                     try {
                       const interested = await UserEventService.isUserInterested(

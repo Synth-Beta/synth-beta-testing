@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Camera, Upload, X, Loader2 } from 'lucide-react';
+import { Camera, Upload, X, Loader2, Image, Smartphone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 interface ProfilePictureUploadProps {
   currentAvatarUrl?: string | null;
   userName: string;
-  onUploadSuccess: (newAvatarUrl: string) => void;
+  onUploadSuccess?: (newAvatarUrl: string) => void;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
@@ -23,7 +23,9 @@ export const ProfilePictureUpload = ({
 }: ProfilePictureUploadProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showUploadOptions, setShowUploadOptions] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -33,9 +35,37 @@ export const ProfilePictureUpload = ({
     lg: 'w-32 h-32'
   };
 
+  // Detect if user is on mobile device
+  const isMobile = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+  };
+
+  // Handle camera capture
+  const handleCameraCapture = () => {
+    cameraInputRef.current?.click();
+  };
+
+  // Handle gallery selection
+  const handleGallerySelect = () => {
+    galleryInputRef.current?.click();
+  };
+
+  // Show upload options on mobile, direct upload on desktop
+  const handleUploadClick = () => {
+    if (isMobile()) {
+      setShowUploadOptions(true);
+    } else {
+      galleryInputRef.current?.click();
+    }
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Close upload options modal
+    setShowUploadOptions(false);
 
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'];
@@ -224,7 +254,7 @@ export const ProfilePictureUpload = ({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={handleUploadClick}
           disabled={isUploading}
           className="text-xs"
         >
@@ -246,15 +276,60 @@ export const ProfilePictureUpload = ({
         )}
       </div>
 
-      {/* Hidden file input */}
+      {/* Hidden file inputs */}
       <input
-        ref={fileInputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
         onChange={handleFileSelect}
         className="hidden"
-        capture="environment" // Prioritize rear camera on mobile
+        capture="environment" // Force camera on mobile
       />
+      
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {/* Upload Options Modal */}
+      {showUploadOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm">
+            <h3 className="text-lg font-semibold mb-4 text-center">Choose Photo Source</h3>
+            
+            <div className="space-y-3">
+              <Button
+                onClick={handleCameraCapture}
+                className="w-full flex items-center justify-center gap-3 py-3"
+                variant="outline"
+              >
+                <Camera className="w-5 h-5" />
+                Take Photo
+              </Button>
+              
+              <Button
+                onClick={handleGallerySelect}
+                className="w-full flex items-center justify-center gap-3 py-3"
+                variant="outline"
+              >
+                <Image className="w-5 h-5" />
+                Choose from Gallery
+              </Button>
+            </div>
+            
+            <Button
+              onClick={() => setShowUploadOptions(false)}
+              variant="ghost"
+              className="w-full mt-4"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -105,7 +105,7 @@ export const PostsGrid = ({ posts, onPostClick }: PostsGridProps) => {
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  <span>{format(new Date(post.date), 'MMM d')}</span>
+                  <span>{format(new Date(post.date), 'MMM d, yyyy')}</span>
                 </div>
                 {post.type === 'review' && typeof post.rating === 'number' && (
                   <div className="flex items-center gap-0.5">

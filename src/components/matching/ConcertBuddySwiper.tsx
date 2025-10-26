@@ -11,17 +11,23 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Heart, X, Music, MapPin, Calendar, Sparkles, Loader2, MessageCircle } from 'lucide-react';
 import MatchingService, { PotentialMatch } from '@/services/matchingService';
+import { supabase } from '@/integrations/supabase/client';
+import { PushNotificationService } from '@/services/pushNotificationService';
 
 interface ConcertBuddySwiperProps {
   eventId: string;
   eventTitle: string;
+  interestedCount?: number | null;
   onMatchCreated?: (matchedUser: any) => void;
+  onNavigateToProfile?: (userId: string) => void;
 }
 
 export function ConcertBuddySwiper({
   eventId,
   eventTitle,
+  interestedCount,
   onMatchCreated,
+  onNavigateToProfile,
 }: ConcertBuddySwiperProps) {
   const { toast } = useToast();
   const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
@@ -60,17 +66,41 @@ export function ConcertBuddySwiper({
     setSwipeDirection(isInterested ? 'right' : 'left');
 
     try {
+      // Record the swipe using MatchingService
       await MatchingService.recordSwipe({
         event_id: eventId,
         swiped_user_id: currentUser.user_id,
-        is_interested: isInterested,
+        is_interested: isInterested
       });
 
       if (isInterested) {
-        toast({
-          title: '💖 Sent!',
-          description: `If ${currentUser.name} swipes right too, you'll match!`,
-        });
+        // Check if there's already a match using MatchingService
+        const matches = await MatchingService.getEventMatches(eventId);
+        const existingMatch = matches.find(match => 
+          (match.user1_id === currentUser.user_id || match.user2_id === currentUser.user_id)
+        );
+
+        if (existingMatch) {
+          toast({
+            title: '🎉 It\'s a Match!',
+            description: `You and ${currentUser.name} both want to meet up!`,
+          });
+          
+          // Show push notification
+          PushNotificationService.showMatchNotification({
+            userName: currentUser.name,
+            eventTitle: eventTitle,
+          });
+          
+          if (onMatchCreated) {
+            onMatchCreated(currentUser);
+          }
+        } else {
+          toast({
+            title: '💖 Sent!',
+            description: `If ${currentUser.name} swipes right too, you'll match!`,
+          });
+        }
       }
 
       // Wait for animation
@@ -111,10 +141,21 @@ export function ConcertBuddySwiper({
       <Card>
         <CardContent className="py-12 text-center">
           <Heart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No More Potential Matches</h3>
-          <p className="text-gray-600 text-sm">
-            You've seen everyone interested in this event. Check back later!
-          </p>
+            {interestedCount === 0 ? (
+              <>
+                <h3 className="text-lg font-semibold mb-2">No One Going Yet</h3>
+                <p className="text-gray-600 text-sm">
+                  Be the first to show interest in this event! Share it with friends to meet people going.
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold mb-2">All Caught Up!</h3>
+                <p className="text-gray-600 text-sm">
+                  You've swiped through everyone going to this event. Check back later for new people!
+                </p>
+              </>
+            )}
         </CardContent>
       </Card>
     );
@@ -127,7 +168,7 @@ export function ConcertBuddySwiper({
           <Sparkles className="h-16 w-16 text-purple-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">All Done!</h3>
           <p className="text-gray-600 text-sm mb-4">
-            You've reviewed all potential concert buddies for this event
+            You've reviewed all people going to this event
           </p>
           <Button onClick={loadPotentialMatches} variant="outline">
             Check for New People
@@ -147,20 +188,25 @@ export function ConcertBuddySwiper({
           {currentIndex + 1} of {potentialMatches.length}
         </span>
         <span className="text-purple-600 font-medium">
-          Find Concert Buddies for {eventTitle}
+          Meet People Going to {eventTitle}
         </span>
       </div>
 
       {/* User Card */}
       <div className="relative">
         <Card
-          className={`transition-all duration-300 ${
+          className={`transition-all duration-300 cursor-pointer hover:shadow-lg ${
             swipeDirection === 'left'
               ? 'translate-x-[-100%] opacity-0'
               : swipeDirection === 'right'
               ? 'translate-x-[100%] opacity-0'
               : ''
           }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            // Navigate to user profile
+            window.open(`/profile/${currentUser.user_id}`, '_blank');
+          }}
         >
           <CardContent className="p-0">
             {/* Avatar Section */}
@@ -272,5 +318,4 @@ export function ConcertBuddySwiper({
   );
 }
 
-export default ConcertBuddySwiper;
 

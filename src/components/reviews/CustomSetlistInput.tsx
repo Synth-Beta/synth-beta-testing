@@ -19,9 +19,10 @@ interface CustomSetlistInputProps {
   songs: CustomSetlistSong[];
   onChange: (songs: CustomSetlistSong[]) => void;
   className?: string;
+  disabled?: boolean;
 }
 
-export function CustomSetlistInput({ songs, onChange, className }: CustomSetlistInputProps) {
+export function CustomSetlistInput({ songs, onChange, className, disabled = false }: CustomSetlistInputProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [newSong, setNewSong] = useState<Omit<CustomSetlistSong, 'position'>>({
@@ -111,18 +112,22 @@ export function CustomSetlistInput({ songs, onChange, className }: CustomSetlist
   };
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("space-y-3", className, disabled && "opacity-50 pointer-events-none")}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Music className="w-5 h-5 text-purple-600" />
-          <Label className="text-sm font-medium">Custom Setlist (Optional)</Label>
+          <Music className={cn("w-5 h-5", disabled ? "text-gray-400" : "text-purple-600")} />
+          <Label className={cn("text-sm font-medium", disabled && "text-gray-500")}>
+            {disabled ? "Custom Setlist (Disabled)" : "Custom Setlist (Optional)"}
+          </Label>
           {songs.length > 0 && (
-            <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+            <Badge variant="secondary" className={cn(
+              disabled ? "bg-gray-100 text-gray-600" : "bg-purple-100 text-purple-800"
+            )}>
               {songs.length} song{songs.length !== 1 ? 's' : ''}
             </Badge>
           )}
         </div>
-        {!isAdding && (
+        {!isAdding && !disabled && (
           <Button
             type="button"
             variant="outline"
@@ -136,8 +141,11 @@ export function CustomSetlistInput({ songs, onChange, className }: CustomSetlist
         )}
       </div>
 
-      <p className="text-xs text-gray-500">
-        Create your own setlist for this show. Add songs in the order they were played.
+      <p className={cn("text-xs", disabled ? "text-gray-400" : "text-gray-500")}>
+        {disabled 
+          ? "Custom setlist creation is disabled because an API setlist was selected."
+          : "Create your own setlist for this show. Add songs in the order they were played."
+        }
       </p>
 
       {/* Song List */}

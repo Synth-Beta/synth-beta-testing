@@ -22,7 +22,10 @@ import {
 import { ConversionFunnelService } from '../../services/conversionFunnelService';
 import { RevenueEstimationService } from '../../services/revenueEstimationService';
 import { PromotionAnalyticsService } from '../../services/promotionAnalyticsService';
+import { VIPAnalyticsService, VIPCustomer, VIPMetrics, VIPTrend } from '../../services/vipAnalyticsService';
 import { usePromotionRealtime } from '../../hooks/usePromotionRealtime';
+import { PromotionPerformanceChart } from '../../components/analytics/promotions/PromotionPerformanceChart';
+import { syncAllUserPromotions } from '../../utils/promotionSync';
 import { 
   Building2, 
   TrendingUp, 
@@ -38,6 +41,8 @@ import {
   Crown,
   BarChart3,
   PieChart,
+  RefreshCw,
+  Loader2,
   TrendingDown
 } from 'lucide-react';
 
@@ -51,6 +56,68 @@ export default function BusinessAnalyticsDashboard() {
   const [artistPerformance, setArtistPerformance] = useState<ArtistPerformance[]>([]);
   const [achievements, setAchievements] = useState<BusinessAchievement[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'revenue' | 'customers' | 'events' | 'achievements' | 'promotions'>('overview');
+  const [promotionLoading, setPromotionLoading] = useState(false);
+
+  // Load promotion data when promotions tab is activated
+  const loadPromotionData = async () => {
+    if (!user) return;
+
+    setPromotionLoading(true);
+    try {
+      console.log('🔍 BusinessAnalyticsDashboard: Loading promotion data...');
+      const [promotionData, comparisonData, trendsData] = await Promise.allSettled([
+        PromotionAnalyticsService.getUserPromotions(user.id),
+        PromotionAnalyticsService.getPromotionPerformanceComparison(user.id),
+        PromotionAnalyticsService.getPromotionTrends(user.id, 30)
+      ]).then(results =>
+        results.map(result => result.status === 'fulfilled' ? result.value : [])
+      );
+
+      console.log('🔍 BusinessAnalyticsDashboard: Promotion data loaded:', {
+        promotions: promotionData.length,
+        comparisons: comparisonData.length,
+        trends: trendsData.length
+      });
+
+      setPromotionMetrics(promotionData);
+      setPromotionComparison(comparisonData);
+      setPromotionTrends(trendsData);
+    } catch (error) {
+      console.error('Error loading promotion data:', error);
+    } finally {
+      setPromotionLoading(false);
+    }
+  };
+
+  const loadVIPData = async () => {
+    if (!user) return;
+
+    setVipLoading(true);
+    try {
+      console.log('🔍 BusinessAnalyticsDashboard: Loading VIP data...');
+      const [customersData, metricsData, trendsData] = await Promise.allSettled([
+        VIPAnalyticsService.getVIPCustomers(user.id, 20),
+        VIPAnalyticsService.getVIPMetrics(user.id),
+        VIPAnalyticsService.getVIPTrends(user.id, 30)
+      ]).then(results =>
+        results.map(result => result.status === 'fulfilled' ? result.value : [])
+      );
+
+      console.log('🔍 BusinessAnalyticsDashboard: VIP data loaded:', {
+        customers: Array.isArray(customersData) ? customersData.length : 0,
+        metrics: metricsData,
+        trends: Array.isArray(trendsData) ? trendsData.length : 0
+      });
+
+      setVipCustomers(Array.isArray(customersData) ? customersData as VIPCustomer[] : []);
+      setVipMetrics(metricsData && typeof metricsData === 'object' && !Array.isArray(metricsData) ? metricsData as VIPMetrics : null);
+      setVipTrends(Array.isArray(trendsData) ? trendsData as VIPTrend[] : []);
+    } catch (error) {
+      console.error('Error loading VIP data:', error);
+    } finally {
+      setVipLoading(false);
+    }
+  };
   const [conversionFunnel, setConversionFunnel] = useState<any>(null);
   const [revenueMetrics, setRevenueMetrics] = useState<any>(null);
   const [revenueTrends, setRevenueTrends] = useState<any[]>([]);
@@ -58,6 +125,10 @@ export default function BusinessAnalyticsDashboard() {
   const [promotionMetrics, setPromotionMetrics] = useState<any[]>([]);
   const [promotionComparison, setPromotionComparison] = useState<any[]>([]);
   const [promotionTrends, setPromotionTrends] = useState<any[]>([]);
+  const [vipCustomers, setVipCustomers] = useState<VIPCustomer[]>([]);
+  const [vipMetrics, setVipMetrics] = useState<VIPMetrics | null>(null);
+  const [vipTrends, setVipTrends] = useState<VIPTrend[]>([]);
+  const [vipLoading, setVipLoading] = useState(false);
   
   // Realtime promotion analytics
   const { isLive: promotionIsLive, lastUpdate: promotionLastUpdate } = usePromotionRealtime({
@@ -71,14 +142,30 @@ export default function BusinessAnalyticsDashboard() {
     }
   }, [user]);
 
+  // Load promotion data when promotions tab is activated
+  useEffect(() => {
+    if (activeTab === 'promotions' && user) {
+      loadPromotionData();
+    }
+  }, [activeTab, user]);
+
+  // Load VIP data when customers tab is activated
+  useEffect(() => {
+    if (activeTab === 'customers' && user) {
+      loadVIPData();
+    }
+  }, [activeTab, user]);
+
   const fetchBusinessData = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
       
-      // For now, use a placeholder business ID - in real app, this would be the venue/business profile ID
-      const businessId = 'Sample Venue'; // TODO: Get from user's business profile
+      console.log('🔍 BusinessAnalyticsDashboard: Fetching business data for user:', user.id);
+      
+      // Debug: Log user ID for analytics
+      console.log('🔍 BusinessAnalyticsDashboard: Loading analytics for user:', user.id);
       
       const [
         statsData,
@@ -88,12 +175,12 @@ export default function BusinessAnalyticsDashboard() {
         artistPerformanceData,
         achievementsData
       ] = await Promise.all([
-        BusinessAnalyticsService.getBusinessStats(businessId),
-        BusinessAnalyticsService.getEventPerformance(businessId),
-        BusinessAnalyticsService.getCustomerInsights(businessId),
-        BusinessAnalyticsService.getRevenueInsights(businessId),
-        BusinessAnalyticsService.getArtistPerformance(businessId),
-        BusinessAnalyticsService.getBusinessAchievements(businessId)
+        BusinessAnalyticsService.getBusinessStats(user.id),
+        BusinessAnalyticsService.getEventPerformance(user.id),
+        BusinessAnalyticsService.getCustomerInsights(user.id),
+        BusinessAnalyticsService.getRevenueInsights(user.id),
+        BusinessAnalyticsService.getArtistPerformance(user.id),
+        BusinessAnalyticsService.getBusinessAchievements(user.id)
       ]);
 
       setStats(statsData);
@@ -385,7 +472,8 @@ export default function BusinessAnalyticsDashboard() {
                 ) : (
                   <div className="text-center py-8">
                     <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No event data available</p>
+                    <p className="text-gray-500 mb-2">No events created yet</p>
+                    <p className="text-sm text-gray-400">Create your first event to see performance analytics</p>
                   </div>
                 )}
               </div>
@@ -419,7 +507,8 @@ export default function BusinessAnalyticsDashboard() {
                 ) : (
                   <div className="text-center py-8">
                     <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No customer data available</p>
+                    <p className="text-gray-500 mb-2">No customer data yet</p>
+                    <p className="text-sm text-gray-400">Customer insights will appear as people interact with your events</p>
                   </div>
                 )}
               </div>
@@ -555,6 +644,126 @@ export default function BusinessAnalyticsDashboard() {
                 <div className="text-center py-8">
                   <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500">No customer data available</p>
+                </div>
+              )}
+            </div>
+
+            {/* VIP Customers Section */}
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">VIP Customers</h3>
+                  <p className="text-sm text-gray-600">Your most engaged and valuable customers</p>
+                </div>
+                <button
+                  onClick={loadVIPData}
+                  disabled={vipLoading}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${vipLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              </div>
+
+              {vipLoading ? (
+                <div className="text-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-4" />
+                  <p className="text-gray-600">Loading VIP customers...</p>
+                </div>
+              ) : vipCustomers.length === 0 ? (
+                <div className="text-center py-12">
+                  <Crown className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No VIP Customers Yet</h3>
+                  <p className="text-gray-500 mb-4">VIP customers will appear as people engage more with your events</p>
+                  <p className="text-sm text-gray-400">VIP status is based on event attendance, reviews, and engagement</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* VIP Metrics */}
+                  {vipMetrics && (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                      <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Crown className="w-4 h-4 text-yellow-600" />
+                          <span className="text-sm font-medium text-yellow-700">Total VIPs</span>
+                        </div>
+                        <p className="text-2xl font-bold text-yellow-900">{vipMetrics.total_vip_customers}</p>
+                      </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <TrendingUp className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-700">Avg Score</span>
+                        </div>
+                        <p className="text-2xl font-bold text-blue-900">{vipMetrics.avg_vip_score}</p>
+                      </div>
+                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Users className="w-4 h-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-700">Retention</span>
+                        </div>
+                        <p className="text-2xl font-bold text-green-900">{vipMetrics.vip_retention_rate}%</p>
+                      </div>
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <DollarSign className="w-4 h-4 text-purple-600" />
+                          <span className="text-sm font-medium text-purple-700">Revenue</span>
+                        </div>
+                        <p className="text-2xl font-bold text-purple-900">${vipMetrics.vip_revenue_contribution}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VIP Tier Distribution */}
+                  {vipMetrics && (
+                    <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                      <h4 className="font-semibold text-gray-900 mb-3">VIP Tier Distribution</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {Object.entries(vipMetrics.vip_by_tier).map(([tier, count]) => (
+                          <div key={tier} className="text-center">
+                            <div className={`w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center text-white font-bold ${
+                              tier === 'platinum' ? 'bg-gradient-to-r from-gray-400 to-gray-600' :
+                              tier === 'gold' ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                              tier === 'silver' ? 'bg-gradient-to-r from-gray-300 to-gray-500' :
+                              'bg-gradient-to-r from-orange-400 to-orange-600'
+                            }`}>
+                              {tier.charAt(0).toUpperCase()}
+                            </div>
+                            <p className="text-sm font-medium text-gray-900 capitalize">{tier}</p>
+                            <p className="text-lg font-bold text-gray-700">{count}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VIP Customers List */}
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-4">Top VIP Customers</h4>
+                    <div className="space-y-3">
+                      {vipCustomers.slice(0, 10).map((customer, index) => (
+                        <div key={customer.user_id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
+                              customer.vip_tier === 'platinum' ? 'bg-gradient-to-r from-gray-400 to-gray-600' :
+                              customer.vip_tier === 'gold' ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                              customer.vip_tier === 'silver' ? 'bg-gradient-to-r from-gray-300 to-gray-500' :
+                              'bg-gradient-to-r from-orange-400 to-orange-600'
+                            }`}>
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{customer.display_name}</p>
+                              <p className="text-sm text-gray-500 capitalize">{customer.vip_tier} VIP • {customer.engagement_score} engagement</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-gray-900">{customer.vip_score} pts</p>
+                            <p className="text-sm text-gray-500">{customer.total_events_attended} events</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -726,9 +935,36 @@ export default function BusinessAnalyticsDashboard() {
                   </p>
                 )}
               </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={async () => {
+                    if (user) {
+                      await syncAllUserPromotions(user.id);
+                      await loadPromotionData();
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  Sync Metrics
+                </button>
+                <button 
+                  onClick={loadPromotionData}
+                  disabled={promotionLoading}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${promotionLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              </div>
             </div>
 
-            {promotionMetrics.length === 0 ? (
+            {promotionLoading ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-4" />
+                <p className="text-gray-600">Loading promotion data...</p>
+              </div>
+            ) : promotionMetrics.length === 0 ? (
               <div className="text-center py-12">
                 <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No Promotions Yet</h3>
@@ -778,14 +1014,16 @@ export default function BusinessAnalyticsDashboard() {
                 </div>
 
                 {/* Performance Chart */}
-                {promotionTrends.length > 0 && (
-                  <div className="bg-white rounded-xl p-6 shadow-sm border">
-                    <h3 className="text-lg font-semibold mb-4">Promotion Performance Over Time</h3>
-                    <div className="h-64 flex items-center justify-center text-gray-500">
-                      Performance chart would go here
-                    </div>
-                  </div>
-                )}
+                <PromotionPerformanceChart 
+                  data={promotionTrends.map(trend => ({
+                    date: trend.date,
+                    impressions: trend.impressions || 0,
+                    clicks: trend.clicks || 0,
+                    conversions: trend.conversions || 0,
+                    spend: trend.spend || 0
+                  }))}
+                  className="bg-white rounded-xl shadow-sm border"
+                />
 
                 {/* Comparison Table */}
                 {promotionComparison.length > 0 && (

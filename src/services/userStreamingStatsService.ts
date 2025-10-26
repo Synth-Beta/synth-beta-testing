@@ -50,17 +50,42 @@ export class UserStreamingStatsService {
    */
   static async upsertStats(stats: UserStreamingStatsInsert): Promise<UserStreamingStatsSummary | null> {
     try {
-      const { data, error } = await supabase
+      // Check if stats already exist
+      const { data: existingStats } = await supabase
         .from('user_streaming_stats_summary')
-        .upsert(stats, {
-          onConflict: 'user_id,service_type'
-        })
-        .select()
+        .select('id')
+        .eq('user_id', stats.user_id)
+        .eq('service_type', stats.service_type)
         .single();
-
-      if (error) {
-        console.error('Error upserting user streaming stats:', error);
-        return null;
+      
+      let data;
+      if (existingStats) {
+        // Update existing stats
+        const { data: updatedData, error } = await supabase
+          .from('user_streaming_stats_summary')
+          .update(stats)
+          .eq('id', existingStats.id)
+          .select()
+          .single();
+        
+        if (error) {
+          console.error('Error updating user streaming stats:', error);
+          return null;
+        }
+        data = updatedData;
+      } else {
+        // Insert new stats
+        const { data: insertedData, error } = await supabase
+          .from('user_streaming_stats_summary')
+          .insert(stats)
+          .select()
+          .single();
+        
+        if (error) {
+          console.error('Error inserting user streaming stats:', error);
+          return null;
+        }
+        data = insertedData;
       }
 
       return data;

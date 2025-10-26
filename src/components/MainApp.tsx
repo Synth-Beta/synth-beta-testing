@@ -15,7 +15,6 @@ import { SettingsModal } from './SettingsModal';
 import { NotificationsPage } from './NotificationsPage';
 import { ChatView } from './ChatView';
 import { MyEventsManagementPanel } from './events/MyEventsManagementPanel';
-import { OnboardingFlow } from './onboarding/OnboardingFlow';
 import { OnboardingReminderBanner } from './onboarding/OnboardingReminderBanner';
 import { OnboardingTour } from './onboarding/OnboardingTour';
 import { supabase } from '@/integrations/supabase/client';

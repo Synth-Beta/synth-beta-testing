@@ -27,7 +27,7 @@ process.env.JAMBASE_API_KEY = process.env.JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e
 
 // Middleware
 app.use(cors({
-  origin: [FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080'],
+  origin: [FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:8080'],
   credentials: true
 }));
 app.use(express.json());

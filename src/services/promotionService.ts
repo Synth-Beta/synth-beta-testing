@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { requestDeduplication, generateRequestKey } from '@/utils/requestDeduplication';
 
 export interface CreatePromotionRequest {
   event_id: string;
@@ -103,34 +104,38 @@ export class PromotionService {
    * Get user's promotions
    */
   static async getUserPromotions(userId?: string): Promise<Promotion[]> {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('User not authenticated');
+    const requestKey = generateRequestKey.promotions({ userId });
+    
+    return requestDeduplication.deduplicate(requestKey, async () => {
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) throw new Error('User not authenticated');
 
-      const targetUserId = userId || user.id;
+        const targetUserId = userId || user.id;
 
-      const { data, error } = await supabase
-        .from('event_promotions')
-        .select(`
-          *,
-          event:jambase_events(
-            id,
-            title,
-            artist_name,
-            venue_name,
-            event_date,
-            poster_image_url
-          )
-        `)
-        .eq('promoted_by_user_id', targetUserId)
-        .order('created_at', { ascending: false });
+        const { data, error } = await supabase
+          .from('event_promotions')
+          .select(`
+            *,
+            event:jambase_events(
+              id,
+              title,
+              artist_name,
+              venue_name,
+              event_date,
+              poster_image_url
+            )
+          `)
+          .eq('promoted_by_user_id', targetUserId)
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching user promotions:', error);
-      throw error;
-    }
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        console.error('Error fetching user promotions:', error);
+        throw error;
+      }
+    });
   }
 
   /**

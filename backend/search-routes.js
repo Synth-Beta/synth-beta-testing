@@ -155,6 +155,28 @@ async function fetchFromJamBase(query, date) {
   }
 }
 
+// Simple in-memory cache for search results
+const searchCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Helper function to generate cache key
+function generateCacheKey(params) {
+  return JSON.stringify({
+    query: params.query || '',
+    artist: params.artist || '',
+    venue: params.venue || '',
+    date: params.date || '',
+    tour: params.tour || '',
+    limit: params.limit || 50,
+    offset: params.offset || 0
+  });
+}
+
+// Helper function to check if cache entry is valid
+function isCacheValid(timestamp) {
+  return Date.now() - timestamp < CACHE_TTL;
+}
+
 // Search concerts in the database
 router.get('/api/concerts/search', async (req, res) => {
   try {
@@ -169,6 +191,19 @@ router.get('/api/concerts/search', async (req, res) => {
     } = req.query;
 
     console.log('Search parameters:', { query, artist, venue, date, tour, limit, offset });
+
+    // Check cache first
+    const cacheKey = generateCacheKey({ query, artist, venue, date, tour, limit, offset });
+    const cachedResult = searchCache.get(cacheKey);
+    
+    if (cachedResult && isCacheValid(cachedResult.timestamp)) {
+      console.log('Returning cached search results');
+      return res.json({
+        success: true,
+        concerts: cachedResult.data,
+        cached: true
+      });
+    }
 
     // Build the search query using jambase_events table
     let searchQuery = supabase
@@ -218,6 +253,22 @@ router.get('/api/concerts/search', async (req, res) => {
     }
 
     console.log(`Found ${concerts?.length || 0} concerts`);
+
+    // Cache the results
+    searchCache.set(cacheKey, {
+      data: concerts || [],
+      timestamp: Date.now()
+    });
+
+    // Clean up old cache entries (simple cleanup)
+    if (searchCache.size > 100) {
+      const now = Date.now();
+      for (const [key, value] of searchCache.entries()) {
+        if (now - value.timestamp > CACHE_TTL) {
+          searchCache.delete(key);
+        }
+      }
+    }
 
     // If no results found, try to fetch from JamBase API and store
     if ((!concerts || concerts.length === 0) && query) {
@@ -326,6 +377,19 @@ router.get('/api/concerts/recent', async (req, res) => {
 
     console.log('Fetching recent concerts, limit:', limit);
 
+    // Check cache for recent concerts
+    const recentCacheKey = `recent_${limit}`;
+    const cachedRecent = searchCache.get(recentCacheKey);
+    
+    if (cachedRecent && isCacheValid(cachedRecent.timestamp)) {
+      console.log('Returning cached recent concerts');
+      return res.json({
+        success: true,
+        concerts: cachedRecent.data,
+        cached: true
+      });
+    }
+
     const { data: concerts, error } = await supabase
       .from('jambase_events')
       .select('*')
@@ -342,6 +406,12 @@ router.get('/api/concerts/recent', async (req, res) => {
     }
 
     console.log(`Found ${concerts?.length || 0} recent concerts`);
+
+    // Cache the results
+    searchCache.set(recentCacheKey, {
+      data: concerts || [],
+      timestamp: Date.now()
+    });
 
     res.json({
       success: true,

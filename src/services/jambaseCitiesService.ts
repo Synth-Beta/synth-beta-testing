@@ -139,15 +139,29 @@ export class JamBaseCitiesService {
         updated_at: new Date().toISOString()
       }));
       
-      // Use upsert to avoid duplicates
-      const { error } = await supabase
-        .from('jambase_cities' as any)
-        .upsert(citiesToStore as any, {
-          onConflict: 'jambase_city_id'
-        });
-      if (error) {
-        console.error('❌ Error storing cities in Supabase:', error);
-        throw error;
+      // Use individual inserts to avoid ON CONFLICT issues
+      for (const city of citiesToStore) {
+        try {
+          // Check if city already exists
+          const { data: existing } = await supabase
+            .from('jambase_cities')
+            .select('id')
+            .eq('jambase_city_id', city.jambase_city_id)
+            .single();
+          
+          if (!existing) {
+            // Insert new city
+            const { error: insertError } = await supabase
+              .from('jambase_cities')
+              .insert(city);
+            
+            if (insertError) {
+              console.error('❌ Error inserting city:', insertError);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error processing city:', error);
+        }
       }
       
       console.log(`✅ Successfully stored ${cities.length} cities in Supabase`);

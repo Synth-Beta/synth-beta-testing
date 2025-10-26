@@ -115,6 +115,7 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
       <CustomSetlistInput
         songs={formData.customSetlist}
         onChange={handleCustomSetlistChange}
+        disabled={!!formData.selectedSetlist}
       />
 
       {/* Photo Upload */}

@@ -223,19 +223,32 @@ export class JamBaseLocationService {
         tour_name: event.tour_name,
       }));
       
-      // Use upsert to avoid duplicates
-      const { error } = await supabase
-        .from('jambase_events')
-        .upsert(eventsToStore, {
-          onConflict: 'jambase_event_id'
-        });
-      
-      if (error) {
-        console.error('❌ Error storing events in Supabase:', error);
-        throw error;
+      // Use individual inserts to avoid ON CONFLICT issues
+      for (const event of eventsToStore) {
+        try {
+          // Check if event already exists
+          const { data: existing } = await supabase
+            .from('jambase_events')
+            .select('id')
+            .eq('jambase_event_id', event.jambase_event_id)
+            .single();
+          
+          if (!existing) {
+            // Insert new event
+            const { error: insertError } = await supabase
+              .from('jambase_events')
+              .insert(event);
+            
+            if (insertError) {
+              console.error('❌ Error inserting event:', insertError);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error processing event:', error);
+        }
       }
       
-      console.log(`✅ Successfully stored ${events.length} events in Supabase`);
+      console.log(`✅ Successfully processed ${events.length} events in Supabase`);
       
     } catch (error) {
       console.error('❌ Error in storeEventsInSupabase:', error);

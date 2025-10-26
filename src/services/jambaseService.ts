@@ -574,18 +574,29 @@ export class JamBaseService {
         updated_at: new Date().toISOString()
       }));
 
-      // Insert artists as "profile events" in the database
-      const { error } = await supabase
-        .from('jambase_events')
-        .upsert(eventsToStore, { 
-          onConflict: 'jambase_event_id',
-          ignoreDuplicates: false 
-        });
-
-      if (error) {
-        console.error('Error storing artists:', error);
-      } else {
-        console.log('✅ Stored', artists.length, 'artists in database');
+      // Insert artists as "profile events" in the database using individual inserts
+      for (const event of eventsToStore) {
+        try {
+          // Check if event already exists
+          const { data: existing } = await supabase
+            .from('jambase_events')
+            .select('id')
+            .eq('jambase_event_id', event.jambase_event_id)
+            .single();
+          
+          if (!existing) {
+            // Insert new event
+            const { error: insertError } = await supabase
+              .from('jambase_events')
+              .insert(event);
+            
+            if (insertError) {
+              console.error('Error inserting artist event:', insertError);
+            }
+          }
+        } catch (error) {
+          console.error('Error processing artist event:', error);
+        }
       }
     } catch (error) {
       console.error('Error in storeArtistsInDatabase:', error);

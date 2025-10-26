@@ -107,17 +107,48 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           description: `Concert by ${formData.selectedArtist.name} at ${formData.selectedVenue.name}`
         };
         
-        const { data, error } = await (supabase as any)
-          .from('jambase_events')
-          .insert(insertPayload)
-          .select()
-          .single();
+        // Step 3: Check if event exists first, then insert if needed
+        console.log('🔍 DEBUG: Checking for existing event before insert');
         
-        if (error) {
-          console.error('❌ Error creating event for draft:', error);
-        } else if (data) {
-          console.log('✅ Event created for draft:', data.id);
-          setActualEventId(data.id);
+        // First, check if an event with similar details already exists
+        const { data: existingEvent } = await (supabase as any)
+          .from('jambase_events')
+          .select('id')
+          .eq('artist_name', formData.selectedArtist.name)
+          .eq('venue_name', formData.selectedVenue.name)
+          .eq('event_date', eventDateTime.toISOString())
+          .maybeSingle();
+        
+        if (existingEvent) {
+          console.log('🔍 DEBUG: Found existing event, using it:', existingEvent.id);
+          setActualEventId(existingEvent.id);
+        } else {
+          console.log('🔍 DEBUG: No existing event found, creating new one');
+          
+          // Create a unique jambase_event_id for user-created events
+          const uniqueEventId = `user_created_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          const insertPayloadWithId = {
+            ...insertPayload,
+            jambase_event_id: uniqueEventId
+          };
+          
+          console.log('🔍 DEBUG: Insert payload:', JSON.stringify(insertPayloadWithId, null, 2));
+          
+          // Insert the new event
+          const { data: newEvent, error: insertError } = await (supabase as any)
+            .from('jambase_events')
+            .insert(insertPayloadWithId)
+            .select()
+            .single();
+          
+          if (insertError) {
+            console.error('❌ Error creating event for draft:', insertError);
+            throw insertError;
+          }
+          
+          console.log('✅ Event created for draft:', newEvent.id);
+          setActualEventId(newEvent.id);
         }
       } catch (error) {
         console.error('❌ Exception creating event for draft:', error);

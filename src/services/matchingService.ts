@@ -93,28 +93,55 @@ export class MatchingService {
         // Send match notifications to both users
         const { data: eventData } = await supabase
           .from('jambase_events')
-          .select('title')
+          .select('title, artist_name')
           .eq('id', event_id)
           .single();
+
+        // Get user names for personalized notifications
+        const [user1Profile, user2Profile] = await Promise.all([
+          supabase.from('profiles').select('name').eq('user_id', user1_id).single(),
+          supabase.from('profiles').select('name').eq('user_id', user2_id).single(),
+        ]);
+
+        const user1Name = user1Profile.data?.name || 'Someone';
+        const user2Name = user2Profile.data?.name || 'Someone';
+        const eventTitle = eventData?.title || 'an event';
 
         const notifications = [
           {
             user_id: user1_id,
             type: 'match',
-            title: 'New Concert Buddy Match! 🎉',
-            message: `You matched for ${eventData?.title || 'an event'}`,
-            data: { match_id: event_id, matched_user_id: user2_id },
+            title: '🎉 It\'s a Match!',
+            message: `You and ${user2Name} both want to meet up at ${eventTitle}!`,
+            data: { 
+              match_user_id: user2_id, 
+              match_user_name: user2Name,
+              event_id: event_id, 
+              event_title: eventTitle,
+              event_artist: eventData?.artist_name 
+            },
+            actor_user_id: user2_id,
           },
           {
             user_id: user2_id,
             type: 'match',
-            title: 'New Concert Buddy Match! 🎉',
-            message: `You matched for ${eventData?.title || 'an event'}`,
-            data: { match_id: event_id, matched_user_id: user1_id },
+            title: '🎉 It\'s a Match!',
+            message: `You and ${user1Name} both want to meet up at ${eventTitle}!`,
+            data: { 
+              match_user_id: user1_id, 
+              match_user_name: user1Name,
+              event_id: event_id, 
+              event_title: eventTitle,
+              event_artist: eventData?.artist_name 
+            },
+            actor_user_id: user1_id,
           },
         ];
 
         await supabase.from('notifications').insert(notifications);
+
+        // Create a chat for the matched users
+        await this.createMatchChat(user1_id, user2_id, event_id);
       }
     } catch (error) {
       console.error('Error checking for match:', error);
@@ -135,29 +162,39 @@ export class MatchingService {
       // - Already swiped users
       // - Already matched users
       // - Blocked users
-      const { data, error } = await supabase
+      // First get the user IDs interested in this event
+      const { data: eventUsers, error: eventUsersError } = await supabase
         .from('user_jambase_events')
-        .select(`
-          user_id,
-          profiles!user_jambase_events_user_id_fkey (
-            user_id,
-            name,
-            avatar_url,
-            bio,
-            music_streaming_profile,
-            gender,
-            birthday
-          )
-        `)
+        .select('user_id')
         .eq('jambase_event_id', eventId)
         .neq('user_id', user.id);
+
+      if (eventUsersError) throw eventUsersError;
+
+      if (!eventUsers || eventUsers.length === 0) {
+        return [];
+      }
+
+      // Then get the profile data for these users
+      const userIds = eventUsers.map(item => item.user_id);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          user_id,
+          name,
+          avatar_url,
+          bio,
+          music_streaming_profile,
+          gender,
+          birthday
+        `)
+        .in('user_id', userIds);
 
       if (error) throw error;
 
       // Filter out already swiped and blocked users
       const potentialMatches = await Promise.all(
-        (data || []).map(async (item: any) => {
-          const profile = item.profiles;
+        (data || []).map(async (profile: any) => {
           if (!profile) return null;
 
           // Check if already swiped
@@ -179,8 +216,14 @@ export class MatchingService {
 
           if (isBlocked) return null;
 
-          // Calculate compatibility (if music data exists)
+          // Calculate compatibility and get shared preferences
           const compatibilityScore = await this.calculateCompatibility(
+            user.id,
+            profile.user_id
+          );
+
+          // Get shared artists and genres for display
+          const sharedPreferences = await this.getSharedPreferences(
             user.id,
             profile.user_id
           );
@@ -191,6 +234,8 @@ export class MatchingService {
             avatar_url: profile.avatar_url,
             bio: profile.bio,
             compatibility_score: compatibilityScore,
+            shared_artists: sharedPreferences.artists,
+            shared_genres: sharedPreferences.genres,
             music_streaming_profile: profile.music_streaming_profile,
           };
         })
@@ -211,36 +256,40 @@ export class MatchingService {
     user2_id: string
   ): Promise<number> {
     try {
-      // Get both users' music taste data
-      const [user1Taste, user2Taste] = await Promise.all([
+      // Get both users' music preference data
+      const [user1Prefs, user2Prefs] = await Promise.all([
         supabase
-          .from('user_music_taste')
-          .select('*')
-          .eq('user_id', user1_id)
-          .single(),
+          .from('music_preference_signals')
+          .select('preference_type, preference_value, preference_score')
+          .eq('user_id', user1_id),
         supabase
-          .from('user_music_taste')
-          .select('*')
-          .eq('user_id', user2_id)
-          .single(),
+          .from('music_preference_signals')
+          .select('preference_type, preference_value, preference_score')
+          .eq('user_id', user2_id),
       ]);
 
-      if (!user1Taste.data || !user2Taste.data) return 50; // Default score
+      if (!user1Prefs.data || !user2Prefs.data) return 50; // Default score
 
-      const taste1 = user1Taste.data;
-      const taste2 = user2Taste.data;
+      // Separate artists and genres
+      const user1Artists = user1Prefs.data
+        .filter(p => p.preference_type === 'artist')
+        .map(p => p.preference_value.toLowerCase());
+      const user1Genres = user1Prefs.data
+        .filter(p => p.preference_type === 'genre')
+        .map(p => p.preference_value.toLowerCase());
+      
+      const user2Artists = user2Prefs.data
+        .filter(p => p.preference_type === 'artist')
+        .map(p => p.preference_value.toLowerCase());
+      const user2Genres = user2Prefs.data
+        .filter(p => p.preference_type === 'genre')
+        .map(p => p.preference_value.toLowerCase());
 
-      // Compare artists, genres, decades
-      const sharedArtists = this.calculateOverlap(
-        taste1.top_artists || [],
-        taste2.top_artists || []
-      );
-      const sharedGenres = this.calculateOverlap(
-        taste1.top_genres || [],
-        taste2.top_genres || []
-      );
+      // Calculate overlap
+      const sharedArtists = this.calculateOverlap(user1Artists, user2Artists);
+      const sharedGenres = this.calculateOverlap(user1Genres, user2Genres);
 
-      // Weighted score
+      // Weighted score: 60% artists, 40% genres
       const score = sharedArtists * 0.6 + sharedGenres * 0.4;
       return Math.round(Math.min(100, Math.max(0, score * 100)));
     } catch (error) {
@@ -258,6 +307,113 @@ export class MatchingService {
     const set2 = new Set(arr2);
     const intersection = [...set1].filter((x) => set2.has(x));
     return intersection.length / Math.max(set1.size, set2.size);
+  }
+
+  /**
+   * Get shared artists and genres between two users
+   */
+  private static async getSharedPreferences(
+    user1_id: string,
+    user2_id: string
+  ): Promise<{ artists: string[]; genres: string[] }> {
+    try {
+      const [user1Prefs, user2Prefs] = await Promise.all([
+        supabase
+          .from('music_preference_signals')
+          .select('preference_type, preference_value')
+          .eq('user_id', user1_id),
+        supabase
+          .from('music_preference_signals')
+          .select('preference_type, preference_value')
+          .eq('user_id', user2_id),
+      ]);
+
+      if (!user1Prefs.data || !user2Prefs.data) {
+        return { artists: [], genres: [] };
+      }
+
+      const user1Artists = user1Prefs.data
+        .filter(p => p.preference_type === 'artist')
+        .map(p => p.preference_value);
+      const user1Genres = user1Prefs.data
+        .filter(p => p.preference_type === 'genre')
+        .map(p => p.preference_value);
+      
+      const user2Artists = user2Prefs.data
+        .filter(p => p.preference_type === 'artist')
+        .map(p => p.preference_value);
+      const user2Genres = user2Prefs.data
+        .filter(p => p.preference_type === 'genre')
+        .map(p => p.preference_value);
+
+      // Find intersections
+      const sharedArtists = user1Artists.filter(artist => 
+        user2Artists.some(a => a.toLowerCase() === artist.toLowerCase())
+      );
+      const sharedGenres = user1Genres.filter(genre => 
+        user2Genres.some(g => g.toLowerCase() === genre.toLowerCase())
+      );
+
+      return {
+        artists: sharedArtists.slice(0, 5), // Limit to top 5
+        genres: sharedGenres.slice(0, 3), // Limit to top 3
+      };
+    } catch (error) {
+      console.error('Error getting shared preferences:', error);
+      return { artists: [], genres: [] };
+    }
+  }
+
+  /**
+   * Create a chat for matched users
+   */
+  private static async createMatchChat(
+    user1Id: string,
+    user2Id: string,
+    eventId: string
+  ): Promise<void> {
+    try {
+      // Check if chat already exists
+      const { data: existingChat } = await supabase
+        .from('chats')
+        .select('id')
+        .contains('users', [user1Id, user2Id])
+        .eq('is_group_chat', false)
+        .single();
+
+      if (existingChat) return; // Chat already exists
+
+      // Get event details for chat name
+      const { data: eventData } = await supabase
+        .from('jambase_events')
+        .select('title, artist_name')
+        .eq('id', eventId)
+        .single();
+
+      const chatName = eventData?.title || 'Concert Chat';
+
+      // Create new chat
+      const { data: chat } = await supabase
+        .from('chats')
+        .insert({
+          chat_name: chatName,
+          is_group_chat: false,
+          users: [user1Id, user2Id],
+        })
+        .select()
+        .single();
+
+      if (chat) {
+        // Send welcome message
+        await supabase.from('messages').insert({
+          chat_id: chat.id,
+          sender_id: user1Id, // System message
+          message: `🎉 You matched! Start chatting about ${eventData?.title || 'the event'}!`,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating match chat:', error);
+    }
   }
 
   /**
@@ -403,6 +559,133 @@ export class MatchingService {
     } catch (error) {
       console.error('Error getting match count:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Get user's notifications
+   */
+  static async getNotifications(limit: number = 20): Promise<any[]> {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('User not authenticated');
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .select(`
+          *,
+          actor_profile:actor_user_id (
+            name,
+            avatar_url
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error getting notifications:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark notification as read
+   */
+  static async markNotificationRead(notificationId: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get unread notification count
+   */
+  static async getUnreadNotificationCount(): Promise<number> {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('User not authenticated');
+
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+
+      if (error) throw error;
+      return count || 0;
+    } catch (error) {
+      console.error('Error getting unread notification count:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get user's chats
+   */
+  static async getChats(): Promise<any[]> {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('User not authenticated');
+
+      const { data, error } = await supabase
+        .from('chats')
+        .select(`
+          *,
+          messages (
+            id,
+            message,
+            sender_id,
+            created_at
+          )
+        `)
+        .contains('users', [user.id])
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error getting chats:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send a message in a chat
+   */
+  static async sendMessage(chatId: string, message: string): Promise<void> {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('User not authenticated');
+
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          chat_id: chatId,
+          sender_id: user.id,
+          message: message,
+        });
+
+      if (error) throw error;
+
+      // Update chat's updated_at timestamp
+      await supabase
+        .from('chats')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', chatId);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
     }
   }
 }

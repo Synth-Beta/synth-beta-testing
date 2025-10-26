@@ -151,7 +151,7 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-[95vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl w-[95vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden flex flex-col" hideCloseButton>
         <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-white sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-semibold">
@@ -304,6 +304,15 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
                               if (onSetlistSelect) {
                                 onSetlistSelect(setlist);
                               }
+                              // Show success toast and close modal
+                              toast({
+                                title: "Setlist Selected",
+                                description: `Selected setlist from ${setlist.venue.name} on ${new Date(setlist.eventDate).toLocaleDateString()}`,
+                              });
+                              // Close modal after a brief delay to show the toast
+                              setTimeout(() => {
+                                onClose();
+                              }, 1000);
                             }}
                             className="flex-1"
                           >

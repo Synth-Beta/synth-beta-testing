@@ -234,12 +234,42 @@ export function SinglePhotoUpload({
   aspectRatio = 'square',
 }: SinglePhotoUploadProps) {
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showUploadOptions, setShowUploadOptions] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Detect if user is on mobile device
+  const isMobile = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+  };
+
+  // Handle camera capture
+  const handleCameraCapture = () => {
+    cameraInputRef.current?.click();
+  };
+
+  // Handle gallery selection
+  const handleGallerySelect = () => {
+    galleryInputRef.current?.click();
+  };
+
+  // Show upload options on mobile, direct upload on desktop
+  const handleUploadClick = () => {
+    if (isMobile()) {
+      setShowUploadOptions(true);
+    } else {
+      galleryInputRef.current?.click();
+    }
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Close upload options modal
+    setShowUploadOptions(false);
 
     // Validate file
     const validation = storageService.validateImage(file, { maxSizeMB });
@@ -375,15 +405,64 @@ export function SinglePhotoUpload({
         </div>
       </div>
 
-      {/* Hidden File Input */}
+      {/* Hidden File Inputs */}
       <input
-        ref={fileInputRef}
+        ref={cameraInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
+        onChange={handleFileSelect}
+        className="hidden"
+        disabled={disabled || uploading}
+        capture="environment"
+      />
+      
+      <input
+        ref={galleryInputRef}
         type="file"
         accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
         onChange={handleFileSelect}
         className="hidden"
         disabled={disabled || uploading}
       />
+
+      {/* Upload Options Modal */}
+      {showUploadOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm">
+            <h3 className="text-lg font-semibold mb-4 text-center">Choose Photo Source</h3>
+            
+            <div className="space-y-3">
+              <Button
+                onClick={handleCameraCapture}
+                className="w-full flex items-center justify-center gap-3 py-3"
+                variant="outline"
+                disabled={disabled || uploading}
+              >
+                <Camera className="w-5 h-5" />
+                Take Photo
+              </Button>
+              
+              <Button
+                onClick={handleGallerySelect}
+                className="w-full flex items-center justify-center gap-3 py-3"
+                variant="outline"
+                disabled={disabled || uploading}
+              >
+                <ImageIcon className="w-5 h-5" />
+                Choose from Gallery
+              </Button>
+            </div>
+            
+            <Button
+              onClick={() => setShowUploadOptions(false)}
+              variant="ghost"
+              className="w-full mt-4"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

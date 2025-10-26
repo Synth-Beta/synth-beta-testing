@@ -62,6 +62,9 @@ export function UserAnalyticsDashboard() {
 
     try {
       setLoading(true);
+      
+      // Debug: Log user ID for analytics
+      console.log('🔍 UserAnalyticsDashboard: Loading analytics for user:', user.id);
 
       const [statsData, artistsData, venuesData, reviewsData, achievementsData, premiumStatus] = await Promise.all([
         UserAnalyticsService.getUserStats(user.id, 30),

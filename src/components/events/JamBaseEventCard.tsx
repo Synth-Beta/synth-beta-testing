@@ -154,16 +154,34 @@ export function JamBaseEventCard({
   });
 
   useEffect(() => {
+    console.log('🔍 JamBaseEventCard useEffect triggered for event:', event.id);
     const fetchInterestedCount = async () => {
       try {
+        console.log('🔍 JamBaseEventCard fetchInterestedCount - Event data:', {
+          eventId: event.id,
+          currentUserId: currentUserId || ''
+        });
+        
         const { count, error } = await supabase
           .from('user_jambase_events')
           .select('*', { count: 'exact', head: true })
           .eq('jambase_event_id', event.id)
           .neq('user_id', currentUserId || '');
+          
+        console.log('🔍 JamBaseEventCard Count query result:', { count, error });
+        
+        // Also check what users are actually in the database for this event (without exclusion)
+        const { data: allUsersCheck, error: allUsersCheckError } = await supabase
+          .from('user_jambase_events')
+          .select('user_id')
+          .eq('jambase_event_id', event.id);
+        console.log('🔍 JamBaseEventCard All users check (no exclusion):', { allUsersCheck, allUsersCheckError });
+        
         if (error) throw error;
         setInterestedCount(count ?? 0);
-      } catch {
+        console.log('🔍 JamBaseEventCard Setting interested count to:', count ?? 0);
+      } catch (error) {
+        console.error('🔍 JamBaseEventCard Error fetching interested count:', error);
         setInterestedCount(null);
       }
     };
@@ -224,8 +242,8 @@ export function JamBaseEventCard({
   };
 
   return (
-    <Card 
-      ref={impressionRef}
+    <Card
+      ref={impressionRef as React.Ref<HTMLDivElement>}
       className={cn(
         "w-full transition-all duration-200 hover:shadow-lg",
         // Gold glow for promoted events
