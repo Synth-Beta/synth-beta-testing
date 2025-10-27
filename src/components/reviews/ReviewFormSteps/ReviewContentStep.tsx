@@ -7,8 +7,10 @@ import type { ReviewFormData } from '@/hooks/useReviewForm';
 import { PhotoUpload } from '@/components/ui/photo-upload';
 import { useAuth } from '@/hooks/useAuth';
 import { CustomSetlistInput, type CustomSetlistSong } from '@/components/reviews/CustomSetlistInput';
-import { Music } from 'lucide-react';
+import { Music, Users } from 'lucide-react';
 import { SetlistModal } from '@/components/reviews/SetlistModal';
+import { AttendeeSelector } from '@/components/reviews/AttendeeSelector';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface ReviewContentStepProps {
   formData: ReviewFormData;
@@ -50,6 +52,14 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
   const handleSetlistSelect = (setlist: any) => {
     console.log('🎵 ReviewContentStep: Setlist selected:', setlist);
     onUpdateFormData({ selectedSetlist: setlist });
+  };
+
+  const handleAttendeesChange = (attendees: any[]) => {
+    onUpdateFormData({ attendees });
+  };
+
+  const handleMetOnSynthChange = (metOnSynth: boolean) => {
+    onUpdateFormData({ metOnSynth });
   };
 
   console.log('🎵 ReviewContentStep: Modal data being passed:', {

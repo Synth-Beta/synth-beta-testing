@@ -16,6 +16,7 @@ import { PostSubmitRankingModal } from './PostSubmitRankingModal';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { DraftReviewService, DraftReviewData, DraftReview } from '@/services/draftReviewService';
 import { DraftToggle } from './DraftToggle';
+import { SMSInvitationService } from '@/services/smsInvitationService';
 
 interface EventReviewFormProps {
   event: JamBaseEvent | PublicReviewWithProfile;
@@ -747,6 +748,35 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         trackInteraction.formSubmit('event_review', entityId, true, { reviewType: formData.reviewType });
       } catch {}
       toast({ title: existingReview ? 'Review Updated' : 'Review Submitted! 🎉', description: existingReview ? 'Your review has been updated.' : 'Thanks for sharing your concert experience!' });
+      
+      // Send SMS invitations for phone numbers if any
+      if (formData.attendees && formData.attendees.length > 0) {
+        const phoneNumbers = formData.attendees
+          .filter((a): a is { type: 'phone'; phone: string; name?: string } => a.type === 'phone')
+          .map(a => a.phone);
+        
+        if (phoneNumbers.length > 0) {
+          try {
+            // Get user's profile name
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('user_id', userId)
+              .single();
+            
+            const senderName = profile?.name || 'A friend';
+            
+            await SMSInvitationService.sendReviewInvitations(
+              phoneNumbers,
+              review.id,
+              senderName
+            );
+          } catch (error) {
+            console.error('Failed to send SMS invitations:', error);
+            // Don't block review submission if SMS fails
+          }
+        }
+      }
       
       // Check if we should show ranking modal (only for new reviews, not edits)
       if (!existingReview) {

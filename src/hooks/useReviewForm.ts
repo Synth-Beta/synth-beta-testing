@@ -26,6 +26,8 @@ export interface ReviewFormData {
   artistReviewText: string; // Legacy field for backward compatibility
   photos: string[]; // Photo URLs uploaded to storage
   videos: string[]; // Video URLs uploaded to storage
+  attendees: Array<{ type: 'user'; user_id: string; name: string; avatar_url?: string } | { type: 'phone'; phone: string; name?: string }>; // People who attended with the reviewer
+  metOnSynth: boolean; // Track if users met/planned on Synth (for admin dashboard)
   
   // Step 4: Privacy
   isPublic: boolean;
@@ -60,6 +62,8 @@ const initialFormData: ReviewFormData = {
   artistReviewText: '',
   photos: [],
   videos: [],
+  attendees: [],
+  metOnSynth: false,
   isPublic: true,
   reviewType: 'event',
 };

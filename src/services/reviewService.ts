@@ -1,5 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+// Note: Types will need to be regenerated after migration
+// Using any for now until types.ts is regenerated from Supabase
+type Tables<T extends string> = any;
+type TablesInsert<T extends string> = any;
+type TablesUpdate<T extends string> = any;
 
 // Custom setlist song structure
 export interface CustomSetlistSong {
@@ -24,6 +28,8 @@ export interface ReviewData {
   reaction_emoji?: string;
   photos?: string[]; // Array of photo URLs from storage
   videos?: string[]; // Array of video URLs from storage
+  attendees?: Array<{ type: 'user'; user_id: string; name: string; avatar_url?: string } | { type: 'phone'; phone: string; name?: string }>; // People who attended
+  met_on_synth?: boolean; // Track if users met/planned on Synth
   is_public?: boolean;
   venue_tags?: string[]; // Venue-specific tags
   artist_tags?: string[]; // Artist-specific tags
@@ -49,6 +55,8 @@ export interface UserReview {
   review_text?: string;
   photos?: string[];
   videos?: string[];
+  attendees?: Array<{ type: 'user'; user_id: string; name: string; avatar_url?: string } | { type: 'phone'; phone: string; name?: string }>; // People who attended
+  met_on_synth?: boolean; // Track if users met/planned on Synth
   mood_tags?: string[];
   genre_tags?: string[];
   context_tags?: string[];
@@ -275,6 +283,8 @@ export class ReviewService {
           artist_tags: reviewData.artist_tags,
           photos: reviewData.photos, // Add photos field
           setlist: reviewData.setlist, // Add setlist field
+          attendees: reviewData.attendees, // Add attendees field
+          met_on_synth: reviewData.met_on_synth, // Add met_on_synth field
           was_there: true, // If someone writes a review, they obviously attended
           updated_at: new Date().toISOString()
         };
@@ -366,6 +376,8 @@ export class ReviewService {
           artist_tags: reviewData.artist_tags,
           photos: reviewData.photos,
           setlist: reviewData.setlist,
+          attendees: reviewData.attendees,
+          met_on_synth: reviewData.met_on_synth,
           was_there: true,
           updated_at: new Date().toISOString()
         };
@@ -407,6 +419,8 @@ export class ReviewService {
         artist_tags: reviewData.artist_tags,
         photos: reviewData.photos, // Add photos field
         setlist: reviewData.setlist, // Add setlist field
+        attendees: reviewData.attendees, // Add attendees field
+        met_on_synth: reviewData.met_on_synth, // Add met_on_synth field
         was_there: true // If someone writes a review, they obviously attended
       } as UserReviewInsert;
 

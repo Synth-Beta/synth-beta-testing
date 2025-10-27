@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { Label } from '@/components/ui/label';
-import { Star } from 'lucide-react';
+import { Star, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
+import { AttendeeSelector } from '@/components/reviews/AttendeeSelector';
+import { Card, CardContent } from '@/components/ui/card';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RatingStepProps {
   formData: ReviewFormData;
@@ -11,6 +14,7 @@ interface RatingStepProps {
 }
 
 export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepProps) {
+  const { user } = useAuth();
   const [hoverHalfSteps, setHoverHalfSteps] = useState<{ [key: string]: number | null }>({});
   const [isHoveringOverall, setIsHoveringOverall] = useState<boolean>(false);
   
@@ -113,8 +117,36 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
   };
 
 
+  const handleAttendeesChange = (attendees: any[]) => {
+    onUpdateFormData({ attendees });
+  };
+
+  const handleMetOnSynthChange = (metOnSynth: boolean) => {
+    onUpdateFormData({ metOnSynth });
+  };
+
   return (
     <div className="space-y-8">
+      {/* Attendee Selection - First Section */}
+      {user && (
+        <Card className="border-2 border-pink-100 bg-gradient-to-br from-pink-50/50 to-purple-50/30">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="w-5 h-5 text-pink-600" />
+              <h3 className="text-base font-semibold text-gray-900">Who was with you?</h3>
+              <span className="text-xs text-gray-500 font-normal">(Optional)</span>
+            </div>
+            <AttendeeSelector
+              value={formData.attendees}
+              onChange={handleAttendeesChange}
+              userId={user.id}
+              metOnSynth={formData.metOnSynth}
+              onMetOnSynthChange={handleMetOnSynthChange}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Rate Your Experience</h2>
         <p className="text-sm text-gray-600">Rate each aspect of the event and share your thoughts</p>

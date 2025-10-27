@@ -764,11 +764,11 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-semibold">{profile.name}</h2>
-                  {console.log('🔍 BADGE RENDER CHECK:', {
-                    verified: profile.verified,
-                    account_type: profile.account_type,
-                    shouldShow: profile.verified && profile.account_type
-                  })}
+                  {/* BADGE RENDER CHECK:
+                    verified: {profile.verified?.toString()},
+                    account_type: {profile.account_type},
+                    shouldShow: {profile.verified && profile.account_type ? 'true' : 'false'}
+                  */}
                   {profile.verified && profile.account_type && (
                     <VerificationBadge
                       accountType={profile.account_type}

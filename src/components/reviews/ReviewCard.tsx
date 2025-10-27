@@ -14,6 +14,8 @@ import { SetlistDisplay } from './SetlistDisplay';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
+import { Phone } from 'lucide-react';
+import type { Attendee } from '@/components/reviews/AttendeeSelector';
 
 interface ReviewCardProps {
   review: ReviewWithEngagement;
@@ -355,6 +357,34 @@ export function ReviewCard({
           <p className="text-[15px] leading-6 text-gray-800 mb-3">
             {review.review_text}
           </p>
+        )}
+
+        {/* Tagged Attendees */}
+        {(review as any).attendees && Array.isArray((review as any).attendees) && (review as any).attendees.length > 0 && (
+          <div className="mb-3 flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-gray-600">Went with:</span>
+            {(review as any).attendees.map((attendee: any, index: number) => (
+              <div
+                key={index}
+                className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded-full border border-gray-200"
+              >
+                {attendee.type === 'user' ? (
+                  <>
+                    <Avatar className="h-5 w-5">
+                      <AvatarImage src={attendee.avatar_url} alt={attendee.name} />
+                      <AvatarFallback className="text-xs">{attendee.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs text-gray-700">{attendee.name}</span>
+                  </>
+                ) : (
+                  <>
+                    <Phone className="h-3 w-3 text-gray-400" />
+                    <span className="text-xs text-gray-700">{attendee.name || 'Friend'}</span>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
         )}
 
         {/* Setlist Display - API Verified */}
