@@ -32,11 +32,14 @@ export function EventReviewsSection({
   const [editingEvent, setEditingEvent] = useState<JamBaseEvent | null>(null);
   const [venueDialog, setVenueDialog] = useState<{ open: boolean; venueId?: string | null; venueName?: string }>(() => ({ open: false }));
   const [artistDialog, setArtistDialog] = useState<{ open: boolean; artist?: Artist | null }>(() => ({ open: false }));
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleReviewSubmitted = (review: any) => {
     setIsReviewModalOpen(false);
     setEditingReviewId(null);
     setEditingEvent(null);
+    // Trigger refresh of review lists
+    setRefreshTrigger(prev => prev + 1);
     if (onReviewSubmitted) {
       onReviewSubmitted(review.id);
     }
@@ -171,6 +174,7 @@ export function EventReviewsSection({
             eventId={event.id}
             currentUserId={userId}
             showEventInfo={false}
+            refreshTrigger={refreshTrigger}
             onEdit={(review) => {
               if (review.user_id !== userId) return;
               setEditingReviewId(review.id);

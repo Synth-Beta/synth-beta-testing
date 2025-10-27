@@ -496,8 +496,21 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       } catch {}
     }
 
+    // ALWAYS create or find the correct event for the new artist/venue combination
+    // This ensures that when editing a review with different artist/venue, we use the correct event_id
     const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId);
-    if (!looksLikeUuid || event?.id?.startsWith('new-review')) {
+    
+    // Check if this is a new event (not a valid UUID or starts with 'new-review')
+    const isNewEvent = !looksLikeUuid || event?.id?.startsWith('new-review');
+    
+    // If editing an existing review, check if artist/venue has changed
+    const artistChanged = formData.selectedArtist && existingReview && formData.selectedArtist.name !== ((existingReview as any).artist_name || (event as any)?.artist_name);
+    const venueChanged = formData.selectedVenue && existingReview && formData.selectedVenue.name !== ((existingReview as any).venue_name || (event as any)?.venue_name);
+    
+    // We need to create a new event if it's a new event OR if the artist/venue has changed
+    const needsNewEvent = isNewEvent || artistChanged || venueChanged;
+    
+    if (needsNewEvent) {
       try {
         const eventDateTime = new Date(formData.eventDate + 'T20:00:00Z');
         // Attempt insert; if it fails due to schema, degrade to minimal payload
@@ -554,6 +567,16 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         }
         if (ins.error) throw ins.error;
         eventId = ins.data.id;
+        
+        // If we're editing an existing review and the event changed, delete the old review
+        if (existingReview && (artistChanged || venueChanged)) {
+          console.log('🔄 EventReviewForm: Artist/venue changed, deleting old review and creating new one');
+          await supabase
+            .from('user_reviews')
+            .delete()
+            .eq('id', existingReview.id);
+          setExistingReview(null); // Treat as new review
+        }
       } catch (e) {
         console.error('Error creating event:', e);
         toast({ title: 'Error', description: 'Failed to create event entry. Please try again.', variant: 'destructive' });
@@ -937,9 +960,12 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                 <Button
                   variant="outline"
                   onClick={async () => {
-                    console.log('🗑️ Deleting review:', { eventId: event.id, userId });
+                    console.log('🗑️ Deleting review:', { reviewId: existingReview?.id, eventId: event.id, userId });
                     try {
-                      await ReviewService.deleteEventReview(userId, event.id);
+                      if (!existingReview?.id) {
+                        throw new Error('No review ID found');
+                      }
+                      await ReviewService.deleteEventReview(userId, existingReview.id);
                       console.log('✅ Review deleted successfully');
                       
                       try { trackInteraction.click('review', event.id, { action: 'delete', source: 'event_review_form' }); } catch {}

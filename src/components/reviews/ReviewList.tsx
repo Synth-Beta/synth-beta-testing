@@ -11,6 +11,7 @@ interface ReviewListProps {
   onReviewClick?: (reviewId: string) => void;
   onEdit?: (review: ReviewWithEngagement) => void;
   showEventInfo?: boolean;
+  refreshTrigger?: number;
 }
 
 export function ReviewList({
@@ -18,7 +19,8 @@ export function ReviewList({
   currentUserId,
   onReviewClick,
   onEdit,
-  showEventInfo = false
+  showEventInfo = false,
+  refreshTrigger = 0
 }: ReviewListProps) {
   const [reviews, setReviews] = useState<ReviewWithEngagement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +30,7 @@ export function ReviewList({
 
   useEffect(() => {
     loadReviews();
-  }, [eventId]);
+  }, [eventId, refreshTrigger]);
 
   const loadReviews = async () => {
     try {

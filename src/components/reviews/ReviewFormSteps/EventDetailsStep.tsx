@@ -70,16 +70,61 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
     return () => clearTimeout(handler);
   }, [eventQuery]);
 
-  const applyEventSelection = (ev: any) => {
+  const applyEventSelection = async (ev: any) => {
     const eventDate = ev?.event_date ? String(ev.event_date).split('T')[0] : '';
     const selectedArtist = ev?.artist_name ? ({ id: ev.artist_id || `manual-${ev.artist_name}`, name: ev.artist_name, is_from_database: !!ev.artist_id } as any) : null;
-    const selectedVenue = ev?.venue_name ? ({ id: ev.venue_id || `manual-${ev.venue_name}`, name: ev.venue_name, is_from_database: !!ev.venue_id } as any) : null;
+    
+    // For venue, we need to find the actual venue record to get the correct ID
+    let selectedVenue = null;
+    if (ev?.venue_name) {
+      try {
+        // First try to find by venue_id from the event
+        if (ev.venue_id) {
+          const { data: venueData } = await supabase
+            .from('venues')
+            .select('id, name, identifier')
+            .eq('id', ev.venue_id)
+            .single();
+          
+          if (venueData) {
+            selectedVenue = {
+              id: venueData.id,
+              name: venueData.name,
+              identifier: venueData.identifier,
+              is_from_database: true
+            } as any;
+          }
+        }
+        
+        // Fallback: if no venue found, create a manual venue entry
+        if (!selectedVenue) {
+          selectedVenue = {
+            id: ev.venue_id || `manual-${ev.venue_name}`,
+            name: ev.venue_name,
+            is_from_database: !!ev.venue_id
+          } as any;
+        }
+      } catch (error) {
+        console.error('Error looking up venue:', error);
+        // Fallback to manual venue
+        selectedVenue = {
+          id: ev.venue_id || `manual-${ev.venue_name}`,
+          name: ev.venue_name,
+          is_from_database: false
+        } as any;
+      }
+    }
+    
     const updates: Partial<ReviewFormData> = { reviewType: 'event' } as any;
     if (selectedArtist) (updates as any).selectedArtist = selectedArtist;
     if (selectedVenue) (updates as any).selectedVenue = selectedVenue;
     if (eventDate) (updates as any).eventDate = eventDate;
     onUpdateFormData(updates);
     setShowEventResults(false);
+    
+    // Lock the fields to show confirmed selections
+    if (selectedArtist) setArtistLocked(true);
+    if (selectedVenue) setVenueLocked(true);
   };
 
   const handleArtistSelect = (artist: Artist) => {
