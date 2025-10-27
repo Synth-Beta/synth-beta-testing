@@ -9,7 +9,7 @@ import { Star, MessageSquare } from 'lucide-react';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { EventReviewForm } from './EventReviewForm.tsx';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { VenueCard } from './VenueCard';
 import { ArtistCard } from '@/components/ArtistCard';
 import type { Artist } from '@/types/concertSearch';
@@ -217,6 +217,9 @@ export function EventReviewsSection({
         <DialogContent className="max-w-2xl w-[95vw]">
           <DialogHeader>
             <DialogTitle>Venue</DialogTitle>
+            <DialogDescription className="sr-only">
+              View venue details
+            </DialogDescription>
           </DialogHeader>
           {venueDialog.open && (
             <VenueCard venueId={venueDialog.venueId} venueName={venueDialog.venueName || 'Venue'} />
@@ -228,6 +231,9 @@ export function EventReviewsSection({
         <DialogContent className="max-w-4xl w-[95vw]">
           <DialogHeader>
             <DialogTitle>Artist</DialogTitle>
+            <DialogDescription className="sr-only">
+              View artist details
+            </DialogDescription>
           </DialogHeader>
           {artistDialog.open && artistDialog.artist && (
             <ArtistCard artist={artistDialog.artist} events={[]} totalEvents={0} source="database" />

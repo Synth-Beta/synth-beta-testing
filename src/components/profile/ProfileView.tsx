@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { JamBaseService } from '@/services/jambaseService';
 import { EventReviewModal } from '../reviews/EventReviewModal';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ProfileReviewCard } from '../reviews/ProfileReviewCard';
 import type { Artist } from '@/types/concertSearch';
 import { ReviewService } from '@/services/reviewService';
@@ -1005,17 +1005,19 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   const handleDeleteReview = async (reviewId: string) => {
     try {
+      console.log('🗑️ ProfileView: Deleting review:', { userId: currentUserId, reviewId });
       await ReviewService.deleteEventReview(currentUserId, reviewId);
+      console.log('✅ ProfileView: Review deleted successfully');
       fetchReviews(); // Refresh the list
       toast({
         title: "Review Deleted",
         description: "Your review has been deleted.",
       });
     } catch (error) {
-      console.error('Error deleting review:', error);
+      console.error('❌ ProfileView: Error deleting review:', error);
       toast({
         title: "Error",
-        description: "Failed to delete review. Please try again.",
+        description: `Failed to delete review: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
     }
@@ -2058,6 +2060,12 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       {viewReviewOpen && selectedReview && (
         <Dialog open={viewReviewOpen} onOpenChange={setViewReviewOpen}>
           <DialogContent className="max-w-5xl w-[90vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Review</DialogTitle>
+              <DialogDescription>
+                View concert review details
+              </DialogDescription>
+            </DialogHeader>
             {/* BelliStyleReviewCard inside dialog */}
             <div className="w-full h-full overflow-y-auto p-4">
               <BelliStyleReviewCard
@@ -2106,8 +2114,11 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   handleEditReview(selectedReview);
                 }}
                 onDelete={async () => {
-                  setViewReviewOpen(false);
-                  // Handle delete if needed
+                  if (window.confirm('Are you sure you want to delete this review?')) {
+                    await handleDeleteReview(selectedReview.id);
+                    setViewReviewOpen(false);
+                    setSelectedReview(null);
+                  }
                 }}
                 userProfile={{
                   name: profile?.name || 'User',

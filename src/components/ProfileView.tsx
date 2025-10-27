@@ -24,7 +24,7 @@ import { MusicTasteCard } from '@/components/profile/MusicTasteCard';
 // import { EventDetailsModal } from '@/components/events/EventDetailsModal'; // Temporarily removed due to missing module
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
 import { EventDetailsModal } from './events/EventDetailsModal';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ArtistCard } from '@/components/ArtistCard';
 import { VenueCard } from '@/components/reviews/VenueCard';
 import { ProfileReviewCard } from '@/components/reviews/ProfileReviewCard';
@@ -1034,6 +1034,9 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col">
           <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
             <DialogTitle>Review</DialogTitle>
+            <DialogDescription className="sr-only">
+              View your concert review details
+            </DialogDescription>
           </DialogHeader>
           {selectedReview && (
             <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
@@ -1076,6 +1079,9 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         <DialogContent className="max-w-2xl w-[95vw]">
           <DialogHeader>
             <DialogTitle>Venue</DialogTitle>
+            <DialogDescription className="sr-only">
+              View venue details
+            </DialogDescription>
           </DialogHeader>
           {venueDialog.open && (
             <VenueCard venueId={venueDialog.venueId} venueName={venueDialog.venueName || 'Venue'} />
@@ -1088,6 +1094,9 @@ export const ProfileView = ({ currentUserId, onBack, onEdit, onSettings, onSignO
         <DialogContent className="max-w-4xl w-[95vw]">
           <DialogHeader>
             <DialogTitle>Artist</DialogTitle>
+            <DialogDescription className="sr-only">
+              View artist details
+            </DialogDescription>
           </DialogHeader>
           {artistDialog.open && artistDialog.artist && (
             <ArtistCard artist={artistDialog.artist} events={[]} totalEvents={0} source="database" />
