@@ -18,6 +18,7 @@ import {
   SortAsc,
   SortDesc,
   Star,
+  Music,
   ChevronUp,
   ChevronDown,
   User,
@@ -536,7 +537,7 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                 navigate(fromFeed);
               } else {
                 // Fallback to main feed
-                navigate('/app');
+                navigate('/');
               }
             }}
             className="mb-4 hover-button"

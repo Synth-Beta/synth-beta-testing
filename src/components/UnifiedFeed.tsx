@@ -79,13 +79,17 @@ import { LocationService } from '@/services/locationService';
 import { EventMap } from './EventMap';
 import { UnifiedChatView } from './UnifiedChatView';
 import { UserEventService } from '@/services/userEventService';
-import { extractNumericPrice } from '@/utils/currencyUtils';
+import { extractNumericPrice, formatPrice } from '@/utils/currencyUtils';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { ArtistFollowService } from '@/services/artistFollowService';
 import { VenueFollowService } from '@/services/venueFollowService';
 import { NewsService } from '@/services/newsService';
 import { NewsCard, NewsCardSkeleton } from '@/components/news/NewsCard';
 import { NewsArticle } from '@/types/news';
+import { ArtistCard } from '@/components/ArtistCard';
+import { VenueCard } from '@/components/reviews/VenueCard';
+import { FollowIndicator } from '@/components/events/FollowIndicator';
+import type { Artist } from '@/types/concertSearch';
 
 // Using UnifiedFeedItem from service instead of local interface
 
@@ -154,6 +158,7 @@ export const UnifiedFeed = ({
   const [showFullscreenMedia, setShowFullscreenMedia] = useState<{ [key: string]: boolean }>({});
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<string>>(new Set());
+  const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
   
   // Following state
   const [followedArtists, setFollowedArtists] = useState<string[]>([]);
@@ -169,6 +174,10 @@ export const UnifiedFeed = ({
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsSource, setNewsSource] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<string>('events');
+  
+  // Artist and Venue dialog state
+  const [artistDialog, setArtistDialog] = useState<{ open: boolean; artist: Artist | null }>({ open: false, artist: null });
+  const [venueDialog, setVenueDialog] = useState<{ open: boolean; venueId: string | null; venueName: string }>({ open: false, venueId: null, venueName: '' });
 
   // Fetch news function - now with personalization
   const fetchNews = async () => {
@@ -249,6 +258,64 @@ export const UnifiedFeed = ({
     
     return () => clearTimeout(locationTimeout);
   }, [sessionExpired, currentUserId]); // Add currentUserId back with proper dependency management
+
+  // Add event listeners for artist and venue card opening
+  useEffect(() => {
+    const openVenue = (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      setVenueDialog({ 
+        open: true, 
+        venueId: detail.venueId || null, 
+        venueName: detail.venueName || 'Venue' 
+      });
+    };
+
+    const openArtist = async (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      if (detail.artistName) {
+        try {
+          // Try to fetch artist data from database if we have an ID
+          if (detail.artistId && detail.artistId !== 'manual') {
+            const { data: artistData } = await supabase
+              .from('artists')
+              .select('*')
+              .eq('id', detail.artistId)
+              .single();
+            
+            if (artistData) {
+              const artist: Artist = {
+                id: artistData.id,
+                name: artistData.name,
+                image_url: artistData.image_url,
+                popularity_score: 0,
+                source: 'database',
+                events: []
+              } as any;
+              setArtistDialog({ open: true, artist });
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching artist:', error);
+        }
+        
+        // Fallback: open with name only
+        const artist: Artist = { 
+          id: detail.artistId || 'manual', 
+          name: detail.artistName || 'Unknown Artist' 
+        } as any;
+        setArtistDialog({ open: true, artist });
+      }
+    };
+
+    document.addEventListener('open-venue-card', openVenue as EventListener);
+    document.addEventListener('open-artist-card', openArtist as EventListener);
+    
+    return () => {
+      document.removeEventListener('open-venue-card', openVenue as EventListener);
+      document.removeEventListener('open-artist-card', openArtist as EventListener);
+    };
+  }, []);
 
   // Load followed artists and venues for filtering
   const loadFollowedData = async () => {
@@ -660,15 +727,81 @@ export const UnifiedFeed = ({
 
   const handleShare = async (item: UnifiedFeedItem) => {
     try {
-      const shareText = `Check out this ${item.type}: ${item.title}`;
-      await navigator.clipboard.writeText(shareText);
+      // Track share click for events
+      if (item.type === 'event' && item.event_data) {
+        try {
+          // Track interaction
+          await trackInteraction.click('share', item.event_data.id, {
+            source: 'feed_event_card',
+            artist_name: item.event_data.artist_name,
+            venue_name: item.event_data.venue_name
+          });
+        } catch (trackError) {
+          console.error('Error tracking share:', trackError);
+        }
+      }
       
-      toast({
-        title: "Shared!",
-        description: "Link copied to clipboard",
-      });
+      // For events, open EventShareModal
+      if (item.type === 'event' && item.event_data) {
+        setSelectedEventForShare(item.event_data);
+        setShareModalOpen(true);
+      } else {
+        // For non-events, just copy to clipboard
+        const shareText = `Check out this ${item.type}: ${item.title}`;
+        await navigator.clipboard.writeText(shareText);
+        
+        toast({
+          title: "Shared!",
+          description: "Link copied to clipboard",
+        });
+      }
     } catch (error) {
       console.error('Error sharing item:', error);
+    }
+  };
+
+  const handleEventInterest = async (item: UnifiedFeedItem) => {
+    if (!currentUserId || !item.event_data) return;
+    
+    // Open the event details modal
+    setSelectedEventForDetails(item.event_data);
+    try {
+      const interested = await UserEventService.isUserInterested(
+        currentUserId,
+        item.event_data.id
+      );
+      setSelectedEventInterested(interested);
+    } catch {
+      setSelectedEventInterested(false);
+    }
+    setDetailsOpen(true);
+    
+    // Also toggle interest immediately
+    try {
+      const isCurrentlyInterested = interestedEvents.has(item.event_data.id);
+      await UserEventService.setEventInterest(currentUserId, item.event_data.id, !isCurrentlyInterested);
+      
+      // Update local state  
+      if (!isCurrentlyInterested) {
+        setInterestedEvents(prev => new Set([...prev, item.event_data.id]));
+      } else {
+        setInterestedEvents(prev => {
+          const next = new Set(prev);
+          next.delete(item.event_data.id);
+          return next;
+        });
+      }
+      
+      setSelectedEventInterested(!isCurrentlyInterested);
+      
+      toast({
+        title: !isCurrentlyInterested ? "Marked as interested!" : "Removed interest",
+        description: !isCurrentlyInterested 
+          ? "You're interested in this event" 
+          : "Removed from your interested list"
+      });
+    } catch (error) {
+      console.error('Error toggling interest:', error);
     }
   };
 
@@ -1077,10 +1210,21 @@ export const UnifiedFeed = ({
                         <h2 className="font-bold text-lg text-gray-900">
                           {item.title}
                         </h2>
+                        <div className="flex items-center gap-2">
+                          {/* Follow Indicator Chip */}
+                          <FollowIndicator
+                            followedArtists={followedArtists}
+                            followedVenues={followedVenues}
+                            artistName={item.event_data?.artist_name}
+                            venueName={item.event_data?.venue_name}
+                            venueCity={item.event_data?.venue_city}
+                            venueState={item.event_data?.venue_state}
+                          />
                         {/* Promoted Event Badge */}
                         {item.event_data?.is_promoted && item.event_data?.promotion_tier && (
                           <PromotedEventBadge promotionTier={item.event_data.promotion_tier as 'basic' | 'premium' | 'featured'} />
                         )}
+                        </div>
                       </div>
                       {item.event_data && (
                         <div className="space-y-2 text-sm text-gray-600">
@@ -1095,7 +1239,7 @@ export const UnifiedFeed = ({
                           {item.event_data.price_range && (
                             <div className="flex items-center gap-2">
                               <span className="text-synth-pink">💰</span>
-                              <span>{item.event_data.price_range}</span>
+                              <span>{formatPrice(item.event_data.price_range)}</span>
                             </div>
                           )}
                         </div>
@@ -1104,18 +1248,35 @@ export const UnifiedFeed = ({
 
                     <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                       <div className="flex items-center gap-4">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleInstagramLike(item);
-                          }}
-                          className={`flex items-center gap-1 text-sm transition-colors ${
-                            likedPosts.has(item.id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
-                          }`}
-                        >
-                          <Heart className={`w-4 h-4 ${likedPosts.has(item.id) ? 'fill-current' : ''}`} />
-                          <span>{item.likes_count || 0}</span>
-                        </button>
+                        {item.type === 'event' && item.event_data ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEventInterest(item);
+                            }}
+                            className={`flex items-center gap-1 text-sm transition-colors px-3 py-1 rounded-md ${
+                              interestedEvents.has(item.event_data.id) 
+                                ? 'bg-pink-500 text-white hover:bg-pink-600' 
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            <Heart className={`w-4 h-4 ${interestedEvents.has(item.event_data.id) ? 'fill-current' : ''}`} />
+                            <span>{interestedEvents.has(item.event_data.id) ? 'Interested' : "I'm Interested"}</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleInstagramLike(item);
+                            }}
+                            className={`flex items-center gap-1 text-sm transition-colors ${
+                              likedPosts.has(item.id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+                            }`}
+                          >
+                            <Heart className={`w-4 h-4 ${likedPosts.has(item.id) ? 'fill-current' : ''}`} />
+                            <span>{item.likes_count || 0}</span>
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1346,6 +1507,8 @@ export const UnifiedFeed = ({
                       verified: (item.author as any)?.verified,
                       account_type: (item.author as any)?.account_type
                     }}
+                    followedArtists={followedArtists}
+                    followedVenues={followedVenues}
                   />
                   );
                 })}
@@ -1536,6 +1699,15 @@ export const UnifiedFeed = ({
       />
       )}
 
+      {shareModalOpen && selectedEventForShare && (
+      <EventShareModal
+        event={selectedEventForShare}
+        currentUserId={currentUserId}
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+      />
+      )}
+
       {/* Report modal temporarily disabled due to prop mismatch */}
 
       {showUnifiedChat && (
@@ -1698,6 +1870,34 @@ export const UnifiedFeed = ({
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Artist Dialog */}
+      <Dialog open={artistDialog.open} onOpenChange={(open) => setArtistDialog({ open, artist: null })}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {artistDialog.artist && (
+            <ArtistCard
+              artist={artistDialog.artist}
+              events={[]}
+              totalEvents={0}
+              source="database"
+              userId={currentUserId}
+              onBack={() => setArtistDialog({ open: false, artist: null })}
+              showAllEvents={true}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Venue Dialog */}
+      <Dialog open={venueDialog.open} onOpenChange={(open) => setVenueDialog({ open, venueId: null, venueName: '' })}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <VenueCard
+            venueId={venueDialog.venueId}
+            venueName={venueDialog.venueName}
+            onClose={() => setVenueDialog({ open: false, venueId: null, venueName: '' })}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

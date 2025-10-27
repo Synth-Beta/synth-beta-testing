@@ -13,7 +13,10 @@ import {
   Check,
   Search,
   X,
-  Loader2
+  Loader2,
+  Share2,
+  Copy,
+  Globe
 } from 'lucide-react';
 import { InAppShareService, type ShareTarget } from '@/services/inAppShareService';
 import { ShareService } from '@/services/shareService';
@@ -43,6 +46,60 @@ export function EventShareModal({
   const [loading, setLoading] = useState(false);
   const [sharing, setSharing] = useState(false);
   const { toast } = useToast();
+
+  const handleExternalShare = async () => {
+    try {
+      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
+      
+      // Try native share first
+      if (navigator.share) {
+        await navigator.share({
+          title: event.title,
+          text: event.description || 'Check out this concert!',
+          url: url
+        });
+        toast({
+          title: "Shared!",
+          description: "Event shared successfully",
+        });
+      } else {
+        // Fallback to copy link
+        await navigator.clipboard.writeText(url);
+        toast({
+          title: "Link Copied!",
+          description: "Event link copied to clipboard",
+        });
+      }
+    } catch (error: any) {
+      // User cancelled or error occurred
+      if (error.name !== 'AbortError') {
+        console.error('Error sharing externally:', error);
+        toast({
+          title: "Error",
+          description: "Failed to share event",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: "Link Copied!",
+        description: "Event link copied to clipboard",
+      });
+    } catch (error) {
+      console.error('Error copying link:', error);
+      toast({
+        title: "Error",
+        description: "Failed to copy link",
+        variant: "destructive"
+      });
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -289,6 +346,35 @@ export function EventShareModal({
         <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-3 border border-pink-200">
           <h3 className="font-semibold text-gray-900 text-sm">{event.title}</h3>
           <p className="text-xs text-gray-600">{event.venue_name} • {new Date(event.event_date).toLocaleDateString()}</p>
+        </div>
+
+        {/* External Share Options */}
+        <div className="flex gap-2">
+          <Button
+            onClick={handleExternalShare}
+            variant="outline"
+            className="flex-1 border-pink-200 hover:bg-pink-50"
+          >
+            <Share2 className="w-4 h-4 mr-2" />
+            Share Externally
+          </Button>
+          <Button
+            onClick={handleCopyLink}
+            variant="outline"
+            className="flex-1 border-pink-200 hover:bg-pink-50"
+          >
+            <Copy className="w-4 h-4 mr-2" />
+            Copy Link
+          </Button>
+        </div>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white px-2 text-gray-500">Or share within Synth</span>
+          </div>
         </div>
 
         {/* Custom Message */}

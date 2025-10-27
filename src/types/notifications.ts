@@ -14,7 +14,20 @@ export type NotificationType =
   | 'artist_new_event'
   | 'artist_profile_updated'
   | 'venue_new_event'
-  | 'venue_profile_updated';
+  | 'venue_profile_updated'
+  | 'event_share'
+  | 'friend_rsvp_going'
+  | 'friend_rsvp_changed'
+  | 'friend_review_posted'
+  | 'friend_attended_same_event'
+  | 'event_reminder'
+  | 'group_chat_invite'
+  | 'trending_in_network'
+  | 'mutual_attendance'
+  | 'flag_reviewed'
+  | 'user_warned'
+  | 'user_restricted'
+  | 'user_suspended';
 
 export interface Notification {
   id: string;

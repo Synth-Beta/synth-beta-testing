@@ -129,15 +129,16 @@ export function JamBaseEventCard({
   };
 
   const getLocationString = () => {
-    const parts = [event.venue_city, event.venue_state].filter(Boolean);
-    return parts.length > 0 ? parts.join(', ') : 'Location TBD';
+    const parts = [event.venue_city, event.venue_state].filter(p => p && p !== 'NULL');
+    return parts.length > 0 ? parts.join(', ') : null;
   };
 
   const getVenueAddress = () => {
-    if (event.venue_address) {
+    if (event.venue_address && event.venue_address !== 'NULL') {
       return event.venue_address;
     }
-    return getLocationString();
+    const locationString = getLocationString();
+    return locationString && locationString !== 'NULL' ? locationString : 'Location TBD';
   };
 
   // Debug location data
@@ -304,29 +305,31 @@ export function JamBaseEventCard({
       
       <CardContent className="pt-0 space-y-4">
         {/* Venue Information */}
-        <div className="flex items-start gap-3">
-          <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <div className="font-medium text-sm">{event.venue_name}</div>
-              {currentUserId && event.venue_name && (
-                <VenueFollowButton
-                  venueName={event.venue_name}
-                  venueCity={event.venue_city}
-                  venueState={event.venue_state}
-                  userId={currentUserId}
-                  variant="ghost"
-                  size="sm"
-                  showFollowerCount={false}
-                  className="h-6 text-xs"
-                />
-              )}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {getVenueAddress()}
+        {event.venue_name && event.venue_name !== 'NULL' && (
+          <div className="flex items-start gap-3">
+            <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <div className="font-medium text-sm">{event.venue_name}</div>
+                {currentUserId && (
+                  <VenueFollowButton
+                    venueName={event.venue_name}
+                    venueCity={event.venue_city}
+                    venueState={event.venue_state}
+                    userId={currentUserId}
+                    variant="ghost"
+                    size="sm"
+                    showFollowerCount={false}
+                    className="h-6 text-xs"
+                  />
+                )}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {getVenueAddress()}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Mini Map Preview */}
         {event.latitude != null && event.longitude != null && !Number.isNaN(Number(event.latitude)) && !Number.isNaN(Number(event.longitude)) && (

@@ -54,6 +54,12 @@ interface BelliStyleReviewCardProps {
     verified?: boolean;
     account_type?: string;
   };
+  followedArtists?: string[];
+  followedVenues?: Array<{
+    name: string;
+    city?: string;
+    state?: string;
+  }>;
 }
 
 export function BelliStyleReviewCard({
@@ -66,7 +72,9 @@ export function BelliStyleReviewCard({
   onDelete,
   showEventInfo = false,
   onReport,
-  userProfile
+  userProfile,
+  followedArtists = [],
+  followedVenues = []
 }: BelliStyleReviewCardProps) {
   const [isLiked, setIsLiked] = useState(review.is_liked_by_user || false);
   const [likesCount, setLikesCount] = useState(review.likes_count);
@@ -551,7 +559,12 @@ export function BelliStyleReviewCard({
             {review.artist_name && (
               <>
                 <button
-                  className="px-3 py-1.5 rounded-full bg-white border-2 border-[#FF3399]/30 hover:border-[#FF3399] hover:bg-[#FF3399]/5 shadow-sm font-medium text-sm transition-all"
+                  className={cn(
+                    "px-3 py-1.5 rounded-full font-medium text-sm transition-all shadow-sm flex items-center gap-1.5",
+                    followedArtists.includes(review.artist_name)
+                      ? "bg-[#FF3399] text-white border-2 border-[#FF3399]"
+                      : "bg-white border-2 border-[#FF3399]/30 hover:border-[#FF3399] hover:bg-[#FF3399]/5"
+                  )}
                   onClick={(e) => {
                     e.preventDefault(); e.stopPropagation();
                     const artistId = (review as any).artist_uuid || review.artist_id;
@@ -560,7 +573,12 @@ export function BelliStyleReviewCard({
                   }}
                   aria-label={`View artist ${review.artist_name}`}
                 >
-                  🎤 {review.artist_name}
+                  {followedArtists.includes(review.artist_name) && (
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  )}
+                  🎤 {followedArtists.includes(review.artist_name) ? 'Following Artist' : review.artist_name}
                 </button>
                 {currentUserId && (
                   <ArtistFollowButton
@@ -577,7 +595,16 @@ export function BelliStyleReviewCard({
             {review.venue_name && (
               <>
                 <button
-                  className="px-3 py-1.5 rounded-full bg-white border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 shadow-sm font-medium text-sm transition-all"
+                  className={cn(
+                    "px-3 py-1.5 rounded-full font-medium text-sm transition-all shadow-sm flex items-center gap-1.5",
+                    followedVenues.some(v => 
+                      v.name === review.venue_name && 
+                      (!v.city || v.city === (review as any).venue_city) &&
+                      (!v.state || v.state === (review as any).venue_state)
+                    )
+                      ? "bg-blue-600 text-white border-2 border-blue-600"
+                      : "bg-white border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50"
+                  )}
                   onClick={(e) => {
                     e.preventDefault(); e.stopPropagation();
                     const venueId = (review as any).venue_uuid || review.venue_id;
@@ -586,7 +613,20 @@ export function BelliStyleReviewCard({
                   }}
                   aria-label={`View venue ${review.venue_name}`}
                 >
-                  📍 {review.venue_name}
+                  {followedVenues.some(v => 
+                    v.name === review.venue_name && 
+                    (!v.city || v.city === (review as any).venue_city) &&
+                    (!v.state || v.state === (review as any).venue_state)
+                  ) && (
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  )}
+                  📍 {followedVenues.some(v => 
+                    v.name === review.venue_name && 
+                    (!v.city || v.city === (review as any).venue_city) &&
+                    (!v.state || v.state === (review as any).venue_state)
+                  ) ? 'Following Venue' : review.venue_name}
                 </button>
                 {currentUserId && (
                   <VenueFollowButton

@@ -767,19 +767,24 @@ export class ReviewService {
   }
 
   /**
-   * Delete a review
+   * Delete a review by review ID
    */
-  static async deleteEventReview(userId: string, eventId: string): Promise<void> {
+  static async deleteEventReview(userId: string, reviewId: string): Promise<void> {
     try {
+      console.log('🗑️ Deleting review:', { userId, reviewId });
       const { error } = await supabase
         .from('user_reviews')
         .delete()
-        .eq('user_id', userId)
-        .eq('event_id', eventId);
+        .eq('id', reviewId)
+        .eq('user_id', userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting review:', error);
+        throw error;
+      }
+      console.log('✅ Review deleted successfully');
     } catch (error) {
-      console.error('Error deleting event review:', error);
+      console.error('Error deleting __event review:', error);
       throw new Error(`Failed to delete event review: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

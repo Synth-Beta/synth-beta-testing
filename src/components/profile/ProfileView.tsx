@@ -2054,363 +2054,73 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         onReviewSubmitted={handleReviewSubmitted}
       />
 
-      {/* Review View Dialog - Instagram-style layout */}
+      {/* Review View Dialog - Belli-style layout */}
       {viewReviewOpen && selectedReview && (
         <Dialog open={viewReviewOpen} onOpenChange={setViewReviewOpen}>
-          <DialogContent className="max-w-5xl w-[90vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden flex">
-            {/* Left side - Image/Graphic */}
-            <div className="flex-1 bg-black flex items-center justify-center min-h-0">
-              {Array.isArray((selectedReview as any)?.photos) && (selectedReview as any).photos.length > 0 ? (
-                <img 
-                  src={(selectedReview as any).photos[0]} 
-                  alt="Review photo"
-                  className="max-w-full max-h-full object-contain"
-                />
-              ) : (
-                <div className="text-center text-white">
-                  <div className="text-6xl font-bold mb-4">
-                    <span className="text-pink-500">S</span>ynth
-                  </div>
-                  <div className="w-32 h-0.5 bg-white mx-auto mb-4"></div>
-                  <div className="text-sm opacity-80">Concert Review</div>
-                </div>
-              )}
-            </div>
-            
-            {/* Right side - Content */}
-            <div className="flex-1 flex flex-col bg-white">
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-bold">
-                      {profile?.name?.charAt(0) || 'U'}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-sm">{profile?.name || 'User'}</div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(selectedReview.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setViewReviewOpen(false)}>
-                  ✕
-                </Button>
-              </div>
-              
-              {/* Content */}
-              <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-                {/* Event Info */}
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h2 className="text-lg font-semibold mb-1">
-                        {selectedReview.jambase_events?.title || 'Concert Review'}
-                      </h2>
-                      <p className="text-sm text-gray-600">
-                        {selectedReview.jambase_events?.artist_name} • {new Date(selectedReview.jambase_events?.event_date).toLocaleDateString()}
-                      </p>
-                      {selectedReview.jambase_events?.venue_name && (
-                        <p className="text-sm text-gray-500">
-                          {selectedReview.jambase_events.venue_name}
-                        </p>
-                      )}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setViewReviewOpen(false);
-                        // Ensure we have complete event data for the modal
-                        // The event data is nested under jambase_events in the review object
-                        const eventData = selectedReview.jambase_events;
-                        
-                        
-                        const completeEvent = {
-                          ...eventData,
-                          // Ensure all required fields are present with proper fallbacks
-                          id: eventData?.id || selectedReview.event_id,
-                          title: eventData?.title || 'Unknown Event',
-                          artist_name: eventData?.artist_name || 'Unknown Artist',
-                          venue_name: eventData?.venue_name || 'Unknown Venue',
-                          event_date: eventData?.event_date || new Date().toISOString(),
-                          venue_city: eventData?.venue_city || null,
-                          venue_state: eventData?.venue_state || null,
-                          setlist: eventData?.setlist || null,
-                          setlist_song_count: eventData?.setlist_song_count || null,
-                          setlist_fm_url: eventData?.setlist_fm_url || null
-                        };
-                        
-                        setSelectedEvent(completeEvent);
-                        setDetailsOpen(true);
-                      }}
-                      className="ml-3 flex-shrink-0"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      View Event
-                    </Button>
-                  </div>
-                  
-                  {/* Event Status Badge */}
-                  <div className="flex items-center gap-2">
-                    {new Date(selectedReview.event?.event_date) < new Date() ? (
-                      <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        Past Event
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        Upcoming
-                      </Badge>
-                    )}
-                    {selectedReview.event?.venue_city && selectedReview.event?.venue_state && (
-                      <Badge variant="outline" className="text-xs">
-                        <MapPin className="w-3 h-3 mr-1" />
-                        {selectedReview.event.venue_city}, {selectedReview.event.venue_state}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Rating */}
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-5 h-5 ${
-                          i < Math.floor(selectedReview.rating) 
-                            ? 'text-yellow-500 fill-yellow-500' 
-                            : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
-                    <span className="text-sm font-medium ml-1">{selectedReview.rating}/5</span>
-                  </div>
-                </div>
-                
-                {/* Category Ratings */}
-                {((selectedReview as any).performance_rating || (selectedReview as any).venue_rating_new || (selectedReview as any).overall_experience_rating) && (
-                  <div className="flex flex-wrap gap-2">
-                    {(selectedReview as any).performance_rating && (
-                      <Badge variant="secondary" className="text-xs">
-                        Performance {(selectedReview as any).performance_rating}
-                      </Badge>
-                    )}
-                    {(selectedReview as any).venue_rating_new && (
-                      <Badge variant="secondary" className="text-xs">
-                        Venue {(selectedReview as any).venue_rating_new}
-                      </Badge>
-                    )}
-                    {(selectedReview as any).overall_experience_rating && (
-                      <Badge variant="secondary" className="text-xs">
-                        Experience {(selectedReview as any).overall_experience_rating}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-                
-                {/* Review Text */}
-                {selectedReview.review_text && (
-                  <div>
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                      {selectedReview.review_text}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Additional Review Texts */}
-                {((selectedReview as any).performance_review_text || (selectedReview as any).venue_review_text || (selectedReview as any).overall_experience_review_text) && (
-                  <div className="space-y-3">
-                    {(selectedReview as any).performance_review_text && (
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-1">Performance</h4>
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          {(selectedReview as any).performance_review_text}
-                        </p>
-                      </div>
-                    )}
-                    {(selectedReview as any).venue_review_text && (
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-1">Venue</h4>
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          {(selectedReview as any).venue_review_text}
-                        </p>
-                      </div>
-                    )}
-                    {(selectedReview as any).overall_experience_review_text && (
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-1">Overall Experience</h4>
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          {(selectedReview as any).overall_experience_review_text}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {/* Setlist Section */}
-                {selectedReview.setlist && (
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
-                    <Accordion type="single" collapsible className="w-full">
-                      <AccordionItem value="setlist" className="border-0">
-                        <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                          <div className="flex items-center gap-3 w-full">
-                            <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center">
-                              <Music className="w-3 h-3 text-white" />
-                            </div>
-                            <div className="flex-1 text-left">
-                              <h3 className="font-semibold text-purple-900 text-sm">Setlist from this Show</h3>
-                              <p className="text-xs text-purple-700">
-                                {selectedReview.jambase_events?.setlist_song_count || 'Multiple'} songs performed
-                              </p>
-                            </div>
-                            {selectedReview.jambase_events?.setlist_fm_url && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                asChild
-                                className="border-purple-300 hover:bg-purple-100"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <a 
-                                  href={selectedReview.jambase_events.setlist_fm_url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-1"
-                                >
-                                  <span className="text-xs">View on setlist.fm</span>
-                                  <ExternalLink className="w-3 h-3" />
-                                </a>
-                              </Button>
-                            )}
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="px-4 pb-4 max-h-80 overflow-y-auto">
-                    
-                    {(() => {
-                      const setlistData = selectedReview.setlist as any;
-                      
-                      // Handle different setlist data formats
-                      let songs = [];
-                      if (setlistData) {
-                        if (Array.isArray(setlistData)) {
-                          // If setlist is directly an array of songs
-                          songs = setlistData;
-                        } else if (setlistData.songs && Array.isArray(setlistData.songs)) {
-                          // If setlist has a songs property
-                          songs = setlistData.songs;
-                        } else if (setlistData.setlist && Array.isArray(setlistData.setlist)) {
-                          // If setlist has a setlist property
-                          songs = setlistData.setlist;
-                        }
-                      }
-                      
-                      if (!songs || songs.length === 0) {
-                        return (
-                          <div className="text-center py-4">
-                            <p className="text-purple-700">Setlist data is available but in an unexpected format.</p>
-                            {selectedReview.jambase_events?.setlist_fm_url && (
-                              <p className="text-sm text-purple-600 mt-2">
-                                <a href={selectedReview.jambase_events.setlist_fm_url} target="_blank" rel="noopener noreferrer" className="underline">
-                                  View on setlist.fm
-                                </a>
-                              </p>
-                            )}
-                          </div>
-                        );
-                      }
-                      
-                      // Group songs by set
-                      const sets: { [key: number]: any[] } = {};
-                      songs.forEach((song: any) => {
-                        const setNumber = song.setNumber || 1;
-                        if (!sets[setNumber]) {
-                          sets[setNumber] = [];
-                        }
-                        sets[setNumber].push(song);
-                      });
-                      
-                      return (
-                        <div className="space-y-3">
-                          {Object.entries(sets).map(([setNumber, setSongs]) => {
-                            const setName = setSongs[0]?.setName || `Set ${setNumber}`;
-                            
-                            return (
-                              <div key={setNumber} className="bg-white/70 rounded-lg p-3">
-                                <h4 className="font-semibold text-purple-900 mb-2 flex items-center gap-2 text-sm">
-                                  <Music className="w-3 h-3" />
-                                  {setName}
-                                </h4>
-                                <div className="space-y-1">
-                                  {setSongs.map((song: any, idx: number) => (
-                                    <div key={song.position || idx} className="flex items-start gap-3 py-1">
-                                      <span className="text-purple-600 font-medium min-w-[20px] text-xs">
-                                        {song.position || (idx + 1)}.
-                                      </span>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <span className="text-gray-900 text-xs font-medium">
-                                            {song.name || song.title || song.song || 'Unknown Song'}
-                                          </span>
-                                          {song.cover && (
-                                            <span className="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
-                                              {song.cover.artist || song.cover} cover
-                                            </span>
-                                          )}
-                                        </div>
-                                        {(song.info || song.notes) && (
-                                          <p className="text-xs text-gray-600 mt-1 italic">
-                                            {song.info || song.notes}
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })}
-                          
-                          {setlistData.info && (
-                            <div className="bg-purple-100/50 rounded-lg p-3 mt-4">
-                              <p className="text-sm text-purple-900">
-                                <span className="font-semibold">Note:</span> {setlistData.info}
-                              </p>
-                            </div>
-                          )}
-                          
-                          {/* Tour information */}
-                          {setlistData.tour && (
-                            <div className="bg-blue-100/50 rounded-lg p-3 mt-4">
-                              <p className="text-sm text-blue-900">
-                                <span className="font-semibold">Tour:</span> {setlistData.tour}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  </div>
-                )}
-              </div>
-              
-              {/* Actions */}
-              <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setViewReviewOpen(false)}>Close</Button>
-                {isViewingOwnProfile && selectedReview?.user_id === currentUserId && (
-                  <Button onClick={() => { setViewReviewOpen(false); handleEditReview(selectedReview); }}>Edit Review</Button>
-                )}
-              </div>
+          <DialogContent className="max-w-5xl w-[90vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden">
+            {/* BelliStyleReviewCard inside dialog */}
+            <div className="w-full h-full overflow-y-auto p-4">
+              <BelliStyleReviewCard
+                review={{
+                  id: selectedReview.id,
+                  user_id: selectedReview.user_id || profile?.user_id || '',
+                  event_id: selectedReview.event_id || '',
+                  rating: selectedReview.rating || 0,
+                  review_text: selectedReview.review_text || '',
+                  is_public: selectedReview.is_public ?? true,
+                  created_at: selectedReview.created_at,
+                  updated_at: selectedReview.updated_at || selectedReview.created_at,
+                  likes_count: selectedReview.likes_count || 0,
+                  comments_count: selectedReview.comments_count || 0,
+                  shares_count: selectedReview.shares_count || 0,
+                  is_liked_by_user: (selectedReview as any).is_liked_by_user || false,
+                  reaction_emoji: selectedReview.reaction_emoji || '',
+                  photos: (selectedReview as any).photos || [],
+                  videos: (selectedReview as any).videos || [],
+                  mood_tags: (selectedReview as any).mood_tags || [],
+                  genre_tags: (selectedReview as any).genre_tags || [],
+                  context_tags: (selectedReview as any).context_tags || [],
+                  artist_name: selectedReview.jambase_events?.artist_name,
+                  venue_name: selectedReview.jambase_events?.venue_name,
+                  performance_rating: (selectedReview as any).performance_rating,
+                  venue_rating: (selectedReview as any).venue_rating_new || (selectedReview as any).venue_rating,
+                  overall_experience_rating: (selectedReview as any).overall_experience_rating,
+                  performance_review_text: (selectedReview as any).performance_review_text,
+                  venue_review_text: (selectedReview as any).venue_review_text,
+                  overall_experience_review_text: (selectedReview as any).overall_experience_review_text,
+                  setlist: (selectedReview as any).setlist || selectedReview.jambase_events?.setlist,
+                  custom_setlist: (selectedReview as any).custom_setlist
+                }}
+                currentUserId={currentUserId}
+                onLike={async (reviewId, isLiked) => {
+                  console.log('🔍 ProfileView BelliStyle onLike:', { reviewId, isLiked });
+                }}
+                onComment={() => {
+                  console.log('Comment on review from ProfileView');
+                }}
+                onShare={() => {
+                  console.log('Share review from ProfileView');
+                }}
+                onEdit={() => {
+                  setViewReviewOpen(false);
+                  handleEditReview(selectedReview);
+                }}
+                onDelete={async () => {
+                  setViewReviewOpen(false);
+                  // Handle delete if needed
+                }}
+                userProfile={{
+                  name: profile?.name || 'User',
+                  avatar_url: profile?.avatar_url,
+                  verified: profile?.verified,
+                  account_type: profile?.account_type as any
+                }}
+              />
             </div>
           </DialogContent>
         </Dialog>
       )}
+
 
 
       {/* Friends Modal */}

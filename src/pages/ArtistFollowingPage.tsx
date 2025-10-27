@@ -78,11 +78,67 @@ export function ArtistFollowingPage() {
             // Get events by artist name only
             const events = await JamBaseService.searchEventsByArtist(artist.artist_name, 20);
 
+            console.log(`🔍 Checking events for "${artist.artist_name}":`, {
+              totalEvents: events.length,
+              events: events.map(e => ({ title: e.title, artist: e.artist_name, date: e.event_date, event_date_type: typeof e.event_date })),
+              allEventTitles: events.map(e => e.title)
+            });
+
             // Filter to only upcoming events
             const now = new Date();
-            const upcomingEvents = events.filter(event => 
-              new Date(event.event_date) > now
-            );
+            const upcomingEvents = events.filter(event => {
+              // Log the first event to check date structure
+              if (events.indexOf(event) === 0) {
+                console.log('🔍 Sample event date fields:', {
+                  event_date: event.event_date,
+                  dateTime: (event as any).dateTime,
+                  event: event
+                });
+              }
+              
+              // Try multiple date fields
+              const eventDate = event.event_date || (event as any).dateTime || event.event_date;
+              const eventDateObj = new Date(eventDate);
+              const isUpcoming = eventDateObj > now;
+              
+              // Only log if this is one of the first few events to reduce console spam
+              if (events.indexOf(event) < 3) {
+                console.log(`📅 Date check for "${event.title}":`, {
+                  event_date: event.event_date,
+                  eventDateObj: eventDateObj.toISOString(),
+                  now: now.toISOString(),
+                  isUpcoming,
+                  currentYear: now.getFullYear(),
+                  eventYear: eventDateObj.getFullYear()
+                });
+              }
+              
+              // Check if the event title starts with the artist name
+              // This handles events like "Goose at Venue" vs artist name "Goose"
+              const titleStartsWithArtist = event.title?.toLowerCase().startsWith(artist.artist_name.toLowerCase());
+              
+              // Check if artist_name matches exactly
+              const exactArtistMatch = event.artist_name === artist.artist_name;
+              
+              // Determine if the event matches the artist
+              const matches = isUpcoming && (titleStartsWithArtist || exactArtistMatch);
+              
+              if (!matches && isUpcoming) {
+                console.log(`⚠️ Event not matched for "${artist.artist_name}":`, {
+                  title: event.title,
+                  artistInEvent: event.artist_name,
+                  titleStartsWithArtist,
+                  exactArtistMatch
+                });
+              }
+              
+              return matches;
+            });
+
+            console.log(`✅ Filtered upcoming events for "${artist.artist_name}":`, {
+              count: upcomingEvents.length,
+              events: upcomingEvents.map(e => ({ title: e.title, date: e.event_date }))
+            });
 
             return {
               ...artist,
@@ -323,17 +379,6 @@ export function ArtistFollowingPage() {
                         <div className="mb-2">
                           <div className="flex items-center gap-2">
                             <h4 className="font-medium text-lg">{event.title}</h4>
-                            {((event as any).source === 'artist') ? (
-                              <Badge variant="secondary" className="text-xs bg-pink-100 text-pink-700">
-                                <Music className="w-3 h-3 mr-1" />
-                                Artist
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
-                                <Building2 className="w-3 h-3 mr-1" />
-                                Venue
-                              </Badge>
-                            )}
                           </div>
                           {((event as any).sourceName) && (
                             <p className="text-sm text-gray-600 mt-1">
@@ -360,10 +405,10 @@ export function ArtistFollowingPage() {
                             {event.venue_city}, {event.venue_state}
                           </div>
                         </div>
-                        {event.venue_address && (
+                        {event.venue_address && event.venue_address !== 'NULL' && (
                           <p className="text-sm text-gray-500 mb-2">{event.venue_address}</p>
                         )}
-                        {event.description && (
+                        {event.description && event.description !== 'NULL' && (
                           <p className="text-sm text-gray-700 line-clamp-2">{event.description}</p>
                         )}
                       </div>
@@ -471,7 +516,7 @@ export function ArtistFollowingPage() {
                             {format(new Date(event.event_date), 'MMM d, yyyy')}
                           </div>
                         </div>
-                        {event.description && (
+                        {event.description && event.description !== 'NULL' && (
                           <p className="text-sm text-gray-700 line-clamp-2">{event.description}</p>
                         )}
                       </div>
@@ -596,9 +641,9 @@ export function ArtistFollowingPage() {
           </div>
           
           <div className="space-y-4">
-            {allUpcomingEvents.map((event) => (
+            {(rightContentType === 'artist' && selectedArtist ? selectedArtist.upcomingEvents : allUpcomingEvents).map((event) => (
               <div
-                key={event.id}
+                key={`${event.id}-${event.title}-${event.artist_name}`}
                 className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
                 onClick={() => handleEventClick(event)}
               >
@@ -607,17 +652,6 @@ export function ArtistFollowingPage() {
                     <div className="mb-2">
                       <div className="flex items-center gap-2">
                         <h4 className="font-medium text-lg">{event.title}</h4>
-                        {((event as any).source === 'artist') ? (
-                          <Badge variant="secondary" className="text-xs bg-pink-100 text-pink-700">
-                            <Music className="w-3 h-3 mr-1" />
-                            Artist
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
-                            <Building2 className="w-3 h-3 mr-1" />
-                            Venue
-                          </Badge>
-                        )}
                       </div>
                       {((event as any).sourceName) && (
                         <p className="text-sm text-gray-600 mt-1">
@@ -644,10 +678,10 @@ export function ArtistFollowingPage() {
                         {event.venue_city}, {event.venue_state}
                       </div>
                     </div>
-                    {event.venue_address && (
+                    {event.venue_address && event.venue_address !== 'NULL' && (
                       <p className="text-sm text-gray-500 mb-2">{event.venue_address}</p>
                     )}
-                    {event.description && (
+                    {event.description && event.description !== 'NULL' && (
                       <p className="text-sm text-gray-700 line-clamp-2">{event.description}</p>
                     )}
                   </div>

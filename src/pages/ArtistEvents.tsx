@@ -451,8 +451,8 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
                 console.log('🔙 ArtistEvents: Navigating to', fromFeed);
                 navigate(fromFeed);
               } else {
-                console.log('🔙 ArtistEvents: No fromFeed, navigating to /app');
-                navigate('/app');
+                console.log('🔙 ArtistEvents: No fromFeed, navigating to /');
+                navigate('/');
               }
             }}
             className="mb-4 hover-button"

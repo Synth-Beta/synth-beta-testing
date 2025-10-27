@@ -1,11 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import type { Artist, ArtistSearchResult, PaginatedEvents, ArtistEventSearch } from '@/types/concertSearch';
 
-export type JamBaseEvent = Tables<'jambase_events'>;
-export type UserJamBaseEvent = Tables<'user_jambase_events'>;
-export type JamBaseEventInsert = TablesInsert<'jambase_events'>;
-export type UserJamBaseEventInsert = TablesInsert<'user_jambase_events'>;
+// Type definitions - using any since Supabase Database types are not properly exported
+export type JamBaseEvent = any;
+export type UserJamBaseEvent = any;
+export type UserJamBaseEventInsert = any;
+export type JamBaseEventInsert = any;
+export type JamBaseEventUpdate = any;
 
 // Temporary types for new tables until Supabase types are updated
 export type ArtistRecord = {
@@ -60,15 +61,50 @@ export class JamBaseService {
    * Search JamBase events by artist name
    */
   static async searchEventsByArtist(artistName: string, limit = 20) {
-    const { data, error } = await supabase
+    const now = new Date().toISOString();
+    
+    // First, try to get upcoming events (sorted by date ascending - nearest first)
+    const { data: upcomingEvents, error: upcomingError } = await supabase
       .from('jambase_events')
       .select('*')
       .ilike('artist_name', `%${artistName}%`)
+      .gte('event_date', now) // Only events in the future
       .order('event_date', { ascending: true })
       .limit(limit);
 
-    if (error) throw error;
-    return data;
+    if (upcomingError) throw upcomingError;
+    
+    // If we got enough upcoming events, return them
+    if (upcomingEvents && upcomingEvents.length >= limit) {
+      return upcomingEvents;
+    }
+    
+    // Otherwise, get the most recent past events to fill out the remaining slots
+    if (upcomingEvents && upcomingEvents.length > 0) {
+      const remainingSlots = limit - upcomingEvents.length;
+      const { data: pastEvents, error: pastError } = await supabase
+        .from('jambase_events')
+        .select('*')
+        .ilike('artist_name', `%${artistName}%`)
+        .lt('event_date', now)
+        .order('event_date', { ascending: false }) // Most recent past events first
+        .limit(remainingSlots);
+      
+      if (pastError) throw pastError;
+      
+      return [...(upcomingEvents || []), ...(pastEvents || [])];
+    }
+    
+    // If no upcoming events, just return the most recent past events
+    const { data: allEvents, error: allError } = await supabase
+      .from('jambase_events')
+      .select('*')
+      .ilike('artist_name', `%${artistName}%`)
+      .order('event_date', { ascending: false })
+      .limit(limit);
+    
+    if (allError) throw allError;
+    return allEvents;
   }
 
   /**
@@ -118,7 +154,7 @@ export class JamBaseService {
   /**
    * Update a JamBase event
    */
-  static async updateEvent(id: string, updates: TablesUpdate<'jambase_events'>) {
+  static async updateEvent(id: string, updates: JamBaseEventUpdate) {
     const { data, error } = await supabase
       .from('jambase_events')
       .update(updates)

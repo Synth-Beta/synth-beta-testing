@@ -33,23 +33,38 @@ export class EventCommentsService {
       .single();
     return data?.id || eventId;
   }
-  static async getEventComments(eventId: string): Promise<EventCommentWithUser[]> {
+  static async getEventComments(eventId: string, limit: number = 20, offset: number = 0): Promise<{ comments: EventCommentWithUser[]; total: number; hasMore: boolean }> {
     const internalEventId = await this.resolveInternalEventId(eventId);
+    
+    // Get total count
+    const { count, error: countError } = await supabase
+      .from('event_comments' as any)
+      .select('*', { count: 'exact', head: true })
+      .eq('event_id', internalEventId);
+    
+    if (countError && (countError as any).code !== 'PGRST205') {
+      throw countError;
+    }
+    
+    const total = count || 0;
+    
+    // Get comments with pagination
     const { data: comments, error: commentsError } = await supabase
       .from('event_comments' as any)
       .select('*')
       .eq('event_id', internalEventId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1);
     
     if (commentsError) {
       // Gracefully handle missing table in environments where migration hasn't run
       if ((commentsError as any).code === 'PGRST205') {
         console.warn('event_comments table not found. Did you run the migration 20250923_add_event_comments.sql?');
-        return [];
+        return { comments: [], total: 0, hasMore: false };
       }
       throw commentsError;
     }
-    if (!comments || comments.length === 0) return [];
+    if (!comments || comments.length === 0) return { comments: [], total, hasMore: false };
 
     const userIds = [...new Set(comments.map((c: any) => c.user_id))];
     const { data: profiles, error: profilesError } = await supabase
@@ -75,7 +90,9 @@ export class EventCommentsService {
       user: profileMap.get(c.user_id) || { id: c.user_id, name: 'Unknown User' }
     }));
 
-    return withUsers;
+    const hasMoreComments = offset + comments.length < total;
+    
+    return { comments: withUsers, total, hasMore: hasMoreComments };
   }
 
   static async addEventComment(

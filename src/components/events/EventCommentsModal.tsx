@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, ChevronDown } from 'lucide-react';
 import { EventCommentsService, EventCommentWithUser } from '@/services/eventCommentsService';
 
 interface EventCommentsModalProps {
@@ -21,6 +21,8 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
   const [submitting, setSubmitting] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     if (isOpen && eventId) {
@@ -34,14 +36,30 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
     try {
       setLoading(true);
       setError(null);
-      const result = await EventCommentsService.getEventComments(eventId);
-      setComments(result);
-      if (onCommentsLoaded) onCommentsLoaded(result.length);
+      const result = await EventCommentsService.getEventComments(eventId, 20, 0);
+      setComments(result.comments);
+      setHasMore(result.hasMore);
+      if (onCommentsLoaded) onCommentsLoaded(result.comments.length);
     } catch (err) {
       console.error('Failed to load event comments', err);
       setError('Failed to load comments');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreComments = async () => {
+    if (!eventId || loadingMore || !hasMore) return;
+    try {
+      setLoadingMore(true);
+      const result = await EventCommentsService.getEventComments(eventId, 20, comments.length);
+      setComments(prev => [...prev, ...result.comments]);
+      setHasMore(result.hasMore);
+    } catch (err) {
+      console.error('Failed to load more comments', err);
+      setError('Failed to load more comments');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -98,6 +116,29 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
                 </div>
               </div>
             ))
+          )}
+          {hasMore && !loading && (
+            <div className="flex justify-center pt-4">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={loadMoreComments}
+                disabled={loadingMore}
+                className="text-sm"
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                    Load More Comments
+                  </>
+                )}
+              </Button>
+            </div>
           )}
         </div>
 
