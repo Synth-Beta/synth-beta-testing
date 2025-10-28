@@ -280,7 +280,7 @@ export function BelliStyleReviewCard({
 
   return (
     <Card 
-      className="w-full border-2 shadow-lg hover:shadow-xl transition-all duration-300 bg-white rounded-xl overflow-hidden" 
+      className="w-full border-2 shadow-lg hover:shadow-xl transition-all duration-300 bg-gray-50 rounded-xl overflow-hidden" 
       id={`belli-review-card-${review.id}`}
     >
       <CardHeader className="pb-4 bg-gradient-to-br from-gray-50 via-white to-gray-50 border-b-2 relative">
@@ -380,7 +380,7 @@ export function BelliStyleReviewCard({
         </div>
       </CardHeader>
 
-      <CardContent className="pt-5 px-5 pb-4">
+      <CardContent className="pt-5 px-5 pb-2">
         {/* Review Text */}
         {review.review_text && review.review_text !== 'ATTENDANCE_ONLY' && (
           <div className="mb-4">
@@ -646,7 +646,7 @@ export function BelliStyleReviewCard({
         </div>
 
         {/* Social Actions - Enhanced with "Helpful" instead of Like */}
-        <div className="flex items-center justify-between pt-4 border-t-2">
+        <div className="flex items-center justify-between pt-3 pb-2 border-t-2">
           <div className="flex items-center gap-3">
             {/* Helpful Button (replaces Like) */}
             <Button
@@ -716,7 +716,7 @@ export function BelliStyleReviewCard({
 
       {/* Comments Section */}
       {showComments && (
-        <div className="px-5 pb-5 border-t-2 pt-4">
+        <div className="px-5 pb-3 pt-3 border-t-2">
           <div className="space-y-4">
             <h4 className="font-bold text-gray-900 flex items-center gap-2">
               <MessageCircle className="w-5 h-5 text-[#FF3399]" />

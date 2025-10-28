@@ -359,7 +359,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
                 {formData.selectedVenue.name}
               </button>
             </p>
-            <p>on {new Date(formData.eventDate).toLocaleDateString('en-US', {
+            <p>on {new Date(formData.eventDate + 'T12:00:00').toLocaleDateString('en-US', {
               weekday: 'long',
               month: 'long',
               day: 'numeric',

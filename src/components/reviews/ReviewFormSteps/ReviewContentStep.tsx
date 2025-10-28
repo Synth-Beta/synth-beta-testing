@@ -77,15 +77,10 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
   const isVenueNearLimit = venueReviewCharacterCount > maxVenueCharacters * 0.8;
 
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Share Your Experience</h2>
-        <p className="text-sm text-gray-600">Tell others about the artist performance and venue experience</p>
-      </div>
-
+    <div className="space-y-8">
       {/* Venue qualitative review (optional) */}
-      <div className="space-y-3">
-          <Label htmlFor="venueReviewText" className="text-sm font-medium">
+      <div className="space-y-4">
+          <Label htmlFor="venueReviewText" className="text-base font-semibold text-gray-900">
             Venue Experience (Optional)
           </Label>
           <Textarea
@@ -93,8 +88,8 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
             placeholder="Share your thoughts about the venue - sound quality, staff, facilities, atmosphere..."
             value={formData.venueReviewText}
             onChange={handleVenueReviewTextChange}
-            rows={3}
-            className="resize-none"
+            rows={4}
+            className="resize-none text-base"
             maxLength={maxVenueCharacters}
           />
           <div className="flex justify-end items-center">
@@ -111,8 +106,8 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
       </div>
 
       {/* Event qualitative review (required) */}
-      <div className="space-y-3">
-          <Label htmlFor="reviewText" className="text-sm font-medium">
+      <div className="space-y-4">
+          <Label htmlFor="reviewText" className="text-base font-semibold text-gray-900">
             Overall Experience *
           </Label>
           <Textarea
@@ -120,8 +115,8 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
             placeholder="Share your overall thoughts about the concert experience..."
             value={formData.reviewText}
             onChange={handleTextChange}
-            rows={4}
-            className="resize-none"
+            rows={5}
+            className="resize-none text-base"
             maxLength={maxCharacters}
           />
           <div className="flex justify-end items-center">

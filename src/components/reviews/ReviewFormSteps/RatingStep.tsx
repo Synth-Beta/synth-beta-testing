@@ -127,26 +127,6 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
 
   return (
     <div className="space-y-8">
-      {/* Attendee Selection - First Section */}
-      {user && (
-        <Card className="border-2 border-pink-100 bg-gradient-to-br from-pink-50/50 to-purple-50/30">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Users className="w-5 h-5 text-pink-600" />
-              <h3 className="text-base font-semibold text-gray-900">Who was with you?</h3>
-              <span className="text-xs text-gray-500 font-normal">(Optional)</span>
-            </div>
-            <AttendeeSelector
-              value={formData.attendees}
-              onChange={handleAttendeesChange}
-              userId={user.id}
-              metOnSynth={formData.metOnSynth}
-              onMetOnSynthChange={handleMetOnSynthChange}
-            />
-          </CardContent>
-        </Card>
-      )}
-
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Rate Your Experience</h2>
         <p className="text-sm text-gray-600">Rate each aspect of the event and share your thoughts</p>
@@ -225,6 +205,26 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
           {renderStarRating('overallExperienceRating', 'Overall Experience', 'How was the overall atmosphere and crowd?')}
         </div>
       </div>
+
+      {/* Attendee Selection - Last Section with More Space */}
+      {user && (
+        <Card className="border-2 border-pink-100 bg-gradient-to-br from-pink-50/50 to-purple-50/30">
+          <CardContent className="p-8 pb-12">
+            <div className="flex items-center gap-2 mb-6">
+              <Users className="w-6 h-6 text-pink-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Who was with you?</h3>
+              <span className="text-sm text-gray-500 font-normal">(Optional)</span>
+            </div>
+            <AttendeeSelector
+              value={formData.attendees}
+              onChange={handleAttendeesChange}
+              userId={user.id}
+              metOnSynth={formData.metOnSynth}
+              onMetOnSynthChange={handleMetOnSynthChange}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

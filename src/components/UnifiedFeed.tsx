@@ -116,9 +116,9 @@ export const UnifiedFeed = ({
     console.log('🔍 UnifiedFeed initialized:', {
       currentUserId,
       hasCurrentUserId: !!currentUserId,
-      onNavigateToProfile: !!onNavigateToProfile,
-      onNavigateToChat: !!onNavigateToChat
-    });
+    onNavigateToProfile: !!onNavigateToProfile,
+    onNavigateToChat: !!onNavigateToChat
+  });
     hasLogged.current = true;
   }
   
@@ -238,20 +238,20 @@ export const UnifiedFeed = ({
       );
       
       Promise.race([locationPromise, timeoutPromise])
-        .then(location => {
+      .then(location => {
           console.log('🔍 Location service succeeded:', location);
           setUserLocation({ lat: (location as any).latitude, lng: (location as any).longitude });
           setMapCenter([(location as any).latitude, (location as any).longitude]);
-          setMapZoom(10);
-        })
-        .catch(error => {
+        setMapZoom(10);
+      })
+      .catch(error => {
           console.log('🔍 Location service failed or timed out:', error);
-          // Continue without location
-        })
-        .finally(() => {
+        // Continue without location
+      })
+      .finally(() => {
           console.log('🔍 Location service finally block - loading feed data...');
-          loadFeedData();
-          loadUpcomingEvents();
+        loadFeedData();
+        loadUpcomingEvents();
           loadFollowedData();
         });
     }, 500); // Debounce by 500ms
@@ -747,13 +747,13 @@ export const UnifiedFeed = ({
         setShareModalOpen(true);
       } else {
         // For non-events, just copy to clipboard
-        const shareText = `Check out this ${item.type}: ${item.title}`;
-        await navigator.clipboard.writeText(shareText);
-        
-        toast({
-          title: "Shared!",
-          description: "Link copied to clipboard",
-        });
+      const shareText = `Check out this ${item.type}: ${item.title}`;
+      await navigator.clipboard.writeText(shareText);
+      
+      toast({
+        title: "Shared!",
+        description: "Link copied to clipboard",
+      });
       }
     } catch (error) {
       console.error('Error sharing item:', error);
@@ -1059,7 +1059,7 @@ export const UnifiedFeed = ({
   // (Reverted) No custom EventHeroImage in unified feed
 
   console.log('🔍 UnifiedFeed render - loading:', loading, 'feedItems.length:', feedItems.length);
-  
+
   if (loading) {
     console.log('🔍 Showing skeleton loading state');
     return (
@@ -1080,8 +1080,8 @@ export const UnifiedFeed = ({
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Feed</h1>
             <p className="text-gray-600 mt-2">Discover reviews and events from friends and the community</p>
-          </div>
-          
+        </div>
+        
           {/* Right side icons */}
           <div className="flex items-center gap-3">
             {/* Notifications button */}
@@ -1129,7 +1129,7 @@ export const UnifiedFeed = ({
           >
 
             {/* Events Feed Items */}
-            <div className="space-y-4">
+        <div className="space-y-4">
               {processedFeedItems
                 .filter(item => item.type === 'event')
                 .map((item, index) => (
@@ -1175,28 +1175,28 @@ export const UnifiedFeed = ({
                 <CardContent className="p-6">
                   {/* Only show author info for non-event items */}
                   {item.type !== 'event' && (
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-10 h-10 ring-2 ring-synth-pink/20">
-                          <AvatarImage src={item.author?.avatar_url || undefined} />
-                          <AvatarFallback className="text-sm font-semibold bg-synth-pink/10 text-synth-pink">
-                            {item.author?.name?.split(' ').map(n => n[0]).join('') || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-semibold text-sm text-gray-900">{item.author?.name || 'Anonymous'}</h3>
-                          <p className="text-xs text-gray-500">
-                            {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className="synth-badge text-xs">
-                          <Calendar className="w-3 h-3 mr-1" />
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-10 h-10 ring-2 ring-synth-pink/20">
+                        <AvatarImage src={item.author?.avatar_url || undefined} />
+                        <AvatarFallback className="text-sm font-semibold bg-synth-pink/10 text-synth-pink">
+                          {item.author?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-semibold text-sm text-gray-900">{item.author?.name || 'Anonymous'}</h3>
+                        <p className="text-xs text-gray-500">
                           {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                        </Badge>
+                        </p>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="synth-badge text-xs">
+                        <Calendar className="w-3 h-3 mr-1" />
+                          {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+                      </Badge>
+                    </div>
+                  </div>
                   )}
 
                   {/* Event Hero Image */}
@@ -1228,10 +1228,10 @@ export const UnifiedFeed = ({
                       </div>
                       {item.event_data && (
                         <div className="space-y-2 text-sm text-gray-600">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-synth-pink" />
                             <span>{item.event_data.venue_name}</span>
-                          </div>
+                        </div>
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-synth-pink" />
                             <span>{format(parseISO(item.event_data.event_date), 'EEEE, MMMM d, yyyy')}</span>
@@ -1242,16 +1242,16 @@ export const UnifiedFeed = ({
                               <span>{formatPrice(item.event_data.price_range)}</span>
                             </div>
                           )}
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
+                  </div>
 
                     <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                       <div className="flex items-center gap-4">
                         {item.type === 'event' && item.event_data ? (
                           <button
                             onClick={(e) => {
-                              e.stopPropagation();
+                          e.stopPropagation(); 
                               handleEventInterest(item);
                             }}
                             className={`flex items-center gap-1 text-sm transition-colors px-3 py-1 rounded-md ${
@@ -1277,7 +1277,7 @@ export const UnifiedFeed = ({
                             <span>{item.likes_count || 0}</span>
                           </button>
                         )}
-                        <button
+                      <button 
                           onClick={(e) => {
                             e.stopPropagation();
                             setOpenEventCommentsFor(item.event_data?.id || item.id);
@@ -1286,10 +1286,10 @@ export const UnifiedFeed = ({
                         >
                           <MessageCircle className="w-4 h-4" />
                           <span>{item.comments_count || 0}</span>
-                        </button>
+                      </button>
                         <button
                           onClick={(e) => {
-                            e.stopPropagation();
+                          e.stopPropagation(); 
                             handleShare(item);
                           }}
                           className="flex items-center gap-1 text-sm text-gray-500 hover:text-green-500 transition-colors"
@@ -1297,7 +1297,7 @@ export const UnifiedFeed = ({
                           <Share2 className="w-4 h-4" />
                           <span>Share</span>
                         </button>
-                      </div>
+                    </div>
                       <div className="text-xs text-gray-400">
                         {formatTimeAgo(item.created_at)}
                       </div>
@@ -1305,7 +1305,7 @@ export const UnifiedFeed = ({
                   </div>
                 </CardContent>
               </Card>
-            ))}
+                ))}
             </div>
           </TabsContent>
 
@@ -1316,11 +1316,11 @@ export const UnifiedFeed = ({
                 <div className="text-center">
                   <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Star className="w-8 h-8 text-gray-400" />
-                  </div>
+                    </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No reviews yet</h3>
                   <p className="text-gray-500">Be the first to share a concert review!</p>
-                </div>
-              </div>
+                    </div>
+                  </div>
             ) : (
               <div className="space-y-6">
                 {feedItems.filter(item => item.type === 'review' && !(item as any).deleted_at && !(item as any).is_deleted).map((item, index) => {
@@ -1487,19 +1487,19 @@ export const UnifiedFeed = ({
                       try {
                         await ReviewService.deleteEventReview(currentUserId, reviewId);
                         loadFeedData(0); // Refresh feed
-                        toast({
+                                toast({ 
                           title: "Review Deleted",
                           description: "Your review has been deleted.",
                         });
-                      } catch (error) {
+                              } catch (error) {
                         console.error('Error deleting review:', error);
-                        toast({
-                          title: "Error",
+                                toast({
+                                  title: "Error",
                           description: "Failed to delete review.",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
                     onReport={() => setOpenReportFor(item.id)}
                     userProfile={{
                       name: item.author?.name || 'User',
@@ -1550,9 +1550,9 @@ export const UnifiedFeed = ({
                   ) : (
                     'Refresh'
                   )}
-                </Button>
-              </div>
-            </div>
+                          </Button>
+                        </div>
+                      </div>
 
             {/* News Loading State */}
             {newsLoading && newsArticles.length === 0 && (
@@ -1574,7 +1574,7 @@ export const UnifiedFeed = ({
 
             {/* Empty State */}
             {!newsLoading && newsArticles.length === 0 && (
-              <EmptyState
+                <EmptyState
                 icon={<Newspaper className="w-12 h-12 text-gray-400" />}
                 title="No news articles found"
                 description="Check back later for the latest music news and updates!"
@@ -1582,7 +1582,7 @@ export const UnifiedFeed = ({
             )}
           </TabsContent>
         </Tabs>
-      </div>
+            </div>
 
       <div className="pb-20"></div>
 
@@ -1702,7 +1702,7 @@ export const UnifiedFeed = ({
       {shareModalOpen && selectedEventForShare && (
       <EventShareModal
         event={selectedEventForShare}
-        currentUserId={currentUserId}
+                currentUserId={currentUserId}
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
       />
@@ -1741,7 +1741,7 @@ export const UnifiedFeed = ({
                 <div className="text-center text-white">
                   <div className="text-6xl font-bold mb-4">
                     <span className="text-pink-500">S</span>ynth
-                  </div>
+      </div>
                   <div className="w-32 h-0.5 bg-white mx-auto mb-4"></div>
                   <div className="text-sm opacity-80">Concert Review</div>
                 </div>

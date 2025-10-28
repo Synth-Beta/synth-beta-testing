@@ -2059,7 +2059,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       {/* Review View Dialog - Belli-style layout */}
       {viewReviewOpen && selectedReview && (
         <Dialog open={viewReviewOpen} onOpenChange={setViewReviewOpen}>
-          <DialogContent className="max-w-5xl w-[90vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden">
+          <DialogContent className="max-w-5xl w-[90vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden bg-transparent border-none shadow-none">
             <DialogHeader className="sr-only">
               <DialogTitle>Review</DialogTitle>
               <DialogDescription>
@@ -2067,7 +2067,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               </DialogDescription>
             </DialogHeader>
             {/* BelliStyleReviewCard inside dialog */}
-            <div className="w-full h-full overflow-y-auto p-4">
+            <div className="w-full h-full overflow-y-auto p-2">
               <BelliStyleReviewCard
                 review={{
                   id: selectedReview.id,
@@ -2116,7 +2116,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 onDelete={async () => {
                   if (window.confirm('Are you sure you want to delete this review?')) {
                     await handleDeleteReview(selectedReview.id);
-                    setViewReviewOpen(false);
+                  setViewReviewOpen(false);
                     setSelectedReview(null);
                   }
                 }}
