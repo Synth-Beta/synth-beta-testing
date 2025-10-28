@@ -218,6 +218,7 @@ module.exports = async (req, res) => {
   }
   
   try {
+    console.log('Ticketmaster API function invoked with query:', req.query);
     // Supabase configuration
     const supabaseUrl = process.env.SUPABASE_URL || 'https://glpiolbrafqikqhnseto.supabase.co';
     const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjkzNzgyNCwiZXhwIjoyMDcyNTEzODI0fQ.cS0y6dQiw2VvGD7tKfKADKqM8whaopJ716G4dexBRGI';
@@ -258,17 +259,53 @@ module.exports = async (req, res) => {
     if (req.query.sort) params.append('sort', req.query.sort);
     
     const url = `${TICKETMASTER_BASE_URL}/events.json?${params.toString()}`;
-    const response = await fetch(url);
+    console.log('Calling Ticketmaster API:', url.replace(TICKETMASTER_API_KEY, '***'));
     
-    if (!response.ok) {
-      return res.status(response.status).json({
+    let response;
+    try {
+      response = await fetch(url);
+    } catch (fetchError) {
+      console.error('Fetch error:', fetchError);
+      return res.status(500).json({
         success: false,
-        error: 'Ticketmaster API error'
+        error: 'Failed to fetch from Ticketmaster API',
+        details: fetchError.message
       });
     }
     
-    const data = await response.json();
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error('Ticketmaster API error:', response.status, errorText);
+      return res.status(response.status).json({
+        success: false,
+        error: `Ticketmaster API error: ${response.status} ${response.statusText}`,
+        details: errorText.substring(0, 500)
+      });
+    }
+    
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonError) {
+      console.error('JSON parse error:', jsonError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to parse Ticketmaster API response',
+        details: jsonError.message
+      });
+    }
+    // Check if Ticketmaster returned an error in the response
+    if (data.errors && data.errors.length > 0) {
+      console.error('Ticketmaster API returned errors:', data.errors);
+      return res.status(400).json({
+        success: false,
+        error: 'Ticketmaster API returned errors',
+        details: data.errors
+      });
+    }
+    
     const allEvents = data._embedded?.events || [];
+    console.log(`Ticketmaster returned ${allEvents.length} total events`);
     
     // Filter out past events
     const now = new Date();
@@ -277,6 +314,7 @@ module.exports = async (req, res) => {
       if (!eventDate) return false;
       return new Date(eventDate) >= now;
     });
+    console.log(`${futureEvents.length} events are in the future`);
     
     // Filter events by location if latlong and radius are provided
     let locationFilteredEvents = futureEvents;
@@ -324,22 +362,30 @@ module.exports = async (req, res) => {
         
         for (let i = 0; i < eventsToInsert.length; i += batchSize) {
           const batch = eventsToInsert.slice(i, i + batchSize);
-          const { data, error } = await supabase
-            .from('jambase_events')
-            .upsert(batch, {
-              onConflict: 'ticketmaster_event_id',
-              ignoreDuplicates: false
-            })
-            .select();
-          
-          if (!error && data) {
-            allInsertedData = allInsertedData.concat(data);
+          try {
+            const { data, error } = await supabase
+              .from('jambase_events')
+              .upsert(batch, {
+                onConflict: 'ticketmaster_event_id',
+                ignoreDuplicates: false
+              })
+              .select();
+            
+            if (error) {
+              console.error(`Database error on batch ${i / batchSize + 1}:`, error);
+            } else if (data) {
+              allInsertedData = allInsertedData.concat(data);
+            }
+          } catch (batchError) {
+            console.error(`Error processing batch ${i / batchSize + 1}:`, batchError);
+            // Continue with next batch even if this one fails
           }
         }
         
         insertedData = allInsertedData.length > 0 ? allInsertedData : null;
       } catch (dbError) {
         console.error('Database error:', dbError);
+        // Don't fail the entire request if database insert fails - return events anyway
       }
     }
     
@@ -367,9 +413,11 @@ module.exports = async (req, res) => {
     });
   } catch (error) {
     console.error('Ticketmaster API error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: error.message || 'Internal server error'
+      error: error.message || 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
