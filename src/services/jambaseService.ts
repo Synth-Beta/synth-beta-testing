@@ -395,17 +395,20 @@ export class JamBaseService {
       try {
         const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
 
-        // API routes disabled - will cause deployment to fail
-        const baseUrl = 'http://localhost:3001/api/jambase';
-        const searchUrl = new URL('/artists', baseUrl);
-        searchUrl.searchParams.append('apikey', JAMBASE_API_KEY);
-        searchUrl.searchParams.append('artistName', query);
-        searchUrl.searchParams.append('num', limit.toString());
-        searchUrl.searchParams.append('o', 'json');
+        // Use relative URL in production (Vercel serverless functions) or backend URL in development
+        const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && !window.location.hostname.startsWith('127.0.0.1');
+        const backendUrl = isProduction ? '' : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001');
         
-        console.log('🌐 API URL:', searchUrl.toString());
+        const queryParams = new URLSearchParams();
+        queryParams.append('apikey', JAMBASE_API_KEY);
+        queryParams.append('artistName', query);
+        queryParams.append('num', limit.toString());
+        queryParams.append('o', 'json');
+        
+        const searchUrl = `${backendUrl}/api/jambase/artists?${queryParams.toString()}`;
+        console.log('🌐 API URL:', searchUrl);
 
-        const response = await fetch(searchUrl.toString(), {
+        const response = await fetch(searchUrl, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',

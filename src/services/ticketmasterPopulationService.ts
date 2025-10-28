@@ -8,7 +8,7 @@
 // Use relative URL in production (Vercel serverless functions) or backend URL in development
 const getBackendUrl = () => {
   if (typeof window !== 'undefined') {
-    const isProduction = window.location.hostname.includes('vercel.app') || window.location.hostname !== 'localhost';
+    const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.startsWith('127.0.0.1');
     return isProduction ? '' : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001');
   }
   return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';

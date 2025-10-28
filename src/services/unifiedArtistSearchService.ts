@@ -137,7 +137,7 @@ export class UnifiedArtistSearchService {
     console.log(`🎫 START: searchTicketmasterAttractions for "${query}"`);
     try {
       // Use relative URL in production (Vercel serverless functions) or backend URL in development
-      const isProduction = typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname !== 'localhost');
+      const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && !window.location.hostname.startsWith('127.0.0.1');
       const backendUrl = isProduction ? '' : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001');
       const url = `${backendUrl}/api/ticketmaster/attractions?keyword=${encodeURIComponent(query)}&size=${limit}`;
       

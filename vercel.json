@@ -2,11 +2,6 @@
   "rewrites": [
     { "source": "/auth/spotify/callback", "destination": "/" },
     { "source": "/(.*)", "destination": "/" }
-  ],
-  "functions": {
-    "api/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  }
+  ]
 }
 

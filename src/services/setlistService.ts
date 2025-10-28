@@ -1,7 +1,13 @@
 import { supabase } from '@/integrations/supabase/client';
 
-// Use backend proxy to avoid CORS issues
-const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+// Use relative URL in production (Vercel serverless functions) or backend URL in development
+const getBackendUrl = () => {
+  if (typeof window !== 'undefined') {
+    const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.startsWith('127.0.0.1');
+    return isProduction ? '' : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001');
+  }
+  return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+};
 
 export interface SetlistSearchParams {
   artistName?: string;
@@ -57,7 +63,7 @@ export class SetlistService {
     if (params.cityName) queryParams.append('cityName', params.cityName);
     if (params.stateCode) queryParams.append('stateCode', params.stateCode);
     
-    const url = `${BACKEND_BASE_URL}/api/setlists/search?${queryParams.toString()}`;
+    const url = `${getBackendUrl()}/api/setlists/search?${queryParams.toString()}`;
     
     try {
       console.log('🎵 SetlistService: Making request to backend proxy:', url);
