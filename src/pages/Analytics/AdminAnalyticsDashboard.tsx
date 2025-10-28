@@ -19,6 +19,7 @@ import { AchievementCard } from '../../components/analytics/shared/AchievementCa
 import { SkeletonCard } from '../../components/analytics/shared/SkeletonCard';
 import { AdminModerationPanel } from '../../components/admin/AdminModerationPanel';
 import { VerificationManagement } from '../../components/admin/VerificationManagement';
+import { NetworkAnalyticsView } from '../../components/analytics/admin/NetworkAnalyticsView';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { 
   Shield, 
@@ -62,7 +63,7 @@ export default function AdminAnalyticsDashboard() {
   const [geographicDistribution, setGeographicDistribution] = useState<GeographicDistribution[]>([]);
   const [achievements, setAchievements] = useState<AdminAchievement[]>([]);
   const [northStarMetric, setNorthStarMetric] = useState<NorthStarMetric | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'revenue' | 'content' | 'system' | 'achievements' | 'verification' | 'moderation'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'revenue' | 'content' | 'system' | 'achievements' | 'verification' | 'moderation' | 'network'>('overview');
 
   // Debug activeTab changes
   useEffect(() => {
@@ -238,6 +239,7 @@ export default function AdminAnalyticsDashboard() {
                 { id: 'users', label: 'Users', icon: Users },
                 { id: 'revenue', label: 'Revenue', icon: DollarSign },
                 { id: 'content', label: 'Content', icon: Calendar },
+                { id: 'network', label: 'Network Analytics', icon: Target },
                 { id: 'verification', label: 'Verification', icon: CheckCircle },
                 { id: 'moderation', label: 'Moderation', icon: Flag },
                 { id: 'system', label: 'System', icon: Server },
@@ -784,6 +786,13 @@ export default function AdminAnalyticsDashboard() {
           <div className="space-y-6">
             {(() => { console.log('🔍 AdminAnalyticsDashboard: Rendering moderation tab, activeTab:', activeTab); return null; })()}
             <AdminModerationPanel />
+          </div>
+        )}
+
+        {/* Network Analytics Tab */}
+        {activeTab === 'network' && (
+          <div className="space-y-6">
+            <NetworkAnalyticsView />
           </div>
         )}
       </div>

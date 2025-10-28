@@ -126,8 +126,11 @@ export class UnifiedFeedService {
       const friendActivity = await this.getFriendActivity(userId, 10);
       feedItems.push(...friendActivity);
       
+      // Deduplicate events by event ID (same event might appear as review + event)
+      const deduplicatedItems = this.deduplicateFeedItems(feedItems);
+      
       // Sort by relevance and recency
-      const sortedItems = this.sortByRelevanceAndTime(feedItems, userLocation);
+      const sortedItems = this.sortByRelevanceAndTime(deduplicatedItems, userLocation);
       
       // Apply pagination
       return sortedItems.slice(offset, offset + limit);
@@ -286,17 +289,46 @@ export class UnifiedFeedService {
             filters // Pass filters to generate new personalized feed
           );
           
-          if (personalizedEvents.length > 0) {
-            console.log('✅ Using PERSONALIZED feed:', {
-              count: personalizedEvents.length,
-              topScore: personalizedEvents[0]?.relevance_score,
-              topArtist: (personalizedEvents[0] as any)?.artist_name,
-              scores: personalizedEvents.slice(0, 5).map(e => ({
-                artist: (e as any).artist_name,
-                score: e.relevance_score
-              }))
-            });
+          // Check if we got events with valid scores
+          // Empty array is valid when offset > 0 (means end of pagination)
+          // But if offset = 0 and we get empty or events without scores, might indicate personalization issue
+          const hasValidScores = personalizedEvents.length > 0 && 
+            personalizedEvents.some(e => e.relevance_score !== undefined && e.relevance_score !== null);
+          
+          // Always use personalized feed if:
+          // 1. We got events with scores (valid personalized feed)
+          // 2. Empty array but offset > 0 (valid pagination - reached end)
+          // 3. Empty array at offset = 0 but no error thrown (no personalized events exist, but function worked)
+          // Only fallback if we got events but NO scores at offset = 0 (might indicate personalization failed)
+          const shouldUsePersonalized = hasValidScores || 
+            personalizedEvents.length === 0 ||  // Empty is valid (pagination or no results)
+            offset > 0;  // Offset > 0 and empty is definitely valid pagination
+          
+          if (shouldUsePersonalized) {
+            if (personalizedEvents.length > 0) {
+              console.log('✅ Using PERSONALIZED feed:', {
+                count: personalizedEvents.length,
+                topScore: personalizedEvents[0]?.relevance_score,
+                topArtist: (personalizedEvents[0] as any)?.artist_name,
+                hasScores: hasValidScores,
+                scores: personalizedEvents.slice(0, 5).map(e => ({
+                  artist: (e as any).artist_name,
+                  score: e.relevance_score
+                }))
+              });
+            } else {
+              console.log('✅ Using PERSONALIZED feed (empty - end of results at this offset):', {
+                offset,
+                limit,
+                reason: offset > 0 ? 'pagination' : 'no personalized events available'
+              });
+            }
             
+            return personalizedEvents.map(event => this.transformPersonalizedEventToFeedItem(event, userLocation));
+          } else {
+            // Got events at offset 0 but no scores - personalization might have failed
+            // But still return them to avoid falling back unnecessarily - scores might be null/0 but still personalized
+            console.warn('⚠️ Personalized feed returned events without scores at offset 0. Using anyway (scores may be 0/null but still personalized).');
             return personalizedEvents.map(event => this.transformPersonalizedEventToFeedItem(event, userLocation));
           }
         } catch (error) {
@@ -440,8 +472,11 @@ export class UnifiedFeedService {
   private static transformPersonalizedEventToFeedItem(event: PersonalizedEvent, userLocation?: { lat: number; lng: number }): UnifiedFeedItem {
     // Preserve all properties including ticket_price_min/max and ticket_url
     // PersonalizedEvent extends JamBaseEvent which has all required properties
+    const eventId = (event as any).id || (event as any).event_id || (event as any).jambase_event_id;
     const eventData = {
       ...(event as any),
+      // Ensure ID is explicitly set (critical for deduplication)
+      id: eventId,
       // Ensure ticket_price fields and ticket_url are explicitly included
       ticket_price_min: (event as any).ticket_price_min ?? null,
       ticket_price_max: (event as any).ticket_price_max ?? null,
@@ -449,7 +484,7 @@ export class UnifiedFeedService {
     } as JamBaseEventResponse;
     
     const item: UnifiedFeedItem = {
-      id: `event-${(event as any).id}`,
+      id: `event-${eventId || 'unknown'}`,
       type: 'event' as const,
       title: (event as any).title,
       content: (event as any).description || `${(event as any).artist_name} is performing at ${(event as any).venue_name}`,
@@ -657,5 +692,74 @@ export class UnifiedFeedService {
    */
   private static toRadians(degrees: number): number {
     return degrees * (Math.PI / 180);
+  }
+  
+  /**
+   * Deduplicate feed items by event ID
+   * If the same event appears multiple times (e.g., as an event item),
+   * keep only the first occurrence (maintains order)
+   */
+  private static deduplicateFeedItems(items: UnifiedFeedItem[]): UnifiedFeedItem[] {
+    const seen = new Set<string>();
+    const uniqueItems: UnifiedFeedItem[] = [];
+    const duplicates: string[] = [];
+    
+    for (const item of items) {
+      // For event items, use the event ID as the key
+      let key: string | null = null;
+      
+      // Primary: use event_data.id if available
+      if (item.type === 'event' && item.event_data?.id) {
+        key = `id-${String(item.event_data.id)}`;
+      }
+      
+      // Fallback: create normalized key from artist + venue + date
+      if (!key && item.type === 'event') {
+        const artistName = (item.event_info?.artist_name || item.title || '').toLowerCase()
+          .trim()
+          .replace(/\s+/g, ' ')
+          .replace(/[^\w\s]/g, ''); // Remove special chars
+        
+        const venueName = (item.event_info?.venue_name || item.event_data?.venue_name || '').toLowerCase()
+          .trim()
+          .replace(/\s+/g, ' ')
+          .replace(/\bthe\s+/gi, '') // Remove "the"
+          .replace(/\bo2\s+/gi, '') // Remove "o2" prefix
+          .replace(/[^\w\s]/g, ''); // Remove special chars
+        
+        const eventDate = item.event_info?.event_date 
+          ? item.event_info.event_date.split('T')[0] 
+          : (item.event_data?.event_date 
+            ? item.event_data.event_date.split('T')[0] 
+            : '');
+        
+        if (artistName && venueName && eventDate) {
+          key = `match-${artistName}|${venueName}|${eventDate}`;
+        }
+      }
+      
+      // Items without event info (reviews without events, friend activity, etc.) are always kept
+      if (!key) {
+        uniqueItems.push(item);
+        continue;
+      }
+      
+      // Only add if we haven't seen this event before
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueItems.push(item);
+      } else {
+        // Duplicate detected
+        duplicates.push(key);
+        const title = item.event_info?.event_name || item.title || 'Unknown';
+        console.log(`🔄 Duplicate event filtered: ${title} (key: ${key})`);
+      }
+    }
+    
+    if (duplicates.length > 0) {
+      console.log(`✅ Deduplication: Removed ${duplicates.length} duplicate event(s) from feed`);
+    }
+    
+    return uniqueItems;
   }
 }

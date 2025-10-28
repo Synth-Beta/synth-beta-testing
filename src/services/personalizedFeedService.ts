@@ -116,10 +116,13 @@ export class PersonalizedFeedService {
         return this.getFallbackFeed(userId, limit, offset, includePast, filters);
       }
       
-      // Ensure we return at least the requested limit
+      // The database function already applies OFFSET and LIMIT, so results is already the correct page
+      // We should NOT slice again with offset - that would apply pagination twice!
       let results = data;
+      
+      // Only try to fetch more if we're on the first page (offset=0) and didn't get enough
       if (results.length < limit && offset === 0) {
-        console.log(`⚠️ Only got ${results.length} events, fetching more to reach ${limit}...`);
+        console.log(`⚠️ Only got ${results.length} events on first page, fetching more to reach ${limit}...`);
         // Try fetching more with a larger limit
         try {
           const { data: moreData, error: moreError } = await supabase.rpc('get_personalized_events_feed' as any, {
@@ -139,8 +142,16 @@ export class PersonalizedFeedService {
         }
       }
       
-      // Log diversity information
-      const artistCounts = results.reduce((acc: Record<string, number>, event: any) => {
+      // Database already applied pagination (OFFSET/LIMIT), so results is already the correct page
+      // First deduplicate by event ID (in case database returned duplicates)
+      const uniqueResults = this.deduplicateEvents(results);
+      
+      // Just ensure we don't exceed the limit (in case database returned more for some reason)
+      // IMPORTANT: Also enforce diversity limits - max 3 events per artist (no penalty events)
+      const paginatedData = this.enforceDiversityLimit(uniqueResults, limit, 3);
+      
+      // Log diversity information (using all available results for context, not just paginated)
+      const artistCounts = paginatedData.reduce((acc: Record<string, number>, event: any) => {
         const artist = event.artist_name;
         acc[artist] = (acc[artist] || 0) + 1;
         return acc;
@@ -148,9 +159,10 @@ export class PersonalizedFeedService {
 
       const topArtist = Object.entries(artistCounts)
         .sort(([,a], [,b]) => (b as number) - (a as number))[0];
-
-      // Take only up to limit to respect pagination
-      const paginatedData = results.slice(offset, offset + limit);
+      
+      // Debug: Check if we have valid results with scores
+      const firstResult = results[0] as any;
+      const firstPaginated = paginatedData[0] as any;
       
       // Debug: Check price_range in first few events
       const priceDebug = paginatedData.slice(0, 5).map((e: any) => ({
@@ -164,9 +176,12 @@ export class PersonalizedFeedService {
       
       console.log('✅ Personalized feed loaded:', {
         count: paginatedData.length,
-        totalAvailable: results.length,
-        topScore: (paginatedData[0] as any)?.relevance_score,
-        hasScores: (paginatedData[0] as any)?.relevance_score !== undefined,
+        dbReturned: results.length, // Number of events returned by DB (already paginated)
+        requestedOffset: offset,
+        requestedLimit: limit,
+        topScore: firstPaginated?.relevance_score ?? firstResult?.relevance_score,
+        hasScores: (firstPaginated?.relevance_score !== undefined && firstPaginated?.relevance_score !== null) ||
+                   (firstResult?.relevance_score !== undefined && firstResult?.relevance_score !== null),
         topArtist: topArtist ? `${topArtist[0]} (${topArtist[1]} events})` : 'Unknown',
         artistDiversity: Object.keys(artistCounts).length,
         priceDebug: priceDebug,
@@ -177,6 +192,19 @@ export class PersonalizedFeedService {
           artist_rank: (e as any).artist_frequency_rank || 1
         }))
       });
+      
+      // Warn if database returned empty results (means we've reached the end of available events)
+      if (results.length === 0 && offset > 0) {
+        console.log(`ℹ️ No more personalized events available at offset ${offset}. User has reached the end of their personalized feed.`);
+      }
+      
+      // Warn if results exist but no scores (personalization might have failed)
+      if (results.length > 0 && firstResult && (firstResult.relevance_score === undefined || firstResult.relevance_score === null)) {
+        console.warn('⚠️ Personalized feed returned events but no relevance_score. Personalization might have failed.', {
+          firstEventTitle: firstResult.title,
+          firstEventArtist: firstResult.artist_name
+        });
+      }
       
       return paginatedData.map((row: any) => ({
         id: row.event_id,
@@ -367,10 +395,13 @@ export class PersonalizedFeedService {
         // TODO: Implement following filter at DB level
       }
       
-      // Step 6: Apply offset and limit to final filtered results
-      let paginatedResults = filteredPersonalized.slice(offset, offset + limit);
+      // Step 6: Enforce diversity limits before pagination (max 3 events per artist)
+      const diverseFiltered = this.enforceDiversityLimit(filteredPersonalized, limit * 2, 3);
       
-      // Step 7: If we got fewer than the requested limit, try to fetch more from unfiltered personalized feed
+      // Step 7: Apply offset and limit to final filtered results
+      let paginatedResults = diverseFiltered.slice(offset, offset + limit);
+      
+      // Step 8: If we got fewer than the requested limit, try to fetch more from unfiltered personalized feed
       if (paginatedResults.length < limit && offset === 0) {
         console.log(`⚠️ Only got ${paginatedResults.length} filtered events, fetching more to reach ${limit}...`);
         
@@ -381,15 +412,15 @@ export class PersonalizedFeedService {
             p_user_id: userId,
             p_limit: additionalLimit * 2, // Fetch more to account for possible duplicates
             p_offset: filteredPersonalized.length, // Start after the filtered results
-            p_include_past: includePast
+            p_include_past: includePast,
+            p_max_per_artist: 3  // Maintain diversity
           });
           
           if (!additionalError && additionalData && Array.isArray(additionalData)) {
           // Filter out events we already have
           const existingIds = new Set(paginatedResults.map(e => e.id));
-          const newEvents = additionalData
+          const candidateEvents = additionalData
             .filter((event: any) => !existingIds.has(event.event_id))
-            .slice(0, limit - paginatedResults.length)
             .map((row: any) => ({
               id: row.event_id,
               jambase_event_id: row.event_id,
@@ -434,8 +465,12 @@ export class PersonalizedFeedService {
               active_promotion_id: row.active_promotion_id || null
             } as PersonalizedEvent));
           
-            paginatedResults = [...paginatedResults, ...newEvents];
-            console.log(`✅ Added ${newEvents.length} additional events, total: ${paginatedResults.length}`);
+            // Enforce diversity when adding new events (combine with existing and enforce limit)
+            const combined = [...paginatedResults, ...candidateEvents];
+            const diverseCombined = this.enforceDiversityLimit(combined, limit, 3);
+            const addedCount = diverseCombined.length - paginatedResults.length;
+            paginatedResults = diverseCombined;
+            console.log(`✅ Added ${addedCount} additional events (with diversity enforced), total: ${paginatedResults.length}`);
           }
         } catch (error) {
           console.warn('⚠️ Failed to fetch additional filtered events:', error);
@@ -788,6 +823,67 @@ export class PersonalizedFeedService {
       console.error('❌ Error calculating relevance:', error);
       return 0;
     }
+  }
+  
+  /**
+   * Deduplicate events by event ID
+   * Ensures we don't return the same event multiple times
+   */
+  private static deduplicateEvents(events: any[]): any[] {
+    const seen = new Set<string>();
+    return events.filter(event => {
+      const eventId = event.event_id || event.id;
+      if (!eventId) return true; // Keep events without IDs
+      
+      if (seen.has(eventId)) {
+        return false; // Duplicate - skip
+      }
+      seen.add(eventId);
+      return true; // First occurrence - keep
+    });
+  }
+  
+  /**
+   * Enforce diversity limits - ensures max N events per artist
+   * This is important when expanding queries to maintain diversity
+   * Preserves the original database ordering while filtering excess events per artist
+   */
+  private static enforceDiversityLimit(
+    events: any[], 
+    maxTotal: number, 
+    maxPerArtist: number
+  ): any[] {
+    if (events.length === 0) return events;
+    
+    // Track how many events we've seen per artist (maintaining original order)
+    const artistCounts = new Map<string, number>();
+    const diverseEvents: any[] = [];
+    
+    // Process events in their original order (already sorted by database)
+    for (const event of events) {
+      const artist = event.artist_name || 'Unknown';
+      const count = artistCounts.get(artist) || 0;
+      
+      // Only include if we haven't exceeded maxPerArtist for this artist
+      // Also check artist_frequency_rank - if it's <= maxPerArtist, it's definitely allowed
+      // If rank is > maxPerArtist, it's a penalty event and we should exclude it
+      const rank = event.artist_frequency_rank;
+      const isWithinLimit = rank !== undefined && rank !== null 
+        ? rank <= maxPerArtist  // Use database ranking if available
+        : count < maxPerArtist; // Otherwise use simple counting
+      
+      if (isWithinLimit) {
+        diverseEvents.push(event);
+        artistCounts.set(artist, count + 1);
+        
+        // Stop if we've reached the total limit
+        if (diverseEvents.length >= maxTotal) {
+          break;
+        }
+      }
+    }
+    
+    return diverseEvents;
   }
 }
 
