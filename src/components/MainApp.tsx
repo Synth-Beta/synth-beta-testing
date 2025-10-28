@@ -13,7 +13,7 @@ import Auth from '@/pages/Auth';
 import { EventSeeder } from './EventSeeder';
 import { SettingsModal } from './SettingsModal';
 import { NotificationsPage } from './NotificationsPage';
-import { ChatView } from './chat/ChatView';
+import { UnifiedChatView } from './UnifiedChatView';
 import { MyEventsManagementPanel } from './events/MyEventsManagementPanel';
 import { OnboardingReminderBanner } from './onboarding/OnboardingReminderBanner';
 import { OnboardingTour } from './onboarding/OnboardingTour';
@@ -439,7 +439,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         );
       case 'chat':
         return (
-          <ChatView
+          <UnifiedChatView
             currentUserId={user.id}
             onBack={handleBack}
           />

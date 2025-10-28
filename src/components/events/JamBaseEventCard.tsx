@@ -110,7 +110,9 @@ export function JamBaseEventCard({
   const isPastEvent = new Date(event.event_date) < new Date();
   const isUpcomingEvent = new Date(event.event_date) >= new Date();
 
-  const handleInterestToggle = async () => {
+  const handleInterestToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the card from opening
+    
     if (!onInterestToggle || isLoading) return;
     
     setIsLoading(true);
@@ -123,7 +125,9 @@ export function JamBaseEventCard({
     }
   };
 
-  const handleReview = () => {
+  const handleReview = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the card from opening
+    
     if (onReview) {
       onReview(event.id);
     }

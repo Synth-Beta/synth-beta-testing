@@ -877,45 +877,47 @@ export const UnifiedFeed = ({
   const handleEventInterest = async (item: UnifiedFeedItem) => {
     if (!currentUserId || !item.event_data) return;
     
-    // Open the event details modal
-    setSelectedEventForDetails(item.event_data);
-    try {
-      const interested = await UserEventService.isUserInterested(
-        currentUserId,
-        item.event_data.id
-      );
-      setSelectedEventInterested(interested);
-    } catch {
-      setSelectedEventInterested(false);
-    }
-    setDetailsOpen(true);
+    // Toggle interest without opening the modal
+    const isCurrentlyInterested = interestedEvents.has(item.event_data.id);
+    const newInterestState = !isCurrentlyInterested;
     
-    // Also toggle interest immediately
+    // Optimistically update UI
+    if (newInterestState) {
+      interestedEvents.add(item.event_data.id);
+    } else {
+      interestedEvents.delete(item.event_data.id);
+    }
+    setInterestedEvents(new Set(interestedEvents));
+    
+    // Update in database
     try {
-      const isCurrentlyInterested = interestedEvents.has(item.event_data.id);
-      await UserEventService.setEventInterest(currentUserId, item.event_data.id, !isCurrentlyInterested);
-      
-      // Update local state  
-      if (!isCurrentlyInterested) {
-        setInterestedEvents(prev => new Set([...prev, item.event_data.id]));
-      } else {
-        setInterestedEvents(prev => {
-          const next = new Set(prev);
-          next.delete(item.event_data.id);
-          return next;
-        });
-      }
-      
-      setSelectedEventInterested(!isCurrentlyInterested);
+      await UserEventService.setEventInterest(
+        currentUserId,
+        item.event_data.id,
+        newInterestState
+      );
       
       toast({
-        title: !isCurrentlyInterested ? "Marked as interested!" : "Removed interest",
-        description: !isCurrentlyInterested 
-          ? "You're interested in this event" 
-          : "Removed from your interested list"
+        title: newInterestState ? "You're interested!" : "Interest removed",
+        description: newInterestState 
+          ? "We'll notify you about this event" 
+          : "You'll no longer receive notifications for this event",
       });
     } catch (error) {
       console.error('Error toggling interest:', error);
+      // Revert optimistic update
+      if (newInterestState) {
+        interestedEvents.delete(item.event_data.id);
+      } else {
+        interestedEvents.add(item.event_data.id);
+      }
+      setInterestedEvents(new Set(interestedEvents));
+      
+      toast({
+        title: "Error",
+        description: "Failed to update interest",
+        variant: "destructive",
+      });
     }
   };
 

@@ -29,7 +29,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { fetchUserNotifications } from '@/utils/notificationUtils';
 import { format, parseISO } from 'date-fns';
 import { MatchesView } from '@/components/MatchesView';
-import { ChatView } from '@/components/chat/ChatView';
 import { UnifiedChatView } from '@/components/UnifiedChatView';
 import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
@@ -718,7 +717,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
   // Don't return early - render chat as overlay
   if (showChatView) {
-    return <ChatView currentUserId={currentUserId} onBack={() => setShowChatView(false)} />;
+    return <UnifiedChatView currentUserId={currentUserId} onBack={() => setShowChatView(false)} />;
   }
 
   // Session expiration is handled by MainApp, so we don't need to handle it here

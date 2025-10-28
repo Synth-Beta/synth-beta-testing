@@ -15,7 +15,6 @@ import {
   X,
   Loader2,
   Share2,
-  Copy,
   Globe
 } from 'lucide-react';
 import { InAppShareService, type ShareTarget } from '@/services/inAppShareService';
@@ -83,23 +82,6 @@ export function EventShareModal({
     }
   };
 
-  const handleCopyLink = async () => {
-    try {
-      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
-      await navigator.clipboard.writeText(url);
-      toast({
-        title: "Link Copied!",
-        description: "Event link copied to clipboard",
-      });
-    } catch (error) {
-      console.error('Error copying link:', error);
-      toast({
-        title: "Error",
-        description: "Failed to copy link",
-        variant: "destructive"
-      });
-    }
-  };
 
   useEffect(() => {
     if (isOpen) {
@@ -349,24 +331,14 @@ export function EventShareModal({
         </div>
 
         {/* External Share Options */}
-        <div className="flex gap-2">
-          <Button
-            onClick={handleExternalShare}
-            variant="outline"
-            className="flex-1 border-pink-200 hover:bg-pink-50"
-          >
-            <Share2 className="w-4 h-4 mr-2" />
-            Share Externally
-          </Button>
-          <Button
-            onClick={handleCopyLink}
-            variant="outline"
-            className="flex-1 border-pink-200 hover:bg-pink-50"
-          >
-            <Copy className="w-4 h-4 mr-2" />
-            Copy Link
-          </Button>
-        </div>
+        <Button
+          onClick={handleExternalShare}
+          variant="outline"
+          className="w-full border-pink-200 hover:bg-pink-50"
+        >
+          <Share2 className="w-4 h-4 mr-2" />
+          Share Externally
+        </Button>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
