@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Navigation } from './Navigation';
-import { ConcertFeed } from './ConcertFeed';
+import { ConcertFeed } from './events/ConcertFeed';
 import { UnifiedFeed } from './UnifiedFeed';
 import { UnifiedSearch } from './UnifiedSearch';
 import { SearchMap } from './SearchMap';
 import { RedesignedSearchPage } from './search/RedesignedSearchPage';
 import { ProfileView } from './profile/ProfileView';
-import { ProfileEdit } from './ProfileEdit';
+import { ProfileEdit } from './profile/ProfileEdit';
 import { ConcertEvents } from './ConcertEvents';
 import { Event as EventCardEvent } from './EventCard';
 import Auth from '@/pages/Auth';
 import { EventSeeder } from './EventSeeder';
 import { SettingsModal } from './SettingsModal';
 import { NotificationsPage } from './NotificationsPage';
-import { ChatView } from './ChatView';
+import { ChatView } from './chat/ChatView';
 import { MyEventsManagementPanel } from './events/MyEventsManagementPanel';
 import { OnboardingReminderBanner } from './onboarding/OnboardingReminderBanner';
 import { OnboardingTour } from './onboarding/OnboardingTour';
@@ -441,10 +441,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         return (
           <ChatView
             currentUserId={user.id}
-            chatUserId={chatUserId}
-            chatId={chatId}
             onBack={handleBack}
-            onNavigateToProfile={handleNavigateToProfile}
           />
         );
       case 'analytics':

@@ -176,7 +176,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading profile...</p>
@@ -186,7 +186,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
   }
 
   return (
-    <div className="min-h-screen p-4">
+    <div className="p-4 bg-gray-50">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
@@ -293,19 +293,19 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
                 Gender
               </Label>
               <Select
-                value={formData.gender}
+                value={formData.gender || undefined}
                 onValueChange={(value) => handleInputChange('gender', value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select your gender (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Not specified</SelectItem>
                   <SelectItem value="male">Male</SelectItem>
                   <SelectItem value="female">Female</SelectItem>
                   <SelectItem value="non-binary">Non-binary</SelectItem>
                   <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="not-specified">Not specified</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">

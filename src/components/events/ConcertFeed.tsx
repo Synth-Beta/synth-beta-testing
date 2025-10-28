@@ -29,7 +29,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { fetchUserNotifications } from '@/utils/notificationUtils';
 import { format, parseISO } from 'date-fns';
 import { MatchesView } from '@/components/MatchesView';
-import { ChatView } from '@/components/ChatView';
+import { ChatView } from '@/components/chat/ChatView';
 import { UnifiedChatView } from '@/components/UnifiedChatView';
 import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
