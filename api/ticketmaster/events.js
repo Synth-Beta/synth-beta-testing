@@ -1,7 +1,7 @@
 // Vercel serverless function for Ticketmaster events API
 // This file should be in api/ticketmaster/events.js to be accessible at /api/ticketmaster/events
-const { createClient } = require('@supabase/supabase-js');
-const ngeohash = require('ngeohash');
+import { createClient } from '@supabase/supabase-js';
+import ngeohash from 'ngeohash';
 
 // Import genre mapping from backend (copy needed logic)
 function extractGenres(ticketmasterEvent) {
@@ -189,35 +189,35 @@ function transformTicketmasterEvent(event) {
   };
 }
 
-module.exports = async (req, res) => {
-  // Handle CORS
-  const origin = req.headers.origin;
-  const allowedOrigins = [
-    'https://synth-beta-testing.vercel.app',
-    'https://synth-beta-testing-main.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:8080'
-  ];
-  
-  if (origin && (allowedOrigins.includes(origin) || origin.includes('vercel.app'))) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-  
-  if (req.method !== 'GET') {
-    res.status(405).json({ success: false, error: 'Method not allowed' });
-    return;
-  }
-  
+export default async (req, res) => {
   try {
+    // Handle CORS
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+      'https://synth-beta-testing.vercel.app',
+      'https://synth-beta-testing-main.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:8080'
+    ];
+    
+    if (origin && (allowedOrigins.includes(origin) || origin.includes('vercel.app'))) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
+    }
+    
+    if (req.method !== 'GET') {
+      res.status(405).json({ success: false, error: 'Method not allowed' });
+      return;
+    }
+    
     console.log('Ticketmaster API function invoked with query:', req.query);
     // Supabase configuration
     const supabaseUrl = process.env.SUPABASE_URL || 'https://glpiolbrafqikqhnseto.supabase.co';
