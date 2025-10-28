@@ -136,7 +136,9 @@ export class UnifiedArtistSearchService {
   private static async searchTicketmasterAttractions(query: string, limit: number): Promise<any[]> {
     console.log(`🎫 START: searchTicketmasterAttractions for "${query}"`);
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      // Use relative URL in production (Vercel serverless functions) or backend URL in development
+      const isProduction = typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname !== 'localhost');
+      const backendUrl = isProduction ? '' : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001');
       const url = `${backendUrl}/api/ticketmaster/attractions?keyword=${encodeURIComponent(query)}&size=${limit}`;
       
       console.log('🎫 Calling Ticketmaster attractions API:', url);

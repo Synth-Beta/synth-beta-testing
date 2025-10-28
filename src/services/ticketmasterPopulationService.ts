@@ -5,7 +5,14 @@
  * when they log in. This ensures the database stays up-to-date with local events.
  */
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+// Use relative URL in production (Vercel serverless functions) or backend URL in development
+const getBackendUrl = () => {
+  if (typeof window !== 'undefined') {
+    const isProduction = window.location.hostname.includes('vercel.app') || window.location.hostname !== 'localhost';
+    return isProduction ? '' : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001');
+  }
+  return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+};
 // API key is handled by backend via environment variable - don't expose it in frontend
 
 export interface TicketmasterPopulationResult {
@@ -48,7 +55,7 @@ export class TicketmasterPopulationService {
       
       // API key is handled by backend - don't expose it in frontend
 
-      const url = `${BACKEND_URL}/api/ticketmaster/events?${queryParams.toString()}`;
+      const url = `${getBackendUrl()}/api/ticketmaster/events?${queryParams.toString()}`;
       
       console.log('📡 Calling Ticketmaster API:', url);
 
@@ -119,7 +126,7 @@ export class TicketmasterPopulationService {
       queryParams.append('classificationName', 'music');
       // API key is handled by backend - don't expose it in frontend
 
-      const url = `${BACKEND_URL}/api/ticketmaster/events?${queryParams.toString()}`;
+      const url = `${getBackendUrl()}/api/ticketmaster/events?${queryParams.toString()}`;
       
       const response = await fetch(url, {
         method: 'GET',

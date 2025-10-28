@@ -193,8 +193,9 @@ export class UnifiedEventSearchService {
       queryParams.append('size', (params.perPage || params.limit || 20).toString());
       // API key is handled by backend - don't expose it in frontend
 
-      // Use backend URL (different port)
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      // Use relative URL in production (Vercel serverless functions) or backend URL in development
+      const isProduction = typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname !== 'localhost');
+      const backendUrl = isProduction ? '' : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001');
       const url = `${backendUrl}/api/ticketmaster/events?${queryParams.toString()}`;
       
       const response = await fetch(url, {
