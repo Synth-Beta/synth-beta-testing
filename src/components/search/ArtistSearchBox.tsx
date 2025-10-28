@@ -91,7 +91,8 @@ export function ArtistSearchBox({
   const performSearch = async (searchQuery: string) => {
     try {
       setIsLoading(true);
-      const results = await UnifiedArtistSearchService.searchArtists(searchQuery, 10);
+      // Review form: local DB only, no API calls
+      const results = await UnifiedArtistSearchService.searchArtists(searchQuery, 10, false);
       
       // Transform UnifiedArtistSearchService results to match expected format
       const transformedResults = {

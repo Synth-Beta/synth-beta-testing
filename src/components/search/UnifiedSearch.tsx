@@ -94,7 +94,7 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
     }
   };
 
-  // Handle input change with debouncing
+  // Handle input change with debouncing (local DB only for suggestions)
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
@@ -104,21 +104,20 @@ export function UnifiedSearch({ userId }: UnifiedSearchProps) {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    // Set new timeout for debounced search (reduced to 300ms for faster response)
+    // Set new timeout for debounced search (local DB only - useApi=false)
     searchTimeoutRef.current = setTimeout(() => {
-      performSearch(value);
+      performSearch(value, false); // false = no API call for suggestions
     }, 300);
   };
 
 
-  const searchArtists = async (query: string, limit: number = 5): Promise<ArtistSearchResult[]> => {
+  const searchArtists = async (query: string, limit: number = 5, useApi: boolean = false): Promise<ArtistSearchResult[]> => {
     try {
-      console.log(`🎵 Searching artists for: "${query}"`);
+      console.log(`🎵 Searching artists for: "${query}" (useApi: ${useApi})`);
       
-      // Always call API first for fresh results
-      console.log(`📡 Calling API for fresh results...`);
-      const results = await UnifiedArtistSearchService.searchArtists(query, limit);
-      console.log(`✅ Found ${results.length} artists from API`);
+      // Pass useApi parameter to control API calls
+      const results = await UnifiedArtistSearchService.searchArtists(query, limit, useApi);
+      console.log(`✅ Found ${results.length} artists (useApi: ${useApi})`);
       
       return results;
     } catch (error) {

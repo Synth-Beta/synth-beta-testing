@@ -43,12 +43,15 @@ import {
   VolumeX,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  RefreshCw,
+  Loader2,
+  Ticket
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { Navigation } from '@/components/Navigation';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { getEventStatus, isEventPast, getPastEvents, getUpcomingEvents } from '@/utils/eventStatusUtils';
@@ -90,6 +93,10 @@ import { ArtistCard } from '@/components/ArtistCard';
 import { VenueCard } from '@/components/reviews/VenueCard';
 import { FollowIndicator } from '@/components/events/FollowIndicator';
 import type { Artist } from '@/types/concertSearch';
+import { EventFilters, FilterState } from '@/components/search/EventFilters';
+import { parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { normalizeCityName } from '@/utils/cityNormalization';
+import { RadiusSearchService } from '@/services/radiusSearchService';
 
 // Using UnifiedFeedItem from service instead of local interface
 
@@ -150,11 +157,30 @@ export const UnifiedFeed = ({
   const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'price' | 'popularity' | 'distance'>('relevance');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filterByFollowing, setFilterByFollowing] = useState<'all' | 'following'>('all');
+  
+  // Filter state (same as search area)
+  const [filters, setFilters] = useState<FilterState>({
+    genres: [],
+    selectedCities: [],
+    dateRange: { from: undefined, to: undefined },
+    showFilters: false,
+    radiusMiles: 30,
+    filterByFollowing: 'all',
+    daysOfWeek: []
+  });
+  
+  // Temporary filter state - changes here don't trigger feed refresh
+  const [pendingFilters, setPendingFilters] = useState<FilterState>(filters);
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+  
+  // Refresh state - track offset to get new events on refresh
+  const [refreshOffset, setRefreshOffset] = useState(0);
 
   // Instagram-style media state
   const [currentMediaIndex, setCurrentMediaIndex] = useState<{ [key: string]: number }>({});
   const [playingVideos, setPlayingVideos] = useState<{ [key: string]: boolean }>({});
   const [videoVolumes, setVideoVolumes] = useState<{ [key: string]: number }>({});
+  
   const [showFullscreenMedia, setShowFullscreenMedia] = useState<{ [key: string]: boolean }>({});
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<string>>(new Set());
@@ -238,7 +264,7 @@ export const UnifiedFeed = ({
       );
       
       Promise.race([locationPromise, timeoutPromise])
-      .then(location => {
+        .then(async (location) => {
           console.log('🔍 Location service succeeded:', location);
           setUserLocation({ lat: (location as any).latitude, lng: (location as any).longitude });
           setMapCenter([(location as any).latitude, (location as any).longitude]);
@@ -253,6 +279,7 @@ export const UnifiedFeed = ({
         loadFeedData();
         loadUpcomingEvents();
           loadFollowedData();
+          loadCities();
         });
     }, 500); // Debounce by 500ms
     
@@ -616,27 +643,60 @@ export const UnifiedFeed = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loadingMore, hasMore, feedItems.length]);
 
-  const loadFeedData = async (offset: number = 0) => {
+  const loadFeedData = async (offset: number = 0, isRefresh: boolean = false) => {
     try {
-      console.log('🔄 loadFeedData called with offset:', offset);
+      // If refreshing, use refreshOffset to get different events
+      // But if filters are active, always start from offset 0 to respect filters
+      const hasActiveFilters = 
+        (filters.genres && filters.genres.length > 0) ||
+        (filters.selectedCities && filters.selectedCities.length > 0) ||
+        filters.dateRange.from || filters.dateRange.to ||
+        (filters.daysOfWeek && filters.daysOfWeek.length > 0) ||
+        filters.filterByFollowing === 'following';
       
-      if (offset === 0) {
+      // On refresh, always use offset 0 to reload top results (refreshOffset is reset by handleRefresh)
+      // On normal load or with filters, use the provided offset
+      const actualOffset = isRefresh ? 0 : offset;
+      console.log('🔄 loadFeedData called with offset:', actualOffset, 'isRefresh:', isRefresh, 'hasActiveFilters:', hasActiveFilters);
+      
+      if (offset === 0 && !isRefresh) {
         setLoading(true);
         setFeedItems([]); // Clear existing items for fresh load
         setHasMore(true); // Reset hasMore state
+      } else if (isRefresh) {
+        setLoading(true); // Show loading for refresh
       } else {
         setLoadingMore(true);
       }
 
       // Add minimum loading time for better UX demonstration
-      const minLoadingTime = offset === 0 ? new Promise(resolve => setTimeout(resolve, 800)) : Promise.resolve();
+      const minLoadingTime = (offset === 0 || isRefresh) ? new Promise(resolve => setTimeout(resolve, 800)) : Promise.resolve();
 
+      // Build filter object for personalized feed using ACTUAL filters (not pending)
+      const feedFilters = {
+        genres: filters.genres && filters.genres.length > 0 ? filters.genres : undefined,
+        selectedCities: filters.selectedCities && filters.selectedCities.length > 0 ? filters.selectedCities : undefined,
+        dateRange: (filters.dateRange.from || filters.dateRange.to) ? filters.dateRange : undefined,
+        daysOfWeek: filters.daysOfWeek && filters.daysOfWeek.length > 0 ? filters.daysOfWeek : undefined,
+        filterByFollowing: filters.filterByFollowing !== 'all' ? filters.filterByFollowing : undefined
+      };
+      
+      // Only include filters object if at least one filter is active
+      const activeFilters = (
+        feedFilters.genres ||
+        feedFilters.selectedCities ||
+        feedFilters.dateRange ||
+        feedFilters.daysOfWeek ||
+        feedFilters.filterByFollowing
+      ) ? feedFilters : undefined;
+      
       const [rawItems] = await Promise.all([
         UnifiedFeedService.getFeedItems({
           userId: currentUserId,
           limit: 20,
-          offset,
-          includePrivateReviews: true
+          offset: actualOffset,
+          includePrivateReviews: true,
+          filters: activeFilters
         }),
         minLoadingTime
       ]);
@@ -661,28 +721,82 @@ export const UnifiedFeed = ({
           return true;
         });
 
-      if (offset === 0) {
+      if (offset === 0 && !isRefresh) {
         setFeedItems(items);
+      } else if (isRefresh) {
+        // Refresh: replace current items with new ones from offset 0
+        if (items.length > 0) {
+          setFeedItems(items);
+          // Keep refresh offset at 0 since we always reload from top on refresh
+          setRefreshOffset(0);
+        } else {
+          // If no items at current offset, reset to 0 and try again
+          console.log('🔄 Refresh: No items at current offset, resetting to 0...');
+          setRefreshOffset(0);
+          // Try again from the beginning
+          const retryItems = await UnifiedFeedService.getFeedItems({
+            userId: currentUserId,
+            limit: 20,
+            offset: 0,
+            includePrivateReviews: true
+          });
+          const filteredRetryItems = retryItems.filter(item => {
+            if (item.type === 'review') {
+              if ((item as any).deleted_at || (item as any).is_deleted) return false;
+              if (!item.content && (!item.photos || item.photos.length === 0)) return false;
+              if (item.content === 'ATTENDANCE_ONLY' || item.content === '[deleted]' || item.content === 'DELETED') return false;
+            }
+            return true;
+          });
+          if (filteredRetryItems.length > 0) {
+            setFeedItems(filteredRetryItems);
+            setRefreshOffset(0); // Keep at 0 for refresh (always reload from top)
+          } else {
+            // Keep existing items if retry also fails
+            console.warn('⚠️ Refresh: No items found even at offset 0, keeping existing feed');
+          }
+        }
       } else {
         setFeedItems(prev => [...prev, ...items]);
       }
 
-      // console.log('📊 Feed loading debug:', {
-      //   offset,
-      //   itemsReturned: items.length,
-      //   hasMore: items.length === 20,
-      //   totalItemsAfter: offset === 0 ? items.length : items.length + offset
-      // });
-
       const newHasMore = items.length === 20;
-      // console.log('🎯 Setting hasMore to:', newHasMore);
       setHasMore(newHasMore); // If we got fewer than requested, no more items
       
     } catch (error) {
       console.error('Error loading feed data:', error);
+      
+      // If refresh failed and we have no items, try one more time from offset 0
+      if (isRefresh && feedItems.length === 0) {
+        console.log('🔄 Refresh failed with no items, retrying from offset 0...');
+        try {
+          const retryItems = await UnifiedFeedService.getFeedItems({
+            userId: currentUserId,
+            limit: 20,
+            offset: 0,
+            includePrivateReviews: true
+          });
+          const filteredRetryItems = retryItems.filter(item => {
+            if (item.type === 'review') {
+              if ((item as any).deleted_at || (item as any).is_deleted) return false;
+              if (!item.content && (!item.photos || item.photos.length === 0)) return false;
+              if (item.content === 'ATTENDANCE_ONLY' || item.content === '[deleted]' || item.content === 'DELETED') return false;
+            }
+            return true;
+          });
+          if (filteredRetryItems.length > 0) {
+            setFeedItems(filteredRetryItems);
+            setRefreshOffset(20);
+            return; // Success, exit early
+          }
+        } catch (retryError) {
+          console.error('Retry also failed:', retryError);
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to load feed data",
+        description: "Failed to load feed data. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -896,6 +1010,129 @@ export const UnifiedFeed = ({
     });
   };
 
+  // Load cities for filters
+  const loadCities = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('jambase_events')
+        .select('venue_city')
+        .not('venue_city', 'is', null);
+      if (error) throw error;
+      const unique = Array.from(new Set((data || []).map((r: any) => (r.venue_city as string).trim()).filter(Boolean))).sort();
+      setAvailableCities(unique);
+    } catch (error) {
+      console.error('Failed to load cities:', error);
+      setAvailableCities([]);
+    }
+  };
+
+  // Available genres from feed items
+  const availableGenres = useMemo(() => {
+    const genreSet = new Set<string>();
+    feedItems.forEach(item => {
+      if (item.type === 'event' && item.event_data?.genres) {
+        item.event_data.genres.forEach((genre: string) => genreSet.add(genre));
+      }
+    });
+    return Array.from(genreSet).sort();
+  }, [feedItems]);
+
+  // Note: Filters are now applied at the database level when generating the personalized feed
+  // This filteredFeedItems is kept for backward compatibility and to handle the following filter
+  // which requires client-side logic with follow lists
+  // Use actual filters (not pending) for display
+  const filteredFeedItems = useMemo(() => {
+    let filtered = [...feedItems];
+
+    // Only apply following filter client-side (others are applied at DB level)
+    if (filters.filterByFollowing === 'following') {
+      const eventItems = filtered.filter(item => item.type === 'event');
+      const nonEventItems = filtered.filter(item => item.type !== 'event');
+
+      const filteredEvents = eventItems.filter(item => {
+        if (!item.event_data) return false;
+        const event = item.event_data;
+        
+        // Check if artist is followed
+        if (event.artist_name && followedArtists.includes(event.artist_name)) {
+          return true;
+        }
+        
+        // Check if venue is followed
+        if (event.venue_name) {
+          return followedVenues.some(venue => 
+            venue.name === event.venue_name &&
+            (!venue.city || venue.city === event.venue_city) &&
+            (!venue.state || venue.state === event.venue_state)
+          );
+        }
+        
+        return false;
+      });
+
+      return [...filteredEvents, ...nonEventItems];
+    }
+
+    // No filters or only DB-level filters (already applied)
+    return filtered;
+  }, [feedItems, filters.filterByFollowing, followedArtists, followedVenues]);
+
+  // Handle refresh button - reload top personalized events
+  const handleRefresh = async () => {
+    try {
+      setLoading(true);
+      // Reset refresh offset to 0 to reload top personalized results
+      // This ensures we get the best personalized events (not rotated through offsets)
+      setRefreshOffset(0);
+      
+      // Reload from offset 0 with isRefresh flag
+      await loadFeedData(0, true);
+      
+      toast({
+        title: "Feed Refreshed",
+        description: "Loaded fresh personalized events for you",
+      });
+    } catch (error) {
+      console.error('Error refreshing feed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh feed",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Sync pending filters when actual filters change (e.g., from clear all)
+  useEffect(() => {
+    setPendingFilters(filters);
+  }, [filters]);
+  
+  // Apply filters button handler - applies pending filters and triggers feed refresh
+  const handleApplyFilters = () => {
+    console.log('✅ Applying filters:', pendingFilters);
+    setFilters(pendingFilters);
+    setRefreshOffset(0);
+    
+    // Check if any filters are active
+    const hasActiveFilters = 
+      (pendingFilters.genres && pendingFilters.genres.length > 0) ||
+      (pendingFilters.selectedCities && pendingFilters.selectedCities.length > 0) ||
+      pendingFilters.dateRange.from || pendingFilters.dateRange.to ||
+      (pendingFilters.daysOfWeek && pendingFilters.daysOfWeek.length > 0) ||
+      pendingFilters.filterByFollowing === 'following';
+    
+    if (hasActiveFilters && currentUserId) {
+      console.log('🔄 Filters applied, regenerating personalized feed...');
+      loadFeedData(0, false); // Load fresh feed with new filters
+    } else if (currentUserId) {
+      // No filters - load regular feed
+      console.log('🔄 Clearing filters, loading regular feed...');
+      loadFeedData(0, false);
+    }
+  };
+
   // Extract numeric price from price_range string
   const extractPrice = (item: UnifiedFeedItem): number => {
     if (item.type === 'event' && item.event_data?.price_range) {
@@ -955,9 +1192,9 @@ export const UnifiedFeed = ({
 
   // Get filtered and sorted feed items
   const processedFeedItems = useMemo(() => {
-    const filtered = filterFeedItems(feedItems);
-    return sortFeedItems(filtered);
-  }, [feedItems, filterByFollowing, followedArtists, followedVenues, sortBy, sortOrder]);
+    // filteredFeedItems already includes all filtering logic (genres, cities, dates, days, following)
+    return sortFeedItems(filteredFeedItems);
+  }, [filteredFeedItems, sortBy, sortOrder]);
 
   // 🎯 TRACKING: Event impression tracking with IntersectionObserver
   const eventItems = useMemo(() => 
@@ -1123,13 +1360,53 @@ export const UnifiedFeed = ({
             </TabsTrigger>
           </TabsList>
 
+          {/* Filters and Refresh Button - Only show on Events tab */}
+          {activeTab === 'events' && (
+            <div className="mb-6 flex items-center gap-3">
+            <EventFilters
+              filters={pendingFilters}
+              onFiltersChange={setPendingFilters}
+              availableGenres={availableGenres}
+              availableCities={availableCities}
+              onOverlayChange={(open) => setPendingFilters(prev => ({ ...prev, showFilters: open }))}
+            />
+            <Button
+              onClick={handleApplyFilters}
+              className="bg-synth-pink hover:bg-synth-pink-dark text-white shadow-lg"
+              size="sm"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Apply Filters
+            </Button>
+              <Button
+                onClick={handleRefresh}
+                disabled={loading}
+                variant="outline"
+                size="sm"
+                className="bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Refreshing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
           <TabsContent
             value="events"
             className="space-y-4"
           >
 
             {/* Events Feed Items */}
-        <div className="space-y-4">
+            <div className="space-y-4">
               {processedFeedItems
                 .filter(item => item.type === 'event')
                 .map((item, index) => (
@@ -1236,15 +1513,37 @@ export const UnifiedFeed = ({
                             <Calendar className="w-4 h-4 text-synth-pink" />
                             <span>{format(parseISO(item.event_data.event_date), 'EEEE, MMMM d, yyyy')}</span>
                           </div>
-                          {item.event_data.price_range && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-synth-pink">💰</span>
-                              <span>{formatPrice(item.event_data.price_range)}</span>
-                            </div>
-                          )}
-                      </div>
-                    )}
-                  </div>
+                          {(() => {
+                            const event = item.event_data as any;
+                            const priceRange = event?.price_range;
+                            const priceMin = event?.ticket_price_min ?? event?.price_min;
+                            const priceMax = event?.ticket_price_max ?? event?.price_max;
+                            
+                            // Show price if any price data exists
+                            if (priceRange || priceMin || priceMax) {
+                              let priceDisplay = '';
+                              if (priceRange) {
+                                priceDisplay = formatPrice(priceRange);
+                              } else if (priceMin && priceMax) {
+                                priceDisplay = `$${priceMin} - $${priceMax}`;
+                              } else if (priceMin) {
+                                priceDisplay = `$${priceMin}+`;
+                              } else if (priceMax) {
+                                priceDisplay = `Up to $${priceMax}`;
+                              }
+                              
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <Ticket className="w-4 h-4 text-synth-pink" />
+                                  <span className="font-medium">{priceDisplay}</span>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      )}
+                    </div>
 
                     <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                       <div className="flex items-center gap-4">

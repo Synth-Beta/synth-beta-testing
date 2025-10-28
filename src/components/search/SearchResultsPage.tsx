@@ -86,7 +86,8 @@ export function SearchResultsPage({ searchQuery, searchType, onBack, userId, onA
 
   const searchArtists = async (query: string, limit: number = 50): Promise<ArtistSearchResult[]> => {
     try {
-      return await UnifiedArtistSearchService.searchArtists(query, limit);
+      // Search results page: explicit search - call API for new results
+      return await UnifiedArtistSearchService.searchArtists(query, limit, true);
     } catch (error) {
       console.error('Error searching artists:', error);
       return [];

@@ -68,8 +68,8 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
     try {
       console.log(`🔍 CompactSearchBar: Searching for "${searchQuery}"`);
       
-      // Search all content types
-      const results = await UnifiedArtistSearchService.searchAllContent(searchQuery, 20);
+      // Search all content types - useApi=false for suggestions (local DB only)
+      const results = await UnifiedArtistSearchService.searchAllContent(searchQuery, 20, false);
       
       console.log(`📊 CompactSearchBar: Received results:`, {
         artists: results.artists.length,
@@ -110,7 +110,8 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
 
   const searchArtists = async (searchQuery: string, limit: number): Promise<ArtistSearchResult[]> => {
     try {
-      return await UnifiedArtistSearchService.searchArtists(searchQuery, limit);
+      // Local DB only for suggestions - no API calls
+      return await UnifiedArtistSearchService.searchArtists(searchQuery, limit, false);
     } catch (error) {
       console.error('Error searching artists:', error);
       return [];
@@ -143,9 +144,18 @@ export const CompactSearchBar: React.FC<CompactSearchBarProps> = ({
     }
   };
 
-  const handleSearch = (searchType: 'artists' | 'events' | 'all' = 'all') => {
+  const handleSearch = async (searchType: 'artists' | 'events' | 'all' = 'all') => {
     if (query.trim()) {
-      onSearch(query.trim(), searchType);
+      // Explicit search click - call API for new results
+      try {
+        await UnifiedArtistSearchService.searchArtists(query.trim(), 20, true);
+        // API search complete, trigger the search callback
+        onSearch(query.trim(), searchType);
+      } catch (error) {
+        console.error('Error in explicit search:', error);
+        // Still trigger search even if API fails
+        onSearch(query.trim(), searchType);
+      }
       setShowSuggestions(false);
     }
   };

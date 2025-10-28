@@ -86,75 +86,63 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
   const loadCities = async () => {
     setIsLoadingCities(true);
     try {
-      // Get all events with city data
-      const { data: eventsData, error: eventsError } = await supabase
-        .from('jambase_events')
-        .select('venue_city, venue_state, artist_name, artist_id')
-        .not('venue_city', 'is', null)
-        .gte('event_date', new Date().toISOString());
-
-      if (eventsError) throw eventsError;
-
-      // Process city data with normalization and deduplication
-      const cityMap = new Map<string, { state: string; events: Set<string>; originalNames: Set<string> }>();
-      
-      (eventsData || []).forEach(event => {
-        const originalCity = event.venue_city?.trim();
-        const state = event.venue_state?.trim() || '';
-        const eventId = `${event.venue_city}-${event.artist_name}-${event.artist_id}`;
-
-        if (originalCity) {
-          const normalizedCity = normalizeCityName(originalCity);
-          
-          // Use normalized city as key to group all variations
-          if (!cityMap.has(normalizedCity)) {
-            cityMap.set(normalizedCity, { 
-              state, 
-              events: new Set(), 
-              originalNames: new Set() 
-            });
-          }
-          
-          const cityData = cityMap.get(normalizedCity)!;
-          cityData.events.add(eventId);
-          cityData.originalNames.add(originalCity);
-        }
+      // Use the database function to get available cities (already normalized)
+      const { data: citiesData, error } = await supabase.rpc('get_available_cities_for_filter', {
+        min_event_count: 1,
+        limit_count: 500
       });
 
-      // Convert to array with canonical names and sort by event count
-      const citiesArray: CityData[] = Array.from(cityMap.entries())
-        .map(([normalizedCity, data]) => {
-          const canonicalName = getCanonicalCityName(Array.from(data.originalNames));
-          return {
-            city: canonicalName,
-            state: data.state,
-            eventCount: data.events.size
-          };
-        })
-        .sort((a, b) => b.eventCount - a.eventCount);
+      if (error) {
+        console.warn('Error loading cities from database function, falling back to direct query:', error);
+        // Fallback to direct query using display_city
+        const { data: eventsData, error: eventsError } = await supabase
+          .from('jambase_events')
+          .select('display_city, venue_state')
+          .not('display_city', 'is', null)
+          .gte('event_date', new Date().toISOString());
 
-      // Remove duplicates based on canonical names (in case different normalized forms produce same canonical name)
-      const uniqueCities = new Map<string, CityData>();
-      citiesArray.forEach(cityData => {
-        const key = `${cityData.city}-${cityData.state}`;
-        if (!uniqueCities.has(key)) {
-          uniqueCities.set(key, cityData);
-        } else {
-          // If duplicate, keep the one with more events
-          const existing = uniqueCities.get(key)!;
-          if (cityData.eventCount > existing.eventCount) {
-            uniqueCities.set(key, cityData);
+        if (eventsError) throw eventsError;
+
+        // Group by display_city and state
+        const cityMap = new Map<string, { state: string; count: number }>();
+        
+        (eventsData || []).forEach((event: any) => {
+          const city = event.display_city?.trim();
+          const state = event.venue_state?.trim() || '';
+          const key = `${city}|${state}`;
+          
+          if (city) {
+            if (!cityMap.has(key)) {
+              cityMap.set(key, { state, count: 0 });
+            }
+            cityMap.get(key)!.count++;
           }
-        }
-      });
+        });
 
-      const finalCities = Array.from(uniqueCities.values());
-      // Processed cities
-      
-      setCitiesData(finalCities);
+        const finalCities: CityData[] = Array.from(cityMap.entries())
+          .map(([key, data]) => {
+            const city = key.split('|')[0];
+            return {
+              city,
+              state: data.state,
+              eventCount: data.count
+            };
+          })
+          .sort((a, b) => b.eventCount - a.eventCount);
+
+        setCitiesData(finalCities);
+      } else {
+        // Use data from database function
+        const finalCities: CityData[] = (citiesData || []).map((row: any) => ({
+          city: row.city_name,
+          state: row.state || '',
+          eventCount: Number(row.event_count)
+        }));
+        setCitiesData(finalCities);
+      }
 
     } catch (error) {
-      // Error loading cities
+      console.error('Error loading cities:', error);
       setCitiesData([]);
     } finally {
       setIsLoadingCities(false);

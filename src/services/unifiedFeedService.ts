@@ -61,6 +61,13 @@ export interface FeedOptions {
   includePrivateReviews?: boolean;
   maxDistanceMiles?: number;
   feedType?: 'all' | 'friends' | 'friends_plus_one' | 'public_only';
+  filters?: {
+    genres?: string[];
+    selectedCities?: string[];
+    dateRange?: { from?: Date; to?: Date };
+    daysOfWeek?: number[];
+    filterByFollowing?: 'all' | 'following';
+  };
 }
 
 export class UnifiedFeedService {
@@ -68,7 +75,7 @@ export class UnifiedFeedService {
    * Fetch all feed items in unified format
    */
   static async getFeedItems(options: FeedOptions): Promise<UnifiedFeedItem[]> {
-    const { userId, limit = 50, offset = 0, userLocation, includePrivateReviews = true, feedType = 'all' } = options;
+    const { userId, limit = 50, offset = 0, userLocation, includePrivateReviews = true, feedType = 'all', filters } = options;
     
     try {
       // Handle different feed types
@@ -96,7 +103,7 @@ export class UnifiedFeedService {
    * Get unified feed with all content types
    */
   private static async getUnifiedFeed(options: FeedOptions): Promise<UnifiedFeedItem[]> {
-    const { userId, limit = 50, offset = 0, userLocation, includePrivateReviews = true } = options;
+    const { userId, limit = 50, offset = 0, userLocation, includePrivateReviews = true, filters } = options;
     
     try {
       const feedItems: UnifiedFeedItem[] = [];
@@ -112,7 +119,7 @@ export class UnifiedFeedService {
       feedItems.push(...publicReviews);
       
       // Fetch recent events (as "news" items) - NOW PERSONALIZED!
-      const recentEvents = await this.getRecentEvents(userLocation, 20, userId);
+      const recentEvents = await this.getRecentEvents(userLocation, 20, userId, offset, filters);
       feedItems.push(...recentEvents);
       
       // Fetch friend activity
@@ -258,7 +265,13 @@ export class UnifiedFeedService {
   /**
    * Get recent events as feed items - NOW WITH PERSONALIZATION
    */
-  private static async getRecentEvents(userLocation?: { lat: number; lng: number }, limit: number = 20, userId?: string): Promise<UnifiedFeedItem[]> {
+  private static async getRecentEvents(
+    userLocation?: { lat: number; lng: number }, 
+    limit: number = 20, 
+    userId?: string,
+    offset: number = 0,
+    filters?: FeedOptions['filters']
+  ): Promise<UnifiedFeedItem[]> {
     try {
       // Try personalized feed first if userId provided
       if (userId) {
@@ -268,8 +281,9 @@ export class UnifiedFeedService {
           const personalizedEvents = await PersonalizedFeedService.getPersonalizedFeed(
             userId,
             limit,
-            0,
-            false // Only upcoming events
+            offset,
+            false, // Only upcoming events
+            filters // Pass filters to generate new personalized feed
           );
           
           if (personalizedEvents.length > 0) {
@@ -298,18 +312,38 @@ export class UnifiedFeedService {
         .gte('event_date', new Date().toISOString())
         .order('event_date', { ascending: true });
       
-      // If user location is provided, prioritize nearby events
+      // Always fetch more than needed to ensure we get at least the limit
+      const fetchLimit = Math.max(limit * 2, 40); // Fetch at least 40 or double the limit
+      
       if (userLocation) {
-        query = query.limit(limit * 2);
+        query = query.limit(fetchLimit);
       } else {
-        query = query.limit(limit);
+        query = query.limit(fetchLimit);
       }
       
-      const { data: events, error } = await query;
+      const { data: initialEvents, error } = await query;
       
       if (error) throw error;
       
-      let eventItems = (events || []).map(event => {
+      // Ensure we have at least the requested limit
+      let finalEvents = initialEvents || [];
+      if (finalEvents.length < limit && offset === 0) {
+        console.log(`⚠️ Standard feed: Only got ${finalEvents.length} events, fetching more to reach ${limit}...`);
+        // Try fetching even more
+        const { data: moreEvents } = await supabase
+          .from('jambase_events')
+          .select('*')
+          .gte('event_date', new Date().toISOString())
+          .order('event_date', { ascending: true })
+          .limit(limit * 3);
+        
+        if (moreEvents && moreEvents.length > finalEvents.length) {
+          finalEvents = moreEvents;
+          console.log(`✅ Standard feed: Got ${finalEvents.length} events from expanded query`);
+        }
+      }
+      
+      let eventItems = (finalEvents || []).map(event => {
         const item: UnifiedFeedItem = {
           id: `event-${event.id}`,
           type: 'event' as const,
@@ -341,7 +375,7 @@ export class UnifiedFeedService {
             longitude: event.longitude ? Number(event.longitude) : undefined,
             ticket_available: event.ticket_available,
             price_range: event.price_range,
-            ticket_urls: event.ticket_urls,
+            ticket_urls: event.ticket_urls || (event.ticket_url ? [event.ticket_url] : []),
             setlist: event.setlist,
             setlist_enriched: event.setlist_enriched,
             setlist_song_count: event.setlist_song_count,
@@ -349,8 +383,14 @@ export class UnifiedFeedService {
             setlist_fm_url: event.setlist_fm_url,
             tour_name: event.tour_name,
             created_at: event.created_at,
-            updated_at: event.updated_at
-          },
+            updated_at: event.updated_at,
+            // Add price fields as any to avoid type errors
+            ...(event.price_min && { ticket_price_min: event.price_min }),
+            ...(event.price_max && { ticket_price_max: event.price_max }),
+            ...(event.ticket_url && { ticket_url: event.ticket_url }),
+            ...(event.price_min && { price_min: event.price_min }),
+            ...(event.price_max && { price_max: event.price_max }),
+          } as any,
           event_info: {
             event_name: event.title,
             venue_name: event.venue_name,
@@ -398,6 +438,16 @@ export class UnifiedFeedService {
    * Transform PersonalizedEvent to UnifiedFeedItem
    */
   private static transformPersonalizedEventToFeedItem(event: PersonalizedEvent, userLocation?: { lat: number; lng: number }): UnifiedFeedItem {
+    // Preserve all properties including ticket_price_min/max and ticket_url
+    // PersonalizedEvent extends JamBaseEvent which has all required properties
+    const eventData = {
+      ...(event as any),
+      // Ensure ticket_price fields and ticket_url are explicitly included
+      ticket_price_min: (event as any).ticket_price_min ?? null,
+      ticket_price_max: (event as any).ticket_price_max ?? null,
+      ticket_url: (event as any).ticket_url ?? null,
+    } as JamBaseEventResponse;
+    
     const item: UnifiedFeedItem = {
       id: `event-${(event as any).id}`,
       type: 'event' as const,
@@ -409,7 +459,7 @@ export class UnifiedFeedService {
         avatar_url: undefined
       },
       created_at: (event as any).created_at,
-      event_data: event as JamBaseEventResponse,
+      event_data: eventData,
       event_info: {
         event_name: (event as any).title,
         venue_name: (event as any).venue_name,

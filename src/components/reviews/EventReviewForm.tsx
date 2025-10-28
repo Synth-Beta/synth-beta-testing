@@ -86,6 +86,12 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         return;
       }
       
+      // Validate eventDate format
+      if (formData.eventDate.trim() === '') {
+        console.log('🚫 Not creating event: Empty event date');
+        return;
+      }
+      
       // Don't create if we already have a valid event ID
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (uuidRegex.test(actualEventId)) {
@@ -97,6 +103,12 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       
       try {
         const eventDateTime = new Date(formData.eventDate + 'T20:00:00Z');
+        
+        // Validate that the date is actually valid
+        if (isNaN(eventDateTime.getTime())) {
+          console.error('❌ Invalid date format:', formData.eventDate);
+          throw new Error(`Invalid event date format: ${formData.eventDate}`);
+        }
         const insertPayload: any = {
           title: `${formData.selectedArtist.name} at ${formData.selectedVenue.name}`,
           artist_name: formData.selectedArtist.name,
@@ -462,11 +474,11 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           artistProfileId = byId.data[0].id;
           console.log('🔍 EventReviewForm: Found existing artist in DB:', artistProfileId);
         } else {
-          console.log('🔍 EventReviewForm: Artist not found in DB, searching...');
-          // Populate cache via search (this populates DB), then re-select
+          console.log('🔍 EventReviewForm: Artist not found in DB, searching local DB only...');
+          // Review form: local DB search only, no API calls
           try {
             const { UnifiedArtistSearchService } = await import('@/services/unifiedArtistSearchService');
-            await UnifiedArtistSearchService.searchArtists(artistCandidate?.name || '');
+            await UnifiedArtistSearchService.searchArtists(artistCandidate?.name || '', 20, false);
             const reSel = await (supabase as any)
               .from('artists')
               .select('id')
@@ -531,9 +543,51 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     // We need to create a new event if it's a new event OR if the artist/venue has changed
     const needsNewEvent = isNewEvent || artistChanged || venueChanged;
     
+    // If event already exists and doesn't need recreation, verify and potentially update its date
+    if (looksLikeUuid && !event?.id?.startsWith('new-review') && !needsNewEvent) {
+      if (formData.eventDate && formData.eventDate.trim() !== '') {
+        try {
+          const eventDateTime = new Date(formData.eventDate + 'T20:00:00Z');
+          if (!isNaN(eventDateTime.getTime())) {
+            const { data: existingEvent } = await (supabase as any)
+              .from('jambase_events')
+              .select('event_date')
+              .eq('id', eventId)
+              .single();
+            
+            if (existingEvent) {
+              const existingDate = new Date(existingEvent.event_date);
+              const expectedDate = eventDateTime;
+              const daysDiff = Math.abs((expectedDate.getTime() - existingDate.getTime()) / (1000 * 60 * 60 * 24));
+              if (daysDiff > 1) {
+                console.log('🔧 Updating event date from', existingDate, 'to', expectedDate);
+                await (supabase as any)
+                  .from('jambase_events')
+                  .update({ event_date: eventDateTime.toISOString() })
+                  .eq('id', eventId);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error updating event date:', error);
+        }
+      }
+    }
+    
     if (needsNewEvent) {
       try {
+        // Validate eventDate before creating Date object
+        if (!formData.eventDate || formData.eventDate.trim() === '') {
+          throw new Error('Event date is required');
+        }
+        
         const eventDateTime = new Date(formData.eventDate + 'T20:00:00Z');
+        
+        // Validate that the date is actually valid
+        if (isNaN(eventDateTime.getTime())) {
+          throw new Error(`Invalid event date: ${formData.eventDate}`);
+        }
+        
         // Attempt insert; if it fails due to schema, degrade to minimal payload
         let insertPayload: any = {
           title: `${formData.selectedArtist?.name || 'Concert'} at ${formData.selectedVenue?.name || 'Venue'}`,

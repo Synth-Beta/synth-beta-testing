@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,13 +20,16 @@ import {
   ExternalLink,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { JamBaseEventsService, JamBaseEventResponse, JamBaseEvent } from '@/services/jambaseEventsService';
 import { LocationService } from '@/services/locationService';
+import { TicketmasterPopulationService } from '@/services/ticketmasterPopulationService';
 import { formatPrice, extractNumericPrice } from '@/utils/currencyUtils';
+import { formatVenueName, formatVenueLocation, formatVenueAddress } from '@/utils/venueUtils';
 
 // Import our new components
 import { CompactSearchBar } from './CompactSearchBar';
@@ -35,7 +38,7 @@ import { EventFilters, FilterState } from './EventFilters';
 import { EventCalendarView } from './EventCalendarView';
 import { ArtistFollowService } from '@/services/artistFollowService';
 import { VenueFollowService } from '@/services/venueFollowService';
-import { EventMap } from '../EventMap';
+import { EventMap } from '../events/EventMap';
 import { EventDetailsModal } from '../events/EventDetailsModal';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -72,11 +75,16 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | undefined>();
   const [mapCenter, setMapCenter] = useState<[number, number]>([39.8283, -98.5795]);
   const [mapZoom, setMapZoom] = useState(4);
+  const [initialMapCenter, setInitialMapCenter] = useState<[number, number] | null>(null);
+  const [isSearchingArea, setIsSearchingArea] = useState(false);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
   const [selectedVenue, setSelectedVenue] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'price' | 'popularity' | 'distance' | 'relevance'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  
+  // Session tracking for location-based API calls (only once per session)
+  const locationApiCalledRef = useRef<boolean>(false);
   
   const [filters, setFilters] = useState<FilterState>({
     genres: [],
@@ -264,18 +272,26 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   const initializeLocationAndEvents = async () => {
     setIsLoading(true);
     try {
-      // Try to get user's location
+      // Try to get user's location (but don't auto-populate events)
+      let userLocationCoords = null;
       try {
         const location = await LocationService.getCurrentLocation();
+        userLocationCoords = location;
+        const mapCenterCoords: [number, number] = [location.latitude, location.longitude];
         setUserLocation({ lat: location.latitude, lng: location.longitude });
-        setMapCenter([location.latitude, location.longitude]);
+        setMapCenter(mapCenterCoords);
+        setInitialMapCenter(mapCenterCoords); // Store initial center for comparison
         setMapZoom(10);
+        // DON'T auto-populate - only search when user searches
       } catch (error) {
-        // Could not get user location
+        console.error('Could not get user location:', error);
+        // Set initial map center to default if location denied
+        setInitialMapCenter([39.8283, -98.5795]);
       }
 
       // Load events and cities from database
-      await loadEvents();
+      // Pass userLocationCoords directly to avoid async state issue
+      await loadEvents(userLocationCoords);
       await loadCities();
       await loadInterestedEvents();
       await loadFollowedData();
@@ -291,18 +307,160 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     }
   };
 
-  const loadEvents = async () => {
+  const loadEvents = async (providedLocation?: { latitude: number; longitude: number } | null, forceApiCall: boolean = false) => {
     try {
-      // Load ONLY upcoming events (today and future)
+      // API PROTECTION: Only call Ticketmaster API once per session for location-based search
+      // Unless forceApiCall=true (user explicitly triggered "search all events in this area")
+      const shouldCallApi = forceApiCall || (!locationApiCalledRef.current && providedLocation);
+      
+      if (providedLocation && shouldCallApi) {
+        console.log('🔍 Searching Ticketmaster API for events near user location:', providedLocation);
+        if (!forceApiCall) {
+          console.log('   (First location search of session - API call allowed)');
+        } else {
+          console.log('   (User explicitly requested search - API call allowed)');
+        }
+        
+        // Mark that we've called the API this session
+        locationApiCalledRef.current = true;
+        
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        const queryParams = new URLSearchParams();
+        queryParams.append('latlong', `${providedLocation.latitude},${providedLocation.longitude}`);
+        queryParams.append('radius', '50');
+        queryParams.append('unit', 'miles');
+        queryParams.append('size', '200');
+        queryParams.append('sort', 'date,asc');
+        queryParams.append('classificationName', 'music');
+        queryParams.append('startDateTime', new Date().toISOString().split('.')[0] + 'Z');
+        // API key is handled by backend, don't pass it here
+        
+        const fullUrl = `${backendUrl}/api/ticketmaster/events?${queryParams.toString()}`;
+        console.log(`🔵 Calling backend: ${fullUrl}`);
+        console.log(`🔵 Query params:`, {
+          latlong: `${providedLocation.latitude},${providedLocation.longitude}`,
+          radius: '50',
+          unit: 'miles',
+          size: '200',
+          classificationName: 'music'
+        });
+        
+        try {
+          const response = await fetch(fullUrl);
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`✅ Found ${data.events?.length || 0} events from Ticketmaster API`);
+            console.log(`🔵 Full response:`, data);
+            console.log(`🔵 BACKEND DEBUG INFO:`, data.debug);
+            if (data.debug) {
+              console.log(`  - Total events from Ticketmaster: ${data.debug.totalEventsReceived}`);
+              console.log(`  - Future events: ${data.debug.futureEvents}`);
+              console.log(`  - Location filtered: ${data.debug.locationFilteredEvents}`);
+              console.log(`  - Events stored: ${data.debug.eventsStored}`);
+              console.log(`  - geoPoint: ${data.debug.geoPoint}`);
+              console.log(`  - countryCode: ${data.debug.countryCode}`);
+            }
+            console.log(`✅ Events stored in database. Now querying...`);
+            // Wait a moment for database to commit
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else {
+            const errorText = await response.text();
+            console.error('⚠️ Ticketmaster API error:', response.status, errorText);
+          }
+        } catch (apiError) {
+          console.error('⚠️ Ticketmaster API search failed:', apiError);
+          // Continue with database query anyway
+        }
+      } else if (providedLocation && !shouldCallApi) {
+        console.log('🔒 Location API call skipped (already called this session). Using database only.');
+      }
+      
+      // Load ONLY upcoming events (today and future) from database
       const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
-      const { data: eventsData, error } = await supabase
+      let query = supabase
         .from('jambase_events')
         .select('*')
-        .gte('event_date', today) // Only events from today onwards
-        .order('event_date', { ascending: true });
+        .eq('source', 'ticketmaster') // ONLY TICKETMASTER EVENTS
+        .gte('event_date', today); // Only events from today onwards
+      
+      // Use provided location or state location
+      const locationToUse = providedLocation 
+        ? { lat: providedLocation.latitude, lng: providedLocation.longitude }
+        : userLocation;
+      
+      // If user location is available, filter by nearby events (50 mile radius)
+      if (locationToUse) {
+        console.log('🔍 Filtering events by user location:', locationToUse);
+        const latRange = 50 / 69; // Approximate miles per degree latitude
+        const lngRange = 50 / (69 * Math.cos(locationToUse.lat * Math.PI / 180));
+        
+        console.log(`📍 Lat range: ${locationToUse.lat - latRange} to ${locationToUse.lat + latRange}`);
+        console.log(`📍 Lng range: ${locationToUse.lng - lngRange} to ${locationToUse.lng + lngRange}`);
+        
+        // First, let's check what Ticketmaster events are actually in the database near Amsterdam
+        const debugQuery = supabase
+          .from('jambase_events')
+          .select('title, venue_city, latitude, longitude, source, created_at')
+          .eq('source', 'ticketmaster')
+          .gte('event_date', today)
+          .not('latitude', 'is', null)
+          .order('created_at', { ascending: false }) // Get most recent first
+          .limit(10);
+        
+        const { data: debugData } = await debugQuery;
+        console.log('🔍 Recent Ticketmaster events in DB:', debugData);
+        if (debugData) {
+          debugData.forEach((event, i) => {
+            const distance = locationToUse ? (
+              // Calculate distance from Amsterdam
+              (() => {
+                const R = 3959; // miles
+                const dLat = (Number(event.latitude) - locationToUse.lat) * Math.PI / 180;
+                const dLng = (Number(event.longitude) - locationToUse.lng) * Math.PI / 180;
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(locationToUse.lat * Math.PI / 180) * Math.cos(Number(event.latitude) * Math.PI / 180) *
+                  Math.sin(dLng / 2) * Math.sin(dLng / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return (R * c).toFixed(1);
+              })()
+            ) : 'N/A';
+            console.log(`  Event ${i + 1}: ${event.title} in ${event.venue_city} at (${event.latitude}, ${event.longitude}) [${distance} miles from Amsterdam]`);
+          });
+        }
+        
+        query = query
+          .gte('latitude', locationToUse.lat - latRange)
+          .lte('latitude', locationToUse.lat + latRange)
+          .gte('longitude', locationToUse.lng - lngRange)
+          .lte('longitude', locationToUse.lng + lngRange)
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null);
+      }
+      
+      const { data: eventsData, error } = await query
+        .order('event_date', { ascending: true })
+        .limit(500); // Limit to 500 events
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error querying events:', error);
+        throw error;
+      }
+      
+      console.log(`📊 Query returned ${eventsData?.length || 0} events`);
 
+      // Log first event to verify data structure
+      if (eventsData && eventsData.length > 0) {
+        console.log('📋 Sample event from DB:', {
+          title: eventsData[0].title,
+          city: eventsData[0].venue_city,
+          latitude: eventsData[0].latitude,
+          longitude: eventsData[0].longitude,
+          source: eventsData[0].source
+        });
+      } else {
+        console.warn('⚠️ No events returned from database query');
+      }
+      
       const transformedEvents: JamBaseEventResponse[] = (eventsData || []).map(event => ({
         id: event.id,
         jambase_event_id: event.jambase_event_id,
@@ -331,7 +489,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         setlist_fm_url: event.setlist_fm_url,
         tour_name: event.tour_name,
         created_at: event.created_at,
-        updated_at: event.updated_at
+        updated_at: event.updated_at,
+        images: event.images || undefined // Include images array if available
       }));
 
       setEvents(transformedEvents);
@@ -438,6 +597,79 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
       filterEventsInBounds(bounds);
     }
   };
+
+  const handleMapCenterChange = (newCenter: [number, number]) => {
+    // Update map center when user pans/drags the map
+    setMapCenter(newCenter);
+  };
+
+  const handleSearchThisArea = async () => {
+    if (!mapCenter) return;
+    
+    setIsSearchingArea(true);
+    try {
+      const [lat, lng] = mapCenter;
+      console.log(`🔍 Searching for events at map center: (${lat}, ${lng}) with ${filters.radiusMiles} mile radius...`);
+      
+      // First, populate events from Ticketmaster API
+      try {
+        await TicketmasterPopulationService.populateEventsNearLocation({
+          latitude: lat,
+          longitude: lng,
+          radius: filters.radiusMiles,
+          limit: 200
+        });
+        // Wait a moment for database to commit
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error('⚠️ Failed to populate Ticketmaster events:', error);
+      }
+      
+      // Then fetch events from database near this location
+      const nearbyEvents = await LocationService.searchEventsByLocation({
+        latitude: lat,
+        longitude: lng,
+        radius: filters.radiusMiles,
+        limit: 200
+      });
+      
+      if (nearbyEvents.length > 0) {
+        setEvents(nearbyEvents);
+        // Update initial map center to current location so map doesn't reset
+        // and the button stays visible
+        setInitialMapCenter(mapCenter);
+        toast({
+          title: "Events Found",
+          description: `Found ${nearbyEvents.length} events within ${filters.radiusMiles} miles of this area`,
+        });
+        console.log(`✅ Found ${nearbyEvents.length} events in the selected area`);
+      } else {
+        setEvents([]);
+        // Update initial map center even when no events found
+        setInitialMapCenter(mapCenter);
+        toast({
+          title: "No Events Found",
+          description: `No events found within ${filters.radiusMiles} miles of this area. Try increasing the radius.`,
+          variant: "default",
+        });
+        console.log(`📭 No events found in the selected area`);
+      }
+    } catch (error) {
+      console.error('Error searching area:', error);
+      toast({
+        title: "Search Failed",
+        description: "Failed to search this area. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearchingArea(false);
+    }
+  };
+
+  // Check if map center has moved from initial location
+  const hasMapMoved = initialMapCenter && mapCenter && 
+    (Math.abs(initialMapCenter[0] - mapCenter[0]) > 0.001 || 
+     Math.abs(initialMapCenter[1] - mapCenter[1]) > 0.001);
 
   const filterEventsInBounds = (bounds: { north: number; south: number; east: number; west: number }) => {
     // Filtering events in bounds
@@ -633,35 +865,36 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     }
     
     if (type === 'artists') {
-      // Fetch events for this artist from the database
+      // Search for events using unified search (both JamBase + Ticketmaster)
       try {
         setIsLoading(true);
         
         console.log('🔍 handleSearch for artist:', query);
         
-        // Fetch events for this artist from the database
-        const { data: artistEvents, error } = await supabase
-          .from('jambase_events')
-          .select('*')
-          .ilike('artist_name', query)
-          .order('event_date', { ascending: true });
+        // Import unified search service
+        const { UnifiedEventSearchService } = await import('@/services/unifiedEventSearchService');
         
-        if (error) {
-          console.error('Error fetching artist events:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load artist events",
-          });
-          return;
-        }
+        // Search both APIs for this artist
+        const searchResults = await UnifiedEventSearchService.searchEvents({
+          artistName: query,
+          limit: 50
+        });
         
-        console.log('🎯 Fetched artist events from DB:', artistEvents?.length || 0, 'events');
-        console.log('🎯 Artist events:', artistEvents?.map(e => ({ title: e.title, artist: e.artist_name })));
+        const artistEvents = searchResults.events;
+        
+        console.log('🎯 Fetched artist events:', artistEvents?.length || 0, 'events');
+        console.log('🎯 Artist events:', artistEvents?.map(e => ({ 
+          title: e.title, 
+          artist: e.artist_name,
+          source: e.source 
+        })));
+        console.log('🎯 Sources:', searchResults.sources);
         
         // Convert to the format expected by the component
         const formattedEvents = artistEvents?.map(event => ({
-          id: event.id,
-          jambase_event_id: event.id,
+          id: event.id || event.jambase_event_id || event.ticketmaster_event_id,
+          jambase_event_id: event.jambase_event_id,
+          ticketmaster_event_id: event.ticketmaster_event_id,
           title: event.title || event.artist_name,
           artist_name: event.artist_name,
           artist_id: event.artist_id,
@@ -680,8 +913,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           ticket_available: event.ticket_available,
           price_range: event.price_range,
           ticket_urls: event.ticket_urls || [],
-          created_at: event.created_at || new Date().toISOString(),
-          updated_at: event.updated_at || new Date().toISOString()
+          external_url: (event as any).external_url,
+          source: (event as any).source // Keep source for internal tracking only (not shown in UI)
         })) || [];
         
         setFilteredEvents(formattedEvents);
@@ -1061,11 +1294,30 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                           zoom={mapZoom}
                           events={filteredEvents}
                           onEventClick={handleEventClick}
-                          onMapMove={handleMapMove}
-                          showRadius={filters.selectedCities && filters.selectedCities.length > 0}
-                          radiusMiles={filters.radiusMiles}
-                          onVenueClick={handleVenueClick}
+                          onMapCenterChange={handleMapCenterChange}
                         />
+                        {/* Search This Area button - shows when map has been moved */}
+                        {hasMapMoved && (
+                          <div className="absolute top-2 right-2 z-[1000]">
+                            <Button
+                              onClick={handleSearchThisArea}
+                              disabled={isSearchingArea}
+                              className="bg-pink-500 hover:bg-pink-600 text-white shadow-lg"
+                            >
+                              {isSearchingArea ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                  Searching...
+                                </>
+                              ) : (
+                                <>
+                                  <Search className="w-4 h-4 mr-2" />
+                                  Search This Area
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -1152,17 +1404,42 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                   <CardContent>
                     <ScrollArea className="h-96 synth-scrollbar">
                       <div className="space-y-4">
-                        {sortedEvents.map((event) => (
+                        {sortedEvents.map((event) => {
+                          // Extract event image if available
+                          const eventImage = (event as any).images && Array.isArray((event as any).images) && (event as any).images.length > 0
+                            ? ((event as any).images as any[]).find((img: any) => 
+                                img.url && (img.ratio === '16_9' || (img.width && img.width > 1000))
+                              ) || ((event as any).images as any[]).find((img: any) => img.url)
+                            : null;
+                          const imageUrl = eventImage?.url || null;
+                          
+                          return (
                           <div
                             key={event.id}
-                            className="glass-card inner-glow p-4 rounded-2xl hover-card cursor-pointer floating-shadow"
+                            className="glass-card inner-glow rounded-2xl hover-card cursor-pointer floating-shadow overflow-hidden"
                             onClick={() => handleEventClick(event)}
                           >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-lg mb-2 line-clamp-1 text-gray-800">
-                                  {event.title || event.artist_name}
-                                </h3>
+                            {/* Event Image */}
+                            {imageUrl && (
+                              <div className="h-40 w-full overflow-hidden">
+                                <img 
+                                  src={imageUrl} 
+                                  alt={event.title} 
+                                  className="w-full h-full object-cover" 
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    // Hide image on error
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <div className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-bold text-lg mb-2 line-clamp-1 text-gray-800">
+                                    {event.title || event.artist_name}
+                                  </h3>
                                 {event.artist_name && event.artist_name !== event.title && (
                                   <p className="text-gray-500 mb-3 flex items-center gap-2">
                                     <Music className="h-4 w-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
@@ -1184,13 +1461,15 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                                       })()}
                                     </span>
                                   </div>
-                                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                                    <MapPin className="h-4 w-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                                    <span className="bg-white/30 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-medium">
-                                      {event.venue_name}
-                                      {event.venue_city && `, ${event.venue_city}`}
-                                    </span>
-                                  </div>
+                                  {formatVenueName(event.venue_name) && (
+                                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                                      <MapPin className="h-4 w-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                                      <span className="bg-white/30 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-medium">
+                                        {formatVenueName(event.venue_name)}
+                                        {formatVenueLocation(event.venue_city, event.venue_state) && `, ${formatVenueLocation(event.venue_city, event.venue_state)}`}
+                                      </span>
+                                    </div>
+                                  )}
                                   {event.doors_time && (
                                     <div className="flex items-center gap-2 text-sm text-gray-500">
                                       <Clock className="h-4 w-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
@@ -1316,8 +1595,10 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                                 </div>
                               </div>
                             </div>
+                            </div>
                           </div>
-                        ))}
+                          );
+                        })}
                         
                         {/* Empty state for date filtering */}
                         {selectedDate && dateFilteredEvents.length === 0 && (

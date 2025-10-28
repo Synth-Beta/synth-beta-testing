@@ -3,11 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { EventMap } from './EventMap';
+import { EventMap } from '@/components/events/EventMap';
 import { LocationService } from '@/services/locationService';
 import { JamBaseEventsService, JamBaseEventResponse } from '@/services/jambaseEventsService';
 import { JamBaseLocationService } from '@/services/jambaseLocationService';
 import { RadiusSearchService, EventWithDistance } from '@/services/radiusSearchService';
+import { calculateDistance } from '@/utils/distanceUtils';
+import { TicketmasterPopulationService } from '@/services/ticketmasterPopulationService';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   MapPin,
@@ -30,6 +32,8 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | undefined>();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [radiusMiles, setRadiusMiles] = useState(25);
+  const [initialMapCenter, setInitialMapCenter] = useState<[number, number] | null>(null);
+  const [isSearchingArea, setIsSearchingArea] = useState(false);
   const { toast } = useToast();
 
   // Initialize user location and load events
@@ -39,44 +43,89 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
     // Try to get user's location for better recommendations
     LocationService.getCurrentLocation()
       .then(async location => {
-        setUserLocation(location);
-        setMapCenter([location.latitude, location.longitude]);
+        const userCoords = { lat: location.latitude, lng: location.longitude };
+        const mapCenterCoords: [number, number] = [location.latitude, location.longitude];
+        setUserLocation(userCoords);
+        setMapCenter(mapCenterCoords);
+        setInitialMapCenter(mapCenterCoords); // Store initial center for comparison
         setMapZoom(10);
         
-        // Search for events near user's location using JamBase cities API
+        // First, populate new events from Ticketmaster
         try {
-          console.log('🔍 Auto-fetching events near user location via cities...');
-          const locationResult = await JamBaseLocationService.searchEventsViaCities(location, 100);
+          console.log('🎫 Populating new events from Ticketmaster...');
+          await TicketmasterPopulationService.populateEventsNearLocation({
+            latitude: location.latitude,
+            longitude: location.longitude,
+            radius: 50,
+            limit: 100
+          });
+        } catch (error) {
+          console.error('❌ Failed to populate Ticketmaster events:', error);
+        }
+        
+        // Load upcoming events near user's location (50 mile radius)
+        try {
+          console.log('🔍 Loading upcoming events near user location...');
           
-          if (locationResult.events.length > 0) {
-            setUpcomingEvents(locationResult.events);
-            toast({
-              title: "Events Found Near You",
-              description: `Found ${locationResult.events.length} events near your location (${locationResult.source})`,
+          // Use LocationService to get events within 50 miles
+          const nearbyEvents = await LocationService.searchEventsByLocation({
+            latitude: location.latitude,
+            longitude: location.longitude,
+            radius: 50,
+            limit: 100
+          });
+          
+          if (nearbyEvents.length > 0) {
+            // Add distance calculations to events
+            const eventsWithDistance: EventWithDistance[] = nearbyEvents.map(event => ({
+              ...event,
+              distance_miles: event.latitude && event.longitude 
+                ? calculateDistance(
+                    location.latitude, 
+                    location.longitude, 
+                    Number(event.latitude), 
+                    Number(event.longitude)
+                  )
+                : Infinity
+            }));
+            
+            // Sort by date (soonest first), then by distance
+            const sortedEvents = eventsWithDistance.sort((a, b) => {
+              const dateDiff = new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
+              if (dateDiff !== 0) return dateDiff;
+              return a.distance_miles - b.distance_miles;
             });
-            console.log(`✅ Found ${locationResult.events.length} events from ${locationResult.source}`);
+            
+            setUpcomingEvents(sortedEvents);
+            toast({
+              title: "Events Near You",
+              description: `Showing ${sortedEvents.length} upcoming events within 50 miles`,
+            });
+            console.log(`✅ Found ${sortedEvents.length} events near your location`);
           } else {
-            console.log('📭 No events found near user location, trying database fallback...');
+            console.log('📭 No events found near user location, trying broader search...');
             // Fallback to regular database search
             await loadUpcomingEvents();
             toast({
               title: "No Local Events",
-              description: "No events found near your location. Showing general events instead.",
+              description: "No events found near your location. Showing general upcoming events.",
               variant: "default",
             });
           }
         } catch (error) {
-          console.error('Error searching events for user location:', error);
+          console.error('Error loading nearby events:', error);
           await loadUpcomingEvents();
           toast({
             title: "Location Search Failed",
-            description: "Could not search for events near your location. Showing general events instead.",
+            description: "Could not load events near your location. Showing general upcoming events.",
             variant: "destructive",
           });
         }
       })
       .catch(error => {
         console.log('Could not get user location:', error);
+        // Set initial map center to default (US center)
+        setInitialMapCenter([39.8283, -98.5795]);
         // Continue without location - load events from database
         loadUpcomingEvents();
         toast({
@@ -101,7 +150,7 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
 
       if (error) throw error;
 
-      const transformedEvents: JamBaseEventResponse[] = (events || []).map(event => ({
+      const transformedEvents: EventWithDistance[] = (events || []).map(event => ({
         id: event.id,
         jambase_event_id: event.jambase_event_id,
         title: event.title,
@@ -125,7 +174,8 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
         setlist: event.setlist,
         tour_name: event.tour_name,
         created_at: event.created_at,
-        updated_at: event.updated_at
+        updated_at: event.updated_at,
+        distance_miles: undefined // Will be calculated if needed
       }));
 
       setUpcomingEvents(transformedEvents);
@@ -271,6 +321,95 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
     }
   };
 
+  const handleMapCenterChange = (newCenter: [number, number]) => {
+    // Only update if it's different from the initial center
+    const [lat, lng] = newCenter;
+    if (initialMapCenter) {
+      const [initLat, initLng] = initialMapCenter;
+      const distance = calculateDistance(initLat, initLng, lat, lng);
+      // If moved more than 0.5 miles, show search button
+      // Don't update mapCenter state here - let the map control it
+    }
+  };
+
+  const handleSearchThisArea = async () => {
+    if (!mapCenter) return;
+    
+    setIsSearchingArea(true);
+    try {
+      const [lat, lng] = mapCenter;
+      console.log(`🔍 Searching for events at map center: (${lat}, ${lng}) with ${radiusMiles} mile radius...`);
+      
+      // First, populate events from Ticketmaster API
+      try {
+        await TicketmasterPopulationService.populateEventsNearLocation({
+          latitude: lat,
+          longitude: lng,
+          radius: radiusMiles,
+          limit: 200
+        });
+        // Wait a moment for database to commit
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error('⚠️ Failed to populate Ticketmaster events:', error);
+      }
+      
+      // Then fetch events from database near this location
+      const events = await LocationService.searchEventsByLocation({
+        latitude: lat,
+        longitude: lng,
+        radius: radiusMiles,
+        limit: 200
+      });
+      
+      if (events.length > 0) {
+        // Add distance calculations
+        const eventsWithDistance: EventWithDistance[] = events.map(event => ({
+          ...event,
+          distance_miles: event.latitude && event.longitude 
+            ? calculateDistance(lat, lng, Number(event.latitude), Number(event.longitude))
+            : Infinity
+        }));
+        
+        // Sort by date (soonest first), then by distance
+        const sortedEvents = eventsWithDistance.sort((a, b) => {
+          const dateDiff = new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
+          if (dateDiff !== 0) return dateDiff;
+          return a.distance_miles - b.distance_miles;
+        });
+        
+        setUpcomingEvents(sortedEvents);
+        toast({
+          title: "Events Found",
+          description: `Found ${sortedEvents.length} events within ${radiusMiles} miles of this area`,
+        });
+        console.log(`✅ Found ${sortedEvents.length} events in the selected area`);
+      } else {
+        setUpcomingEvents([]);
+        toast({
+          title: "No Events Found",
+          description: `No events found within ${radiusMiles} miles of this area. Try increasing the radius.`,
+          variant: "default",
+        });
+        console.log(`📭 No events found in the selected area`);
+      }
+    } catch (error) {
+      console.error('Error searching area:', error);
+      toast({
+        title: "Search Failed",
+        description: "Failed to search this area. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearchingArea(false);
+    }
+  };
+
+  // Check if map center has moved from initial location
+  const hasMapMoved = initialMapCenter && mapCenter && 
+    (Math.abs(initialMapCenter[0] - mapCenter[0]) > 0.001 || 
+     Math.abs(initialMapCenter[1] - mapCenter[1]) > 0.001);
+
   return (
     <Card className="synth-card">
       <CardHeader>
@@ -321,7 +460,7 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="w-full h-96 rounded-lg overflow-hidden">
+        <div className="w-full h-96 rounded-lg overflow-hidden relative">
           <EventMap
             center={mapCenter}
             zoom={mapZoom}
@@ -330,7 +469,33 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
               console.log('Event clicked:', event);
               // You can add event click handling here
             }}
+            onMapCenterChange={(newCenter: [number, number]) => {
+              // Update map center when user pans/drags the map
+              setMapCenter(newCenter);
+            }}
           />
+          {/* Search This Area button - shows when map has been moved */}
+          {hasMapMoved && (
+            <div className="absolute top-2 right-2 z-[1000]">
+              <Button
+                onClick={handleSearchThisArea}
+                disabled={isSearchingArea}
+                className="bg-pink-500 hover:bg-pink-600 text-white shadow-lg"
+              >
+                {isSearchingArea ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4 mr-2" />
+                    Search This Area
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
         {userLocation && (
           <div className="mt-4 text-xs text-gray-500 flex items-center gap-1">

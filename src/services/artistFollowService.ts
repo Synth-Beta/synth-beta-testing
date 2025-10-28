@@ -209,18 +209,31 @@ export class ArtistFollowService {
    */
   static async getUserFollowedArtists(userId: string): Promise<ArtistFollowWithDetails[]> {
     try {
+      // Try the view first, fallback to direct query if view doesn't exist
       const { data, error } = await (supabase as any)
         .from('artist_follows_with_details')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        // If view doesn't exist, fallback to base table
+        console.warn('⚠️ artist_follows_with_details view not found, using artist_follows table');
+        const { data: fallbackData, error: fallbackError } = await (supabase as any)
+          .from('artist_follows')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+          
+        if (fallbackError) throw fallbackError;
+        return (fallbackData || []) as ArtistFollowWithDetails[];
+      }
 
       return (data as ArtistFollowWithDetails[]) || [];
     } catch (error) {
       console.error('Error getting followed artists:', error);
-      throw new Error(`Failed to get followed artists: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Return empty array instead of throwing to prevent blocking the UI
+      return [];
     }
   }
 

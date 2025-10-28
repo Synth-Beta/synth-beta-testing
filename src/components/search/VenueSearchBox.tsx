@@ -88,7 +88,8 @@ export function VenueSearchBox({
   const performSearch = async (searchQuery: string) => {
     try {
       setIsLoading(true);
-      const results = await UnifiedVenueSearchService.searchVenues(searchQuery, 10);
+      // Review form: local DB only, no API calls
+      const results = await UnifiedVenueSearchService.searchVenues(searchQuery, 10, false);
       
       setSearchResults(results);
       setIsOpen(true);

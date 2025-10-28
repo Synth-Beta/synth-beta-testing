@@ -18,7 +18,7 @@ import {
   Globe
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { JamBaseEvent, JamBaseEventResponse } from '@/services/jambaseEventsService';
 import { EventMap } from '@/components/EventMap';
 import { formatPrice } from '@/utils/currencyUtils';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,9 +36,10 @@ import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 import { PromotedEventBadge } from '@/components/events/PromotedEventBadge';
 import { usePromotionImpression } from '@/hooks/usePromotionImpression';
+import { formatVenueName, formatVenueLocation, formatVenueAddress } from '@/utils/venueUtils';
 
 interface JamBaseEventCardProps {
-  event: JamBaseEvent;
+  event: JamBaseEvent | (JamBaseEventResponse & { images?: any[] });
   onInterestToggle?: (eventId: string, interested: boolean) => void;
   onReview?: (eventId: string) => void;
   isInterested?: boolean;
@@ -128,72 +129,53 @@ export function JamBaseEventCard({
     }
   };
 
-  const getLocationString = () => {
-    const parts = [event.venue_city, event.venue_state].filter(p => p && p !== 'NULL');
-    return parts.length > 0 ? parts.join(', ') : null;
-  };
-
-  const getVenueAddress = () => {
-    if (event.venue_address && event.venue_address !== 'NULL') {
-      return event.venue_address;
-    }
-    const locationString = getLocationString();
-    return locationString && locationString !== 'NULL' ? locationString : 'Location TBD';
-  };
-
-  // Debug location data
-  console.log('🔍 JamBaseEventCard (events) location data:', {
-    venue_name: event.venue_name,
-    venue_address: event.venue_address,
-    venue_city: event.venue_city,
-    venue_state: event.venue_state,
-    venue_zip: event.venue_zip,
-    latitude: event.latitude,
-    longitude: event.longitude,
-    getVenueAddress: getVenueAddress(),
-    getLocationString: getLocationString()
-  });
+  // Get venue display info using utility functions
+  const venueName = formatVenueName(event.venue_name);
+  const venueLocation = formatVenueLocation(event.venue_city, event.venue_state);
+  const venueAddress = formatVenueAddress(event.venue_address, event.venue_city, event.venue_state, event.venue_zip);
 
   useEffect(() => {
-    console.log('🔍 JamBaseEventCard useEffect triggered for event:', event.id);
     const fetchInterestedCount = async () => {
       try {
-        console.log('🔍 JamBaseEventCard fetchInterestedCount - Event data:', {
-          eventId: event.id,
-          currentUserId: currentUserId || ''
-        });
-        
         const { count, error } = await supabase
           .from('user_jambase_events')
           .select('*', { count: 'exact', head: true })
           .eq('jambase_event_id', event.id)
           .neq('user_id', currentUserId || '');
-          
-        console.log('🔍 JamBaseEventCard Count query result:', { count, error });
-        
-        // Also check what users are actually in the database for this event (without exclusion)
-        const { data: allUsersCheck, error: allUsersCheckError } = await supabase
-          .from('user_jambase_events')
-          .select('user_id')
-          .eq('jambase_event_id', event.id);
-        console.log('🔍 JamBaseEventCard All users check (no exclusion):', { allUsersCheck, allUsersCheckError });
         
         if (error) throw error;
         setInterestedCount(count ?? 0);
-        console.log('🔍 JamBaseEventCard Setting interested count to:', count ?? 0);
       } catch (error) {
-        console.error('🔍 JamBaseEventCard Error fetching interested count:', error);
+        console.error('Error fetching interested count:', error);
         setInterestedCount(null);
       }
     };
     fetchInterestedCount();
   }, [event.id, currentUserId]);
 
-  // Resolve a primary image for the event: review photo for this event → artist image → popular review photo for artist
+  // Resolve a primary image for the event:
+  // 1) Ticketmaster/event images (from images array)
+  // 2) User review photo for this specific event
+  // 3) Artist image from reviews
+  // 4) Popular review photo for same artist
   useEffect(() => {
     (async () => {
       try {
-        // 1) try a user review photo for this specific event
+        // 1) Try Ticketmaster/event images first (if available)
+        if (event.images && Array.isArray(event.images) && event.images.length > 0) {
+          // Ticketmaster images format: [{ url: string, width: number, height: number, ratio: string }]
+          // Prefer larger images (width > 1000) or 16:9 ratio
+          const bestImage = event.images.find((img: any) => 
+            img.url && (img.ratio === '16_9' || (img.width && img.width > 1000))
+          ) || event.images.find((img: any) => img.url);
+          
+          if (bestImage?.url) {
+            setHeroImageUrl(bestImage.url);
+            return;
+          }
+        }
+
+        // 2) Try a user review photo for this specific event
         const byEvent = await (supabase as any)
           .from('user_reviews')
           .select('photos')
@@ -202,33 +184,46 @@ export function JamBaseEventCard({
           .order('likes_count', { ascending: false })
           .limit(1);
         const eventPhoto = Array.isArray(byEvent.data) && byEvent.data[0]?.photos?.[0];
-        if (eventPhoto) { setHeroImageUrl(eventPhoto); return; }
+        if (eventPhoto) { 
+          setHeroImageUrl(eventPhoto); 
+          return; 
+        }
 
-        // 2) try artist image via any review that carries artist image url in payload (if available)
-        const artist = await (supabase as any)
-          .from('user_reviews')
-          .select('photos, jambase_events!inner(artist_name)')
-          .not('photos', 'is', null)
-          .ilike('jambase_events.artist_name', `%${event.artist_name || ''}%`)
-          .order('likes_count', { ascending: false })
-          .limit(1);
-        const artistImg = Array.isArray(artist.data) && artist.data[0]?.photos?.[0];
-        if (artistImg) { setHeroImageUrl(artistImg); return; }
+        // 3) Try artist image via any review that carries artist image url
+        if (event.artist_name) {
+          const artist = await (supabase as any)
+            .from('user_reviews')
+            .select('photos, jambase_events!inner(artist_name)')
+            .not('photos', 'is', null)
+            .ilike('jambase_events.artist_name', `%${event.artist_name}%`)
+            .order('likes_count', { ascending: false })
+            .limit(1);
+          const artistImg = Array.isArray(artist.data) && artist.data[0]?.photos?.[0];
+          if (artistImg) { 
+            setHeroImageUrl(artistImg); 
+            return; 
+          }
 
-        // 3) try most-liked review photo for same artist across events
-        const byArtist = await (supabase as any)
-          .from('user_reviews')
-          .select('photos, jambase_events!inner(artist_name)')
-          .not('photos', 'is', null)
-          .ilike('jambase_events.artist_name', `%${event.artist_name || ''}%`)
-          .order('likes_count', { ascending: false })
-          .limit(1);
-        const artistPhoto = Array.isArray(byArtist.data) && byArtist.data[0]?.photos?.[0];
-        if (artistPhoto) { setHeroImageUrl(artistPhoto); return; }
-      } catch {}
+          // 4) Try most-liked review photo for same artist across events
+          const byArtist = await (supabase as any)
+            .from('user_reviews')
+            .select('photos, jambase_events!inner(artist_name)')
+            .not('photos', 'is', null)
+            .ilike('jambase_events.artist_name', `%${event.artist_name}%`)
+            .order('likes_count', { ascending: false })
+            .limit(1);
+          const artistPhoto = Array.isArray(byArtist.data) && byArtist.data[0]?.photos?.[0];
+          if (artistPhoto) { 
+            setHeroImageUrl(artistPhoto); 
+            return; 
+          }
+        }
+      } catch (error) {
+        console.error('Error resolving event image:', error);
+      }
       setHeroImageUrl(null);
     })();
-  }, [event.id, event.artist_id, event.artist_name]);
+  }, [event.id, event.artist_id, event.artist_name, event.images]);
 
   const getCheapestTicketUrl = () => {
     if (!event.ticket_urls || event.ticket_urls.length === 0) return null;
@@ -254,8 +249,20 @@ export function JamBaseEventCard({
       onClick={onClick}
     >
       {heroImageUrl && (
-        <div className="h-44 w-full overflow-hidden rounded-t-lg">
-          <img src={heroImageUrl} alt={event.title} className="w-full h-full object-cover" loading="lazy" />
+        <div className="h-48 w-full overflow-hidden rounded-t-lg relative">
+          <img 
+            src={heroImageUrl} 
+            alt={event.title} 
+            className="w-full h-full object-cover" 
+            loading="lazy"
+            onError={(e) => {
+              // Handle image load errors gracefully
+              console.warn('Failed to load event image:', heroImageUrl);
+              setHeroImageUrl(null);
+            }}
+          />
+          {/* Optional: Add gradient overlay for better text readability if needed */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
         </div>
       )}
       <CardHeader className="pb-3">
@@ -305,13 +312,13 @@ export function JamBaseEventCard({
       
       <CardContent className="pt-0 space-y-4">
         {/* Venue Information */}
-        {event.venue_name && event.venue_name !== 'NULL' && (
+        {venueName && (
           <div className="flex items-start gap-3">
             <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <div className="font-medium text-sm">{event.venue_name}</div>
-                {currentUserId && (
+                <div className="font-medium text-sm">{venueName}</div>
+                {currentUserId && event.venue_name && event.venue_name !== 'Venue TBD' && (
                   <VenueFollowButton
                     venueName={event.venue_name}
                     venueCity={event.venue_city}
@@ -324,9 +331,16 @@ export function JamBaseEventCard({
                   />
                 )}
               </div>
-              <div className="text-sm text-muted-foreground">
-                {getVenueAddress()}
-              </div>
+              {venueAddress && (
+                <div className="text-sm text-muted-foreground">
+                  {venueAddress}
+                </div>
+              )}
+              {!venueAddress && venueLocation && (
+                <div className="text-sm text-muted-foreground">
+                  {venueLocation}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -400,7 +414,7 @@ export function JamBaseEventCard({
           </div>
         )}
 
-        {/* Price Range */}
+        {/* Price Range - All APIs now populate price_range consistently */}
         {event.price_range && (
           <div className="text-sm">
             <span className="text-muted-foreground">Price: </span>

@@ -129,6 +129,14 @@ export function EventDetailsModal({
   const loadEventGroups = async () => {
     if (!actualEvent?.id) return;
     try {
+      // Get the database UUID (not Ticketmaster/JamBase ID)
+      // If id is not a valid UUID, it's a Ticketmaster ID - skip loading groups
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidPattern.test(actualEvent.id)) {
+        console.log('Skipping group load - event not in database yet:', actualEvent.id);
+        return;
+      }
+      
       const groups = await EventGroupService.getEventGroups(actualEvent.id);
       setEventGroups(groups);
     } catch (error) {
@@ -210,6 +218,15 @@ export function EventDetailsModal({
       setLoading(true);
       const fetchEventData = async () => {
         try {
+          // Validate UUID before querying
+          const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (!uuidPattern.test(event.id)) {
+            console.log('⚠️ Event ID is not a UUID, skipping database fetch:', event.id);
+            setActualEvent(event); // Use the passed event directly
+            setLoading(false);
+            return;
+          }
+          
           const { data, error } = await supabase
             .from('jambase_events')
             .select('*')
@@ -701,7 +718,7 @@ export function EventDetailsModal({
                   Report
                 </Button>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4 flex-wrap">
                 <Calendar className="w-4 h-4" />
                 <span>{formatDate(actualEvent.event_date)}</span>
                 <span>•</span>
@@ -713,6 +730,34 @@ export function EventDetailsModal({
                     <span>Doors: {formatDoorsTime(actualEvent.doors_time)}</span>
                   </>
                 )}
+                {(() => {
+                  const event = actualEvent as any;
+                  const priceRange = event?.price_range;
+                  const priceMin = event?.ticket_price_min ?? event?.price_min;
+                  const priceMax = event?.ticket_price_max ?? event?.price_max;
+                  
+                  if (priceRange || priceMin || priceMax) {
+                    let priceDisplay = '';
+                    if (priceRange) {
+                      priceDisplay = formatPrice(priceRange);
+                    } else if (priceMin && priceMax) {
+                      priceDisplay = `$${priceMin} - $${priceMax}`;
+                    } else if (priceMin) {
+                      priceDisplay = `$${priceMin}+`;
+                    } else if (priceMax) {
+                      priceDisplay = `Up to $${priceMax}`;
+                    }
+                    
+                    return (
+                      <>
+                        <span>•</span>
+                        <Ticket className="w-4 h-4" />
+                        <span className="font-medium text-gray-900">{priceDisplay}</span>
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </div>
             
@@ -1202,24 +1247,46 @@ export function EventDetailsModal({
                   </Button>
 
                   {/* Price Range for Upcoming Events */}
-                  {actualEvent.price_range && (
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Price: </span>
-                      <span className="font-medium">{formatPrice(actualEvent.price_range)}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const event = actualEvent as any;
+                    const priceRange = event?.price_range;
+                    const priceMin = event?.ticket_price_min ?? event?.price_min;
+                    const priceMax = event?.ticket_price_max ?? event?.price_max;
+                    
+                    if (priceRange || priceMin || priceMax) {
+                      let priceDisplay = '';
+                      if (priceRange) {
+                        priceDisplay = formatPrice(priceRange);
+                      } else if (priceMin && priceMax) {
+                        priceDisplay = `$${priceMin} - $${priceMax}`;
+                      } else if (priceMin) {
+                        priceDisplay = `$${priceMin}+`;
+                      } else if (priceMax) {
+                        priceDisplay = `Up to $${priceMax}`;
+                      }
+                      
+                      return (
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Price: </span>
+                          <span className="font-medium">{priceDisplay}</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 {/* External Links for Upcoming Events */}
                 <div className="flex items-center gap-2">
-                  {actualEvent.ticket_urls && actualEvent.ticket_urls.length > 0 && (
+                  {(((actualEvent as any).ticket_urls && (actualEvent as any).ticket_urls.length > 0) || 
+                    (actualEvent as any).ticket_url) && (
                     <Button
                       variant="default"
                       size="sm"
                       className="bg-blue-600 hover:bg-blue-700"
                       onClick={() => {
                         // 🎯 TRACK: Ticket link click (CRITICAL FOR REVENUE!)
-                        const ticketUrl = actualEvent.ticket_urls[0];
+                        const ticketUrl = (actualEvent as any).ticket_urls?.[0] || (actualEvent as any).ticket_url;
                         const ticketProvider = extractTicketProvider(ticketUrl);
                         const daysUntilEvent = actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined;
                         

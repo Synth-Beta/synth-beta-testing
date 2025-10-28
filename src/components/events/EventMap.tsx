@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -30,21 +30,151 @@ interface EventMapProps {
   zoom: number;
   events: JamBaseEventResponse[];
   onEventClick: (event: JamBaseEventResponse) => void;
+  onMapCenterChange?: (center: [number, number]) => void;
 }
 
 // Component to update map view when center/zoom changes
-const MapUpdater = ({ center, zoom }: { center: [number, number]; zoom: number }) => {
+const MapUpdater = ({ center, zoom, onCenterChange }: { center: [number, number]; zoom: number; onCenterChange?: (center: [number, number]) => void }) => {
   const map = useMap();
+  const isUserInteracting = useRef(false);
+  const lastProgrammaticCenter = useRef<[number, number]>(center);
+  const lastProgrammaticZoom = useRef<number>(zoom);
   
+  // Update map only when programmatically changed (not from user interaction)
   useEffect(() => {
-    map.setView(center, zoom);
+    // Check if this is a programmatic change (center/zoom changed from props, not from user drag)
+    const centerChanged = 
+      Math.abs(lastProgrammaticCenter.current[0] - center[0]) > 0.0001 ||
+      Math.abs(lastProgrammaticCenter.current[1] - center[1]) > 0.0001;
+    const zoomChanged = lastProgrammaticZoom.current !== zoom;
+    
+    // Only update map if it's a programmatic change and user isn't currently interacting
+    if ((centerChanged || zoomChanged) && !isUserInteracting.current) {
+      lastProgrammaticCenter.current = center;
+      lastProgrammaticZoom.current = zoom;
+      map.setView(center, zoom, { animate: false });
+    }
   }, [map, center, zoom]);
+  
+  // Track map move events to detect when user pans/drags/zooms
+  useEffect(() => {
+    const handleInteractionStart = () => {
+      isUserInteracting.current = true;
+    };
+    
+    const handleInteractionEnd = () => {
+      const currentCenter = map.getCenter();
+      if (onCenterChange) {
+        onCenterChange([currentCenter.lat, currentCenter.lng]);
+      }
+      // Reset flag after a delay to allow programmatic updates again
+      setTimeout(() => {
+        isUserInteracting.current = false;
+      }, 300);
+    };
+    
+    // Listen to all user interaction events
+    map.on('movestart', handleInteractionStart);
+    map.on('dragstart', handleInteractionStart);
+    map.on('zoomstart', handleInteractionStart);
+    map.on('wheel', handleInteractionStart);
+    
+    map.on('moveend', handleInteractionEnd);
+    map.on('dragend', handleInteractionEnd);
+    map.on('zoomend', handleInteractionEnd);
+    
+    return () => {
+      map.off('movestart', handleInteractionStart);
+      map.off('dragstart', handleInteractionStart);
+      map.off('zoomstart', handleInteractionStart);
+      map.off('wheel', handleInteractionStart);
+      map.off('moveend', handleInteractionEnd);
+      map.off('dragend', handleInteractionEnd);
+      map.off('zoomend', handleInteractionEnd);
+    };
+  }, [map, onCenterChange]);
   
   return null;
 };
 
-export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEventClick }) => {
+// Component to track map bounds and filter visible events
+const MapBoundsTracker = ({ 
+  events, 
+  onBoundsChange 
+}: { 
+  events: any[]; 
+  onBoundsChange?: (visibleEvents: any[]) => void;
+}) => {
+  const map = useMap();
+  const previousBoundsRef = useRef<string | null>(null);
+  const eventsRef = useRef<any[]>(events);
+  const onBoundsChangeRef = useRef(onBoundsChange);
+
+  // Update refs when props change
+  useEffect(() => {
+    eventsRef.current = events;
+    onBoundsChangeRef.current = onBoundsChange;
+  }, [events, onBoundsChange]);
+
+  useEffect(() => {
+    const updateBounds = () => {
+      const mapBounds = map.getBounds();
+      const newBounds = {
+        north: mapBounds.getNorth(),
+        south: mapBounds.getSouth(),
+        east: mapBounds.getEast(),
+        west: mapBounds.getWest()
+      };
+      
+      // Create a string key to compare bounds (avoid unnecessary updates)
+      const boundsKey = `${newBounds.north.toFixed(4)}_${newBounds.south.toFixed(4)}_${newBounds.east.toFixed(4)}_${newBounds.west.toFixed(4)}`;
+      
+      // Only update if bounds actually changed
+      if (previousBoundsRef.current === boundsKey) {
+        return;
+      }
+      
+      previousBoundsRef.current = boundsKey;
+
+      // Filter events that are visible in the current map bounds
+      const visibleEvents = eventsRef.current.filter(event => {
+        if (!event.latitude || !event.longitude) return false;
+        const lat = Number(event.latitude);
+        const lon = Number(event.longitude);
+        if (Number.isNaN(lat) || Number.isNaN(lon)) return false;
+        
+        // Check if event is within visible bounds
+        return lat >= newBounds.south && 
+               lat <= newBounds.north && 
+               lon >= newBounds.west && 
+               lon <= newBounds.east;
+      });
+
+      if (onBoundsChangeRef.current) {
+        onBoundsChangeRef.current(visibleEvents);
+      }
+    };
+
+    // Update bounds on move and zoom
+    map.on('moveend', updateBounds);
+    map.on('zoomend', updateBounds);
+    
+    // Initial bounds after a short delay to ensure map is ready
+    const timeoutId = setTimeout(updateBounds, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      map.off('moveend', updateBounds);
+      map.off('zoomend', updateBounds);
+    };
+  }, [map]); // Only depend on map, not events or callback
+
+  return null;
+};
+
+export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEventClick, onMapCenterChange }) => {
   const mapRef = useRef<any>(null);
+  const [visibleEvents, setVisibleEvents] = useState<any[]>([]);
 
   // Filter events that have valid numeric coordinates
   const validEvents = events.filter(event => {
@@ -53,6 +183,9 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
     return event.latitude != null && event.longitude != null && !Number.isNaN(lat) && !Number.isNaN(lon);
   });
 
+  // Use visible events if bounds tracking is working, otherwise fall back to all valid events
+  const eventsToShow = visibleEvents.length > 0 ? visibleEvents : validEvents;
+
   return (
     <div className="w-full h-full">
       <MapContainer
@@ -60,15 +193,18 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
         zoom={zoom}
         style={{ height: '100%', width: '100%' }}
         ref={mapRef}
+        scrollWheelZoom={true}
+        wheelPxPerZoomLevel={60}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         
-        <MapUpdater center={center} zoom={zoom} />
+        <MapUpdater center={center} zoom={zoom} onCenterChange={onMapCenterChange} />
+        <MapBoundsTracker events={validEvents} onBoundsChange={setVisibleEvents} />
         
-        {validEvents.map((event) => (
+        {eventsToShow.map((event) => (
           <Marker
             key={event.id}
             position={[Number(event.latitude), Number(event.longitude)]}

@@ -20,77 +20,143 @@ export class UnifiedArtistSearchService {
   private static readonly API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
 
   /**
-   * Main search function that implements the complete flow:
-   * 1. User searches band
-   * 2. API is called to find that artist
-   * 3. All fuzzy matches populate Supabase artist_profile table
-   * 4. Fuzzy matched results are shown from Supabase
+   * Main search function - PROTECTED API USAGE:
+   * 1. ALWAYS search local database FIRST
+   * 2. Only call external API if useApi=true (explicit user search)
+   * 3. Only fetch NEW events when using API
+   * 4. Populate database with new results
+   * 
+   * @param query - Search query string
+   * @param limit - Maximum results to return
+   * @param useApi - If true, will call external APIs for new results. If false, only searches local DB.
    */
-  static async searchArtists(query: string, limit: number = 20): Promise<ArtistSearchResult[]> {
+  static async searchArtists(query: string, limit: number = 20, useApi: boolean = false): Promise<ArtistSearchResult[]> {
     if (!query || query.length < 2) {
       return [];
     }
 
     try {
-      console.log(`🔍 Searching for artists: "${query}"`);
+      console.log(`🔍 Searching for artists: "${query}" (useApi: ${useApi})`);
 
-      // Step 1: Search JamBase API for artists
-      const jamBaseResults = await this.searchJamBaseAPI(query, limit);
-      console.log(`📡 Found ${jamBaseResults.length} artists from JamBase API`);
-
-      // Step 2: Populate Supabase with all found artists (optional, won't fail if it doesn't work)
-      let populatedArtists: any[] = [];
-      try {
-        populatedArtists = await this.populateArtistProfiles(jamBaseResults);
-        console.log(`💾 Populated ${populatedArtists.length} artists in database`);
-      } catch (populateError) {
-        console.warn('⚠️  Could not populate database, continuing with API results:', populateError);
-      }
-
-      // Step 3: Get fuzzy matched results from Supabase (optional, won't fail if it doesn't work)
+      // STEP 1: ALWAYS search local database FIRST (no API call)
       let fuzzyResults: ArtistSearchResult[] = [];
       try {
         fuzzyResults = await this.getFuzzyMatchedResults(query, limit);
-        console.log(`🎯 Found ${fuzzyResults.length} fuzzy matched results from database`);
+        console.log(`🎯 Found ${fuzzyResults.length} artists from local database`);
       } catch (fuzzyError) {
-        console.warn('⚠️  Could not get fuzzy results from database, continuing with API results:', fuzzyError);
+        console.warn('⚠️  Could not get fuzzy results from database:', fuzzyError);
       }
 
-      // If no fuzzy results from database, filter and return JamBase results
-      if (fuzzyResults.length === 0 && jamBaseResults.length > 0) {
-        console.log(`🔄 No database results, filtering JamBase results`);
-        const filteredJamBaseResults = jamBaseResults
+      // STEP 2: Return database results immediately (for suggestions/autocomplete)
+      if (!useApi) {
+        console.log(`✅ Returning ${fuzzyResults.length} results from local database (no API call)`);
+        return fuzzyResults;
+      }
+
+      // STEP 3: Only if explicit search (useApi=true), fetch NEW results from API
+      console.log(`🌐 Explicit search triggered - calling API for new results...`);
+      
+      let ticketmasterArtists: any[] = [];
+      try {
+        ticketmasterArtists = await this.searchTicketmasterAttractions(query, limit);
+        console.log(`🎫 Found ${ticketmasterArtists.length} NEW artists from Ticketmaster`);
+      } catch (tmError) {
+        console.warn('⚠️ Ticketmaster search failed:', tmError);
+      }
+      
+      let jamBaseResults: any[] = [];
+      try {
+        jamBaseResults = await this.searchJamBaseAPI(query, limit);
+        console.log(`📡 Found ${jamBaseResults.length} NEW artists from JamBase API`);
+      } catch (jbError) {
+        console.warn('⚠️ JamBase search failed:', jbError);
+      }
+
+      // Combine API results
+      const allArtists = [...ticketmasterArtists, ...jamBaseResults];
+      console.log(`✅ Total NEW artists from API: ${allArtists.length}`);
+
+      // STEP 4: Populate database with NEW artists only
+      let populatedArtists: any[] = [];
+      if (allArtists.length > 0) {
+        try {
+          populatedArtists = await this.populateArtistProfiles(allArtists);
+          console.log(`💾 Stored ${populatedArtists.length} new artists in database`);
+        } catch (populateError) {
+          console.warn('⚠️  Could not populate database:', populateError);
+        }
+      }
+
+      // STEP 5: Re-query database to get comprehensive results (includes new + existing)
+      let finalResults: ArtistSearchResult[] = [];
+      try {
+        finalResults = await this.getFuzzyMatchedResults(query, limit);
+        console.log(`🎯 Final database results (including new): ${finalResults.length}`);
+      } catch (finalError) {
+        console.warn('⚠️  Could not get final results from database:', finalError);
+      }
+
+      // If we have database results, return them
+      if (finalResults.length > 0) {
+        return finalResults;
+      }
+
+      // Fallback: If API returned results but DB query failed, return API results directly
+      if (allArtists.length > 0) {
+        console.log(`🔄 Using API results as fallback (DB query failed)`);
+        return allArtists
           .map(artist => ({
             id: artist.id,
             name: artist.name,
             identifier: artist.identifier,
-            image_url: artist.image,
+            image_url: artist.image_url || artist.image,
             genres: artist.genres,
-            band_or_musician: artist['x-bandOrMusician'] as 'band' | 'musician',
-            num_upcoming_events: artist['x-numUpcomingEvents'] || 0,
+            band_or_musician: artist.band_or_musician || artist['x-bandOrMusician'] || 'musician',
+            num_upcoming_events: artist.upcomingEvents?._total || artist['x-numUpcomingEvents'] || 0,
             match_score: this.calculateFuzzyMatchScore(query, artist.name),
             is_from_database: false,
           }))
-          .filter(artist => artist.match_score > 15) // Original threshold for better artist matching
+          .filter(artist => artist.match_score > 15)
           .sort((a, b) => b.match_score - a.match_score)
           .slice(0, limit);
-        
-        console.log(`🎯 Filtered JamBase results: ${filteredJamBaseResults.length} matches`);
-        return filteredJamBaseResults;
       }
 
-      // If we have fuzzy results, return them
-      if (fuzzyResults.length > 0) {
-        return fuzzyResults;
-      }
-
-      // If no results from any source, return empty array instead of fallback data
-      console.log('📭 No results found from any source, returning empty results');
+      // No results from any source
+      console.log('📭 No results found from any source');
       return [];
     } catch (error) {
       console.error('❌ Error in unified artist search:', error);
-      // Return empty results instead of fallback data
-      console.log('🔄 Returning empty results due to error');
+      return [];
+    }
+  }
+
+  /**
+   * Search Ticketmaster attractions API for artists
+   */
+  private static async searchTicketmasterAttractions(query: string, limit: number): Promise<any[]> {
+    console.log(`🎫 START: searchTicketmasterAttractions for "${query}"`);
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const url = `${backendUrl}/api/ticketmaster/attractions?keyword=${encodeURIComponent(query)}&size=${limit}`;
+      
+      console.log('🎫 Calling Ticketmaster attractions API:', url);
+      const response = await fetch(url);
+      
+      console.log(`🎫 Response status: ${response.status}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn('⚠️ Ticketmaster attractions API error:', response.status, errorText);
+        return [];
+      }
+      
+      const data = await response.json();
+      console.log(`🎫 Ticketmaster data:`, data);
+      const attractions = data.attractions || [];
+      console.log(`🎫 Found ${attractions.length} attractions`);
+      return attractions;
+    } catch (error) {
+      console.error('❌ Error searching Ticketmaster attractions:', error);
       return [];
     }
   }
@@ -583,17 +649,17 @@ export class UnifiedArtistSearchService {
   /**
    * Search for all content types (artists, events, users) based on query
    */
-  static async searchAllContent(query: string, limit: number = 20): Promise<{
+  static async searchAllContent(query: string, limit: number = 20, useApi: boolean = false): Promise<{
     artists: ArtistSearchResult[];
     events: any[];
     users: any[];
   }> {
     try {
-      console.log(`🔍 Searching all content for: "${query}" with limit: ${limit}`);
+      console.log(`🔍 Searching all content for: "${query}" with limit: ${limit} (useApi: ${useApi})`);
 
-      // Search artists
+      // Search artists (useApi controls whether to call external APIs)
       console.log(`🎤 Searching artists with limit: ${Math.floor(limit * 0.5)}`);
-      const artists = await this.searchArtists(query, Math.floor(limit * 0.5));
+      const artists = await this.searchArtists(query, Math.floor(limit * 0.5), useApi);
       
       // Search events (from jambase_events table)
       console.log(`🎵 Searching events with limit: ${Math.floor(limit * 0.3)}`);

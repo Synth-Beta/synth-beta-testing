@@ -63,6 +63,8 @@ export interface JamBaseEventResponse {
   is_promoted?: boolean;
   promotion_tier?: 'basic' | 'premium' | 'featured' | null;
   active_promotion_id?: string;
+  // Ticketmaster images
+  images?: any[];
 }
 
 export interface JamBaseEventsApiResponse {

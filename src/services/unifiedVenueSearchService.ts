@@ -27,82 +27,63 @@ export class UnifiedVenueSearchService {
   private static readonly API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
 
   /**
-   * Main search function that implements the complete flow:
-   * 1. User searches venue
-   * 2. API is called to find that venue
-   * 3. All fuzzy matches populate Supabase venue_profile table
-   * 4. Fuzzy matched results are shown from Supabase
+   * Main search function - PROTECTED API USAGE:
+   * 1. ALWAYS search local database FIRST
+   * 2. Only call external API if useApi=true (explicit user search)
+   * 3. Populate database with new results
+   * 
+   * @param query - Search query string
+   * @param limit - Maximum results to return
+   * @param useApi - If true, will call external APIs for new results. If false, only searches local DB.
    */
-  static async searchVenues(query: string, limit: number = 20): Promise<VenueSearchResult[]> {
+  static async searchVenues(query: string, limit: number = 20, useApi: boolean = false): Promise<VenueSearchResult[]> {
     if (!query || query.length < 2) {
       return [];
     }
 
     try {
-      console.log(`🔍 Searching for venues: "${query}"`);
+      console.log(`🔍 Searching for venues: "${query}" (useApi: ${useApi})`);
 
-      // For now, use fallback data since the JamBase venues API endpoint doesn't exist
-      // This provides a working search experience with common venues
-      const fallbackResults = this.getFallbackVenues(query, limit);
-      const filteredResults = fallbackResults.filter(venue => 
-        venue.name.toLowerCase().includes(query.toLowerCase())
-      );
-      
-      if (filteredResults.length === 0) {
-        // If no fallback matches, create a manual entry
-        const manualVenue = {
-          id: `manual-${Date.now()}`,
-          name: query,
-          identifier: `manual-${query.toLowerCase().replace(/\s+/g, '-')}`,
-          image: undefined,
-          address: {
-            addressLocality: 'Unknown',
-            addressRegion: 'Unknown'
-          },
-          geo: undefined,
-          maximumAttendeeCapacity: undefined,
-          'x-numUpcomingEvents': 0,
-        };
-        filteredResults.push(manualVenue);
+      // STEP 1: ALWAYS search local database FIRST (no API call)
+      let fuzzyResults: VenueSearchResult[] = [];
+      try {
+        fuzzyResults = await this.getFuzzyMatchedResults(query, limit);
+        console.log(`🎯 Found ${fuzzyResults.length} venues from local database`);
+      } catch (fuzzyError) {
+        console.warn('⚠️  Could not get fuzzy results from database:', fuzzyError);
       }
+
+      // STEP 2: Return database results immediately (for suggestions/autocomplete)
+      if (!useApi) {
+        // If no DB results, still return empty array (don't use fallback to avoid confusion)
+        console.log(`✅ Returning ${fuzzyResults.length} results from local database (no API call)`);
+        return fuzzyResults;
+      }
+
+      // STEP 3: Only if explicit search (useApi=true), fetch NEW results from API
+      // Note: JamBase venues API doesn't exist, so we only search local DB for now
+      // If API becomes available, it would go here
+      console.log(`🌐 Explicit search triggered - searching for new venues in database...`);
       
-      const results = filteredResults.map(venue => ({
-        id: venue.id,
-        name: venue.name,
-        identifier: venue.identifier,
-        image_url: venue.image,
-        address: venue.address,
-        geo: venue.geo,
-        maximumAttendeeCapacity: venue.maximumAttendeeCapacity,
-        num_upcoming_events: venue['x-numUpcomingEvents'] || 0,
-        match_score: this.calculateFuzzyMatchScore(query, venue.name),
-        is_from_database: false,
-      }));
+      // Re-query database to ensure we have all results
+      try {
+        fuzzyResults = await this.getFuzzyMatchedResults(query, limit);
+        console.log(`🎯 Final database results: ${fuzzyResults.length}`);
+      } catch (finalError) {
+        console.warn('⚠️  Could not get final results from database:', finalError);
+      }
 
-      console.log(`✅ Returning ${results.length} venues (including manual entry if needed)`);
-      return results;
+      // Return database results (no external API for venues currently)
+      if (fuzzyResults.length > 0) {
+        return fuzzyResults;
+      }
 
+      // If no results, return empty array (don't create manual entries automatically)
+      console.log('📭 No venues found in database');
+      return [];
     } catch (error) {
       console.error('❌ Error in venue search:', error);
-      
-      // Final fallback - create a manual entry
-      const manualVenue: VenueSearchResult = {
-        id: `manual-${Date.now()}`,
-        name: query,
-        identifier: `manual-${query.toLowerCase().replace(/\s+/g, '-')}`,
-        image_url: undefined,
-        address: {
-          addressLocality: 'Unknown',
-          addressRegion: 'Unknown'
-        },
-        geo: undefined,
-        maximumAttendeeCapacity: undefined,
-        num_upcoming_events: 0,
-        match_score: 0.5,
-        is_from_database: false,
-      };
-      
-      return [manualVenue];
+      return [];
     }
   }
 
