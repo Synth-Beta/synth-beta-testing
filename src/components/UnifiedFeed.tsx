@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -78,7 +78,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { UnifiedFeedService, UnifiedFeedItem } from '@/services/unifiedFeedService';
-import { LocationService } from '@/services/locationService';
 import { EventMap } from './EventMap';
 import { UnifiedChatView } from './UnifiedChatView';
 import { UserEventService } from '@/services/userEventService';
@@ -97,6 +96,7 @@ import { EventFilters, FilterState } from '@/components/search/EventFilters';
 import { parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { normalizeCityName } from '@/utils/cityNormalization';
 import { RadiusSearchService } from '@/services/radiusSearchService';
+import { useNavigate } from 'react-router-dom';
 
 // Using UnifiedFeedItem from service instead of local interface
 
@@ -172,6 +172,8 @@ export const UnifiedFeed = ({
   // Temporary filter state - changes here don't trigger feed refresh
   const [pendingFilters, setPendingFilters] = useState<FilterState>(filters);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const autoCityAppliedRef = useRef<boolean>(false);
+  const userHasChangedFiltersRef = useRef<boolean>(false); // Track if user manually changed filters
   
   // Refresh state - track offset to get new events on refresh
   const [refreshOffset, setRefreshOffset] = useState(0);
@@ -253,85 +255,232 @@ export const UnifiedFeed = ({
       return;
     }
     
-    // Debounce location service to prevent excessive calls
-    const locationTimeout = setTimeout(() => {
-      console.log('🔍 Starting location service...');
-      
-      // Add a timeout to prevent hanging
-      const locationPromise = LocationService.getCurrentLocation();
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Location service timeout')), 3000) // Reduced timeout
-      );
-      
-      Promise.race([locationPromise, timeoutPromise])
-        .then(async (location) => {
-          console.log('🔍 Location service succeeded:', location);
-          setUserLocation({ lat: (location as any).latitude, lng: (location as any).longitude });
-          setMapCenter([(location as any).latitude, (location as any).longitude]);
-        setMapZoom(10);
-      })
-      .catch(error => {
-          console.log('🔍 Location service failed or timed out:', error);
-        // Continue without location
-      })
-      .finally(() => {
-          console.log('🔍 Location service finally block - loading feed data...');
-        loadFeedData();
-        loadUpcomingEvents();
+    // Load user's city from profile and auto-apply as filter (only once)
+    const loadUserCityAndApply = async () => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('location_city')
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+        
+        // Only auto-apply city if user hasn't manually changed filters
+        if (profile?.location_city && !userHasChangedFiltersRef.current) {
+          // Get the user's city and find the best match from available cities in the database
+          const userCityRaw = profile.location_city.trim();
+          console.log('📍 User location_city from profile:', userCityRaw);
+          
+          // Get available cities to find the best match
+          let cityName = userCityRaw;
+          try {
+            const { data: availableCities, error: citiesError } = await supabase.rpc('get_available_cities_for_filter', {
+              min_event_count: 1,
+              limit_count: 1000 // Get many cities to find best match
+            });
+            
+            if (!citiesError && availableCities && availableCities.length > 0) {
+              // Find best matching city using fuzzy matching
+              const userCityLower = userCityRaw.toLowerCase().trim();
+              
+              // First try exact match
+              let match = availableCities.find((c: any) => 
+                c.city_name?.toLowerCase().trim() === userCityLower
+              );
+              
+              // Then try contains match
+              if (!match) {
+                match = availableCities.find((c: any) => 
+                  c.city_name?.toLowerCase().includes(userCityLower) || 
+                  userCityLower.includes(c.city_name?.toLowerCase() || '')
+                );
+              }
+              
+              // Then try state code match (for DC, District of Columbia, etc.)
+              if (!match && (userCityLower === 'dc' || userCityLower === 'district of columbia')) {
+                match = availableCities.find((c: any) => 
+                  c.state === 'DC' && c.city_name?.toLowerCase().includes('washington')
+                );
+              }
+              
+              if (match) {
+                cityName = match.city_name;
+                console.log('✅ Matched user city to database city:', userCityRaw, '→', cityName);
+              } else {
+                console.warn('⚠️ Could not match user city to available cities. Using raw city name:', userCityRaw);
+                // Use raw city name - let the RPC handle variations
+                cityName = userCityRaw;
+              }
+            } else {
+              console.warn('⚠️ Could not load available cities. Using raw city name:', userCityRaw);
+              cityName = userCityRaw;
+            }
+          } catch (error) {
+            console.warn('⚠️ Error matching city, using raw name:', error);
+            cityName = userCityRaw;
+          }
+          
+          console.log('✅ Auto-applying city filter from profile:', cityName);
+          
+          // Auto-apply city filter
+          const newFilters: FilterState = {
+            genres: [],
+            selectedCities: [cityName],
+            dateRange: { from: undefined, to: undefined },
+            daysOfWeek: [],
+            filterByFollowing: 'all',
+            showFilters: false,
+            radiusMiles: 50
+          };
+          setPendingFilters(newFilters);
+          setFilters(newFilters);
+          
+          // Get city coordinates for location-based boosts
+          const { RadiusSearchService } = await import('@/services/radiusSearchService');
+          const coords = await RadiusSearchService.getCityCoordinates(cityName);
+          if (coords) {
+            console.log('✅ Got city coordinates:', coords);
+            setUserLocation(coords);
+            setMapCenter([coords.lat, coords.lng]);
+            setMapZoom(10);
+          }
+          
+          // Mark as applied so we don't do it again
+          autoCityAppliedRef.current = true;
+          
+          // Load feed data DIRECTLY with the filters we just set
+          // This ensures the city filter is applied immediately (no waiting for state to update)
+          console.log('🔄 Initial load with auto-applied city filter:', cityName);
+          
+          setLoading(true);
+          setFeedItems([]);
+          setHasMore(true);
+          
+          try {
+            const [rawItems] = await Promise.all([
+              UnifiedFeedService.getFeedItems({
+                userId: currentUserId,
+                limit: 20,
+                offset: 0,
+                includePrivateReviews: true,
+                filters: {
+                  genres: [],
+                  selectedCities: [cityName], // This will be normalized to "Washington DC" + "Washington" in the service
+                  dateRange: undefined,
+                  daysOfWeek: [],
+                  filterByFollowing: undefined
+                }
+              }),
+              new Promise(resolve => setTimeout(resolve, 800)) // Min loading time
+            ]);
+            
+            const items = rawItems.filter(item => {
+              if (item.type === 'review') {
+                if ((item as any).deleted_at || (item as any).is_deleted) return false;
+                if (!item.content && (!item.photos || item.photos.length === 0)) return false;
+                if (item.content === 'ATTENDANCE_ONLY' || item.content === '[deleted]' || item.content === 'DELETED') return false;
+              }
+              return true;
+            });
+            
+            setFeedItems(items);
+            const eventCount = items.filter(item => item.type === 'event').length;
+            const gotFullPage = items.length >= 20 || eventCount >= 20;
+            setHasMore(gotFullPage);
+            setLoading(false);
+            console.log('✅ Initial load complete:', items.length, 'items', eventCount, 'events');
+          } catch (error) {
+            console.error('Error in initial load:', error);
+            setLoading(false);
+          }
+          
+          // Load other data immediately
+          loadUpcomingEvents();
           loadFollowedData();
           loadCities();
-        });
-    }, 500); // Debounce by 500ms
+          return; // Exit early
+        }
+      } catch (error) {
+        console.warn('⚠️ Error loading user city from profile:', error);
+      }
+      
+      // If no city found, load data normally using the same path as "Load more"
+      loadFeedData(0, false);
+      loadUpcomingEvents();
+      loadFollowedData();
+      loadCities();
+    };
     
-    return () => clearTimeout(locationTimeout);
-  }, [sessionExpired, currentUserId]); // Add currentUserId back with proper dependency management
+    loadUserCityAndApply();
+  }, [sessionExpired, currentUserId]);
+
+  // Auto-apply nearest city to filters once when we have userLocation and no city filter yet
+  useEffect(() => {
+    const applyNearestCity = async () => {
+      if (!userLocation) return;
+      if (autoCityAppliedRef.current) return;
+      if ((filters.selectedCities && filters.selectedCities.length > 0)) return;
+      try {
+        const { data, error } = await supabase.rpc('get_available_cities_for_filter', {
+          min_event_count: 1,
+          limit_count: 200
+        });
+        if (error || !Array.isArray(data) || data.length === 0) return;
+        // Compute nearest city center by simple haversine on frontend
+        const toRad = (deg: number) => deg * (Math.PI / 180);
+        const dist = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+          const R = 3959; // miles
+          const dLat = toRad(lat2 - lat1);
+          const dLon = toRad(lon2 - lon1);
+          const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) ** 2;
+          return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        };
+        let nearest = data[0];
+        let nearestD = Infinity;
+        for (const row of data as any[]) {
+          const d = dist(userLocation.lat, userLocation.lng, Number(row.center_latitude), Number(row.center_longitude));
+          if (d < nearestD) { nearestD = d; nearest = row; }
+        }
+        const nearestCityName = (nearest as any).city_name as string;
+        if (nearestCityName) {
+          autoCityAppliedRef.current = true;
+          const next = { ...filters, selectedCities: [nearestCityName] } as FilterState;
+          setFilters(next);
+          setPendingFilters(next);
+          // Reload feed from top with city applied
+          setRefreshOffset(0);
+          loadFeedData(0, false);
+        }
+      } catch (e) {
+        // Silent fail - location-based default is best-effort
+      }
+    };
+    applyNearestCity();
+  }, [userLocation, filters.selectedCities]);
 
   // Add event listeners for artist and venue card opening
+  const navigate = useNavigate();
+
   useEffect(() => {
     const openVenue = (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
-      setVenueDialog({ 
-        open: true, 
-        venueId: detail.venueId || null, 
-        venueName: detail.venueName || 'Venue' 
-      });
+      const venueId = detail.venueId || detail.venueName;
+      
+      // Navigate to full venue profile page
+      if (venueId) {
+        navigate(`/venue/${encodeURIComponent(venueId)}`);
+      }
     };
 
     const openArtist = async (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
       if (detail.artistName) {
-        try {
-          // Try to fetch artist data from database if we have an ID
-          if (detail.artistId && detail.artistId !== 'manual') {
-            const { data: artistData } = await supabase
-              .from('artists')
-              .select('*')
-              .eq('id', detail.artistId)
-              .single();
-            
-            if (artistData) {
-              const artist: Artist = {
-                id: artistData.id,
-                name: artistData.name,
-                image_url: artistData.image_url,
-                popularity_score: 0,
-                source: 'database',
-                events: []
-              } as any;
-              setArtistDialog({ open: true, artist });
-              return;
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching artist:', error);
-        }
+        // Use artistId if available, otherwise use artistName as fallback
+        const artistId = detail.artistId && detail.artistId !== 'manual' 
+          ? detail.artistId 
+          : encodeURIComponent(detail.artistName);
         
-        // Fallback: open with name only
-        const artist: Artist = { 
-          id: detail.artistId || 'manual', 
-          name: detail.artistName || 'Unknown Artist' 
-        } as any;
-        setArtistDialog({ open: true, artist });
+        // Navigate to full artist profile page
+        navigate(`/artist/${artistId}`);
       }
     };
 
@@ -342,7 +491,7 @@ export const UnifiedFeed = ({
       document.removeEventListener('open-venue-card', openVenue as EventListener);
       document.removeEventListener('open-artist-card', openArtist as EventListener);
     };
-  }, []);
+  }, [navigate]);
 
   // Load followed artists and venues for filtering
   const loadFollowedData = async () => {
@@ -760,8 +909,13 @@ export const UnifiedFeed = ({
         setFeedItems(prev => [...prev, ...items]);
       }
 
-      const newHasMore = items.length === 20;
-      setHasMore(newHasMore); // If we got fewer than requested, no more items
+      // Check if we have more items - we got a full page (20 items) or exactly requested amount
+      // Count events specifically for Events tab
+      const eventItems = items.filter(item => item.type === 'event');
+      const gotFullPage = items.length >= 20 || eventItems.length >= 20;
+      const newHasMore = gotFullPage;
+      console.log(`📊 Loaded ${items.length} items (${eventItems.length} events), hasMore: ${newHasMore}`);
+      setHasMore(newHasMore);
       
     } catch (error) {
       console.error('Error loading feed data:', error);
@@ -1114,6 +1268,10 @@ export const UnifiedFeed = ({
   // Apply filters button handler - applies pending filters and triggers feed refresh
   const handleApplyFilters = () => {
     console.log('✅ Applying filters:', pendingFilters);
+    
+    // Mark that user has manually changed filters (disable auto-city logic)
+    userHasChangedFiltersRef.current = true;
+    
     setFilters(pendingFilters);
     setRefreshOffset(0);
     
@@ -1510,6 +1668,9 @@ export const UnifiedFeed = ({
                         <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-synth-pink" />
                             <span>{item.event_data.venue_name}</span>
+                            {item.event_data.venue_city && (
+                              <span className="text-gray-500">· {item.event_data.venue_city}</span>
+                            )}
                         </div>
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-synth-pink" />
@@ -1608,6 +1769,36 @@ export const UnifiedFeed = ({
               </Card>
                 ))}
             </div>
+
+            {/* Load More - Always visible, persistent button */}
+            {feedItems.length > 0 && (
+              <div className="flex flex-col items-center justify-center py-6 mt-6">
+                {!hasMore && (
+                  <p className="text-gray-500 text-sm mb-3">You're all caught up! 🎉</p>
+                )}
+                <Button
+                  onClick={() => loadFeedData(feedItems.length)}
+                  disabled={loadingMore || !hasMore}
+                  className={cn(
+                    "text-white shadow-lg px-6 py-2",
+                    hasMore 
+                      ? "bg-synth-pink hover:bg-synth-pink-dark" 
+                      : "bg-gray-400 cursor-not-allowed"
+                  )}
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Loading more events...
+                    </>
+                  ) : hasMore ? (
+                    <>Load more (20 events)</>
+                  ) : (
+                    <>You're all caught up</>
+                  )}
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="reviews" className="mt-6">
@@ -1663,8 +1854,11 @@ export const UnifiedFeed = ({
                       venue_review_text: (item as any).venue_review_text,
                       overall_experience_review_text: (item as any).overall_experience_review_text,
                       setlist: (item as any).setlist,
-                      custom_setlist: (item as any).custom_setlist
-                    }}
+                      custom_setlist: (item as any).custom_setlist,
+                      // Pass connection degree data from UnifiedFeedItem
+                      connection_degree: item.connection_degree,
+                      connection_type_label: item.connection_type_label
+                    } as any}
                     currentUserId={currentUserId}
                     onLike={(reviewId, isLiked) => {
                       console.log('🔍 BelliStyle onLike:', { reviewId, isLiked, itemId: item.id });
@@ -2030,6 +2224,8 @@ export const UnifiedFeed = ({
       {showReviewDetailModal && selectedReviewDetail && (
         <Dialog open={showReviewDetailModal} onOpenChange={setShowReviewDetailModal}>
           <DialogContent className="max-w-5xl w-[90vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden flex">
+            <DialogTitle className="sr-only">Review Details</DialogTitle>
+            <DialogDescription className="sr-only">Review details for {selectedReviewDetail.event_info?.artist_name || 'artist'}</DialogDescription>
             {/* Left side - Image/Graphic */}
             <div className="flex-1 bg-black flex items-center justify-center min-h-0">
               {selectedReviewDetail.photos && selectedReviewDetail.photos.length > 0 ? (
@@ -2175,6 +2371,8 @@ export const UnifiedFeed = ({
       {/* Artist Dialog */}
       <Dialog open={artistDialog.open} onOpenChange={(open) => setArtistDialog({ open, artist: null })}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Artist Profile</DialogTitle>
+          <DialogDescription className="sr-only">Artist profile for {artistDialog.artist?.name || 'artist'}</DialogDescription>
           {artistDialog.artist && (
             <ArtistCard
               artist={artistDialog.artist}
@@ -2192,6 +2390,8 @@ export const UnifiedFeed = ({
       {/* Venue Dialog */}
       <Dialog open={venueDialog.open} onOpenChange={(open) => setVenueDialog({ open, venueId: null, venueName: '' })}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Venue Profile</DialogTitle>
+          <DialogDescription className="sr-only">Venue profile for {venueDialog.venueName || 'venue'}</DialogDescription>
           <VenueCard
             venueId={venueDialog.venueId}
             venueName={venueDialog.venueName}

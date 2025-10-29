@@ -37,6 +37,9 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { UserPlus } from 'lucide-react';
 
 interface BelliStyleReviewCardProps {
   review: ReviewWithEngagement;
@@ -91,6 +94,12 @@ export function BelliStyleReviewCard({
   const [imageIndex, setImageIndex] = useState(0);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const { toast } = useToast();
+  
+  // Connection degree and friend request state
+  const [connectionInfo, setConnectionInfo] = useState<{ degree: number; label: string; color: string } | null>(null);
+  const [friendStatus, setFriendStatus] = useState<'none' | 'pending_sent' | 'pending_received' | 'friends' | 'loading'>('loading');
+  const [sendingRequest, setSendingRequest] = useState(false);
 
   const handleLike = async () => {
     if (!currentUserId || isLiking) {
@@ -241,6 +250,82 @@ export function BelliStyleReviewCard({
     return () => el?.removeEventListener('toggle-review-comments', listener as EventListener);
   }, [review.id, showComments, comments.length]);
 
+  // Fetch connection degree info
+  useEffect(() => {
+    const fetchConnectionInfo = async () => {
+      if (!currentUserId || !review.user_id || currentUserId === review.user_id) {
+        setConnectionInfo(null);
+        setFriendStatus('none');
+        return;
+      }
+
+      try {
+        // Always use get_connection_info RPC for consistent labels and colors
+        const { data, error } = await supabase.rpc('get_connection_info', {
+          current_user_id: currentUserId,
+          target_user_id: review.user_id
+        });
+
+        if (error) {
+          console.warn('Error fetching connection info:', error);
+          setConnectionInfo(null);
+        } else if (data && data.length > 0 && data[0].degree <= 3) {
+          // Only show badge for 1st, 2nd, 3rd degree (not strangers)
+          setConnectionInfo({
+            degree: data[0].degree,
+            label: data[0].label,
+            color: data[0].color
+          });
+        } else {
+          setConnectionInfo(null);
+        }
+
+        // Check friend status
+        const { data: friendData, error: friendError } = await supabase
+          .from('friends')
+          .select('id')
+          .or(`and(user1_id.eq.${currentUserId},user2_id.eq.${review.user_id}),and(user1_id.eq.${review.user_id},user2_id.eq.${currentUserId})`)
+          .maybeSingle();
+
+        if (friendError && friendError.code !== 'PGRST116') {
+          console.warn('Error checking friend status:', friendError);
+        }
+
+        if (friendData) {
+          setFriendStatus('friends');
+        } else {
+          // Check for pending friend request
+          const { data: requestData, error: requestError } = await supabase
+            .from('friend_requests')
+            .select('id, sender_id, receiver_id, status')
+            .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${review.user_id}),and(sender_id.eq.${review.user_id},receiver_id.eq.${currentUserId})`)
+            .eq('status', 'pending')
+            .maybeSingle();
+
+          if (requestError && requestError.code !== 'PGRST116') {
+            console.warn('Error checking friend request:', requestError);
+          }
+
+          if (requestData) {
+            if (requestData.sender_id === currentUserId) {
+              setFriendStatus('pending_sent');
+            } else {
+              setFriendStatus('pending_received');
+            }
+          } else {
+            setFriendStatus('none');
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching connection/friend info:', error);
+        setConnectionInfo(null);
+        setFriendStatus('none');
+      }
+    };
+
+    fetchConnectionInfo();
+  }, [currentUserId, review.user_id]);
+
   // Refresh engagement data when component mounts
   useEffect(() => {
     const refreshEngagement = async () => {
@@ -267,6 +352,35 @@ export function BelliStyleReviewCard({
   };
 
   const closeImageViewer = () => setImageViewerOpen(false);
+
+  // Send friend request
+  const handleSendFriendRequest = async () => {
+    if (!currentUserId || !review.user_id || sendingRequest) return;
+
+    try {
+      setSendingRequest(true);
+      const { data, error } = await supabase.rpc('create_friend_request', {
+        receiver_user_id: review.user_id
+      });
+
+      if (error) throw error;
+
+      setFriendStatus('pending_sent');
+      toast({
+        title: "Friend Request Sent! 🎉",
+        description: "Your friend request has been sent.",
+      });
+    } catch (error: any) {
+      console.error('Error sending friend request:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send friend request. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingRequest(false);
+    }
+  };
   const prevImage = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!photos.length) return;
@@ -317,16 +431,58 @@ export function BelliStyleReviewCard({
           
           {/* User Info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="text-lg font-bold text-gray-900">
-                {userProfile?.name || 'User'}
-              </h3>
-              {userProfile?.verified && userProfile?.account_type && (
-                <VerificationBadge
-                  accountType={userProfile.account_type as any}
-                  verified={userProfile.verified}
-                  size="md"
-                />
+            <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+              {/* Left side: Name, Verification, Connection Badge (all together in sequence) */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h3 className="text-lg font-bold text-gray-900">
+                  {userProfile?.name || 'User'}
+                </h3>
+                {userProfile?.verified && userProfile?.account_type && (
+                  <VerificationBadge
+                    accountType={userProfile.account_type as any}
+                    verified={userProfile.verified}
+                    size="md"
+                  />
+                )}
+                {/* Connection Degree Badge - directly next to verification badge */}
+                {currentUserId && review.user_id !== currentUserId && connectionInfo && connectionInfo.degree <= 3 && (
+                  <Badge
+                    className={cn(
+                      "text-xs font-semibold px-2 py-0.5 border-2 border-black",
+                      connectionInfo.color === 'dark-green'
+                        ? "bg-green-700 text-white hover:bg-green-800"
+                        : connectionInfo.color === 'light-green'
+                        ? "bg-green-400 text-green-900 hover:bg-green-500"
+                        : connectionInfo.color === 'yellow'
+                        ? "bg-yellow-400 text-yellow-900 hover:bg-yellow-500"
+                        : connectionInfo.color === 'red'
+                        ? "bg-red-500 text-white hover:bg-red-600"
+                        : connectionInfo.color === 'blue'
+                        ? "bg-blue-500 text-white hover:bg-blue-600"
+                        : "bg-gray-500 text-white hover:bg-gray-600"
+                    )}
+                  >
+                    {connectionInfo.label}
+                  </Badge>
+                )}
+              </div>
+              
+              {/* Right side: Friend Request Button */}
+              {currentUserId && review.user_id !== currentUserId && friendStatus !== 'friends' && friendStatus !== 'pending_sent' && friendStatus !== 'loading' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSendFriendRequest();
+                  }}
+                  disabled={sendingRequest}
+                  className="h-7 text-xs px-2 gap-1"
+                >
+                  <UserPlus className="w-3 h-3" />
+                  {sendingRequest ? 'Sending...' : friendStatus === 'pending_received' ? 'Pending' : 'Add Friend'}
+                </Button>
               )}
             </div>
             
@@ -578,7 +734,7 @@ export function BelliStyleReviewCard({
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
                   )}
-                  🎤 {followedArtists.includes(review.artist_name) ? 'Following Artist' : review.artist_name}
+                  🎤 {review.artist_name}
                 </button>
                 {currentUserId && (
                   <ArtistFollowButton
@@ -622,11 +778,7 @@ export function BelliStyleReviewCard({
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
                   )}
-                  📍 {followedVenues.some(v => 
-                    v.name === review.venue_name && 
-                    (!v.city || v.city === (review as any).venue_city) &&
-                    (!v.state || v.state === (review as any).venue_state)
-                  ) ? 'Following Venue' : review.venue_name}
+                  📍 {review.venue_name}
                 </button>
                 {currentUserId && (
                   <VenueFollowButton

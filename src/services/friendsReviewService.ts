@@ -329,4 +329,84 @@ export class FriendsReviewService {
       return false;
     }
   }
+
+  /**
+   * Get reviews from 1st, 2nd, and relevant 3rd degree connections
+   * Uses the reviews_with_connection_degree view created by SQL
+   */
+  static async getConnectionDegreeReviews(
+    userId: string, 
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<UnifiedFeedItem[]> {
+    try {
+      // Use the RPC function or query the view directly
+      const { data, error } = await supabase
+        .rpc('get_connection_degree_reviews', {
+          p_user_id: userId,
+          p_limit: limit,
+          p_offset: offset
+        });
+
+      if (error) {
+        // Fallback: query the view directly
+        console.warn('RPC function failed, trying direct view query:', error);
+        const { data: viewData, error: viewError } = await supabase
+          .from('reviews_with_connection_degree')
+          .select('*')
+          .order('connection_degree', { ascending: true })
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1);
+
+        if (viewError) throw viewError;
+
+        return (viewData || []).map((review: any) => this.transformConnectionReview(review));
+      }
+
+      return (data || []).map((review: any) => this.transformConnectionReview(review));
+    } catch (error) {
+      console.error('Error fetching connection degree reviews:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Transform review from connection_degree view to UnifiedFeedItem
+   */
+  private static transformConnectionReview(review: any): UnifiedFeedItem {
+    return {
+      id: `connection-review-${review.review_id}`,
+      type: 'review' as const,
+      review_id: review.review_id,
+      title: `${review.reviewer_name || 'User'}'s Review`,
+      content: review.review_text || review.content || '',
+      author: {
+        id: review.reviewer_id,
+        name: review.reviewer_name || 'Anonymous',
+        avatar_url: review.reviewer_avatar,
+        verified: review.reviewer_verified,
+        account_type: review.reviewer_account_type
+      },
+      created_at: review.created_at,
+      updated_at: review.updated_at,
+      rating: review.rating,
+      is_public: review.is_public,
+      photos: review.photos || undefined,
+      setlist: review.setlist || undefined,
+      likes_count: review.likes_count || 0,
+      comments_count: review.comments_count || 0,
+      shares_count: review.shares_count || 0,
+      event_info: {
+        event_name: review.event_title || 'Concert Review',
+        venue_name: review.venue_name || 'Unknown Venue',
+        event_date: review.event_date || review.created_at,
+        artist_name: review.artist_name,
+        artist_id: review.artist_id
+      },
+      connection_degree: review.connection_degree,
+      connection_type_label: review.connection_type_label, // 'Friends', 'Friends of Friends', etc.
+      connection_color: (review as any).connection_color, // Color for badge styling
+      relevance_score: this.calculateFriendReviewRelevance(review, review.connection_degree || 3)
+    };
+  }
 }

@@ -18,13 +18,56 @@ export class ArtistFollowService {
     following: boolean
   ): Promise<void> {
     try {
-      // Use SECURITY DEFINER function to avoid recursive RLS
-      const { error } = await (supabase as any).rpc('set_artist_follow', {
+      // Try RPC function first (preferred method)
+      const { error: rpcError } = await (supabase as any).rpc('set_artist_follow', {
         p_artist_id: artistId,
         p_following: following
       });
 
-      if (error) throw error;
+      // Check if RPC function doesn't exist or has issues (404, function not found, or table not found errors)
+      const isRpcNotFound = rpcError && (
+        rpcError.code === '42883' || // Function does not exist
+        rpcError.code === 'PGRST404' || // PostgREST 404
+        rpcError.code === '42P01' || // Table does not exist (error in function)
+        rpcError.message?.includes('404') ||
+        rpcError.message?.includes('does not exist') ||
+        rpcError.message?.includes('function') ||
+        rpcError.message?.includes('relation')
+      );
+
+      // If RPC function doesn't exist or has table issues, fallback to direct table operations
+      if (isRpcNotFound) {
+        console.warn('⚠️ RPC function set_artist_follow not available, using direct table operations');
+        
+        if (following) {
+          // Insert follow record (presence-based: row exists = following)
+          // Use artist_follows table (existing infrastructure)
+          const { error: insertError } = await supabase
+            .from('artist_follows')
+            .insert({
+              user_id: userId,
+              artist_id: artistId
+            });
+
+          // Ignore unique constraint errors (already following)
+          if (insertError && insertError.code !== '23505') {
+            throw insertError;
+          }
+        } else {
+          // Delete follow record
+          // Use artist_follows table (existing infrastructure)
+          const { error: deleteError } = await supabase
+            .from('artist_follows')
+            .delete()
+            .eq('user_id', userId)
+            .eq('artist_id', artistId);
+
+          if (deleteError) throw deleteError;
+        }
+      } else if (rpcError) {
+        // Other RPC errors should be thrown
+        throw rpcError;
+      }
 
       console.log(`✅ Artist follow ${following ? 'added' : 'removed'}:`, { userId, artistId });
     } catch (error) {
@@ -221,12 +264,25 @@ export class ArtistFollowService {
         console.warn('⚠️ artist_follows_with_details view not found, using artist_follows table');
         const { data: fallbackData, error: fallbackError } = await (supabase as any)
           .from('artist_follows')
-          .select('*')
+          .select('*, artists(name, image_url, jambase_artist_id)')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
           
         if (fallbackError) throw fallbackError;
-        return (fallbackData || []) as ArtistFollowWithDetails[];
+        // Transform to match expected format
+        return (fallbackData || []).map((item: any) => ({
+          id: item.id,
+          user_id: item.user_id,
+          artist_id: item.artist_id,
+          created_at: item.created_at,
+          artist_name: item.artists?.name || null,
+          artist_image_url: item.artists?.image_url || null,
+          jambase_artist_id: item.artists?.jambase_artist_id || null,
+          num_upcoming_events: null,
+          genres: item.artist_genres || null,
+          user_name: null,
+          user_avatar_url: null
+        })) as ArtistFollowWithDetails[];
       }
 
       return (data as ArtistFollowWithDetails[]) || [];
@@ -265,32 +321,20 @@ export class ArtistFollowService {
    */
   static async getArtistUuidByJambaseId(jambaseArtistId: string): Promise<string | null> {
     try {
-      // Try artist_profile table first (more reliable)
+      // Try artists table first (more reliable, always available)
       let { data, error } = await supabase
-        .from('artist_profile')
+        .from('artists')
         .select('id')
         .eq('jambase_artist_id', jambaseArtistId)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
-        console.warn('Artist profile table query failed:', error);
+        console.warn('Artists table query failed:', error);
       } else if (data) {
         return data.id;
       }
 
-      // Try artists table as fallback
-      ({ data, error } = await supabase
-        .from('artists')
-        .select('id')
-        .eq('jambase_artist_id', jambaseArtistId)
-        .maybeSingle());
-
-      if (error) {
-        console.warn('Artists table query failed:', error);
-        return null;
-      }
-      
-      if (data) return data.id;
+      // Do not query artist_profile in this environment; table may not exist
 
       return null;
     } catch (error) {
@@ -306,34 +350,21 @@ export class ArtistFollowService {
    */
   static async getArtistUuidByName(artistName: string): Promise<string | null> {
     try {
-      // Try artist_profile table first (more reliable)
+      // Try artists table first (more reliable, always available)
       let { data, error } = await supabase
-        .from('artist_profile')
+        .from('artists')
         .select('id')
         .ilike('name', artistName)
         .limit(1)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
-        console.warn('Artist profile table query failed:', error);
+        console.warn('Artists table query failed:', error);
       } else if (data) {
         return data.id;
       }
 
-      // Try artists table as fallback
-      ({ data, error } = await supabase
-        .from('artists')
-        .select('id')
-        .ilike('name', artistName)
-        .limit(1)
-        .maybeSingle());
-
-      if (error) {
-        console.warn('Artists table query failed:', error);
-        return null;
-      }
-      
-      if (data) return data.id;
+      // Do not query artist_profile in this environment; table may not exist
 
       return null;
     } catch (error) {
@@ -358,7 +389,7 @@ export class ArtistFollowService {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'artist_follows',
+          table: 'artist_follows',  // Use existing artist_follows table
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
@@ -370,7 +401,7 @@ export class ArtistFollowService {
         {
           event: 'DELETE',
           schema: 'public',
-          table: 'artist_follows',
+          table: 'artist_follows',  // Use existing artist_follows table
           filter: `user_id=eq.${userId}`
         },
         (payload) => {

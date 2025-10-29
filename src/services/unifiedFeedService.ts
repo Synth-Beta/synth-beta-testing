@@ -15,6 +15,8 @@ export interface UnifiedFeedItem {
     id: string;
     name: string;
     avatar_url?: string;
+    verified?: boolean;
+    account_type?: string;
   };
   created_at: string;
   updated_at?: string;
@@ -23,6 +25,7 @@ export interface UnifiedFeedItem {
   rating?: number;
   is_public?: boolean;
   photos?: string[];
+  setlist?: any; // Setlist data (JSON)
   event_info?: {
     event_name?: string;
     venue_name?: string;
@@ -51,6 +54,11 @@ export interface UnifiedFeedItem {
   // Relevance scoring
   relevance_score: number;
   distance_miles?: number;
+  
+  // Connection degree (for reviews from connections)
+  connection_degree?: number;
+  connection_type_label?: string; // 'Friends', 'Friends of Friends', etc.
+  connection_color?: string; // 'dark-green', 'light-green', 'yellow', etc.
 }
 
 export interface FeedOptions {
@@ -81,10 +89,9 @@ export class UnifiedFeedService {
       // Handle different feed types
       switch (feedType) {
         case 'friends':
-          return await FriendsReviewService.getFriendsReviews(userId, limit, offset);
-        
         case 'friends_plus_one':
-          return await FriendsReviewService.getFriendsPlusOneReviews(userId, limit, offset);
+          // Use connection degree reviews (includes 1st, 2nd, and relevant 3rd degree)
+          return await FriendsReviewService.getConnectionDegreeReviews(userId, limit, offset);
         
         case 'public_only':
           return await this.getPublicReviews(userId, limit);
@@ -114,9 +121,17 @@ export class UnifiedFeedService {
         feedItems.push(...userReviews);
       }
       
-      // Fetch public reviews from friends and community
-      const publicReviews = await this.getPublicReviews(userId, limit);
-      feedItems.push(...publicReviews);
+      // Fetch reviews from connections (1st, 2nd, relevant 3rd degree)
+      // This uses the connection_degree view which includes relevant connection reviews
+      try {
+        const connectionReviews = await FriendsReviewService.getConnectionDegreeReviews(userId, limit);
+        feedItems.push(...connectionReviews);
+      } catch (error) {
+        console.warn('Error fetching connection degree reviews, falling back to public reviews:', error);
+        // Fallback to public reviews if connection degree fails
+        const publicReviews = await this.getPublicReviews(userId, limit);
+        feedItems.push(...publicReviews);
+      }
       
       // Fetch recent events (as "news" items) - NOW PERSONALIZED!
       const recentEvents = await this.getRecentEvents(userLocation, 20, userId, offset, filters);
@@ -131,9 +146,12 @@ export class UnifiedFeedService {
       
       // Sort by relevance and recency
       const sortedItems = this.sortByRelevanceAndTime(deduplicatedItems, userLocation);
+
+      // Enforce max 1 item per artist across the entire unified feed (all pages)
+      const diverseItems = this.enforceArtistDiversity(sortedItems, 1);
       
       // Apply pagination
-      return sortedItems.slice(offset, offset + limit);
+      return diverseItems.slice(offset, offset + limit);
       
     } catch (error) {
       console.error('Error fetching unified feed:', error);
@@ -761,5 +779,42 @@ export class UnifiedFeedService {
     }
     
     return uniqueItems;
+  }
+
+  /**
+   * Enforce a maximum number of items per artist across the entire unified feed
+   * Applies to any item that has an associated artist (events and reviews with event_info)
+   * Items without an artist are always kept
+   */
+  private static enforceArtistDiversity(items: UnifiedFeedItem[], maxPerArtist: number): UnifiedFeedItem[] {
+    const counts = new Map<string, number>();
+    const result: UnifiedFeedItem[] = [];
+
+    for (const item of items) {
+      // Extract artist name from event_info or event_data if present
+      const rawArtist = (item.event_info?.artist_name || (item.event_data as any)?.artist_name || '').toString();
+
+      // If no artist associated, always include
+      if (!rawArtist) {
+        result.push(item);
+        continue;
+      }
+
+      // Normalize artist key for consistent counting
+      const artistKey = rawArtist
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/[^[\w\s]]/g, '');
+
+      const current = counts.get(artistKey) || 0;
+      if (current < maxPerArtist) {
+        result.push(item);
+        counts.set(artistKey, current + 1);
+      }
+      // else: skip to enforce cap globally across all pages
+    }
+
+    return result;
   }
 }

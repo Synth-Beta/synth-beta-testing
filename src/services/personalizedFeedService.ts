@@ -31,6 +31,45 @@ export interface UserMusicProfile {
 }
 
 export class PersonalizedFeedService {
+  /**
+   * Score a list of events with limited concurrency to avoid overloading RPC
+   */
+  private static async scoreEventsWithConcurrency(
+    userId: string,
+    events: any[],
+    concurrency: number
+  ): Promise<Array<{ event: any; score: number }>> {
+    if (events.length === 0) return [];
+    const results: Array<{ event: any; score: number }> = new Array(events.length);
+    let index = 0;
+
+    const worker = async () => {
+      while (true) {
+        const current = index++;
+        if (current >= events.length) break;
+        const event = events[current];
+        try {
+          const { data: score, error: scoreError } = await supabase.rpc('calculate_event_relevance_score', {
+            p_user_id: userId,
+            p_event_id: event.id
+          });
+          if (scoreError) {
+            console.warn(`⚠️ Score RPC error for event ${event.id}:`, scoreError);
+            results[current] = { event, score: 0 };
+            continue;
+          }
+          results[current] = { event, score: score || 0 };
+        } catch (err) {
+          console.warn(`⚠️ Score RPC exception for event ${event.id}:`, err);
+          results[current] = { event, score: 0 };
+        }
+      }
+    };
+
+    const workers = Array.from({ length: Math.min(concurrency, events.length) }, () => worker());
+    await Promise.all(workers);
+    return results;
+  }
   
   /**
    * Helper: Get event IDs by city using coordinate-based filtering (includes metro areas)
@@ -83,32 +122,40 @@ export class PersonalizedFeedService {
     try {
       console.log('🎯 Fetching personalized feed for user:', userId, filters ? 'with filters' : '');
       
-      // If filters are provided, apply them to the query first, then personalize
-      // This ensures a fresh personalized feed is generated from only filtered events
-      if (filters && (
+      // ALWAYS use the filtered path (even with empty filters) to avoid RPC timeout issues
+      // The filtered path is more reliable and performs better than the legacy RPC
+      // If filters are empty, we'll just apply minimal filtering (future events only)
+      const hasActiveFilters = filters && (
         (filters.genres && filters.genres.length > 0) ||
         (filters.selectedCities && filters.selectedCities.length > 0) ||
         filters.dateRange?.from || filters.dateRange?.to ||
         (filters.daysOfWeek && filters.daysOfWeek.length > 0) ||
         filters.filterByFollowing === 'following'
-      )) {
-        console.log('🔍 Filters active, generating personalized feed from filtered events...');
+      );
+      
+      if (hasActiveFilters || !filters) {
+        // Use filtered path: either has active filters, or filters is undefined/empty
+        // Passing undefined filters means "all future events" which is safer than RPC
+        console.log('🔍 Using filtered personalized feed path (more reliable than RPC)...');
         return this.getFilteredPersonalizedFeed(userId, limit, offset, includePast, filters);
       }
       
-      // No filters: use standard personalized feed RPC
-      // p_max_per_artist: 3 limits each artist to max 3 events for diversity
+      // Legacy RPC path - only use if filters object exists but is empty (shouldn't happen)
+      // This path is prone to timeouts, so we prefer filtered path above
+      console.warn('⚠️ Using legacy RPC path (may timeout). Consider using filtered path instead.');
       const { data, error } = await supabase.rpc('get_personalized_events_feed' as any, {
         p_user_id: userId,
         p_limit: limit,
         p_offset: offset,
         p_include_past: includePast,
-        p_max_per_artist: 3  // Max 3 events per artist for diversity
+        p_max_per_artist: 1  // Max 1 event per artist for diversity
       });
       
       if (error) {
-        console.error('❌ Personalized feed error:', error);
-        return this.getFallbackFeed(userId, limit, offset, includePast, filters);
+        console.error('❌ Personalized feed RPC error (timeout likely):', error);
+        // Fallback to filtered path if RPC fails
+        console.log('🔄 Falling back to filtered path...');
+        return this.getFilteredPersonalizedFeed(userId, limit, offset, includePast, filters);
       }
       
       if (!data || !Array.isArray(data)) {
@@ -130,7 +177,7 @@ export class PersonalizedFeedService {
             p_limit: limit * 2, // Fetch double to ensure we have enough
             p_offset: 0,
             p_include_past: includePast,
-            p_max_per_artist: 3  // Max 3 events per artist for diversity
+            p_max_per_artist: 1  // Max 1 event per artist for diversity
           });
           
           if (!moreError && moreData && Array.isArray(moreData) && moreData.length > results.length) {
@@ -142,13 +189,27 @@ export class PersonalizedFeedService {
         }
       }
       
+      // Filter out past events if includePast is false
+      let filteredResults = results;
+      if (!includePast) {
+        const now = new Date();
+        filteredResults = results.filter((event: any) => {
+          try {
+            const eventDate = new Date(event.event_date);
+            return eventDate >= now;
+          } catch {
+            return true; // Keep if date parsing fails
+          }
+        });
+      }
+      
       // Database already applied pagination (OFFSET/LIMIT), so results is already the correct page
       // First deduplicate by event ID (in case database returned duplicates)
-      const uniqueResults = this.deduplicateEvents(results);
+      const uniqueResults = this.deduplicateEvents(filteredResults);
       
       // Just ensure we don't exceed the limit (in case database returned more for some reason)
-      // IMPORTANT: Also enforce diversity limits - max 3 events per artist (no penalty events)
-      const paginatedData = this.enforceDiversityLimit(uniqueResults, limit, 3);
+      // IMPORTANT: Also enforce diversity limits - max 1 event per artist
+      const paginatedData = this.enforceDiversityLimit(uniqueResults, limit, 1);
       
       // Log diversity information (using all available results for context, not just paginated)
       const artistCounts = paginatedData.reduce((acc: Record<string, number>, event: any) => {
@@ -269,7 +330,7 @@ export class PersonalizedFeedService {
     limit: number,
     offset: number,
     includePast: boolean,
-    filters: {
+    filters?: {
       genres?: string[];
       selectedCities?: string[];
       dateRange?: { from?: Date; to?: Date };
@@ -278,7 +339,17 @@ export class PersonalizedFeedService {
     }
   ): Promise<PersonalizedEvent[]> {
     try {
-      console.log('🔍 Generating personalized feed with filters:', filters);
+      // Handle undefined filters - treat as "no filters"
+      const effectiveFilters = filters || {
+        genres: [],
+        selectedCities: [],
+        dateRange: undefined,
+        daysOfWeek: [],
+        filterByFollowing: 'all'
+      };
+      console.log('🔍 Generating personalized feed with filters:', effectiveFilters);
+      const MAX_CANDIDATES = 2000; // hard cap before scoring to keep runtime predictable
+      const SCORE_CONCURRENCY = 16; // max concurrent score RPCs
       
       // Step 1: Query events matching filters
       let query = supabase
@@ -290,15 +361,15 @@ export class PersonalizedFeedService {
       }
       
       // Apply genre filters
-      if (filters.genres && filters.genres.length > 0) {
-        query = query.overlaps('genres', filters.genres);
+      if (effectiveFilters.genres && effectiveFilters.genres.length > 0) {
+        query = query.overlaps('genres', effectiveFilters.genres);
       }
       
       // Apply city filters using coordinate-based filtering (includes metro areas)
       let cityFilteredEventIds: string[] | null = null;
-      if (filters.selectedCities && filters.selectedCities.length > 0) {
+      if (effectiveFilters.selectedCities && effectiveFilters.selectedCities.length > 0) {
         // Extract state codes if cities are in "City, ST" format
-        const stateCodes = filters.selectedCities
+        const stateCodes = effectiveFilters.selectedCities
           .map(city => {
             const parts = city.split(',');
             return parts.length > 1 ? parts[1].trim() : undefined;
@@ -306,20 +377,58 @@ export class PersonalizedFeedService {
           .filter(Boolean) as string[] | undefined;
         
         // Get clean city names (remove state if present)
-        const cleanCityNames = filters.selectedCities.map(city => {
+        let cleanCityNames = effectiveFilters.selectedCities.map(city => {
           const parts = city.split(',');
           return parts[0].trim();
         });
         
+        console.log('🗺️ Filtering by cities:', cleanCityNames, 'stateCodes:', stateCodes);
         cityFilteredEventIds = await this.getEventIdsByCityCoordinates(
           cleanCityNames,
           stateCodes?.length > 0 ? stateCodes : undefined,
           50 // 50 mile radius for metro coverage
         );
         
+        console.log(`🗺️ Found ${cityFilteredEventIds.length} events in selected cities/metro areas`);
         if (cityFilteredEventIds.length === 0) {
-          console.log('📭 No events found in selected cities/metro areas');
+          console.error('❌ CITY FILTER FAILED: No events found for cities:', cleanCityNames);
+          console.error('   Attempting alternative city name matching...');
+          
+          // Try alternative approach: direct query by venue_city column with fuzzy matching
+          // This bypasses the RPC and directly filters by city name variations
+          console.log('   Trying direct city name matching...');
+          
+          // Build OR conditions for all city name variations
+          const cityConditions: string[] = [];
+          for (const city of cleanCityNames) {
+            // Try exact match
+            cityConditions.push(`venue_city.ilike.${city}`);
+            // Try contains match
+            cityConditions.push(`venue_city.ilike.%${city}%`);
+            // Try without spaces (e.g., "Washington DC" -> "WashingtonDC")
+            cityConditions.push(`venue_city.ilike.%${city.replace(/\s+/g, '')}%`);
+            // Try with common separators
+            cityConditions.push(`venue_city.ilike.%${city.replace(/\s+/g, ' ')}%`);
+          }
+          
+          const { data: directCityEvents, error: directError } = await supabase
+            .from('jambase_events')
+            .select('id')
+            .gte('event_date', new Date().toISOString())
+            .or(cityConditions.join(','))
+            .limit(5000);
+          
+          if (!directError && directCityEvents && directCityEvents.length > 0) {
+            console.log(`✅ Found ${directCityEvents.length} events using direct city name matching`);
+            cityFilteredEventIds = directCityEvents.map((e: any) => e.id);
+          } else {
+            console.error('❌ Both RPC and direct city matching failed.');
+            console.error('   Cities tried:', cleanCityNames);
+            console.error('   Error:', directError?.message || 'No events found');
+            console.error('   Returning empty to prevent showing wrong events from all over the world.');
+            // Return empty array - better than showing wrong events from all over the world
           return [];
+          }
         }
         
         // Filter by these event IDs
@@ -327,11 +436,32 @@ export class PersonalizedFeedService {
       }
       
       // Apply date range filters
-      if (filters.dateRange?.from) {
-        query = query.gte('event_date', filters.dateRange.from.toISOString());
-      }
-      if (filters.dateRange?.to) {
-        query = query.lte('event_date', filters.dateRange.to.toISOString());
+      // If from and to are the same date (single day selection), filter to events on that specific day
+      if (effectiveFilters.dateRange?.from) {
+        const fromDate = effectiveFilters.dateRange.from;
+        const toDate = effectiveFilters.dateRange.to || fromDate;
+        
+        // Check if it's a single day selection (from and to are the same day)
+        const isSameDay = fromDate.toDateString() === toDate.toDateString();
+        
+        if (isSameDay) {
+          // Single day: filter to events on that specific day only
+          // Start of day
+          const startOfDay = new Date(fromDate);
+          startOfDay.setHours(0, 0, 0, 0);
+          // End of day
+          const endOfDay = new Date(fromDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          
+          query = query.gte('event_date', startOfDay.toISOString())
+                   .lte('event_date', endOfDay.toISOString());
+        } else {
+          // Date range: filter between from and to dates
+          query = query.gte('event_date', fromDate.toISOString());
+          if (toDate) {
+            query = query.lte('event_date', toDate.toISOString());
+          }
+        }
       }
       
       // Get filtered event IDs first
@@ -348,141 +478,298 @@ export class PersonalizedFeedService {
       }
       
       const eventIds = filteredEventIds.map(e => e.id);
+      console.log(`📋 Fetching full event data for ${eventIds.length} filtered event IDs...`);
       
-      // Step 2: Get personalized feed, then filter by our event IDs
-      // We'll fetch more events than needed, then filter and take the top ones
-      const { data, error } = await supabase.rpc('get_personalized_events_feed' as any, {
-        p_user_id: userId,
-        p_limit: limit * 3, // Get more to account for filtering
-        p_offset: 0, // Always start from 0 when filters change
-        p_include_past: includePast,
-        p_max_per_artist: 3  // Max 3 events per artist for diversity
+      // Step 2: Get full event data for filtered events (batch IN queries to avoid size limits)
+      // Supabase has limits on IN clause size (typically ~100-200 items), so batch into chunks
+      const BATCH_SIZE = 100;
+      const allFilteredEvents: any[] = [];
+      
+      for (let i = 0; i < eventIds.length; i += BATCH_SIZE) {
+        const batchIds = eventIds.slice(i, i + BATCH_SIZE);
+        
+        const { data: batchEvents, error: batchError } = await supabase
+          .from('jambase_events')
+          .select('*')
+          .in('id', batchIds)
+          .order('event_date', { ascending: true });
+        
+        if (batchError) {
+          console.error(`❌ Error fetching batch ${i / BATCH_SIZE + 1}:`, batchError);
+          // Continue with other batches instead of failing completely
+          continue;
+        }
+        
+        if (batchEvents && batchEvents.length > 0) {
+          allFilteredEvents.push(...batchEvents);
+        }
+      }
+      
+      if (allFilteredEvents.length === 0) {
+        console.log('📭 No events retrieved after batching');
+        return [];
+      }
+      
+      // Sort all events by date (since we fetched in batches)
+      const filteredEvents = allFilteredEvents.sort((a, b) => {
+        const dateA = new Date(a.event_date).getTime();
+        const dateB = new Date(b.event_date).getTime();
+        return dateA - dateB;
       });
       
-      if (error) {
-        console.error('❌ Personalized feed error with filters:', error);
-        // Fall back to filtered non-personalized feed
-        return this.getFallbackFeed(userId, limit, offset, includePast, filters);
+      console.log(`✅ Successfully fetched ${filteredEvents.length} events from ${Math.ceil(eventIds.length / BATCH_SIZE)} batches`);
+      
+      // Step 3: Filter out past events completely
+      const now = new Date();
+      let futureEvents = filteredEvents.filter((event: any) => {
+        try {
+          const eventDate = new Date(event.event_date);
+          return eventDate >= now;
+        } catch {
+          return true; // Keep if date parsing fails
+        }
+      });
+      
+      if (futureEvents.length === 0) {
+        console.log('📭 No future events match the filters');
+        return [];
       }
       
-      if (!data || !Array.isArray(data)) {
-        console.warn('⚠️ No personalized feed data returned');
-        return this.getFallbackFeed(userId, limit, offset, includePast, filters);
-      }
-      
-      // Step 3: Filter personalized results to only include filtered event IDs
-      let filteredPersonalized = data.filter((event: any) => 
-        eventIds.includes(event.event_id)
-      );
-      
-      // Step 4: Apply days of week filter (client-side, can't do in initial query easily)
-      if (filters.daysOfWeek && filters.daysOfWeek.length > 0) {
-        filteredPersonalized = filteredPersonalized.filter((event: any) => {
+      // Step 4: Apply days of week filter (client-side)
+      let dayFilteredEvents = futureEvents;
+      if (effectiveFilters.daysOfWeek && effectiveFilters.daysOfWeek.length > 0) {
+        dayFilteredEvents = futureEvents.filter((event: any) => {
           try {
             const eventDate = new Date(event.event_date);
             const dayOfWeek = eventDate.getDay();
-            return filters.daysOfWeek!.includes(dayOfWeek);
+            return effectiveFilters.daysOfWeek!.includes(dayOfWeek);
           } catch {
             return true;
           }
         });
       }
       
-      // Step 5: Apply following filter (client-side)
-      if (filters.filterByFollowing === 'following') {
-        // This will require additional queries to check follow status
-        // For now, we'll skip this and let it be handled client-side if needed
-        // TODO: Implement following filter at DB level
+      if (dayFilteredEvents.length === 0) {
+        console.log('📭 No events match the day-of-week filter');
+        return [];
       }
       
-      // Step 6: Enforce diversity limits before pagination (max 3 events per artist)
-      const diverseFiltered = this.enforceDiversityLimit(filteredPersonalized, limit * 2, 3);
+      // Step 5: Get followed artists and venues (needed for filtering or boosts)
+      // Fetch early so we can use for filtering if needed, and reuse for boosts
+      const { ArtistFollowService } = await import('@/services/artistFollowService');
+      const { VenueFollowService } = await import('@/services/venueFollowService');
       
-      // Step 7: Apply offset and limit to final filtered results
-      let paginatedResults = diverseFiltered.slice(offset, offset + limit);
+      const [followedArtists, followedVenues] = await Promise.all([
+        ArtistFollowService.getUserFollowedArtists(userId),
+        VenueFollowService.getUserFollowedVenues(userId)
+      ]);
       
-      // Step 8: If we got fewer than the requested limit, try to fetch more from unfiltered personalized feed
-      if (paginatedResults.length < limit && offset === 0) {
-        console.log(`⚠️ Only got ${paginatedResults.length} filtered events, fetching more to reach ${limit}...`);
+      const artistFollowSet = new Set(followedArtists.map((a: any) => (a.artist_name || '').toLowerCase().trim()));
+      const venueFollowSet = new Set(followedVenues.map((v: any) => 
+        `${(v.venue_name || '').toLowerCase().trim()}|${(v.venue_city || '').toLowerCase().trim()}`
+      ));
+      
+      // Apply "filterByFollowing" if set to 'following' - FILTER BEFORE scoring
+      let followingFilteredEvents = dayFilteredEvents;
+      if (effectiveFilters.filterByFollowing === 'following') {
+        // Filter to only events from followed artists OR followed venues
+        followingFilteredEvents = dayFilteredEvents.filter((event: any) => {
+          const artistName = (event.artist_name || '').toLowerCase().trim();
+          const venueKey = `${(event.venue_name || '').toLowerCase().trim()}|${(event.venue_city || '').toLowerCase().trim()}`;
+          return artistFollowSet.has(artistName) || venueFollowSet.has(venueKey);
+        });
         
-        // Fetch additional events from unfiltered personalized feed
-        const additionalLimit = limit - paginatedResults.length + 5; // Fetch a few extra
+        console.log(`📌 Filtered to ${followingFilteredEvents.length} events from followed artists/venues (from ${dayFilteredEvents.length} total)`);
+      }
+      
+      // Step 6: Cheap pre-sort and cap candidates BEFORE scoring to minimize M
+      // Heuristics: prefer events with tickets and nearer dates first
+      const preSorted = [...followingFilteredEvents].sort((a: any, b: any) => {
+        const ta = (a.ticket_available ? 1 : 0) - (b.ticket_available ? 1 : 0);
+        if (ta !== 0) return -ta; // ticket_available true first
+        const da = new Date(a.event_date).getTime();
+        const db = new Date(b.event_date).getTime();
+        return da - db; // sooner first
+      });
+      const cappedCandidates = preSorted.slice(0, Math.min(MAX_CANDIDATES, preSorted.length));
+
+      // Step 7: Calculate base personalized scores for capped candidates (concurrency-limited)
+      const baseScoredEvents = await this.scoreEventsWithConcurrency(userId, cappedCandidates, SCORE_CONCURRENCY);
+      
+      // Step 8: Get user location from selectedCities if available
+      // If filters have selectedCities, try to get coordinates for the first city
+      let userLocation: { lat: number; lng: number } | null = null;
+      
+      if (filters?.selectedCities && filters.selectedCities.length > 0) {
         try {
-          const { data: additionalData, error: additionalError } = await supabase.rpc('get_personalized_events_feed' as any, {
-            p_user_id: userId,
-            p_limit: additionalLimit * 2, // Fetch more to account for possible duplicates
-            p_offset: filteredPersonalized.length, // Start after the filtered results
-            p_include_past: includePast,
-            p_max_per_artist: 3  // Maintain diversity
-          });
-          
-          if (!additionalError && additionalData && Array.isArray(additionalData)) {
-          // Filter out events we already have
-          const existingIds = new Set(paginatedResults.map(e => e.id));
-          const candidateEvents = additionalData
-            .filter((event: any) => !existingIds.has(event.event_id))
-            .map((row: any) => ({
-              id: row.event_id,
-              jambase_event_id: row.event_id,
-              title: row.title,
-              artist_name: row.artist_name,
-              artist_id: row.artist_id || null,
-              venue_name: row.venue_name,
-              venue_id: row.venue_id || null,
-              event_date: row.event_date,
-              doors_time: row.doors_time || null,
-              description: row.description || null,
-              genres: row.genres || [],
-              venue_address: row.venue_address || null,
-              venue_city: row.venue_city || null,
-              venue_state: row.venue_state || null,
-              venue_zip: row.venue_zip || null,
-              latitude: row.latitude || null,
-              longitude: row.longitude || null,
-              ticket_available: row.ticket_available || false,
-              price_range: row.price_range || null,
-              ticket_urls: row.ticket_urls || [],
-              setlist: row.setlist || null,
-              setlist_enriched: row.setlist_enriched || false,
-              setlist_song_count: row.setlist_song_count || null,
-              setlist_fm_id: row.setlist_fm_id || null,
-              setlist_fm_url: row.setlist_fm_url || null,
-              setlist_source: row.setlist_source || null,
-              setlist_last_updated: row.setlist_last_updated || null,
-              tour_name: row.tour_name || null,
-              created_at: row.created_at || new Date().toISOString(),
-              updated_at: row.updated_at || new Date().toISOString(),
-              relevance_score: row.relevance_score,
-              user_is_interested: row.user_is_interested,
-              interested_count: row.interested_count,
-              friends_interested_count: row.friends_interested_count,
-              artist_frequency_rank: row.artist_frequency_rank,
-              diversity_penalty: row.diversity_penalty,
-              is_promoted: row.is_promoted || false,
-              promotion_tier: (row.promotion_tier === 'basic' || row.promotion_tier === 'premium' || row.promotion_tier === 'featured') 
-                ? row.promotion_tier as 'basic' | 'premium' | 'featured' 
-                : null,
-              active_promotion_id: row.active_promotion_id || null
-            } as PersonalizedEvent));
-          
-            // Enforce diversity when adding new events (combine with existing and enforce limit)
-            const combined = [...paginatedResults, ...candidateEvents];
-            const diverseCombined = this.enforceDiversityLimit(combined, limit, 3);
-            const addedCount = diverseCombined.length - paginatedResults.length;
-            paginatedResults = diverseCombined;
-            console.log(`✅ Added ${addedCount} additional events (with diversity enforced), total: ${paginatedResults.length}`);
+          const { RadiusSearchService } = await import('@/services/radiusSearchService');
+          const cityCoords = await RadiusSearchService.getCityCoordinates(filters.selectedCities[0]);
+          if (cityCoords) {
+            userLocation = cityCoords;
+            console.log('✅ Using city coordinates for location boosts:', userLocation);
           }
         } catch (error) {
-          console.warn('⚠️ Failed to fetch additional filtered events:', error);
+          console.warn('⚠️ Could not get city coordinates for location boosts:', error);
         }
       }
       
-      console.log(`✅ Filtered personalized feed: ${paginatedResults.length} events from ${filteredPersonalized.length} total matches`);
+      // artistFollowSet and venueFollowSet already created in Step 5, reuse for boosts
+      
+      // Get user's friends list once for friends interested count
+      const { data: friendships } = await supabase
+        .from('friends')
+        .select('user1_id, user2_id')
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+      
+      const friendIds = friendships && friendships.length > 0
+        ? friendships.map(f => f.user1_id === userId ? f.user2_id : f.user1_id)
+        : [];
+      
+      // Step 9: Enhance scores with location, following, and engagement boosts
+      const enhancedScoredEvents = await this.enhanceScoresWithBoosts(
+        baseScoredEvents,
+        userId,
+        userLocation,
+        artistFollowSet,
+        venueFollowSet,
+        friendIds
+      );
+      
+      // Step 10: Sort by enhanced relevance score (descending), then by date
+      const sortedScoredEvents = enhancedScoredEvents.sort((a, b) => {
+        // Primary: enhanced relevance score (higher is better)
+        if (Math.abs(b.enhancedScore - a.enhancedScore) > 5) {
+          return b.enhancedScore - a.enhancedScore;
+        }
+        // Secondary: event date (sooner is better for same score)
+        const dateA = new Date(a.event.event_date).getTime();
+        const dateB = new Date(b.event.event_date).getTime();
+        return dateA - dateB;
+      });
+      
+      // Step 11: Apply city/metro clustering - prioritize events from top 2-3 metro areas
+      // Use a larger buffer to ensure we have enough diverse events after filtering
+      const diversityBuffer = Math.max(limit * 5, 100); // Fetch 5x the limit or at least 100 events
+      const cityClustered = this.applyCityClustering(sortedScoredEvents, userLocation, diversityBuffer);
+      
+      // Step 12: Enforce diversity limits (max 1 event per artist, max 2 per venue per city)
+      let diverseFiltered = this.enforceAdvancedDiversity(
+        cityClustered.map(item => ({
+          ...item.event,
+          relevance_score: item.enhancedScore,
+          event_id: item.event.id
+        })),
+        diversityBuffer,
+        1, // max 1 per artist
+        2  // max 2 per venue per city
+      );
+      
+      // If we don't have enough diverse events, relax venue diversity (keep artist at 1)
+      if (diverseFiltered.length < limit && offset === 0) {
+        console.log(`⚠️ Only ${diverseFiltered.length} diverse events found, relaxing venue diversity...`);
+        diverseFiltered = this.enforceAdvancedDiversity(
+          cityClustered.map(item => ({
+            ...item.event,
+            relevance_score: item.enhancedScore,
+            event_id: item.event.id
+          })),
+          diversityBuffer,
+          1, // max 1 per artist (keep strict)
+          5  // Increase venue limit to 5 per city
+        );
+      }
+      
+      // Step 13: Apply offset and limit to final filtered and scored results
+      let paginatedResults = diverseFiltered.slice(offset, offset + limit);
+      
+      console.log(`✅ Filtered personalized feed: ${paginatedResults.length} events (scored from ${dayFilteredEvents.length} filtered events)`);
+      
+      // Step 13: Fetch additional metadata (user interest, counts, promotion info) for paginated results
+      // This data is normally returned by get_personalized_events_feed but we need to fetch it separately
+      const enrichedResults = await Promise.all(
+        paginatedResults.map(async (row: any) => {
+          const eventId = row.id || row.event_id;
+          
+          // Fetch user interest status
+          let userIsInterested = false;
+          let interestedCount = 0;
+          let friendsInterestedCount = 0;
+          
+          try {
+            if (userId) {
+              // Check if user is interested - use correct table: user_jambase_events with jambase_event_id
+              const { data: interest } = await supabase
+                .from('user_jambase_events')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('jambase_event_id', eventId)
+                .maybeSingle();
+              userIsInterested = !!interest;
+              
+              // Get interest count - use correct table and column
+              const { count } = await supabase
+                .from('user_jambase_events')
+                .select('id', { count: 'exact', head: true })
+                .eq('jambase_event_id', eventId);
+              interestedCount = count || 0;
+              
+              // Get friends interested count - optimize to avoid 503 timeouts
+              try {
+                // Only fetch friends if we don't already have them (they're fetched earlier in the flow)
+                // For now, skip friends count in enrichment step to avoid duplicate queries
+                // Friends count is already used in scoring boosts above
+                friendsInterestedCount = 0; // Skip detailed friends count per event to avoid timeouts
+                
+                // If you need friends count per event, consider:
+                // 1. Batch fetching for all events at once
+                // 2. Caching friend lists
+                // 3. Limiting to first 50 friends
+                // 4. Using a database function to aggregate
+              } catch (friendsError) {
+                // Silent fail - friends count is optional
+                friendsInterestedCount = 0;
+              }
+            }
+          } catch (error) {
+            console.warn(`⚠️ Error fetching interest data for event ${eventId}:`, error);
+          }
+          
+          // Fetch promotion info if available
+          let isPromoted = false;
+          let promotionTier: 'basic' | 'premium' | 'featured' | null = null;
+          let activePromotionId: string | null = null;
+          
+          try {
+            const now = new Date().toISOString();
+            // Promotion is active if: promotion_status = 'active', starts_at <= now, and expires_at >= now
+            const { data: promotion, error: promotionError } = await supabase
+              .from('event_promotions')
+              .select('id, promotion_tier')
+              .eq('event_id', eventId)
+              .eq('promotion_status', 'active')
+              .lte('starts_at', now)  // starts_at <= now (started)
+              .gte('expires_at', now)    // expires_at >= now (not ended yet)
+              .order('promotion_tier', { ascending: false }) // featured > premium > basic
+              .maybeSingle();
+            
+            if (promotionError) {
+              console.warn(`⚠️ Error fetching promotion for event ${eventId}:`, promotionError);
+            } else if (promotion) {
+              isPromoted = true;
+              promotionTier = (promotion.promotion_tier === 'basic' || promotion.promotion_tier === 'premium' || promotion.promotion_tier === 'featured')
+                ? promotion.promotion_tier as 'basic' | 'premium' | 'featured'
+                : null;
+              activePromotionId = promotion.id;
+            }
+          } catch (error) {
+            // Silently fail if promotions table doesn't exist or query fails
+            console.warn(`⚠️ Exception fetching promotion data for event ${eventId}:`, error);
+          }
       
       // Map to PersonalizedEvent format
-      return paginatedResults.map((row: any) => ({
-        id: row.event_id,
-        jambase_event_id: row.event_id,
+          return {
+            id: eventId,
+            jambase_event_id: row.jambase_event_id || eventId,
         title: row.title,
         artist_name: row.artist_name,
         artist_id: row.artist_id || null,
@@ -500,10 +787,10 @@ export class PersonalizedFeedService {
         longitude: row.longitude || null,
         ticket_available: row.ticket_available || false,
         price_range: row.price_range || null,
-        ticket_urls: row.ticket_url ? [row.ticket_url] : (row.ticket_urls || []), // Function returns ticket_url (singular), convert to array
-        ticket_url: row.ticket_url || null, // Also include singular for backward compatibility
-        ticket_price_min: row.ticket_price_min || null,
-        ticket_price_max: row.ticket_price_max || null,
+            ticket_urls: Array.isArray(row.ticket_urls) ? row.ticket_urls : (row.ticket_url ? [row.ticket_url] : []),
+            ticket_url: row.ticket_url || (Array.isArray(row.ticket_urls) && row.ticket_urls.length > 0 ? row.ticket_urls[0] : null),
+            ticket_price_min: row.ticket_price_min || row.price_min || null,
+            ticket_price_max: row.ticket_price_max || row.price_max || null,
         setlist: row.setlist || null,
         setlist_enriched: row.setlist_enriched || false,
         setlist_song_count: row.setlist_song_count || null,
@@ -514,18 +801,20 @@ export class PersonalizedFeedService {
         tour_name: row.tour_name || null,
         created_at: row.created_at || new Date().toISOString(),
         updated_at: row.updated_at || new Date().toISOString(),
-        relevance_score: row.relevance_score,
-        user_is_interested: row.user_is_interested,
-        interested_count: row.interested_count,
-        friends_interested_count: row.friends_interested_count,
-        artist_frequency_rank: row.artist_frequency_rank,
-        diversity_penalty: row.diversity_penalty,
-        is_promoted: row.is_promoted || false,
-        promotion_tier: (row.promotion_tier === 'basic' || row.promotion_tier === 'premium' || row.promotion_tier === 'featured') 
-          ? row.promotion_tier as 'basic' | 'premium' | 'featured' 
-          : null,
-        active_promotion_id: row.active_promotion_id || null
-      } as PersonalizedEvent));
+            relevance_score: row.relevance_score || 0,
+            user_is_interested: userIsInterested,
+            interested_count: interestedCount,
+            friends_interested_count: friendsInterestedCount,
+            artist_frequency_rank: 1, // Will be calculated by diversity enforcement
+            diversity_penalty: 0,
+            is_promoted: isPromoted,
+            promotion_tier: promotionTier,
+            active_promotion_id: activePromotionId
+          } as PersonalizedEvent;
+        })
+      );
+      
+      return enrichedResults;
       
     } catch (error) {
       console.error('❌ Exception in filtered personalized feed:', error);
@@ -823,6 +1112,285 @@ export class PersonalizedFeedService {
       console.error('❌ Error calculating relevance:', error);
       return 0;
     }
+  }
+  
+  /**
+   * Enhance base scores with location, following, and engagement boosts
+   */
+  private static async enhanceScoresWithBoosts(
+    baseScoredEvents: Array<{ event: any; score: number }>,
+    userId: string,
+    userLocation: { lat: number; lng: number } | null,
+    artistFollowSet: Set<string>,
+    venueFollowSet: Set<string>,
+    friendIds: string[]
+  ): Promise<Array<{ event: any; score: number; enhancedScore: number }>> {
+    // Batch fetch friends interested counts for ALL events at once (prevents 503 spam)
+    const eventIds = baseScoredEvents.map(e => e.event.id);
+    const friendsInterestedCounts = new Map<string, number>();
+    
+    if (friendIds.length > 0 && eventIds.length > 0) {
+      try {
+        // Limit friend IDs to prevent large query timeouts (check first 50 friends max)
+        const limitedFriendIds = friendIds.slice(0, 50);
+        
+        // Batch eventIds into chunks to avoid IN clause size limits
+        const BATCH_SIZE = 100;
+        const allFriendsInterestedData: any[] = [];
+        
+        for (let i = 0; i < eventIds.length; i += BATCH_SIZE) {
+          const batchEventIds = eventIds.slice(i, i + BATCH_SIZE);
+          const { data: batchData, error: batchError } = await supabase
+            .from('user_jambase_events')
+            .select('jambase_event_id')
+            .in('jambase_event_id', batchEventIds)
+            .in('user_id', limitedFriendIds);
+          if (batchError) {
+            // Skip failed batches but continue with others
+            console.debug(`Friends batch ${Math.floor(i / BATCH_SIZE) + 1} error (non-critical):`, batchError.message);
+            continue;
+          }
+          if (batchData) allFriendsInterestedData.push(...batchData);
+        }
+        
+        // Count friends interested per event
+        allFriendsInterestedData.forEach((row: any) => {
+          const eventId = row.jambase_event_id;
+          friendsInterestedCounts.set(eventId, (friendsInterestedCounts.get(eventId) || 0) + 1);
+        });
+      } catch (friendsError) {
+        // Silent fail - friends count boost is optional
+      }
+    }
+    
+    // Batch fetch general interested counts for all events at once
+    const interestedCounts = new Map<string, number>();
+    try {
+      // Batch eventIds into chunks to avoid IN clause size limits
+      const BATCH_SIZE = 100;
+      const allInterestedData: any[] = [];
+      for (let i = 0; i < eventIds.length; i += BATCH_SIZE) {
+        const batchEventIds = eventIds.slice(i, i + BATCH_SIZE);
+        const { data: batchData } = await supabase
+          .from('user_jambase_events')
+          .select('jambase_event_id')
+          .in('jambase_event_id', batchEventIds);
+        if (batchData) allInterestedData.push(...batchData);
+      }
+      allInterestedData.forEach((row: any) => {
+        const eventId = row.jambase_event_id;
+        interestedCounts.set(eventId, (interestedCounts.get(eventId) || 0) + 1);
+      });
+    } catch (e) {
+      // Silent fail - continue without interest counts
+    }
+    
+    // Now enhance scores using pre-fetched data (no per-event queries)
+    return baseScoredEvents.map(({ event, score }) => {
+      let enhancedScore = score || 0;
+      
+      // Location proximity boost
+      if (userLocation && event.latitude && event.longitude) {
+        const distanceMiles = this.calculateDistance(
+          userLocation.lat,
+          userLocation.lng,
+          Number(event.latitude),
+          Number(event.longitude)
+        );
+        
+        if (distanceMiles <= 25) enhancedScore += 25;
+        else if (distanceMiles <= 50) enhancedScore += 15;
+        else if (distanceMiles <= 100) enhancedScore += 5;
+        else if (distanceMiles > 200) enhancedScore -= 10; // Penalty for very far events
+      }
+      
+      // Following boosts - HEAVY EMPHASIS on followed artists and venues
+      const artistName = event.artist_name?.toLowerCase().trim();
+      if (artistName && artistFollowSet.has(artistName)) {
+        enhancedScore += 75; // Stronger boost for followed artists
+      }
+      
+      const venueKey = `${(event.venue_name || '').toLowerCase().trim()}|${(event.venue_city || '').toLowerCase().trim()}`;
+      if (venueFollowSet.has(venueKey)) {
+        enhancedScore += 50; // Stronger boost for followed venues
+      }
+      
+      // Recency boost (prefer near-term events)
+      const eventDate = new Date(event.event_date);
+      const now = new Date();
+      const daysUntil = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+      
+      if (daysUntil >= 0 && daysUntil <= 14) enhancedScore += 20; // Next 2 weeks
+      else if (daysUntil <= 30) enhancedScore += 10; // Next month
+      else if (daysUntil <= 60) enhancedScore += 5; // Next 2 months
+      else if (daysUntil > 180) enhancedScore -= 5; // Penalty for very far future
+      
+      // Engagement boosts (using pre-fetched data)
+      const interestedCount = interestedCounts.get(event.id) || 0;
+      if (interestedCount > 0) {
+        enhancedScore += Math.min(interestedCount * 2, 20); // +2 per interested, max +20
+      }
+      
+      // Friends interested boost (using pre-fetched data)
+      const friendsInterestedCount = friendsInterestedCounts.get(event.id) || 0;
+      if (friendsInterestedCount > 0) {
+        enhancedScore += Math.min(friendsInterestedCount * 10, 50); // +10 per friend interested, max +50
+      }
+      
+      // Ticket availability boost
+      if (event.ticket_available) {
+        enhancedScore += 5;
+      }
+      
+      return { event, score, enhancedScore: Math.max(0, enhancedScore) };
+    });
+  }
+  
+  /**
+   * Calculate distance between two points in miles
+   */
+  private static calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 3959; // Earth's radius in miles
+    const toRad = (deg: number) => deg * (Math.PI / 180);
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2) ** 2;
+    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  
+  /**
+   * Apply city/metro clustering - prioritize events from top 2-3 metro areas around user's location
+   */
+  private static applyCityClustering(
+    scoredEvents: Array<{ event: any; score: number; enhancedScore: number }>,
+    userLocation: { lat: number; lng: number } | null,
+    maxResults: number
+  ): Array<{ event: any; score: number; enhancedScore: number }> {
+    if (!userLocation || scoredEvents.length === 0) {
+      return scoredEvents.slice(0, maxResults);
+    }
+    
+    // Group events by metro area (city + state)
+    const metroGroups = new Map<string, Array<{ event: any; score: number; enhancedScore: number }>>();
+    
+    scoredEvents.forEach(item => {
+      const city = item.event.venue_city || '';
+      const state = item.event.venue_state || '';
+      const metroKey = `${city}|${state}`;
+      
+      if (!metroGroups.has(metroKey)) {
+        metroGroups.set(metroKey, []);
+      }
+      metroGroups.get(metroKey)!.push(item);
+    });
+    
+    // Calculate average distance from user location for each metro
+    const metroStats = Array.from(metroGroups.entries()).map(([key, events]) => {
+      const distances = events
+        .filter(e => e.event.latitude && e.event.longitude)
+        .map(e => this.calculateDistance(
+          userLocation.lat,
+          userLocation.lng,
+          Number(e.event.latitude),
+          Number(e.event.longitude)
+        ));
+      
+      const avgDistance = distances.length > 0
+        ? distances.reduce((a, b) => a + b, 0) / distances.length
+        : Infinity;
+      
+      // Get best events in this metro (sorted by enhancedScore)
+      const sortedEvents = [...events].sort((a, b) => b.enhancedScore - a.enhancedScore);
+      
+      return {
+        metroKey: key,
+        avgDistance,
+        events: sortedEvents,
+        bestScore: sortedEvents[0]?.enhancedScore || 0
+      };
+    });
+    
+    // Sort metros by: 1) best score, 2) distance
+    metroStats.sort((a, b) => {
+      if (Math.abs(b.bestScore - a.bestScore) > 10) {
+        return b.bestScore - a.bestScore;
+      }
+      return a.avgDistance - b.avgDistance;
+    });
+    
+    // Take top metros - expand if we need more diversity (up to 10 metros)
+    const numMetros = Math.min(metroStats.length, Math.max(3, Math.ceil(maxResults / 20))); // At least 3, up to 10
+    const topMetros = metroStats.slice(0, numMetros);
+    const clustered: Array<{ event: any; score: number; enhancedScore: number }> = [];
+    
+    // Round-robin take best events from each metro for diversity
+    const maxPerMetro = Math.ceil(maxResults / numMetros);
+    for (let round = 0; round < maxPerMetro && clustered.length < maxResults; round++) {
+      for (const metro of topMetros) {
+        if (clustered.length >= maxResults) break;
+        if (round < metro.events.length) {
+          clustered.push(metro.events[round]);
+        }
+      }
+    }
+    
+    // If we have space, add remaining high-scoring events from other metros
+    if (clustered.length < maxResults) {
+      const clusteredIds = new Set(clustered.map(e => e.event.id));
+      const remaining = scoredEvents
+        .filter(e => !clusteredIds.has(e.event.id))
+        .sort((a, b) => b.enhancedScore - a.enhancedScore)
+        .slice(0, maxResults - clustered.length);
+      clustered.push(...remaining);
+    }
+    
+    return clustered;
+  }
+  
+  /**
+   * Enforce advanced diversity: max 1 per artist, max 2 per venue per city
+   */
+  private static enforceAdvancedDiversity(
+    events: any[],
+    maxTotal: number,
+    maxPerArtist: number,
+    maxPerVenuePerCity: number
+  ): any[] {
+    if (events.length === 0) return events;
+    
+    const artistCounts = new Map<string, number>();
+    const venueCityCounts = new Map<string, number>(); // key: "venue_name|city"
+    const diverseEvents: any[] = [];
+    
+    for (const event of events) {
+      const artist = (event.artist_name || 'Unknown').toLowerCase().trim();
+      const venue = (event.venue_name || '').toLowerCase().trim();
+      const city = (event.venue_city || '').toLowerCase().trim();
+      const venueCityKey = `${venue}|${city}`;
+      
+      const artistCount = artistCounts.get(artist) || 0;
+      const venueCityCount = venueCityCounts.get(venueCityKey) || 0;
+      
+      // Skip if we've exceeded limits
+      if (artistCount >= maxPerArtist) {
+        continue; // Already have max for this artist
+      }
+      
+      if (venueCityCount >= maxPerVenuePerCity) {
+        continue; // Already have max for this venue in this city
+      }
+      
+      // Add event
+      diverseEvents.push(event);
+      artistCounts.set(artist, artistCount + 1);
+      venueCityCounts.set(venueCityKey, venueCityCount + 1);
+      
+      if (diverseEvents.length >= maxTotal) {
+        break;
+      }
+    }
+    
+    return diverseEvents;
   }
   
   /**

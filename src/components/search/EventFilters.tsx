@@ -133,11 +133,58 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
         setCitiesData(finalCities);
       } else {
         // Use data from database function
-        const finalCities: CityData[] = (citiesData || []).map((row: any) => ({
+        const rawCities: CityData[] = (citiesData || []).map((row: any) => ({
           city: row.city_name,
           state: row.state || '',
           eventCount: Number(row.event_count)
         }));
+        
+        // Deduplicate cities by normalizing city name and state
+        // Normalize state: "DC", "D.C.", "District of Columbia" all become "DC"
+        const normalizeState = (state: string): string => {
+          if (!state) return '';
+          const s = state.trim().toUpperCase();
+          if (s === 'DC' || s === 'D.C.' || s === 'DISTRICT OF COLUMBIA') return 'DC';
+          return state.trim();
+        };
+        
+        // Normalize city name: lowercase, trim, and handle common variations
+        const normalizeCityName = (name: string): string => {
+          let normalized = name.trim().toLowerCase();
+          // Remove common suffixes that cause duplicates: "Dc" -> "", "DC" -> ""
+          normalized = normalized.replace(/\s+dc$/, '');
+          normalized = normalized.replace(/\s+d\.c\.$/, '');
+          // Remove extra spaces
+          normalized = normalized.replace(/\s+/g, ' ');
+          return normalized;
+        };
+        
+        const cityMap = new Map<string, CityData>();
+        
+        rawCities.forEach(cityData => {
+          const normalizedCity = normalizeCityName(cityData.city);
+          const normalizedState = normalizeState(cityData.state);
+          // Use normalized city + state as deduplication key
+          // For cities with same name and state (e.g., "Washington" + "DC" and "Washington Dc" + "DC"), keep one
+          const key = `${normalizedCity}|${normalizedState}`;
+          
+          // Keep the entry with the highest event count if duplicate
+          // Also prefer entries that have state info over those without
+          if (!cityMap.has(key)) {
+            cityMap.set(key, cityData);
+          } else {
+            const existing = cityMap.get(key)!;
+            // Prefer entry with higher event count, or if equal, prefer one with state
+            if (cityData.eventCount > existing.eventCount || 
+                (cityData.eventCount === existing.eventCount && cityData.state && !existing.state)) {
+              cityMap.set(key, cityData);
+            }
+          }
+        });
+        
+        const finalCities = Array.from(cityMap.values())
+          .sort((a, b) => b.eventCount - a.eventCount);
+        
         setCitiesData(finalCities);
       }
 
@@ -315,9 +362,20 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
 
   const getDateRangeText = () => {
     if (filters.dateRange.from && filters.dateRange.to) {
-      return `${format(filters.dateRange.from, 'MMM d')} - ${format(filters.dateRange.to, 'MMM d')}`;
+      // Check if it's a single day (same date)
+      const fromStr = filters.dateRange.from.toDateString();
+      const toStr = filters.dateRange.to.toDateString();
+      
+      if (fromStr === toStr) {
+        // Single day selection - show just the date without "From"
+        return format(filters.dateRange.from, 'MMM d, yyyy');
+      } else {
+        // Date range - show range
+        return `${format(filters.dateRange.from, 'MMM d')} - ${format(filters.dateRange.to, 'MMM d')}`;
+      }
     } else if (filters.dateRange.from) {
-      return `From ${format(filters.dateRange.from, 'MMM d, yyyy')}`;
+      // Only "from" date set - treat as single day
+      return format(filters.dateRange.from, 'MMM d, yyyy');
     } else if (filters.dateRange.to) {
       return `Until ${format(filters.dateRange.to, 'MMM d, yyyy')}`;
     }
@@ -436,13 +494,15 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                     <span className="text-sm text-gray-600">Loading cities...</span>
                   </div>
                 ) : (
-                  filteredCities.map((cityData) => {
+                  filteredCities.map((cityData, index) => {
                     const city = typeof cityData === 'string' ? cityData : cityData.city;
                     const state = typeof cityData === 'string' ? '' : cityData.state;
                     const checked = tempSelectedCities.includes(city);
+                    // Create unique key using city + state (or index as fallback)
+                    const uniqueKey = state ? `${city}-${state}-${index}` : `${city}-${index}`;
                     
                     return (
-                      <label key={city} className="flex items-center gap-2 text-sm cursor-pointer select-none p-2 rounded-lg hover:bg-synth-pink/5 transition-colors">
+                      <label key={uniqueKey} className="flex items-center gap-2 text-sm cursor-pointer select-none p-2 rounded-lg hover:bg-synth-pink/5 transition-colors">
                         <Checkbox
                           checked={checked}
                           onCheckedChange={(val) => {
@@ -645,8 +705,8 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
               />
             </Badge>
           ))}
-          {(filters.selectedCities || []).map((city) => (
-            <Badge key={city} variant="secondary" className="flex items-center gap-1 bg-synth-beige/30 text-synth-black border-synth-beige-dark hover:bg-synth-beige/50 transition-colors">
+          {(filters.selectedCities || []).map((city, index) => (
+            <Badge key={`selected-city-${city}-${index}`} variant="secondary" className="flex items-center gap-1 bg-synth-beige/30 text-synth-black border-synth-beige-dark hover:bg-synth-beige/50 transition-colors">
               <MapPin className="h-3 w-3" />
               {city}
               <X 
