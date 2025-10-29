@@ -247,17 +247,83 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
   };
 
   const handleDateRangeSelect = (range: { from?: Date; to?: Date }) => {
+    // Normalize dates to ensure proper comparison and filtering
+    const normalizedRange = {
+      from: range.from ? (() => {
+        const d = new Date(range.from);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })() : undefined,
+      to: range.to ? (() => {
+        const d = new Date(range.to);
+        d.setHours(23, 59, 59, 999);
+        return d;
+      })() : undefined
+    };
+    
     onFiltersChange({
       ...filters,
-      dateRange: range
+      dateRange: normalizedRange
     });
-    setShowDatePicker(false);
+    
+    // Only close the picker when both dates are selected (complete range)
+    if (normalizedRange.from && normalizedRange.to) {
+      setShowDatePicker(false);
+    }
   };
 
   const handleDateRangeClear = () => {
     onFiltersChange({
       ...filters,
       dateRange: { from: undefined, to: undefined }
+    });
+  };
+
+  const handleTimeRangeSelect = (range: { from: Date; to: Date }) => {
+    // Ensure dates are properly normalized when using quick date options
+    const normalizedRange = {
+      from: (() => {
+        const d = new Date(range.from);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })(),
+      to: (() => {
+        const d = new Date(range.to);
+        d.setHours(23, 59, 59, 999);
+        return d;
+      })()
+    };
+    
+    onFiltersChange({
+      ...filters,
+      dateRange: normalizedRange
+    });
+    setShowDatePicker(false);
+  };
+
+  const getActiveTimeRange = () => {
+    if (!filters.dateRange.from || !filters.dateRange.to) return null;
+    
+    const options = getQuickDateOptions();
+    const filterFrom = filters.dateRange.from;
+    const filterTo = filters.dateRange.to;
+    
+    // Compare dates by normalizing to start of day (ignore time components)
+    const normalizeDate = (date: Date) => {
+      const normalized = new Date(date);
+      normalized.setHours(0, 0, 0, 0);
+      return normalized.getTime();
+    };
+    
+    // Normalize both filter dates and option dates to start of day for comparison
+    const filterFromTime = normalizeDate(filterFrom);
+    const filterToTime = normalizeDate(filterTo);
+    
+    return options.find(opt => {
+      const optFromTime = normalizeDate(opt.value.from);
+      const optToTime = normalizeDate(opt.value.to);
+      // Compare normalized dates (ignoring time of day)
+      return optFromTime === filterFromTime && optToTime === filterToTime;
     });
   };
 
@@ -273,7 +339,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
   };
 
   const handleWeekdaysSelect = () => {
-    // Weekdays: All days except Friday and Saturday (Su, M, T, W, Th)
+    // Weekdays: Sunday through Thursday (0, 1, 2, 3, 4)
     const weekdays = [0, 1, 2, 3, 4];
     const allWeekdaysSelected = weekdays.every(day => filters.daysOfWeek.includes(day));
     
@@ -382,20 +448,41 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
     return 'Any date';
   };
 
-  const getQuickDateOptions = () => [
-    { label: 'Today', value: { from: new Date(), to: new Date() } },
-    { label: 'This Week', value: { from: new Date(), to: addDays(new Date(), 7) } },
-    { label: 'This Month', value: { from: new Date(), to: addDays(new Date(), 30) } },
-    { label: 'Next 3 Months', value: { from: new Date(), to: addDays(new Date(), 90) } }
-  ];
+  const getQuickDateOptions = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
+    
+    // Today: from today to end of today
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
+    
+    // This Week: from today to 7 days from today (end of day)
+    const weekEnd = addDays(today, 7);
+    weekEnd.setHours(23, 59, 59, 999);
+    
+    // This Month: from today to 30 days from today (end of day)
+    const monthEnd = addDays(today, 30);
+    monthEnd.setHours(23, 59, 59, 999);
+    
+    // Next 3 Months: from today to 90 days from today (end of day)
+    const threeMonthsEnd = addDays(today, 90);
+    threeMonthsEnd.setHours(23, 59, 59, 999);
+    
+    return [
+      { label: 'Today', value: { from: new Date(today), to: endOfToday } },
+      { label: 'This Week', value: { from: new Date(today), to: weekEnd } },
+      { label: 'This Month', value: { from: new Date(today), to: monthEnd } },
+      { label: 'Next 3 Months', value: { from: new Date(today), to: threeMonthsEnd } }
+    ];
+  };
 
   return (
     <div className={cn('space-y-4', className)}>
-      <div className="flex flex-wrap items-center gap-3 bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+      <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 overflow-x-auto">
         {/* Genres pill */}
         <Popover open={genresOpen} onOpenChange={(o) => { setGenresOpen(o); updateOverlayState({ genres: o }); }}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40">
+            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 flex-shrink-0">
               <Music className="h-4 w-4 mr-1" />
               Genres
               {filters.genres.length > 0 && (
@@ -452,7 +539,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
         {/* Locations pill */}
         <Popover open={locationsOpen} onOpenChange={(o) => { setLocationsOpen(o); updateOverlayState({ locations: o }); }}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40">
+            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 flex-shrink-0">
               <MapPin className="h-4 w-4 mr-1" />
               Locations
               {(filters.selectedCities?.length || 0) > 0 && (
@@ -530,51 +617,10 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
           </PopoverContent>
         </Popover>
 
-        {/* Date range pill */}
-        <Popover open={showDatePicker} onOpenChange={(o) => { setShowDatePicker(o); updateOverlayState({ date: o }); }}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40">
-              <CalendarIcon className="h-4 w-4 mr-1" />
-              {filters.dateRange.from || filters.dateRange.to ? getDateRangeText() : 'Any date'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-4 z-[60] bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-xl" align="start">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap gap-2">
-                {getQuickDateOptions().map((option) => (
-                  <Button
-                    key={option.label}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDateRangeSelect(option.value)}
-                    className="text-xs bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40"
-                  >
-                    <Clock className="h-3 w-3 mr-1" />
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={filters.dateRange.from}
-                selected={filters.dateRange.from && filters.dateRange.to ? { from: filters.dateRange.from, to: filters.dateRange.to } : undefined}
-                onSelect={(range) => range && handleDateRangeSelect(range)}
-                numberOfMonths={2}
-              />
-              {(filters.dateRange.from || filters.dateRange.to) && (
-                <Button variant="outline" size="sm" onClick={handleDateRangeClear} className="bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40">
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        {/* Days of Week pill */}
+        {/* Days of Week button */}
         <Popover open={daysOfWeekOpen} onOpenChange={(o) => { setDaysOfWeekOpen(o); updateOverlayState({ daysOfWeek: o }); }}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40">
+            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 flex-shrink-0">
               <CalendarIcon className="h-4 w-4 mr-1" />
               Days
               {filters.daysOfWeek.length > 0 && (
@@ -599,7 +645,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                       : "bg-white/80 border-synth-pink/20 hover:border-synth-pink/40"
                   )}
                 >
-                  Weekday
+                  Weekdays
                 </Button>
                 <Button
                   variant="outline"
@@ -660,6 +706,102 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
           </PopoverContent>
         </Popover>
 
+        {/* Calendar button with time range options */}
+        <Popover open={showDatePicker} onOpenChange={(o) => { setShowDatePicker(o); updateOverlayState({ date: o }); }}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 flex-shrink-0 max-w-[180px]">
+              <CalendarIcon className="h-4 w-4 mr-1 flex-shrink-0" />
+              <span className="truncate">
+                {getActiveTimeRange() ? getActiveTimeRange()?.label : (filters.dateRange.from || filters.dateRange.to ? getDateRangeText() : 'Any date')}
+              </span>
+              {(filters.dateRange.from || filters.dateRange.to) && (
+                <Badge variant="secondary" className="ml-2 h-5 rounded-full px-2 bg-synth-pink/20 text-synth-pink border-synth-pink/30 flex-shrink-0">
+                  {getActiveTimeRange() ? 'Range' : 'Custom'}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-4 z-[60] bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-xl" align="start">
+            <div className="flex flex-col gap-4">
+              {/* Quick Time Range Options */}
+              <div className="flex flex-wrap gap-2">
+                {getQuickDateOptions().map((option) => {
+                  const isActive = getActiveTimeRange()?.label === option.label;
+                  return (
+                    <Button
+                      key={option.label}
+                      variant={isActive ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleTimeRangeSelect(option.value)}
+                      className={`text-xs ${isActive ? 'bg-synth-pink text-white hover:bg-synth-pink-dark' : 'bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40'}`}
+                    >
+                      <Clock className="h-3 w-3 mr-1" />
+                      {option.label}
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-500">Or select custom dates</span>
+                </div>
+              </div>
+
+              {/* Calendar for custom date selection */}
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={filters.dateRange.from || new Date()}
+                selected={
+                  filters.dateRange.from 
+                    ? { 
+                        from: filters.dateRange.from, 
+                        to: filters.dateRange.to || filters.dateRange.from 
+                      } 
+                    : undefined
+                }
+                onSelect={(range) => {
+                  // Handle both partial and complete selections
+                  if (range) {
+                    // If selecting the same date twice (clicking same date), treat as single day
+                    if (range.from && range.to && range.from.getTime() === range.to.getTime()) {
+                      const sameDay = new Date(range.from);
+                      sameDay.setHours(0, 0, 0, 0);
+                      const endOfDay = new Date(range.from);
+                      endOfDay.setHours(23, 59, 59, 999);
+                      handleDateRangeSelect({ from: sameDay, to: endOfDay });
+                    } else {
+                      handleDateRangeSelect(range);
+                    }
+                  } else if (range === null) {
+                    // User clicked outside to clear - only clear if explicitly clicking clear button
+                    // Don't auto-clear on outside click to avoid accidental clears
+                  }
+                }}
+                numberOfMonths={2}
+                disabled={(date) => {
+                  // Disable all dates before today
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const dateToCheck = new Date(date);
+                  dateToCheck.setHours(0, 0, 0, 0);
+                  return dateToCheck < today;
+                }}
+              />
+              {(filters.dateRange.from || filters.dateRange.to) && (
+                <Button variant="outline" size="sm" onClick={handleDateRangeClear} className="bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40">
+                  <X className="h-4 w-4 mr-1" />
+                  Clear Date
+                </Button>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+
         {/* Following Filter */}
         <Button 
           variant={filters.filterByFollowing === 'following' ? "default" : "outline"} 
@@ -668,7 +810,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             ...filters,
             filterByFollowing: filters.filterByFollowing === 'following' ? 'all' : 'following'
           })}
-          className={`rounded-full backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 ${
+          className={`rounded-full backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 flex-shrink-0 ${
             filters.filterByFollowing === 'following' 
               ? 'bg-synth-pink text-white' 
               : 'bg-white/80'
@@ -684,7 +826,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             variant="ghost"
             size="sm"
             onClick={handleClearAllFilters}
-            className="text-muted-foreground hover:text-foreground bg-white/60 backdrop-blur-sm border border-white/20 hover:bg-white/80"
+            className="text-muted-foreground hover:text-foreground bg-white/60 backdrop-blur-sm border border-white/20 hover:bg-white/80 flex-shrink-0"
           >
             <X className="h-4 w-4 mr-1" />
             Clear all

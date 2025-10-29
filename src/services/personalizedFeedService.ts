@@ -7,6 +7,10 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { JamBaseEvent } from './jambaseEventsService';
 
+// Cache for city coordinate lookups to avoid repeated RPC calls
+const cityFilterCache = new Map<string, { ids: string[], timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+
 export interface PersonalizedEvent extends JamBaseEvent {
   relevance_score?: number; // Hidden from UI, used for sorting only
   user_is_interested?: boolean;
@@ -73,6 +77,7 @@ export class PersonalizedFeedService {
   
   /**
    * Helper: Get event IDs by city using coordinate-based filtering (includes metro areas)
+   * Now with caching to avoid repeated RPC calls for the same cities
    */
   private static async getEventIdsByCityCoordinates(
     selectedCities: string[],
@@ -80,6 +85,16 @@ export class PersonalizedFeedService {
     radiusMiles: number = 50
   ): Promise<string[]> {
     try {
+      // Create cache key from parameters
+      const cacheKey = `${selectedCities.sort().join(',')}_${stateCodes?.sort().join(',') || ''}_${radiusMiles}`;
+      
+      // Check cache first
+      const cached = cityFilterCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        console.log('🎯 Using cached city filter results:', cached.ids.length, 'events');
+        return cached.ids;
+      }
+      
       const { data, error } = await supabase.rpc('get_events_by_city_coordinates', {
         city_names: selectedCities,
         state_codes: stateCodes || null,
@@ -93,7 +108,21 @@ export class PersonalizedFeedService {
         return [];
       }
 
-      return (data || []).map((row: any) => row.event_id);
+      const eventIds = (data || []).map((row: any) => row.event_id);
+      
+      // Cache the results
+      cityFilterCache.set(cacheKey, { ids: eventIds, timestamp: Date.now() });
+      
+      // Clean up old cache entries (keep cache size reasonable)
+      if (cityFilterCache.size > 20) {
+        const oldestKey = Array.from(cityFilterCache.entries())
+          .sort((a, b) => a[1].timestamp - b[1].timestamp)[0]?.[0];
+        if (oldestKey) {
+          cityFilterCache.delete(oldestKey);
+        }
+      }
+      
+      return eventIds;
     } catch (err) {
       console.error('Exception in coordinate-based city filtering:', err);
       return [];
@@ -348,13 +377,16 @@ export class PersonalizedFeedService {
         filterByFollowing: 'all'
       };
       console.log('🔍 Generating personalized feed with filters:', effectiveFilters);
-      const MAX_CANDIDATES = 2000; // hard cap before scoring to keep runtime predictable
+      // Reduced from 2000 to 800 for faster performance - we only need to score enough candidates
+      // to get a good personalized feed. With filters applied, this should be plenty.
+      const MAX_CANDIDATES = 800; 
       const SCORE_CONCURRENCY = 16; // max concurrent score RPCs
       
       // Step 1: Query events matching filters
+      // Select both id and event_date so we can filter by day of week early
       let query = supabase
         .from('jambase_events')
-        .select('id');
+        .select('id, event_date');
       
       if (!includePast) {
         query = query.gte('event_date', new Date().toISOString());
@@ -477,7 +509,37 @@ export class PersonalizedFeedService {
         return [];
       }
       
-      const eventIds = filteredEventIds.map(e => e.id);
+      // Apply days of week filter early (before fetching full event data) to reduce queries
+      let eventIdsWithDates = filteredEventIds.map((e: any) => ({
+        id: e.id,
+        event_date: e.event_date
+      }));
+      
+      if (effectiveFilters.daysOfWeek && effectiveFilters.daysOfWeek.length > 0) {
+        const now = new Date();
+        eventIdsWithDates = eventIdsWithDates.filter((e: any) => {
+          try {
+            const eventDate = new Date(e.event_date);
+            // Only filter future events by day of week
+            if (eventDate >= now) {
+              const dayOfWeek = eventDate.getDay();
+              return effectiveFilters.daysOfWeek!.includes(dayOfWeek);
+            }
+            return true; // Keep past events if includePast is true
+          } catch {
+            return true; // Keep if date parsing fails
+          }
+        });
+        
+        console.log(`📅 Day-of-week filter: ${eventIdsWithDates.length} events remain after filtering by days`);
+        
+        if (eventIdsWithDates.length === 0) {
+          console.log('📭 No events match the day-of-week filter');
+          return [];
+        }
+      }
+      
+      const eventIds = eventIdsWithDates.map(e => e.id);
       console.log(`📋 Fetching full event data for ${eventIds.length} filtered event IDs...`);
       
       // Step 2: Get full event data for filtered events (batch IN queries to avoid size limits)
@@ -519,7 +581,7 @@ export class PersonalizedFeedService {
       
       console.log(`✅ Successfully fetched ${filteredEvents.length} events from ${Math.ceil(eventIds.length / BATCH_SIZE)} batches`);
       
-      // Step 3: Filter out past events completely
+      // Step 3: Filter out past events completely (days of week already filtered above)
       const now = new Date();
       let futureEvents = filteredEvents.filter((event: any) => {
         try {
@@ -535,27 +597,8 @@ export class PersonalizedFeedService {
         return [];
       }
       
-      // Step 4: Apply days of week filter (client-side)
-      let dayFilteredEvents = futureEvents;
-      if (effectiveFilters.daysOfWeek && effectiveFilters.daysOfWeek.length > 0) {
-        dayFilteredEvents = futureEvents.filter((event: any) => {
-          try {
-            const eventDate = new Date(event.event_date);
-            const dayOfWeek = eventDate.getDay();
-            return effectiveFilters.daysOfWeek!.includes(dayOfWeek);
-          } catch {
-            return true;
-          }
-        });
-      }
-      
-      if (dayFilteredEvents.length === 0) {
-        console.log('📭 No events match the day-of-week filter');
-        return [];
-      }
-      
-      // Step 5: Get followed artists and venues (needed for filtering or boosts)
-      // Fetch early so we can use for filtering if needed, and reuse for boosts
+      // Days of week filter already applied above before fetching full data
+      // Step 4: Get followed artists and venues (needed for filtering or boosts)
       const { ArtistFollowService } = await import('@/services/artistFollowService');
       const { VenueFollowService } = await import('@/services/venueFollowService');
       
@@ -570,16 +613,17 @@ export class PersonalizedFeedService {
       ));
       
       // Apply "filterByFollowing" if set to 'following' - FILTER BEFORE scoring
-      let followingFilteredEvents = dayFilteredEvents;
+      // Days of week already filtered above before fetching full data
+      let followingFilteredEvents = futureEvents;
       if (effectiveFilters.filterByFollowing === 'following') {
         // Filter to only events from followed artists OR followed venues
-        followingFilteredEvents = dayFilteredEvents.filter((event: any) => {
+        followingFilteredEvents = futureEvents.filter((event: any) => {
           const artistName = (event.artist_name || '').toLowerCase().trim();
           const venueKey = `${(event.venue_name || '').toLowerCase().trim()}|${(event.venue_city || '').toLowerCase().trim()}`;
           return artistFollowSet.has(artistName) || venueFollowSet.has(venueKey);
         });
         
-        console.log(`📌 Filtered to ${followingFilteredEvents.length} events from followed artists/venues (from ${dayFilteredEvents.length} total)`);
+        console.log(`📌 Filtered to ${followingFilteredEvents.length} events from followed artists/venues (from ${futureEvents.length} total)`);
       }
       
       // Step 6: Cheap pre-sort and cap candidates BEFORE scoring to minimize M
@@ -682,7 +726,7 @@ export class PersonalizedFeedService {
       // Step 13: Apply offset and limit to final filtered and scored results
       let paginatedResults = diverseFiltered.slice(offset, offset + limit);
       
-      console.log(`✅ Filtered personalized feed: ${paginatedResults.length} events (scored from ${dayFilteredEvents.length} filtered events)`);
+      console.log(`✅ Filtered personalized feed: ${paginatedResults.length} events (scored from ${futureEvents.length} filtered events)`);
       
       // Step 13: Fetch additional metadata (user interest, counts, promotion info) for paginated results
       // This data is normally returned by get_personalized_events_feed but we need to fetch it separately

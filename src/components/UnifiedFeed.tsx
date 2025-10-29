@@ -174,6 +174,7 @@ export const UnifiedFeed = ({
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const autoCityAppliedRef = useRef<boolean>(false);
   const userHasChangedFiltersRef = useRef<boolean>(false); // Track if user manually changed filters
+  const filterDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Refresh state - track offset to get new events on refresh
   const [refreshOffset, setRefreshOffset] = useState(0);
@@ -456,6 +457,15 @@ export const UnifiedFeed = ({
     };
     applyNearestCity();
   }, [userLocation, filters.selectedCities]);
+
+  // Cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (filterDebounceTimeoutRef.current) {
+        clearTimeout(filterDebounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Add event listeners for artist and venue card opening
   const navigate = useNavigate();
@@ -792,7 +802,7 @@ export const UnifiedFeed = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loadingMore, hasMore, feedItems.length]);
 
-  const loadFeedData = async (offset: number = 0, isRefresh: boolean = false) => {
+  const loadFeedData = async (offset: number = 0, isRefresh: boolean = false, isFilterUpdate: boolean = false) => {
     try {
       // If refreshing, use refreshOffset to get different events
       // But if filters are active, always start from offset 0 to respect filters
@@ -806,9 +816,15 @@ export const UnifiedFeed = ({
       // On refresh, always use offset 0 to reload top results (refreshOffset is reset by handleRefresh)
       // On normal load or with filters, use the provided offset
       const actualOffset = isRefresh ? 0 : offset;
-      console.log('🔄 loadFeedData called with offset:', actualOffset, 'isRefresh:', isRefresh, 'hasActiveFilters:', hasActiveFilters);
+      console.log('🔄 loadFeedData called with offset:', actualOffset, 'isRefresh:', isRefresh, 'isFilterUpdate:', isFilterUpdate, 'hasActiveFilters:', hasActiveFilters);
       
-      if (offset === 0 && !isRefresh) {
+      // For filter updates, keep current feed visible and don't show skeleton
+      if (isFilterUpdate) {
+        setLoading(false); // Ensure main loading is off
+        setLoadingMore(true); // Use subtle loading indicator
+        setHasMore(true); // Reset hasMore state
+        // Don't clear feedItems - keep showing current items while filtering
+      } else if (offset === 0 && !isRefresh) {
         setLoading(true);
         setFeedItems([]); // Clear existing items for fresh load
         setHasMore(true); // Reset hasMore state
@@ -819,7 +835,8 @@ export const UnifiedFeed = ({
       }
 
       // Add minimum loading time for better UX demonstration
-      const minLoadingTime = (offset === 0 || isRefresh) ? new Promise(resolve => setTimeout(resolve, 800)) : Promise.resolve();
+      // Skip minimum loading time for filter updates to make them feel instant
+      const minLoadingTime = (offset === 0 || isRefresh) && !isFilterUpdate ? new Promise(resolve => setTimeout(resolve, 800)) : Promise.resolve();
 
       // Build filter object for personalized feed using ACTUAL filters (not pending)
       const feedFilters = {
@@ -870,7 +887,11 @@ export const UnifiedFeed = ({
           return true;
         });
 
-      if (offset === 0 && !isRefresh) {
+      if (isFilterUpdate) {
+        // Filter update: replace current items with filtered results, keeping feed visible
+        setFeedItems(items);
+        setRefreshOffset(0);
+      } else if (offset === 0 && !isRefresh) {
         setFeedItems(items);
       } else if (isRefresh) {
         // Refresh: replace current items with new ones from offset 0
@@ -1522,41 +1543,51 @@ export const UnifiedFeed = ({
 
           {/* Filters and Refresh Button - Only show on Events tab */}
           {activeTab === 'events' && (
-            <div className="mb-6 flex items-center gap-3">
+            <div className="mb-6">
             <EventFilters
               filters={pendingFilters}
-              onFiltersChange={setPendingFilters}
+              onFiltersChange={(newFilters) => {
+                // Update UI immediately for responsive feel
+                console.log('✅ Filter change detected:', newFilters);
+                
+                // Mark that user has manually changed filters (disable auto-city logic)
+                userHasChangedFiltersRef.current = true;
+                
+                // Update pending filters immediately for UI responsiveness
+                setPendingFilters(newFilters);
+                
+                // Clear any existing debounce timeout
+                if (filterDebounceTimeoutRef.current) {
+                  clearTimeout(filterDebounceTimeoutRef.current);
+                }
+                
+                // Debounce the actual feed reload to prevent rapid-fire queries
+                filterDebounceTimeoutRef.current = setTimeout(() => {
+                  console.log('🔄 Applying debounced filters, regenerating personalized feed...');
+                  
+                  setFilters(newFilters);
+                  setRefreshOffset(0);
+                  
+                  // Check if any filters are active
+                  const hasActiveFilters = 
+                    (newFilters.genres && newFilters.genres.length > 0) ||
+                    (newFilters.selectedCities && newFilters.selectedCities.length > 0) ||
+                    newFilters.dateRange.from || newFilters.dateRange.to ||
+                    (newFilters.daysOfWeek && newFilters.daysOfWeek.length > 0) ||
+                    newFilters.filterByFollowing === 'following';
+                  
+                  if (hasActiveFilters && currentUserId) {
+                    loadFeedData(0, false, true); // Load fresh feed with new filters (isFilterUpdate = true)
+                  } else if (currentUserId) {
+                    // No filters active, use default personalized feed
+                    loadFeedData(0, false, true); // Also use isFilterUpdate for clearing filters
+                  }
+                }, 400); // 400ms debounce - fast enough to feel responsive, slow enough to batch changes
+              }}
               availableGenres={availableGenres}
               availableCities={availableCities}
               onOverlayChange={(open) => setPendingFilters(prev => ({ ...prev, showFilters: open }))}
             />
-            <Button
-              onClick={handleApplyFilters}
-              className="bg-synth-pink hover:bg-synth-pink-dark text-white shadow-lg"
-              size="sm"
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Apply Filters
-            </Button>
-              <Button
-                onClick={handleRefresh}
-                disabled={loading}
-                variant="outline"
-                size="sm"
-                className="bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Refreshing...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                  </>
-                )}
-              </Button>
             </div>
           )}
 
