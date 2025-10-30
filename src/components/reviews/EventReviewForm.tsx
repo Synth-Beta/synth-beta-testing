@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+// Removed Card wrappers to keep a single white card at the modal level
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
@@ -950,9 +950,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
   return (
     <>
-      <Card className="border-gray-200">
-        <CardContent className="p-0">
-          <div className="px-6 py-6 space-y-8">
+      <div className="px-6 py-6 space-y-8">
             {/* Draft Toggle - only show for new reviews */}
             {!existingReview && (
               <DraftToggle
@@ -1075,8 +1073,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Post-submit ranking modal */}
       {submittedReview && (() => {
