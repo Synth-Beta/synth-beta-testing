@@ -218,20 +218,28 @@ export function EventDetailsModal({
       setLoading(true);
       const fetchEventData = async () => {
         try {
-          // Validate UUID before querying
+          // Validate UUID; if not UUID, try fetching by jambase_event_id
           const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-          if (!uuidPattern.test(event.id)) {
-            console.log('⚠️ Event ID is not a UUID, skipping database fetch:', event.id);
-            setActualEvent(event); // Use the passed event directly
-            setLoading(false);
-            return;
+          let data: any = null;
+          let error: any = null;
+
+          if (uuidPattern.test(event.id)) {
+            const resp = await supabase
+              .from('jambase_events')
+              .select('*')
+              .eq('id', event.id)
+              .single();
+            data = resp.data;
+            error = resp.error;
+          } else {
+            const resp = await supabase
+              .from('jambase_events')
+              .select('*')
+              .eq('jambase_event_id', event.id)
+              .single();
+            data = resp.data;
+            error = resp.error;
           }
-          
-          const { data, error } = await supabase
-            .from('jambase_events')
-            .select('*')
-            .eq('id', event.id)
-            .single();
           
           if (error) {
             console.error('Error fetching event data:', error);

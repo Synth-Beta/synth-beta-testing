@@ -70,14 +70,28 @@ export class SupabaseService {
   }
 
   static async getEventById(id: string) {
-    const { data, error } = await supabase
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // Try UUID-based lookup first
+    if (uuidPattern.test(id)) {
+      const { data, error } = await supabase
+        .from('jambase_events')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (!error && data) return data;
+    }
+
+    // Fallback: treat input as JamBase external ID
+    const { data: byJambase, error: byJambaseError } = await supabase
       .from('jambase_events')
       .select('*')
-      .eq('id', id)
+      .eq('jambase_event_id', id)
       .single();
 
-    if (error) throw error;
-    return data;
+    if (byJambaseError) throw byJambaseError;
+    return byJambase;
   }
 
   static async searchEvents(query: string, limit = 20) {

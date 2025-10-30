@@ -497,11 +497,31 @@ router.get('/api/concerts/:id', async (req, res) => {
 
     console.log('Fetching concert with ID:', id);
 
-    const { data: concert, error } = await supabase
-      .from('jambase_events')
-      .select('*')
-      .eq('id', id)
-      .single();
+    // Try UUID lookup first, then fallback to jambase_event_id
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    let concert = null;
+    let error = null;
+
+    if (uuidPattern.test(id)) {
+      const resp = await supabase
+        .from('jambase_events')
+        .select('*')
+        .eq('id', id)
+        .single();
+      concert = resp.data;
+      error = resp.error;
+    }
+
+    if (!concert) {
+      const resp2 = await supabase
+        .from('jambase_events')
+        .select('*')
+        .eq('jambase_event_id', id)
+        .single();
+      concert = resp2.data;
+      error = resp2.error;
+    }
 
     if (error) {
       console.error('Get concert by ID error:', error);

@@ -214,15 +214,26 @@ BEGIN
       calculate_event_relevance_score(p_user_id, e.id) as score,
       EXISTS(
         SELECT 1 FROM user_jambase_events uje 
-        WHERE uje.user_id = p_user_id AND uje.jambase_event_id = e.id
+        WHERE uje.user_id = p_user_id AND (
+          -- Handle differing types between tables by casting to UUID when needed
+          (pg_typeof(e.jambase_event_id)::text = 'uuid' AND uje.jambase_event_id::uuid = e.jambase_event_id) OR
+          (pg_typeof(e.jambase_event_id)::text <> 'uuid' AND uje.jambase_event_id = e.jambase_event_id)
+        )
       ) as is_interested,
       (
         SELECT COUNT(*) FROM user_jambase_events uje 
-        WHERE uje.jambase_event_id = e.id AND uje.user_id != p_user_id
+        WHERE (
+          (pg_typeof(e.jambase_event_id)::text = 'uuid' AND uje.jambase_event_id::uuid = e.jambase_event_id) OR
+          (pg_typeof(e.jambase_event_id)::text <> 'uuid' AND uje.jambase_event_id = e.jambase_event_id)
+        )
+        AND uje.user_id != p_user_id
       )::INT as interested_count,
       (
         SELECT COUNT(*) FROM user_jambase_events uje
-        WHERE uje.jambase_event_id = e.id
+        WHERE (
+          (pg_typeof(e.jambase_event_id)::text = 'uuid' AND uje.jambase_event_id::uuid = e.jambase_event_id) OR
+          (pg_typeof(e.jambase_event_id)::text <> 'uuid' AND uje.jambase_event_id = e.jambase_event_id)
+        )
           AND uje.user_id IN (
             SELECT CASE 
               WHEN user1_id = p_user_id THEN user2_id

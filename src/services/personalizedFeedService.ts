@@ -496,9 +496,64 @@ export class PersonalizedFeedService {
         }
       }
       
-      // Get filtered event IDs first
-      const { data: filteredEventIds, error: filterError } = await query;
-      
+      // Get filtered event IDs first. If city filter produced many IDs, batch to avoid URL size limits
+      let filteredEventIds: any[] | null = null;
+      let filterError: any = null;
+      try {
+        const MAX_IN_BATCH = 150; // keep well under URL/query limits
+        const usingCityIdFilter = Array.isArray(cityFilteredEventIds) && cityFilteredEventIds.length > 0;
+        if (usingCityIdFilter && cityFilteredEventIds!.length > MAX_IN_BATCH) {
+          console.log(`🧩 Large city ID set (${cityFilteredEventIds!.length}). Fetching filtered IDs in batches...`);
+          const batchedResults: any[] = [];
+
+          // Helper to apply the same non-city filters to a fresh query
+          const buildBaseQuery = () => {
+            let q = supabase
+              .from('jambase_events')
+              .select('id, event_date');
+            if (!includePast) {
+              q = q.gte('event_date', new Date().toISOString());
+            }
+            if (effectiveFilters.genres && effectiveFilters.genres.length > 0) {
+              q = q.overlaps('genres', effectiveFilters.genres);
+            }
+            if (effectiveFilters.dateRange?.from) {
+              const fromDate = effectiveFilters.dateRange.from;
+              const toDate = effectiveFilters.dateRange.to || fromDate;
+              const isSameDay = fromDate.toDateString() === toDate.toDateString();
+              if (isSameDay) {
+                const startOfDay = new Date(fromDate); startOfDay.setHours(0,0,0,0);
+                const endOfDay = new Date(fromDate); endOfDay.setHours(23,59,59,999);
+                q = q.gte('event_date', startOfDay.toISOString()).lte('event_date', endOfDay.toISOString());
+              } else {
+                q = q.gte('event_date', fromDate.toISOString());
+                if (toDate) q = q.lte('event_date', toDate.toISOString());
+              }
+            }
+            return q;
+          };
+
+          for (let i = 0; i < cityFilteredEventIds!.length; i += MAX_IN_BATCH) {
+            const batchIds = cityFilteredEventIds!.slice(i, i + MAX_IN_BATCH);
+            let q = buildBaseQuery().in('id', batchIds);
+            const { data, error } = await q;
+            if (error) {
+              console.error(`❌ Batch ${Math.floor(i / MAX_IN_BATCH) + 1} filter error:`, error);
+              // Continue other batches instead of failing entirely
+              continue;
+            }
+            if (data && data.length > 0) batchedResults.push(...data);
+          }
+          filteredEventIds = batchedResults;
+        } else {
+          const resp = await query; // small enough to run as one
+          filteredEventIds = resp.data;
+          filterError = resp.error;
+        }
+      } catch (e) {
+        filterError = e;
+      }
+
       if (filterError) {
         console.error('❌ Error filtering events:', filterError);
         return [];
@@ -914,18 +969,39 @@ export class PersonalizedFeedService {
             return parts[0].trim();
           });
           
-          const cityFilteredEventIds = await this.getEventIdsByCityCoordinates(
+          let cityFilteredEventIds = await this.getEventIdsByCityCoordinates(
             cleanCityNames,
             stateCodes?.length > 0 ? stateCodes : undefined,
             50 // 50 mile radius for metro coverage
           );
           
           if (cityFilteredEventIds.length === 0) {
-            console.log('📭 No events found in selected cities/metro areas');
-            return [];
+            console.log('📭 No events found by coordinate RPC. Falling back to direct city name matching...');
+            // Try direct venue_city ilike matching as a fallback
+            const cityConditions: string[] = [];
+            for (const city of cleanCityNames) {
+              cityConditions.push(`venue_city.ilike.${city}`);
+              cityConditions.push(`venue_city.ilike.%${city}%`);
+              cityConditions.push(`venue_city.ilike.%${city.replace(/\s+/g, '')}%`);
+              cityConditions.push(`venue_city.ilike.%${city.replace(/\s+/g, ' ')}%`);
+            }
+            const { data: directCityEvents } = await supabase
+              .from('jambase_events')
+              .select('id')
+              .gte('event_date', includePast ? '1970-01-01' : new Date().toISOString())
+              .or(cityConditions.join(','))
+              .limit(5000);
+            if (directCityEvents && directCityEvents.length > 0) {
+              cityFilteredEventIds = directCityEvents.map((e: any) => e.id);
+            } else {
+              console.log('📭 Direct city matching also returned no events. Ignoring city filter to avoid empty feed.');
+              cityFilteredEventIds = [];
+            }
           }
           
-          query = query.in('id', cityFilteredEventIds);
+          if (cityFilteredEventIds.length > 0) {
+            query = query.in('id', cityFilteredEventIds);
+          }
         }
         
         if (filters.dateRange?.from) {
