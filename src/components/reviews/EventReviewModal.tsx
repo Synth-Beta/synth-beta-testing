@@ -29,17 +29,8 @@ export function EventReviewModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col" hideCloseButton>
-        <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-semibold">Share Your Concert Experience</DialogTitle>
-            <Button variant="ghost" size="sm" onClick={handleClose} className="h-8 w-8 p-0">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </DialogHeader>
-
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
+      <DialogContent className="max-w-3xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col bg-white rounded-xl shadow-xl border" hideCloseButton>
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-4">
           <div className="max-w-2xl mx-auto">
             <EventReviewForm
               event={event as any}

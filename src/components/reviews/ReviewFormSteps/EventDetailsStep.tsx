@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Check, Calendar, Music } from 'lucide-react';
+import { Check, Calendar, Music, X } from 'lucide-react';
 import { ArtistSearchBox } from '@/components/ArtistSearchBox';
 import { VenueSearchBox } from '@/components/VenueSearchBox';
 import { SetlistModal } from '@/components/reviews/SetlistModal';
@@ -16,9 +16,10 @@ interface EventDetailsStepProps {
   formData: ReviewFormData;
   errors: Record<string, string>;
   onUpdateFormData: (updates: Partial<ReviewFormData>) => void;
+  onClose?: () => void;
 }
 
-export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDetailsStepProps) {
+export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }: EventDetailsStepProps) {
   // Quick event search (Supabase backed)
   const [eventQuery, setEventQuery] = React.useState('');
   const [eventResults, setEventResults] = React.useState<Array<any>>([]);
@@ -188,12 +189,20 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
 
   return (
     <div className="space-y-6">
-      {/* Quick Event Search */}
+      {/* Quick Event Search with inline close */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Quick search existing event (optional)</Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">Quick search existing event (optional)</Label>
+          {onClose && (
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0" aria-label="Close">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
         <div className="relative">
           <Input
             placeholder="Search by artist, event title, or venue..."
+            aria-label="Quick search existing event"
             value={eventQuery}
             onChange={(e) => setEventQuery(e.target.value)}
             onFocus={() => { if (eventResults.length > 0) setShowEventResults(true); }}

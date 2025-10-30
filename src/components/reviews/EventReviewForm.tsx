@@ -983,7 +983,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               </div>
             )}
             
-            <EventDetailsStep formData={formData} errors={errors} onUpdateFormData={updateFormData} />
+            <EventDetailsStep formData={formData} errors={errors} onUpdateFormData={updateFormData} onClose={onClose} />
             <RatingStep formData={formData} errors={errors} onUpdateFormData={updateFormData} />
             <ReviewContentStep formData={formData} errors={errors} onUpdateFormData={updateFormData} />
 
@@ -1073,7 +1073,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               </div>
             )}
           </div>
-      </div>
 
       {/* Post-submit ranking modal */}
       {submittedReview && (() => {
