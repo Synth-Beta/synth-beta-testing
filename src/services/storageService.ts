@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type BucketName = 'review-photos' | 'profile-avatars' | 'event-photos';
+export type BucketName = 'review-photos' | 'profile-avatars' | 'event-photos' | 'review-videos';
 
 export interface UploadResult {
   url: string;
@@ -206,6 +206,138 @@ class StorageService {
 
     // Check file size
     const maxSizeBytes = (opts.maxSizeMB || 5) * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      return {
+        valid: false,
+        error: `File too large. Maximum size: ${opts.maxSizeMB}MB`,
+      };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Upload a video to Supabase storage
+   */
+  async uploadVideo(
+    file: File,
+    bucket: BucketName,
+    userId: string,
+    options: UploadOptions = {}
+  ): Promise<UploadResult> {
+    const opts = {
+      maxSizeMB: 100,
+      allowedTypes: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/3gpp', 'video/x-flv'],
+      ...options,
+    };
+
+    // Validate file type
+    if (!opts.allowedTypes?.includes(file.type)) {
+      throw new Error(
+        `Invalid file type. Allowed types: ${opts.allowedTypes?.join(', ')}`
+      );
+    }
+
+    // Validate file size
+    const maxSizeBytes = (opts.maxSizeMB || 100) * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      throw new Error(
+        `File size exceeds ${opts.maxSizeMB}MB limit. Current size: ${(
+          file.size /
+          1024 /
+          1024
+        ).toFixed(2)}MB`
+      );
+    }
+
+    // Generate unique filename
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'mp4';
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`;
+
+    // Upload to Supabase storage (videos don't need compression)
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('Upload error:', error);
+      throw new Error(`Failed to upload video: ${error.message}`);
+    }
+
+    // Get public URL
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(bucket).getPublicUrl(data.path);
+
+    return {
+      url: publicUrl,
+      path: data.path,
+    };
+  }
+
+  /**
+   * Upload multiple videos
+   */
+  async uploadVideos(
+    files: File[],
+    bucket: BucketName,
+    userId: string,
+    options: UploadOptions = {}
+  ): Promise<UploadResult[]> {
+    const uploadPromises = files.map((file) =>
+      this.uploadVideo(file, bucket, userId, options)
+    );
+    return Promise.all(uploadPromises);
+  }
+
+  /**
+   * Delete a video from storage
+   */
+  async deleteVideo(bucket: BucketName, path: string): Promise<void> {
+    const { error } = await supabase.storage.from(bucket).remove([path]);
+
+    if (error) {
+      console.error('Delete error:', error);
+      throw new Error(`Failed to delete video: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete multiple videos
+   */
+  async deleteVideos(bucket: BucketName, paths: string[]): Promise<void> {
+    const { error } = await supabase.storage.from(bucket).remove(paths);
+
+    if (error) {
+      console.error('Delete error:', error);
+      throw new Error(`Failed to delete videos: ${error.message}`);
+    }
+  }
+
+  /**
+   * Validate video before upload
+   */
+  validateVideo(file: File, options: UploadOptions = {}): { valid: boolean; error?: string } {
+    const opts = {
+      maxSizeMB: 100,
+      allowedTypes: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/3gpp', 'video/x-flv'],
+      ...options,
+    };
+
+    // Check file type
+    if (!opts.allowedTypes?.includes(file.type)) {
+      return {
+        valid: false,
+        error: `Invalid file type. Please use: ${opts.allowedTypes?.join(', ')}`,
+      };
+    }
+
+    // Check file size
+    const maxSizeBytes = (opts.maxSizeMB || 100) * 1024 * 1024;
     if (file.size > maxSizeBytes) {
       return {
         valid: false,

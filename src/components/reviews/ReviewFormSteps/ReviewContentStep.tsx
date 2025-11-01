@@ -4,7 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
-import { PhotoUpload } from '@/components/ui/photo-upload';
+import { PhotoUpload, VideoUpload } from '@/components/ui/photo-upload';
 import { useAuth } from '@/hooks/useAuth';
 import { CustomSetlistInput, type CustomSetlistSong } from '@/components/reviews/CustomSetlistInput';
 import { Music, Users } from 'lucide-react';
@@ -43,6 +43,10 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
 
   const handlePhotosChange = (urls: string[]) => {
     onUpdateFormData({ photos: urls });
+  };
+
+  const handleVideosChange = (urls: string[]) => {
+    onUpdateFormData({ videos: urls });
   };
 
   const handleCustomSetlistChange = (songs: CustomSetlistSong[]) => {
@@ -198,6 +202,20 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
           maxSizeMB={5}
           label="Photos (Optional)"
           helperText="Add photos from the event to make your review more engaging"
+        />
+      )}
+
+      {/* Video Upload */}
+      {user && (
+        <VideoUpload
+          value={formData.videos || []}
+          onChange={handleVideosChange}
+          userId={user.id}
+          bucket="review-videos"
+          maxVideos={3}
+          maxSizeMB={100}
+          label="Videos (Optional)"
+          helperText="Add videos from the event (max 100MB per video)"
         />
       )}
     </div>

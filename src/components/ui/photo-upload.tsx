@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Camera, X, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Camera, X, Loader2, Image as ImageIcon, Video, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { storageService, type BucketName } from '@/services/storageService';
 import { useToast } from '@/hooks/use-toast';
@@ -463,6 +463,215 @@ export function SinglePhotoUpload({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* Video Upload Component */
+export interface VideoUploadProps {
+  value: string[];
+  onChange: (urls: string[]) => void;
+  userId: string;
+  bucket: BucketName;
+  maxVideos?: number;
+  maxSizeMB?: number;
+  label?: string;
+  helperText?: string;
+  className?: string;
+  disabled?: boolean;
+}
+
+export function VideoUpload({
+  value = [],
+  onChange,
+  userId,
+  bucket,
+  maxVideos = 3,
+  maxSizeMB = 100,
+  label = 'Videos',
+  helperText,
+  className,
+  disabled = false,
+}: VideoUploadProps) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Check if adding these files would exceed max
+    if (value.length + files.length > maxVideos) {
+      toast({
+        title: 'Too many videos',
+        description: `You can only upload up to ${maxVideos} videos`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate each file
+    for (const file of files) {
+      const validation = storageService.validateVideo(file, { maxSizeMB });
+      if (!validation.valid) {
+        toast({
+          title: 'Invalid file',
+          description: validation.error,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Upload files one by one with progress
+      const uploadedUrls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const result = await storageService.uploadVideo(files[i], bucket, userId, {
+          maxSizeMB,
+        });
+        uploadedUrls.push(result.url);
+        setUploadProgress(((i + 1) / files.length) * 100);
+      }
+
+      onChange([...value, ...uploadedUrls]);
+      
+      toast({
+        title: 'Upload successful',
+        description: `${files.length} video${files.length > 1 ? 's' : ''} uploaded`,
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: 'Upload failed',
+        description: error instanceof Error ? error.message : 'Failed to upload videos',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemove = async (url: string, index: number) => {
+    try {
+      // Extract path and delete from storage
+      const path = storageService.getPathFromUrl(url, bucket);
+      if (path) {
+        await storageService.deleteVideo(bucket, path);
+      }
+
+      // Update state
+      const newValue = value.filter((_, i) => i !== index);
+      onChange(newValue);
+
+      toast({
+        title: 'Video removed',
+        description: 'Video deleted successfully',
+      });
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: 'Delete failed',
+        description: 'Failed to delete video',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className={cn('space-y-3', className)}>
+      {label && (
+        <div>
+          <label className="text-sm font-medium">{label}</label>
+          {helperText && <p className="text-xs text-muted-foreground mt-1">{helperText}</p>}
+        </div>
+      )}
+
+      {/* Video Grid */}
+      <div className="grid grid-cols-3 gap-3">
+        {value.map((url, index) => (
+          <div
+            key={url}
+            className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group"
+          >
+            <video
+              src={url}
+              className="w-full h-full object-cover"
+              muted
+              playsInline
+            />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="bg-black/50 rounded-full p-2">
+                <Play className="w-6 h-6 text-white" fill="white" />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleRemove(url, index)}
+              disabled={disabled || uploading}
+              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+
+        {/* Upload Button */}
+        {value.length < maxVideos && (
+          <button
+            type="button"
+            onClick={openFilePicker}
+            disabled={disabled || uploading}
+            className={cn(
+              'aspect-square rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400',
+              'flex flex-col items-center justify-center gap-2 transition-colors',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+              uploading && 'border-primary'
+            )}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="text-xs text-muted-foreground">{uploadProgress.toFixed(0)}%</span>
+              </>
+            ) : (
+              <>
+                <Video className="w-6 h-6 text-gray-400" />
+                <span className="text-xs text-muted-foreground">Add Video</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/3gpp,video/x-flv"
+        multiple
+        onChange={handleFileSelect}
+        className="hidden"
+        disabled={disabled || uploading}
+      />
+
+      {/* Info Text */}
+      <p className="text-xs text-muted-foreground">
+        {value.length} / {maxVideos} videos • Max {maxSizeMB}MB per video
+      </p>
     </div>
   );
 }
