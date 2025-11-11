@@ -13,6 +13,17 @@ DECLARE
   v_song TEXT;
   v_genre TEXT;
   v_all_genres TEXT[];
+  v_review_row JSONB;
+  v_review_genre_tags TEXT[] := ARRAY[]::TEXT[];
+  v_rating NUMERIC;
+  v_artist_performance_rating NUMERIC;
+  v_production_rating NUMERIC;
+  v_venue_rating NUMERIC;
+  v_location_rating NUMERIC;
+  v_value_rating NUMERIC;
+  v_ticket_price NUMERIC;
+  v_has_photos BOOLEAN := FALSE;
+  v_custom_setlist JSONB;
 BEGIN
   -- Get event data
   SELECT 
@@ -27,8 +38,44 @@ BEGIN
   FROM jambase_events e
   WHERE e.id = NEW.event_id;
   
+  -- Snapshot the review row as JSONB to safely access optional fields
+  v_review_row := to_jsonb(NEW);
+
+  -- Extract review genre tags if present
+  IF v_review_row ? 'genre_tags' AND jsonb_typeof(v_review_row->'genre_tags') = 'array' THEN
+    SELECT array_agg(elem.value)
+    INTO v_review_genre_tags
+    FROM jsonb_array_elements_text(v_review_row->'genre_tags') AS elem(value);
+  END IF;
+
   -- Combine event genres with review genre tags
-  v_all_genres := v_event_record.genres || COALESCE(NEW.genre_tags, ARRAY[]::TEXT[]);
+  v_all_genres := v_event_record.genres || COALESCE(v_review_genre_tags, ARRAY[]::TEXT[]);
+
+  -- Extract numeric rating details if present
+  v_rating := NULLIF(v_review_row->>'rating', '')::NUMERIC;
+  v_artist_performance_rating := NULLIF(v_review_row->>'artist_performance_rating', '')::NUMERIC;
+  v_production_rating := NULLIF(v_review_row->>'production_rating', '')::NUMERIC;
+  v_venue_rating := NULLIF(v_review_row->>'venue_rating', '')::NUMERIC;
+  v_location_rating := NULLIF(v_review_row->>'location_rating', '')::NUMERIC;
+  v_value_rating := NULLIF(v_review_row->>'value_rating', '')::NUMERIC;
+  v_ticket_price := NULLIF(v_review_row->>'ticket_price_paid', '')::NUMERIC;
+
+  -- Determine if photos/custom setlist exist
+  IF (v_review_row ? 'photos') THEN
+    v_has_photos := jsonb_typeof(v_review_row->'photos') = 'array'
+      AND jsonb_array_length(v_review_row->'photos') > 0;
+  END IF;
+
+  IF (v_review_row ? 'custom_setlist') THEN
+    v_custom_setlist := v_review_row->'custom_setlist';
+    IF jsonb_typeof(v_custom_setlist) = 'array' THEN
+      IF jsonb_array_length(v_custom_setlist) = 0 THEN
+        v_custom_setlist := NULL;
+      END IF;
+    ELSE
+      v_custom_setlist := NULL;
+    END IF;
+  END IF;
   
   -- Insert artist interaction FOR THIS USER (reviews are strongest signal)
   IF v_event_record.artist_name IS NOT NULL THEN
@@ -53,10 +100,15 @@ BEGIN
       'review',
       NEW.id::TEXT,
       jsonb_build_object(
-        'rating', NEW.rating,
-        'performance_rating', NEW.performance_rating,
-        'has_photos', (NEW.photos IS NOT NULL AND array_length(NEW.photos, 1) > 0),
-        'has_custom_setlist', (NEW.custom_setlist IS NOT NULL AND array_length(NEW.custom_setlist, 1) > 0)
+        'rating', v_rating,
+        'artist_performance_rating', v_artist_performance_rating,
+        'production_rating', v_production_rating,
+        'venue_rating', v_venue_rating,
+        'location_rating', v_location_rating,
+        'value_rating', v_value_rating,
+        'ticket_price_paid', v_ticket_price,
+        'has_photos', v_has_photos,
+        'has_custom_setlist', v_custom_setlist IS NOT NULL
       ),
       NEW.created_at
     );
@@ -88,8 +140,18 @@ BEGIN
   END IF;
   
   -- Insert song interactions FOR THIS USER (from custom setlist)
-  IF NEW.custom_setlist IS NOT NULL AND array_length(NEW.custom_setlist, 1) > 0 THEN
-    FOR v_song IN SELECT unnest(NEW.custom_setlist) LOOP
+  IF v_custom_setlist IS NOT NULL THEN
+    FOR v_song IN
+      SELECT
+        COALESCE(
+          elem->>'title',
+          elem->>'name',
+          elem->>'song',
+          NULLIF(trim(both '\"' FROM elem::TEXT), '')
+        )
+      FROM jsonb_array_elements(v_custom_setlist) elem
+    LOOP
+      CONTINUE WHEN v_song IS NULL OR v_song = '';
       INSERT INTO user_song_interactions (
         user_id,
         song_id,

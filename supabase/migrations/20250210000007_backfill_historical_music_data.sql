@@ -131,9 +131,18 @@ SELECT
   jsonb_build_object(
     'backfilled', true,
     'rating', ur.rating,
-    'performance_rating', ur.performance_rating,
+    'artist_performance_rating', ur.artist_performance_rating,
+    'production_rating', ur.production_rating,
+    'venue_rating', ur.venue_rating,
+    'location_rating', ur.location_rating,
+    'value_rating', ur.value_rating,
+    'ticket_price_paid', ur.ticket_price_paid,
     'has_photos', (ur.photos IS NOT NULL AND array_length(ur.photos, 1) > 0),
-    'has_custom_setlist', (ur.custom_setlist IS NOT NULL AND jsonb_array_length(ur.custom_setlist) > 0)
+    'has_custom_setlist', (
+      ur.custom_setlist IS NOT NULL
+      AND jsonb_typeof(ur.custom_setlist) = 'array'
+      AND jsonb_array_length(ur.custom_setlist) > 0
+    )
   ),
   ur.created_at,
   now()

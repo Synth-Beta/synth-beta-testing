@@ -27,6 +27,7 @@ import { OnboardingService } from '@/services/onboardingService';
 import CreatorAnalyticsDashboard from '@/pages/Analytics/CreatorAnalyticsDashboard';
 import BusinessAnalyticsDashboard from '@/pages/Analytics/BusinessAnalyticsDashboard';
 import AdminAnalyticsDashboard from '@/pages/Analytics/AdminAnalyticsDashboard';
+import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
 
 type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events' | 'onboarding';
 
@@ -207,7 +208,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         time: event.event_time || event.time || 'TBD',
         category: 'music' as const, // Default to music for now
         description: event.description || 'No description available',
-        image: event.image || '/placeholder.svg',
+        image: event.image || getFallbackEventImage(event.id || event.title || event.event_name || 'synth-event'),
         price: event.event_price || undefined,
         attendeeCount: Math.floor(Math.random() * 100) + 1 // Mock attendee count
       }));

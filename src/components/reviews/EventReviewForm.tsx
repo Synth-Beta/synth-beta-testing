@@ -1,22 +1,74 @@
-import React, { useEffect, useState } from 'react';
-// Removed Card wrappers to keep a single white card at the modal level
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
-import { useReviewForm } from '@/hooks/useReviewForm';
+import { useReviewForm, REVIEW_FORM_TOTAL_STEPS } from '@/hooks/useReviewForm';
 import { ReviewService, type ReviewData, type UserReview, type PublicReviewWithProfile } from '@/services/reviewService';
 import { EventDetailsStep } from './ReviewFormSteps/EventDetailsStep';
-import { RatingStep } from './ReviewFormSteps/RatingStep';
+import { CategoryStep, type CategoryConfig } from './ReviewFormSteps/CategoryStep';
 import { ReviewContentStep } from './ReviewFormSteps/ReviewContentStep';
 import { PrivacySubmitStep } from './ReviewFormSteps/PrivacySubmitStep';
 import { supabase } from '@/integrations/supabase/client';
-import { ShowRanking, type ShowEntry } from './ShowRanking';
+import type { ShowEntry } from './ShowRanking';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { PostSubmitRankingModal } from './PostSubmitRankingModal';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { DraftReviewService, DraftReviewData, DraftReview } from '@/services/draftReviewService';
 import { DraftToggle } from './DraftToggle';
 import { SMSInvitationService } from '@/services/smsInvitationService';
+import { SetlistModal } from '@/components/reviews/SetlistModal';
+import { CustomSetlistInput } from '@/components/reviews/CustomSetlistInput';
+import { Music, DollarSign } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const ARTIST_SUGGESTIONS: CategoryConfig['suggestions'] = [
+  { id: 'artist-electric', label: 'Electric energy', description: 'The band fed off the crowd with nonstop energy.', sentiment: 'positive' },
+  { id: 'artist-tight', label: 'Tight musicianship', description: 'Flawless set and tight transitions all night.', sentiment: 'positive' },
+  { id: 'artist-weak-vocals', label: 'Vocals struggled', description: 'Vocals were off pitch for most of the night.', sentiment: 'negative' },
+  { id: 'artist-short-set', label: 'Short setlist', description: 'Felt too quick—left wanting a few more songs.', sentiment: 'negative' },
+];
+
+const PRODUCTION_SUGGESTIONS: CategoryConfig['suggestions'] = [
+  { id: 'production-lights', label: 'Insane light show', description: 'Lighting design elevated every drop.', sentiment: 'positive' },
+  { id: 'production-soundmix', label: 'Crystal clear mix', description: 'Sound mix was balanced and immersive.', sentiment: 'positive' },
+  { id: 'production-feedback', label: 'Feedback issues', description: 'Persistent sound issues distracted from songs.', sentiment: 'negative' },
+  { id: 'production-lag', label: 'Stage delays', description: 'Long pauses between songs killed the momentum.', sentiment: 'negative' },
+];
+
+const VENUE_SUGGESTIONS: CategoryConfig['suggestions'] = [
+  { id: 'venue-staff', label: 'Staff was incredible', description: 'Friendly staff kept lines moving smoothly.', sentiment: 'positive' },
+  { id: 'venue-comfort', label: 'Comfortable layout', description: 'Plenty of space and easy sightlines.', sentiment: 'positive' },
+  { id: 'venue-crowded', label: 'Overcrowded', description: 'Packed to the brim with no room to breathe.', sentiment: 'negative' },
+  { id: 'venue-sound', label: 'Muddy house sound', description: 'Venue acoustics made everything sound muffled.', sentiment: 'negative' },
+];
+
+const LOCATION_SUGGESTIONS: CategoryConfig['suggestions'] = [
+  { id: 'location-easy', label: 'Easy transit', description: 'Quick rideshare + plenty of parking nearby.', sentiment: 'positive' },
+  { id: 'location-food', label: 'Great pre-show spots', description: 'Awesome food and bars in walking distance.', sentiment: 'positive' },
+  { id: 'location-traffic', label: 'Nightmare traffic', description: 'Getting there and back took forever.', sentiment: 'negative' },
+  { id: 'location-safety', label: 'Felt unsafe', description: 'Area felt sketchy walking back to the car.', sentiment: 'negative' },
+];
+
+const VALUE_SUGGESTIONS: CategoryConfig['suggestions'] = [
+  { id: 'value-worth-every-dollar', label: 'Worth every dollar', description: 'Totally justified the ticket price.', sentiment: 'positive' },
+  { id: 'value-underpriced', label: 'Steal of a night', description: 'Felt like we paid half of what it was worth.', sentiment: 'positive' },
+  { id: 'value-overpriced', label: 'Overpriced', description: 'Fun night, but tickets were overpriced.', sentiment: 'negative' },
+  { id: 'value-hidden-fees', label: 'Too many fees', description: 'Fees and merch prices added up fast.', sentiment: 'negative' },
+];
+
+const STEP_LABELS = [
+  'Event details',
+  'Artist performance',
+  'Production quality',
+  'Venue experience',
+  'Location & logistics',
+  'Value for ticket',
+  'Story & media',
+  'Privacy & submit',
+];
 
 interface EventReviewFormProps {
   event: JamBaseEvent | PublicReviewWithProfile;
@@ -35,17 +87,60 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     updateFormData,
     setLoading,
     resetForm,
-    setFormData
+    setFormData,
+    currentStep,
+    nextStep,
+    prevStep,
+    canProceed,
+    canGoBack,
+    isLastStep
   } = useReviewForm();
 
   const [existingReview, setExistingReview] = useState<UserReview | null>(null);
-  const [shows, setShows] = useState<ShowEntry[]>([]);
+  const [shows] = useState<ShowEntry[]>([]);
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [submittedReview, setSubmittedReview] = useState<UserReview | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
-  const [actualEventId, setActualEventId] = useState<string>(event.id);
+  const isValidUUID = (value?: string | null) => {
+    if (!value) return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(value);
+  };
+
+  const getInitialEventId = () => {
+    if (event.id?.startsWith('new-review')) {
+      return event.id;
+    }
+    if (isValidUUID(event.id)) {
+      return event.id!;
+    }
+    return '';
+  };
+
+  const [actualEventId, setActualEventId] = useState<string>(getInitialEventId());
   const [currentDraft, setCurrentDraft] = useState<DraftReview | null>(null);
+  const [isSetlistModalOpen, setIsSetlistModalOpen] = useState(false);
+
+  const formatSetlistDate = (date?: string) => {
+    if (!date) return '';
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const handleSetlistSelect = (setlist: any) => {
+    updateFormData({ selectedSetlist: setlist });
+    setIsSetlistModalOpen(false);
+  };
+
+  const handleClearSetlist = () => {
+    updateFormData({ selectedSetlist: null });
+  };
+
+  const handleCustomSetlistChange = (songs: any[]) => {
+    updateFormData({ customSetlist: songs as any });
+  };
 
   // Auto-save functionality (localStorage only - no database records)
   const { manualSave, loadDraft, clearDraft } = useAutoSave({
@@ -61,6 +156,61 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       }
     }
   });
+
+  const categoryConfigs = useMemo<Record<number, CategoryConfig>>(() => {
+    const artistName = formData.selectedArtist?.name;
+    return {
+      2: {
+        title: 'Artist Performance',
+        subtitle: artistName
+          ? `How did ${artistName} deliver live? Share your honest take.`
+          : 'How did the artist deliver live? Share your honest take.',
+        ratingKey: 'artistPerformanceRating',
+        feedbackKey: 'artistPerformanceFeedback',
+        recommendationKey: 'artistPerformanceRecommendation',
+        helperText: 'Tap a star (half points allowed) to capture the performance.',
+        suggestions: ARTIST_SUGGESTIONS,
+      },
+      3: {
+        title: 'Production Quality',
+        subtitle: 'Lights, visuals, sound mix — did the production elevate the night?',
+        ratingKey: 'productionRating',
+        feedbackKey: 'productionFeedback',
+        recommendationKey: 'productionRecommendation',
+        helperText: 'Think about sound clarity, lighting, visuals, and pacing.',
+        suggestions: PRODUCTION_SUGGESTIONS,
+      },
+      4: {
+        title: 'Venue Experience',
+        subtitle: formData.selectedVenue?.name
+          ? `What was ${formData.selectedVenue.name} like to be in?`
+          : 'Consider the staff, comfort, lines, and vibe inside the venue.',
+        ratingKey: 'venueRating',
+        feedbackKey: 'venueFeedback',
+        recommendationKey: 'venueRecommendation',
+        helperText: 'Include staff vibes, comfort, and amenities.',
+        suggestions: VENUE_SUGGESTIONS,
+      },
+      5: {
+        title: 'Location & Logistics',
+        subtitle: 'Getting there, getting home, nearby spots — how easy was the night?',
+        ratingKey: 'locationRating',
+        feedbackKey: 'locationFeedback',
+        recommendationKey: 'locationRecommendation',
+        helperText: 'Parking, transit, food options, safety — it all counts.',
+        suggestions: LOCATION_SUGGESTIONS,
+      },
+      6: {
+        title: 'Value for Ticket Price',
+        subtitle: 'Given what you paid, did the experience feel worth it?',
+        ratingKey: 'valueRating',
+        feedbackKey: 'valueFeedback',
+        recommendationKey: 'valueRecommendation',
+        helperText: 'Honest value helps fans budget for future shows.',
+        suggestions: VALUE_SUGGESTIONS,
+      },
+    };
+  }, [formData.selectedArtist?.name, formData.selectedVenue?.name]);
 
   // Create event in database when artist and venue are selected (for new reviews)
   useEffect(() => {
@@ -93,8 +243,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       }
       
       // Don't create if we already have a valid event ID
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      if (uuidRegex.test(actualEventId)) {
+      if (isValidUUID(actualEventId)) {
         console.log('🚫 Not creating event: Already have valid event ID');
         return;
       }
@@ -109,11 +258,17 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           console.error('❌ Invalid date format:', formData.eventDate);
           throw new Error(`Invalid event date format: ${formData.eventDate}`);
         }
+        const resolvedVenueId =
+          formData.selectedVenue?.is_from_database &&
+          isValidUUID(formData.selectedVenue.id)
+            ? formData.selectedVenue.id
+            : null;
+
         const insertPayload: any = {
           title: `${formData.selectedArtist.name} at ${formData.selectedVenue.name}`,
           artist_name: formData.selectedArtist.name,
           venue_name: formData.selectedVenue.name,
-          venue_id: formData.selectedVenue.is_from_database ? formData.selectedVenue.id : null,
+          ...(resolvedVenueId ? { venue_id: resolvedVenueId } : {}),
           venue_city: formData.selectedVenue.address?.addressLocality || 'Unknown',
           venue_state: formData.selectedVenue.address?.addressRegion || 'Unknown',
           event_date: eventDateTime.toISOString(),
@@ -176,11 +331,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       if (!event || !userId) return;
       
       // Helper to check if string is a valid UUID
-      const isValidUUID = (str: string) => {
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        return uuidRegex.test(str);
-      };
-      
       try {
         // First check if we have an existing review ID (edit mode)
         const existingReviewId = (event as any)?.existing_review_id;
@@ -217,41 +367,56 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           // Fetch event details from jambase_events to get artist_name, venue_name, and event_date
           let eventDetails = null;
           if (review.event_id) {
-            const { data: eventData } = await (supabase as any)
-              .from('jambase_events')
-              .select('artist_name, artist_id, venue_name, venue_id, event_date')
-              .eq('id', review.event_id)
-              .single();
-            
-            if (eventData) {
-              eventDetails = eventData;
-              console.log('🎯 Fetched event details for review:', eventDetails);
+            if (isValidUUID(review.event_id)) {
+              const { data: eventData } = await (supabase as any)
+                .from('jambase_events')
+                .select('artist_name, artist_id, venue_name, venue_id, event_date')
+                .eq('id', review.event_id)
+                .single();
+              
+              if (eventData) {
+                eventDetails = eventData;
+                console.log('🎯 Fetched event details for review:', eventDetails);
+              }
+            } else {
+              console.warn('⚠️ review.event_id is not a valid UUID, skipping jambase_events lookup', review.event_id);
             }
           }
           
-          // Prefill form data from existing review
+          const eventDateFromReview = eventDetails?.event_date
+            ? String(eventDetails.event_date).split('T')[0]
+            : (review.created_at || '').split('T')[0];
+
           setFormData({
             selectedArtist: null,
             selectedVenue: null,
-            eventDate: eventDetails?.event_date 
-              ? String(eventDetails.event_date).split('T')[0] 
-              : (review.created_at || '').split('T')[0],
-            performanceRating: review.performance_rating || review.rating,
-            venueRating: review.venue_rating || review.venue_rating_new || review.rating,
-            overallExperienceRating: review.overall_experience_rating || review.rating,
+            eventDate: eventDateFromReview,
+            artistPerformanceRating: review.artist_performance_rating || review.rating,
+            productionRating: review.production_rating || review.artist_performance_rating || review.rating,
+            venueRating: review.venue_rating || review.rating,
+            locationRating: review.location_rating || review.venue_rating || review.rating,
+            valueRating: review.value_rating || review.rating,
+            artistPerformanceFeedback: review.artist_performance_feedback || '',
+            productionFeedback: review.production_feedback || '',
+            venueFeedback: review.venue_feedback || '',
+            locationFeedback: review.location_feedback || '',
+            valueFeedback: review.value_feedback || '',
+            artistPerformanceRecommendation: review.artist_performance_recommendation || '',
+            productionRecommendation: review.production_recommendation || '',
+            venueRecommendation: review.venue_recommendation || '',
+            locationRecommendation: review.location_recommendation || '',
+            valueRecommendation: review.value_recommendation || '',
+            ticketPricePaid: review.ticket_price_paid ? String(review.ticket_price_paid) : '',
             rating: review.rating,
             reviewText: review.review_text || '',
             reactionEmoji: review.reaction_emoji || '',
-            performanceReviewText: review.performance_review_text || '',
-            venueReviewText: review.venue_review_text || '',
-            overallExperienceReviewText: review.overall_experience_review_text || '',
-            artistReviewText: '',
-            photos: review.photos || [], // Load existing photos
-            videos: review.videos || [], // Load existing videos
-            customSetlist: (review as any).custom_setlist || [], // Load existing custom setlist
+            photos: review.photos || [],
+            videos: review.videos || [],
+            selectedSetlist: review.setlist || null,
+            customSetlist: (review as any).custom_setlist || [],
             isPublic: review.is_public,
             reviewType: review.review_type || 'event',
-          });
+          } as any);
           
           // Pre-populate selected artist and venue from event details
           try {
@@ -401,23 +566,21 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     }
 
     // Step 2: Ratings Validation
-    if (formData.performanceRating === 0) {
-      validationErrors.push('Please rate the performance');
-    } else if (formData.performanceRating < 0.5 || formData.performanceRating > 5.0) {
-      validationErrors.push('Performance rating must be between 0.5 and 5.0 stars');
-    }
+    const ratingChecks: Array<[number, string]> = [
+      [formData.artistPerformanceRating, 'artist performance'],
+      [formData.productionRating, 'production quality'],
+      [formData.venueRating, 'venue'],
+      [formData.locationRating, 'location & logistics'],
+      [formData.valueRating, 'value for the ticket price'],
+    ];
 
-    if (formData.venueRating === 0) {
-      validationErrors.push('Please rate the venue');
-    } else if (formData.venueRating < 0.5 || formData.venueRating > 5.0) {
-      validationErrors.push('Venue rating must be between 0.5 and 5.0 stars');
-    }
-
-    if (formData.overallExperienceRating === 0) {
-      validationErrors.push('Please rate the overall experience');
-    } else if (formData.overallExperienceRating < 0.5 || formData.overallExperienceRating > 5.0) {
-      validationErrors.push('Overall experience rating must be between 0.5 and 5.0 stars');
-    }
+    ratingChecks.forEach(([value, label]) => {
+      if (!value || value === 0) {
+        validationErrors.push(`Please rate the ${label}`);
+      } else if (value < 0.5 || value > 5.0) {
+        validationErrors.push(`The ${label} rating must be between 0.5 and 5.0 stars`);
+      }
+    });
 
     // Step 3: Review Text Validation
     if (!formData.reviewText || formData.reviewText.trim() === '') {
@@ -427,17 +590,26 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     }
 
     // Optional field length validation
-    if (formData.performanceReviewText && formData.performanceReviewText.length > 300) {
-      validationErrors.push('Performance review must be 300 characters or less');
-    }
-    if (formData.venueReviewText && formData.venueReviewText.length > 300) {
-      validationErrors.push('Venue review must be 300 characters or less');
-    }
-    if (formData.overallExperienceReviewText && formData.overallExperienceReviewText.length > 300) {
-      validationErrors.push('Overall experience review must be 300 characters or less');
-    }
-    if (formData.artistReviewText && formData.artistReviewText.length > 300) {
-      validationErrors.push('Artist review must be 300 characters or less');
+    const optionalNotes: Array<[string | undefined, string]> = [
+      [formData.artistPerformanceFeedback, 'Artist performance note must be 400 characters or less'],
+      [formData.productionFeedback, 'Production note must be 400 characters or less'],
+      [formData.venueFeedback, 'Venue note must be 400 characters or less'],
+      [formData.locationFeedback, 'Location note must be 400 characters or less'],
+      [formData.valueFeedback, 'Value note must be 400 characters or less'],
+    ];
+    optionalNotes.forEach(([text, message]) => {
+      if (text && text.length > 400) {
+        validationErrors.push(message);
+      }
+    });
+
+    if (formData.ticketPricePaid) {
+      const numericPrice = Number(formData.ticketPricePaid);
+      if (Number.isNaN(numericPrice)) {
+        validationErrors.push('Ticket price must be a valid number');
+      } else if (numericPrice < 0) {
+        validationErrors.push('Ticket price cannot be negative');
+      }
     }
 
     // If there are validation errors, show them and don't submit
@@ -455,7 +627,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       return;
     }
 
-    let eventId = event.id;
+    let eventId = isValidUUID(actualEventId)
+      ? actualEventId
+      : (isValidUUID(event.id) ? event.id : actualEventId || event.id);
     // Resolve or cache artist in DB to obtain stable UUID for artists table
     let artistProfileId: string | undefined;
     try {
@@ -529,6 +703,10 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       } catch {}
     }
 
+    if (venueId && !isValidUUID(venueId)) {
+      venueId = undefined;
+    }
+
     // ALWAYS create or find the correct event for the new artist/venue combination
     // This ensures that when editing a review with different artist/venue, we use the correct event_id
     const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId);
@@ -588,12 +766,19 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           throw new Error(`Invalid event date: ${formData.eventDate}`);
         }
         
+        // Resolve venue_id only if we have a real UUID (user-created placeholders will fail Supabase)
+        const resolvedVenueId =
+          formData.selectedVenue?.is_from_database &&
+          isValidUUID(formData.selectedVenue.id)
+            ? formData.selectedVenue.id
+            : null;
+
         // Attempt insert; if it fails due to schema, degrade to minimal payload
         let insertPayload: any = {
           title: `${formData.selectedArtist?.name || 'Concert'} at ${formData.selectedVenue?.name || 'Venue'}`,
           artist_name: formData.selectedArtist?.name || '',
           venue_name: formData.selectedVenue?.name || '',
-          venue_id: formData.selectedVenue?.is_from_database ? formData.selectedVenue.id : null,
+          ...(resolvedVenueId ? { venue_id: resolvedVenueId } : {}),
           venue_city: formData.selectedVenue?.address?.addressLocality || 'Unknown',
           venue_state: formData.selectedVenue?.address?.addressRegion || 'Unknown',
           event_date: eventDateTime.toISOString(),
@@ -642,6 +827,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         }
         if (ins.error) throw ins.error;
         eventId = ins.data.id;
+        setActualEventId(ins.data.id);
         
         // If we're editing an existing review and the event changed, delete the old review
         if (existingReview && (artistChanged || venueChanged)) {
@@ -661,9 +847,27 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
     setLoading(true);
     try {
+      const categoryNotes = [
+        formData.artistPerformanceFeedback?.trim() || formData.artistPerformanceRecommendation
+          ? `Artist performance: ${formData.artistPerformanceFeedback?.trim() || formData.artistPerformanceRecommendation}`
+          : '',
+        formData.productionFeedback?.trim() || formData.productionRecommendation
+          ? `Production: ${formData.productionFeedback?.trim() || formData.productionRecommendation}`
+          : '',
+        formData.venueFeedback?.trim() || formData.venueRecommendation
+          ? `Venue: ${formData.venueFeedback?.trim() || formData.venueRecommendation}`
+          : '',
+        formData.locationFeedback?.trim() || formData.locationRecommendation
+          ? `Location: ${formData.locationFeedback?.trim() || formData.locationRecommendation}`
+          : '',
+        formData.valueFeedback?.trim() || formData.valueRecommendation
+          ? `Value: ${formData.valueFeedback?.trim() || formData.valueRecommendation}`
+          : '',
+      ].filter(Boolean).join('\n');
+
       const combinedReviewText = [
         formData.reviewText.trim(),
-        formData.artistReviewText.trim() ? `Artist: ${formData.artistReviewText.trim()}` : ''
+        categoryNotes
       ].filter(Boolean).join('\n\n');
 
       const showsRankingBlock = shows.length
@@ -676,17 +880,29 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         : '';
 
       // Ensure overall rating is saved on a 1..5 integer scale without halving
-      const integerOverall = Math.max(1, Math.min(5, Math.round(formData.rating))) as any;
+      const decimalAverage = formData.rating || 0;
+      const integerOverall = Math.max(1, Math.min(5, Math.round(decimalAverage))) as any;
+      const ticketPrice = formData.ticketPricePaid ? Number(formData.ticketPricePaid) : undefined;
       const reviewData: ReviewData = {
         review_type: 'event',
         // Send integer overall rating to satisfy NOT NULL integer column; decimals go to category columns
         rating: integerOverall,
-        performance_rating: formData.performanceRating || undefined,
+        artist_performance_rating: formData.artistPerformanceRating || undefined,
+        production_rating: formData.productionRating || undefined,
         venue_rating: formData.venueRating || undefined,
-        overall_experience_rating: formData.overallExperienceRating || undefined,
-        performance_review_text: formData.performanceReviewText || undefined,
-        venue_review_text: formData.venueReviewText || undefined,
-        overall_experience_review_text: formData.overallExperienceReviewText || undefined,
+        location_rating: formData.locationRating || undefined,
+        value_rating: formData.valueRating || undefined,
+        artist_performance_feedback: formData.artistPerformanceFeedback || undefined,
+        production_feedback: formData.productionFeedback || undefined,
+        venue_feedback: formData.venueFeedback || undefined,
+        location_feedback: formData.locationFeedback || undefined,
+        value_feedback: formData.valueFeedback || undefined,
+        artist_performance_recommendation: formData.artistPerformanceRecommendation || undefined,
+        production_recommendation: formData.productionRecommendation || undefined,
+        venue_recommendation: formData.venueRecommendation || undefined,
+        location_recommendation: formData.locationRecommendation || undefined,
+        value_recommendation: formData.valueRecommendation || undefined,
+        ticket_price_paid: typeof ticketPrice === 'number' && !Number.isNaN(ticketPrice) ? ticketPrice : undefined,
         review_text: (combinedReviewText + showsRankingBlock).trim() || undefined,
         reaction_emoji: formData.reactionEmoji || undefined,
         photos: formData.photos && formData.photos.length > 0 ? formData.photos : undefined,
@@ -781,7 +997,16 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         } catch {}
       }
 
-      const review = await ReviewService.setEventReview(userId, eventId, reviewData, venueId);
+      if (venueId && !isValidUUID(venueId)) {
+        venueId = undefined;
+      }
+
+    if (!isValidUUID(eventId)) {
+      throw new Error('Unable to determine a valid event ID for this review.');
+    }
+
+      const safeVenueId = venueId && isValidUUID(venueId) ? venueId : undefined;
+      const review = await ReviewService.setEventReview(userId, eventId, reviewData, safeVenueId);
       
       // Clear localStorage draft after successful submission
       clearDraft(eventId);
@@ -835,9 +1060,11 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         const entityType = formData.reviewType === 'artist' ? 'artist' : (formData.reviewType === 'venue' ? 'venue' : 'event');
         const entityId = entityType === 'artist' ? (formData.selectedArtist?.id || eventId) : (entityType === 'venue' ? (venueId || formData.selectedVenue?.id || eventId) : eventId);
         trackInteraction.review(entityType, entityId, reviewData.rating as number, {
-          performance_rating: reviewData.performance_rating,
+          artist_performance_rating: reviewData.artist_performance_rating,
+          production_rating: reviewData.production_rating,
           venue_rating: reviewData.venue_rating,
-          overall_experience_rating: reviewData.overall_experience_rating,
+          location_rating: reviewData.location_rating,
+          value_rating: reviewData.value_rating,
           is_public: reviewData.is_public,
           has_text: !!reviewData.review_text,
           text_length: reviewData.review_text?.length || 0,
@@ -882,14 +1109,24 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         console.log('  Review data:', {
           id: review.id,
           rating: review.rating,
-          performance_rating: review.performance_rating,
-          venue_rating: (review as any).venue_rating_new || review.venue_rating,
-          overall_experience_rating: review.overall_experience_rating,
+          artist_performance_rating: (review as any).artist_performance_rating,
+          production_rating: (review as any).production_rating,
+          venue_rating: review.venue_rating,
+          location_rating: (review as any).location_rating,
+          value_rating: (review as any).value_rating,
         });
         
         // Calculate the effective rating from the saved review (use decimal values if available)
-        const effectiveRating = review.performance_rating && (review as any).venue_rating_new && review.overall_experience_rating
-          ? (review.performance_rating + (review as any).venue_rating_new + review.overall_experience_rating) / 3
+        const ratingParts = [
+          (review as any).artist_performance_rating,
+          (review as any).production_rating,
+          review.venue_rating,
+          (review as any).location_rating,
+          (review as any).value_rating,
+        ].filter((value): value is number => typeof value === 'number' && value > 0);
+
+        const effectiveRating = ratingParts.length === 5
+          ? ratingParts.reduce((sum, value) => sum + value, 0) / ratingParts.length
           : review.rating;
         
         console.log('  Effective rating for modal:', effectiveRating);
@@ -934,10 +1171,228 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
   // Calculate effective rating for the ranking modal
   const getEffectiveRating = () => {
-    if (formData.performanceRating && formData.venueRating && formData.overallExperienceRating) {
-      return (formData.performanceRating + formData.venueRating + formData.overallExperienceRating) / 3;
+    const parts = [
+      formData.artistPerformanceRating,
+      formData.productionRating,
+      formData.venueRating,
+      formData.locationRating,
+      formData.valueRating,
+    ].filter((value): value is number => typeof value === 'number' && value > 0);
+
+    if (parts.length > 0) {
+      return parts.reduce((sum, value) => sum + value, 0) / parts.length;
     }
     return formData.rating;
+  };
+
+  const averageRatingForSummary = getEffectiveRating();
+  const progressPercent = Math.min(
+    100,
+    Math.max(0, Math.round((currentStep / REVIEW_FORM_TOTAL_STEPS) * 100))
+  );
+  const nextStepLabel = currentStep < REVIEW_FORM_TOTAL_STEPS ? STEP_LABELS[currentStep] : null;
+
+  const categoryBreakdown = [
+    {
+      label: 'Artist performance',
+      rating: formData.artistPerformanceRating,
+      annotation: formData.artistPerformanceRecommendation || formData.artistPerformanceFeedback
+    },
+    {
+      label: 'Production quality',
+      rating: formData.productionRating,
+      annotation: formData.productionRecommendation || formData.productionFeedback
+    },
+    {
+      label: 'Venue experience',
+      rating: formData.venueRating,
+      annotation: formData.venueRecommendation || formData.venueFeedback
+    },
+    {
+      label: 'Location & logistics',
+      rating: formData.locationRating,
+      annotation: formData.locationRecommendation || formData.locationFeedback
+    },
+    {
+      label: 'Value for ticket',
+      rating: formData.valueRating,
+      annotation: formData.valueRecommendation || formData.valueFeedback
+    }
+  ];
+
+  const renderArtistExtras = () => {
+    const canImportSetlist = Boolean(formData.selectedArtist?.name);
+
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsSetlistModalOpen(true)}
+            disabled={!canImportSetlist}
+            className="border-pink-200 text-pink-600 hover:bg-pink-50 w-full sm:w-auto"
+          >
+            <Music className="w-4 h-4 mr-2" />
+            Import from setlist.fm
+          </Button>
+          {formData.selectedSetlist && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleClearSetlist}
+              className="text-gray-500 hover:text-gray-700 w-full sm:w-auto"
+            >
+              Clear setlist
+            </Button>
+          )}
+        </div>
+        {!canImportSetlist && (
+          <p className="text-xs text-gray-500">
+            Select an artist (and date if you know it) to search official setlists.
+          </p>
+        )}
+
+        {formData.selectedSetlist ? (
+          <div className="rounded-xl border border-pink-100 bg-pink-50/40 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {formData.selectedSetlist.artist?.name || formData.selectedArtist?.name}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {formData.selectedSetlist.venue?.name}
+                  {formData.selectedSetlist.eventDate && (
+                    <> • {formatSetlistDate(formData.selectedSetlist.eventDate)}</>
+                  )}
+                </p>
+              </div>
+              <Badge variant="secondary" className="bg-white text-pink-600 border-pink-100">
+                {formData.selectedSetlist.songCount} songs
+              </Badge>
+            </div>
+            <ul className="grid gap-1 text-xs text-gray-700 sm:grid-cols-2">
+              {(formData.selectedSetlist.songs || []).slice(0, 8).map((song: any, index: number) => (
+                <li key={`${song.name}-${index}`} className="flex items-start gap-2">
+                  <span className="font-medium text-pink-600">{index + 1}.</span>
+                  <span className="flex-1">
+                    {song.name}
+                    {song.cover?.artist && (
+                      <span className="block text-[11px] text-gray-500">Cover: {song.cover.artist}</span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {Array.isArray(formData.selectedSetlist.songs) && formData.selectedSetlist.songs.length > 8 && (
+              <p className="text-[11px] text-gray-500">
+                +{formData.selectedSetlist.songs.length - 8} more in the setlist
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500">
+            Can’t find it? Add your own setlist below so other fans know what was played.
+          </p>
+        )}
+
+        <CustomSetlistInput
+          songs={(formData.customSetlist as any) || []}
+          onChange={handleCustomSetlistChange}
+          disabled={!!formData.selectedSetlist}
+          className="mt-2"
+        />
+      </div>
+    );
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return <EventDetailsStep formData={formData} errors={errors} onUpdateFormData={updateFormData} />;
+      case 2:
+        return (
+          <CategoryStep
+            config={categoryConfigs[2]}
+            formData={formData}
+            errors={errors}
+            onUpdateFormData={updateFormData}
+          >
+            {renderArtistExtras()}
+          </CategoryStep>
+        );
+      case 3:
+        return (
+          <CategoryStep
+            config={categoryConfigs[3]}
+            formData={formData}
+            errors={errors}
+            onUpdateFormData={updateFormData}
+          />
+        );
+      case 4:
+        return (
+          <CategoryStep
+            config={categoryConfigs[4]}
+            formData={formData}
+            errors={errors}
+            onUpdateFormData={updateFormData}
+          />
+        );
+      case 5:
+        return (
+          <CategoryStep
+            config={categoryConfigs[5]}
+            formData={formData}
+            errors={errors}
+            onUpdateFormData={updateFormData}
+          />
+        );
+      case 6:
+        return (
+          <CategoryStep
+            config={categoryConfigs[6]}
+            formData={formData}
+            errors={errors}
+            onUpdateFormData={updateFormData}
+          >
+            <div className="space-y-3">
+              <Label htmlFor="ticketPricePaid" className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-pink-500" />
+                What did you pay? (kept private)
+              </Label>
+              <Input
+                id="ticketPricePaid"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="e.g. 78.50"
+                value={formData.ticketPricePaid}
+                onChange={(event) => updateFormData({ ticketPricePaid: event.target.value })}
+              />
+              <p className="text-xs text-gray-500">
+                Only you can see this number. It helps calibrate value for other fans.
+              </p>
+            </div>
+          </CategoryStep>
+        );
+      case 7:
+        return <ReviewContentStep formData={formData} errors={errors} onUpdateFormData={updateFormData} />;
+      case 8:
+        return (
+          <PrivacySubmitStep
+            formData={formData}
+            errors={errors}
+            onUpdateFormData={updateFormData}
+            onSubmit={handleSubmit}
+            isLoading={isLoading}
+            averageRating={averageRatingForSummary}
+            categoryBreakdown={categoryBreakdown}
+          />
+        );
+      default:
+        return null;
+    }
   };
 
   // Debug component state
@@ -951,147 +1406,198 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   return (
     <>
       <div className="px-6 py-6 space-y-8">
-            {/* Draft Toggle - only show for new reviews */}
-            {!existingReview && (
-              <DraftToggle
-                userId={userId}
-                onSelectDraft={(draft) => {
-                  setCurrentDraft(draft);
-                  if (draft.draft_data) {
-                    setFormData(draft.draft_data as any);
-                  }
-                  // Close the review form when a draft is selected
-                  if (onClose) {
-                    onClose();
-                  }
-                }}
-                onNewReview={() => {
-                  setCurrentDraft(null);
-                  resetForm();
-                }}
-                currentMode={currentDraft ? 'draft' : 'new'}
+        {/* Draft Toggle - only show for new reviews */}
+        {!existingReview && (
+          <DraftToggle
+            userId={userId}
+            onSelectDraft={(draft) => {
+              setCurrentDraft(draft);
+              if (draft.draft_data) {
+                setFormData(draft.draft_data as any);
+              }
+              if (onClose) {
+                onClose();
+              }
+            }}
+            onNewReview={() => {
+              setCurrentDraft(null);
+              resetForm();
+            }}
+            currentMode={currentDraft ? 'draft' : 'new'}
+          />
+        )}
+
+        {!existingReview && (
+          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center gap-2 text-sm text-blue-700">
+              <div className="w-2 h-2 bg-blue-400 rounded-full" />
+              <span>Your progress is automatically saved locally</span>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">
+                Step {currentStep} of {REVIEW_FORM_TOTAL_STEPS}
+              </p>
+              <h3 className="text-lg font-semibold text-gray-900 mt-1">
+                {STEP_LABELS[currentStep - 1]}
+              </h3>
+            </div>
+            <div className="w-full md:w-72 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-pink-500 transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
               />
-            )}
-            
-            {/* Auto-save status - localStorage based */}
-            {!existingReview && (
-              <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 text-sm text-blue-700">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                  <span>Your progress is automatically saved locally</span>
-                </div>
-              </div>
-            )}
-            
-            <EventDetailsStep formData={formData} errors={errors} onUpdateFormData={updateFormData} onClose={onClose} />
-            <RatingStep formData={formData} errors={errors} onUpdateFormData={updateFormData} />
-            <ReviewContentStep formData={formData} errors={errors} onUpdateFormData={updateFormData} />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {STEP_LABELS.map((label, index) => {
+              const stepNumber = index + 1;
+              const isActive = stepNumber === currentStep;
+              const isComplete = stepNumber < currentStep;
+              return (
+                <span
+                  key={label}
+                  className={cn(
+                    'px-3 py-1 rounded-full text-xs font-medium transition-colors',
+                    isActive
+                      ? 'bg-pink-500 text-white shadow-sm'
+                      : isComplete
+                        ? 'bg-pink-100 text-pink-700'
+                        : 'bg-gray-100 text-gray-500'
+                  )}
+                >
+                  {stepNumber}. {label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
 
-            {/* Submit inline */}
-            <div className="pt-3">
-              <div className="flex justify-between items-center">
-                {/* Auto-save status */}
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  {isSaving && (
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                      <span>Saving...</span>
-                    </div>
-                  )}
-                  {lastSaveTime && !isSaving && (
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <span>Saved {lastSaveTime.toLocaleTimeString()}</span>
-                    </div>
-                  )}
-                </div>
+        <div className="min-h-[420px]">
+          {renderStepContent()}
+        </div>
 
-                {/* Submit buttons */}
-                <div className="flex gap-2">
-                  {!existingReview && (
-                    <>
-                      {console.log('🔥 Save as Draft button is being rendered!')}
-                      <Button 
-                        variant="outline" 
-                        onClick={handleSaveDraft}
-                        disabled={isLoading}
-                        className="border-gray-300"
-                      >
-                        Save as Draft
-                      </Button>
-                    </>
-                  )}
-                  <Button onClick={handleSubmit} disabled={isLoading} className="bg-pink-500 hover:bg-pink-600">
-                    {isLoading ? 'Submitting...' : 'Submit Review'}
-                  </Button>
+        <div className="space-y-4 border-t pt-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <Button
+              variant="ghost"
+              onClick={prevStep}
+              disabled={!canGoBack}
+              className="md:w-auto"
+            >
+              Back
+            </Button>
+
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+              {isSaving ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+                  <span>Saving…</span>
                 </div>
-              </div>
+              ) : lastSaveTime ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full" />
+                  <span>Saved {lastSaveTime.toLocaleTimeString()}</span>
+                </div>
+              ) : (
+                <span>Progress auto-saves at each step</span>
+              )}
             </div>
 
-            {existingReview && (
-              <div className="flex justify-end">
+            <div className="flex flex-wrap items-center gap-2">
+              {!existingReview && (
                 <Button
                   variant="outline"
-                  onClick={async () => {
-                    console.log('🗑️ Deleting review:', { reviewId: existingReview?.id, eventId: event.id, userId });
-                    try {
-                      if (!existingReview?.id) {
-                        throw new Error('No review ID found');
-                      }
-                      await ReviewService.deleteEventReview(userId, existingReview.id);
-                      console.log('✅ Review deleted successfully');
-                      
-                      try { trackInteraction.click('review', event.id, { action: 'delete', source: 'event_review_form' }); } catch {}
-                      
-                      toast({ 
-                        title: 'Review Deleted', 
-                        description: 'Your review has been deleted.' 
-                      });
-                      
-                      setExistingReview(null);
-                      resetForm();
-                      
-                      // Notify parent component to refresh
-                      if (onDeleted) {
-                        console.log('📢 Calling onDeleted callback');
-                        onDeleted();
-                      }
-                    } catch (e) {
-                      console.error('❌ Error deleting review:', e);
-                      const errorMsg = e instanceof Error ? e.message : 'Unknown error';
-                      toast({ 
-                        title: 'Error', 
-                        description: `Failed to delete review: ${errorMsg}`, 
-                        variant: 'destructive' 
-                      });
-                    }
-                  }}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={handleSaveDraft}
+                  disabled={isLoading}
+                  className="border-gray-300"
                 >
-                  Delete Review
+                  Save as Draft
                 </Button>
-              </div>
-            )}
+              )}
+              {currentStep < REVIEW_FORM_TOTAL_STEPS && (
+                <Button
+                  onClick={nextStep}
+                  disabled={!canProceed}
+                  className="bg-pink-500 hover:bg-pink-600"
+                >
+                  Next
+                  {nextStepLabel ? `: ${nextStepLabel}` : ''}
+                </Button>
+              )}
+            </div>
           </div>
 
-      {/* Post-submit ranking modal */}
-      {submittedReview && (() => {
-        console.log('📺 Rendering PostSubmitRankingModal:', {
-          submittedReview: submittedReview.id,
-          showRankingModal,
-          userId: userId?.slice(0, 8),
-          effectiveRating: getEffectiveRating(),
-        });
-        return (
-          <PostSubmitRankingModal
-            isOpen={showRankingModal}
-            onClose={handleRankingModalClose}
-            userId={userId}
-            newReview={submittedReview}
-            rating={getEffectiveRating()}
-          />
-        );
-      })()}
+          {existingReview && (
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  console.log('🗑️ Deleting review:', { reviewId: existingReview?.id, eventId: event.id, userId });
+                  try {
+                    if (!existingReview?.id) {
+                      throw new Error('No review ID found');
+                    }
+                    await ReviewService.deleteEventReview(userId, existingReview.id);
+                    console.log('✅ Review deleted successfully');
+
+                    try {
+                      trackInteraction.click('review', event.id, { action: 'delete', source: 'event_review_form' });
+                    } catch {}
+
+                    toast({
+                      title: 'Review Deleted',
+                      description: 'Your review has been deleted.'
+                    });
+
+                    setExistingReview(null);
+                    resetForm();
+
+                    if (onDeleted) {
+                      console.log('📢 Calling onDeleted callback');
+                      onDeleted();
+                    }
+                  } catch (e) {
+                    console.error('❌ Error deleting review:', e);
+                    const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+                    toast({
+                      title: 'Error',
+                      description: `Failed to delete review: ${errorMsg}`,
+                      variant: 'destructive'
+                    });
+                  }
+                }}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                Delete Review
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <SetlistModal
+        isOpen={isSetlistModalOpen}
+        onClose={() => setIsSetlistModalOpen(false)}
+        artistName={formData.selectedArtist?.name || ''}
+        venueName={formData.selectedVenue?.name || undefined}
+        eventDate={formData.eventDate || undefined}
+        onSetlistSelect={handleSetlistSelect}
+      />
+
+      {submittedReview && (
+        <PostSubmitRankingModal
+          isOpen={showRankingModal}
+          onClose={handleRankingModalClose}
+          userId={userId}
+          newReview={submittedReview}
+          rating={getEffectiveRating()}
+        />
+      )}
     </>
   );
 }

@@ -21,7 +21,11 @@ import {
   ChevronUp,
   Loader2,
   Send,
-  CheckCircle2
+  CheckCircle2,
+  Lightbulb,
+  Building2,
+  DollarSign,
+  Compass
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ReviewWithEngagement, ReviewService, CommentWithUser } from '@/services/reviewService';
@@ -203,6 +207,24 @@ export function BelliStyleReviewCard({
   };
 
   const isOwner = currentUserId && review.user_id === currentUserId;
+
+  const categoryAverages = [
+    (review as any).artist_performance_rating,
+    (review as any).production_rating,
+    (review as any).venue_rating,
+    (review as any).location_rating,
+    (review as any).value_rating,
+  ].filter((value): value is number => typeof value === 'number' && value > 0);
+
+  const computedAverage =
+    categoryAverages.length > 0
+      ? categoryAverages.reduce((total, value) => total + value, 0) / categoryAverages.length
+      : 0;
+
+const overallRating =
+  categoryAverages.length > 0
+    ? computedAverage
+    : (typeof review.rating === 'number' && !Number.isNaN(review.rating) ? review.rating : 0);
 
   // Calculate ring color based on rating
   const getRingColor = (rating: number) => {
@@ -402,17 +424,17 @@ export function BelliStyleReviewCard({
         <div className={cn(
           "absolute top-4 right-4 w-16 h-16 rounded-full flex flex-col items-center justify-center",
           "bg-gradient-to-br shadow-lg",
-          getRatingGradient(review.rating),
+          getRatingGradient(overallRating),
           "text-white font-bold z-10"
         )}>
-          <span className="text-2xl leading-none">{review.rating.toFixed(1)}</span>
+          <span className="text-2xl leading-none">{overallRating.toFixed(1)}</span>
           <div className="flex items-center gap-0.5 mt-1">
             {Array.from({ length: 5 }, (_, i) => (
               <Star 
                 key={i} 
                 className={cn(
                   "w-2 h-2",
-                  i < Math.round(review.rating) ? "fill-white text-white" : "text-white/40"
+                  i < Math.round(overallRating) ? "fill-white text-white" : "text-white/40"
                 )} 
               />
             ))}
@@ -422,7 +444,7 @@ export function BelliStyleReviewCard({
         {/* Profile Info Row */}
         <div className="flex items-start gap-4 pr-20">
           {/* Large Avatar with Colored Ring */}
-          <Avatar className={cn("w-14 h-14 ring-4", getRingColor(review.rating))}>
+          <Avatar className={cn("w-14 h-14 ring-4", getRingColor(overallRating))}>
             <AvatarImage src={userProfile?.avatar_url || undefined} alt={userProfile?.name || 'User'} />
             <AvatarFallback className="text-lg font-semibold bg-gradient-to-br from-[#FF3399] to-[#FF66B3] text-white">
               {userProfile?.name?.charAt(0).toUpperCase() || review.user_id?.slice(0, 1).toUpperCase() || 'U'}
@@ -546,6 +568,14 @@ export function BelliStyleReviewCard({
           </div>
         )}
 
+        {/* Ticket price (private) */}
+        {typeof review.ticket_price_paid === 'number' && review.ticket_price_paid > 0 && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
+            <DollarSign className="w-4 h-4 text-gray-500" />
+            <span>Ticket price (kept private): ${review.ticket_price_paid.toFixed(2)}</span>
+          </div>
+        )}
+
         {/* Photo Gallery Grid */}
         {photos.length > 0 && (
           <div className="mb-4">
@@ -619,81 +649,112 @@ export function BelliStyleReviewCard({
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-3 mb-4">
-          {/* Performance Section */}
-          {(review.performance_rating || review.rating) && (
-              <div className="border-l-4 border-[#FF3399] bg-gradient-to-r from-[#FF3399]/5 to-[#FF3399]/10 rounded-r-lg p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Music2 className="w-5 h-5 text-[#FF3399]" />
-                    <span className="text-sm font-bold text-gray-900">Performance</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-0.5">
-                      {renderStars(review.performance_rating || review.rating, 'md')}
-                    </div>
-                    <span className="text-lg font-bold text-gray-900">
-                      {(review.performance_rating || review.rating).toFixed(1)}
-                    </span>
-                  </div>
-                </div>
-                {review.performance_review_text && (
-                  <p className="text-sm text-gray-700 italic leading-relaxed">
-                    "{review.performance_review_text}"
-                  </p>
-                )}
-              </div>
-            )}
+            {[
+              {
+                label: 'Artist Performance',
+                rating: (review as any).artist_performance_rating,
+                fallback: review.rating,
+                feedback: (review as any).artist_performance_feedback,
+                recommendation: (review as any).artist_performance_recommendation,
+                icon: Music2,
+                border: 'border-[#FF3399]',
+                gradient: 'from-[#FF3399]/5 to-[#FF3399]/10',
+                iconColor: 'text-[#FF3399]'
+              },
+              {
+                label: 'Production Quality',
+                rating: (review as any).production_rating,
+                fallback: review.rating,
+                feedback: (review as any).production_feedback,
+                recommendation: (review as any).production_recommendation,
+                icon: Lightbulb,
+                border: 'border-purple-500',
+                gradient: 'from-purple-50 to-purple-50/30',
+                iconColor: 'text-purple-600'
+              },
+              {
+                label: 'Venue Experience',
+                rating: (review as any).venue_rating,
+                fallback: review.rating,
+                feedback: (review as any).venue_feedback,
+                recommendation: (review as any).venue_recommendation,
+                icon: Building2,
+                border: 'border-blue-500',
+                gradient: 'from-blue-50 to-blue-50/30',
+                iconColor: 'text-blue-600'
+              },
+              {
+                label: 'Location & Logistics',
+                rating: (review as any).location_rating,
+                fallback: review.rating,
+                feedback: (review as any).location_feedback,
+                recommendation: (review as any).location_recommendation,
+                icon: Compass,
+                border: 'border-emerald-500',
+                gradient: 'from-emerald-50 to-emerald-50/30',
+                iconColor: 'text-emerald-600'
+              },
+              {
+                label: 'Value for Ticket',
+                rating: (review as any).value_rating,
+                fallback: review.rating,
+                feedback: (review as any).value_feedback,
+                recommendation: (review as any).value_recommendation,
+                icon: DollarSign,
+                border: 'border-amber-500',
+                gradient: 'from-amber-50 to-amber-50/30',
+                iconColor: 'text-amber-600'
+              }
+            ].map((category) => {
+              const resolvedRating = typeof category.rating === 'number' && category.rating > 0
+                ? category.rating
+                : (typeof category.fallback === 'number' ? category.fallback : undefined);
 
-          {/* Venue Section */}
-          {(review.venue_rating || review.rating) && (
-              <div className="border-l-4 border-blue-500 bg-gradient-to-r from-blue-50 to-blue-50/30 rounded-r-lg p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-blue-600" />
-                    <span className="text-sm font-bold text-blue-900">Venue</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-0.5">
-                      {renderStars(review.venue_rating || review.rating, 'md')}
-                    </div>
-                    <span className="text-lg font-bold text-blue-900">
-                      {(review.venue_rating || review.rating).toFixed(1)}
-                    </span>
-                  </div>
-                </div>
-                {review.venue_review_text && (
-                  <p className="text-sm text-blue-900/80 italic leading-relaxed">
-                    "{review.venue_review_text}"
-                  </p>
-                )}
-              </div>
-            )}
+              if (!resolvedRating && !category.feedback && !category.recommendation) {
+                return null;
+              }
 
-          {/* Overall Experience Section */}
-          {(review.overall_experience_rating || review.rating) && (
-              <div className="border-l-4 border-emerald-500 bg-gradient-to-r from-emerald-50 to-emerald-50/30 rounded-r-lg p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-emerald-600" />
-                    <span className="text-sm font-bold text-emerald-900">Overall Experience</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-0.5">
-                      {renderStars(review.overall_experience_rating || review.rating, 'md')}
+              const IconComponent = category.icon;
+
+              return (
+                <div
+                  key={category.label}
+                  className={cn(
+                    'border-l-4 rounded-r-lg p-4 shadow-sm bg-gradient-to-r',
+                    category.border,
+                    category.gradient
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <IconComponent className={cn('w-5 h-5', category.iconColor)} />
+                      <span className="text-sm font-bold text-gray-900">{category.label}</span>
                     </div>
-                    <span className="text-lg font-bold text-emerald-900">
-                      {(review.overall_experience_rating || review.rating).toFixed(1)}
-                    </span>
+                    {resolvedRating && (
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-0.5">
+                          {renderStars(resolvedRating, 'md')}
+                        </div>
+                        <span className="text-lg font-bold text-gray-900">
+                          {resolvedRating.toFixed(1)}
+                        </span>
+                      </div>
+                    )}
                   </div>
+                  {category.recommendation && (
+                    <Badge className="mb-2 bg-white/80 text-gray-800 border border-gray-200">
+                      {category.recommendation}
+                    </Badge>
+                  )}
+                  {category.feedback && (
+                    <p className="text-sm text-gray-700 italic leading-relaxed">
+                      "{category.feedback}"
+                    </p>
+                  )}
                 </div>
-                {review.overall_experience_review_text && (
-                  <p className="text-sm text-emerald-900/80 italic leading-relaxed">
-                    "{review.overall_experience_review_text}"
-                  </p>
-                )}
-              </div>
-            )}
-            </CollapsibleContent>
+              );
+            })}
+          </CollapsibleContent>
           </Collapsible>
 
         {/* Setlist Display */}

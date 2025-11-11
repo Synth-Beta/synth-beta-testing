@@ -119,20 +119,18 @@ export function PostSubmitRankingModal({
   };
 
   const calculateEffectiveRating = (review: UserReview): number => {
-    // If we have the 3-category ratings, use their average
-    if (
-      review.performance_rating != null &&
-      review.venue_rating != null &&
-      review.overall_experience_rating != null
-    ) {
-      return (
-        (review.performance_rating +
-          review.venue_rating +
-          review.overall_experience_rating) /
-        3
-      );
+    const values = [
+      review.artist_performance_rating,
+      review.production_rating,
+      review.venue_rating,
+      review.location_rating,
+      review.value_rating
+    ].filter((value): value is number => typeof value === 'number' && value > 0);
+
+    if (values.length > 0) {
+      return values.reduce((sum, value) => sum + value, 0) / values.length;
     }
-    // Otherwise use the overall rating
+
     return review.rating;
   };
 

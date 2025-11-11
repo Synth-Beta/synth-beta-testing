@@ -1,5 +1,29 @@
 import { supabase } from '@/integrations/supabase/client';
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const isValidUuid = (value: unknown): value is string =>
+  typeof value === 'string' && UUID_REGEX.test(value);
+
+const sanitizeEntitySelection = (entity: any | undefined | null) => {
+  if (!entity || typeof entity !== 'object') return entity;
+  const sanitized = { ...entity };
+
+  if ('id' in sanitized && !isValidUuid(sanitized.id)) {
+    if (typeof sanitized.id === 'string') {
+      sanitized.jambase_id = sanitized.jambase_id ?? sanitized.id;
+    }
+    sanitized.id = null;
+  }
+
+  if ('identifier' in sanitized && !isValidUuid(sanitized.identifier)) {
+    sanitized.jambase_identifier = sanitized.jambase_identifier ?? sanitized.identifier;
+  }
+
+  return sanitized;
+};
+
 export interface DraftReviewData {
   selectedArtist?: any;
   selectedVenue?: any;
@@ -30,6 +54,100 @@ export interface DraftReview {
 }
 
 export class DraftReviewService {
+  private static async ensureEventArtistUuid(
+    eventId: string,
+    draftData: DraftReviewData
+  ): Promise<string | undefined> {
+    try {
+      const { data: eventData, error: eventError } = await supabase
+        .from('jambase_events')
+        .select('id, artist_uuid, artist_id, artist_name')
+        .eq('id', eventId)
+        .maybeSingle();
+
+      if (eventError) {
+        console.warn('⚠️ DraftReviewService: Failed to fetch event for artist resolution', eventError);
+      }
+
+      if (eventData && isValidUuid(eventData.artist_uuid)) {
+        return eventData.artist_uuid;
+      }
+
+      const selectedArtist = draftData.selectedArtist || null;
+      let artistProfileId: string | undefined;
+      let jambaseArtistId: string | undefined;
+
+      if (selectedArtist && typeof selectedArtist === 'object') {
+        const candidateId = selectedArtist.id;
+        if (isValidUuid(candidateId)) {
+          artistProfileId = candidateId;
+        }
+
+        jambaseArtistId =
+          jambaseArtistId ||
+          selectedArtist.jambase_id ||
+          (typeof candidateId === 'string' && !isValidUuid(candidateId) ? candidateId : undefined) ||
+          (typeof selectedArtist.identifier === 'string'
+            ? selectedArtist.identifier.split?.(':')?.[1]
+            : undefined);
+      }
+
+      if (!jambaseArtistId && eventData?.artist_id) {
+        const eventArtistId = eventData.artist_id.trim();
+        if (isValidUuid(eventArtistId)) {
+          artistProfileId = eventArtistId;
+        } else if (eventArtistId) {
+          jambaseArtistId = eventArtistId;
+        }
+      }
+
+      if (!artistProfileId && jambaseArtistId) {
+        let lookup = await (supabase as any)
+          .from('artists')
+          .select('id')
+          .eq('jambase_artist_id', jambaseArtistId)
+          .limit(1);
+
+        if (!lookup.error && Array.isArray(lookup.data) && lookup.data.length > 0) {
+          artistProfileId = lookup.data[0].id;
+        } else if (!lookup.error) {
+          try {
+            const { UnifiedArtistSearchService } = await import('@/services/unifiedArtistSearchService');
+            await UnifiedArtistSearchService.searchArtists(
+              selectedArtist?.name || eventData?.artist_name || '',
+              20,
+              false
+            );
+
+            lookup = await (supabase as any)
+              .from('artists')
+              .select('id')
+              .eq('jambase_artist_id', jambaseArtistId)
+              .limit(1);
+
+            if (!lookup.error && Array.isArray(lookup.data) && lookup.data.length > 0) {
+              artistProfileId = lookup.data[0].id;
+            }
+          } catch (searchError) {
+            console.warn('⚠️ DraftReviewService: Artist search retry failed', searchError);
+          }
+        }
+      }
+
+      if (artistProfileId && isValidUuid(artistProfileId)) {
+        await supabase
+          .from('jambase_events')
+          .update({ artist_uuid: artistProfileId })
+          .eq('id', eventId);
+        return artistProfileId;
+      }
+    } catch (error) {
+      console.warn('⚠️ DraftReviewService: ensureEventArtistUuid encountered error', error);
+    }
+
+    return undefined;
+  }
+
   /**
    * Auto-save draft review data
    */
@@ -54,10 +172,27 @@ export class DraftReviewService {
         return null;
       }
 
+      const resolvedArtistUuid = await this.ensureEventArtistUuid(eventId, draftData);
+
+      const enrichedDraftData = resolvedArtistUuid
+        ? {
+            ...draftData,
+            selectedArtist: draftData.selectedArtist
+              ? { ...draftData.selectedArtist, id: resolvedArtistUuid }
+              : draftData.selectedArtist,
+          }
+        : draftData;
+
+      const payload = {
+        ...enrichedDraftData,
+        selectedArtist: sanitizeEntitySelection(enrichedDraftData.selectedArtist),
+        selectedVenue: sanitizeEntitySelection(enrichedDraftData.selectedVenue),
+      };
+
       const { data, error } = await (supabase as any).rpc('save_review_draft', {
         p_user_id: userId,
         p_event_id: eventId,
-        p_draft_data: draftData
+        p_draft_data: payload
       });
 
       if (error) {

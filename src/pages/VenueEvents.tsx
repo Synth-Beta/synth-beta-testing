@@ -85,6 +85,22 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
   const [pastSortBy, setPastSortBy] = useState<'date' | 'artist' | 'price'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
+  const computeCategoryAverage = (review: any) => {
+    const values = [
+      review.artist_performance_rating,
+      review.production_rating,
+      review.venue_rating,
+      review.location_rating,
+      review.value_rating
+    ].filter((value: any): value is number => typeof value === 'number' && value > 0);
+
+    if (values.length > 0) {
+      return values.reduce((sum: number, value: number) => sum + value, 0) / values.length;
+    }
+
+    return typeof review.rating === 'number' ? review.rating : 0;
+  };
+
   const fetchVenueProfile = async (venueName: string) => {
     try {
       // Fetch venue stats and reviews
@@ -95,19 +111,35 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
           user_id,
           event_id,
           rating,
-          venue_rating_new,
+    1          venue_rating,
+          artist_performance_rating,
+          production_rating,
+          location_rating,
+          value_rating,
+          artist_performance_feedback,
+          production_feedback,
+          venue_feedback,
+          location_feedback,
+          value_feedback,
+          artist_performance_recommendation,
+          production_recommendation,
+          venue_recommendation,
+          location_recommendation,
+          value_recommendation,
+          ticket_price_paid,
           review_text,
           venue_review_text,
           created_at,
           mood_tags,
           genre_tags,
           reaction_emoji,
+          photos,
           jambase_events!inner(venue_name, artist_name, event_date, title)
         `)
         .eq('is_public', true)
         .eq('is_draft', false)
         .ilike('jambase_events.venue_name', venueName)
-        .or('venue_rating_new.not.is.null,venue_rating.not.is.null');
+        .or('venue_rating.not.is.null,rating.not.is.null');
 
       if (reviewsError) {
         console.error('Error fetching venue reviews:', reviewsError);
@@ -129,9 +161,23 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
         return {
           id: review.id,
           rating: review.rating,
-          venue_rating_new: review.venue_rating_new,
+          venue_rating: review.venue_rating,
+          artist_performance_rating: review.artist_performance_rating,
+          production_rating: review.production_rating,
+          location_rating: review.location_rating,
+          value_rating: review.value_rating,
+          artist_performance_feedback: review.artist_performance_feedback,
+          production_feedback: review.production_feedback,
+          venue_feedback: review.venue_feedback,
+          location_feedback: review.location_feedback,
+          value_feedback: review.value_feedback,
+          artist_performance_recommendation: review.artist_performance_recommendation,
+          production_recommendation: review.production_recommendation,
+          venue_recommendation: review.venue_recommendation,
+          location_recommendation: review.location_recommendation,
+          value_recommendation: review.value_recommendation,
+          ticket_price_paid: review.ticket_price_paid,
           review_text: review.review_text,
-          venue_review_text: review.venue_review_text,
           created_at: review.created_at,
           reviewer_name: profile?.name || 'Anonymous',
           reviewer_avatar: profile?.avatar_url || null,
@@ -140,14 +186,16 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
           artist_name: event?.artist_name || '',
           mood_tags: review.mood_tags || [],
           genre_tags: review.genre_tags || [],
-          reaction_emoji: review.reaction_emoji || null
+          reaction_emoji: review.reaction_emoji || null,
+          photos: Array.isArray(review.photos) ? review.photos : [],
+          category_average: computeCategoryAverage(review)
         };
       }) || [];
 
       // Calculate stats
       const validRatings = transformedReviews
-        .filter(review => review.venue_rating_new)
-        .map(review => review.venue_rating_new);
+        .map(review => review.venue_rating ?? null)
+        .filter((value): value is number => typeof value === 'number' && value > 0);
 
       const totalReviews = validRatings.length;
       const averageRating = totalReviews > 0 
@@ -409,9 +457,9 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
       case 'oldest':
         return sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       case 'highest_rating':
-        return sorted.sort((a, b) => (b.venue_rating_new || 0) - (a.venue_rating_new || 0));
+        return sorted.sort((a, b) => ((b.venue_rating ?? b.rating ?? 0) - (a.venue_rating ?? a.rating ?? 0)));
       case 'lowest_rating':
-        return sorted.sort((a, b) => (a.venue_rating_new || 0) - (b.venue_rating_new || 0));
+        return sorted.sort((a, b) => ((a.venue_rating ?? a.rating ?? 0) - (b.venue_rating ?? b.rating ?? 0)));
       default:
         return sorted;
     }
@@ -420,9 +468,9 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
   const filterReviews = (reviewsList: any[], filterBy: 'all' | '5_star' | '4_star' | '3_star' | '2_star' | '1_star') => {
     if (filterBy === 'all') return reviewsList;
     
-    const targetRating = parseInt(filterBy.split('_')[0]);
+    const targetRating = parseInt(filterBy.split('_')[0], 10);
     return reviewsList.filter(review => {
-      const rating = review.venue_rating_new || 0;
+      const rating = review.venue_rating ?? review.rating ?? 0;
       return Math.floor(rating) === targetRating;
     });
   };
@@ -576,7 +624,6 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
               {/* Leaflet Map */}
               {venueCoordinates && (
                 <div className="w-80 h-40 rounded-lg overflow-hidden shadow-lg">
-                  {console.log('🗺️ Rendering map with coordinates:', venueCoordinates)}
                   <MapContainer
                     center={[venueCoordinates.lat, venueCoordinates.lng]}
                     zoom={15}
@@ -785,9 +832,9 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                               </div>
                             </div>
                             <div className="flex items-center space-x-1">
-                              {renderStars(review.venue_rating_new || 0)}
+                              {renderStars(review.category_average ?? computeCategoryAverage(review))}
                               <span className="text-sm font-medium ml-1">
-                                {(review.venue_rating_new || 0).toFixed(1)}
+                                {(review.category_average ?? computeCategoryAverage(review)).toFixed(1)}
                               </span>
                             </div>
                           </div>
@@ -796,12 +843,61 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                             <p className="text-sm text-gray-700">{review.review_text}</p>
                           )}
                           
-                          {review.venue_review_text && (
-                            <div className="text-sm">
-                              <span className="font-medium text-gray-600">Venue: </span>
-                              <span className="text-gray-700">{review.venue_review_text}</span>
+                          {typeof review.ticket_price_paid === 'number' && review.ticket_price_paid > 0 && (
+                            <div className="text-xs text-gray-600 bg-gray-100 inline-flex px-2 py-1 rounded">
+                              Ticket price (private): ${review.ticket_price_paid.toFixed(2)}
                             </div>
                           )}
+
+                          {[
+                            {
+                              label: 'Artist performance',
+                              rating: review.artist_performance_rating,
+                              feedback: review.artist_performance_feedback,
+                              recommendation: review.artist_performance_recommendation
+                            },
+                            {
+                              label: 'Production',
+                              rating: review.production_rating,
+                              feedback: review.production_feedback,
+                              recommendation: review.production_recommendation
+                            },
+                            {
+                              label: 'Venue',
+                              rating: review.venue_rating,
+                              feedback: review.venue_feedback,
+                              recommendation: review.venue_recommendation
+                            },
+                            {
+                              label: 'Location',
+                              rating: review.location_rating,
+                              feedback: review.location_feedback,
+                              recommendation: review.location_recommendation
+                            },
+                            {
+                              label: 'Value',
+                              rating: review.value_rating,
+                              feedback: review.value_feedback,
+                              recommendation: review.value_recommendation
+                            }
+                          ]
+                            .filter(({ rating, feedback, recommendation }) => rating || feedback || recommendation)
+                            .map(({ label, rating, feedback, recommendation }) => (
+                              <div key={label} className="text-sm border-l-4 border-blue-200 pl-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-600">{label}</span>
+                                  {typeof rating === 'number' && (
+                                    <span className="text-xs text-gray-500">{rating.toFixed(1)}</span>
+                                  )}
+                                </div>
+                                {recommendation && (
+                                  <div className="text-xs text-gray-500">{recommendation}</div>
+                                )}
+                                {feedback && (
+                                  <div className="text-xs text-gray-700 italic">“{feedback}”</div>
+                                )}
+                              </div>
+                            ))}
                           
                           {(review.mood_tags && review.mood_tags.length > 0) && (
                             <div className="flex flex-wrap gap-1">

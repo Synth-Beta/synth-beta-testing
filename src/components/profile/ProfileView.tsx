@@ -80,10 +80,32 @@ interface ConcertReview {
   id: string;
   user_id: string;
   event_id: string;
-  rating: 'good' | 'okay' | 'bad';
+  rating: number | 'good' | 'okay' | 'bad';
   review_text: string | null;
   is_public: boolean;
   created_at: string;
+  artist_performance_rating?: number;
+  production_rating?: number;
+  venue_rating?: number;
+  location_rating?: number;
+  value_rating?: number;
+  artist_performance_feedback?: string;
+  production_feedback?: string;
+  venue_feedback?: string;
+  location_feedback?: string;
+  value_feedback?: string;
+  artist_performance_recommendation?: string;
+  production_recommendation?: string;
+  venue_recommendation?: string;
+  location_recommendation?: string;
+  value_recommendation?: string;
+  ticket_price_paid?: number;
+  photos?: string[];
+  videos?: string[];
+  mood_tags?: string[];
+  genre_tags?: string[];
+  reaction_emoji?: string | null;
+  category_average?: number;
   event: {
     event_name: string;
     location: string;
@@ -497,15 +519,30 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           event_id: item.review.event_id,
           rating: item.review.rating,
           rank_order: (item.review as any).rank_order,
-          performance_rating: (item.review as any).performance_rating,
-          venue_rating: (item.review as any).venue_rating_new ?? (item.review as any).venue_rating,
-          overall_experience_rating: (item.review as any).overall_experience_rating,
+          artist_performance_rating: (item.review as any).artist_performance_rating,
+          production_rating: (item.review as any).production_rating,
+          venue_rating: (item.review as any).venue_rating,
+          location_rating: (item.review as any).location_rating,
+          value_rating: (item.review as any).value_rating,
           review_text: item.review.review_text,
+          reaction_emoji: item.review.reaction_emoji,
+          artist_performance_feedback: (item.review as any).artist_performance_feedback,
+          production_feedback: (item.review as any).production_feedback,
+          venue_feedback: (item.review as any).venue_feedback,
+          location_feedback: (item.review as any).location_feedback,
+          value_feedback: (item.review as any).value_feedback,
+          artist_performance_recommendation: (item.review as any).artist_performance_recommendation,
+          production_recommendation: (item.review as any).production_recommendation,
+          venue_recommendation: (item.review as any).venue_recommendation,
+          location_recommendation: (item.review as any).location_recommendation,
+          value_recommendation: (item.review as any).value_recommendation,
           photos: item.review.photos || [],
           videos: item.review.videos || [],
           setlist: item.review.setlist,
           is_public: item.review.is_public,
           created_at: item.review.created_at,
+          ticket_price_paid: item.review.ticket_price_paid,
+          category_average: calculateCategoryAverage(item.review),
           // Add jambase_events data for the modal to access
           jambase_events: item.event,
           event: {
@@ -529,21 +566,33 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     }
   };
 
+  const calculateCategoryAverage = (review: any) => {
+    const values = [
+      review.artist_performance_rating,
+      review.production_rating,
+      review.venue_rating,
+      review.location_rating,
+      review.value_rating
+    ].filter((value: any): value is number => typeof value === 'number' && value > 0);
+
+    if (values.length > 0) {
+      return values.reduce((sum: number, value: number) => sum + value, 0) / values.length;
+    }
+
+    if (typeof review.rating === 'number') {
+      return review.rating;
+    }
+
+    if (review.rating === 'good') return 5;
+    if (review.rating === 'okay') return 3;
+    if (review.rating === 'bad') return 1;
+    return 0;
+  };
+
   // Compute display rating (0.5 increments) preferring category ratings when present
   const getDisplayRating = (r: any) => {
-    const parts: number[] = [];
-    if (typeof r.performance_rating === 'number' && r.performance_rating > 0) parts.push(r.performance_rating);
-    if (typeof r.venue_rating === 'number' && r.venue_rating > 0) parts.push(r.venue_rating);
-    if (typeof r.overall_experience_rating === 'number' && r.overall_experience_rating > 0) parts.push(r.overall_experience_rating);
-    if (parts.length > 0) {
-      const avg = parts.reduce((a, b) => a + b, 0) / parts.length;
-      return Math.round(avg * 2) / 2;
-    }
-    if (typeof r.rating === 'number') return Math.round(r.rating * 2) / 2;
-    if (r.rating === 'good') return 5;
-    if (r.rating === 'okay') return 3;
-    if (r.rating === 'bad') return 1;
-    return 0;
+    const avg = calculateCategoryAverage(r);
+    return Math.round(avg * 2) / 2;
   };
 
   const fetchFriends = async () => {
@@ -985,12 +1034,22 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       existing_review: {
         rating: review.rating,
         review_text: review.review_text,
-        performance_rating: review.performance_rating,
+        artist_performance_rating: review.artist_performance_rating,
+        production_rating: review.production_rating,
         venue_rating: review.venue_rating,
-        overall_experience_rating: review.overall_experience_rating,
-        performance_review_text: review.performance_review_text,
-        venue_review_text: review.venue_review_text,
-        overall_experience_review_text: review.overall_experience_review_text,
+        location_rating: review.location_rating,
+        value_rating: review.value_rating,
+        artist_performance_feedback: review.artist_performance_feedback,
+        production_feedback: review.production_feedback,
+        venue_feedback: review.venue_feedback,
+        location_feedback: review.location_feedback,
+        value_feedback: review.value_feedback,
+        artist_performance_recommendation: review.artist_performance_recommendation,
+        production_recommendation: review.production_recommendation,
+        venue_recommendation: review.venue_recommendation,
+        location_recommendation: review.location_recommendation,
+        value_recommendation: review.value_recommendation,
+        ticket_price_paid: review.ticket_price_paid,
         reaction_emoji: review.reaction_emoji,
         is_public: review.is_public,
         review_type: review.review_type,
@@ -1419,32 +1478,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   title: review.event?.event_name || 'Concert Review',
                   subtitle: `Posted by: ${profile?.name || 'User'}`,
                   rating: (() => {
-                    // Prefer category average if present to preserve .5 increments
-                    const parts: number[] = [];
-                    const pr = (review as any).performance_rating;
-                    const vr = (review as any).venue_rating;
-                    const or = (review as any).overall_experience_rating;
-                    if (typeof pr === 'number' && pr > 0) parts.push(pr);
-                    if (typeof vr === 'number' && vr > 0) parts.push(vr);
-                    if (typeof or === 'number' && or > 0) parts.push(or);
-                    if (parts.length > 0) {
-                      const avg = parts.reduce((a, b) => a + b, 0) / parts.length;
-                      return Math.round(avg * 2) / 2;
-                    }
-                    if (typeof review.rating === 'string') {
-                      switch (review.rating) {
-                        case 'good': return 5;
-                        case 'okay': return 3;
-                        case 'bad': return 1;
-                        default: return 0;
-                      }
-                    }
-                    return Math.round((review.rating || 0) * 2) / 2;
+                    const avg = review.category_average ?? calculateCategoryAverage(review);
+                    return Math.round(avg * 2) / 2;
                   })(),
-                  date: review.event?.event_date || review.created_at,
-                  likes: 0,
-                  comments: 0,
-                  badge: 'Review'
+                  date: review.event?.event_date || review.created_at
                 }))
               ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())}
               onPostClick={(post) => {
@@ -2090,12 +2127,22 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   context_tags: (selectedReview as any).context_tags || [],
                   artist_name: selectedReview.jambase_events?.artist_name,
                   venue_name: selectedReview.jambase_events?.venue_name,
-                  performance_rating: (selectedReview as any).performance_rating,
-                  venue_rating: (selectedReview as any).venue_rating_new || (selectedReview as any).venue_rating,
-                  overall_experience_rating: (selectedReview as any).overall_experience_rating,
-                  performance_review_text: (selectedReview as any).performance_review_text,
-                  venue_review_text: (selectedReview as any).venue_review_text,
-                  overall_experience_review_text: (selectedReview as any).overall_experience_review_text,
+                  artist_performance_rating: (selectedReview as any).artist_performance_rating,
+                  production_rating: (selectedReview as any).production_rating,
+                  venue_rating: (selectedReview as any).venue_rating,
+                  location_rating: (selectedReview as any).location_rating,
+                  value_rating: (selectedReview as any).value_rating,
+                  artist_performance_feedback: (selectedReview as any).artist_performance_feedback,
+                  production_feedback: (selectedReview as any).production_feedback,
+                  venue_feedback: (selectedReview as any).venue_feedback,
+                  location_feedback: (selectedReview as any).location_feedback,
+                  value_feedback: (selectedReview as any).value_feedback,
+                  artist_performance_recommendation: (selectedReview as any).artist_performance_recommendation,
+                  production_recommendation: (selectedReview as any).production_recommendation,
+                  venue_recommendation: (selectedReview as any).venue_recommendation,
+                  location_recommendation: (selectedReview as any).location_recommendation,
+                  value_recommendation: (selectedReview as any).value_recommendation,
+                  ticket_price_paid: (selectedReview as any).ticket_price_paid,
                   setlist: (selectedReview as any).setlist || selectedReview.jambase_events?.setlist,
                   custom_setlist: (selectedReview as any).custom_setlist
                 }}

@@ -17,10 +17,13 @@ interface SetlistModalProps {
   onSetlistSelect?: (setlist: SetlistData) => void;
 }
 
+type SetlistErrorType = 'none' | 'offline' | 'not-found' | 'generic';
+
 export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate, onSetlistSelect }: SetlistModalProps) {
   const [setlists, setSetlists] = useState<SetlistData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<SetlistErrorType>('none');
   const [selectedSetlist, setSelectedSetlist] = useState<SetlistData | null>(null);
   const { toast } = useToast();
 
@@ -34,7 +37,7 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
     try {
       setLoading(true);
       setError(null);
-      
+      setErrorType('none');
       console.log('🎵 SetlistModal: fetchSetlists called with:', { artistName, venueName, eventDate, eventDateType: typeof eventDate });
       
       let allResults: SetlistData[] = [];
@@ -168,16 +171,28 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
       }
       
       if (sortedResults.length === 0) {
-        setError('No setlists found for this artist');
+        setErrorType('not-found');
+        setError('We couldn’t find official setlists for this artist. Feel free to add the songs manually below.');
       }
     } catch (err) {
       console.error('Error fetching setlists:', err);
-      setError('Failed to fetch setlists');
-      toast({
-        title: "Error",
-        description: "Failed to fetch setlists. Please try again.",
-        variant: "destructive"
-      });
+      if (err instanceof Error && err.name === 'SetlistServiceOfflineError') {
+        setErrorType('offline');
+        setError('Setlist import is offline. Start the local proxy or add the setlist manually in the form.');
+        toast({
+          title: 'Setlist import unavailable',
+          description: 'Run `npm run backend:dev` in another terminal or enter the songs manually.',
+          variant: 'destructive'
+        });
+      } else {
+        setErrorType('generic');
+        setError('Failed to fetch setlists. Please try again.');
+        toast({
+          title: "Error",
+          description: "Failed to fetch setlists. Please try again.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -239,11 +254,39 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
           {error && !loading && (
             <div className="text-center py-12">
               <Music className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Setlists Found</h3>
-              <p className="text-gray-600 mb-4">{error}</p>
-              <Button onClick={fetchSetlists} variant="outline">
-                Try Again
-              </Button>
+              <h3 className="text-lg font-semibold mb-2">
+                {errorType === 'offline'
+                  ? 'Setlist Import Offline'
+                  : errorType === 'not-found'
+                    ? 'No Setlists Found'
+                    : 'Something Went Wrong'}
+              </h3>
+              <p className="text-gray-600 mb-4 max-w-lg mx-auto whitespace-pre-wrap">
+                {error}
+              </p>
+
+              {errorType === 'offline' && (
+                <div className="bg-pink-50 border border-pink-100 rounded-lg p-4 text-left max-w-md mx-auto mb-6 text-sm text-pink-900">
+                  <p className="font-medium mb-2">To import from setlist.fm locally:</p>
+                  <ol className="list-decimal list-inside space-y-1">
+                    <li>Open a new terminal window</li>
+                    <li>Run <code className="px-1 py-0.5 bg-white rounded border border-pink-200 text-xs">npm run backend:dev</code></li>
+                    <li>Keep it running while you use the import</li>
+                  </ol>
+                  <p className="mt-3">
+                    Or close this modal and add the songs manually using the “Add your own setlist” section in the form.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Button onClick={fetchSetlists} variant="outline">
+                  Try Again
+                </Button>
+                <Button variant="ghost" onClick={onClose}>
+                  Close & add manually
+                </Button>
+              </div>
             </div>
           )}
 

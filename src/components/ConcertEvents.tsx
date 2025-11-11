@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
+import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
 
 interface ConcertEvent {
   id: string;
@@ -238,12 +239,14 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
 
         {/* Concerts Grid - 5 per row on large screens */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {filteredConcerts.map((concert) => (
-            <Card key={concert.id} className="group hover:shadow-lg transition-all duration-200 overflow-hidden bg-card">
+          {filteredConcerts.map((concert) => {
+            const imageSrc = concert.image_url || getFallbackEventImage(`${concert.id}-${concert.title}`);
+            return (
+              <Card key={concert.id} className="group hover:shadow-lg transition-all duration-200 overflow-hidden bg-card">
               {/* Concert Image */}
               <div className="relative h-48 overflow-hidden">
                 <img 
-                  src={concert.image_url || '/placeholder.svg'} 
+                  src={imageSrc} 
                   alt={concert.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                 />
@@ -335,8 +338,9 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
                   </div>
                 )}
               </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
 
         {filteredConcerts.length === 0 && !loading && (

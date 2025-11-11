@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -6,9 +6,7 @@ import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
 import { PhotoUpload, VideoUpload } from '@/components/ui/photo-upload';
 import { useAuth } from '@/hooks/useAuth';
-import { CustomSetlistInput, type CustomSetlistSong } from '@/components/reviews/CustomSetlistInput';
-import { Music, Users } from 'lucide-react';
-import { SetlistModal } from '@/components/reviews/SetlistModal';
+import { Users } from 'lucide-react';
 import { AttendeeSelector } from '@/components/reviews/AttendeeSelector';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -31,185 +29,92 @@ const emojiOptions = [
 
 export function ReviewContentStep({ formData, errors, onUpdateFormData }: ReviewContentStepProps) {
   const { user } = useAuth();
-  const [showSetlistModal, setShowSetlistModal] = useState(false);
-  
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onUpdateFormData({ reviewText: e.target.value });
-  };
-
-  const handleVenueReviewTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onUpdateFormData({ venueReviewText: e.target.value });
-  };
-
-  const handlePhotosChange = (urls: string[]) => {
-    onUpdateFormData({ photos: urls });
-  };
-
-  const handleVideosChange = (urls: string[]) => {
-    onUpdateFormData({ videos: urls });
-  };
-
-  const handleCustomSetlistChange = (songs: CustomSetlistSong[]) => {
-    onUpdateFormData({ customSetlist: songs });
-  };
-
-  const handleSetlistSelect = (setlist: any) => {
-    console.log('🎵 ReviewContentStep: Setlist selected:', setlist);
-    onUpdateFormData({ selectedSetlist: setlist });
-  };
-
-  const handleAttendeesChange = (attendees: any[]) => {
-    onUpdateFormData({ attendees });
-  };
-
-  const handleMetOnSynthChange = (metOnSynth: boolean) => {
-    onUpdateFormData({ metOnSynth });
-  };
-
-  console.log('🎵 ReviewContentStep: Modal data being passed:', {
-    artistName: formData.selectedArtist?.name,
-    venueName: formData.selectedVenue?.name,
-    eventDate: formData.eventDate,
-    hasSelectedSetlist: !!formData.selectedSetlist
-  });
 
   const characterCount = formData.reviewText.length;
-  const venueReviewCharacterCount = formData.venueReviewText.length;
   const maxCharacters = 500;
-  const maxVenueCharacters = 300;
   const isNearLimit = characterCount > maxCharacters * 0.8;
-  const isVenueNearLimit = venueReviewCharacterCount > maxVenueCharacters * 0.8;
+
+  const handleEmojiSelect = (emoji: string) => {
+    onUpdateFormData({
+      reactionEmoji: formData.reactionEmoji === emoji ? '' : emoji,
+    });
+  };
 
   return (
     <div className="space-y-8">
-      {/* Venue qualitative review (optional) */}
-      <div className="space-y-4">
-          <Label htmlFor="venueReviewText" className="text-base font-semibold text-gray-900">
-            Venue Experience (Optional)
-          </Label>
-          <Textarea
-            id="venueReviewText"
-            placeholder="Share your thoughts about the venue - sound quality, staff, facilities, atmosphere..."
-            value={formData.venueReviewText}
-            onChange={handleVenueReviewTextChange}
-            rows={4}
-            className="resize-none text-base"
-            maxLength={maxVenueCharacters}
-          />
-          <div className="flex justify-end items-center">
-            <span className={cn(
-              "text-xs",
-              isVenueNearLimit ? "text-orange-600" : "text-gray-500"
-            )}>
-              {venueReviewCharacterCount}/{maxVenueCharacters}
-            </span>
-          </div>
-          {errors.venueReviewText && (
-            <p className="text-sm text-red-600">{errors.venueReviewText}</p>
-          )}
-      </div>
+      <header className="text-center space-y-2">
+        <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">Almost there</p>
+        <h2 className="text-2xl font-semibold text-gray-900">Share the story</h2>
+        <p className="text-sm text-gray-600 max-w-xl mx-auto">
+          Bring the show to life with a short recap, a reaction emoji, and any photos you snapped.
+        </p>
+      </header>
 
-      {/* Event qualitative review (required) */}
       <div className="space-y-4">
-          <Label htmlFor="reviewText" className="text-base font-semibold text-gray-900">
-            Overall Experience *
-          </Label>
-          <Textarea
-            id="reviewText"
-            placeholder="Share your overall thoughts about the concert experience..."
-            value={formData.reviewText}
-            onChange={handleTextChange}
-            rows={5}
-            className="resize-none text-base"
-            maxLength={maxCharacters}
-          />
-          <div className="flex justify-end items-center">
-            <span className={cn(
-              "text-xs",
-              isNearLimit ? "text-orange-600" : "text-gray-500"
-            )}>
-              {characterCount}/{maxCharacters}
-            </span>
-          </div>
-          {errors.reviewText && (
-            <p className="text-sm text-red-600">{errors.reviewText}</p>
-          )}
-      </div>
-
-      {/* Setlist Options - API and Custom Together */}
-      <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <div className="flex items-center gap-2 mb-3">
-          <Music className="w-5 h-5 text-purple-600" />
-          <h3 className="text-sm font-semibold text-gray-900">Setlist (Optional)</h3>
-          {formData.selectedSetlist && (
-            <span className="text-xs text-green-600 font-medium">✓ Setlist Added</span>
-          )}
+        <Label htmlFor="reviewText" className="text-base font-semibold text-gray-900">
+          Overall Experience *
+        </Label>
+        <Textarea
+          id="reviewText"
+          placeholder="What made this night unforgettable? Any standout moments future fans should know?"
+          value={formData.reviewText}
+          onChange={(event) => onUpdateFormData({ reviewText: event.target.value })}
+          rows={6}
+          className="resize-none text-base"
+          maxLength={maxCharacters}
+        />
+        <div className="flex justify-between items-center text-xs text-gray-500">
+          <span>Minimum 1-2 sentences is perfect.</span>
+          <span className={cn(isNearLimit ? 'text-orange-600' : 'text-gray-500')}>
+            {characterCount}/{maxCharacters}
+          </span>
         </div>
-        
-        {!formData.selectedSetlist ? (
-          <div className="space-y-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSetlistModal(true)}
-              className="w-full flex items-center justify-center gap-2"
-            >
-              <Music className="w-4 h-4" />
-              Find Setlist from Setlist.fm
-            </Button>
-            <CustomSetlistInput
-              songs={formData.customSetlist}
-              onChange={handleCustomSetlistChange}
-            />
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-sm text-gray-700">
-              Setlist added from Setlist.fm ({formData.selectedSetlist.songCount || 0} songs)
-            </p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => onUpdateFormData({ selectedSetlist: null })}
-              className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              Clear setlist
-            </Button>
-          </div>
+        {errors.reviewText && (
+          <p className="text-sm text-red-600">{errors.reviewText}</p>
         )}
       </div>
 
-      {/* Setlist Modal */}
-      <SetlistModal
-        isOpen={showSetlistModal}
-        onClose={() => setShowSetlistModal(false)}
-        artistName={formData.selectedArtist?.name || ''}
-        venueName={formData.selectedVenue?.name}
-        eventDate={formData.eventDate}
-        onSetlistSelect={handleSetlistSelect}
-      />
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold text-gray-900">Set the vibe (optional)</Label>
+        <div className="flex flex-wrap gap-2">
+          {emojiOptions.map((option) => {
+            const isActive = formData.reactionEmoji === option.emoji;
+            return (
+              <Button
+                key={option.emoji}
+                type="button"
+                variant={isActive ? 'default' : 'outline'}
+                className={cn(
+                  'h-auto py-2 px-3 rounded-full text-base border border-pink-200/60',
+                  isActive ? 'bg-pink-500 text-white hover:bg-pink-600' : 'bg-white text-gray-700 hover:bg-pink-50'
+                )}
+                onClick={() => handleEmojiSelect(option.emoji)}
+              >
+                <span className="mr-2 text-lg">{option.emoji}</span>
+                {option.label}
+              </Button>
+            );
+          })}
+        </div>
+      </div>
 
-      {/* Photo Upload */}
       {user && (
         <PhotoUpload
           value={formData.photos || []}
-          onChange={handlePhotosChange}
+          onChange={(urls) => onUpdateFormData({ photos: urls })}
           userId={user.id}
           bucket="review-photos"
           maxPhotos={5}
           maxSizeMB={5}
           label="Photos (Optional)"
-          helperText="Add photos from the event to make your review more engaging"
+          helperText="Add up to 5 photos to give fans a feel for the night."
         />
       )}
 
-      {/* Video Upload */}
       {user && (
         <VideoUpload
           value={formData.videos || []}
-          onChange={handleVideosChange}
+          onChange={(videos) => onUpdateFormData({ videos })}
           userId={user.id}
           bucket="review-videos"
           maxVideos={3}
@@ -217,6 +122,24 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
           label="Videos (Optional)"
           helperText="Add videos from the event (max 100MB per video)"
         />
+      )}
+
+      {user && (
+        <Card className="border-2 border-pink-100 bg-gradient-to-br from-pink-50/50 to-purple-50/30">
+          <CardContent className="p-8 pb-12">
+            <div className="flex items-center gap-2 mb-6">
+              <Users className="w-6 h-6 text-pink-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Who tagged along? (Optional)</h3>
+            </div>
+            <AttendeeSelector
+              value={formData.attendees}
+              onChange={(attendees) => onUpdateFormData({ attendees })}
+              userId={user.id}
+              metOnSynth={formData.metOnSynth}
+              onMetOnSynthChange={(metOnSynth) => onUpdateFormData({ metOnSynth })}
+            />
+          </CardContent>
+        </Card>
       )}
     </div>
   );

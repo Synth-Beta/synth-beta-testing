@@ -5,6 +5,12 @@ type Tables<T extends string> = any;
 type TablesInsert<T extends string> = any;
 type TablesUpdate<T extends string> = any;
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const isValidUuid = (value?: string | null): value is string =>
+  typeof value === 'string' && UUID_REGEX.test(value);
+
 // Custom setlist song structure
 export interface CustomSetlistSong {
   song_name: string;
@@ -16,12 +22,22 @@ export interface CustomSetlistSong {
 // Review system types with venue support
 export interface ReviewData {
   rating?: number; // Overall rating (calculated automatically)
-  performance_rating?: number; // Rating for artist/band performance quality (0.5-5.0)
-  venue_rating?: number; // Rating for venue experience - sound, staff, facilities (0.5-5.0)
-  overall_experience_rating?: number; // Rating for overall event experience - atmosphere, crowd (0.5-5.0)
-  performance_review_text?: string; // Optional qualitative review for performance
-  venue_review_text?: string; // Optional qualitative review for venue
-  overall_experience_review_text?: string; // Optional qualitative review for overall experience
+  artist_performance_rating?: number;
+  production_rating?: number;
+  venue_rating?: number;
+  location_rating?: number;
+  value_rating?: number;
+  artist_performance_feedback?: string;
+  production_feedback?: string;
+  venue_feedback?: string;
+  location_feedback?: string;
+  value_feedback?: string;
+  artist_performance_recommendation?: string;
+  production_recommendation?: string;
+  venue_recommendation?: string;
+  location_recommendation?: string;
+  value_recommendation?: string;
+  ticket_price_paid?: number;
   artist_rating?: number; // Legacy field for backward compatibility
   review_type: 'event' | 'venue' | 'artist'; // Type of review
   review_text?: string;
@@ -43,12 +59,22 @@ export interface UserReview {
   event_id: string;
   venue_id?: string;
   rating: number;
-  performance_rating?: number;
+  artist_performance_rating?: number;
+  production_rating?: number;
   venue_rating?: number;
-  overall_experience_rating?: number;
-  performance_review_text?: string;
-  venue_review_text?: string;
-  overall_experience_review_text?: string;
+  location_rating?: number;
+  value_rating?: number;
+  artist_performance_feedback?: string;
+  production_feedback?: string;
+  venue_feedback?: string;
+  location_feedback?: string;
+  value_feedback?: string;
+  artist_performance_recommendation?: string;
+  production_recommendation?: string;
+  venue_recommendation?: string;
+  location_recommendation?: string;
+  value_recommendation?: string;
+  ticket_price_paid?: number;
   artist_rating?: number; // Legacy field
   review_type?: 'event' | 'venue' | 'artist';
   reaction_emoji?: string;
@@ -207,11 +233,17 @@ export class ReviewService {
           return clampToRange(Math.round(data.rating));
         }
 
-        // Prefer new three-category system if available (decimal halves permitted at column level)
-        const newParts = [data.performance_rating, data.venue_rating, data.overall_experience_rating].filter(
+        // Prefer new five-category system if available (decimal halves permitted at column level)
+        const newParts = [
+          data.artist_performance_rating,
+          data.production_rating,
+          data.venue_rating,
+          data.location_rating,
+          data.value_rating,
+        ].filter(
           (v): v is number => typeof v === 'number' && v > 0
         );
-        if (newParts.length === 3) {
+        if (newParts.length >= 3) {
           const avg = newParts.reduce((a, b) => a + b, 0) / newParts.length;
           return clampToRange(Math.round(avg));
         }
@@ -231,7 +263,11 @@ export class ReviewService {
 
       // Check if user already has a PUBLISHED review for this event (guard against non-UUID eventId)
       // We filter by is_draft = false to only find published reviews, not drafts
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId);
+      const isUuid = isValidUuid(eventId);
+      const normalizedVenueId = isValidUuid(venueId) ? venueId : undefined;
+      if (venueId && !normalizedVenueId) {
+        console.warn('⚠️ ReviewService: Received non-UUID venueId parameter, ignoring', venueId);
+      }
       // If eventId is not a UUID, skip .single() to avoid 400s and treat as not found
       let existingReview: any = null;
       let checkError: any = null;
@@ -256,11 +292,13 @@ export class ReviewService {
         // Update existing review
         // Try full update first; fallback to legacy columns if schema lacks new fields
         const fullUpdate: any = {
-          ...(venueId ? { venue_id: venueId } : {}),
+          ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
           ...(typeof reviewData.rating === 'number' ||
-          typeof reviewData.performance_rating === 'number' ||
+          typeof reviewData.artist_performance_rating === 'number' ||
+          typeof reviewData.production_rating === 'number' ||
           typeof reviewData.venue_rating === 'number' ||
-          typeof reviewData.overall_experience_rating === 'number' ||
+          typeof reviewData.location_rating === 'number' ||
+          typeof reviewData.value_rating === 'number' ||
           typeof reviewData.artist_rating === 'number'
             ? { rating: deriveRating(reviewData) }
             : {}),
@@ -269,14 +307,22 @@ export class ReviewService {
           is_public: reviewData.is_public,
           is_draft: false, // Mark as published (not a draft)
           draft_data: null, // Clear draft data when publishing
-          performance_rating: reviewData.performance_rating,
-          // Do not write decimals to legacy integer venue_rating; use new decimal column instead
-          overall_experience_rating: reviewData.overall_experience_rating,
-          performance_review_text: reviewData.performance_review_text,
-          venue_review_text: reviewData.venue_review_text,
-          overall_experience_review_text: reviewData.overall_experience_review_text,
-          // Ensure venue data stored in both columns for compatibility
-          venue_rating_new: (reviewData as any).venue_rating ?? undefined,
+          artist_performance_rating: reviewData.artist_performance_rating,
+          production_rating: reviewData.production_rating,
+          venue_rating: reviewData.venue_rating,
+          location_rating: reviewData.location_rating,
+          value_rating: reviewData.value_rating,
+          artist_performance_feedback: reviewData.artist_performance_feedback,
+          production_feedback: reviewData.production_feedback,
+          venue_feedback: reviewData.venue_feedback,
+          location_feedback: reviewData.location_feedback,
+          value_feedback: reviewData.value_feedback,
+          artist_performance_recommendation: reviewData.artist_performance_recommendation,
+          production_recommendation: reviewData.production_recommendation,
+          venue_recommendation: reviewData.venue_recommendation,
+          location_recommendation: reviewData.location_recommendation,
+          value_recommendation: reviewData.value_recommendation,
+          ticket_price_paid: reviewData.ticket_price_paid,
           artist_rating: reviewData.artist_rating, // Legacy field
           review_type: reviewData.review_type,
           venue_tags: reviewData.venue_tags,
@@ -310,7 +356,7 @@ export class ReviewService {
           // Retry with legacy-only columns on any 4xx schema error
           // Unknown columns: retry with legacy-only columns
           const legacyUpdate: any = {
-            ...(venueId ? { venue_id: venueId } : {}),
+            ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
             rating: deriveRating(reviewData),
             review_text: reviewData.review_text,
             reaction_emoji: reviewData.reaction_emoji,
@@ -357,19 +403,29 @@ export class ReviewService {
       // If we found a draft, update it instead of creating a new review
       if (draftId) {
         const draftUpdate: any = {
-          ...(venueId ? { venue_id: venueId } : {}),
+          ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
           rating: deriveRating(reviewData),
           reaction_emoji: reviewData.reaction_emoji,
           review_text: reviewData.review_text,
           is_public: reviewData.is_public ?? true,
           is_draft: false, // Mark as published
           draft_data: null, // Clear draft data
-          performance_rating: reviewData.performance_rating,
-          overall_experience_rating: reviewData.overall_experience_rating,
-          performance_review_text: reviewData.performance_review_text,
-          venue_review_text: reviewData.venue_review_text,
-          overall_experience_review_text: reviewData.overall_experience_review_text,
-          venue_rating_new: (reviewData as any).venue_rating ?? undefined,
+          artist_performance_rating: reviewData.artist_performance_rating,
+          production_rating: reviewData.production_rating,
+          venue_rating: reviewData.venue_rating,
+          location_rating: reviewData.location_rating,
+          value_rating: reviewData.value_rating,
+          artist_performance_feedback: reviewData.artist_performance_feedback,
+          production_feedback: reviewData.production_feedback,
+          venue_feedback: reviewData.venue_feedback,
+          location_feedback: reviewData.location_feedback,
+          value_feedback: reviewData.value_feedback,
+          artist_performance_recommendation: reviewData.artist_performance_recommendation,
+          production_recommendation: reviewData.production_recommendation,
+          venue_recommendation: reviewData.venue_recommendation,
+          location_recommendation: reviewData.location_recommendation,
+          value_recommendation: reviewData.value_recommendation,
+          ticket_price_paid: reviewData.ticket_price_paid,
           artist_rating: reviewData.artist_rating,
           review_type: reviewData.review_type,
           venue_tags: reviewData.venue_tags,
@@ -382,12 +438,37 @@ export class ReviewService {
           updated_at: new Date().toISOString()
         };
 
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('user_reviews')
           .update(draftUpdate)
           .eq('id', draftId)
           .select()
           .maybeSingle();
+
+        if (error) {
+          const legacyDraftUpdate: any = {
+            ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
+            rating: deriveRating(reviewData),
+            reaction_emoji: reviewData.reaction_emoji,
+            review_text: reviewData.review_text,
+            is_public: reviewData.is_public ?? true,
+            is_draft: false,
+            draft_data: null,
+            photos: reviewData.photos,
+            was_there: true,
+            updated_at: new Date().toISOString()
+          };
+
+          const retry = await supabase
+            .from('user_reviews')
+            .update(legacyDraftUpdate)
+            .eq('id', draftId)
+            .select()
+            .maybeSingle();
+
+          data = retry.data as any;
+          error = retry.error as any;
+        }
 
         if (error) throw error;
         console.log('✅ Converted draft to published review:', draftId);
@@ -398,21 +479,29 @@ export class ReviewService {
       const insertPayload: UserReviewInsert = {
         user_id: userId,
         event_id: eventId,
-        ...(venueId ? { venue_id: venueId } : {}),
+        ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
         rating: deriveRating(reviewData),
         reaction_emoji: reviewData.reaction_emoji,
         review_text: reviewData.review_text,
         is_public: reviewData.is_public ?? true,
         is_draft: false, // Explicitly mark as published (not a draft)
         draft_data: null, // No draft data for published reviews
-        performance_rating: reviewData.performance_rating,
-        // Do not write decimals to legacy integer venue_rating; use new decimal column instead
-        overall_experience_rating: reviewData.overall_experience_rating,
-        performance_review_text: reviewData.performance_review_text,
-        venue_review_text: reviewData.venue_review_text,
-        overall_experience_review_text: reviewData.overall_experience_review_text,
-        // Ensure venue data stored in both columns for compatibility
-        venue_rating_new: (reviewData as any).venue_rating ?? undefined,
+        artist_performance_rating: reviewData.artist_performance_rating,
+        production_rating: reviewData.production_rating,
+        venue_rating: reviewData.venue_rating,
+        location_rating: reviewData.location_rating,
+        value_rating: reviewData.value_rating,
+        artist_performance_feedback: reviewData.artist_performance_feedback,
+        production_feedback: reviewData.production_feedback,
+        venue_feedback: reviewData.venue_feedback,
+        location_feedback: reviewData.location_feedback,
+        value_feedback: reviewData.value_feedback,
+        artist_performance_recommendation: reviewData.artist_performance_recommendation,
+        production_recommendation: reviewData.production_recommendation,
+        venue_recommendation: reviewData.venue_recommendation,
+        location_recommendation: reviewData.location_recommendation,
+        value_recommendation: reviewData.value_recommendation,
+        ticket_price_paid: reviewData.ticket_price_paid,
         artist_rating: reviewData.artist_rating, // Legacy field
         review_type: reviewData.review_type,
         venue_tags: reviewData.venue_tags,
@@ -438,19 +527,81 @@ export class ReviewService {
         console.log('🔍 ReviewService: Event data:', eventData);
         
         // If artist_uuid is available, use it directly instead of relying on trigger
-        if (eventData?.artist_uuid) {
-          console.log('🔍 ReviewService: Using artist_uuid from event:', eventData.artist_uuid);
-          (insertPayload as any).artist_id = eventData.artist_uuid;
+        const eventArtistUuid = eventData?.artist_uuid;
+        let resolvedArtistUuid: string | undefined;
+        if (isValidUuid(eventArtistUuid)) {
+          resolvedArtistUuid = eventArtistUuid;
         } else {
-          console.log('⚠️ ReviewService: No artist_uuid found in event data');
+          const candidateArtistId = (eventData?.artist_id || '').trim();
+          if (isValidUuid(candidateArtistId)) {
+            resolvedArtistUuid = candidateArtistId;
+          } else if (candidateArtistId) {
+            console.log(
+              '🔍 ReviewService: Attempting to resolve artist_uuid from JamBase artist_id:',
+              candidateArtistId
+            );
+            const { data: artistLookup, error: artistLookupError } = await supabase
+              .from('artists')
+              .select('id')
+              .eq('jambase_artist_id', candidateArtistId)
+              .maybeSingle();
+            if (artistLookupError) {
+              console.warn(
+                '⚠️ ReviewService: Error looking up artist by JamBase ID:',
+                artistLookupError
+              );
+            }
+            if (artistLookup?.id && isValidUuid(artistLookup.id)) {
+              resolvedArtistUuid = artistLookup.id;
+            } else {
+              console.warn(
+                '⚠️ ReviewService: Unable to resolve artist UUID from JamBase ID',
+                candidateArtistId
+              );
+            }
+          }
+        }
+        if (resolvedArtistUuid) {
+          console.log('🔍 ReviewService: Using resolved artist UUID:', resolvedArtistUuid);
+          (insertPayload as any).artist_id = resolvedArtistUuid;
+
+          // Backfill jambase_events.artist_uuid for future calls
+          if (!isValidUuid(eventArtistUuid)) {
+            try {
+              const updateResult = await supabase
+                .from('jambase_events')
+                .update({ artist_uuid: resolvedArtistUuid })
+                .eq('id', eventId);
+              if (updateResult.error) {
+                console.warn(
+                  '⚠️ ReviewService: Failed to backfill artist_uuid on event:',
+                  updateResult.error
+                );
+              }
+            } catch (updateErr) {
+              console.warn(
+                '⚠️ ReviewService: Exception while backfilling artist_uuid:',
+                updateErr
+              );
+            }
+          }
+        } else {
+          console.log('⚠️ ReviewService: No artist UUID could be resolved for event');
         }
         
         // Note: venue_uuid column doesn't exist in jambase_events, so we use the venueId parameter
-        if (venueId) {
-          console.log('🔍 ReviewService: Using venueId parameter:', venueId);
-          (insertPayload as any).venue_id = venueId;
+        if (normalizedVenueId) {
+          console.log('🔍 ReviewService: Using venueId parameter:', normalizedVenueId);
+          (insertPayload as any).venue_id = normalizedVenueId;
         } else {
-          console.log('⚠️ ReviewService: No venueId parameter provided');
+          if (venueId) {
+            console.warn(
+              '⚠️ ReviewService: Ignoring non-UUID venueId parameter',
+              venueId
+            );
+          } else {
+            console.log('⚠️ ReviewService: No venueId parameter provided');
+          }
         }
       }
       
@@ -485,7 +636,7 @@ export class ReviewService {
         const legacyInsert: any = {
           user_id: userId,
           event_id: eventId,
-          ...(venueId ? { venue_id: venueId } : {}),
+          ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
           rating: deriveRating(reviewData),
           reaction_emoji: reviewData.reaction_emoji,
           review_text: reviewData.review_text,
@@ -691,11 +842,9 @@ export class ReviewService {
             id: item.id,
             user_id: item.user_id,
             event_id: item.event_id,
+            venue_id: item.venue_id,
             rating: item.rating,
-                rank_order: (item as any).rank_order,
-            performance_rating: item.performance_rating,
-            venue_rating_new: item.venue_rating_new,
-            overall_experience_rating: item.overall_experience_rating,
+            rank_order: (item as any).rank_order,
             review_type: item.review_type,
             reaction_emoji: item.reaction_emoji,
             review_text: item.review_text,
@@ -705,15 +854,31 @@ export class ReviewService {
             mood_tags: item.mood_tags,
             genre_tags: item.genre_tags,
             context_tags: item.context_tags,
-            venue_id: item.venue_id,
             artist_rating: item.artist_rating,
+            artist_performance_rating: item.artist_performance_rating,
+            production_rating: item.production_rating,
             venue_rating: item.venue_rating,
+            location_rating: item.location_rating,
+            value_rating: item.value_rating,
+            artist_performance_feedback: item.artist_performance_feedback,
+            production_feedback: item.production_feedback,
+            venue_feedback: item.venue_feedback,
+            location_feedback: item.location_feedback,
+            value_feedback: item.value_feedback,
+            artist_performance_recommendation: item.artist_performance_recommendation,
+            production_recommendation: item.production_recommendation,
+            venue_recommendation: item.venue_recommendation,
+            location_recommendation: item.location_recommendation,
+            value_recommendation: item.value_recommendation,
+            ticket_price_paid: item.ticket_price_paid,
             created_at: item.created_at,
             updated_at: item.updated_at,
             likes_count: item.likes_count,
             comments_count: item.comments_count,
             shares_count: item.shares_count,
-            is_public: item.is_public
+            is_public: item.is_public,
+            attendees: item.attendees,
+            met_on_synth: item.met_on_synth,
           },
           event: item.jambase_events
         })),

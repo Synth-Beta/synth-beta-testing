@@ -1,10 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { trackInteraction } from '@/services/interactionTrackingService';
-
-export type UserJamBaseEvent = Tables<'user_jambase_events'>;
-export type UserJamBaseEventInsert = TablesInsert<'user_jambase_events'>;
-export type UserJamBaseEventUpdate = TablesUpdate<'user_jambase_events'>;
+import type { UserJamBaseEvent } from '@/types/database';
 
 export interface EventReview {
   id: string;
@@ -492,9 +488,22 @@ export class UserEventService {
           comments_count: 0,
           shares_count: 0,
           review_type: 'event', // Use valid enum value
-          performance_rating: null, // No specific rating for attendance-only records
-          venue_rating_new: null, // No specific rating for attendance-only records
-          overall_experience_rating: null, // No specific rating for attendance-only records
+          artist_performance_rating: null,
+          production_rating: null,
+          venue_rating: null,
+          location_rating: null,
+          value_rating: null,
+          artist_performance_feedback: null,
+          production_feedback: null,
+          venue_feedback: null,
+          location_feedback: null,
+          value_feedback: null,
+          artist_performance_recommendation: null,
+          production_recommendation: null,
+          venue_recommendation: null,
+          location_recommendation: null,
+          value_recommendation: null,
+          ticket_price_paid: null,
           rank_order: 0
         };
         

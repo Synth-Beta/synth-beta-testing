@@ -7,6 +7,8 @@ export interface PlatformStats {
   total_revenue: number;
   total_interactions: number;
   active_users_today: number;
+  daily_active_users: number;
+  monthly_active_users: number;
   new_users_this_month: number;
   platform_growth_rate: number;
   average_session_duration: number;
@@ -135,12 +137,27 @@ export class AdminAnalyticsService {
       const estimatedRevenuePerClick = 25; // Average ticket price
       const totalRevenue = ticketClicks.length * estimatedRevenuePerClick;
 
-      // Get today's active users (users with interactions today)
-      const today = new Date().toISOString().split('T')[0];
-      const todayInteractions = allInteractions.filter((i: any) => 
-        i.occurred_at && i.occurred_at.startsWith(today)
-      );
-      const activeUsersToday = new Set(todayInteractions.map((i: any) => i.user_id)).size;
+      // Calculate daily active users (calendar day) using last_active_at
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const endOfToday = new Date(startOfToday);
+      endOfToday.setHours(23, 59, 59, 999);
+
+      const { count: dailyActiveUsers } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('last_active_at', startOfToday.toISOString())
+        .lte('last_active_at', endOfToday.toISOString());
+
+      // Calculate monthly active users (trailing 30 calendar days) using last_active_at
+      const startOfMauWindow = new Date();
+      startOfMauWindow.setDate(startOfMauWindow.getDate() - 29);
+      startOfMauWindow.setHours(0, 0, 0, 0);
+
+      const { count: monthlyActiveUsers } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('last_active_at', startOfMauWindow.toISOString());
 
       // Get this month's new users
       const startOfMonth = new Date();
@@ -172,7 +189,9 @@ export class AdminAnalyticsService {
         total_events: totalEvents || 0,
         total_revenue: totalRevenue,
         total_interactions: totalInteractions || 0,
-        active_users_today: activeUsersToday || 0,
+        active_users_today: dailyActiveUsers || 0,
+        daily_active_users: dailyActiveUsers || 0,
+        monthly_active_users: monthlyActiveUsers || 0,
         new_users_this_month: newUsersThisMonth || 0,
         platform_growth_rate: platformGrowthRate,
         average_session_duration: averageSessionDuration,
@@ -185,6 +204,8 @@ export class AdminAnalyticsService {
         total_revenue: 0,
         total_interactions: 0,
         active_users_today: 0,
+        daily_active_users: 0,
+        monthly_active_users: 0,
         new_users_this_month: 0,
         platform_growth_rate: 0,
         average_session_duration: 0,
@@ -732,16 +753,11 @@ export class AdminAnalyticsService {
       const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
-      // Get all users for total count
-      const { count: totalUsers } = await (supabase as any)
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-
       // Get concert intent interactions for current month
       // This includes: event interest (saves/RSVPs), shares, and attendance marking
       const { data: currentMonthInteractions } = await (supabase as any)
         .from('user_interactions')
-        .select('user_id, event_type, entity_type, metadata')
+        .select('user_id, event_type, entity_type, entity_id, metadata')
         .gte('occurred_at', startOfMonth.toISOString())
         .in('event_type', ['interest', 'share', 'attendance'])
         .eq('entity_type', 'event');
@@ -749,7 +765,7 @@ export class AdminAnalyticsService {
       // Get last month's interactions for growth calculation
       const { data: lastMonthInteractions } = await (supabase as any)
         .from('user_interactions')
-        .select('user_id, event_type, entity_type, metadata')
+        .select('user_id, event_type, entity_type, entity_id, metadata')
         .gte('occurred_at', startOfLastMonth.toISOString())
         .lt('occurred_at', endOfLastMonth.toISOString())
         .in('event_type', ['interest', 'share', 'attendance'])
@@ -758,74 +774,108 @@ export class AdminAnalyticsService {
       // Also get event interest from user_jambase_events table (RSVPs)
       const { data: currentMonthRSVPs } = await (supabase as any)
         .from('user_jambase_events')
-        .select('user_id, rsvp_status')
+        .select('user_id, jambase_event_id, rsvp_status')
         .gte('created_at', startOfMonth.toISOString())
         .in('rsvp_status', ['going', 'interested']);
 
       const { data: lastMonthRSVPs } = await (supabase as any)
         .from('user_jambase_events')
-        .select('user_id, rsvp_status')
+        .select('user_id, jambase_event_id, rsvp_status')
         .gte('created_at', startOfLastMonth.toISOString())
         .lt('created_at', endOfLastMonth.toISOString())
         .in('rsvp_status', ['going', 'interested']);
 
-      // Calculate ECI per user
-      const userECIScores = new Map<string, number>();
-      const engagedUsers = new Set<string>();
-      let totalConcertIntents = 0;
-
-      // Count interactions from user_interactions table
-      currentMonthInteractions?.forEach((interaction: any) => {
-        const userId = interaction.user_id;
-        if (!userECIScores.has(userId)) {
-          userECIScores.set(userId, 0);
-        }
-        userECIScores.set(userId, userECIScores.get(userId)! + 1);
-        engagedUsers.add(userId);
-        totalConcertIntents++;
-      });
-
-      // Count RSVPs from user_jambase_events table
-      currentMonthRSVPs?.forEach((rsvp: any) => {
-        const userId = rsvp.user_id;
-        if (!userECIScores.has(userId)) {
-          userECIScores.set(userId, 0);
-        }
-        userECIScores.set(userId, userECIScores.get(userId)! + 1);
-        engagedUsers.add(userId);
-        totalConcertIntents++;
-      });
-
-      // Calculate breakdown by interaction type
-      const breakdown = {
-        saves: 0,
-        rsvps: 0,
-        shares: 0
+      const normalizeEventId = (interaction: any): string | null => {
+        return (
+          interaction?.entity_id ||
+          interaction?.metadata?.event_id ||
+          interaction?.metadata?.eventId ||
+          interaction?.metadata?.event?.id ||
+          interaction?.metadata?.jambase_event_id ||
+          interaction?.metadata?.jambaseEventId ||
+          null
+        );
       };
 
-      // Count saves (interest events)
-      const saves = currentMonthInteractions?.filter((i: any) => i.event_type === 'interest').length || 0;
-      breakdown.saves = saves;
+      const calculateMonthMetrics = (
+        interactions: any[] | null | undefined,
+        rsvps: any[] | null | undefined,
+        includeBreakdown = false
+      ) => {
+        const userScores = new Map<string, number>();
+        const engagedSet = new Set<string>();
+        const intentKeys = new Set<string>();
+        let totalIntents = 0;
 
-      // Count RSVPs
-      const rsvps = currentMonthRSVPs?.length || 0;
-      breakdown.rsvps = rsvps;
+        const breakdown = includeBreakdown
+          ? { saves: 0, rsvps: 0, shares: 0 }
+          : null;
 
-      // Count shares
-      const shares = currentMonthInteractions?.filter((i: any) => i.event_type === 'share').length || 0;
-      breakdown.shares = shares;
+        const registerIntent = (userId: string | null | undefined, type: string, eventId?: string | null) => {
+          if (!userId) {
+            return;
+          }
 
-      // Calculate average ECI per user
-      const eciPerUser = totalUsers > 0 ? totalConcertIntents / totalUsers : 0;
+          const normalizedType = type === 'interest' ? 'save' : type;
+          const key = `${userId}:${normalizedType}:${eventId || 'unknown'}`;
 
-      // Calculate growth rate
-      const lastMonthTotal = (lastMonthInteractions?.length || 0) + (lastMonthRSVPs?.length || 0);
-      const monthlyGrowthRate = lastMonthTotal > 0 
-        ? ((totalConcertIntents - lastMonthTotal) / lastMonthTotal) * 100 
+          if (intentKeys.has(key)) {
+            return;
+          }
+          intentKeys.add(key);
+
+          engagedSet.add(userId);
+          userScores.set(userId, (userScores.get(userId) || 0) + 1);
+          totalIntents += 1;
+
+          if (breakdown) {
+            if (normalizedType === 'save') {
+              breakdown.saves += 1;
+            } else if (normalizedType === 'share') {
+              breakdown.shares += 1;
+            } else if (normalizedType === 'rsvp') {
+              breakdown.rsvps += 1;
+            }
+          }
+        };
+
+        interactions?.forEach((interaction: any) => {
+          const eventId = normalizeEventId(interaction);
+          registerIntent(interaction.user_id, interaction.event_type, eventId);
+        });
+
+        rsvps?.forEach((rsvp: any) => {
+          registerIntent(rsvp.user_id, 'rsvp', rsvp.jambase_event_id || rsvp.event_id);
+        });
+
+        return {
+          userScores,
+          engagedCount: engagedSet.size,
+          totalIntents,
+          breakdown: breakdown || { saves: 0, rsvps: 0, shares: 0 },
+        };
+      };
+
+      const currentMetrics = calculateMonthMetrics(currentMonthInteractions, currentMonthRSVPs, true);
+      const lastMonthMetrics = calculateMonthMetrics(lastMonthInteractions, lastMonthRSVPs, false);
+
+      const currentEngagedCount = currentMetrics.engagedCount;
+      const lastEngagedCount = lastMonthMetrics.engagedCount;
+
+      const eciPerUser = currentEngagedCount > 0
+        ? currentMetrics.totalIntents / currentEngagedCount
+        : 0;
+
+      const lastEciPerUser = lastEngagedCount > 0
+        ? lastMonthMetrics.totalIntents / lastEngagedCount
+        : 0;
+
+      const monthlyGrowthRate = lastEciPerUser > 0
+        ? ((eciPerUser - lastEciPerUser) / lastEciPerUser) * 100
         : 0;
 
       // Get top engaged users with their names
-      const topEngagedUsers = Array.from(userECIScores.entries())
+      const topEngagedUsers = Array.from(currentMetrics.userScores.entries())
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5)
         .map(([userId, score]) => ({
@@ -852,10 +902,10 @@ export class AdminAnalyticsService {
 
       return {
         eci_per_user: Math.round(eciPerUser * 100) / 100,
-        total_engaged_users: engagedUsers.size,
-        total_concert_intents: totalConcertIntents,
+        total_engaged_users: currentEngagedCount,
+        total_concert_intents: currentMetrics.totalIntents,
         monthly_growth_rate: Math.round(monthlyGrowthRate * 100) / 100,
-        breakdown,
+        breakdown: currentMetrics.breakdown,
         top_engaged_users: topEngagedUsers
       };
     } catch (error) {

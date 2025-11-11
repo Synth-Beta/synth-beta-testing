@@ -1,10 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
 
+const REMOTE_PROXY_URL =
+  import.meta.env.VITE_REMOTE_SETLIST_PROXY_URL || 'https://synth-beta-testing.vercel.app';
+
 // Use relative URL in production (Vercel serverless functions) or backend URL in development
 const getBackendUrl = () => {
   if (typeof window !== 'undefined') {
     const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.startsWith('127.0.0.1');
-    return isProduction ? '' : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001');
+    if (isProduction) return '';
+    return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
   }
   return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 };
@@ -55,15 +59,8 @@ export class SetlistService {
    * Search for setlists using backend proxy
    */
   static async searchSetlists(params: SetlistSearchParams): Promise<SetlistData[] | null> {
-    const queryParams = new URLSearchParams();
-    
-    if (params.artistName) queryParams.append('artistName', params.artistName);
-    if (params.date) queryParams.append('date', params.date);
-    if (params.venueName) queryParams.append('venueName', params.venueName);
-    if (params.cityName) queryParams.append('cityName', params.cityName);
-    if (params.stateCode) queryParams.append('stateCode', params.stateCode);
-    
-    const url = `${getBackendUrl()}/api/setlists/search?${queryParams.toString()}`;
+    const queryString = this.buildQueryString(params);
+    const url = `${getBackendUrl()}/api/setlists/search?${queryString}`;
     
     try {
       console.log('🎵 SetlistService: Making request to backend proxy:', url);
@@ -77,7 +74,8 @@ export class SetlistService {
       
       if (!response.ok) {
         if (response.status === 404) {
-          return null; // No setlists found
+          // Backend searched but found nothing. Fall back to Supabase for cached data.
+          return await this.searchSetlistsFromDatabase(params);
         }
         throw new Error(`Backend API error: ${response.status} ${response.statusText}`);
       }
@@ -85,7 +83,14 @@ export class SetlistService {
       const data = await response.json();
       
       if (!data.setlist || data.setlist.length === 0) {
-        return null;
+        // No matches from backend – attempt other fallbacks before giving up
+        const serverless = await this.searchSetlistsViaServerless(params, queryString);
+        if (serverless && serverless.length > 0) return serverless;
+
+        const remote = await this.searchSetlistsViaRemoteProxy(params, queryString);
+        if (remote && remote.length > 0) return remote;
+
+        return await this.searchSetlistsFromDatabase(params);
       }
       
       console.log('🎵 SetlistService: Received setlists:', data.setlist.length);
@@ -95,6 +100,195 @@ export class SetlistService {
       
     } catch (error) {
       console.error('Error searching setlists:', error);
+      // Try serverless Vercel proxy
+      const fallbackServerless = await this.searchSetlistsViaServerless(params, queryString);
+      if (fallbackServerless && fallbackServerless.length > 0) {
+        return fallbackServerless;
+      }
+
+      // Try hosted production proxy
+      const fallbackRemote = await this.searchSetlistsViaRemoteProxy(params, queryString);
+      if (fallbackRemote && fallbackRemote.length > 0) {
+        return fallbackRemote;
+      }
+
+      // Finally, fall back to any cached Supabase setlists
+      const cachedSetlists = await this.searchSetlistsFromDatabase(params);
+      if (cachedSetlists && cachedSetlists.length > 0) {
+        return cachedSetlists;
+      }
+
+      const offlineError = new Error('setlist-service-offline');
+      offlineError.name = 'SetlistServiceOfflineError';
+      throw offlineError;
+    }
+  }
+
+  private static buildQueryString(params: SetlistSearchParams): string {
+    const queryParams = new URLSearchParams();
+    if (params.artistName) queryParams.append('artistName', params.artistName);
+    if (params.date) queryParams.append('date', params.date);
+    if (params.venueName) queryParams.append('venueName', params.venueName);
+    if (params.cityName) queryParams.append('cityName', params.cityName);
+    if (params.stateCode) queryParams.append('stateCode', params.stateCode);
+    return queryParams.toString();
+  }
+
+  private static async searchSetlistsViaServerless(
+    params: SetlistSearchParams,
+    queryString: string
+  ): Promise<SetlistData[] | null> {
+    try {
+      const relativeUrl = `/api/setlists/search?${queryString}`;
+      console.log('🎵 SetlistService: Trying serverless proxy:', relativeUrl);
+
+      const response = await fetch(relativeUrl, {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return await this.searchSetlistsFromDatabase(params);
+        }
+        throw new Error(`Serverless proxy error: ${response.status} ${response.statusText}`);
+      }
+
+      const contentType = response.headers.get('content-type') ?? '';
+      if (!contentType.includes('application/json')) {
+        console.warn('🎵 Serverless proxy returned non-JSON payload');
+        return null;
+      }
+
+      const data = await response.json();
+      if (!data.setlist || data.setlist.length === 0) {
+        return null;
+      }
+
+      console.log('🎵 SetlistService: Received setlists from serverless proxy:', data.setlist.length);
+      return data.setlist;
+    } catch (proxyError) {
+      console.warn('🎵 Serverless setlist proxy failed:', proxyError);
+      return null;
+    }
+  }
+
+  private static async searchSetlistsViaRemoteProxy(
+    params: SetlistSearchParams,
+    queryString: string
+  ): Promise<SetlistData[] | null> {
+    try {
+      const remoteUrl = `${REMOTE_PROXY_URL}/api/setlists/search?${queryString}`;
+      console.log('🎵 SetlistService: Trying remote proxy:', remoteUrl);
+
+      const response = await fetch(remoteUrl, {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return await this.searchSetlistsFromDatabase(params);
+        }
+        // Refresh the remote Vercel proxy once to ensure new code is deployed
+        try {
+          await fetch(`${REMOTE_PROXY_URL}/api/setlists/health`, { method: 'GET' });
+        } catch (refreshError) {
+          console.warn('🎵 Remote proxy health check failed:', refreshError);
+        }
+
+        // Retry once after refresh
+        const retryResponse = await fetch(remoteUrl, {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!retryResponse.ok) {
+          throw new Error(`Remote proxy error: ${retryResponse.status} ${retryResponse.statusText}`);
+        }
+
+        const retryContentType = retryResponse.headers.get('content-type') ?? '';
+        if (!retryContentType.includes('application/json')) {
+          console.warn('🎵 Remote proxy retry returned non-JSON payload');
+          return null;
+        }
+
+        const retryData = await retryResponse.json();
+        if (!retryData.setlist || retryData.setlist.length === 0) {
+          return null;
+        }
+
+        console.log('🎵 SetlistService: Received setlists from remote proxy (retry):', retryData.setlist.length);
+        return retryData.setlist;
+      }
+
+      const contentType = response.headers.get('content-type') ?? '';
+      if (!contentType.includes('application/json')) {
+        console.warn('🎵 Remote proxy returned non-JSON payload');
+        return null;
+      }
+
+      const data = await response.json();
+      if (!data.setlist || data.setlist.length === 0) {
+        return null;
+      }
+
+      console.log('🎵 SetlistService: Received setlists from remote proxy:', data.setlist.length);
+      return data.setlist;
+    } catch (remoteError) {
+      console.warn('🎵 Remote setlist proxy failed:', remoteError);
+      return null;
+    }
+  }
+
+  private static async searchSetlistsFromDatabase(params: SetlistSearchParams): Promise<SetlistData[] | null> {
+    try {
+      let query = supabase
+        .from('jambase_events')
+        .select('setlist, artist_name, venue_name, event_date')
+        .not('setlist', 'is', null);
+
+      if (params.artistName) {
+        query = query.ilike('artist_name', `%${params.artistName}%`);
+      }
+
+      if (params.venueName) {
+        query = query.ilike('venue_name', `%${params.venueName}%`);
+      }
+
+      if (params.date) {
+        query = query.eq('event_date', params.date);
+      }
+
+      const { data, error } = await query.limit(10);
+
+      if (error) {
+        console.error('🎵 Supabase setlist fallback error:', error);
+        return null;
+      }
+
+      if (!data || data.length === 0) {
+        return null;
+      }
+
+      const setlists = data
+        .map((row: any) => row.setlist as SetlistData | null)
+        .filter((setlist): setlist is SetlistData => !!setlist);
+
+      if (setlists.length === 0) {
+        return null;
+      }
+
+      console.log('🎵 SetlistService: Served setlists from Supabase cache:', setlists.length);
+      return setlists;
+    } catch (dbError) {
+      console.error('🎵 Supabase setlist fallback exception:', dbError);
       return null;
     }
   }

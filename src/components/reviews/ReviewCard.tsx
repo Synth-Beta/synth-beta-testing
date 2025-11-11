@@ -54,6 +54,63 @@ export function ReviewCard({
   const [imageIndex, setImageIndex] = useState(0);
   const [reportModalOpen, setReportModalOpen] = useState(false);
 
+  const categoryMetrics = [
+    {
+      key: 'artist_performance_rating',
+      label: 'Artist performance',
+      rating: (review as any).artist_performance_rating,
+      feedback: (review as any).artist_performance_feedback,
+      recommendation: (review as any).artist_performance_recommendation,
+      color: 'border-pink-400 bg-pink-50/70 text-pink-900'
+    },
+    {
+      key: 'production_rating',
+      label: 'Production',
+      rating: (review as any).production_rating,
+      feedback: (review as any).production_feedback,
+      recommendation: (review as any).production_recommendation,
+      color: 'border-purple-400 bg-purple-50/70 text-purple-900'
+    },
+    {
+      key: 'venue_rating',
+      label: 'Venue',
+      rating: (review as any).venue_rating,
+      feedback: (review as any).venue_feedback,
+      recommendation: (review as any).venue_recommendation,
+      color: 'border-blue-400 bg-blue-50/70 text-blue-900'
+    },
+    {
+      key: 'location_rating',
+      label: 'Location',
+      rating: (review as any).location_rating,
+      feedback: (review as any).location_feedback,
+      recommendation: (review as any).location_recommendation,
+      color: 'border-emerald-400 bg-emerald-50/70 text-emerald-900'
+    },
+    {
+      key: 'value_rating',
+      label: 'Value',
+      rating: (review as any).value_rating,
+      feedback: (review as any).value_feedback,
+      recommendation: (review as any).value_recommendation,
+      color: 'border-amber-400 bg-amber-50/70 text-amber-900'
+    }
+  ];
+
+  const categoryRatings = categoryMetrics
+    .map(metric => (typeof metric.rating === 'number' && metric.rating > 0 ? metric.rating : undefined))
+    .filter((rating): rating is number => typeof rating === 'number');
+
+  const calculatedAverage =
+    categoryRatings.length > 0
+      ? categoryRatings.reduce((total, rating) => total + rating, 0) / categoryRatings.length
+      : 0;
+
+  const averageRating =
+    typeof review.rating === 'number' && !Number.isNaN(review.rating)
+      ? review.rating
+      : calculatedAverage;
+
   const handleLike = async () => {
     console.log('🔍 ReviewCard: handleLike called', {
       currentUserId,
@@ -166,10 +223,11 @@ export function ReviewCard({
   const isOwner = currentUserId && review.user_id === currentUserId;
 
   const renderStars = (rating: number) => {
+    const safeRating = Number.isFinite(rating) ? rating : 0;
     return Array.from({ length: 5 }, (_, i) => {
       const starIndex = i + 1;
-      const isFull = rating >= starIndex;
-      const isHalf = !isFull && rating >= starIndex - 0.5;
+      const isFull = safeRating >= starIndex;
+      const isHalf = !isFull && safeRating >= starIndex - 0.5;
       
       return (
         <div key={i} className="relative w-4 h-4">
@@ -298,21 +356,10 @@ export function ReviewCard({
         <div className="mb-4 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg border-2 border-yellow-300 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <Star
-                    key={i}
-                    className={`w-6 h-6 ${
-                      i < Math.floor(review.rating) 
-                        ? 'text-yellow-500 fill-yellow-500' 
-                        : i < review.rating 
-                        ? 'text-yellow-500 fill-yellow-500' 
-                        : 'text-gray-300 fill-gray-300'
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-3xl font-bold text-gray-900">{review.rating.toFixed(1)}</span>
+          <div className="flex items-center gap-1">
+            {renderStars(averageRating)}
+          </div>
+          <span className="text-3xl font-bold text-gray-900">{averageRating.toFixed(1)}</span>
               <span className="text-sm text-gray-600 font-medium">stars</span>
             </div>
             <div className="text-xs text-gray-500">
@@ -352,6 +399,13 @@ export function ReviewCard({
             </div>
           </div>
         )}
+        {/* Ticket Price */}
+        {typeof (review as any).ticket_price_paid === 'number' && (review as any).ticket_price_paid > 0 && (
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-700">
+            Ticket price (private): ${(review as any).ticket_price_paid.toFixed(2)}
+          </div>
+        )}
+
         {/* Review Text */}
         {review.review_text && (
           <p className="text-[15px] leading-6 text-gray-800 mb-3">
@@ -471,51 +525,40 @@ export function ReviewCard({
           </div>
         </div>
 
-        {/* Category Breakdown with stronger contrast */}
-        {(review.performance_rating || review.venue_rating || review.overall_experience_rating) && (
-          <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {review.performance_rating && (
-              <div className="rounded-lg border-l-4 border-yellow-400 bg-yellow-50/60 p-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-yellow-900 font-medium">Performance</span>
-                  <div className="flex items-center">
-                    {renderStars(review.performance_rating)}
-                    <span className="ml-1 text-yellow-900 font-semibold">{review.performance_rating.toFixed(1)}</span>
+        {/* Category Breakdown */}
+        {categoryMetrics.some(({ rating, feedback, recommendation }) => rating || feedback || recommendation) && (
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {categoryMetrics.map((category) => {
+              const value = typeof category.rating === 'number' && category.rating > 0 ? category.rating : undefined;
+              if (!value && !category.feedback && !category.recommendation) {
+                return null;
+              }
+              return (
+                <div
+                  key={category.key}
+                  className={cn(
+                    'rounded-lg border-l-4 p-3 shadow-sm',
+                    category.color
+                  )}
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold uppercase tracking-wide">{category.label}</span>
+                    {value && (
+                      <div className="flex items-center">
+                        {renderStars(value)}
+                        <span className="ml-1 font-semibold">{value.toFixed(1)}</span>
+                      </div>
+                    )}
                   </div>
+                  {category.recommendation && (
+                    <p className="mt-1 text-[11px] font-semibold">{category.recommendation}</p>
+                  )}
+                  {category.feedback && (
+                    <p className="mt-1 text-xs italic opacity-80">“{category.feedback}”</p>
+                  )}
                 </div>
-                {review.performance_review_text && (
-                  <p className="mt-1 text-xs text-yellow-900/90 italic">“{review.performance_review_text}”</p>
-                )}
-              </div>
-            )}
-            {review.venue_rating && (
-              <div className="rounded-lg border-l-4 border-blue-500 bg-blue-50/60 p-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-blue-900 font-medium">Venue</span>
-                  <div className="flex items-center">
-                    {renderStars(review.venue_rating)}
-                    <span className="ml-1 text-blue-900 font-semibold">{review.venue_rating.toFixed(1)}</span>
-                  </div>
-                </div>
-                {review.venue_review_text && (
-                  <p className="mt-1 text-xs text-blue-900/90 italic">“{review.venue_review_text}”</p>
-                )}
-              </div>
-            )}
-            {review.overall_experience_rating && (
-              <div className="rounded-lg border-l-4 border-emerald-500 bg-emerald-50/60 p-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-emerald-900 font-medium">Experience</span>
-                  <div className="flex items-center">
-                    {renderStars(review.overall_experience_rating)}
-                    <span className="ml-1 text-emerald-900 font-semibold">{review.overall_experience_rating.toFixed(1)}</span>
-                  </div>
-                </div>
-                {review.overall_experience_review_text && (
-                  <p className="mt-1 text-xs text-emerald-900/90 italic">“{review.overall_experience_review_text}”</p>
-                )}
-              </div>
-            )}
+              );
+            })}
           </div>
         )}
 

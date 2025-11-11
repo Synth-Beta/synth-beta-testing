@@ -22,26 +22,61 @@ interface ReviewStats {
 }
 
 interface Review {
-  artist_name: boolean;
-  venue_name: boolean;
+  artist_name: string;
+  venue_name: string;
   id: string;
   rating: number;
-  performance_rating: number;
-  venue_rating_new: number;
-  overall_experience_rating: number;
+  artist_performance_rating?: number;
+  production_rating?: number;
+  venue_rating?: number;
+  location_rating?: number;
+  value_rating?: number;
+  artist_performance_feedback?: string;
+  production_feedback?: string;
+  venue_feedback?: string;
+  location_feedback?: string;
+  value_feedback?: string;
+  artist_performance_recommendation?: string;
+  production_recommendation?: string;
+  venue_recommendation?: string;
+  location_recommendation?: string;
+  value_recommendation?: string;
+  ticket_price_paid?: number;
   review_text: string;
-  performance_review_text: string;
-  venue_review_text: string;
-  overall_experience_review_text: string;
   created_at: string;
   reviewer_name: string;
-  reviewer_avatar: string;
+  reviewer_avatar: string | null;
   event_title: string;
   event_date: string;
   mood_tags: string[];
   genre_tags: string[];
-  reaction_emoji: string;
+  reaction_emoji: string | null;
+  photos: string[];
+  category_average?: number;
 }
+
+const computeCategoryAverage = (review: {
+  artist_performance_rating?: number;
+  production_rating?: number;
+  venue_rating?: number;
+  location_rating?: number;
+  value_rating?: number;
+  rating?: number;
+}) => {
+  const values = [
+    review.artist_performance_rating,
+    review.production_rating,
+    review.venue_rating,
+    review.location_rating,
+    review.value_rating
+  ].filter((value): value is number => typeof value === 'number' && value > 0);
+
+  if (values.length > 0) {
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+  }
+
+  return typeof review.rating === 'number' ? review.rating : 0;
+};
 
 type SortOption = 'newest' | 'oldest' | 'highest_rating' | 'lowest_rating';
 
@@ -82,8 +117,12 @@ export function ArtistVenueReviews({
         const { data: artistReviewsData, error: artistError } = await (supabase as any)
           .from('user_reviews')
           .select(`
-            performance_rating,
-            overall_experience_rating,
+            rating,
+            artist_performance_rating,
+            production_rating,
+            venue_rating,
+            location_rating,
+            value_rating,
             jambase_events!inner(artist_name, event_date)
           `)
           .eq('is_public', true)
@@ -99,10 +138,10 @@ export function ArtistVenueReviews({
           });
         } else if (artistReviewsData && artistReviewsData.length > 0) {
         
-          // Calculate average of performance_rating and overall_experience_rating
+          // Calculate average across available category ratings
           const validRatings = artistReviewsData
-            .filter(review => review.performance_rating && review.overall_experience_rating)
-            .map(review => (review.performance_rating + review.overall_experience_rating) / 2);
+            .map(review => computeCategoryAverage(review))
+            .filter(value => typeof value === 'number' && value > 0);
           
           const totalReviews = validRatings.length;
           const averageRating = totalReviews > 0 
@@ -123,17 +162,28 @@ export function ArtistVenueReviews({
               user_id,
               event_id,
               rating,
-              performance_rating,
-              overall_experience_rating,
-              venue_rating_new,
+              artist_performance_rating,
+              production_rating,
+              venue_rating,
+              location_rating,
+              value_rating,
+              artist_performance_feedback,
+              production_feedback,
+              venue_feedback,
+              location_feedback,
+              value_feedback,
+              artist_performance_recommendation,
+              production_recommendation,
+              venue_recommendation,
+              location_recommendation,
+              value_recommendation,
+              ticket_price_paid,
               review_text,
-              performance_review_text,
-              venue_review_text,
-              overall_experience_review_text,
               created_at,
               mood_tags,
               genre_tags,
-              reaction_emoji
+              reaction_emoji,
+              photos
             `)
             .eq('is_public', true);
 
@@ -166,16 +216,26 @@ export function ArtistVenueReviews({
                 const event = events?.find(e => e.id === review.event_id);
                 
                 
-                return {
+                const enrichedReview: Review = {
                   id: review.id,
                   rating: review.rating,
-                  performance_rating: review.performance_rating,
-                  venue_rating_new: review.venue_rating_new,
-                  overall_experience_rating: review.overall_experience_rating,
+                  artist_performance_rating: review.artist_performance_rating ?? undefined,
+                  production_rating: review.production_rating ?? undefined,
+                  venue_rating: review.venue_rating ?? undefined,
+                  location_rating: review.location_rating ?? undefined,
+                  value_rating: review.value_rating ?? undefined,
+                  artist_performance_feedback: review.artist_performance_feedback ?? undefined,
+                  production_feedback: review.production_feedback ?? undefined,
+                  venue_feedback: review.venue_feedback ?? undefined,
+                  location_feedback: review.location_feedback ?? undefined,
+                  value_feedback: review.value_feedback ?? undefined,
+                  artist_performance_recommendation: review.artist_performance_recommendation ?? undefined,
+                  production_recommendation: review.production_recommendation ?? undefined,
+                  venue_recommendation: review.venue_recommendation ?? undefined,
+                  location_recommendation: review.location_recommendation ?? undefined,
+                  value_recommendation: review.value_recommendation ?? undefined,
+                  ticket_price_paid: review.ticket_price_paid ?? undefined,
                   review_text: review.review_text,
-                  performance_review_text: review.performance_review_text,
-                  venue_review_text: review.venue_review_text,
-                  overall_experience_review_text: review.overall_experience_review_text,
                   created_at: review.created_at,
                   reviewer_name: profile?.name || 'Anonymous',
                   reviewer_avatar: profile?.avatar_url || null,
@@ -185,8 +245,12 @@ export function ArtistVenueReviews({
                   genre_tags: review.genre_tags || [],
                   reaction_emoji: review.reaction_emoji || null,
                   artist_name: event?.artist_name || '',
-                  venue_name: event?.venue_name || ''
+                  venue_name: event?.venue_name || '',
+                  photos: Array.isArray(review.photos) ? review.photos : [],
+                  category_average: computeCategoryAverage(review)
                 };
+
+                return enrichedReview;
               })
               .filter(review => 
                 review.artist_name && 
@@ -218,17 +282,20 @@ export function ArtistVenueReviews({
         console.log('🏢 Fetching venue reviews for:', venueName);
         
         // Query ALL reviews where the venue_name matches (regardless of artist)
-        // Check for both venue_rating_new and venue_rating fields
         const { data: venueReviewsData, error: venueError } = await (supabase as any)
           .from('user_reviews')
           .select(`
-            venue_rating_new,
+            rating,
+            artist_performance_rating,
+            production_rating,
             venue_rating,
+            location_rating,
+            value_rating,
             jambase_events!inner(venue_name, event_date, artist_name)
           `)
           .eq('is_public', true)
           .ilike('jambase_events.venue_name', venueName)
-          .or('venue_rating_new.not.is.null,venue_rating.not.is.null');
+          .or('venue_rating.not.is.null,rating.not.is.null');
         
         console.log('🏢 Venue reviews query result:', {
           data: venueReviewsData?.length || 0,
@@ -266,10 +333,9 @@ export function ArtistVenueReviews({
           });
         } else if (venueReviewsData && venueReviewsData.length > 0) {
           
-          // Use venue_rating_new if available, otherwise fall back to venue_rating
           const validRatings = venueReviewsData
-            .filter(review => review.venue_rating_new || review.venue_rating)
-            .map(review => review.venue_rating_new || review.venue_rating);
+            .map(review => computeCategoryAverage(review))
+            .filter(value => typeof value === 'number' && value > 0);
           
           const totalReviews = validRatings.length;
           const averageRating = totalReviews > 0 
@@ -290,24 +356,39 @@ export function ArtistVenueReviews({
               user_id,
               event_id,
               rating,
-              performance_rating,
-              venue_rating_new,
-              overall_experience_rating,
+              artist_performance_rating,
+              production_rating,
+              venue_rating,
+              location_rating,
+              value_rating,
+              artist_performance_feedback,
+              production_feedback,
+              venue_feedback,
+              location_feedback,
+              value_feedback,
+              artist_performance_recommendation,
+              production_recommendation,
+              venue_recommendation,
+              location_recommendation,
+              value_recommendation,
+              ticket_price_paid,
               review_text,
-              performance_review_text,
-              venue_review_text,
-              overall_experience_review_text,
               created_at,
               mood_tags,
               genre_tags,
-              reaction_emoji
+              reaction_emoji,
+              photos
             `)
             .eq('is_public', true);
 
           if (!detailedError && detailedReviews) {
             // Get all reviews that have venue ratings (these are the ones we want to show for venue reviews)
             const venueReviews = detailedReviews.filter(review => 
-              review.venue_rating_new || review.venue_rating
+              review.venue_rating ||
+              review.artist_performance_rating ||
+              review.production_rating ||
+              review.location_rating ||
+              review.value_rating
             );
 
             // Get user profiles for venue reviews
@@ -334,13 +415,23 @@ export function ArtistVenueReviews({
                 return {
                   id: review.id,
                   rating: review.rating,
-                  performance_rating: review.performance_rating,
-                  venue_rating_new: review.venue_rating_new,
-                  overall_experience_rating: review.overall_experience_rating,
+                  artist_performance_rating: review.artist_performance_rating ?? undefined,
+                  production_rating: review.production_rating ?? undefined,
+                  venue_rating: review.venue_rating ?? undefined,
+                  location_rating: review.location_rating ?? undefined,
+                  value_rating: review.value_rating ?? undefined,
+                  artist_performance_feedback: review.artist_performance_feedback ?? undefined,
+                  production_feedback: review.production_feedback ?? undefined,
+                  venue_feedback: review.venue_feedback ?? undefined,
+                  location_feedback: review.location_feedback ?? undefined,
+                  value_feedback: review.value_feedback ?? undefined,
+                  artist_performance_recommendation: review.artist_performance_recommendation ?? undefined,
+                  production_recommendation: review.production_recommendation ?? undefined,
+                  venue_recommendation: review.venue_recommendation ?? undefined,
+                  location_recommendation: review.location_recommendation ?? undefined,
+                  value_recommendation: review.value_recommendation ?? undefined,
+                  ticket_price_paid: review.ticket_price_paid ?? undefined,
                   review_text: review.review_text,
-                  performance_review_text: review.performance_review_text,
-                  venue_review_text: review.venue_review_text,
-                  overall_experience_review_text: review.overall_experience_review_text,
                   created_at: review.created_at,
                   reviewer_name: profile?.name || 'Anonymous',
                   reviewer_avatar: profile?.avatar_url || null,
@@ -350,7 +441,9 @@ export function ArtistVenueReviews({
                   genre_tags: review.genre_tags || [],
                   reaction_emoji: review.reaction_emoji || null,
                   artist_name: event?.artist_name || '',
-                  venue_name: event?.venue_name || ''
+                  venue_name: event?.venue_name || '',
+                  photos: Array.isArray(review.photos) ? review.photos : [],
+                  category_average: computeCategoryAverage(review)
                 };
               })
               .filter(review => {
@@ -398,15 +491,15 @@ export function ArtistVenueReviews({
         return sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       case 'highest_rating':
         return sorted.sort((a, b) => {
-          const aRating = a.performance_rating || a.venue_rating_new || 0;
-          const bRating = b.performance_rating || b.venue_rating_new || 0;
-          return bRating - aRating;
+          const aRating = a.category_average ?? computeCategoryAverage(a);
+          const bRating = b.category_average ?? computeCategoryAverage(b);
+          return (bRating || 0) - (aRating || 0);
         });
       case 'lowest_rating':
         return sorted.sort((a, b) => {
-          const aRating = a.performance_rating || a.venue_rating_new || 0;
-          const bRating = b.performance_rating || b.venue_rating_new || 0;
-          return aRating - bRating;
+          const aRating = a.category_average ?? computeCategoryAverage(a);
+          const bRating = b.category_average ?? computeCategoryAverage(b);
+          return (aRating || 0) - (bRating || 0);
         });
       default:
         return sorted;
@@ -449,9 +542,7 @@ export function ArtistVenueReviews({
   };
 
   const renderReviewCard = (review: Review, isArtistReview: boolean = true) => {
-    const primaryRating = isArtistReview 
-      ? (review.performance_rating + review.overall_experience_rating) / 2
-      : review.venue_rating_new;
+    const primaryRating = review.category_average ?? computeCategoryAverage(review);
     
     return (
       <div key={review.id} className="border rounded-lg p-4 space-y-3">
@@ -491,20 +582,63 @@ export function ArtistVenueReviews({
         {review.review_text && (
           <p className="text-sm text-gray-700">{review.review_text}</p>
         )}
-        
-        {isArtistReview && review.performance_review_text && (
-          <div className="text-sm">
-            <span className="font-medium text-gray-600">Performance: </span>
-            <span className="text-gray-700">{review.performance_review_text}</span>
+        {typeof review.ticket_price_paid === 'number' && review.ticket_price_paid > 0 && (
+          <div className="inline-flex items-center gap-2 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+            Ticket price (private): ${review.ticket_price_paid.toFixed(2)}
           </div>
         )}
-        
-        {!isArtistReview && review.venue_review_text && (
-          <div className="text-sm">
-            <span className="font-medium text-gray-600">Venue: </span>
-            <span className="text-gray-700">{review.venue_review_text}</span>
-          </div>
-        )}
+
+        {[
+          {
+            label: 'Artist performance',
+            rating: review.artist_performance_rating,
+            feedback: review.artist_performance_feedback,
+            recommendation: review.artist_performance_recommendation
+          },
+          {
+            label: 'Production',
+            rating: review.production_rating,
+            feedback: review.production_feedback,
+            recommendation: review.production_recommendation
+          },
+          {
+            label: 'Venue',
+            rating: review.venue_rating,
+            feedback: review.venue_feedback,
+            recommendation: review.venue_recommendation
+          },
+          {
+            label: 'Location',
+            rating: review.location_rating,
+            feedback: review.location_feedback,
+            recommendation: review.location_recommendation
+          },
+          {
+            label: 'Value',
+            rating: review.value_rating,
+            feedback: review.value_feedback,
+            recommendation: review.value_recommendation
+          }
+        ]
+          .filter(({ rating, feedback, recommendation }) => rating || feedback || recommendation)
+          .map(({ label, rating, feedback, recommendation }) => (
+            <div key={label} className="text-sm border-l-4 border-pink-200 pl-2 mt-2">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-600">{label}</span>
+                {typeof rating === 'number' && (
+                  <span className="text-xs text-gray-500">
+                    {rating.toFixed(1)}
+                  </span>
+                )}
+              </div>
+              {recommendation && (
+                <div className="text-xs text-gray-500">{recommendation}</div>
+              )}
+              {feedback && (
+                <div className="text-xs text-gray-700 italic">“{feedback}”</div>
+              )}
+            </div>
+          ))}
         
         {(review.mood_tags && review.mood_tags.length > 0) && (
           <div className="flex flex-wrap gap-1">

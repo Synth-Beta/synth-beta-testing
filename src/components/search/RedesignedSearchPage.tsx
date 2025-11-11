@@ -62,6 +62,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   const [events, setEvents] = useState<JamBaseEventResponse[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<JamBaseEventResponse[]>([]);
   const [dateFilteredEvents, setDateFilteredEvents] = useState<JamBaseEventResponse[]>([]);
+  const [searchResults, setSearchResults] = useState<JamBaseEventResponse[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<JamBaseEventResponse | null>(null);
   
@@ -105,16 +106,22 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
 
   const { toast } = useToast();
 
+  const baseEvents = useMemo(() => searchResults ?? events, [searchResults, events]);
+  const isArtistSearchActive = useMemo(
+    () => searchType === 'artists' && searchQuery.trim().length > 0 && searchResults !== null,
+    [searchType, searchQuery, searchResults]
+  );
+
   // Available genres from events
   const availableGenres = useMemo(() => {
     const genreSet = new Set<string>();
-    events.forEach(event => {
+    baseEvents.forEach(event => {
       if (event.genres) {
         event.genres.forEach(genre => genreSet.add(genre));
       }
     });
     return Array.from(genreSet).sort();
-  }, [events]);
+  }, [baseEvents]);
 
   // Sort events based on selected criteria
   const sortedEvents = useMemo(() => {
@@ -210,7 +217,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     }, 100); // Debounce by 100ms
     
     return () => clearTimeout(timeoutId);
-  }, [events, filters, followedArtists, followedVenues]);
+  }, [events, searchResults, filters, followedArtists, followedVenues, searchQuery, searchType]);
 
   // Update map center when location filters change
   useEffect(() => {
@@ -324,9 +331,6 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         // Mark that we've called the API this session
         locationApiCalledRef.current = true;
         
-        // Use relative URL in production (Vercel serverless functions) or backend URL in development
-        const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && !window.location.hostname.startsWith('127.0.0.1');
-        const backendUrl = isProduction ? '' : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001');
         const queryParams = new URLSearchParams();
         queryParams.append('latlong', `${providedLocation.latitude},${providedLocation.longitude}`);
         queryParams.append('radius', '50');
@@ -336,9 +340,48 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
         queryParams.append('classificationName', 'music');
         queryParams.append('startDateTime', new Date().toISOString().split('.')[0] + 'Z');
         // API key is handled by backend, don't pass it here
-        
-        const fullUrl = `${backendUrl}/api/ticketmaster/events?${queryParams.toString()}`;
-        console.log(`🔵 Calling backend: ${fullUrl}`);
+
+        const isProduction =
+          typeof window !== 'undefined' &&
+          window.location.hostname !== 'localhost' &&
+          !window.location.hostname.startsWith('127.0.0.1');
+
+        const queryString = queryParams.toString();
+        const backendUrl = import.meta.env.VITE_BACKEND_URL;
+        const remoteFallbackEnv = import.meta.env.VITE_TICKETMASTER_REMOTE_BASE || import.meta.env.VITE_PUBLIC_APP_URL || import.meta.env.VITE_VERCEL_URL;
+
+        const candidateUrls: { url: string; label: string }[] = [];
+
+        if (!isProduction) {
+          if (backendUrl) {
+            candidateUrls.push({
+              url: `${backendUrl.replace(/\/$/, '')}/api/ticketmaster/events?${queryString}`,
+              label: 'VITE_BACKEND_URL'
+            });
+          }
+
+          candidateUrls.push({
+            url: `/api/ticketmaster/events?${queryString}`,
+            label: 'Vite proxy (relative path)'
+          });
+        } else {
+          candidateUrls.push({
+            url: `/api/ticketmaster/events?${queryString}`,
+            label: 'Production relative path'
+          });
+        }
+
+        const remoteBases = remoteFallbackEnv
+          ? remoteFallbackEnv.split(',').map(base => base.trim()).filter(Boolean)
+          : ['https://synth-beta-testing.vercel.app'];
+
+        remoteBases.forEach(base => {
+          candidateUrls.push({
+            url: `${base.replace(/\/$/, '')}/api/ticketmaster/events?${queryString}`,
+            label: `Remote fallback (${base})`
+          });
+        });
+
         console.log(`🔵 Query params:`, {
           latlong: `${providedLocation.latitude},${providedLocation.longitude}`,
           radius: '50',
@@ -347,11 +390,21 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           classificationName: 'music'
         });
         
-        try {
-          const response = await fetch(fullUrl);
-          if (response.ok) {
+        let apiSuccess = false;
+
+        for (const candidate of candidateUrls) {
+          try {
+            console.log(`🔵 Calling backend via ${candidate.label}: ${candidate.url}`);
+            const response = await fetch(candidate.url);
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error(`⚠️ Ticketmaster API error (${candidate.label}):`, response.status, errorText);
+              continue;
+            }
+
             const data = await response.json();
-            console.log(`✅ Found ${data.events?.length || 0} events from Ticketmaster API`);
+            console.log(`✅ Found ${data.events?.length || 0} events from Ticketmaster API (${candidate.label})`);
             console.log(`🔵 Full response:`, data);
             console.log(`🔵 BACKEND DEBUG INFO:`, data.debug);
             if (data.debug) {
@@ -363,15 +416,17 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
               console.log(`  - countryCode: ${data.debug.countryCode}`);
             }
             console.log(`✅ Events stored in database. Now querying...`);
-            // Wait a moment for database to commit
-            await new Promise(resolve => setTimeout(resolve, 500));
-          } else {
-            const errorText = await response.text();
-            console.error('⚠️ Ticketmaster API error:', response.status, errorText);
+            apiSuccess = true;
+            break;
+          } catch (apiError) {
+            console.error(`⚠️ Ticketmaster API search failed via ${candidate.label}:`, apiError);
+            // Try next candidate
           }
-        } catch (apiError) {
-          console.error('⚠️ Ticketmaster API search failed:', apiError);
-          // Continue with database query anyway
+        }
+
+        if (apiSuccess) {
+          // Wait briefly to allow database writes
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       } else if (providedLocation && !shouldCallApi) {
         console.log('🔒 Location API call skipped (already called this session). Using database only.');
@@ -610,6 +665,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     
     setIsSearchingArea(true);
     try {
+      setSearchResults(null);
       const [lat, lng] = mapCenter;
       console.log(`🔍 Searching for events at map center: (${lat}, ${lng}) with ${filters.radiusMiles} mile radius...`);
       
@@ -675,8 +731,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
 
   const filterEventsInBounds = (bounds: { north: number; south: number; east: number; west: number }) => {
     // Filtering events in bounds
-    
-    const eventsInBounds = events.filter(event => {
+    const sourceEvents = searchResults ?? events;
+    const eventsInBounds = sourceEvents.filter(event => {
       if (!event.latitude || !event.longitude) return false;
       
       const lat = Number(event.latitude);
@@ -691,14 +747,28 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     // If no events found in bounds, show all events (including those without coordinates)
     // This ensures past events with setlists are visible even if they lack coordinates
     if (eventsInBounds.length === 0) {
-      setFilteredEvents(events);
+      setFilteredEvents(sourceEvents);
     } else {
       setFilteredEvents(eventsInBounds);
     }
   };
 
   const filterEvents = async () => {
-    let filtered = [...events];
+    const hasActiveFilters =
+      (filters.genres && filters.genres.length > 0) ||
+      (filters.selectedCities && filters.selectedCities.length > 0) ||
+      !!filters.dateRange.from ||
+      !!filters.dateRange.to ||
+      (filters.daysOfWeek && filters.daysOfWeek.length > 0) ||
+      filters.filterByFollowing === 'following';
+
+    if (isArtistSearchActive && !hasActiveFilters) {
+      setFilteredEvents(searchResults ?? []);
+      return;
+    }
+
+    const sourceEvents = searchResults ?? events;
+    let filtered = [...sourceEvents];
 
 
     // Normal filtering when no venue is selected
@@ -851,6 +921,9 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
 
     setSearchQuery(query);
     setSearchType(type);
+    if (type !== 'artists') {
+      setSearchResults(null);
+    }
     
     if (type === 'events' || type === 'all') {
       // The filtering will be handled by the useEffect
@@ -919,7 +992,15 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           source: (event as any).source // Keep source for internal tracking only (not shown in UI)
         })) || [];
         
+        setSearchResults(formattedEvents);
         setFilteredEvents(formattedEvents);
+        setSelectedVenue(null);
+        setSelectedDate(undefined);
+        const firstEventWithCoords = formattedEvents.find(event => event.latitude && event.longitude);
+        if (firstEventWithCoords && firstEventWithCoords.latitude && firstEventWithCoords.longitude) {
+          setMapCenter([Number(firstEventWithCoords.latitude), Number(firstEventWithCoords.longitude)]);
+          setMapZoom(10);
+        }
         
         // 🎯 TRACK: Search results for artist
         const searchDuration = Date.now() - searchStartTime;
@@ -943,6 +1024,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           search_type: 'artists',
           error: 'fetch_failed'
         });
+        setSearchResults([]);
+        setFilteredEvents([]);
         
         toast({
           title: "Error",
@@ -959,6 +1042,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     setSearchQuery('');
     setSearchType('all');
     // Reset filtered events to show all events
+    setSearchResults(null);
     setFilteredEvents(events);
   };
 
@@ -1015,7 +1099,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
 
   const handleVenueClick = (venueId: string, venueName: string, latitude: number, longitude: number) => {
     // Filter events for this venue immediately
-    const venueEvents = events.filter(event => {
+    const sourceEvents = searchResults ?? events;
+    const venueEvents = sourceEvents.filter(event => {
       if (!event.venue_name) return false;
       
       const eventVenue = event.venue_name.trim();
@@ -1260,7 +1345,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                       <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2 gradient-text">
                         <Map className="h-5 w-5 hover-icon" />
-                        Events Map
+                        {isArtistSearchActive ? `Map for "${searchQuery}"` : 'Events Map'}
                       </CardTitle>
                         {filters.selectedCities && filters.selectedCities.length > 0 && (
                           <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-gray-200 shadow-md hover:shadow-lg transition-shadow">
@@ -1341,10 +1426,21 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                 <Card className="glass-card inner-glow relative z-10 floating-shadow">
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2 gradient-text">
-                        <Music className="h-5 w-5 hover-icon" />
-                        {selectedDate ? `Events on ${format(selectedDate, 'MMM d, yyyy')}` : 'Upcoming Events'}
-                      </CardTitle>
+                      <div className="flex flex-col">
+                        <CardTitle className="flex items-center gap-2 gradient-text">
+                          <Music className="h-5 w-5 hover-icon" />
+                          {selectedDate
+                            ? `Events on ${format(selectedDate, 'MMM d, yyyy')}`
+                            : isArtistSearchActive
+                              ? `Events for "${searchQuery}"`
+                              : 'Upcoming Events'}
+                        </CardTitle>
+                        {isArtistSearchActive && (
+                          <span className="text-xs text-muted-foreground mt-1">
+                            Showing {filteredEvents.length} event{filteredEvents.length === 1 ? '' : 's'}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
                         {/* Clear Venue Filter */}
                         {selectedVenue && (
@@ -1354,7 +1450,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                             onClick={() => {
                               setSelectedVenue(null);
                               // Reset filtered events to show all events
-                              setFilteredEvents(events);
+                          setFilteredEvents(searchResults ?? events);
                               // Reset map zoom to default
                               setMapZoom(4);
                               toast({
@@ -1643,6 +1739,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                   onClick={() => {
                     setSearchQuery('');
                     setSearchType('all');
+                    setSearchResults(null);
                     setFilteredEvents(events);
                     setFilters({
                       genres: [],

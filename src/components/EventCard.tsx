@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Heart, X, Calendar, MapPin, Users, Star, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { isEventPast, getEventStatus } from "@/utils/eventStatusUtils"
 import { useSetlist } from "@/hooks/useSetlist"
+import { getFallbackEventImage } from "@/utils/eventImageFallbacks"
 
 export interface Event {
   id: string
@@ -39,6 +40,12 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
 
   // Fetch setlist data for past events
   const { setlist, loading: setlistLoading, hasSetlist, songCount } = useSetlist(event.id)
+
+  const fallbackImage = useMemo(
+    () => getFallbackEventImage(`${event.id}-${event.title}`),
+    [event.id, event.title]
+  )
+  const eventImage = event.image || fallbackImage
 
   const handleSwipe = (direction: "like" | "pass") => {
     setSwipeDirection(direction)
@@ -81,7 +88,7 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
       {/* Event Image */}
       <div className="relative h-72 overflow-hidden">
         <img
-          src={event.image || "/placeholder.svg"}
+          src={eventImage}
           alt={`${event.title} event image`}
           className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
           loading="lazy"

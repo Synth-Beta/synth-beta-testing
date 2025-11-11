@@ -62,48 +62,69 @@ export function PublicReviewCard({ review, onOpen }: PublicReviewCardProps) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 space-y-3">
         {review.review_text && (
-          <p className="text-[15px] leading-6 text-gray-800 mb-3">{review.review_text}</p>
+          <p className="text-[15px] leading-6 text-gray-800">{review.review_text}</p>
         )}
 
-        {(review.performance_rating || review.venue_rating || review.overall_experience_rating) && (
-          <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {review.performance_rating && (
-              <div className="rounded-lg border-l-4 border-yellow-400 bg-yellow-50/60 p-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-yellow-900 font-medium">Performance</span>
-                  <div className="flex items-center">
-                    {renderStars(review.performance_rating)}
-                    <span className="ml-1 text-yellow-900 font-semibold">{review.performance_rating.toFixed(1)}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            {review.venue_rating && (
-              <div className="rounded-lg border-l-4 border-blue-500 bg-blue-50/60 p-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-blue-900 font-medium">Venue</span>
-                  <div className="flex items-center">
-                    {renderStars(review.venue_rating)}
-                    <span className="ml-1 text-blue-900 font-semibold">{review.venue_rating.toFixed(1)}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            {review.overall_experience_rating && (
-              <div className="rounded-lg border-l-4 border-emerald-500 bg-emerald-50/60 p-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-emerald-900 font-medium">Experience</span>
-                  <div className="flex items-center">
-                    {renderStars(review.overall_experience_rating)}
-                    <span className="ml-1 text-emerald-900 font-semibold">{review.overall_experience_rating.toFixed(1)}</span>
-                  </div>
-                </div>
-              </div>
-            )}
+        {typeof review.ticket_price_paid === 'number' && review.ticket_price_paid > 0 && (
+          <div className="text-xs text-gray-600 bg-gray-100 inline-flex px-2 py-1 rounded">
+            Ticket price (private): ${review.ticket_price_paid.toFixed(2)}
           </div>
         )}
+
+        {[
+          {
+            label: 'Artist performance',
+            rating: review.artist_performance_rating,
+            feedback: review.artist_performance_feedback,
+            recommendation: review.artist_performance_recommendation
+          },
+          {
+            label: 'Production',
+            rating: review.production_rating,
+            feedback: review.production_feedback,
+            recommendation: review.production_recommendation
+          },
+          {
+            label: 'Venue',
+            rating: review.venue_rating,
+            feedback: review.venue_feedback,
+            recommendation: review.venue_recommendation
+          },
+          {
+            label: 'Location',
+            rating: review.location_rating,
+            feedback: review.location_feedback,
+            recommendation: review.location_recommendation
+          },
+          {
+            label: 'Value',
+            rating: review.value_rating,
+            feedback: review.value_feedback,
+            recommendation: review.value_recommendation
+          }
+        ]
+          .filter(({ rating, feedback, recommendation }) => rating || feedback || recommendation)
+          .map(({ label, rating, feedback, recommendation }) => (
+            <div key={label} className="rounded-lg border-l-4 border-pink-200 bg-pink-50/40 p-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-700 font-medium">{label}</span>
+                {typeof rating === 'number' && (
+                  <div className="flex items-center gap-1">
+                    {renderStars(rating)}
+                    <span className="font-semibold text-gray-700">{rating.toFixed(1)}</span>
+                  </div>
+                )}
+              </div>
+              {recommendation && (
+                <div className="text-gray-500">{recommendation}</div>
+              )}
+              {feedback && (
+                <div className="text-gray-700 italic">“{feedback}”</div>
+              )}
+            </div>
+          ))}
       </CardContent>
     </Card>
   );

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Check, Calendar, Music, X } from 'lucide-react';
+import { Calendar, X } from 'lucide-react';
 import { ArtistSearchBox } from '@/components/ArtistSearchBox';
 import { VenueSearchBox } from '@/components/VenueSearchBox';
-import { SetlistModal } from '@/components/reviews/SetlistModal';
 import type { Artist } from '@/types/concertSearch';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
@@ -25,14 +24,6 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
   const [eventResults, setEventResults] = React.useState<Array<any>>([]);
   const [eventLoading, setEventLoading] = React.useState(false);
   const [showEventResults, setShowEventResults] = React.useState(false);
-  
-  // Setlist modal state
-  const [showSetlistModal, setShowSetlistModal] = React.useState(false);
-  
-  const handleSetlistSelect = (setlist: any) => {
-    console.log('🎵 EventDetailsStep: Setlist selected:', setlist);
-    onUpdateFormData({ selectedSetlist: setlist });
-  };
 
   React.useEffect(() => {
     const handler = setTimeout(async () => {
@@ -122,8 +113,6 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
     if (eventDate) (updates as any).eventDate = eventDate;
     onUpdateFormData(updates);
     setShowEventResults(false);
-    
-    // Lock the fields to show confirmed selections
     if (selectedArtist) setArtistLocked(true);
     if (selectedVenue) setVenueLocked(true);
   };
@@ -379,14 +368,6 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
       )}
 
       {/* Setlist Modal */}
-      <SetlistModal
-        isOpen={showSetlistModal}
-        onClose={() => setShowSetlistModal(false)}
-        artistName={formData.selectedArtist?.name || ''}
-        venueName={formData.selectedVenue?.name}
-        eventDate={formData.eventDate}
-        onSetlistSelect={handleSetlistSelect}
-      />
     </div>
   );
 }

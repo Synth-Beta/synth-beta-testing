@@ -8,6 +8,7 @@ import { ReviewService, type CommentWithUser } from '@/services/reviewService';
 import { ShareService } from '@/services/shareService';
 import { supabase } from '@/integrations/supabase/client';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
+import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
 
 interface ReviewEventMeta {
   event_name: string;
@@ -70,9 +71,12 @@ export function ProfileReviewCard({
   const baseStars = normalizeRating(rating);
   const getDisplayStars = () => {
     const parts: number[] = [];
-    if (typeof (categoryRatings.performance) === 'number' && categoryRatings.performance > 0) parts.push(categoryRatings.performance);
-    if (typeof (categoryRatings.venue) === 'number' && categoryRatings.venue > 0) parts.push(categoryRatings.venue);
-    if (typeof (categoryRatings.overall) === 'number' && categoryRatings.overall > 0) parts.push(categoryRatings.overall);
+    ['artistPerformance', 'production', 'venue', 'location', 'value'].forEach((key) => {
+      const candidate = (categoryRatings as any)[key];
+      if (typeof candidate === 'number' && candidate > 0) {
+        parts.push(candidate);
+      }
+    });
     if (parts.length === 0) return baseStars;
     const avg = parts.reduce((a, b) => a + b, 0) / parts.length;
     return Math.round(avg * 2) / 2;
@@ -87,7 +91,13 @@ export function ProfileReviewCard({
   const [newComment, setNewComment] = React.useState<string>('');
   const [submitting, setSubmitting] = React.useState<boolean>(false);
   const [media, setMedia] = React.useState<{ photos: string[]; videos: string[] }>({ photos: initialPhotos || [], videos: initialVideos || [] });
-  const [categoryRatings, setCategoryRatings] = React.useState<{ performance?: number; venue?: number; overall?: number }>({});
+  const [categoryRatings, setCategoryRatings] = React.useState<{
+    artistPerformance?: number;
+    production?: number;
+    venue?: number;
+    location?: number;
+    value?: number;
+  }>({});
   const [artistAvatar, setArtistAvatar] = React.useState<string | null>(null);
 
   const toggleComments = async () => {
@@ -201,7 +211,7 @@ export function ProfileReviewCard({
         // fetch media and ratings
         const { data } = await (supabase as any)
           .from('user_reviews')
-          .select('photos, videos, performance_rating, venue_rating_new, overall_experience_rating')
+          .select('photos, videos, artist_performance_rating, production_rating, venue_rating, location_rating, value_rating')
           .eq('id', reviewId)
           .maybeSingle();
         if (data) {
@@ -211,9 +221,11 @@ export function ProfileReviewCard({
             setMedia({ photos: nextPhotos, videos: nextVideos });
           }
           setCategoryRatings({
-            performance: typeof data.performance_rating === 'number' ? data.performance_rating : undefined,
-            venue: typeof data.venue_rating_new === 'number' ? data.venue_rating_new : undefined,
-            overall: typeof data.overall_experience_rating === 'number' ? data.overall_experience_rating : undefined,
+            artistPerformance: typeof data.artist_performance_rating === 'number' ? data.artist_performance_rating : undefined,
+            production: typeof data.production_rating === 'number' ? data.production_rating : undefined,
+            venue: typeof data.venue_rating === 'number' ? data.venue_rating : undefined,
+            location: typeof data.location_rating === 'number' ? data.location_rating : undefined,
+            value: typeof data.value_rating === 'number' ? data.value_rating : undefined,
           });
         }
       } catch {}
@@ -233,52 +245,51 @@ export function ProfileReviewCard({
     })();
   }, [reviewId, event.artist_name]);
 
-  const hasHero = media.photos.length > 0;
+  const userProvidedHero = media.photos.length > 0;
+  const fallbackHeroImage = React.useMemo(
+    () => getFallbackEventImage(`${event.event_name}-${event.event_date}-${reviewId}`),
+    [event.event_name, event.event_date, reviewId]
+  );
+  const heroImage = userProvidedHero ? media.photos[0] : fallbackHeroImage;
+  const heroAltText = `${event.event_name || title || 'Event'} hero image`;
+  const heroWrapperClass = cn(
+    'relative w-full overflow-hidden',
+    userProvidedHero ? 'bg-black' : 'h-40 sm:h-52'
+  );
+  const heroImageClass = cn(
+    'w-full transition-transform duration-500',
+    userProvidedHero ? 'max-h-[60vh] object-contain mx-auto' : 'h-full object-cover brightness-[0.95]'
+  );
 
   return (
     <Card className={cn('border-gray-200 overflow-hidden', className)}>
-      {/* Brand header - only show when there is no photo to hero */}
-      {!hasHero && (
-        <div className="h-32 w-full bg-gradient-to-r from-pink-500 via-fuchsia-500 to-purple-600 relative">
-          <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_20%,white_0%,transparent_30%),radial-gradient(circle_at_80%_30%,white_0%,transparent_35%)]" />
-          <div className="absolute top-3 left-3 flex items-center gap-2 text-white">
-            <Sparkles className="w-4 h-4" />
-            <span className="text-xs tracking-wide">Review</span>
-          </div>
-          {/* Artist avatar */}
-          <div className="absolute -bottom-8 left-4 h-16 w-16 rounded-full ring-4 ring-white overflow-hidden bg-white/80 flex items-center justify-center text-lg font-semibold">
-            {artistAvatar ? (
-              <img src={artistAvatar} alt={event.artist_name || 'Artist'} className="h-full w-full object-cover" />
-            ) : (
-              <span>{(event.artist_name || title || 'A').slice(0,1).toUpperCase()}</span>
-            )}
-          </div>
+      <div className={heroWrapperClass}>
+        <img
+          src={heroImage}
+          alt={heroAltText}
+          className={heroImageClass}
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" aria-hidden="true" />
+        <div className="absolute top-3 left-3 flex items-center gap-2 text-white z-10">
+          <Sparkles className="w-4 h-4" />
+          <span className="text-xs tracking-wide uppercase">Review</span>
         </div>
-      )}
-
-      {/* Hero image showcasing user's experience (first photo). Use object-contain to avoid cropping. */}
-      {hasHero && (
-        <div className="w-full overflow-hidden bg-black relative">
-          {/* Overlay brand + avatar on top of the image */}
-          <div className="absolute top-2 left-2 z-10 flex items-center gap-2 text-white/95">
-            <Sparkles className="w-4 h-4" />
-            <span className="text-xs tracking-wide">Review</span>
-          </div>
-          <div className="absolute top-2 left-2 md:left-4 translate-y-10 z-10 h-12 w-12 md:h-14 md:w-14 rounded-full ring-4 ring-white/80 overflow-hidden bg-white/80 flex items-center justify-center text-base md:text-lg font-semibold">
-            {artistAvatar ? (
-              <img src={artistAvatar} alt={event.artist_name || 'Artist'} className="h-full w-full object-cover" />
-            ) : (
-              <span>{(event.artist_name || title || 'A').slice(0,1).toUpperCase()}</span>
-            )}
-          </div>
-          <img
-            src={media.photos[0]}
-            alt={`${event.event_name} photo 1`}
-            className="w-full max-h-[60vh] object-contain"
-            loading="lazy"
-          />
+        <div
+          className={cn(
+            'absolute z-10 rounded-full ring-4 ring-white/80 overflow-hidden bg-white/80 flex items-center justify-center text-base md:text-lg font-semibold shadow-md transition-all',
+            userProvidedHero
+              ? 'top-3 left-3 md:left-4 translate-y-12 h-12 w-12 md:h-14 md:w-14'
+              : 'bottom-3 left-3 h-16 w-16'
+          )}
+        >
+          {artistAvatar ? (
+            <img src={artistAvatar} alt={event.artist_name || 'Artist'} className="h-full w-full object-cover" />
+          ) : (
+            <span>{(event.artist_name || title || 'A').slice(0, 1).toUpperCase()}</span>
+          )}
         </div>
-      )}
+      </div>
 
       <CardHeader className="pt-10 pb-3">
         <CardTitle className="text-lg">
@@ -334,26 +345,28 @@ export function ProfileReviewCard({
         </div>
 
         {/* Category chips */}
-        {(categoryRatings.performance || categoryRatings.venue || categoryRatings.overall) && (
+        {['artistPerformance', 'production', 'venue', 'location', 'value'].some(
+          (key) => typeof (categoryRatings as any)[key] === 'number'
+        ) && (
           <div className="flex flex-wrap gap-2">
-            {typeof categoryRatings.performance === 'number' && (
-              <Badge variant="outline" className="gap-1">
-                <Star className="w-3 h-3 text-yellow-400" />
-                <span className="text-xs">Performance {categoryRatings.performance.toFixed(1)}</span>
-              </Badge>
-            )}
-            {typeof categoryRatings.venue === 'number' && (
-              <Badge variant="outline" className="gap-1">
-                <Star className="w-3 h-3 text-yellow-400" />
-                <span className="text-xs">Venue {categoryRatings.venue.toFixed(1)}</span>
-              </Badge>
-            )}
-            {typeof categoryRatings.overall === 'number' && (
-              <Badge variant="outline" className="gap-1">
-                <Star className="w-3 h-3 text-yellow-400" />
-                <span className="text-xs">Experience {categoryRatings.overall.toFixed(1)}</span>
-              </Badge>
-            )}
+            {[
+              { key: 'artistPerformance', label: 'Artist' },
+              { key: 'production', label: 'Production' },
+              { key: 'venue', label: 'Venue' },
+              { key: 'location', label: 'Location' },
+              { key: 'value', label: 'Value' }
+            ].map(({ key, label }) => {
+              const value = (categoryRatings as any)[key];
+              if (typeof value !== 'number' || Number.isNaN(value)) return null;
+              return (
+                <Badge key={key} variant="outline" className="gap-1">
+                  <Star className="w-3 h-3 text-yellow-400" />
+                  <span className="text-xs">
+                    {label} {value.toFixed(1)}
+                  </span>
+                </Badge>
+              );
+            })}
           </div>
         )}
 

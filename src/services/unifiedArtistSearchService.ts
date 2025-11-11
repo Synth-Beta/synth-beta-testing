@@ -135,32 +135,91 @@ export class UnifiedArtistSearchService {
    */
   private static async searchTicketmasterAttractions(query: string, limit: number): Promise<any[]> {
     console.log(`🎫 START: searchTicketmasterAttractions for "${query}"`);
-    try {
-      // Use relative URL in production (Vercel serverless functions) or backend URL in development
-      const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && !window.location.hostname.startsWith('127.0.0.1');
-      const backendUrl = isProduction ? '' : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001');
-      const url = `${backendUrl}/api/ticketmaster/attractions?keyword=${encodeURIComponent(query)}&size=${limit}`;
-      
-      console.log('🎫 Calling Ticketmaster attractions API:', url);
-      const response = await fetch(url);
-      
-      console.log(`🎫 Response status: ${response.status}`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.warn('⚠️ Ticketmaster attractions API error:', response.status, errorText);
-        return [];
+    const isProduction =
+      typeof window !== 'undefined' &&
+      window.location.hostname !== 'localhost' &&
+      !window.location.hostname.startsWith('127.0.0.1');
+
+    const queryParams = `keyword=${encodeURIComponent(query)}&size=${limit}`;
+    const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    const remoteFallbackEnv = import.meta.env.VITE_TICKETMASTER_REMOTE_BASE || import.meta.env.VITE_PUBLIC_APP_URL || import.meta.env.VITE_VERCEL_URL;
+
+    const candidateUrls: { url: string; label: string }[] = [];
+
+    if (!isProduction) {
+      if (backendUrl) {
+        candidateUrls.push({
+          url: `${backendUrl.replace(/\/$/, '')}/api/ticketmaster/attractions?${queryParams}`,
+          label: 'VITE_BACKEND_URL'
+        });
       }
-      
-      const data = await response.json();
-      console.log(`🎫 Ticketmaster data:`, data);
-      const attractions = data.attractions || [];
-      console.log(`🎫 Found ${attractions.length} attractions`);
-      return attractions;
-    } catch (error) {
-      console.error('❌ Error searching Ticketmaster attractions:', error);
-      return [];
+
+      // Always attempt same-origin path so Vite proxy can handle either local Express or remote target
+      candidateUrls.push({
+        url: `/api/ticketmaster/attractions?${queryParams}`,
+        label: 'Vite proxy (relative path)'
+      });
+    } else {
+      candidateUrls.push({
+        url: `/api/ticketmaster/attractions?${queryParams}`,
+        label: 'Production relative path'
+      });
     }
+
+    if (remoteFallbackEnv) {
+      const remoteBases = remoteFallbackEnv.split(',').map(base => base.trim()).filter(Boolean);
+      remoteBases.forEach(base => {
+        candidateUrls.push({
+          url: `${base.replace(/\/$/, '')}/api/ticketmaster/attractions?${queryParams}`,
+          label: `Remote fallback (${base})`
+        });
+      });
+    } else {
+      candidateUrls.push({
+        url: 'https://synth-beta-testing.vercel.app/api/ticketmaster/attractions?' + queryParams,
+        label: 'Default remote fallback'
+      });
+    }
+
+    const attempted: string[] = [];
+
+    for (const candidate of candidateUrls) {
+      try {
+        console.log(`🎫 Calling Ticketmaster attractions via ${candidate.label}: ${candidate.url}`);
+        const response = await fetch(candidate.url);
+        attempted.push(`${candidate.label} -> ${response.status}`);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.warn(`⚠️ Ticketmaster attractions (${candidate.label}) error:`, response.status, errorText);
+          continue;
+        }
+
+        const data = await response.json();
+        const attractions =
+          data.attractions ||
+          data._embedded?.attractions ||
+          [];
+
+        console.log(`🎫 Ticketmaster (${candidate.label}) returned ${attractions.length} attractions`);
+
+        if (Array.isArray(attractions) && attractions.length > 0) {
+          return attractions;
+        }
+      } catch (error) {
+        attempted.push(`${candidate.label} -> fetch_error`);
+        console.error(`❌ Ticketmaster attractions fetch failed via ${candidate.label}:`, error);
+      }
+    }
+
+    console.warn('⚠️ All Ticketmaster attraction endpoints failed:', attempted.join(' | '));
+
+    const fallbackArtists = this.getFallbackArtists(query, limit);
+    if (fallbackArtists.length > 0) {
+      console.log('🎯 Using fallback artists due to Ticketmaster error');
+      return fallbackArtists;
+    }
+    return [];
   }
 
   /**
@@ -194,8 +253,14 @@ export class UnifiedArtistSearchService {
       if (!response.ok) {
         const errorText = await response.text();
         console.warn(`JamBase API error: ${response.status} ${response.statusText}`, errorText);
+
+        if (response.status === 403 && errorText.includes('api_key_expired')) {
+          console.warn('JamBase API key appears to be expired. Falling back to offline artist list.');
+          return this.getFallbackArtists(query, limit);
+        }
+
         console.warn('Returning empty results due to API error');
-        return [];
+        return this.getFallbackArtists(query, limit);
       }
 
       const data = await response.json();
@@ -367,7 +432,12 @@ export class UnifiedArtistSearchService {
 
     for (const jamBaseArtist of jamBaseArtists) {
       try {
-        const artistId = jamBaseArtist.identifier?.split(':')[1] || jamBaseArtist.identifier;
+        const artistId = jamBaseArtist.identifier?.split(':')[1] || jamBaseArtist.identifier || jamBaseArtist.id;
+
+        if (!artistId) {
+          console.warn(`⚠️ Skipping artist ${jamBaseArtist.name} - no identifier available`);
+          continue;
+        }
         
         // Check if artist already exists
         const { data: existingArtist, error: checkError } = await supabase
@@ -387,10 +457,10 @@ export class UnifiedArtistSearchService {
           console.warn(`⚠️  Database error checking artist ${jamBaseArtist.name}:`, checkError);
           // Still add the artist to results even if we can't store it
           populatedArtists.push({
-            id: jamBaseArtist.id,
+            id: jamBaseArtist.id || artistId,
             jambase_artist_id: artistId,
             name: jamBaseArtist.name,
-            identifier: jamBaseArtist.identifier,
+            identifier: jamBaseArtist.identifier || jamBaseArtist.id || artistId,
             url: jamBaseArtist.url,
             image_url: jamBaseArtist.image,
             created_at: new Date().toISOString(),
@@ -414,7 +484,7 @@ export class UnifiedArtistSearchService {
         const { data: existingArtistRecord } = await supabase
           .from('artists')
           .select('id')
-          .eq('jambase_artist_id', jamBaseArtist.id)
+          .eq('jambase_artist_id', artistId)
           .single();
         
         let savedArtist;
@@ -458,10 +528,14 @@ export class UnifiedArtistSearchService {
         populatedArtists.push(savedArtist as any);
       } catch (error) {
         console.error(`❌ Error processing artist ${jamBaseArtist.name}:`, error);
+        const fallbackArtistId = jamBaseArtist.identifier?.split(':')[1] || jamBaseArtist.identifier || jamBaseArtist.id;
+        if (!fallbackArtistId) {
+          continue;
+        }
         // Still add the artist to results even if we can't process it fully
         populatedArtists.push({
-          id: jamBaseArtist.id,
-          jambase_artist_id: jamBaseArtist.identifier?.split(':')[1] || jamBaseArtist.identifier,
+          id: jamBaseArtist.id || fallbackArtistId,
+          jambase_artist_id: fallbackArtistId,
           name: jamBaseArtist.name,
           description: jamBaseArtist.description || `Artist: ${jamBaseArtist.name}`,
           genres: jamBaseArtist.genres || [],
@@ -469,7 +543,7 @@ export class UnifiedArtistSearchService {
           popularity_score: jamBaseArtist['x-numUpcomingEvents'] || 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          identifier: jamBaseArtist.identifier,
+          identifier: jamBaseArtist.identifier || fallbackArtistId,
           band_or_musician: jamBaseArtist['x-bandOrMusician'] || 'band',
           num_upcoming_events: jamBaseArtist['x-numUpcomingEvents'] || 0,
           last_synced_at: new Date().toISOString()
