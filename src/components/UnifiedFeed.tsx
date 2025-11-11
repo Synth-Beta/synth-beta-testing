@@ -19,6 +19,7 @@ import {
   MessageCircle, 
   Share2, 
   MapPin, 
+  Map,
   Calendar,
   Star,
   Globe,
@@ -78,7 +79,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { UnifiedFeedService, UnifiedFeedItem } from '@/services/unifiedFeedService';
-import { EventMap } from './EventMap';
+import { EventMap } from '@/components/events/EventMap';
 import { UnifiedChatView } from './UnifiedChatView';
 import { UserEventService } from '@/services/userEventService';
 import { extractNumericPrice, formatPrice } from '@/utils/currencyUtils';
@@ -97,6 +98,9 @@ import { parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { normalizeCityName } from '@/utils/cityNormalization';
 import { RadiusSearchService } from '@/services/radiusSearchService';
 import { useNavigate } from 'react-router-dom';
+import type { JamBaseEventResponse } from '@/services/jambaseEventsService';
+
+const DEFAULT_MAP_CENTER: [number, number] = [39.8283, -98.5795];
 
 // Using UnifiedFeedItem from service instead of local interface
 
@@ -137,8 +141,8 @@ export const UnifiedFeed = ({
   const [selectedReviewEvent, setSelectedReviewEvent] = useState<any>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | undefined>();
   const [showUnifiedChat, setShowUnifiedChat] = useState(false);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([40.7128, -74.0060]); // Default to NYC
-  const [mapZoom, setMapZoom] = useState(10);
+  const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_MAP_CENTER);
+  const [isMapDialogOpen, setIsMapDialogOpen] = useState(false);
   const { toast } = useToast();
   const { sessionExpired } = useAuth();
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -342,7 +346,6 @@ export const UnifiedFeed = ({
             console.log('✅ Got city coordinates:', coords);
             setUserLocation(coords);
             setMapCenter([coords.lat, coords.lng]);
-            setMapZoom(10);
           }
           
           // Mark as applied so we don't do it again
@@ -578,6 +581,21 @@ export const UnifiedFeed = ({
 
     checkForSelectedEvent();
   }, []);
+
+  const handleMapEventClick = (mapEvent: JamBaseEventResponse) => {
+    const matchingFeedItem = processedFeedItems.find(
+      (item) => item.type === 'event' && item.event_data?.id === mapEvent.id
+    );
+
+    if (matchingFeedItem?.event_data) {
+      setSelectedEventForDetails(matchingFeedItem.event_data);
+    } else {
+      setSelectedEventForDetails(mapEvent);
+    }
+
+    setDetailsOpen(true);
+    setIsMapDialogOpen(false);
+  };
 
   // Instagram-style helper functions
   const nextMedia = (itemId: string, mediaArray: any[]) => {
@@ -1388,6 +1406,70 @@ export const UnifiedFeed = ({
     return sortFeedItems(filteredFeedItems);
   }, [filteredFeedItems, sortBy, sortOrder]);
 
+  const mapEvents = useMemo<JamBaseEventResponse[]>(() => {
+    return processedFeedItems
+      .filter((item): item is UnifiedFeedItem & { event_data: any } => item.type === 'event' && !!item.event_data)
+      .map((item) => {
+        const event = item.event_data;
+        const latitude = event.latitude != null ? Number(event.latitude) : undefined;
+        const longitude = event.longitude != null ? Number(event.longitude) : undefined;
+
+        return {
+          id: event.id,
+          jambase_event_id: event.jambase_event_id ?? event.id,
+          title: event.title ?? event.artist_name ?? 'Untitled Event',
+          artist_name: event.artist_name ?? '',
+          artist_id: event.artist_id ?? '',
+          venue_name: event.venue_name ?? '',
+          venue_id: event.venue_id ?? '',
+          event_date: event.event_date,
+          doors_time: event.doors_time,
+          description: event.description,
+          genres: event.genres ?? [],
+          venue_address: event.venue_address,
+          venue_city: event.venue_city,
+          venue_state: event.venue_state,
+          venue_zip: event.venue_zip,
+          latitude,
+          longitude,
+          ticket_available: event.ticket_available,
+          price_range: event.price_range,
+          ticket_urls: event.ticket_urls ?? (event.ticket_url ? [event.ticket_url] : []),
+          poster_image_url: event.poster_image_url ?? null,
+          setlist: event.setlist ?? null,
+          setlist_enriched: event.setlist_enriched ?? false,
+          setlist_song_count: event.setlist_song_count ?? null,
+          setlist_fm_id: event.setlist_fm_id ?? null,
+          setlist_fm_url: event.setlist_fm_url ?? null,
+          setlist_source: event.setlist_source ?? null,
+          setlist_last_updated: event.setlist_last_updated ?? null,
+          tour_name: event.tour_name ?? null,
+          created_at: event.created_at ?? null,
+          updated_at: event.updated_at ?? null,
+          is_promoted: event.is_promoted ?? false,
+          promotion_tier: event.promotion_tier ?? null,
+          active_promotion_id: event.active_promotion_id ?? null,
+          ticket_price_min: event.ticket_price_min ?? null,
+          ticket_price_max: event.ticket_price_max ?? null,
+        } as JamBaseEventResponse;
+      })
+      .filter((event) => typeof event.latitude === 'number' && typeof event.longitude === 'number');
+  }, [processedFeedItems]);
+
+  const mapZoomLevel = mapEvents.length > 1 ? 6 : 9;
+
+  useEffect(() => {
+    if (isMapDialogOpen) return;
+    const firstWithCoords = mapEvents.find(
+      (event) => typeof event.latitude === 'number' && typeof event.longitude === 'number'
+    );
+    if (firstWithCoords && typeof firstWithCoords.latitude === 'number' && typeof firstWithCoords.longitude === 'number') {
+      setMapCenter([firstWithCoords.latitude, firstWithCoords.longitude]);
+    } else {
+      setMapCenter(DEFAULT_MAP_CENTER);
+    }
+  }, [mapEvents, isMapDialogOpen]);
+
   // 🎯 TRACKING: Event impression tracking with IntersectionObserver
   const eventItems = useMemo(() => 
     processedFeedItems
@@ -1554,49 +1636,45 @@ export const UnifiedFeed = ({
 
           {/* Filters and Refresh Button - Only show on Events tab */}
           {activeTab === 'events' && (
-            <div className="mb-6">
-            <EventFilters
-              filters={pendingFilters}
-              onFiltersChange={(newFilters) => {
-                // Update UI immediately for responsive feel
-                console.log('✅ Filter change detected:', newFilters);
-                
-                // Mark that user has manually changed filters (disable auto-city logic)
-                userHasChangedFiltersRef.current = true;
-                autoCityAppliedRef.current = true;
-                
-                // Update pending filters immediately for UI responsiveness
-                setPendingFilters(newFilters);
-                
-                // Clear any existing debounce timeout
-                if (filterDebounceTimeoutRef.current) {
-                  clearTimeout(filterDebounceTimeoutRef.current);
-                }
-                
-                // Debounce the actual feed reload to prevent rapid-fire queries
-                filterDebounceTimeoutRef.current = setTimeout(() => {
-                  console.log('🔄 Applying debounced filters, regenerating personalized feed...');
-                  
-                  setFilters(newFilters);
-                  setRefreshOffset(0);
-                  
-                  // Check if any filters are active
-                  const hasActiveFilters = 
-                    (newFilters.genres && newFilters.genres.length > 0) ||
-                    (newFilters.selectedCities && newFilters.selectedCities.length > 0) ||
-                    newFilters.dateRange.from || newFilters.dateRange.to ||
-                    (newFilters.daysOfWeek && newFilters.daysOfWeek.length > 0) ||
-                    newFilters.filterByFollowing === 'following';
-                  
-                  if (currentUserId) {
-                    loadFeedData(0, false, true, newFilters); // Use override filters to ensure RPC payload matches latest UI
-                  }
-                }, 400); // 400ms debounce - fast enough to feel responsive, slow enough to batch changes
-              }}
-              availableGenres={availableGenres}
-              availableCities={availableCities}
-              onOverlayChange={(open) => setPendingFilters(prev => ({ ...prev, showFilters: open }))}
-            />
+            <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="md:flex-1">
+                <EventFilters
+                  filters={pendingFilters}
+                  onFiltersChange={(newFilters) => {
+                    console.log('✅ Filter change detected:', newFilters);
+                    userHasChangedFiltersRef.current = true;
+                    autoCityAppliedRef.current = true;
+                    setPendingFilters(newFilters);
+
+                    if (filterDebounceTimeoutRef.current) {
+                      clearTimeout(filterDebounceTimeoutRef.current);
+                    }
+
+                    filterDebounceTimeoutRef.current = setTimeout(() => {
+                      console.log('🔄 Applying debounced filters, regenerating personalized feed...');
+                      setFilters(newFilters);
+                      setRefreshOffset(0);
+
+                      if (currentUserId) {
+                        loadFeedData(0, false, true, newFilters);
+                      }
+                    }, 400);
+                  }}
+                  availableGenres={availableGenres}
+                  availableCities={availableCities}
+                  onOverlayChange={(open) => setPendingFilters(prev => ({ ...prev, showFilters: open }))}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="md:self-start"
+                onClick={() => setIsMapDialogOpen(true)}
+                disabled={mapEvents.length === 0}
+              >
+                <Map className="h-4 w-4 mr-2" />
+                Map View
+              </Button>
             </div>
           )}
 
@@ -2137,6 +2215,34 @@ export const UnifiedFeed = ({
             )}
           </TabsContent>
         </Tabs>
+
+        <Dialog open={isMapDialogOpen} onOpenChange={setIsMapDialogOpen}>
+          <DialogContent className="sm:max-w-[900px] w-full h-[80vh]">
+            <DialogHeader>
+              <DialogTitle>Events Map</DialogTitle>
+              <DialogDescription>
+                Explore upcoming events from your feed on an interactive map.
+              </DialogDescription>
+            </DialogHeader>
+            {mapEvents.length > 0 ? (
+              <div className="h-[calc(80vh-120px)] w-full">
+                <EventMap
+                  center={mapCenter}
+                  zoom={mapZoomLevel}
+                  events={mapEvents}
+                  onEventClick={handleMapEventClick}
+                  onMapCenterChange={(center) => setMapCenter(center)}
+                />
+              </div>
+            ) : (
+              <div className="flex h-[calc(80vh-120px)] items-center justify-center rounded-lg border border-dashed border-muted-foreground/40">
+                <p className="px-6 text-center text-sm text-muted-foreground">
+                  No events in your feed have location data yet. Try adjusting your filters or check back soon.
+                </p>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
             </div>
 
       <div className="pb-20"></div>

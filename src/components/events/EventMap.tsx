@@ -306,14 +306,7 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
         ))}
       </MapContainer>
       
-      {/* Event count indicator */}
-      {validEvents.length > 0 && (
-        <div className="absolute top-2 left-2 bg-white rounded-lg shadow-md px-3 py-1 z-[1000]">
-          <span className="text-sm font-medium text-gray-700">
-            {validEvents.length} event{validEvents.length !== 1 ? 's' : ''} shown
-          </span>
-        </div>
-      )}
+      {/* count badge removed */}
     </div>
   );
 };
