@@ -248,24 +248,38 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
 
   const handleDateRangeSelect = (range: { from?: Date; to?: Date }) => {
     // Normalize dates to ensure proper comparison and filtering
-    const normalizedRange = {
-      from: range.from ? (() => {
-        const d = new Date(range.from);
-        d.setHours(0, 0, 0, 0);
-        return d;
-      })() : undefined,
-      to: range.to ? (() => {
-        const d = new Date(range.to);
-        d.setHours(23, 59, 59, 999);
-        return d;
-      })() : undefined
+    const normalizedRange: { from?: Date; to?: Date } = {
+      from: range.from
+        ? (() => {
+            const d = new Date(range.from!);
+            d.setHours(0, 0, 0, 0);
+            return d;
+          })()
+        : undefined,
+      to: range.to
+        ? (() => {
+            const d = new Date(range.to!);
+            d.setHours(23, 59, 59, 999);
+            return d;
+          })()
+        : undefined,
     };
-    
+
+    if (normalizedRange.from && !normalizedRange.to) {
+      const endOfDay = new Date(normalizedRange.from);
+      endOfDay.setHours(23, 59, 59, 999);
+      normalizedRange.to = endOfDay;
+    } else if (!normalizedRange.from && normalizedRange.to) {
+      const startOfDay = new Date(normalizedRange.to);
+      startOfDay.setHours(0, 0, 0, 0);
+      normalizedRange.from = startOfDay;
+    }
+
     onFiltersChange({
       ...filters,
-      dateRange: normalizedRange
+      dateRange: normalizedRange,
     });
-    
+
     // Only close the picker when both dates are selected (complete range)
     if (normalizedRange.from && normalizedRange.to) {
       setShowDatePicker(false);
@@ -445,7 +459,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
     } else if (filters.dateRange.to) {
       return `Until ${format(filters.dateRange.to, 'MMM d, yyyy')}`;
     }
-    return 'Any date';
+    return 'Calendar';
   };
 
   const getQuickDateOptions = () => {
@@ -712,7 +726,9 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 flex-shrink-0 max-w-[180px]">
               <CalendarIcon className="h-4 w-4 mr-1 flex-shrink-0" />
               <span className="truncate">
-                {getActiveTimeRange() ? getActiveTimeRange()?.label : (filters.dateRange.from || filters.dateRange.to ? getDateRangeText() : 'Any date')}
+                {getActiveTimeRange()
+                  ? getActiveTimeRange()?.label
+                  : (filters.dateRange.from || filters.dateRange.to ? getDateRangeText() : 'Calendar')}
               </span>
               {(filters.dateRange.from || filters.dateRange.to) && (
                 <Badge variant="secondary" className="ml-2 h-5 rounded-full px-2 bg-synth-pink/20 text-synth-pink border-synth-pink/30 flex-shrink-0">

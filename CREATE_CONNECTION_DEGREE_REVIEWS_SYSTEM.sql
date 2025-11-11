@@ -89,8 +89,7 @@ SELECT
   ur.id as review_id,
   ur.user_id as reviewer_id,
   ur.event_id,
-  ur.rating,
-  ur.review_text as content,
+  ur.rating::numeric AS rating,
   ur.review_text,
   ur.is_public,
   ur.is_draft,
@@ -216,40 +215,40 @@ BEGIN
   
   RETURN QUERY
   SELECT 
-    review_id,
-    reviewer_id,
-    event_id,
-    rating,
-    review_text,
-    content,
-    is_public,
-    is_draft,
-    photos,
-    setlist,
-    likes_count,
-    comments_count,
-    shares_count,
-    created_at,
-    updated_at,
-    reviewer_name,
-    reviewer_avatar,
-    reviewer_verified,
-    reviewer_account_type,
-    event_title,
-    artist_name,
-    venue_name,
-    event_date,
-    venue_city,
-    venue_state,
-    artist_id,
-    venue_id,
-    connection_degree,
-    connection_type_label,
-    connection_color
-  FROM public.reviews_with_connection_degree
+    rwcd.review_id,
+    rwcd.reviewer_id,
+    rwcd.event_id,
+    rwcd.rating,
+    rwcd.review_text,
+    rwcd.content,
+    rwcd.is_public,
+    rwcd.is_draft,
+    rwcd.photos,
+    rwcd.setlist,
+    rwcd.likes_count,
+    rwcd.comments_count,
+    rwcd.shares_count,
+    rwcd.created_at,
+    rwcd.updated_at,
+    rwcd.reviewer_name,
+    rwcd.reviewer_avatar,
+    rwcd.reviewer_verified,
+    rwcd.reviewer_account_type,
+    rwcd.event_title,
+    rwcd.artist_name,
+    rwcd.venue_name,
+    rwcd.event_date,
+    rwcd.venue_city,
+    rwcd.venue_state,
+    rwcd.artist_id,
+    rwcd.venue_id,
+    rwcd.connection_degree,
+    rwcd.connection_type_label,
+    rwcd.connection_color
+  FROM public.reviews_with_connection_degree AS rwcd
   ORDER BY 
-    connection_degree ASC, -- Prioritize closer connections (1st before 2nd before 3rd)
-    created_at DESC
+    rwcd.connection_degree ASC, -- Prioritize closer connections (1st before 2nd before 3rd)
+    rwcd.created_at DESC
   LIMIT p_limit
   OFFSET p_offset;
 END;

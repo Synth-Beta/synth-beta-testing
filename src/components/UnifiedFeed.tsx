@@ -802,16 +802,24 @@ export const UnifiedFeed = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loadingMore, hasMore, feedItems.length]);
 
-  const loadFeedData = async (offset: number = 0, isRefresh: boolean = false, isFilterUpdate: boolean = false) => {
+  const loadFeedData = async (
+    offset: number = 0,
+    isRefresh: boolean = false,
+    isFilterUpdate: boolean = false,
+    overrideFilters?: FilterState
+  ) => {
     try {
+      const baseFilters = overrideFilters ?? filters;
+      const activeFiltersState = isFilterUpdate ? (overrideFilters ?? pendingFilters) : baseFilters;
+
       // If refreshing, use refreshOffset to get different events
       // But if filters are active, always start from offset 0 to respect filters
       const hasActiveFilters = 
-        (filters.genres && filters.genres.length > 0) ||
-        (filters.selectedCities && filters.selectedCities.length > 0) ||
-        filters.dateRange.from || filters.dateRange.to ||
-        (filters.daysOfWeek && filters.daysOfWeek.length > 0) ||
-        filters.filterByFollowing === 'following';
+        (activeFiltersState.genres && activeFiltersState.genres.length > 0) ||
+        (activeFiltersState.selectedCities && activeFiltersState.selectedCities.length > 0) ||
+        activeFiltersState.dateRange.from || activeFiltersState.dateRange.to ||
+        (activeFiltersState.daysOfWeek && activeFiltersState.daysOfWeek.length > 0) ||
+        activeFiltersState.filterByFollowing === 'following';
       
       // On refresh, always use offset 0 to reload top results (refreshOffset is reset by handleRefresh)
       // On normal load or with filters, use the provided offset
@@ -840,11 +848,17 @@ export const UnifiedFeed = ({
 
       // Build filter object for personalized feed using ACTUAL filters (not pending)
       const feedFilters = {
-        genres: filters.genres && filters.genres.length > 0 ? filters.genres : undefined,
-        selectedCities: filters.selectedCities && filters.selectedCities.length > 0 ? filters.selectedCities : undefined,
-        dateRange: (filters.dateRange.from || filters.dateRange.to) ? filters.dateRange : undefined,
-        daysOfWeek: filters.daysOfWeek && filters.daysOfWeek.length > 0 ? filters.daysOfWeek : undefined,
-        filterByFollowing: filters.filterByFollowing !== 'all' ? filters.filterByFollowing : undefined
+        genres: activeFiltersState.genres && activeFiltersState.genres.length > 0 ? activeFiltersState.genres : undefined,
+        selectedCities: activeFiltersState.selectedCities && activeFiltersState.selectedCities.length > 0 ? activeFiltersState.selectedCities : undefined,
+        dateRange:
+          activeFiltersState.dateRange.from || activeFiltersState.dateRange.to ? activeFiltersState.dateRange : undefined,
+        daysOfWeek:
+          activeFiltersState.daysOfWeek && activeFiltersState.daysOfWeek.length > 0
+            ? activeFiltersState.daysOfWeek
+            : undefined,
+        filterByFollowing:
+          activeFiltersState.filterByFollowing !== 'all' ? activeFiltersState.filterByFollowing : undefined,
+        radiusMiles: activeFiltersState.radiusMiles !== undefined ? activeFiltersState.radiusMiles : undefined,
       };
       
       // Only include filters object if at least one filter is active
@@ -1292,6 +1306,7 @@ export const UnifiedFeed = ({
     
     // Mark that user has manually changed filters (disable auto-city logic)
     userHasChangedFiltersRef.current = true;
+    autoCityAppliedRef.current = true;
     
     setFilters(pendingFilters);
     setRefreshOffset(0);
@@ -1304,13 +1319,9 @@ export const UnifiedFeed = ({
       (pendingFilters.daysOfWeek && pendingFilters.daysOfWeek.length > 0) ||
       pendingFilters.filterByFollowing === 'following';
     
-    if (hasActiveFilters && currentUserId) {
-      console.log('🔄 Filters applied, regenerating personalized feed...');
-      loadFeedData(0, false); // Load fresh feed with new filters
-    } else if (currentUserId) {
-      // No filters - load regular feed
-      console.log('🔄 Clearing filters, loading regular feed...');
-      loadFeedData(0, false);
+    if (currentUserId) {
+      console.log(hasActiveFilters ? '🔄 Filters applied, regenerating personalized feed...' : '🔄 Clearing filters, loading regular feed...');
+      loadFeedData(0, false, true, pendingFilters);
     }
   };
 
@@ -1552,6 +1563,7 @@ export const UnifiedFeed = ({
                 
                 // Mark that user has manually changed filters (disable auto-city logic)
                 userHasChangedFiltersRef.current = true;
+                autoCityAppliedRef.current = true;
                 
                 // Update pending filters immediately for UI responsiveness
                 setPendingFilters(newFilters);
@@ -1576,11 +1588,8 @@ export const UnifiedFeed = ({
                     (newFilters.daysOfWeek && newFilters.daysOfWeek.length > 0) ||
                     newFilters.filterByFollowing === 'following';
                   
-                  if (hasActiveFilters && currentUserId) {
-                    loadFeedData(0, false, true); // Load fresh feed with new filters (isFilterUpdate = true)
-                  } else if (currentUserId) {
-                    // No filters active, use default personalized feed
-                    loadFeedData(0, false, true); // Also use isFilterUpdate for clearing filters
+                  if (currentUserId) {
+                    loadFeedData(0, false, true, newFilters); // Use override filters to ensure RPC payload matches latest UI
                   }
                 }, 400); // 400ms debounce - fast enough to feel responsive, slow enough to batch changes
               }}
