@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Navigation } from './Navigation';
 import { ConcertFeed } from './events/ConcertFeed';
 import { UnifiedFeed } from './UnifiedFeed';
-import { UnifiedSearch } from './UnifiedSearch';
 import { SearchMap } from './SearchMap';
 import { ProfileView } from './profile/ProfileView';
 import { ProfileEdit } from './profile/ProfileEdit';
