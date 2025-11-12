@@ -160,6 +160,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
     try {
       await UserEventService.setEventInterest(currentUserId, eventId, interested);
       setSelectedEventInterested(interested);
+      setRefreshTrigger(prev => prev + 1);
       
       toast({
         title: interested ? 'Added to interested events!' : 'Removed from interested events',
@@ -1269,20 +1270,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                       message.sender_id === currentUserId ? 'justify-end' : 'justify-start'
                     }`}
                   >
-                    {message.content.includes('Check out this event:') ? (
-                      // Event Share Message Card - detect event share from content
-                      <div className="max-w-md">
-                        <div className="text-xs text-gray-500 mb-1">
-                          {message.sender_id === currentUserId ? 'You' : message.sender_name} shared an event
-                        </div>
-                        <div className="bg-synth-pink/10 border border-synth-pink/20 rounded-lg p-4">
-                          <p className="text-sm text-synth-black">{message.content}</p>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-1 text-right">
-                          {format(parseISO(message.created_at), 'h:mm a')}
-                        </p>
-                      </div>
-                    ) : message.message_type === 'event_share' && message.shared_event_id ? (
+                    {message.message_type === 'event_share' && message.shared_event_id ? (
                       // Event Share Message Card
                       <div className="max-w-md">
                         <div className="text-xs text-gray-500 mb-1">
@@ -1297,6 +1285,19 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                           currentUserId={currentUserId}
                           refreshTrigger={refreshTrigger}
                         />
+                        <p className="text-xs text-gray-400 mt-1 text-right">
+                          {format(parseISO(message.created_at), 'h:mm a')}
+                        </p>
+                      </div>
+                    ) : message.content?.toLowerCase().includes('check out this event:') ? (
+                      // Legacy event share fallback based on message content
+                      <div className="max-w-md">
+                        <div className="text-xs text-gray-500 mb-1">
+                          {message.sender_id === currentUserId ? 'You' : message.sender_name} shared an event
+                        </div>
+                        <div className="bg-synth-pink/10 border border-synth-pink/20 rounded-lg p-4">
+                          <p className="text-sm text-synth-black">{message.content}</p>
+                        </div>
                         <p className="text-xs text-gray-400 mt-1 text-right">
                           {format(parseISO(message.created_at), 'h:mm a')}
                         </p>

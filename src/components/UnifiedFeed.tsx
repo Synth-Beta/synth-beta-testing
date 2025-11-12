@@ -2245,16 +2245,16 @@ export const UnifiedFeed = ({
     <div className={outerClassName}>
       <div className={innerClassName}>
         {shouldRenderHeader && (
-          <div className={headerSpacingClass}>
-            <div>
+        <div className={headerSpacingClass}>
+          <div>
               {shouldShowHeaderTitle && (
                 <h1 className="text-3xl font-bold text-gray-900">{normalizedHeaderTitle}</h1>
               )}
               {shouldShowHeaderSubtitle && (
                 <p className="text-gray-600 mt-2">{normalizedHeaderSubtitle}</p>
-              )}
-            </div>
+            )}
           </div>
+        </div>
         )}
 
         {/* Feed type tabs */}

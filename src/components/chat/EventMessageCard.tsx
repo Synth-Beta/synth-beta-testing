@@ -57,6 +57,7 @@ export function EventMessageCard({
   // Refresh attendance status when modal closes or user changes attendance elsewhere
   useEffect(() => {
     if (refreshTrigger && event && currentUserId) {
+      checkInterest();
       checkAttendance();
     }
   }, [refreshTrigger, event, currentUserId]);

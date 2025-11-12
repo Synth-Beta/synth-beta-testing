@@ -122,10 +122,10 @@ BEGIN
   LOOP
     -- Set connection label based on degree
     v_connection_label := CASE v_connection_degree
-      WHEN 1 THEN 'Friends'
-      WHEN 2 THEN 'Friends of Friends'
-      WHEN 3 THEN 'Extended Network'
-      ELSE 'Community'
+      WHEN 1 THEN 'Friend'
+      WHEN 2 THEN 'Mutual Friend'
+      WHEN 3 THEN 'Mutual Friends +'
+      ELSE 'Stranger'
     END;
 
     -- Calculate shared interests
