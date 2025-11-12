@@ -4,7 +4,6 @@ import { AnalyticsDataService } from './analyticsDataService';
 export interface PlatformStats {
   total_users: number;
   total_events: number;
-  total_revenue: number;
   total_interactions: number;
   active_users_today: number;
   daily_active_users: number;
@@ -33,15 +32,88 @@ export interface EngagementMetrics {
   tickets_clicked: number;
 }
 
-export interface RevenueMetrics {
-  total_revenue: number;
-  revenue_this_month: number;
-  revenue_growth_rate: number;
-  average_revenue_per_user: number;
-  top_revenue_sources: Array<{
-    source: string;
-    revenue: number;
-    percentage: number;
+export interface ActiveUserMetrics {
+  total_active_users: number;
+  active_users_7d: number;
+  active_users_30d: number;
+  active_users_90d: number;
+  avg_interactions_per_active_user: number;
+  avg_account_age_days: number;
+  geographic_distribution: GeographicDistribution[];
+  verification_stats: {
+    total_verified: number;
+    avg_trust_score: number;
+    avg_verification_progress: number;
+    users_near_verification: number;
+  };
+  time_series_data: {
+    daily: TimeSeriesDataPoint[];
+    weekly: TimeSeriesDataPoint[];
+    monthly: TimeSeriesDataPoint[];
+  };
+}
+
+export interface FeatureUsage {
+  feature_name: string;
+  feature_category: string;
+  total_uses: number;
+  unique_users: number;
+  uses_last_7d: number;
+  uses_last_30d: number;
+  avg_uses_per_user: number;
+  growth_rate: number;
+}
+
+export interface FeatureAdoptionFunnel {
+  feature_name: string;
+  discovery_count: number;
+  trial_count: number;
+  adoption_count: number;
+  retention_count: number;
+  discovery_to_trial_rate: number;
+  trial_to_adoption_rate: number;
+  adoption_to_retention_rate: number;
+}
+
+export interface SessionAnalytics {
+  total_sessions: number;
+  avg_session_duration_minutes: number;
+  avg_pages_per_session: number;
+  sessions_last_7d: number;
+  sessions_last_30d: number;
+  bounce_rate: number;
+  sessions_by_hour: Array<{
+    hour: number;
+    session_count: number;
+  }>;
+}
+
+export interface SocialGraphMetrics {
+  total_connections: number;
+  avg_connections_per_user: number;
+  users_with_connections: number;
+  users_without_connections: number;
+  connection_growth_rate: number;
+  avg_connection_degree: number;
+  network_density: number;
+}
+
+export interface SearchEffectiveness {
+  total_searches: number;
+  unique_searchers: number;
+  searches_last_7d: number;
+  searches_last_30d: number;
+  search_to_click_rate: number;
+  search_to_interest_rate: number;
+  top_queries: Array<{
+    query: string;
+    count: number;
+    click_rate: number;
+  }>;
+  searches_by_category: Array<{
+    category: string;
+    count: number;
+    success_rate: number;
   }>;
 }
 
@@ -55,30 +127,40 @@ export interface ContentMetrics {
   content_growth_rate: number;
 }
 
-export interface SystemHealth {
-  api_response_time: number;
-  database_performance: number;
-  error_rate: number;
-  uptime_percentage: number;
-  active_connections: number;
-  cache_hit_rate: number;
-}
 
 export interface UserSegment {
   segment: string;
   count: number;
   percentage: number;
   avg_sessions: number;
-  avg_revenue: number;
   retention_rate: number;
 }
 
 export interface GeographicDistribution {
   country: string;
+  city?: string;
+  state?: string;
   users: number;
   events: number;
   revenue: number;
   growth_rate: number;
+}
+
+export interface TimeSeriesDataPoint {
+  date: string;
+  value: number;
+}
+
+export interface UserStats {
+  total_users: number;
+  verified_users: number;
+  active_users_7d: number;
+  active_users_30d: number;
+  new_users_7d: number;
+  new_users_30d: number;
+  avg_account_age_days: number;
+  users_with_reviews: number;
+  users_with_friends: number;
 }
 
 export interface AdminAchievement {
@@ -130,13 +212,6 @@ export class AdminAnalyticsService {
       const allInteractions = await AnalyticsDataService.getAllUserInteractions();
       const totalInteractions = allInteractions.length;
 
-      // Get ticket clicks for revenue estimation (all users)
-      const ticketClicks = allInteractions.filter((i: any) => i.event_type === 'click_ticket');
-
-      // Revenue calculation - estimate based on ticket clicks
-      const estimatedRevenuePerClick = 25; // Average ticket price
-      const totalRevenue = ticketClicks.length * estimatedRevenuePerClick;
-
       // Calculate daily active users (calendar day) using last_active_at
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
@@ -187,7 +262,6 @@ export class AdminAnalyticsService {
       return {
         total_users: totalUsers || 0,
         total_events: totalEvents || 0,
-        total_revenue: totalRevenue,
         total_interactions: totalInteractions || 0,
         active_users_today: dailyActiveUsers || 0,
         daily_active_users: dailyActiveUsers || 0,
@@ -201,7 +275,6 @@ export class AdminAnalyticsService {
       return {
         total_users: 0,
         total_events: 0,
-        total_revenue: 0,
         total_interactions: 0,
         active_users_today: 0,
         daily_active_users: 0,
@@ -347,79 +420,225 @@ export class AdminAnalyticsService {
   }
 
   /**
-   * Get revenue metrics
+   * Get active user metrics (users with 10+ interactions)
    */
-  static async getRevenueMetrics(): Promise<RevenueMetrics> {
+  static async getActiveUserMetrics(): Promise<ActiveUserMetrics> {
     try {
-      // Get ticket clicks for revenue calculation (all users)
+      // Get all user interactions
       const allInteractions = await AnalyticsDataService.getAllUserInteractions();
-      const ticketClicks = allInteractions.filter((i: any) => i.event_type === 'click_ticket');
-
-      // Get this month's ticket clicks
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      const thisMonthClicks = ticketClicks.filter((i: any) => 
-        i.occurred_at && i.occurred_at >= startOfMonth.toISOString()
-      );
-
-      // Revenue calculation - estimate based on ticket clicks
-      const estimatedRevenuePerClick = 25; // Average ticket price
-      const totalRevenue = ticketClicks.length * estimatedRevenuePerClick;
-      const revenueThisMonth = thisMonthClicks.length * estimatedRevenuePerClick;
-
-      // Get total users for average calculation
-      const { count: totalUsers } = await (supabase as any)
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-
-      const averageRevenuePerUser = totalUsers > 0 ? totalRevenue / totalUsers : 0;
-
-      // Calculate growth rate based on this month vs last month
-      const lastMonth = new Date();
-      lastMonth.setMonth(lastMonth.getMonth() - 1);
-      lastMonth.setDate(1);
-      const lastMonthClicks = ticketClicks.filter((i: any) => 
-        i.occurred_at && i.occurred_at >= lastMonth.toISOString() && i.occurred_at < startOfMonth.toISOString()
-      );
-      const revenueLastMonth = lastMonthClicks.length * estimatedRevenuePerClick;
       
-      const revenueGrowthRate = revenueLastMonth > 0 
-        ? ((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100 
-        : 0;
-
-      // Top revenue sources - based on ticket clicks by event
-      const eventRevenueMap = new Map<string, number>();
-      ticketClicks.forEach((click: any) => {
-        const eventId = click.entity_id;
-        const currentRevenue = eventRevenueMap.get(eventId) || 0;
-        eventRevenueMap.set(eventId, currentRevenue + estimatedRevenuePerClick);
+      // Count interactions per user
+      const userInteractionCounts = new Map<string, number>();
+      allInteractions.forEach((interaction: any) => {
+        const userId = interaction.user_id;
+        userInteractionCounts.set(userId, (userInteractionCounts.get(userId) || 0) + 1);
       });
 
-      const topRevenueSources = Array.from(eventRevenueMap.entries())
-        .map(([eventId, revenue]) => ({ 
-          source: eventId, 
-          revenue,
-          percentage: totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0
+      // Active users are those with 10+ interactions
+      const activeUserIds = Array.from(userInteractionCounts.entries())
+        .filter(([_, count]) => count >= 10)
+        .map(([userId]) => userId);
+
+      const totalActiveUsers = activeUserIds.length;
+
+      // Calculate time-bound active users
+      const now = new Date();
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const ninetyDaysAgo = new Date(now);
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+      const activeUsers7d = new Set<string>();
+      const activeUsers30d = new Set<string>();
+      const activeUsers90d = new Set<string>();
+
+      allInteractions.forEach((interaction: any) => {
+        if (activeUserIds.includes(interaction.user_id)) {
+          const occurredAt = new Date(interaction.occurred_at);
+          if (occurredAt >= ninetyDaysAgo) {
+            activeUsers90d.add(interaction.user_id);
+          }
+          if (occurredAt >= thirtyDaysAgo) {
+            activeUsers30d.add(interaction.user_id);
+          }
+          if (occurredAt >= sevenDaysAgo) {
+            activeUsers7d.add(interaction.user_id);
+          }
+        }
+      });
+
+      // Calculate average interactions per active user
+      const totalInteractionsForActiveUsers = activeUserIds.reduce((sum, userId) => {
+        return sum + (userInteractionCounts.get(userId) || 0);
+      }, 0);
+      const avgInteractionsPerActiveUser = totalActiveUsers > 0 
+        ? totalInteractionsForActiveUsers / totalActiveUsers 
+        : 0;
+
+      // Get geographic distribution for active users
+      const { data: activeUserProfiles } = await (supabase as any)
+        .from('profiles')
+        .select('user_id, location_city, created_at')
+        .in('user_id', activeUserIds);
+
+      const cityMap = new Map<string, { users: number; newUsers: number }>();
+      activeUserProfiles?.forEach((profile: any) => {
+        const city = profile.location_city || 'Unknown';
+        if (!cityMap.has(city)) {
+          cityMap.set(city, { users: 0, newUsers: 0 });
+        }
+        const cityData = cityMap.get(city)!;
+        cityData.users++;
+        
+        const createdDate = new Date(profile.created_at);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        if (createdDate >= thirtyDaysAgo) {
+          cityData.newUsers++;
+        }
+      });
+
+      const geographicDistribution: GeographicDistribution[] = Array.from(cityMap.entries())
+        .map(([city, data]) => ({
+          country: 'USA',
+          city: city,
+          users: data.users,
+          events: 0,
+          revenue: 0,
+          growth_rate: data.users > 0 ? (data.newUsers / data.users) * 100 : 0,
         }))
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 5);
+        .sort((a, b) => b.users - a.users)
+        .slice(0, 20);
+
+      // Get verification stats for active users
+      const { data: activeUserVerification } = await (supabase as any)
+        .from('profiles')
+        .select('user_id, verified, trust_score, verification_criteria_met')
+        .in('user_id', activeUserIds);
+
+      const verifiedCount = activeUserVerification?.filter((p: any) => p.verified).length || 0;
+      const totalTrustScores = activeUserVerification?.reduce((sum: number, p: any) => sum + (p.trust_score || 0), 0) || 0;
+      const avgTrustScore = activeUserVerification?.length > 0 
+        ? totalTrustScores / activeUserVerification.length 
+        : 0;
+
+      // Calculate average verification progress (criteria met)
+      const totalCriteriaMet = activeUserVerification?.reduce((sum: number, p: any) => {
+        const criteria = p.verification_criteria_met || {};
+        return sum + Object.values(criteria).filter(Boolean).length;
+      }, 0) || 0;
+      const avgVerificationProgress = activeUserVerification?.length > 0 
+        ? totalCriteriaMet / activeUserVerification.length 
+        : 0;
+
+      // Users near verification (40%+ trust score)
+      const usersNearVerification = activeUserVerification?.filter((p: any) => 
+        (p.trust_score || 0) >= 40 && !p.verified
+      ).length || 0;
+
+      // Calculate average account age
+      const totalAccountAge = activeUserProfiles?.reduce((sum: number, p: any) => {
+        const age = (now.getTime() - new Date(p.created_at).getTime()) / (1000 * 60 * 60 * 24);
+        return sum + age;
+      }, 0) || 0;
+      const avgAccountAgeDays = activeUserProfiles?.length > 0 
+        ? totalAccountAge / activeUserProfiles.length 
+        : 0;
+
+      // Time series data
+      const dailyData = await this.getDAUOverTime(30);
+      const weeklyData = await this.getWeeklyActiveUsers(12);
+      const monthlyData = await this.getMAUOverTime(12);
 
       return {
-        total_revenue: totalRevenue,
-        revenue_this_month: revenueThisMonth,
-        revenue_growth_rate: revenueGrowthRate,
-        average_revenue_per_user: Math.round(averageRevenuePerUser * 100) / 100,
-        top_revenue_sources: topRevenueSources,
+        total_active_users: totalActiveUsers,
+        active_users_7d: activeUsers7d.size,
+        active_users_30d: activeUsers30d.size,
+        active_users_90d: activeUsers90d.size,
+        avg_interactions_per_active_user: Math.round(avgInteractionsPerActiveUser * 100) / 100,
+        avg_account_age_days: Math.round(avgAccountAgeDays * 100) / 100,
+        geographic_distribution: geographicDistribution,
+        verification_stats: {
+          total_verified: verifiedCount,
+          avg_trust_score: Math.round(avgTrustScore * 100) / 100,
+          avg_verification_progress: Math.round(avgVerificationProgress * 100) / 100,
+          users_near_verification: usersNearVerification,
+        },
+        time_series_data: {
+          daily: dailyData,
+          weekly: weeklyData,
+          monthly: monthlyData,
+        },
       };
     } catch (error) {
-      console.error('Error getting revenue metrics:', error);
+      console.error('Error getting active user metrics:', error);
       return {
-        total_revenue: 0,
-        revenue_this_month: 0,
-        revenue_growth_rate: 0,
-        average_revenue_per_user: 0,
-        top_revenue_sources: [],
+        total_active_users: 0,
+        active_users_7d: 0,
+        active_users_30d: 0,
+        active_users_90d: 0,
+        avg_interactions_per_active_user: 0,
+        avg_account_age_days: 0,
+        geographic_distribution: [],
+        verification_stats: {
+          total_verified: 0,
+          avg_trust_score: 0,
+          avg_verification_progress: 0,
+          users_near_verification: 0,
+        },
+        time_series_data: {
+          daily: [],
+          weekly: [],
+          monthly: [],
+        },
       };
+    }
+  }
+
+  /**
+   * Get weekly active users over time
+   */
+  static async getWeeklyActiveUsers(weeks: number = 12): Promise<TimeSeriesDataPoint[]> {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - (weeks * 7));
+      startDate.setHours(0, 0, 0, 0);
+
+      const { data: interactions } = await (supabase as any)
+        .from('user_interactions')
+        .select('user_id, occurred_at')
+        .gte('occurred_at', startDate.toISOString());
+
+      // Group by week and count unique users
+      const weeklyActiveUsers = new Map<string, Set<string>>();
+
+      interactions?.forEach((interaction: any) => {
+        const date = new Date(interaction.occurred_at);
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay()); // Start of week (Sunday)
+        weekStart.setHours(0, 0, 0, 0);
+        const weekKey = weekStart.toISOString().split('T')[0];
+
+        if (!weeklyActiveUsers.has(weekKey)) {
+          weeklyActiveUsers.set(weekKey, new Set());
+        }
+        weeklyActiveUsers.get(weekKey)!.add(interaction.user_id);
+      });
+
+      // Convert to array
+      const result: TimeSeriesDataPoint[] = Array.from(weeklyActiveUsers.entries())
+        .map(([date, users]) => ({
+          date,
+          value: users.size,
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      return result;
+    } catch (error) {
+      console.error('Error getting weekly active users:', error);
+      return [];
     }
   }
 
@@ -486,30 +705,129 @@ export class AdminAnalyticsService {
   }
 
   /**
-   * Get system health metrics (placeholder - would integrate with monitoring tools)
+   * Get feature usage tracking
    */
-  static async getSystemHealth(): Promise<SystemHealth> {
+  static async getFeatureUsage(): Promise<FeatureUsage[]> {
     try {
-      // These would typically come from monitoring tools like DataDog, New Relic, etc.
-      // For now, return placeholder values
-      return {
-        api_response_time: 150, // ms
-        database_performance: 95, // percentage
-        error_rate: 0.1, // percentage
-        uptime_percentage: 99.9, // percentage
-        active_connections: 1250,
-        cache_hit_rate: 87.5, // percentage
+      const allInteractions = await AnalyticsDataService.getAllUserInteractions();
+      
+      // Define feature mappings based on event types and entity types
+      const featureMap: Record<string, { name: string; category: string }> = {
+        'view:event': { name: 'Event Views', category: 'Event Discovery' },
+        'click:event': { name: 'Event Clicks', category: 'Event Discovery' },
+        'interest:event': { name: 'Event Interest/RSVP', category: 'Event Engagement' },
+        'attendance:event': { name: 'Event Attendance', category: 'Event Engagement' },
+        'share:event': { name: 'Event Shares', category: 'Social' },
+        'view:artist': { name: 'Artist Views', category: 'Content Discovery' },
+        'click:artist': { name: 'Artist Clicks', category: 'Content Discovery' },
+        'view:venue': { name: 'Venue Views', category: 'Content Discovery' },
+        'click:venue': { name: 'Venue Clicks', category: 'Content Discovery' },
+        'review:event': { name: 'Event Reviews', category: 'Content Creation' },
+        'review:artist': { name: 'Artist Reviews', category: 'Content Creation' },
+        'review:venue': { name: 'Venue Reviews', category: 'Content Creation' },
+        'like:review': { name: 'Review Likes', category: 'Social Engagement' },
+        'search': { name: 'Search', category: 'Discovery' },
+        'click:ticket': { name: 'Ticket Clicks', category: 'Event Engagement' },
+        'click:ticket_link': { name: 'Ticket Link Clicks', category: 'Event Engagement' },
+        'follow:artist': { name: 'Artist Follows', category: 'Social' },
+        'follow:user': { name: 'User Follows', category: 'Social' },
+        'navigate': { name: 'Navigation', category: 'Platform Usage' },
+        'profile_update': { name: 'Profile Updates', category: 'Profile Management' },
+        'view:spotify': { name: 'Spotify Integration', category: 'Music Integration' },
+        'click:spotify': { name: 'Spotify Clicks', category: 'Music Integration' },
       };
+
+      // Group interactions by feature
+      const featureStats = new Map<string, {
+        totalUses: number;
+        uniqueUsers: Set<string>;
+        usesLast7d: number;
+        usesLast30d: number;
+        usesLast7dUsers: Set<string>;
+        usesLast30dUsers: Set<string>;
+      }>();
+
+      const now = new Date();
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      allInteractions.forEach((interaction: any) => {
+        const featureKey = `${interaction.event_type}:${interaction.entity_type}`;
+        const feature = featureMap[featureKey] || { 
+          name: `${interaction.event_type} (${interaction.entity_type})`, 
+          category: 'Other' 
+        };
+        
+        if (!featureStats.has(feature.name)) {
+          featureStats.set(feature.name, {
+            totalUses: 0,
+            uniqueUsers: new Set(),
+            usesLast7d: 0,
+            usesLast30d: 0,
+            usesLast7dUsers: new Set(),
+            usesLast30dUsers: new Set(),
+          });
+        }
+
+        const stats = featureStats.get(feature.name)!;
+        stats.totalUses++;
+        stats.uniqueUsers.add(interaction.user_id);
+
+        const occurredAt = new Date(interaction.occurred_at);
+        if (occurredAt >= thirtyDaysAgo) {
+          stats.usesLast30d++;
+          stats.usesLast30dUsers.add(interaction.user_id);
+        }
+        if (occurredAt >= sevenDaysAgo) {
+          stats.usesLast7d++;
+          stats.usesLast7dUsers.add(interaction.user_id);
+        }
+      });
+
+      // Calculate growth rates (comparing last 7d to previous 7d)
+      const fourteenDaysAgo = new Date(now);
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+      const previous7dUses = new Map<string, number>();
+
+      allInteractions.forEach((interaction: any) => {
+        const featureKey = `${interaction.event_type}:${interaction.entity_type}`;
+        const feature = featureMap[featureKey];
+        if (feature) {
+          const occurredAt = new Date(interaction.occurred_at);
+          if (occurredAt >= fourteenDaysAgo && occurredAt < sevenDaysAgo) {
+            previous7dUses.set(feature.name, (previous7dUses.get(feature.name) || 0) + 1);
+          }
+        }
+      });
+
+      // Convert to array
+      const result: FeatureUsage[] = Array.from(featureStats.entries()).map(([featureName, stats]) => {
+        const feature = Object.values(featureMap).find(f => f.name === featureName) || { name: featureName, category: 'Other' };
+        const previous7d = previous7dUses.get(featureName) || 0;
+        const growthRate = previous7d > 0 
+          ? ((stats.usesLast7d - previous7d) / previous7d) * 100 
+          : 0;
+
+      return {
+          feature_name: featureName,
+          feature_category: feature.category,
+          total_uses: stats.totalUses,
+          unique_users: stats.uniqueUsers.size,
+          uses_last_7d: stats.usesLast7d,
+          uses_last_30d: stats.usesLast30d,
+          avg_uses_per_user: stats.uniqueUsers.size > 0 
+            ? stats.totalUses / stats.uniqueUsers.size 
+            : 0,
+          growth_rate: Math.round(growthRate * 100) / 100,
+        };
+      });
+
+      return result.sort((a, b) => b.total_uses - a.total_uses);
     } catch (error) {
-      console.error('Error getting system health:', error);
-      return {
-        api_response_time: 0,
-        database_performance: 0,
-        error_rate: 100,
-        uptime_percentage: 0,
-        active_connections: 0,
-        cache_hit_rate: 0,
-      };
+      console.error('Error getting feature usage:', error);
+      return [];
     }
   }
 
@@ -528,16 +846,9 @@ export class AdminAnalyticsService {
         .from('user_interactions')
         .select('user_id, created_at');
 
-      // Get user revenue (ticket clicks)
-      const { data: ticketClicks } = await (supabase as any)
-        .from('user_interactions')
-        .select('user_id')
-        .eq('event_type', 'click_ticket');
-
       // Segment users based on activity
       const userActivity = new Map<string, {
         sessions: number;
-        revenue: number;
         daysActive: Set<string>;
       }>();
 
@@ -546,21 +857,12 @@ export class AdminAnalyticsService {
         if (!userActivity.has(userId)) {
           userActivity.set(userId, {
             sessions: 0,
-            revenue: 0,
             daysActive: new Set(),
           });
         }
         const activity = userActivity.get(userId)!;
         activity.sessions++;
         activity.daysActive.add(new Date(interaction.created_at).toISOString().split('T')[0]);
-      });
-
-      ticketClicks?.forEach((click: any) => {
-        const userId = click.user_id;
-        if (userActivity.has(userId)) {
-          // Revenue calculation - only count actual revenue if we have real data
-          userActivity.get(userId)!.revenue += 0;
-        }
       });
 
       // Define segments
@@ -583,10 +885,6 @@ export class AdminAnalyticsService {
           ? segmentUsers.reduce((sum, [_, activity]) => sum + activity.sessions, 0) / count 
           : 0;
 
-        const avgRevenue = count > 0 
-          ? segmentUsers.reduce((sum, [_, activity]) => sum + activity.revenue, 0) / count 
-          : 0;
-
         const retentionRate = count > 0 
           ? segmentUsers.reduce((sum, [_, activity]) => sum + activity.daysActive.size, 0) / count / 30 * 100 
           : 0;
@@ -596,7 +894,6 @@ export class AdminAnalyticsService {
           count,
           percentage: Math.round(percentage * 100) / 100,
           avg_sessions: Math.round(avgSessions * 100) / 100,
-          avg_revenue: Math.round(avgRevenue * 100) / 100,
           retention_rate: Math.round(retentionRate * 100) / 100,
         };
       });
@@ -609,16 +906,364 @@ export class AdminAnalyticsService {
   }
 
   /**
-   * Get geographic distribution
+   * Get geographic distribution based on user location_city
    */
   static async getGeographicDistribution(): Promise<GeographicDistribution[]> {
     try {
-      // This would typically use IP geolocation or user-provided location data
-      // Return empty array until we have actual geographic data
-      return [];
+      // Get users with their location cities
+      const { data: profiles } = await (supabase as any)
+        .from('profiles')
+        .select('user_id, location_city, created_at');
+
+      if (!profiles || profiles.length === 0) {
+        return [];
+      }
+
+      // Group by city
+      const cityMap = new Map<string, {
+        users: number;
+        events: number;
+        newUsers: number;
+      }>();
+
+      profiles.forEach((profile: any) => {
+        const city = profile.location_city || 'Unknown';
+        if (!cityMap.has(city)) {
+          cityMap.set(city, {
+            users: 0,
+            events: 0,
+            newUsers: 0,
+          });
+        }
+        const cityData = cityMap.get(city)!;
+        cityData.users++;
+        
+        // Count new users (created in last 30 days)
+        const createdDate = new Date(profile.created_at);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        if (createdDate >= thirtyDaysAgo) {
+          cityData.newUsers++;
+        }
+      });
+
+      // Get events by city (if we have city data in events)
+      // For now, we'll estimate based on user distribution
+      const totalEvents = await (supabase as any)
+        .from('jambase_events')
+        .select('*', { count: 'exact', head: true });
+      
+      const totalEventCount = totalEvents.count || 0;
+      const totalUsers = profiles.length;
+      
+      // Distribute events proportionally to users (rough estimate)
+      cityMap.forEach((data, city) => {
+        data.events = Math.round((data.users / totalUsers) * totalEventCount);
+      });
+
+      // Convert to array and calculate growth rates
+      const distribution: GeographicDistribution[] = Array.from(cityMap.entries())
+        .map(([city, data]) => {
+          // Calculate growth rate based on new users
+          const growthRate = data.users > 0 
+            ? (data.newUsers / data.users) * 100 
+            : 0;
+
+          return {
+            country: 'USA', // Default, could be enhanced with actual country data
+            city: city,
+            users: data.users,
+            events: data.events,
+            revenue: 0,
+            growth_rate: Math.round(growthRate * 100) / 100,
+          };
+        })
+        .sort((a, b) => b.users - a.users)
+        .slice(0, 20); // Top 20 cities
+
+      return distribution;
     } catch (error) {
       console.error('Error getting geographic distribution:', error);
       return [];
+    }
+  }
+
+  /**
+   * Get Daily Active Users (DAU) over time
+   */
+  static async getDAUOverTime(days: number = 30): Promise<TimeSeriesDataPoint[]> {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      startDate.setHours(0, 0, 0, 0);
+
+      // Get all user interactions grouped by date
+      const { data: interactions } = await (supabase as any)
+        .from('user_interactions')
+        .select('user_id, occurred_at')
+        .gte('occurred_at', startDate.toISOString());
+
+      // Group by date and count unique users per day
+      const dailyActiveUsers = new Map<string, Set<string>>();
+
+      interactions?.forEach((interaction: any) => {
+        const date = new Date(interaction.occurred_at).toISOString().split('T')[0];
+        if (!dailyActiveUsers.has(date)) {
+          dailyActiveUsers.set(date, new Set());
+        }
+        dailyActiveUsers.get(date)!.add(interaction.user_id);
+      });
+
+      // Also check profiles.last_active_at for users who haven't interacted but were active
+      const { data: profiles } = await (supabase as any)
+        .from('profiles')
+        .select('user_id, last_active_at')
+        .not('last_active_at', 'is', null)
+        .gte('last_active_at', startDate.toISOString());
+
+      profiles?.forEach((profile: any) => {
+        const date = new Date(profile.last_active_at).toISOString().split('T')[0];
+        if (!dailyActiveUsers.has(date)) {
+          dailyActiveUsers.set(date, new Set());
+        }
+        dailyActiveUsers.get(date)!.add(profile.user_id);
+      });
+
+      // Convert to array and fill missing dates with 0
+      const result: TimeSeriesDataPoint[] = [];
+      const currentDate = new Date(startDate);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+
+      while (currentDate <= today) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        const activeCount = dailyActiveUsers.get(dateStr)?.size || 0;
+        result.push({
+          date: dateStr,
+          value: activeCount,
+        });
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error getting DAU over time:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get Monthly Active Users (MAU) over time
+   */
+  static async getMAUOverTime(months: number = 12): Promise<TimeSeriesDataPoint[]> {
+    try {
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - months);
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+
+      // Get all user interactions
+      const { data: interactions } = await (supabase as any)
+        .from('user_interactions')
+        .select('user_id, occurred_at')
+        .gte('occurred_at', startDate.toISOString());
+
+      // Get profiles with last_active_at
+      const { data: profiles } = await (supabase as any)
+        .from('profiles')
+        .select('user_id, last_active_at')
+        .not('last_active_at', 'is', null)
+        .gte('last_active_at', startDate.toISOString());
+
+      // Group by month and count unique users
+      const monthlyActiveUsers = new Map<string, Set<string>>();
+
+      // Process interactions
+      interactions?.forEach((interaction: any) => {
+        const date = new Date(interaction.occurred_at);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthlyActiveUsers.has(monthKey)) {
+          monthlyActiveUsers.set(monthKey, new Set());
+        }
+        monthlyActiveUsers.get(monthKey)!.add(interaction.user_id);
+      });
+
+      // Process profiles
+      profiles?.forEach((profile: any) => {
+        const date = new Date(profile.last_active_at);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthlyActiveUsers.has(monthKey)) {
+          monthlyActiveUsers.set(monthKey, new Set());
+        }
+        monthlyActiveUsers.get(monthKey)!.add(profile.user_id);
+      });
+
+      // Convert to array and fill missing months with 0
+      const result: TimeSeriesDataPoint[] = [];
+      const currentDate = new Date(startDate);
+
+      while (currentDate <= new Date()) {
+        const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+        const activeCount = monthlyActiveUsers.get(monthKey)?.size || 0;
+        result.push({
+          date: monthKey,
+          value: activeCount,
+        });
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error getting MAU over time:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get new users over time
+   */
+  static async getNewUsersOverTime(days: number = 30): Promise<TimeSeriesDataPoint[]> {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      startDate.setHours(0, 0, 0, 0);
+
+      // Get user registrations by date
+      const { data: userRegistrations } = await (supabase as any)
+        .from('profiles')
+        .select('created_at')
+        .gte('created_at', startDate.toISOString());
+
+      // Group by date
+      const dailyNewUsers = new Map<string, number>();
+
+      userRegistrations?.forEach((user: any) => {
+        const date = new Date(user.created_at).toISOString().split('T')[0];
+        dailyNewUsers.set(date, (dailyNewUsers.get(date) || 0) + 1);
+      });
+
+      // Convert to array and fill missing dates with 0
+      const result: TimeSeriesDataPoint[] = [];
+      const currentDate = new Date(startDate);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+
+      while (currentDate <= today) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        result.push({
+          date: dateStr,
+          value: dailyNewUsers.get(dateStr) || 0,
+        });
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error getting new users over time:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get important user statistics
+   */
+  static async getUserStats(): Promise<UserStats> {
+    try {
+      const now = new Date();
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      // Get total users
+      const { count: totalUsers } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+
+      // Get verified users
+      const { count: verifiedUsers } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('verified', true);
+
+      // Get active users (7 days)
+      const { count: activeUsers7d } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('last_active_at', sevenDaysAgo.toISOString());
+
+      // Get active users (30 days)
+      const { count: activeUsers30d } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('last_active_at', thirtyDaysAgo.toISOString());
+
+      // Get new users (7 days)
+      const { count: newUsers7d } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', sevenDaysAgo.toISOString());
+
+      // Get new users (30 days)
+      const { count: newUsers30d } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      // Get average account age
+      const { data: allUsers } = await (supabase as any)
+        .from('profiles')
+        .select('created_at');
+
+      const avgAccountAge = allUsers && allUsers.length > 0
+        ? allUsers.reduce((sum: number, user: any) => {
+            const age = (now.getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24);
+            return sum + age;
+          }, 0) / allUsers.length
+        : 0;
+
+      // Get users with reviews
+      const { data: reviews } = await (supabase as any)
+        .from('user_reviews')
+        .select('user_id')
+        .eq('is_draft', false);
+      
+      const usersWithReviews = new Set(reviews?.map((r: any) => r.user_id) || []).size;
+
+      // Get users with friends
+      const { data: friends } = await (supabase as any)
+        .from('friends')
+        .select('user1_id, user2_id');
+      
+      const usersWithFriends = new Set([
+        ...(friends?.map((f: any) => f.user1_id) || []),
+        ...(friends?.map((f: any) => f.user2_id) || []),
+      ]).size;
+
+      return {
+        total_users: totalUsers || 0,
+        verified_users: verifiedUsers || 0,
+        active_users_7d: activeUsers7d || 0,
+        active_users_30d: activeUsers30d || 0,
+        new_users_7d: newUsers7d || 0,
+        new_users_30d: newUsers30d || 0,
+        avg_account_age_days: Math.round(avgAccountAge * 100) / 100,
+        users_with_reviews: usersWithReviews,
+        users_with_friends: usersWithFriends,
+      };
+    } catch (error) {
+      console.error('Error getting user stats:', error);
+      return {
+        total_users: 0,
+        verified_users: 0,
+        active_users_7d: 0,
+        active_users_30d: 0,
+        new_users_7d: 0,
+        new_users_30d: 0,
+        avg_account_age_days: 0,
+        users_with_reviews: 0,
+        users_with_friends: 0,
+      };
     }
   }
 
@@ -629,7 +1274,6 @@ export class AdminAnalyticsService {
     try {
       const platformStats = await this.getPlatformStats();
       const contentMetrics = await this.getContentMetrics();
-      const revenueMetrics = await this.getRevenueMetrics();
 
       const achievements: AdminAchievement[] = [
         {
@@ -661,36 +1305,6 @@ export class AdminAnalyticsService {
           goal: 10000,
           unlocked: platformStats.total_users >= 10000,
           category: 'users',
-        },
-        {
-          id: 'first_revenue',
-          name: 'First Revenue',
-          description: 'Generate $1,000 in platform revenue',
-          icon: '💰',
-          progress: Math.min(revenueMetrics.total_revenue, 1000),
-          goal: 1000,
-          unlocked: revenueMetrics.total_revenue >= 1000,
-          category: 'revenue',
-        },
-        {
-          id: 'revenue_generator',
-          name: 'Revenue Generator',
-          description: 'Generate $10,000 in platform revenue',
-          icon: '💎',
-          progress: Math.min(revenueMetrics.total_revenue, 10000),
-          goal: 10000,
-          unlocked: revenueMetrics.total_revenue >= 10000,
-          category: 'revenue',
-        },
-        {
-          id: 'successful_platform',
-          name: 'Successful Platform',
-          description: 'Generate $100,000 in platform revenue',
-          icon: '🏆',
-          progress: Math.min(revenueMetrics.total_revenue, 100000),
-          goal: 100000,
-          unlocked: revenueMetrics.total_revenue >= 100000,
-          category: 'revenue',
         },
         {
           id: 'content_creator',
@@ -922,15 +1536,470 @@ export class AdminAnalyticsService {
   }
 
   /**
+   * Get feature adoption funnel metrics
+   */
+  static async getFeatureAdoptionFunnel(): Promise<FeatureAdoptionFunnel[]> {
+    try {
+      const allInteractions = await AnalyticsDataService.getAllUserInteractions();
+      
+      // Define key features to track
+      const features = [
+        { name: 'Event Interest/RSVP', eventType: 'interest', entityType: 'event' },
+        { name: 'Event Reviews', eventType: 'review', entityType: 'event' },
+        { name: 'Event Shares', eventType: 'share', entityType: 'event' },
+        { name: 'Search', eventType: 'search', entityType: 'search' },
+        { name: 'Ticket Clicks', eventType: 'click_ticket', entityType: 'ticket_link' },
+      ];
+
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const sixtyDaysAgo = new Date(now);
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+      const results: FeatureAdoptionFunnel[] = [];
+
+      for (const feature of features) {
+        // Discovery: first time user sees/interacts with feature
+        const discoveryUsers = new Set<string>();
+        // Trial: user tries the feature (1-2 uses)
+        const trialUsers = new Set<string>();
+        // Adoption: user uses feature regularly (3-10 uses)
+        const adoptionUsers = new Set<string>();
+        // Retention: user continues using feature (10+ uses, used in last 30 days)
+        const retentionUsers = new Set<string>();
+
+        const featureInteractions = allInteractions.filter((i: any) => 
+          i.event_type === feature.eventType && 
+          (feature.entityType === 'search' || i.entity_type === feature.entityType)
+        );
+
+        // Count uses per user
+        const userUsageCount = new Map<string, number>();
+        const userFirstUse = new Map<string, Date>();
+        const userLastUse = new Map<string, Date>();
+
+        featureInteractions.forEach((interaction: any) => {
+          const userId = interaction.user_id;
+          const occurredAt = new Date(interaction.occurred_at);
+          
+          userUsageCount.set(userId, (userUsageCount.get(userId) || 0) + 1);
+          
+          if (!userFirstUse.has(userId) || occurredAt < userFirstUse.get(userId)!) {
+            userFirstUse.set(userId, occurredAt);
+          }
+          if (!userLastUse.has(userId) || occurredAt > userLastUse.get(userId)!) {
+            userLastUse.set(userId, occurredAt);
+          }
+        });
+
+        // Categorize users
+        userUsageCount.forEach((count, userId) => {
+          const firstUse = userFirstUse.get(userId)!;
+          const lastUse = userLastUse.get(userId)!;
+          
+          // Discovery: anyone who used it
+          discoveryUsers.add(userId);
+          
+          if (count >= 1 && count <= 2) {
+            trialUsers.add(userId);
+          } else if (count >= 3 && count <= 10) {
+            adoptionUsers.add(userId);
+          } else if (count > 10 && lastUse >= thirtyDaysAgo) {
+            retentionUsers.add(userId);
+          }
+        });
+
+        const discoveryCount = discoveryUsers.size;
+        const trialCount = trialUsers.size;
+        const adoptionCount = adoptionUsers.size;
+        const retentionCount = retentionUsers.size;
+
+        results.push({
+          feature_name: feature.name,
+          discovery_count: discoveryCount,
+          trial_count: trialCount,
+          adoption_count: adoptionCount,
+          retention_count: retentionCount,
+          discovery_to_trial_rate: discoveryCount > 0 ? (trialCount / discoveryCount) * 100 : 0,
+          trial_to_adoption_rate: trialCount > 0 ? (adoptionCount / trialCount) * 100 : 0,
+          adoption_to_retention_rate: adoptionCount > 0 ? (retentionCount / adoptionCount) * 100 : 0,
+        });
+      }
+
+      return results;
+    } catch (error) {
+      console.error('Error getting feature adoption funnel:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get session analytics
+   */
+  static async getSessionAnalytics(): Promise<SessionAnalytics> {
+    try {
+      const allInteractions = await AnalyticsDataService.getAllUserInteractions();
+      
+      // Group interactions by session_id
+      const sessions = new Map<string, {
+        startTime: Date;
+        endTime: Date;
+        pageViews: number;
+        userId: string;
+      }>();
+
+      allInteractions.forEach((interaction: any) => {
+        const sessionId = interaction.session_id || 'no-session';
+        const occurredAt = new Date(interaction.occurred_at);
+        
+        if (!sessions.has(sessionId)) {
+          sessions.set(sessionId, {
+            startTime: occurredAt,
+            endTime: occurredAt,
+            pageViews: 0,
+            userId: interaction.user_id,
+          });
+        }
+        
+        const session = sessions.get(sessionId)!;
+        if (occurredAt < session.startTime) {
+          session.startTime = occurredAt;
+        }
+        if (occurredAt > session.endTime) {
+          session.endTime = occurredAt;
+        }
+        if (interaction.event_type === 'view') {
+          session.pageViews++;
+        }
+      });
+
+      // Calculate metrics
+      const sessionDurations: number[] = [];
+      const pagesPerSession: number[] = [];
+      
+      sessions.forEach((session) => {
+        const duration = (session.endTime.getTime() - session.startTime.getTime()) / (1000 * 60); // minutes
+        sessionDurations.push(duration);
+        pagesPerSession.push(session.pageViews || 1);
+      });
+
+      const totalSessions = sessions.size;
+      const avgSessionDuration = sessionDurations.length > 0
+        ? sessionDurations.reduce((a, b) => a + b, 0) / sessionDurations.length
+        : 0;
+      const avgPagesPerSession = pagesPerSession.length > 0
+        ? pagesPerSession.reduce((a, b) => a + b, 0) / pagesPerSession.length
+        : 0;
+
+      // Time-bound sessions
+      const now = new Date();
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const sessions7d = Array.from(sessions.values()).filter(s => s.startTime >= sevenDaysAgo).length;
+      const sessions30d = Array.from(sessions.values()).filter(s => s.startTime >= thirtyDaysAgo).length;
+
+      // Bounce rate: sessions with only 1 page view
+      const bouncedSessions = Array.from(sessions.values()).filter(s => s.pageViews <= 1).length;
+      const bounceRate = totalSessions > 0 ? (bouncedSessions / totalSessions) * 100 : 0;
+
+      // Sessions by hour
+      const sessionsByHour = new Map<number, number>();
+      sessions.forEach((session) => {
+        const hour = session.startTime.getHours();
+        sessionsByHour.set(hour, (sessionsByHour.get(hour) || 0) + 1);
+      });
+
+      const sessionsByHourArray = Array.from({ length: 24 }, (_, i) => ({
+        hour: i,
+        session_count: sessionsByHour.get(i) || 0,
+      }));
+
+      return {
+        total_sessions: totalSessions,
+        avg_session_duration_minutes: Math.round(avgSessionDuration * 100) / 100,
+        avg_pages_per_session: Math.round(avgPagesPerSession * 100) / 100,
+        sessions_last_7d: sessions7d,
+        sessions_last_30d: sessions30d,
+        bounce_rate: Math.round(bounceRate * 100) / 100,
+        sessions_by_hour: sessionsByHourArray,
+      };
+    } catch (error) {
+      console.error('Error getting session analytics:', error);
+      return {
+        total_sessions: 0,
+        avg_session_duration_minutes: 0,
+        avg_pages_per_session: 0,
+        sessions_last_7d: 0,
+        sessions_last_30d: 0,
+        bounce_rate: 0,
+        sessions_by_hour: [],
+      };
+    }
+  }
+
+  /**
+   * Get social graph metrics
+   */
+  static async getSocialGraphMetrics(): Promise<SocialGraphMetrics> {
+    try {
+      // Get all friendships (from friends table - accepted friendships)
+      const { data: friendships } = await (supabase as any)
+        .from('friends')
+        .select('user1_id, user2_id, created_at');
+
+      // Get total users
+      const { count: totalUsers } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+
+      // Count connections per user
+      const userConnections = new Map<string, number>();
+      const usersWithConnections = new Set<string>();
+
+      friendships?.forEach((friendship: any) => {
+        userConnections.set(friendship.user1_id, (userConnections.get(friendship.user1_id) || 0) + 1);
+        userConnections.set(friendship.user2_id, (userConnections.get(friendship.user2_id) || 0) + 1);
+        usersWithConnections.add(friendship.user1_id);
+        usersWithConnections.add(friendship.user2_id);
+      });
+
+      const totalConnections = friendships?.length || 0;
+      const usersWithConnectionsCount = usersWithConnections.size;
+      const usersWithoutConnections = (totalUsers || 0) - usersWithConnectionsCount;
+
+      // Average connections per user
+      const totalUserConnections = Array.from(userConnections.values()).reduce((a, b) => a + b, 0);
+      const avgConnectionsPerUser = usersWithConnectionsCount > 0
+        ? totalUserConnections / usersWithConnectionsCount
+        : 0;
+
+      // Average connection degree (connections per connected user)
+      const avgConnectionDegree = usersWithConnectionsCount > 0
+        ? totalConnections / usersWithConnectionsCount
+        : 0;
+
+      // Network density: actual connections / possible connections
+      // For undirected graph: n*(n-1)/2 possible connections
+      const possibleConnections = usersWithConnectionsCount > 1
+        ? (usersWithConnectionsCount * (usersWithConnectionsCount - 1)) / 2
+        : 0;
+      const networkDensity = possibleConnections > 0
+        ? (totalConnections / possibleConnections) * 100
+        : 0;
+
+      // Growth rate: compare last 30 days to previous 30 days
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const sixtyDaysAgo = new Date(now);
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+      const recentConnections = friendships?.filter((f: any) => 
+        new Date(f.created_at) >= thirtyDaysAgo
+      ).length || 0;
+      const previousConnections = friendships?.filter((f: any) => {
+        const created = new Date(f.created_at);
+        return created >= sixtyDaysAgo && created < thirtyDaysAgo;
+      }).length || 0;
+
+      const connectionGrowthRate = previousConnections > 0
+        ? ((recentConnections - previousConnections) / previousConnections) * 100
+        : 0;
+
+      return {
+        total_connections: totalConnections,
+        avg_connections_per_user: Math.round(avgConnectionsPerUser * 100) / 100,
+        users_with_connections: usersWithConnectionsCount,
+        users_without_connections: usersWithoutConnections,
+        connection_growth_rate: Math.round(connectionGrowthRate * 100) / 100,
+        avg_connection_degree: Math.round(avgConnectionDegree * 100) / 100,
+        network_density: Math.round(networkDensity * 100) / 100,
+      };
+    } catch (error) {
+      console.error('Error getting social graph metrics:', error);
+      return {
+        total_connections: 0,
+        avg_connections_per_user: 0,
+        users_with_connections: 0,
+        users_without_connections: 0,
+        connection_growth_rate: 0,
+        avg_connection_degree: 0,
+        network_density: 0,
+      };
+    }
+  }
+
+  /**
+   * Get search effectiveness metrics
+   */
+  static async getSearchEffectiveness(): Promise<SearchEffectiveness> {
+    try {
+      const allInteractions = await AnalyticsDataService.getAllUserInteractions();
+      
+      // Get all searches
+      const searches = allInteractions.filter((i: any) => i.event_type === 'search');
+      const uniqueSearchers = new Set(searches.map((s: any) => s.user_id));
+
+      const now = new Date();
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const searches7d = searches.filter((s: any) => new Date(s.occurred_at) >= sevenDaysAgo).length;
+      const searches30d = searches.filter((s: any) => new Date(s.occurred_at) >= thirtyDaysAgo).length;
+
+      // Track search queries and their outcomes
+      const queryMap = new Map<string, {
+        count: number;
+        clicks: number;
+        interests: number;
+        searchers: Set<string>;
+      }>();
+
+      searches.forEach((search: any) => {
+        const query = search.metadata?.query || search.metadata?.search_query || 'unknown';
+        if (!queryMap.has(query)) {
+          queryMap.set(query, {
+            count: 0,
+            clicks: 0,
+            interests: 0,
+            searchers: new Set(),
+          });
+        }
+        const queryData = queryMap.get(query)!;
+        queryData.count++;
+        queryData.searchers.add(search.user_id);
+      });
+
+      // Find clicks and interests after searches (within 5 minutes)
+      searches.forEach((search: any) => {
+        const searchTime = new Date(search.occurred_at);
+        const userId = search.user_id;
+        const query = search.metadata?.query || search.metadata?.search_query || 'unknown';
+        
+        // Look for clicks or interests within 5 minutes
+        const fiveMinutesLater = new Date(searchTime.getTime() + 5 * 60 * 1000);
+        
+        const relatedInteractions = allInteractions.filter((i: any) => 
+          i.user_id === userId &&
+          new Date(i.occurred_at) >= searchTime &&
+          new Date(i.occurred_at) <= fiveMinutesLater &&
+          (i.event_type === 'click' || i.event_type === 'interest')
+        );
+
+        if (relatedInteractions.length > 0) {
+          const queryData = queryMap.get(query);
+          if (queryData) {
+            relatedInteractions.forEach((interaction: any) => {
+              if (interaction.event_type === 'click') {
+                queryData.clicks++;
+              } else if (interaction.event_type === 'interest') {
+                queryData.interests++;
+              }
+            });
+          }
+        }
+      });
+
+      // Calculate top queries
+      const topQueries = Array.from(queryMap.entries())
+        .map(([query, data]) => ({
+          query,
+          count: data.count,
+          click_rate: data.count > 0 ? (data.clicks / data.count) * 100 : 0,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+      // Search to click rate (overall)
+      const totalClicksAfterSearch = Array.from(queryMap.values()).reduce((sum, data) => sum + data.clicks, 0);
+      const searchToClickRate = searches.length > 0 ? (totalClicksAfterSearch / searches.length) * 100 : 0;
+
+      // Search to interest rate (overall)
+      const totalInterestsAfterSearch = Array.from(queryMap.values()).reduce((sum, data) => sum + data.interests, 0);
+      const searchToInterestRate = searches.length > 0 ? (totalInterestsAfterSearch / searches.length) * 100 : 0;
+
+      // Searches by category (based on entity_type in metadata)
+      const categoryMap = new Map<string, { count: number; successes: number }>();
+      searches.forEach((search: any) => {
+        const category = search.metadata?.category || search.entity_type || 'general';
+        if (!categoryMap.has(category)) {
+          categoryMap.set(category, { count: 0, successes: 0 });
+        }
+        categoryMap.get(category)!.count++;
+        
+        // Check if this search led to a click/interest
+        const searchTime = new Date(search.occurred_at);
+        const fiveMinutesLater = new Date(searchTime.getTime() + 5 * 60 * 1000);
+        const hadSuccess = allInteractions.some((i: any) =>
+          i.user_id === search.user_id &&
+          new Date(i.occurred_at) >= searchTime &&
+          new Date(i.occurred_at) <= fiveMinutesLater &&
+          (i.event_type === 'click' || i.event_type === 'interest')
+        );
+        if (hadSuccess) {
+          categoryMap.get(category)!.successes++;
+        }
+      });
+
+      const searchesByCategory = Array.from(categoryMap.entries())
+        .map(([category, data]) => ({
+          category,
+          count: data.count,
+          success_rate: data.count > 0 ? (data.successes / data.count) * 100 : 0,
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      return {
+        total_searches: searches.length,
+        unique_searchers: uniqueSearchers.size,
+        searches_last_7d: searches7d,
+        searches_last_30d: searches30d,
+        search_to_click_rate: Math.round(searchToClickRate * 100) / 100,
+        search_to_interest_rate: Math.round(searchToInterestRate * 100) / 100,
+        top_queries: topQueries.map(q => ({
+          ...q,
+          click_rate: Math.round(q.click_rate * 100) / 100,
+        })),
+        searches_by_category: searchesByCategory.map(c => ({
+          ...c,
+          success_rate: Math.round(c.success_rate * 100) / 100,
+        })),
+      };
+    } catch (error) {
+      console.error('Error getting search effectiveness:', error);
+      return {
+        total_searches: 0,
+        unique_searchers: 0,
+        searches_last_7d: 0,
+        searches_last_30d: 0,
+        search_to_click_rate: 0,
+        search_to_interest_rate: 0,
+        top_queries: [],
+        searches_by_category: [],
+      };
+    }
+  }
+
+  /**
    * Export admin analytics data
    */
   static async exportAdminData(): Promise<{
     platformStats: PlatformStats;
     userGrowth: UserGrowth[];
     engagementMetrics: EngagementMetrics;
-    revenueMetrics: RevenueMetrics;
     contentMetrics: ContentMetrics;
-    systemHealth: SystemHealth;
+    activeUserMetrics: ActiveUserMetrics;
+    featureUsage: FeatureUsage[];
+    featureAdoptionFunnel: FeatureAdoptionFunnel[];
+    sessionAnalytics: SessionAnalytics;
+    socialGraphMetrics: SocialGraphMetrics;
+    searchEffectiveness: SearchEffectiveness;
     userSegments: UserSegment[];
     geographicDistribution: GeographicDistribution[];
     achievements: AdminAchievement[];
@@ -940,9 +2009,13 @@ export class AdminAnalyticsService {
       platformStats,
       userGrowth,
       engagementMetrics,
-      revenueMetrics,
       contentMetrics,
-      systemHealth,
+      activeUserMetrics,
+      featureUsage,
+      featureAdoptionFunnel,
+      sessionAnalytics,
+      socialGraphMetrics,
+      searchEffectiveness,
       userSegments,
       geographicDistribution,
       achievements,
@@ -951,9 +2024,13 @@ export class AdminAnalyticsService {
       this.getPlatformStats(),
       this.getUserGrowth(),
       this.getEngagementMetrics(),
-      this.getRevenueMetrics(),
       this.getContentMetrics(),
-      this.getSystemHealth(),
+      this.getActiveUserMetrics(),
+      this.getFeatureUsage(),
+      this.getFeatureAdoptionFunnel(),
+      this.getSessionAnalytics(),
+      this.getSocialGraphMetrics(),
+      this.getSearchEffectiveness(),
       this.getUserSegments(),
       this.getGeographicDistribution(),
       this.getAdminAchievements(),
@@ -964,9 +2041,13 @@ export class AdminAnalyticsService {
       platformStats,
       userGrowth,
       engagementMetrics,
-      revenueMetrics,
       contentMetrics,
-      systemHealth,
+      activeUserMetrics,
+      featureUsage,
+      featureAdoptionFunnel,
+      sessionAnalytics,
+      socialGraphMetrics,
+      searchEffectiveness,
       userSegments,
       geographicDistribution,
       achievements,
