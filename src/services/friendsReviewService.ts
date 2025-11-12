@@ -412,7 +412,7 @@ export class FriendsReviewService {
         artist_id: review.artist_id
       },
       connection_degree: review.connection_degree,
-      connection_type_label: review.connection_type_label, // 'Friends', 'Friends of Friends', etc.
+      connection_type_label: review.connection_type_label, // 'Friend', 'Mutual Friend', 'Mutual Friends +', 'Stranger'
       connection_color: (review as any).connection_color, // Color for badge styling
       relevance_score: this.calculateFriendReviewRelevance(review, review.connection_degree || 3)
     };

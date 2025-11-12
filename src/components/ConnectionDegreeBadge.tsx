@@ -109,11 +109,11 @@ export const ConnectionDegreeBadge: React.FC<ConnectionDegreeBadgeProps> = ({
   const getDegreeIcon = (degree: number) => {
     switch (degree) {
       case 1:
-        return '👥' // Friends
+        return '👥' // Friend
       case 2:
-        return '🤝' // Friends of Friends
+        return '🤝' // Mutual Friend
       case 3:
-        return '🔗' // Mutual Friends of Mutual Friends
+        return '🔗' // Mutual Friends +
       case 4:
         return '👤' // Stranger
       default:

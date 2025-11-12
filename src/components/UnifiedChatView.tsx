@@ -48,6 +48,7 @@ interface Chat {
   group_admin_id: string | null;
   created_at: string;
   updated_at: string;
+  unread_count?: number;
 }
 
 interface Message {
@@ -127,6 +128,8 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       fetchMessages(selectedChat.id);
       fetchChatParticipants(selectedChat.id);
       fetchLinkedEvent(selectedChat.id);
+      // Mark messages as read when chat is opened
+      markChatAsRead(selectedChat.id);
     }
   }, [selectedChat]);
 
@@ -201,11 +204,74 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         return;
       }
 
-      setChats(data || []);
+      // Fetch unread counts for each chat
+      // We'll track read status by storing the last message ID the user has seen per chat
+      // For now, we'll use a simple approach: if user has selected the chat, it's read
+      // In a full implementation, you'd use a read_receipts table or last_read_message_id
+      const chatsWithUnread = await Promise.all((data || []).map(async (chat) => {
+        try {
+          // Get the latest message in this chat
+          const { data: latestMessage } = await supabase
+            .from('messages')
+            .select('id, created_at, sender_id')
+            .eq('chat_id', chat.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          // If there's no latest message or it's from the current user, no unread
+          if (!latestMessage || latestMessage.sender_id === currentUserId) {
+            return {
+              ...chat,
+              unread_count: 0
+            };
+          }
+
+          // Check if user has a read receipt for this chat
+          // For now, we'll use localStorage to track which chats have been viewed
+          const readChats = JSON.parse(localStorage.getItem('read_chats') || '[]');
+          const isRead = readChats.includes(chat.id);
+          
+          // If chat has been read, no unread messages
+          if (isRead) {
+            return {
+              ...chat,
+              unread_count: 0
+            };
+          }
+
+          // Count messages not sent by current user (these are unread)
+          const { count } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('chat_id', chat.id)
+            .neq('sender_id', currentUserId);
+          
+          return {
+            ...chat,
+            unread_count: count || 0
+          };
+        } catch (error) {
+          console.error('Error fetching unread count for chat:', chat.id, error);
+          return {
+            ...chat,
+            unread_count: 0
+          };
+        }
+      }));
+
+      // Sort by latest_message_created_at descending (most recent first)
+      const sortedChats = chatsWithUnread.sort((a, b) => {
+        const aTime = a.latest_message_created_at ? new Date(a.latest_message_created_at).getTime() : 0;
+        const bTime = b.latest_message_created_at ? new Date(b.latest_message_created_at).getTime() : 0;
+        return bTime - aTime; // Descending order
+      });
+
+      setChats(sortedChats);
       
       // Identify event-created group chats
       const eventCreatedChatIds = new Set<string>();
-      for (const chat of data || []) {
+      for (const chat of sortedChats) {
         if (chat.is_group_chat) {
           const isEventCreated = await isEventCreatedGroupChat(chat.id);
           if (isEventCreated) {
@@ -643,11 +709,21 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         .from('event_groups')
         .select('id')
         .eq('chat_id', chatId)
-        .single();
+        .maybeSingle();
       
-      return !error && !!data;
+      // If we get a 406 or other error, just return false (not an event group)
+      if (error) {
+        // 406 Not Acceptable usually means RLS or table doesn't exist
+        if (error.code === 'PGRST116' || error.code === '42P01' || error.status === 406) {
+          return false;
+        }
+        console.warn('Error checking if chat is event-created:', error);
+        return false;
+      }
+      
+      return !!data;
     } catch (error) {
-      console.error('Error checking if chat is event-created:', error);
+      // Silently fail - not an event group
       return false;
     }
   };
@@ -661,6 +737,55 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
     const otherUserId = chat.users.find(id => id !== currentUserId);
     const otherUser = users.find(u => u.user_id === otherUserId);
     return otherUser?.avatar_url || null;
+  };
+
+  // Mark chat messages as read when chat is opened
+  const markChatAsRead = async (chatId: string) => {
+    try {
+      // Store in localStorage that this chat has been read
+      const readChats = JSON.parse(localStorage.getItem('read_chats') || '[]');
+      if (!readChats.includes(chatId)) {
+        readChats.push(chatId);
+        localStorage.setItem('read_chats', JSON.stringify(readChats));
+      }
+
+      // Update unread count to 0 for this chat in local state
+      setChats(prev => prev.map(chat => 
+        chat.id === chatId ? { ...chat, unread_count: 0 } : chat
+      ));
+    } catch (error) {
+      console.error('Error marking chat as read:', error);
+    }
+  };
+
+  // Format timestamp to show "today", "yesterday", or date
+  const formatChatTimestamp = (timestamp: string | null): string => {
+    if (!timestamp) return '';
+    
+    const messageDate = parseISO(timestamp);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const messageDateOnly = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate());
+    
+    if (messageDateOnly.getTime() === today.getTime()) {
+      // Today - show time only
+      return format(messageDate, 'h:mm a');
+    } else if (messageDateOnly.getTime() === yesterday.getTime()) {
+      // Yesterday - show "Yesterday" and time
+      return `Yesterday ${format(messageDate, 'h:mm a')}`;
+    } else {
+      // Older - show date and time
+      const daysDiff = Math.floor((today.getTime() - messageDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDiff < 7) {
+        // Within a week - show day name and time
+        return `${format(messageDate, 'EEEE')} ${format(messageDate, 'h:mm a')}`;
+      } else {
+        // Older - show date and time
+        return format(messageDate, 'MMM d, h:mm a');
+      }
+    }
   };
 
   // Settings menu functions
@@ -921,6 +1046,12 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                 >
                   <CardContent className="p-3">
                     <div className="flex items-center gap-2">
+                      {/* Unread indicator - pink dot on far left, vertically centered */}
+                      {chat.unread_count && chat.unread_count > 0 ? (
+                        <div className="w-2.5 h-2.5 bg-synth-pink rounded-full flex-shrink-0" />
+                      ) : (
+                        <div className="w-2.5 flex-shrink-0" />
+                      )}
                       <div 
                         className="flex-1 flex items-center gap-3 cursor-pointer min-w-0"
                         onClick={() => setSelectedChat(chat)}
@@ -942,7 +1073,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                             </h3>
                             {chat.latest_message_created_at && (
                               <span className="text-xs text-gray-500 flex-shrink-0">
-                                {format(parseISO(chat.latest_message_created_at), 'h:mm a')}
+                                {formatChatTimestamp(chat.latest_message_created_at)}
                               </span>
                             )}
                           </div>

@@ -2118,35 +2118,12 @@ export const UnifiedFeed = ({
   return (
     <div className={outerClassName}>
       <div className={innerClassName}>
-        <div className={`flex items-center justify-between ${headerSpacingClass}`}>
+        <div className={headerSpacingClass}>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">{resolvedHeaderTitle}</h1>
             {resolvedHeaderSubtitle && (
               <p className="text-gray-600 mt-2">{resolvedHeaderSubtitle}</p>
             )}
-        </div>
-        
-          {/* Right side icons */}
-          <div className="flex items-center gap-3">
-            {/* Notifications button */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="relative p-2"
-              onClick={onNavigateToNotifications}
-            >
-              <Bell className="w-5 h-5" />
-            </Button>
-            
-            {/* Chat button */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="p-2"
-              onClick={() => onNavigateToChat?.(currentUserId)}
-            >
-              <MessageCircle className="w-5 h-5" />
-            </Button>
           </div>
         </div>
 

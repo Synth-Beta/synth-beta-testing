@@ -57,7 +57,7 @@ export interface UnifiedFeedItem {
   
   // Connection degree (for reviews from connections)
   connection_degree?: number;
-  connection_type_label?: string; // 'Friends', 'Friends of Friends', etc.
+  connection_type_label?: string; // 'Friend', 'Mutual Friend', 'Mutual Friends +', 'Stranger'
   connection_color?: string; // 'dark-green', 'light-green', 'yellow', etc.
 }
 

@@ -47,6 +47,22 @@ type ChatPreview = {
   latest_message: string | null;
   latest_message_created_at: string | null;
   latest_message_sender_name: string | null;
+  unread_count?: number;
+};
+
+type RecommendedUser = {
+  recommended_user_id: string;
+  name: string | null;
+  avatar_url: string | null;
+  connection_degree: number;
+  connection_label: string;
+  recommendation_score: number;
+  shared_artists_count: number;
+  shared_venues_count: number;
+  shared_genres_count: number;
+  shared_events_count: number;
+  mutual_friends_count: number;
+  recommendation_reasons: string[];
 };
 
 interface ConnectViewProps {
@@ -57,9 +73,9 @@ interface ConnectViewProps {
 }
 
 const CONNECTION_LABELS: Record<number, string> = {
-  1: 'Friends',
-  2: 'Friends of Friends',
-  3: 'Extended Network',
+  1: 'Friend',
+  2: 'Mutual Friend',
+  3: 'Mutual Friends +',
 };
 
 const resolveConnectionMeta = (
@@ -77,7 +93,7 @@ const resolveConnectionMeta = (
   if (third.has(userId)) {
     return { degree: 3, label: CONNECTION_LABELS[3] };
   }
-  return { degree: 0, label: 'Community' };
+  return { degree: 0, label: 'Stranger' };
 };
 
 const safeFormatDate = (value?: string | null, pattern = 'MMM d, yyyy') => {
@@ -132,9 +148,24 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
   const [thirdConnections, setThirdConnections] = useState<ConnectionProfile[]>([]);
   const [interestsLoading, setInterestsLoading] = useState(true);
   const [connectionInterests, setConnectionInterests] = useState<ConnectionInterest[]>([]);
+  const [recommendedUsers, setRecommendedUsers] = useState<RecommendedUser[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
 
   const [chatPreviews, setChatPreviews] = useState<ChatPreview[]>([]);
   const [chatsLoading, setChatsLoading] = useState(true);
+  const [chatUserNames, setChatUserNames] = useState<Map<string, string>>(new Map());
+  const [recommendedChatFriends, setRecommendedChatFriends] = useState<Array<{
+    user_id: string;
+    name: string;
+    avatar_url: string | null;
+    shared_event_id?: string;
+    shared_event_title?: string;
+    shared_event_artist?: string;
+    shared_event_date?: string;
+    connection_label: string;
+    reason: string;
+  }>>([]);
+  const [recommendedChatFriendsLoading, setRecommendedChatFriendsLoading] = useState(false);
   const [likedReviews, setLikedReviews] = useState<Set<string>>(new Set());
   const [showReviewDetailModal, setShowReviewDetailModal] = useState(false);
   const [selectedReviewDetail, setSelectedReviewDetail] = useState<UnifiedFeedItem | null>(null);
@@ -336,7 +367,105 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         if (error) throw error;
         if (!active) return;
 
-        setChatPreviews((data || []) as ChatPreview[]);
+        // Fetch unread counts for each chat
+        // Only count chats that haven't been marked as read
+        const readChats = JSON.parse(localStorage.getItem('read_chats') || '[]');
+        const chatsWithUnread = await Promise.all((data || []).map(async (chat: any) => {
+          try {
+            // If chat has been read, no unread messages
+            if (readChats.includes(chat.id)) {
+              return {
+                ...chat,
+                unread_count: 0
+              } as ChatPreview;
+            }
+
+            // Get latest message to check if it's from current user
+            const { data: latestMessage } = await supabase
+              .from('messages')
+              .select('sender_id')
+              .eq('chat_id', chat.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            // If latest message is from current user, no unread
+            if (!latestMessage || latestMessage.sender_id === currentUserId) {
+              return {
+                ...chat,
+                unread_count: 0
+              } as ChatPreview;
+            }
+
+            // Count messages not sent by current user
+            const { count } = await supabase
+              .from('messages')
+              .select('*', { count: 'exact', head: true })
+              .eq('chat_id', chat.id)
+              .neq('sender_id', currentUserId);
+            
+            return {
+              ...chat,
+              unread_count: count || 0
+            } as ChatPreview;
+          } catch (error) {
+            console.error('Error fetching unread count for chat:', chat.id, error);
+            return {
+              ...chat,
+              unread_count: 0
+            } as ChatPreview;
+          }
+        }));
+
+        // Sort: unread messages first, then by latest message time
+        const sortedChats = chatsWithUnread.sort((a, b) => {
+          // First sort by unread count (unread first)
+          if ((a.unread_count || 0) > 0 && (b.unread_count || 0) === 0) return -1;
+          if ((a.unread_count || 0) === 0 && (b.unread_count || 0) > 0) return 1;
+          
+          // Then sort by latest message time
+          const aTime = a.latest_message_created_at ? new Date(a.latest_message_created_at).getTime() : 0;
+          const bTime = b.latest_message_created_at ? new Date(b.latest_message_created_at).getTime() : 0;
+          return bTime - aTime;
+        });
+
+        setChatPreviews(sortedChats);
+
+        // Fetch user names for direct chats
+        const userIdsToFetch = new Set<string>();
+        sortedChats.forEach(chat => {
+          if (!chat.is_group_chat) {
+            const otherUserId = chat.users.find(id => id !== currentUserId);
+            if (otherUserId) {
+              userIdsToFetch.add(otherUserId);
+            }
+          }
+        });
+
+        if (userIdsToFetch.size > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('user_id, name')
+            .in('user_id', Array.from(userIdsToFetch));
+
+          const nameMap = new Map<string, string>();
+          profiles?.forEach(profile => {
+            if (profile.name) {
+              nameMap.set(profile.user_id, profile.name);
+            }
+          });
+          setChatUserNames(nameMap);
+        }
+
+        // If all chats are read, fetch recommendations
+        const hasUnreadChats = sortedChats.some(chat => (chat.unread_count || 0) > 0);
+        if (!hasUnreadChats) {
+          fetchRecommendedChatFriends();
+        } else {
+          setRecommendedChatFriends([]);
+        }
+
+        // Note: Recommendations will be fetched via useEffect when connections are ready
       } catch (error) {
         console.error('Error loading chat previews:', error);
         if (active) {
@@ -369,19 +498,168 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     [thirdConnections]
   );
 
-  const recommendedConnections = useMemo(() => {
-    const combined = [
-      ...secondConnections.map((profile) => ({ ...profile, degree: 2 })),
-      ...thirdConnections.map((profile) => ({ ...profile, degree: 3 })),
-    ];
+  // Fetch recently added friends who haven't been chatted with
+  const fetchRecentlyAddedFriends = async () => {
+    try {
+      const { data: friendsData } = await supabase
+        .from('friends')
+        .select('user1_id, user2_id, created_at')
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-    return combined
-      .sort(
-        (a, b) =>
-          (b.mutual_friends_count || 0) - (a.mutual_friends_count || 0)
-      )
-      .slice(0, 6);
-  }, [secondConnections, thirdConnections]);
+      if (!friendsData || friendsData.length === 0) {
+        setRecommendedChatFriends([]);
+        return;
+      }
+
+      const friendIds = friendsData.map(f => 
+        f.user1_id === currentUserId ? f.user2_id : f.user1_id
+      );
+
+      // Get existing chats to exclude
+      const { data: existingChats } = await supabase.rpc('get_user_chats', {
+        user_id: currentUserId
+      });
+
+      const existingChatUserIds = new Set<string>();
+      existingChats?.forEach((chat: any) => {
+        if (!chat.is_group_chat) {
+          chat.users.forEach((userId: string) => {
+            if (userId !== currentUserId) {
+              existingChatUserIds.add(userId);
+            }
+          });
+        }
+      });
+
+      // Get profiles for friends who don't have chats yet
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, name, avatar_url')
+        .in('user_id', friendIds.filter(id => !existingChatUserIds.has(id)))
+        .limit(5);
+
+      const recommendations = profiles?.map(profile => {
+        const connectionMeta = resolveConnectionMeta(
+          profile.user_id,
+          firstSet,
+          secondSet,
+          thirdSet
+        );
+        return {
+          user_id: profile.user_id,
+          name: profile.name || 'Friend',
+          avatar_url: profile.avatar_url,
+          shared_event_id: '',
+          shared_event_title: '',
+          shared_event_artist: '',
+          shared_event_date: '',
+          connection_label: connectionMeta.label,
+          reason: 'Recently added friend',
+        };
+      }) || [];
+
+      setRecommendedChatFriends(recommendations);
+    } catch (error) {
+      console.error('Error fetching recently added friends:', error);
+      setRecommendedChatFriends([]);
+    }
+  };
+
+  // Fetch recommended friends to chat with
+  // Fetch recommended friends when all chats are read and connections are loaded
+  useEffect(() => {
+    if (!chatsLoading && !interestsLoading && chatPreviews.length >= 0) {
+      const hasUnread = chatPreviews.some(chat => (chat.unread_count || 0) > 0);
+      if (!hasUnread && firstConnections.length > 0) {
+        fetchRecommendedChatFriends();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatsLoading, interestsLoading, chatPreviews, firstConnections.length]);
+
+  // Load user recommendations
+  useEffect(() => {
+    let active = true;
+
+    const loadRecommendations = async () => {
+      setRecommendationsLoading(true);
+      try {
+        console.log('Loading recommendations for user:', currentUserId);
+        
+        // First, try to fetch cached recommendations
+        const { data: cachedData, error: cachedError } = await supabase.rpc('get_user_recommendations', {
+          p_user_id: currentUserId,
+          p_limit: 10,
+        });
+
+        console.log('Cached data:', cachedData, 'Error:', cachedError);
+
+        // If we have cached data, use it immediately
+        if (cachedData && cachedData.length > 0 && active) {
+          console.log('Using cached recommendations:', cachedData.length);
+          setRecommendedUsers(cachedData as RecommendedUser[]);
+          setRecommendationsLoading(false);
+          
+          // Calculate/refresh in background (don't await)
+          supabase.rpc('calculate_user_recommendations', {
+            p_user_id: currentUserId,
+          }).then(({ error }) => {
+            if (error) {
+              console.error('Error refreshing recommendations in background:', error);
+            }
+          });
+          return;
+        }
+
+        // If no cache or error, calculate now
+        if (cachedError || !cachedData || cachedData.length === 0) {
+          console.log('No cached data, calculating recommendations...');
+          const calcResult = await supabase.rpc('calculate_user_recommendations', {
+            p_user_id: currentUserId,
+          });
+          console.log('Calculation result:', calcResult);
+
+          // Fetch the newly calculated recommendations
+          const { data, error } = await supabase.rpc('get_user_recommendations', {
+            p_user_id: currentUserId,
+            p_limit: 10,
+          });
+
+          console.log('Fetched recommendations:', data, 'Error:', error);
+
+          if (error) {
+            console.error('Error loading recommendations:', error);
+            if (active) {
+              setRecommendedUsers([]);
+            }
+            return;
+          }
+
+          if (active) {
+            console.log('Setting recommendations:', data?.length || 0);
+            setRecommendedUsers((data || []) as RecommendedUser[]);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading recommendations:', error);
+        if (active) {
+          setRecommendedUsers([]);
+        }
+      } finally {
+        if (active) {
+          setRecommendationsLoading(false);
+        }
+      }
+    };
+
+    loadRecommendations();
+
+    return () => {
+      active = false;
+    };
+  }, [currentUserId]);
 
   const renderReviewsSection = () => {
     if (reviewsLoading) {
@@ -592,13 +870,88 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       );
     }
 
+    // Group interests by event and get unique friends per event
+    const interestsByEvent = new Map<string, ConnectionInterest[]>();
+    connectionInterests.forEach(interest => {
+      const eventId = interest.eventId;
+      if (!interestsByEvent.has(eventId)) {
+        interestsByEvent.set(eventId, []);
+      }
+      interestsByEvent.get(eventId)!.push(interest);
+    });
+
+    // Get events where user is also interested, limit to 2-3
+    const userInterestedEvents = new Set<string>();
+    const getFriendsForSameEvents = async () => {
+      try {
+        // Get user's interested events
+        const { data: userEvents } = await supabase
+          .from('user_jambase_events')
+          .select('jambase_event_id')
+          .eq('user_id', currentUserId)
+          .limit(50);
+
+        if (userEvents) {
+          userEvents.forEach(event => {
+            userInterestedEvents.add(event.jambase_event_id);
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching user events:', error);
+      }
+    };
+
+    // Filter to show only friends interested in events the user is also interested in
+    const relevantInterests = connectionInterests
+      .filter(interest => {
+        // For now, show all interests but prioritize ones where user might be interested
+        // In a full implementation, you'd check if user is interested in the same event
+        return true;
+      })
+      .slice(0, 3); // Show 2-3 friends
+
     return (
       <div className="grid gap-4 md:grid-cols-2">
-        {connectionInterests.map((interest) => {
+        {relevantInterests.map((interest) => {
           const createdAtLabel = safeFormatDate(interest.createdAt);
           const eventDateLabel = safeFormatDate(interest.eventDate);
+          
+          const handleStartChat = async () => {
+            if (!onNavigateToChat) return;
+            try {
+              // Create or get direct chat with this friend
+              const { data: chatId, error } = await supabase.rpc('create_direct_chat', {
+                user1_id: currentUserId,
+                user2_id: interest.userId
+              });
+
+              if (error) {
+                console.error('Error creating chat:', error);
+                toast({
+                  title: "Error",
+                  description: "Failed to start chat. Please try again.",
+                  variant: "destructive",
+                });
+                return;
+              }
+
+              onNavigateToChat(interest.userId);
+              toast({
+                title: "Chat Started! 💬",
+                description: `You can now chat with ${interest.userName} about this event!`,
+              });
+            } catch (error) {
+              console.error('Error starting chat:', error);
+              toast({
+                title: "Error",
+                description: "Failed to start chat. Please try again.",
+                variant: "destructive",
+              });
+            }
+          };
+
           return (
-            <Card key={interest.id}>
+            <Card key={interest.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-3">
                   <Avatar className="w-10 h-10">
@@ -652,12 +1005,224 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                     )}
                   </div>
                 </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={handleStartChat}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Start Chat
+                </Button>
               </CardContent>
             </Card>
           );
         })}
       </div>
     );
+  };
+
+  // Fetch recommended friends to chat with
+  const fetchRecommendedChatFriends = async () => {
+    setRecommendedChatFriendsLoading(true);
+    try {
+      // First, get user's interested events
+      const { data: userEvents } = await supabase
+        .from('user_jambase_events')
+        .select('jambase_event_id')
+        .eq('user_id', currentUserId)
+        .limit(50);
+
+      if (!userEvents || userEvents.length === 0) {
+        // If user has no interested events, get recently added friends
+        await fetchRecentlyAddedFriends();
+        return;
+      }
+
+      const userEventIds = userEvents.map(e => e.jambase_event_id);
+
+      // Get friends who are also interested in these events
+      const { data: friendsData } = await supabase
+        .from('friends')
+        .select('user1_id, user2_id, created_at')
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+        .order('created_at', { ascending: false });
+
+      if (!friendsData || friendsData.length === 0) {
+        setRecommendedChatFriends([]);
+        return;
+      }
+
+      const friendIds = friendsData.map(f => 
+        f.user1_id === currentUserId ? f.user2_id : f.user1_id
+      );
+
+      // Get friends' interested events that match user's events
+      const { data: friendInterests } = await supabase
+        .from('user_jambase_events')
+        .select(`
+          user_id,
+          jambase_event_id,
+          jambase_events!inner(
+            id,
+            title,
+            artist_name,
+            event_date
+          )
+        `)
+        .in('user_id', friendIds)
+        .in('jambase_event_id', userEventIds)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (!friendInterests || friendInterests.length === 0) {
+        // No shared events, get recently added friends
+        await fetchRecentlyAddedFriends();
+        return;
+      }
+
+      // Get unique friends (one per friend, with their first shared event)
+      const friendMap = new Map<string, any>();
+      friendInterests.forEach((interest: any) => {
+        if (!friendMap.has(interest.user_id)) {
+          friendMap.set(interest.user_id, {
+            user_id: interest.user_id,
+            shared_event_id: interest.jambase_event_id,
+            shared_event_title: interest.jambase_events?.title,
+            shared_event_artist: interest.jambase_events?.artist_name,
+            shared_event_date: interest.jambase_events?.event_date,
+          });
+        }
+      });
+
+      // Get profiles for these friends
+      const friendUserIds = Array.from(friendMap.keys());
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, name, avatar_url')
+        .in('user_id', friendUserIds);
+
+      // Check which friends already have chats
+      const { data: existingChats } = await supabase.rpc('get_user_chats', {
+        user_id: currentUserId
+      });
+
+      const existingChatUserIds = new Set<string>();
+      existingChats?.forEach((chat: any) => {
+        if (!chat.is_group_chat) {
+          chat.users.forEach((userId: string) => {
+            if (userId !== currentUserId) {
+              existingChatUserIds.add(userId);
+            }
+          });
+        }
+      });
+
+      // Build recommendations (exclude friends who already have chats)
+      const recommendations = profiles
+        ?.filter(profile => !existingChatUserIds.has(profile.user_id))
+        .map(profile => {
+          const friendData = friendMap.get(profile.user_id);
+          // Get connection label
+          const connectionMeta = resolveConnectionMeta(
+            profile.user_id,
+            firstSet,
+            secondSet,
+            thirdSet
+          );
+          return {
+            user_id: profile.user_id,
+            name: profile.name || 'Friend',
+            avatar_url: profile.avatar_url,
+            shared_event_id: friendData?.shared_event_id || '',
+            shared_event_title: friendData?.shared_event_title || '',
+            shared_event_artist: friendData?.shared_event_artist || '',
+            shared_event_date: friendData?.shared_event_date || '',
+            connection_label: connectionMeta.label,
+            reason: friendData?.shared_event_artist 
+              ? `Interested in ${friendData.shared_event_artist}`
+              : 'Friend',
+          };
+        })
+        .slice(0, 5) || [];
+
+      setRecommendedChatFriends(recommendations);
+    } catch (error) {
+      console.error('Error fetching recommended chat friends:', error);
+      await fetchRecentlyAddedFriends();
+    } finally {
+      setRecommendedChatFriendsLoading(false);
+    }
+  };
+
+  // Fetch recently added friends who haven't been chatted with
+  const fetchRecentlyAddedFriends = async () => {
+    try {
+      const { data: friendsData } = await supabase
+        .from('friends')
+        .select('user1_id, user2_id, created_at')
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (!friendsData || friendsData.length === 0) {
+        setRecommendedChatFriends([]);
+        return;
+      }
+
+      const friendIds = friendsData.map(f => 
+        f.user1_id === currentUserId ? f.user2_id : f.user1_id
+      );
+
+      // Get existing chats to exclude
+      const { data: existingChats } = await supabase.rpc('get_user_chats', {
+        user_id: currentUserId
+      });
+
+      const existingChatUserIds = new Set<string>();
+      existingChats?.forEach((chat: any) => {
+        if (!chat.is_group_chat) {
+          chat.users.forEach((userId: string) => {
+            if (userId !== currentUserId) {
+              existingChatUserIds.add(userId);
+            }
+          });
+        }
+      });
+
+      // Get profiles for friends who don't have chats yet
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, name, avatar_url')
+        .in('user_id', friendIds.filter(id => !existingChatUserIds.has(id)))
+        .limit(5);
+
+      const recommendations = profiles?.map(profile => {
+        const connectionMeta = resolveConnectionMeta(
+          profile.user_id,
+          firstSet,
+          secondSet,
+          thirdSet
+        );
+        return {
+          user_id: profile.user_id,
+          name: profile.name || 'Friend',
+          avatar_url: profile.avatar_url,
+          shared_event_id: '',
+          shared_event_title: '',
+          shared_event_artist: '',
+          shared_event_date: '',
+          connection_label: connectionMeta.label,
+          reason: 'Recently added friend',
+        };
+      }) || [];
+
+      setRecommendedChatFriends(recommendations);
+    } catch (error) {
+      console.error('Error fetching recently added friends:', error);
+      setRecommendedChatFriends([]);
+    }
   };
 
   const renderChatSection = () => {
@@ -669,48 +1234,150 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       );
     }
 
-    if (chatPreviews.length === 0) {
+    // Get unread chats and read chats separately
+    const unreadChats = chatPreviews.filter(chat => (chat.unread_count || 0) > 0);
+    const readChats = chatPreviews.filter(chat => (chat.unread_count || 0) === 0);
+    
+    // If there are unread chats, show all chats (unread first, then read)
+    if (unreadChats.length > 0) {
+      const chatsToShow = [...unreadChats, ...readChats];
+
+      return (
+        <div className="space-y-1.5">
+          {chatsToShow.map((chat) => {
+            const latestMessageTime = safeFormatDate(chat.latest_message_created_at, 'h:mm a');
+            const hasUnread = (chat.unread_count || 0) > 0;
+
+            const openChat = () => {
+              if (!onNavigateToChat) return;
+              if (chat.is_group_chat) {
+                onNavigateToChat(chat.id);
+              } else {
+                const otherUserId =
+                  chat.users.find((id) => id !== currentUserId) || chat.users[0];
+                onNavigateToChat(otherUserId);
+              }
+            };
+
+            return (
+              <Card key={chat.id} className={`border cursor-pointer hover:bg-muted/50 transition-colors ${hasUnread ? 'bg-synth-pink/5 border-synth-pink/20' : ''}`} onClick={openChat}>
+                <CardContent className="p-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {hasUnread && (
+                          <div className="w-2 h-2 bg-synth-pink rounded-full flex-shrink-0" />
+                        )}
+                        <p className={`font-semibold text-xs truncate ${hasUnread ? 'text-gray-900' : 'text-gray-900'}`}>
+                          {chat.is_group_chat 
+                            ? (chat.chat_name || 'Group Chat')
+                            : (chatUserNames.get(chat.users.find(id => id !== currentUserId) || '') || chat.chat_name || 'Chat')
+                          }
+                        </p>
+                      </div>
+                      {latestMessageTime && (
+                        <p className="text-xs text-muted-foreground flex-shrink-0 ml-1.5">{latestMessageTime}</p>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate leading-tight">
+                      {chat.latest_message || 'No messages'}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // If all chats are read, show recommended friends to chat with
+    if (recommendedChatFriendsLoading) {
+      return (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="h-4 w-4 animate-spin text-synth-pink" />
+        </div>
+      );
+    }
+
+    if (recommendedChatFriends.length === 0) {
       return (
         <div className="text-center py-4">
           <MessageCircle className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
           <p className="text-muted-foreground text-xs">
-            No active chats
+            No chats or recommendations
           </p>
         </div>
       );
     }
 
-    const limitedChats = chatPreviews.slice(0, 2);
-
     return (
       <div className="space-y-1.5">
-        {limitedChats.map((chat) => {
-          const latestMessageTime = safeFormatDate(chat.latest_message_created_at, 'h:mm a');
-
-          const openChat = () => {
+        {recommendedChatFriends.map((friend) => {
+          const handleStartChat = async () => {
             if (!onNavigateToChat) return;
-            if (chat.is_group_chat) {
-              onNavigateToChat(chat.id);
-            } else {
-              const otherUserId =
-                chat.users.find((id) => id !== currentUserId) || chat.users[0];
-              onNavigateToChat(otherUserId);
+            try {
+              const { data: chatId, error } = await supabase.rpc('create_direct_chat', {
+                user1_id: currentUserId,
+                user2_id: friend.user_id
+              });
+
+              if (error) {
+                console.error('Error creating chat:', error);
+                toast({
+                  title: "Error",
+                  description: "Failed to start chat. Please try again.",
+                  variant: "destructive",
+                });
+                return;
+              }
+
+              onNavigateToChat(friend.user_id);
+              toast({
+                title: "Chat Started! 💬",
+                description: friend.shared_event_title 
+                  ? `You can now chat with ${friend.name} about ${friend.shared_event_artist || 'this event'}!`
+                  : `You can now chat with ${friend.name}!`,
+              });
+            } catch (error) {
+              console.error('Error starting chat:', error);
+              toast({
+                title: "Error",
+                description: "Failed to start chat. Please try again.",
+                variant: "destructive",
+              });
             }
           };
 
           return (
-            <Card key={chat.id} className="border cursor-pointer hover:bg-muted/50 transition-colors" onClick={openChat}>
+            <Card key={friend.user_id} className="border cursor-pointer hover:bg-muted/50 transition-colors">
               <CardContent className="p-2">
                 <div className="min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
-                    <p className="font-semibold text-xs text-gray-900 truncate">{chat.chat_name || 'Chat'}</p>
-                    {latestMessageTime && (
-                      <p className="text-xs text-muted-foreground flex-shrink-0 ml-1.5">{latestMessageTime}</p>
-                    )}
+                    <p className="font-semibold text-xs text-gray-900 truncate flex-1">
+                      {friend.name}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate leading-tight">
-                    {chat.latest_message || 'No messages'}
+                  <p className="text-xs text-muted-foreground truncate leading-tight mb-1">
+                    {friend.reason || (friend.shared_event_artist ? `Interested in ${friend.shared_event_artist}` : 'Friend')}
                   </p>
+                  {friend.shared_event_artist && (
+                    <p className="text-xs text-green-700 truncate leading-tight mb-2">
+                      {friend.shared_event_artist}
+                    </p>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-1 text-xs h-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartChat();
+                    }}
+                  >
+                    <MessageCircle className="h-3 w-3 mr-1" />
+                    Start Chat
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -726,64 +1393,142 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         <div className="grid gap-4 lg:grid-cols-[280px,1fr]">
           {/* Left Column - Minimal sidebar for Chats and Recommended Users */}
           <div className="space-y-4">
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3">
+            <Card className="shadow-sm flex flex-col max-h-[600px]">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 flex-shrink-0">
                 <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                   <MessageCircle className="w-3.5 h-3.5 text-purple-500" />
                   Chats
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-3 pb-3 space-y-1.5">
+              <CardContent className="px-3 pb-3 flex-1 overflow-y-auto">
                 {renderChatSection()}
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3">
-                <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                  <UserPlus className="w-3.5 h-3.5 text-green-500" />
-                  Suggested
+            <Card className="shadow-md">
+              <CardHeader className="pb-3 px-4 pt-4">
+                <CardTitle className="text-base font-bold text-foreground flex items-center gap-2 mb-1">
+                  <UserPlus className="w-4 h-4 text-green-500" />
+                  People you might know
                 </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Based on your shared interests and network
+                </p>
               </CardHeader>
-              <CardContent className="px-3 pb-3 space-y-1.5">
-                {recommendedConnections.length === 0 ? (
-                  <div className="text-center py-4">
-                    <Users className="h-6 w-6 mx-auto mb-1.5 text-muted-foreground" />
-                    <p className="text-muted-foreground text-xs">
+              <CardContent className="px-4 pb-4">
+                {recommendationsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-synth-pink" />
+                  </div>
+                ) : recommendedUsers.length === 0 ? (
+                  <div className="text-center py-6">
+                    <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-muted-foreground text-sm">
                       More coming soon.
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-1.5">
-                    {recommendedConnections.slice(0, 2).map((profile) => (
-                      <Card key={profile.connected_user_id} className="border cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onNavigateToProfile?.(profile.connected_user_id)}>
-                        <CardContent className="p-2">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="w-7 h-7">
-                              <AvatarImage src={profile.avatar_url || undefined} />
-                              <AvatarFallback className="text-xs">
-                                {profile.name
-                                  ? profile.name
-                                      .split(' ')
-                                      .map((part) => part[0])
-                                      .join('')
-                                      .slice(0, 2)
-                                      .toUpperCase()
-                                  : 'U'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-xs text-gray-900 truncate">
-                                {profile.name || 'Connection'}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {CONNECTION_LABELS[profile.degree as number] || 'Network'}
-                              </p>
+                  <div className="overflow-x-auto pb-2 -mx-4 px-4">
+                    <div className="flex gap-3 min-w-max">
+                      {recommendedUsers.map((user) => (
+                        <Card 
+                          key={user.recommended_user_id} 
+                          className="border flex-shrink-0 w-[280px] hover:shadow-md transition-shadow"
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex flex-col items-center text-center mb-3">
+                              <Avatar 
+                                className="w-16 h-16 mb-2 cursor-pointer" 
+                                onClick={() => onNavigateToProfile?.(user.recommended_user_id)}
+                              >
+                                <AvatarImage src={user.avatar_url || undefined} />
+                                <AvatarFallback className="text-lg">
+                                  {user.name
+                                    ? user.name
+                                        .split(' ')
+                                        .map((part) => part[0])
+                                        .join('')
+                                        .slice(0, 2)
+                                        .toUpperCase()
+                                    : 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <h3 
+                                className="font-semibold text-sm text-gray-900 mb-1 cursor-pointer hover:text-synth-pink transition-colors"
+                                onClick={() => onNavigateToProfile?.(user.recommended_user_id)}
+                              >
+                                {user.name || 'User'}
+                              </h3>
+                              <Badge 
+                                variant="outline" 
+                                className="text-xs mb-2"
+                              >
+                                {user.connection_label}
+                              </Badge>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                            
+                            {user.recommendation_reasons && user.recommendation_reasons.length > 0 && (
+                              <div className="space-y-1 mb-3">
+                                {user.recommendation_reasons.map((reason, idx) => (
+                                  <p key={idx} className="text-xs text-muted-foreground text-center">
+                                    {reason}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full flex items-center justify-center gap-2"
+                              onClick={async () => {
+                                if (sendingFriendRequest) return;
+                                try {
+                                  setSendingFriendRequest(true);
+                                  const { error } = await supabase.rpc('create_friend_request', {
+                                    receiver_user_id: user.recommended_user_id
+                                  });
+                                  
+                                  if (error) throw error;
+                                  
+                                  toast({
+                                    title: "Friend Request Sent! 🎉",
+                                    description: "Your friend request has been sent.",
+                                  });
+                                  
+                                  // Remove from recommendations (will be refreshed on next load)
+                                  setRecommendedUsers(prev => 
+                                    prev.filter(u => u.recommended_user_id !== user.recommended_user_id)
+                                  );
+                                } catch (error: any) {
+                                  console.error('Error sending friend request:', error);
+                                  toast({
+                                    title: "Error",
+                                    description: error.message || "Failed to send friend request. Please try again.",
+                                    variant: "destructive",
+                                  });
+                                } finally {
+                                  setSendingFriendRequest(false);
+                                }
+                              }}
+                              disabled={sendingFriendRequest}
+                            >
+                              {sendingFriendRequest ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Sending...
+                                </>
+                              ) : (
+                                <>
+                                  <UserPlus className="h-4 w-4" />
+                                  Add Friend
+                                </>
+                              )}
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -792,6 +1537,23 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
           {/* Right Column - Prominent scrollable Network Reviews feed (Main Focus) */}
           <div>
+            {/* Friends Interested in Same Events Section */}
+            {connectionInterests.length > 0 && (
+              <div className="mb-6">
+                <div className="mb-4">
+                  <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-2">
+                    <Sparkles className="w-6 h-6 text-green-500" />
+                    Friends Interested in Same Events
+                  </h2>
+                  <p className="text-muted-foreground text-sm">
+                    Start a conversation with friends going to the same events
+                  </p>
+                </div>
+                {renderInterestsSection()}
+              </div>
+            )}
+
+            {/* Network Reviews Section */}
             <div className="mb-4">
               <h2 className="text-3xl font-bold text-foreground flex items-center gap-3 mb-2">
                 <Users className="w-7 h-7 text-indigo-500" />

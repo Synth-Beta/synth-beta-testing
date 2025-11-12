@@ -63,9 +63,9 @@ export const WorkingConnectionBadge: React.FC<WorkingConnectionBadgeProps> = ({ 
   // Determine badge styling based on degree
   const getBadgeVariant = (degree: number) => {
     switch (degree) {
-      case 1: return "default" // Friends - dark green
-      case 2: return "secondary" // Friends of Friends - light green  
-      case 3: return "outline" // Mutual Friends of Mutual Friends - yellow
+      case 1: return "default" // Friend - dark green
+      case 2: return "secondary" // Mutual Friend - light green  
+      case 3: return "outline" // Mutual Friends + - yellow
       default: return "destructive" // Stranger - red
     }
   }
