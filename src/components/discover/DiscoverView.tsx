@@ -30,6 +30,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
 
   const handleEventClick = async (event: EventSearchResult) => {
     // Convert EventSearchResult to event format expected by EventDetailsModal
@@ -84,56 +85,60 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 py-6">
         <Card className="border-none bg-gradient-to-br from-rose-50 via-white to-amber-50 shadow-sm">
-          <CardContent className="p-6 space-y-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div className="space-y-2">
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-synth-black">
-                  Discover
-                </h1>
-                <p className="text-synth-black/70 max-w-2xl">
-                  Search artists, events, and venues, then browse a personalized lineup tailored to your taste.
-                </p>
-              </div>
-              <PageActions
-                currentUserId={currentUserId}
-                onNavigateToNotifications={onNavigateToNotifications}
-                onNavigateToChat={onNavigateToChat}
-                className="self-end"
-              />
-            </div>
-
-            <div className="bg-white/85 rounded-2xl border border-white/60 shadow-inner p-4 md:p-6">
+          <CardContent className="p-0">
+            <div
+              className={`bg-white/85 rounded-3xl border border-white/60 shadow-inner p-4 md:p-6 ${
+                isSearchActive ? 'space-y-4' : 'space-y-0'
+              }`}
+            >
               <RedesignedSearchPage
                 userId={currentUserId}
                 allowedTabs={['artists', 'events', 'venues']}
                 showMap={false}
                 layout="compact"
                 mode="embedded"
-                headerTitle="Search artists, events, venues, or friends"
-                headerDescription="Live results update as you type. Tap any result to dive deeper."
+                headerTitle=""
+                headerDescription=""
+                headerAccessory={
+                  <PageActions
+                    currentUserId={currentUserId}
+                    onNavigateToNotifications={onNavigateToNotifications}
+                    onNavigateToChat={onNavigateToChat}
+                    className="flex-shrink-0"
+                  />
+                }
+                showHelperText={false}
+                onSearchStateChange={({ debouncedQuery }) => {
+                  setIsSearchActive(debouncedQuery.trim().length >= 2);
+                }}
                 onNavigateToProfile={onNavigateToProfile}
                 onNavigateToChat={onNavigateToChat}
                 onEventClick={handleEventClick}
               />
+
+              {!isSearchActive && (
+                <div>
+                  <UnifiedFeed
+                    currentUserId={currentUserId}
+                    onBack={onBack}
+                    onViewChange={onViewChange}
+                    onNavigateToNotifications={onNavigateToNotifications}
+                    onNavigateToProfile={onNavigateToProfile}
+                    onNavigateToChat={onNavigateToChat}
+                    headerTitle=""
+                    headerSubtitle=""
+                    visibleSections={['events']}
+                    enableMap={false}
+                    showSectionTabs={false}
+                    embedded
+                  />
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
-
-        <UnifiedFeed
-          currentUserId={currentUserId}
-          onBack={onBack}
-          onViewChange={onViewChange}
-          onNavigateToNotifications={onNavigateToNotifications}
-          onNavigateToProfile={onNavigateToProfile}
-          onNavigateToChat={onNavigateToChat}
-          headerTitle="Upcoming for you"
-          headerSubtitle="A rolling list of events based on artists you follow and where your friends are going next."
-          visibleSections={['events']}
-          enableMap={false}
-          showSectionTabs={false}
-        />
       </div>
 
       {eventDetailsOpen && selectedEvent && (

@@ -193,6 +193,11 @@ export const UnifiedFeed = ({
   const resolvedHeaderTitle = headerTitle ?? 'Feed';
   const resolvedHeaderSubtitle =
     headerSubtitle ?? 'Discover reviews and events from friends and the community';
+  const normalizedHeaderTitle = resolvedHeaderTitle.trim();
+  const normalizedHeaderSubtitle = resolvedHeaderSubtitle.trim();
+  const shouldShowHeaderTitle = normalizedHeaderTitle.length > 0;
+  const shouldShowHeaderSubtitle = normalizedHeaderSubtitle.length > 0;
+  const shouldRenderHeader = shouldShowHeaderTitle || shouldShowHeaderSubtitle;
   const mapEnabled = enableMap ?? true;
   
   const [feedItems, setFeedItems] = useState<UnifiedFeedItem[]>([]);
@@ -2239,14 +2244,18 @@ export const UnifiedFeed = ({
   return (
     <div className={outerClassName}>
       <div className={innerClassName}>
-        <div className={headerSpacingClass}>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{resolvedHeaderTitle}</h1>
-            {resolvedHeaderSubtitle && (
-              <p className="text-gray-600 mt-2">{resolvedHeaderSubtitle}</p>
-            )}
+        {shouldRenderHeader && (
+          <div className={headerSpacingClass}>
+            <div>
+              {shouldShowHeaderTitle && (
+                <h1 className="text-3xl font-bold text-gray-900">{normalizedHeaderTitle}</h1>
+              )}
+              {shouldShowHeaderSubtitle && (
+                <p className="text-gray-600 mt-2">{normalizedHeaderSubtitle}</p>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Feed type tabs */}
         <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as FeedSectionKey)}>
@@ -2317,7 +2326,7 @@ export const UnifiedFeed = ({
           {resolvedSections.includes('events') && (
           <TabsContent
             value="events"
-            className="space-y-4"
+            className="mt-0 space-y-4"
           >
 
             {/* Events Feed Items */}

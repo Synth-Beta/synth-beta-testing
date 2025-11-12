@@ -22,6 +22,9 @@ interface RedesignedSearchPageProps {
   showResults?: boolean;
   headerTitle?: string;
   headerDescription?: string;
+  headerAccessory?: React.ReactNode;
+  showHelperText?: boolean;
+  onSearchStateChange?: (state: { query: string; debouncedQuery: string }) => void;
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
   onEventClick?: (event: EventSearchResult) => void;
@@ -40,7 +43,7 @@ type UserSearchResult = {
   account_type?: string | null;
 };
 
-type EventSearchResult = {
+export type EventSearchResult = {
   id: string;
   title: string | null;
   artistName?: string | null;
@@ -109,6 +112,9 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
   showResults = true,
   headerTitle,
   headerDescription,
+  headerAccessory,
+  showHelperText = true,
+  onSearchStateChange,
   onNavigateToProfile: _onNavigateToProfile,
   onNavigateToChat: _onNavigateToChat,
   onEventClick,
@@ -290,6 +296,9 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
   const activeError = errors[activeTab];
 
   const helperText = useMemo(() => {
+    if (!showHelperText) {
+      return null;
+    }
     if (!searchQuery) {
       return 'Search for artists, events, venues, or people.';
     }
@@ -297,39 +306,54 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
       return 'Type at least 2 characters to see results.';
     }
     return null;
-  }, [searchQuery]);
+  }, [searchQuery, showHelperText]);
+
+  useEffect(() => {
+    onSearchStateChange?.({
+      query: searchQuery,
+      debouncedQuery,
+    });
+  }, [searchQuery, debouncedQuery, onSearchStateChange]);
 
   const outerClassName = isEmbedded ? 'w-full' : `${isCompact ? '' : 'min-h-screen'} bg-background`;
   const innerClassName = isEmbedded
     ? `w-full ${isCompact ? 'space-y-4' : 'space-y-6'}`
     : `max-w-5xl mx-auto px-4 ${isCompact ? 'py-4 space-y-6' : 'py-8 space-y-8'}`;
   const resolvedTitle = headerTitle ?? 'Search';
+  const normalizedTitle = resolvedTitle.trim();
+  const shouldShowTitle = normalizedTitle.length > 0;
   const resolvedDescription =
     headerDescription ?? 'Find friends, discover artists, and track upcoming shows — all in one place.';
-  const shouldShowDescription = !isCompact && resolvedDescription.length > 0;
+  const normalizedDescription = resolvedDescription.trim();
+  const shouldShowDescription = !isCompact && normalizedDescription.length > 0;
 
   return (
     <div className={outerClassName}>
       <div className={innerClassName}>
         <div className={`${isCompact ? 'space-y-2' : 'space-y-4'}`}>
-          <h1 className={`${isCompact ? 'text-2xl font-semibold' : 'text-3xl font-bold'} text-foreground`}>
-            {resolvedTitle}
-          </h1>
-          {shouldShowDescription && (
-          <p className="text-muted-foreground">
-              {resolvedDescription}
-          </p>
+          {shouldShowTitle && (
+            <h1 className={`${isCompact ? 'text-2xl font-semibold' : 'text-3xl font-bold'} text-foreground`}>
+              {normalizedTitle}
+            </h1>
           )}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Try “Radiohead”"
-              className={`pl-9 ${isCompact ? 'h-10 text-sm' : ''}`}
-              id="global-search"
-              autoComplete="off"
-            />
+          {shouldShowDescription && (
+            <p className="text-muted-foreground">
+              {normalizedDescription}
+            </p>
+          )}
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Try “Radiohead”"
+                className={`pl-9 ${isCompact ? 'h-10 text-sm' : ''}`}
+                id="global-search"
+                autoComplete="off"
+              />
+            </div>
+            {headerAccessory && <div className="flex-shrink-0">{headerAccessory}</div>}
           </div>
           {helperText && (
             <p className={`${isCompact ? 'text-xs' : 'text-sm'} text-muted-foreground`} aria-live="polite">
