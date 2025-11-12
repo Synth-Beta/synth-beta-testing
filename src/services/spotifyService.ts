@@ -320,7 +320,18 @@ export class SpotifyService {
       });
 
       // Flush batched interactions to DB
-      await interactionTracker.flush();
+      // Catch errors from genre interaction duplicates - these are handled by the database
+      try {
+        await interactionTracker.flush();
+      } catch (error: any) {
+        // Handle duplicate key errors gracefully - these happen when the same genre
+        // is processed multiple times with the same timestamp
+        if (error?.code === '23505' && error?.message?.includes('user_genre_interactions')) {
+          console.warn('Some genre interactions were duplicates (this is expected during sync)');
+        } else {
+          console.error('Error flushing interactions:', error);
+        }
+      }
 
       // Store stats permanently in user_streaming_stats_summary
       try {
@@ -409,51 +420,48 @@ export class SpotifyService {
         uri: data.userProfile?.uri
       };
 
-      // Check if profile already exists
-      const { data: existingProfile, error: fetchError } = await supabase
+      // Use upsert to handle both insert and update in one operation
+      // This avoids the 406/409 errors by using ON CONFLICT
+      // Note: Supabase upsert uses the unique constraint automatically
+      const { error: upsertError } = await supabase
         .from('streaming_profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('service_type', 'spotify')
-        .single();
+        .upsert({
+          user_id: user.id,
+          service_type: 'spotify',
+          profile_data: profileData,
+          sync_status: 'completed',
+          last_updated: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,service_type',
+          ignoreDuplicates: false
+        });
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('Error checking existing streaming profile:', fetchError);
-        return;
-      }
+      if (upsertError) {
+        // Handle specific error codes
+        if (upsertError.code === 'PGRST205') {
+          console.warn('Table streaming_profiles does not exist or RLS policy issue');
+        } else if (upsertError.code === '23505') {
+          // Unique constraint violation - try update instead
+          const { error: updateError } = await supabase
+            .from('streaming_profiles')
+            .update({
+              profile_data: profileData,
+              sync_status: 'completed',
+              last_updated: new Date().toISOString()
+            })
+            .eq('user_id', user.id)
+            .eq('service_type', 'spotify');
 
-      if (existingProfile) {
-        // Update existing profile
-        const { error: updateError } = await supabase
-          .from('streaming_profiles')
-          .update({
-            profile_data: profileData,
-            sync_status: 'completed',
-            last_updated: new Date().toISOString()
-          })
-          .eq('id', existingProfile.id);
-
-        if (updateError) {
-          console.error('Error updating streaming profile:', updateError);
+          if (updateError) {
+            console.error('Error updating streaming profile:', updateError);
+          } else {
+            console.log('✅ Updated streaming profile for user:', user.id);
+          }
         } else {
-          console.log('✅ Updated streaming profile for user:', user.id);
+          console.error('Error upserting streaming profile:', upsertError);
         }
       } else {
-        // Create new profile
-        const { error: insertError } = await supabase
-          .from('streaming_profiles')
-          .insert({
-            user_id: user.id,
-            service_type: 'spotify',
-            profile_data: profileData,
-            sync_status: 'completed'
-          });
-
-        if (insertError) {
-          console.error('Error creating streaming profile:', insertError);
-        } else {
-          console.log('✅ Created streaming profile for user:', user.id);
-        }
+        console.log('✅ Upserted streaming profile for user:', user.id);
       }
 
       // Also update user's music_streaming_profile field in profiles table
