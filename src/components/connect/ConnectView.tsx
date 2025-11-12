@@ -7,10 +7,11 @@ import type { ReviewWithEngagement } from '@/services/reviewService';
 import { ReviewCard } from '@/components/reviews/ReviewCard';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Loader2, Users, MessageCircle, Sparkles, Calendar, MapPin, Bell, UserPlus, Star, Heart, Share2, Bookmark, Images, Play, X, UserCheck } from 'lucide-react';
+import { Loader2, Users, MessageCircle, Sparkles, Calendar, MapPin, Bell, UserPlus, Star, Heart, Share2, Bookmark, Images, Play, X, UserCheck, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 
@@ -176,6 +177,14 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     color: string;
   } | null>(null);
   const [sendingFriendRequest, setSendingFriendRequest] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSearchResults, setUserSearchResults] = useState<Array<{
+    user_id: string;
+    name: string | null;
+    avatar_url: string | null;
+  }>>([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const [userSearchOpen, setUserSearchOpen] = useState(false);
   const [reviewDetailData, setReviewDetailData] = useState<{
     photos: string[];
     videos: string[];
@@ -660,6 +669,50 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       active = false;
     };
   }, [currentUserId]);
+
+  // User search functionality
+  const searchUsers = async (query: string) => {
+    if (!query.trim()) {
+      setUserSearchResults([]);
+      setUserSearchOpen(false);
+      return;
+    }
+
+    try {
+      setUserSearchLoading(true);
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('user_id, name, avatar_url')
+        .ilike('name', `%${query}%`)
+        .neq('user_id', currentUserId) // Exclude current user
+        .limit(10);
+
+      if (error) {
+        console.error('Error searching users:', error);
+        return;
+      }
+
+      setUserSearchResults(profiles || []);
+      setUserSearchOpen(true);
+    } catch (error) {
+      console.error('Error searching users:', error);
+    } finally {
+      setUserSearchLoading(false);
+    }
+  };
+
+  const handleUserSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setUserSearchQuery(query);
+    searchUsers(query);
+  };
+
+  const handleUserSelect = (userId: string) => {
+    setUserSearchQuery('');
+    setUserSearchResults([]);
+    setUserSearchOpen(false);
+    onNavigateToProfile?.(userId);
+  };
 
   const renderReviewsSection = () => {
     if (reviewsLoading) {
@@ -1322,8 +1375,90 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     <div className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         <div className="grid gap-4 lg:grid-cols-[280px,1fr]">
-          {/* Left Column - Minimal sidebar for Chats and Recommended Users */}
+          {/* Left Column - Minimal sidebar for User Search, Chats and Recommended Users */}
           <div className="space-y-4">
+            {/* User Search Bar */}
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  type="text"
+                  placeholder="Search users..."
+                  value={userSearchQuery}
+                  onChange={handleUserSearchChange}
+                  onFocus={() => {
+                    if (userSearchResults.length > 0) {
+                      setUserSearchOpen(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    // Delay closing to allow for click events
+                    setTimeout(() => {
+                      setUserSearchOpen(false);
+                    }, 150);
+                  }}
+                  className="pl-10 pr-10"
+                  autoComplete="off"
+                />
+                {userSearchQuery && !userSearchLoading && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setUserSearchQuery('');
+                      setUserSearchResults([]);
+                      setUserSearchOpen(false);
+                    }}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                )}
+                {userSearchLoading && (
+                  <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                )}
+              </div>
+
+              {/* Search Results Dropdown */}
+              {userSearchOpen && userSearchResults.length > 0 && (
+                <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-80 overflow-y-auto shadow-lg border">
+                  <CardContent className="p-0">
+                    <div className="py-2">
+                      {userSearchResults.map((user) => (
+                        <div
+                          key={user.user_id}
+                          className="px-3 py-2 hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => handleUserSelect(user.user_id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8">
+                              <AvatarImage src={user.avatar_url || undefined} />
+                              <AvatarFallback>
+                                {user.name
+                                  ? user.name
+                                      .split(' ')
+                                      .map((part) => part[0])
+                                      .join('')
+                                      .slice(0, 2)
+                                      .toUpperCase()
+                                  : 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-gray-900 truncate">
+                                {user.name || 'User'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
             <Card className="shadow-sm flex flex-col max-h-[600px]">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 flex-shrink-0">
                 <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-1.5">
