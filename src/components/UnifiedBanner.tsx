@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { SynthSLogo } from '@/components/SynthSLogo';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell, MessageCircle } from 'lucide-react';
@@ -114,22 +113,7 @@ export const UnifiedBanner: React.FC<UnifiedBannerProps> = ({
       )}
     >
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          {/* Spacer for balance */}
-          <div className="w-20"></div>
-
-          {/* Brand Section - Logo + Tagline (Centered) */}
-          <div className="flex items-center gap-4 flex-1 justify-center">
-            <SynthSLogo size="md" className="flex-shrink-0" />
-            <div className="hidden sm:flex flex-col">
-              <span className="text-lg font-bold text-foreground leading-tight">Synth</span>
-              <span className="text-xs text-muted-foreground leading-tight font-normal">
-                Discover • Connect • Share
-              </span>
-            </div>
-          </div>
-
-          {/* Actions - More Prominent */}
+        <div className="flex items-center justify-end py-3">
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
