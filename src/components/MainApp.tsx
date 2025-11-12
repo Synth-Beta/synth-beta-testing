@@ -28,7 +28,6 @@ import AdminAnalyticsDashboard from '@/pages/Analytics/AdminAnalyticsDashboard';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
 import { DiscoverView } from './discover/DiscoverView';
 import { ConnectView } from './connect/ConnectView';
-import { UnifiedBanner } from './UnifiedBanner';
 
 type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events' | 'onboarding';
 
