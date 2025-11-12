@@ -55,12 +55,30 @@ export class ArtistVenueService {
    */
   static async storeArtist(jamBaseArtist: JamBaseArtist): Promise<StoredArtist> {
     try {
-      // Check if artist already exists
-      const { data: existingArtist } = await supabase
+      // Check if artist already exists (handle 406 errors gracefully)
+      let existingArtist = null;
+      try {
+        const { data, error: checkError } = await supabase
         .from('artists')
         .select('*')
         .eq('jambase_artist_id', jamBaseArtist.identifier)
-        .single();
+          .maybeSingle(); // Use maybeSingle() instead of single() to handle 0 results gracefully
+
+        if (data && !checkError) {
+          existingArtist = data;
+        }
+
+        // Handle 406 errors specifically (Not Acceptable - usually RLS or header issues)
+        if (checkError && (checkError.code === 'PGRST301' || checkError.status === 406)) {
+          console.warn(`⚠️  406 error checking artist ${jamBaseArtist.name}, will try insert:`, checkError.message);
+          existingArtist = null; // Treat as new artist if check fails
+        } else if (checkError && checkError.code !== 'PGRST116') {
+          console.warn(`⚠️  Database error checking artist ${jamBaseArtist.name}:`, checkError);
+        }
+      } catch (checkErr) {
+        console.warn(`⚠️  Exception checking artist ${jamBaseArtist.name}:`, checkErr);
+        existingArtist = null; // Treat as new artist if check fails
+      }
 
       if (existingArtist) {
         // Update existing artist
@@ -77,10 +95,10 @@ export class ArtistVenueService {
           })
           .eq('id', existingArtist.id)
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
-        return data;
+        return data!;
       } else {
         // Create new artist
         const { data, error } = await supabase
@@ -95,9 +113,12 @@ export class ArtistVenueService {
             date_modified: jamBaseArtist.dateModified
           })
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
+        if (!data) {
+          throw new Error('Failed to insert artist: no data returned');
+        }
         return data;
       }
     } catch (error) {

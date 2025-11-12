@@ -55,28 +55,12 @@ interface Review {
   category_average?: number;
 }
 
-const computeCategoryAverage = (review: {
-  artist_performance_rating?: number;
-  production_rating?: number;
-  venue_rating?: number;
-  location_rating?: number;
-  value_rating?: number;
-  rating?: number;
-}) => {
-  const values = [
-    review.artist_performance_rating,
-    review.production_rating,
-    review.venue_rating,
-    review.location_rating,
-    review.value_rating
-  ].filter((value): value is number => typeof value === 'number' && value > 0);
-
-  if (values.length > 0) {
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
-  }
-
-  return typeof review.rating === 'number' ? review.rating : 0;
-};
+  const computeCategoryAverage = (review: {
+    rating?: number;
+  }) => {
+    // Use the main rating field since category-specific ratings don't exist in the schema
+    return typeof review.rating === 'number' ? review.rating : 0;
+  };
 
 type SortOption = 'newest' | 'oldest' | 'highest_rating' | 'lowest_rating';
 
@@ -113,20 +97,46 @@ export function ArtistVenueReviews({
       // Fetch artist stats and reviews
       try {
         
-        // Query reviews where the event's artist_name matches - using original working query structure
+        // Query reviews where the event's artist_name matches
+        // First get event IDs for this artist
+        const { data: eventIds, error: eventIdsError } = await supabase
+          .from('jambase_events')
+          .select('id')
+          .ilike('artist_name', `%${artistName}%`);
+
+        if (eventIdsError) {
+          console.error('Error fetching event IDs for artist:', eventIdsError);
+          setArtistStats({
+            totalReviews: 0,
+            averageRating: 0,
+            loading: false,
+            error: 'Failed to load artist reviews'
+          });
+          return;
+        }
+
+        const eventIdList = eventIds?.map(e => e.id) || [];
+        
+        if (eventIdList.length === 0) {
+          setArtistStats({
+            totalReviews: 0,
+            averageRating: 0,
+            loading: false
+          });
+          return;
+        }
+
+        // Now query reviews for those event IDs
         const { data: artistReviewsData, error: artistError } = await (supabase as any)
           .from('user_reviews')
           .select(`
             rating,
-            artist_performance_rating,
-            production_rating,
-            venue_rating,
-            location_rating,
-            value_rating,
+            review_text,
+            created_at,
             jambase_events!inner(artist_name, event_date)
           `)
           .eq('is_public', true)
-          .ilike('jambase_events.artist_name', artistName);
+          .in('event_id', eventIdList);
         
         if (artistError) {
           console.error('Error fetching artist reviews:', artistError);
@@ -281,21 +291,45 @@ export function ArtistVenueReviews({
       try {
         console.log('🏢 Fetching venue reviews for:', venueName);
         
-        // Query ALL reviews where the venue_name matches (regardless of artist)
+        // First get event IDs for this venue
+        const { data: venueEventIds, error: venueEventIdsError } = await supabase
+          .from('jambase_events')
+          .select('id')
+          .ilike('venue_name', `%${venueName}%`);
+
+        if (venueEventIdsError) {
+          console.error('Error fetching event IDs for venue:', venueEventIdsError);
+          setVenueStats({
+            totalReviews: 0,
+            averageRating: 0,
+            loading: false,
+            error: 'Failed to load venue reviews'
+          });
+          return;
+        }
+
+        const venueEventIdList = venueEventIds?.map(e => e.id) || [];
+        
+        if (venueEventIdList.length === 0) {
+          setVenueStats({
+            totalReviews: 0,
+            averageRating: 0,
+            loading: false
+          });
+          return;
+        }
+
+        // Now query reviews for those event IDs
         const { data: venueReviewsData, error: venueError } = await (supabase as any)
           .from('user_reviews')
           .select(`
             rating,
-            artist_performance_rating,
-            production_rating,
-            venue_rating,
-            location_rating,
-            value_rating,
+            review_text,
+            created_at,
             jambase_events!inner(venue_name, event_date, artist_name)
           `)
           .eq('is_public', true)
-          .ilike('jambase_events.venue_name', venueName)
-          .or('venue_rating.not.is.null,rating.not.is.null');
+          .in('event_id', venueEventIdList);
         
         console.log('🏢 Venue reviews query result:', {
           data: venueReviewsData?.length || 0,

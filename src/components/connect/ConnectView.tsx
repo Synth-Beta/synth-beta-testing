@@ -306,9 +306,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         const interests = (data || []).map((row: any) => {
           const connectionMeta = resolveConnectionMeta(
             row.user_id,
-            firstIds,
-            secondIds,
-            thirdIds
+            firstIds as Set<string>,
+            secondIds as Set<string>,
+            thirdIds as Set<string>
           );
 
           const eventData = row.jambase_events || {};

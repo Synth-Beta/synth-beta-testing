@@ -164,12 +164,6 @@ export function ArtistEventPagination({
                 <Clock className="h-3 w-3" />
                 <span>{formatEventDate(event.event_date, event.event_time || undefined)}</span>
               </div>
-              {event.ticket_available && (
-                <div className="flex items-center gap-1">
-                  <Ticket className="h-3 w-3" />
-                  <span>Tickets Available</span>
-                </div>
-              )}
             </div>
             
             {event.price_range && (

@@ -442,8 +442,8 @@ const fetchUsers = async (query: string, currentUserId: string): Promise<UserSea
     const likeQuery = `%${query}%`;
     const { data, error } = await supabase
       .from('profiles')
-      .select('user_id, name, username, avatar_url, bio, verified, account_type')
-      .or(`name.ilike.${likeQuery},username.ilike.${likeQuery}`)
+      .select('user_id, name, avatar_url, bio, verified, account_type')
+      .ilike('name', likeQuery)
       .neq('user_id', currentUserId)
       .order('name', { ascending: true })
       .limit(25);
@@ -456,7 +456,7 @@ const fetchUsers = async (query: string, currentUserId: string): Promise<UserSea
     return (data || []).map((profile) => ({
       id: profile.user_id,
       name: profile.name,
-      username: profile.username,
+      username: profile.name, // Use name as username since username column doesn't exist
       avatar_url: profile.avatar_url,
       bio: profile.bio,
       verified: profile.verified,

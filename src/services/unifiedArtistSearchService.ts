@@ -15,8 +15,9 @@ export interface ArtistSearchResult {
 }
 
 export class UnifiedArtistSearchService {
-  private static readonly JAMBASE_ARTISTS_URL = '/api/jambase/artists';
-  private static readonly JAMBASE_ARTIST_URL = '/api/jambase/artists/id';
+  private static readonly BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+  private static readonly JAMBASE_ARTISTS_URL = `${UnifiedArtistSearchService.BACKEND_URL}/api/jambase/artists`;
+  private static readonly JAMBASE_ARTIST_URL = `${UnifiedArtistSearchService.BACKEND_URL}/api/jambase/artists/id`;
   private static readonly API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
 
   /**
@@ -63,18 +64,10 @@ export class UnifiedArtistSearchService {
       } catch (tmError) {
         console.warn('⚠️ Ticketmaster search failed:', tmError);
       }
-      
-      let jamBaseResults: any[] = [];
-      try {
-        jamBaseResults = await this.searchJamBaseAPI(query, limit);
-        console.log(`📡 Found ${jamBaseResults.length} NEW artists from JamBase API`);
-      } catch (jbError) {
-        console.warn('⚠️ JamBase search failed:', jbError);
-      }
 
-      // Combine API results
-      const allArtists = [...ticketmasterArtists, ...jamBaseResults];
-      console.log(`✅ Total NEW artists from API: ${allArtists.length}`);
+      // Use only Ticketmaster results (no JamBase)
+      const allArtists = [...ticketmasterArtists];
+      console.log(`✅ Total NEW artists from Ticketmaster: ${allArtists.length}`);
 
       // STEP 4: Populate database with NEW artists only
       let populatedArtists: any[] = [];
@@ -439,33 +432,39 @@ export class UnifiedArtistSearchService {
           continue;
         }
         
-        // Check if artist already exists
-        const { data: existingArtist, error: checkError } = await supabase
+        // Check if artist already exists (handle 406 and other errors gracefully)
+        let existingArtist = null;
+        try {
+          const { data, error: checkError } = await supabase
           .from('artists')
           .select('*')
           .eq('jambase_artist_id', artistId)
-          .single();
+            .maybeSingle(); // Use maybeSingle() instead of single() to handle 0 results gracefully
 
-        if (existingArtist && !checkError) {
-          console.log(`♻️  Artist ${jamBaseArtist.name} already exists in database`);
-          populatedArtists.push(existingArtist as any);
-          continue;
+          if (data && !checkError) {
+            existingArtist = data;
+          }
+
+          // Handle 406 errors specifically (Not Acceptable - usually RLS or header issues)
+          // Check for 406 status in error message or code
+          const is406Error = checkError && (
+            checkError.code === 'PGRST301' || 
+            (checkError as any).status === 406 ||
+            (checkError.message?.includes('406') || checkError.message?.includes('Not Acceptable'))
+          );
+          if (is406Error) {
+            console.warn(`⚠️  406 error checking artist ${jamBaseArtist.name}, continuing anyway:`, checkError.message);
+            // Continue to try inserting - the insert might work even if the select failed
+          } else if (checkError && checkError.code !== 'PGRST116') {
+          console.warn(`⚠️  Database error checking artist ${jamBaseArtist.name}:`, checkError);
+          }
+        } catch (checkErr) {
+          console.warn(`⚠️  Exception checking artist ${jamBaseArtist.name}:`, checkErr);
         }
 
-        // If table doesn't exist or other database error, skip database operations
-        if (checkError && checkError.code !== 'PGRST116') {
-          console.warn(`⚠️  Database error checking artist ${jamBaseArtist.name}:`, checkError);
-          // Still add the artist to results even if we can't store it
-          populatedArtists.push({
-            id: jamBaseArtist.id || artistId,
-            jambase_artist_id: artistId,
-            name: jamBaseArtist.name,
-            identifier: jamBaseArtist.identifier || jamBaseArtist.id || artistId,
-            url: jamBaseArtist.url,
-            image_url: jamBaseArtist.image,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          } as any);
+        if (existingArtist) {
+          console.log(`♻️  Artist ${jamBaseArtist.name} already exists in database`);
+          populatedArtists.push(existingArtist as any);
           continue;
         }
 
@@ -480,12 +479,36 @@ export class UnifiedArtistSearchService {
           date_modified: new Date().toISOString()
         };
         
-        // Check if artist already exists
-        const { data: existingArtistRecord } = await supabase
+        // Check if artist already exists (handle 406 errors gracefully)
+        let existingArtistRecord = null;
+        try {
+          const { data, error: checkError } = await supabase
           .from('artists')
           .select('id')
           .eq('jambase_artist_id', artistId)
-          .single();
+            .maybeSingle(); // Use maybeSingle() instead of single() to handle 0 results gracefully
+
+          if (data && !checkError) {
+            existingArtistRecord = data;
+          }
+
+          // Handle 406 errors specifically
+          // Check for 406 status in error message or code
+          const is406Error = checkError && (
+            checkError.code === 'PGRST301' || 
+            (checkError as any).status === 406 ||
+            (checkError.message?.includes('406') || checkError.message?.includes('Not Acceptable'))
+          );
+          if (is406Error) {
+            console.warn(`⚠️  406 error checking artist ${jamBaseArtist.name} for update, will try insert:`, checkError.message);
+            existingArtistRecord = null; // Treat as new artist if check fails
+          } else if (checkError && checkError.code !== 'PGRST116') {
+            console.warn(`⚠️  Error checking artist ${jamBaseArtist.name}:`, checkError);
+          }
+        } catch (checkErr) {
+          console.warn(`⚠️  Exception checking artist ${jamBaseArtist.name}:`, checkErr);
+          existingArtistRecord = null; // Treat as new artist if check fails
+        }
         
         let savedArtist;
         if (existingArtistRecord) {
@@ -495,7 +518,7 @@ export class UnifiedArtistSearchService {
             .update(artistData)
             .eq('id', existingArtistRecord.id)
             .select()
-            .single();
+            .maybeSingle();
           
           if (error) {
             console.error(`❌ Error updating artist ${jamBaseArtist.name}:`, error);
@@ -509,7 +532,7 @@ export class UnifiedArtistSearchService {
             .from('artists')
             .insert(artistData)
             .select()
-            .single();
+            .maybeSingle();
           
           if (error) {
             console.error(`❌ Error inserting artist ${jamBaseArtist.name}:`, error);

@@ -304,12 +304,6 @@ export function JamBaseEventCard({
                 Upcoming
               </Badge>
             )}
-            {event.ticket_available && (
-              <Badge variant="outline" className="text-xs text-green-600 border-green-600">
-                <Ticket className="w-3 h-3 mr-1" />
-                Tickets Available
-              </Badge>
-            )}
           </div>
         </div>
       </CardHeader>

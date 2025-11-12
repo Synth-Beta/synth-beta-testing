@@ -169,11 +169,6 @@ export function ArtistFollowingModal({
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="font-medium text-sm">{event.title}</span>
-                                {event.ticketing?.available && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    Tickets Available
-                                  </Badge>
-                                )}
                               </div>
                               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                 <div className="flex items-center gap-1">

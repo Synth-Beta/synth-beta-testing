@@ -413,11 +413,6 @@ export function ArtistFollowingPage() {
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        {event.ticket_available && (
-                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
-                            Tickets Available
-                          </Badge>
-                        )}
                         {event.ticket_urls && event.ticket_urls.length > 0 && (
                           <ExternalLink className="w-4 h-4 text-pink-500" />
                         )}
@@ -521,11 +516,6 @@ export function ArtistFollowingPage() {
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        {event.ticket_available && (
-                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
-                            Tickets Available
-                          </Badge>
-                        )}
                         {event.ticket_urls && event.ticket_urls.length > 0 && (
                           <ExternalLink className="w-4 h-4 text-blue-500" />
                         )}
@@ -686,11 +676,6 @@ export function ArtistFollowingPage() {
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    {event.ticket_available && (
-                      <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
-                        Tickets Available
-                      </Badge>
-                    )}
                     {event.ticket_urls && event.ticket_urls.length > 0 && (
                       <ExternalLink className="w-4 h-4 text-pink-500" />
                     )}

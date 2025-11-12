@@ -32,14 +32,35 @@ router.get('/api/setlists/search', async (req, res) => {
     const queryParams = new URLSearchParams();
     if (artistName) queryParams.append('artistName', artistName);
     
-    // Format date properly for Setlist.fm API (YYYY-MM-DD)
+    // Format date properly for Setlist.fm API (DD-MM-YYYY)
     if (date) {
       console.log('🎵 Raw date parameter received:', date, typeof date);
       try {
-        const dateObj = new Date(date);
+        let dateObj;
+        // Handle DD-MM-YYYY format (from frontend)
+        if (typeof date === 'string' && date.includes('-')) {
+          const parts = date.split('-');
+          if (parts.length === 3) {
+            // Check if it's DD-MM-YYYY format
+            if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+              // DD-MM-YYYY format
+              dateObj = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            } else if (parts[0].length === 4) {
+              // YYYY-MM-DD format
+              dateObj = new Date(date);
+            } else {
+              dateObj = new Date(date);
+            }
+          } else {
+            dateObj = new Date(date);
+          }
+        } else {
+          dateObj = new Date(date);
+        }
+        
         console.log('🎵 Parsed date object:', dateObj);
         if (!isNaN(dateObj.getTime())) {
-          // Setlist.fm expects DD-MM-YYYY format, not YYYY-MM-DD
+          // Setlist.fm expects DD-MM-YYYY format
           const day = String(dateObj.getDate()).padStart(2, '0');
           const month = String(dateObj.getMonth() + 1).padStart(2, '0');
           const year = dateObj.getFullYear();

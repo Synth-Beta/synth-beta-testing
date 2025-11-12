@@ -36,6 +36,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
+import { UnifiedEventSearchService, type UnifiedEvent } from '@/services/unifiedEventSearchService';
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -333,7 +334,7 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
       setLoading(true);
       setError(null);
 
-      // Try to fetch events by venue_id first
+      // Fetch events from database first (existing behavior)
       let { data: eventsData, error: eventsError } = await supabase
         .from('jambase_events')
         .select('*')
@@ -357,16 +358,83 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
 
       if (eventsError) throw eventsError;
 
+      // Get venue name from database results if available
+      let venueNameToSearch = decodedVenueId;
       if (eventsData && eventsData.length > 0) {
-        setEvents(eventsData);
-        const firstEvent = eventsData[0];
-        setVenueName(firstEvent.venue_name);
-        
+        venueNameToSearch = eventsData[0].venue_name;
+        const locationParts = [eventsData[0].venue_city, eventsData[0].venue_state].filter(Boolean);
+        setVenueLocation(locationParts.length > 0 ? locationParts.join(', ') : 'Location TBD');
+      }
+
+      // Call Ticketmaster API to fetch upcoming and past events
+      let ticketmasterEvents: UnifiedEvent[] = [];
+      try {
+        console.log('🎫 Fetching Ticketmaster events for venue:', venueNameToSearch);
+        ticketmasterEvents = await UnifiedEventSearchService.searchByVenue({
+          venueName: venueNameToSearch || decodedVenueId,
+          includePastEvents: true, // Include past events (last 3 months)
+          pastEventsMonths: 3,
+          limit: 200
+        });
+        console.log(`✅ Fetched ${ticketmasterEvents.length} events from Ticketmaster`);
+      } catch (tmError) {
+        console.warn('⚠️ Ticketmaster API call failed, using database events only:', tmError);
+        // Continue with database events only if Ticketmaster fails
+      }
+
+      // Convert UnifiedEvent to JamBaseEvent format and merge with database events
+      const dbEvents: JamBaseEvent[] = (eventsData || []).map(event => ({
+        ...event,
+        source: event.source || 'jambase'
+      }));
+
+      const tmEventsAsJamBase: JamBaseEvent[] = ticketmasterEvents.map(event => ({
+        id: event.id,
+        jambase_event_id: event.jambase_event_id || event.ticketmaster_event_id,
+        ticketmaster_event_id: event.ticketmaster_event_id,
+        title: event.title,
+        artist_name: event.artist_name,
+        artist_id: event.artist_id,
+        venue_name: event.venue_name,
+        venue_id: event.venue_id,
+        event_date: event.event_date,
+        doors_time: event.doors_time,
+        description: event.description,
+        genres: event.genres,
+        venue_address: event.venue_address,
+        venue_city: event.venue_city,
+        venue_state: event.venue_state,
+        venue_zip: event.venue_zip,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        ticket_available: event.ticket_available,
+        price_range: event.price_range,
+        ticket_urls: event.ticket_urls,
+        external_url: event.external_url,
+        setlist: event.setlist,
+        tour_name: event.tour_name,
+        source: event.source || 'ticketmaster'
+      }));
+
+      // Merge database and Ticketmaster events
+      const allEvents = [...dbEvents, ...tmEventsAsJamBase];
+
+      // Deduplicate events by artist_name + venue_name + event_date (normalized)
+      const deduplicatedEvents = deduplicateEvents(allEvents);
+
+      // Sort by date
+      deduplicatedEvents.sort((a, b) => 
+        new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+      );
+
+      setEvents(deduplicatedEvents);
+      setVenueName(venueNameToSearch || decodedVenueId || 'Unknown Venue');
+      
+      // Set location from first event if available
+      if (deduplicatedEvents.length > 0) {
+        const firstEvent = deduplicatedEvents[0];
         const locationParts = [firstEvent.venue_city, firstEvent.venue_state].filter(Boolean);
         setVenueLocation(locationParts.length > 0 ? locationParts.join(', ') : 'Location TBD');
-      } else {
-        setEvents([]);
-        setVenueName(decodedVenueId || 'Unknown Venue');
       }
     } catch (err) {
       console.error('Error fetching venue events:', err);
@@ -374,6 +442,39 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to deduplicate events
+  const deduplicateEvents = (events: JamBaseEvent[]): JamBaseEvent[] => {
+    const seen = new Map<string, JamBaseEvent>();
+    
+    return events.filter(event => {
+      // Normalize artist and venue names for better matching
+      const normalizeArtist = (event.artist_name || '').toLowerCase().trim();
+      const normalizeVenue = (event.venue_name || '').toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/\bthe\s+/gi, '')
+        .replace(/[^\w\s]/g, '')
+        .trim();
+      
+      // Create unique key from artist + venue + date (date only, ignore time)
+      const dateKey = event.event_date?.split('T')[0] || '';
+      const key = `${normalizeArtist}|${normalizeVenue}|${dateKey}`;
+      
+      if (seen.has(key)) {
+        // Prefer Ticketmaster if duplicate (newer data source)
+        const existing = seen.get(key)!;
+        if (event.source === 'ticketmaster' && existing.source !== 'ticketmaster') {
+          seen.set(key, event);
+          return true;
+        }
+        // If both are Ticketmaster or both database, prefer the first one
+        return false;
+      }
+      
+      seen.set(key, event);
+      return true;
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -998,12 +1099,6 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                     )}
 
                     <div className="flex items-center justify-between">
-                      {event.ticket_available && (
-                        <Badge variant="outline" className="text-green-600 border-green-600">
-                          <Ticket className="w-3 h-3 mr-1" />
-                          Tickets Available
-                        </Badge>
-                      )}
                       {event.price_range && (
                         <span className="text-sm font-medium">
                           {formatPrice(event.price_range)}

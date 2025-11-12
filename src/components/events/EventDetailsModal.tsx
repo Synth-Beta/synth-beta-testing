@@ -45,6 +45,7 @@ import { UserEventService } from '@/services/userEventService';
 import { useToast } from '@/hooks/use-toast';
 import { useAccountType } from '@/hooks/useAccountType';
 import { addUTMToURL, extractTicketProvider, getDaysUntilEvent, extractEventMetadata } from '@/utils/trackingHelpers';
+import { SetlistService } from '@/services/setlistService';
 
 interface EventDetailsModalProps {
   event: JamBaseEvent | null;
@@ -101,6 +102,7 @@ export function EventDetailsModal({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [setlistExpanded, setSetlistExpanded] = useState(false);
+  const [fetchingSetlist, setFetchingSetlist] = useState(false);
   const [showBuddyFinder, setShowBuddyFinder] = useState(false);
   const [showGroups, setShowGroups] = useState(false);
   const [showPhotos, setShowPhotos] = useState(false);
@@ -246,20 +248,6 @@ export function EventDetailsModal({
             setActualEvent(event); // Fallback to passed event
           } else {
             console.log('✅ EventDetailsModal: Fetched event data from jambase_events:', data);
-            if (data) {
-              console.log('🎵 EventDetailsModal: Setlist data from database:', {
-                eventId: data.id,
-                eventTitle: data.title,
-                artistName: data.artist_name,
-                venueName: data.venue_name,
-                eventDate: data.event_date,
-                setlist: data.setlist,
-                hasSetlist: !!data.setlist,
-                setlistType: typeof data.setlist,
-                setlistKeys: data.setlist ? Object.keys(data.setlist) : null,
-                allFields: Object.keys(data)
-              });
-            }
             setActualEvent(data);
           }
         } catch (error) {
@@ -283,6 +271,149 @@ export function EventDetailsModal({
       }
     }
   }, [actualEvent?.id, isOpen, currentUserId]);
+
+  // Fetch setlist from setlist.fm API for past events that don't have a setlist
+  useEffect(() => {
+    if (!actualEvent || !isOpen) return;
+    
+    const isPastEvent = new Date(actualEvent.event_date) < new Date();
+    const setlistData = actualEvent.setlist;
+    const hasSetlist = setlistData && 
+      setlistData !== null && 
+      typeof setlistData === 'object' && 
+      Object.keys(setlistData).length > 0 &&
+      (Array.isArray(setlistData) || (setlistData.songs && Array.isArray(setlistData.songs)) || (setlistData.setlist && Array.isArray(setlistData.setlist)));
+    const hasSetlistEnriched = actualEvent.setlist_enriched === true;
+    
+    // Only fetch if it's a past event and doesn't have a setlist
+    if (isPastEvent && !hasSetlist && !hasSetlistEnriched && actualEvent.artist_name) {
+      const fetchSetlist = async () => {
+        setFetchingSetlist(true);
+        try {
+
+          // Format date for setlist.fm (DD-MM-YYYY)
+          const eventDate = new Date(actualEvent.event_date);
+          const formattedDate = `${String(eventDate.getDate()).padStart(2, '0')}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${eventDate.getFullYear()}`;
+
+          // Try multiple search strategies for better results
+          let setlists: any[] | null = null;
+          
+          // Strategy 1: Search with all parameters (most specific)
+          setlists = await SetlistService.searchSetlists({
+            artistName: actualEvent.artist_name,
+            date: formattedDate,
+            venueName: actualEvent.venue_name,
+            cityName: actualEvent.venue_city,
+            stateCode: actualEvent.venue_state
+          });
+
+          // Strategy 2: If no results, try without venue (artist + date only)
+          if (!setlists || setlists.length === 0) {
+            setlists = await SetlistService.searchSetlists({
+              artistName: actualEvent.artist_name,
+              date: formattedDate
+            });
+          }
+
+          // Strategy 3: If still no results, try artist only (no date)
+          if (!setlists || setlists.length === 0) {
+            setlists = await SetlistService.searchSetlists({
+              artistName: actualEvent.artist_name
+            });
+          }
+
+          if (setlists && setlists.length > 0) {
+            // Find the best matching setlist
+            // First, try to match by exact date and venue
+            let bestSetlist = setlists.find(s => {
+              const setlistDate = new Date(s.eventDate);
+              const eventDate = new Date(actualEvent.event_date);
+              const sameDate = setlistDate.toDateString() === eventDate.toDateString();
+              const venueMatch = s.venue.name.toLowerCase().includes(actualEvent.venue_name?.toLowerCase() || '') ||
+                actualEvent.venue_name?.toLowerCase().includes(s.venue.name.toLowerCase());
+              return sameDate && venueMatch;
+            });
+
+            // If no exact match, try date match only
+            if (!bestSetlist) {
+              bestSetlist = setlists.find(s => {
+                const setlistDate = new Date(s.eventDate);
+                const eventDate = new Date(actualEvent.event_date);
+                return setlistDate.toDateString() === eventDate.toDateString();
+              });
+            }
+
+            // Fallback to first result
+            if (!bestSetlist) {
+              bestSetlist = setlists[0];
+            }
+
+            // Update the event in the database with the setlist
+            const { error: updateError } = await supabase
+              .from('jambase_events')
+              .update({
+                setlist: bestSetlist,
+                setlist_enriched: true,
+                setlist_song_count: bestSetlist.songCount || 0,
+                setlist_fm_id: bestSetlist.setlistFmId,
+                setlist_fm_url: bestSetlist.url,
+                setlist_source: 'setlist.fm',
+                setlist_last_updated: new Date().toISOString()
+              })
+              .eq('id', actualEvent.id);
+
+            if (updateError) {
+              console.error('Error updating event with setlist:', updateError);
+            } else {
+              // Update local state to show the setlist immediately
+              // Use functional update to ensure we don't lose other fields
+              setActualEvent(prev => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  setlist: bestSetlist,
+                  setlist_enriched: true,
+                  setlist_song_count: bestSetlist.songCount || 0,
+                  setlist_fm_id: bestSetlist.setlistFmId,
+                  setlist_fm_url: bestSetlist.url,
+                  setlist_source: 'setlist.fm',
+                  setlist_last_updated: new Date().toISOString()
+                };
+              });
+              
+              // Also refetch from database after a short delay to ensure consistency
+              setTimeout(async () => {
+                try {
+                  const { data: refreshedData, error: refreshError } = await supabase
+                    .from('jambase_events')
+                    .select('*')
+                    .eq('id', actualEvent.id)
+                    .single();
+                  
+                  if (!refreshError && refreshedData && refreshedData.setlist) {
+                    // Only update if setlist is present to avoid overwriting with null
+                    if (refreshedData.setlist) {
+                      setActualEvent(refreshedData);
+                    }
+                  }
+                } catch (refreshError) {
+                  // Silently handle refresh errors
+                }
+              }, 1000);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching setlist from setlist.fm:', error);
+        } finally {
+          setFetchingSetlist(false);
+        }
+      };
+
+      fetchSetlist();
+    }
+    // Only run when event changes or modal opens, not when setlist is updated (to prevent infinite loop)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actualEvent?.id, actualEvent?.event_date, actualEvent?.artist_name, actualEvent?.venue_name, isOpen]);
 
   // Fetch interested count using actualEvent
   useEffect(() => {
@@ -797,12 +928,6 @@ export function EventDetailsModal({
                 Upcoming
               </Badge>
             )}
-            {actualEvent.ticket_available && (
-              <Badge variant="outline" className="text-sm text-green-600 border-green-600">
-                <Ticket className="w-3 h-3 mr-1" />
-                Tickets Available
-              </Badge>
-            )}
             <TrendingBadge eventId={actualEvent.id} />
             <FriendsInterestedBadge eventId={actualEvent.id} />
             <PopularityIndicator interestedCount={interestedCount || 0} attendanceCount={attendanceCount || 0} />
@@ -984,12 +1109,18 @@ export function EventDetailsModal({
             )}
           </div>
 
-          {/* Setlist Accordion - Only show for past events with setlists */}
+          {/* Setlist Accordion - Show for past events with setlists or while fetching */}
           {(() => {
             // Check if we have setlist data (either in setlist field or setlist_enriched)
-            const hasSetlistData = actualEvent.setlist && actualEvent.setlist !== null && actualEvent.setlist !== '{}';
-            const hasSetlistEnriched = actualEvent.setlist_enriched === true;
-            const hasSetlist = isPastEvent && (hasSetlistData || hasSetlistEnriched);
+            const setlistData = actualEvent?.setlist;
+            const hasSetlistData = setlistData && 
+              setlistData !== null && 
+              typeof setlistData === 'object' && 
+              Object.keys(setlistData).length > 0 &&
+              (Array.isArray(setlistData) || (setlistData.songs && Array.isArray(setlistData.songs)) || (setlistData.setlist && Array.isArray(setlistData.setlist)));
+            const hasSetlistEnriched = actualEvent?.setlist_enriched === true;
+            const hasSetlistSongCount = actualEvent?.setlist_song_count && actualEvent.setlist_song_count > 0;
+            const hasSetlist = isPastEvent && (hasSetlistData || hasSetlistEnriched || hasSetlistSongCount || fetchingSetlist);
             
             return hasSetlist;
           })() && (
@@ -1041,7 +1172,12 @@ export function EventDetailsModal({
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-6 pb-6 max-h-96 overflow-y-auto">
-                  {(() => {
+                  {fetchingSetlist ? (
+                    <div className="text-center py-8">
+                      <Music className="w-8 h-8 text-purple-500 mx-auto mb-3 animate-pulse" />
+                      <p className="text-purple-700">Loading setlist from setlist.fm...</p>
+                    </div>
+                  ) : (() => {
                     const setlistData = actualEvent.setlist as any;
                     
                     // Handle different setlist data formats
@@ -1064,6 +1200,7 @@ export function EventDetailsModal({
                         <div className="text-center py-4">
                           <p className="text-purple-700">Setlist data is available but in an unexpected format.</p>
                           <p className="text-xs text-gray-500 mt-2">Data keys: {setlistData ? Object.keys(setlistData).join(', ') : 'none'}</p>
+                          <p className="text-xs text-gray-500 mt-1">Setlist type: {typeof setlistData}</p>
                         </div>
                       );
                     }

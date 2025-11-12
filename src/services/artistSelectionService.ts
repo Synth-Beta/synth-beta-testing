@@ -2,6 +2,7 @@ import { JamBaseEventsService, JamBaseEvent } from './jambaseEventsService';
 import { supabase } from '@/integrations/supabase/client';
 import type { ArtistSearchResult } from './unifiedArtistSearchService';
 import type { Artist } from '@/types/concertSearch';
+import { UnifiedEventSearchService } from './unifiedEventSearchService';
 
 export interface ArtistSelectionResult {
   artist: Artist;
@@ -32,32 +33,87 @@ export class ArtistSelectionService {
         source: artistSearchResult.is_from_database ? 'database' : 'jambase'
       };
 
-      // Fetch events for this artist using JamBase API - only upcoming events
+      // Fetch events from database first
       console.log('🌐 Fetching events for artist:', artist.name);
-      const eventsResult = await JamBaseEventsService.getOrFetchArtistEvents(artist.name, {
+      const dbEventsResult = await JamBaseEventsService.getEventsFromDatabase(artist.name, {
         page: 1,
-        perPage: 20,
-        eventType: 'upcoming', // Only fetch upcoming events
-        forceRefresh: true // Always fetch from API and populate database
+        perPage: 50,
+        eventType: 'all'
       });
 
-      console.log('✅ Found events:', eventsResult.events.length, 'from', eventsResult.source);
-      console.log('📊 Events result details:', {
-        eventsCount: eventsResult.events.length,
-        total: eventsResult.total,
-        firstEvent: eventsResult.events[0],
-        source: eventsResult.source
-      });
+      // Call Ticketmaster API to fetch upcoming and past events
+      let ticketmasterEvents: JamBaseEvent[] = [];
+      try {
+        console.log('🎫 Fetching Ticketmaster events for artist:', artist.name);
+        const tmEvents = await UnifiedEventSearchService.searchByArtist({
+          artistName: artist.name,
+          includePastEvents: true, // Include past events (last 3 months)
+          pastEventsMonths: 3,
+          limit: 200
+        });
+        
+        // Convert UnifiedEvent to JamBaseEvent format
+        ticketmasterEvents = tmEvents.map(event => ({
+          id: event.id,
+          jambase_event_id: event.jambase_event_id || event.ticketmaster_event_id,
+          ticketmaster_event_id: event.ticketmaster_event_id,
+          title: event.title,
+          artist_name: event.artist_name,
+          artist_id: event.artist_id,
+          venue_name: event.venue_name,
+          venue_id: event.venue_id,
+          event_date: event.event_date,
+          doors_time: event.doors_time,
+          description: event.description,
+          genres: event.genres,
+          venue_address: event.venue_address,
+          venue_city: event.venue_city,
+          venue_state: event.venue_state,
+          venue_zip: event.venue_zip,
+          latitude: event.latitude,
+          longitude: event.longitude,
+          ticket_available: event.ticket_available,
+          price_range: event.price_range,
+          ticket_urls: event.ticket_urls,
+          external_url: event.external_url,
+          setlist: event.setlist,
+          tour_name: event.tour_name,
+          source: event.source || 'ticketmaster'
+        } as JamBaseEvent));
+        
+        console.log(`✅ Fetched ${ticketmasterEvents.length} events from Ticketmaster`);
+      } catch (tmError) {
+        console.warn('⚠️ Ticketmaster API call failed, using database events only:', tmError);
+      }
+
+      // Merge database and Ticketmaster events
+      const dbEvents: JamBaseEvent[] = (dbEventsResult.events || []).map(event => ({
+        ...event,
+        source: event.source || 'jambase'
+      }));
+
+      const allEvents = [...dbEvents, ...ticketmasterEvents];
+
+      // Deduplicate events by artist_name + venue_name + event_date (normalized)
+      const deduplicatedEvents = deduplicateEvents(allEvents);
+
+      // Sort by date
+      deduplicatedEvents.sort((a, b) => 
+        new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+      );
+
+      const upcomingCount = deduplicatedEvents.filter(e => new Date(e.event_date) >= new Date()).length;
+
+      console.log('✅ Found events:', deduplicatedEvents.length, 'total (upcoming:', upcomingCount, ')');
 
       // Update artist description with actual event count
-      // Since we're only fetching upcoming events, all events are upcoming
-      artist.description = `Artist found with ${eventsResult.events.length} upcoming events`;
+      artist.description = `Artist found with ${upcomingCount} upcoming events`;
 
       return {
         artist,
-        events: eventsResult.events,
-        totalEvents: eventsResult.total,
-        source: eventsResult.source
+        events: deduplicatedEvents,
+        totalEvents: deduplicatedEvents.length,
+        source: ticketmasterEvents.length > 0 ? 'api' : (dbEventsResult.events.length > 0 ? 'database' : 'api')
       };
 
     } catch (error) {
@@ -78,6 +134,39 @@ export class ArtistSelectionService {
       
       throw new Error(errorMessage);
     }
+  }
+
+  // Helper function to deduplicate events
+  function deduplicateEvents(events: JamBaseEvent[]): JamBaseEvent[] {
+    const seen = new Map<string, JamBaseEvent>();
+    
+    return events.filter(event => {
+      // Normalize artist and venue names for better matching
+      const normalizeArtist = (event.artist_name || '').toLowerCase().trim();
+      const normalizeVenue = (event.venue_name || '').toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/\bthe\s+/gi, '')
+        .replace(/[^\w\s]/g, '')
+        .trim();
+      
+      // Create unique key from artist + venue + date (date only, ignore time)
+      const dateKey = event.event_date?.split('T')[0] || '';
+      const key = `${normalizeArtist}|${normalizeVenue}|${dateKey}`;
+      
+      if (seen.has(key)) {
+        // Prefer Ticketmaster if duplicate (newer data source)
+        const existing = seen.get(key)!;
+        if (event.source === 'ticketmaster' && existing.source !== 'ticketmaster') {
+          seen.set(key, event);
+          return true;
+        }
+        // If both are Ticketmaster or both database, prefer the first one
+        return false;
+      }
+      
+      seen.set(key, event);
+      return true;
+    });
   }
 
   /**

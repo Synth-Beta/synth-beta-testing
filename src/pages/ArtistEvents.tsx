@@ -28,6 +28,7 @@ import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
+import { UnifiedEventSearchService, type UnifiedEvent } from '@/services/unifiedEventSearchService';
 
 interface ArtistEventsPageProps {}
 
@@ -63,30 +64,38 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
 
   const computeCategoryAverage = (review: {
     rating?: number;
-    artist_performance_rating?: number;
-    production_rating?: number;
-    venue_rating?: number;
-    location_rating?: number;
-    value_rating?: number;
   }) => {
-    const values = [
-      review.artist_performance_rating,
-      review.production_rating,
-      review.venue_rating,
-      review.location_rating,
-      review.value_rating
-    ].filter((value): value is number => typeof value === 'number' && value > 0);
-
-    if (values.length > 0) {
-      return values.reduce((sum, value) => sum + value, 0) / values.length;
-    }
-
+    // Use the main rating field since category-specific ratings don't exist in the schema
     return typeof review.rating === 'number' ? review.rating : 0;
   };
 
   const fetchArtistProfile = async (artistName: string) => {
     try {
-      // Fetch artist stats and reviews
+      // First, get event IDs for this artist
+      const { data: eventIds, error: eventIdsError } = await supabase
+        .from('jambase_events')
+        .select('id')
+        .ilike('artist_name', `%${artistName}%`);
+
+      if (eventIdsError) {
+        console.error('Error fetching event IDs for artist:', eventIdsError);
+        return;
+      }
+
+      const eventIdList = eventIds?.map(e => e.id) || [];
+      
+      if (eventIdList.length === 0) {
+        // No events found for this artist, set empty stats
+        setArtistStats({
+          totalReviews: 0,
+          averageRating: 0,
+          loading: false
+        });
+        setArtistReviews([]);
+        return;
+      }
+
+      // Fetch artist stats and reviews for events matching this artist
       const { data: reviewsData, error: reviewsError } = await (supabase as any)
         .from('user_reviews')
         .select(`
@@ -94,32 +103,17 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
           user_id,
           event_id,
           rating,
-          artist_performance_rating,
-          production_rating,
-          venue_rating,
-          location_rating,
-          value_rating,
-          artist_performance_feedback,
-          production_feedback,
-          venue_feedback,
-          location_feedback,
-          value_feedback,
-          artist_performance_recommendation,
-          production_recommendation,
-          venue_recommendation,
-          location_recommendation,
-          value_recommendation,
-          ticket_price_paid,
           review_text,
           created_at,
           mood_tags,
           genre_tags,
           reaction_emoji,
-          jambase_events!inner(artist_name, venue_name, event_date, title)
+          photos,
+          jambase_events(artist_name, venue_name, event_date, title)
         `)
         .eq('is_public', true)
         .eq('is_draft', false)
-        .ilike('jambase_events.artist_name', artistName);
+        .in('event_id', eventIdList);
 
       if (reviewsError) {
         console.error('Error fetching artist reviews:', reviewsError);
@@ -140,23 +134,9 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
         
         return {
           id: review.id,
+          user_id: review.user_id,
+          event_id: review.event_id,
           rating: review.rating,
-          artist_performance_rating: review.artist_performance_rating ?? undefined,
-          production_rating: review.production_rating ?? undefined,
-          venue_rating: review.venue_rating ?? undefined,
-          location_rating: review.location_rating ?? undefined,
-          value_rating: review.value_rating ?? undefined,
-          artist_performance_feedback: review.artist_performance_feedback ?? undefined,
-          production_feedback: review.production_feedback ?? undefined,
-          venue_feedback: review.venue_feedback ?? undefined,
-          location_feedback: review.location_feedback ?? undefined,
-          value_feedback: review.value_feedback ?? undefined,
-          artist_performance_recommendation: review.artist_performance_recommendation ?? undefined,
-          production_recommendation: review.production_recommendation ?? undefined,
-          venue_recommendation: review.venue_recommendation ?? undefined,
-          location_recommendation: review.location_recommendation ?? undefined,
-          value_recommendation: review.value_recommendation ?? undefined,
-          ticket_price_paid: review.ticket_price_paid ?? undefined,
           review_text: review.review_text,
           created_at: review.created_at,
           reviewer_name: profile?.name || 'Anonymous',
@@ -167,6 +147,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
           mood_tags: review.mood_tags || [],
           genre_tags: review.genre_tags || [],
           reaction_emoji: review.reaction_emoji || null,
+          photos: review.photos || [],
           category_average: computeCategoryAverage(review)
         };
       }) || [];
@@ -235,7 +216,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       // If artistId is actually a name (not an ID), use it directly
       let artistNameToSearch = decodedArtistId;
       
-      // Try to fetch events by artist_id first
+      // Fetch events from database first (existing behavior)
       let { data: eventsData, error: eventsError } = await supabase
         .from('jambase_events')
         .select('*')
@@ -260,19 +241,113 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
 
       if (eventsError) throw eventsError;
 
+      // Set artist name from database results if available
       if (eventsData && eventsData.length > 0) {
-        setEvents(eventsData);
-        setArtistName(eventsData[0].artist_name);
-      } else {
-        setEvents([]);
-        setArtistName(artistNameToSearch || 'Unknown Artist');
+        artistNameToSearch = eventsData[0].artist_name;
       }
+
+      // Call Ticketmaster API to fetch upcoming and past events
+      let ticketmasterEvents: UnifiedEvent[] = [];
+      try {
+        console.log('🎫 Fetching Ticketmaster events for artist:', artistNameToSearch);
+        ticketmasterEvents = await UnifiedEventSearchService.searchByArtist({
+          artistName: artistNameToSearch || decodedArtistId,
+          includePastEvents: true, // Include past events (last 3 months)
+          pastEventsMonths: 3,
+          limit: 200
+        });
+        console.log(`✅ Fetched ${ticketmasterEvents.length} events from Ticketmaster`);
+      } catch (tmError) {
+        console.warn('⚠️ Ticketmaster API call failed, using database events only:', tmError);
+        // Continue with database events only if Ticketmaster fails
+      }
+
+      // Convert UnifiedEvent to JamBaseEvent format and merge with database events
+      const dbEvents: JamBaseEvent[] = (eventsData || []).map(event => ({
+        ...event,
+        source: event.source || 'jambase'
+      }));
+
+      const tmEventsAsJamBase: JamBaseEvent[] = ticketmasterEvents.map(event => ({
+        id: event.id,
+        jambase_event_id: event.jambase_event_id || event.ticketmaster_event_id,
+        ticketmaster_event_id: event.ticketmaster_event_id,
+        title: event.title,
+        artist_name: event.artist_name,
+        artist_id: event.artist_id,
+        venue_name: event.venue_name,
+        venue_id: event.venue_id,
+        event_date: event.event_date,
+        doors_time: event.doors_time,
+        description: event.description,
+        genres: event.genres,
+        venue_address: event.venue_address,
+        venue_city: event.venue_city,
+        venue_state: event.venue_state,
+        venue_zip: event.venue_zip,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        ticket_available: event.ticket_available,
+        price_range: event.price_range,
+        ticket_urls: event.ticket_urls,
+        external_url: event.external_url,
+        setlist: event.setlist,
+        tour_name: event.tour_name,
+        source: event.source || 'ticketmaster'
+      }));
+
+      // Merge database and Ticketmaster events
+      const allEvents = [...dbEvents, ...tmEventsAsJamBase];
+
+      // Deduplicate events by artist_name + venue_name + event_date (normalized)
+      const deduplicatedEvents = deduplicateEvents(allEvents);
+
+      // Sort by date
+      deduplicatedEvents.sort((a, b) => 
+        new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+      );
+
+      setEvents(deduplicatedEvents);
+      setArtistName(artistNameToSearch || decodedArtistId || 'Unknown Artist');
     } catch (err) {
       console.error('Error fetching artist events:', err);
       setError('Failed to load artist events');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to deduplicate events
+  const deduplicateEvents = (events: JamBaseEvent[]): JamBaseEvent[] => {
+    const seen = new Map<string, JamBaseEvent>();
+    
+    return events.filter(event => {
+      // Normalize artist and venue names for better matching
+      const normalizeArtist = (event.artist_name || '').toLowerCase().trim();
+      const normalizeVenue = (event.venue_name || '').toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/\bthe\s+/gi, '')
+        .replace(/[^\w\s]/g, '')
+        .trim();
+      
+      // Create unique key from artist + venue + date (date only, ignore time)
+      const dateKey = event.event_date?.split('T')[0] || '';
+      const key = `${normalizeArtist}|${normalizeVenue}|${dateKey}`;
+      
+      if (seen.has(key)) {
+        // Prefer Ticketmaster if duplicate (newer data source)
+        const existing = seen.get(key)!;
+        if (event.source === 'ticketmaster' && existing.source !== 'ticketmaster') {
+          seen.set(key, event);
+          return true;
+        }
+        // If both are Ticketmaster or both database, prefer the first one
+        return false;
+      }
+      
+      seen.set(key, event);
+      return true;
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -737,61 +812,9 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
                             <p className="text-sm text-gray-700">{review.review_text}</p>
                           )}
                           
-                          {typeof review.ticket_price_paid === 'number' && review.ticket_price_paid > 0 && (
-                            <div className="text-xs text-gray-600 bg-gray-100 inline-flex px-2 py-1 rounded">
-                              Ticket price (private): ${review.ticket_price_paid.toFixed(2)}
-                            </div>
-                          )}
+                          {/* ticket_price_paid field removed - not in schema */}
 
-                          {[
-                            {
-                              label: 'Artist performance',
-                              rating: review.artist_performance_rating,
-                              feedback: review.artist_performance_feedback,
-                              recommendation: review.artist_performance_recommendation
-                            },
-                            {
-                              label: 'Production',
-                              rating: review.production_rating,
-                              feedback: review.production_feedback,
-                              recommendation: review.production_recommendation
-                            },
-                            {
-                              label: 'Venue',
-                              rating: review.venue_rating,
-                              feedback: review.venue_feedback,
-                              recommendation: review.venue_recommendation
-                            },
-                            {
-                              label: 'Location',
-                              rating: review.location_rating,
-                              feedback: review.location_feedback,
-                              recommendation: review.location_recommendation
-                            },
-                            {
-                              label: 'Value',
-                              rating: review.value_rating,
-                              feedback: review.value_feedback,
-                              recommendation: review.value_recommendation
-                            }
-                          ]
-                            .filter(({ rating, feedback, recommendation }) => rating || feedback || recommendation)
-                            .map(({ label, rating, feedback, recommendation }) => (
-                              <div key={label} className="text-xs border-l-4 border-pink-200 pl-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-gray-600">{label}</span>
-                                  {typeof rating === 'number' && (
-                                    <span className="text-gray-500">{rating.toFixed(1)}</span>
-                                  )}
-                                </div>
-                                {recommendation && (
-                                  <div className="text-gray-500">{recommendation}</div>
-                                )}
-                                {feedback && (
-                                  <div className="text-gray-700 italic">“{feedback}”</div>
-                                )}
-                              </div>
-                            ))}
+                          {/* Category-specific ratings removed - using main rating field only */}
                           
                           {(review.mood_tags && review.mood_tags.length > 0) && (
                             <div className="flex flex-wrap gap-1">
@@ -895,12 +918,6 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
                     )}
 
                     <div className="flex items-center justify-between">
-                      {event.ticket_available && (
-                        <Badge variant="outline" className="text-green-600 border-green-600">
-                          <Ticket className="w-3 h-3 mr-1" />
-                          Tickets Available
-                        </Badge>
-                      )}
                       {event.price_range && (
                         <span className="text-sm font-medium">
                           {formatPrice(event.price_range)}
