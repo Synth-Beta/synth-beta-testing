@@ -23,7 +23,7 @@ import { UserEventService } from '@/services/userEventService';
 import { DraftReviewService } from '@/services/draftReviewService';
 import { getEventStatus, isEventPast, getPastEvents, getUpcomingEvents } from '@/utils/eventStatusUtils';
 import { BelliStyleReviewCard } from '../reviews/BelliStyleReviewCard';
-import { UnifiedStreamingStats, detectStreamingServiceType } from '../streaming/UnifiedStreamingStats';
+import { detectStreamingServiceType } from '../streaming/UnifiedStreamingStats';
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
 import { EventDetailsModal } from '../events/EventDetailsModal';
 import { MusicTasteCard } from './MusicTasteCard';
@@ -1337,79 +1337,97 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           </div>
           
           {/* Bio and Links */}
-          {(profile.bio || profile.instagram_handle || profile.music_streaming_profile) && (
-            <div className="border-t border-pink-100/50 pt-6">
-              {profile.bio && (
-                <div className="mb-4">
-                  <p className="text-gray-700 leading-relaxed">{profile.bio}</p>
-                </div>
-              )}
+          <div className="border-t border-pink-100/50 pt-6">
+            {profile.bio && (
+              <div className="mb-4">
+                <p className="text-gray-700 leading-relaxed">{profile.bio}</p>
+              </div>
+            )}
 
-              {/* Social Media Links */}
-              {(profile.instagram_handle || profile.music_streaming_profile) && (
-                <div className="flex flex-wrap gap-3">
-                  {profile.instagram_handle && (
-                    <a
-                      href={`https://instagram.com/${profile.instagram_handle}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-pink-500/10 to-purple-500/10 hover:from-pink-500/20 hover:to-purple-500/20 rounded-lg border border-pink-200/50 text-pink-600 hover:text-pink-700 transition-all duration-200 text-sm font-medium"
-                    >
-                      <Instagram className="w-4 h-4" />
-                      <span>@{profile.instagram_handle}</span>
-                      <ExternalLink className="w-3 h-3 opacity-60" />
-                    </a>
-                  )}
-                  {profile.music_streaming_profile && (() => {
-                    const serviceType = detectStreamingServiceType(profile.music_streaming_profile);
-                    const isSpotify = serviceType === 'spotify';
-                    const isAppleMusic = serviceType === 'apple-music';
-                    
-                    let href = profile.music_streaming_profile;
-                    let displayText = profile.music_streaming_profile;
-                    let bgClass = 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-200/50';
-                    let textClass = 'text-blue-600 hover:text-blue-700';
-                    
-                    if (isSpotify) {
-                      href = profile.music_streaming_profile.startsWith('http') 
-                        ? profile.music_streaming_profile 
-                        : `https://open.spotify.com/user/${profile.music_streaming_profile}`;
-                      displayText = 'Spotify Profile';
-                      bgClass = 'bg-green-500/10 hover:bg-green-500/20 border-green-200/50';
-                      textClass = 'text-green-600 hover:text-green-700';
-                    } else if (isAppleMusic) {
-                      href = profile.music_streaming_profile.startsWith('http') 
-                        ? profile.music_streaming_profile 
-                        : profile.music_streaming_profile;
-                      displayText = 'Apple Music Profile';
-                      bgClass = 'bg-red-500/10 hover:bg-red-500/20 border-red-200/50';
-                      textClass = 'text-red-600 hover:text-red-700';
-                    } else if (profile.music_streaming_profile.startsWith('http')) {
-                      displayText = 'Music Profile';
-                    }
-                    
-                    return (
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`flex items-center gap-2 px-3 py-2 ${bgClass} rounded-lg border ${textClass} transition-all duration-200 text-sm font-medium`}
-                      >
-                        <Music className="w-4 h-4" />
-                        <span>{displayText}</span>
-                        <ExternalLink className="w-3 h-3 opacity-60" />
-                      </a>
-                    );
-                  })()}
-                </div>
+            {/* Social Media Links and Streaming Stats */}
+            <div className="flex flex-wrap gap-3">
+              {profile.instagram_handle && (
+                <a
+                  href={`https://instagram.com/${profile.instagram_handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-pink-500/10 to-purple-500/10 hover:from-pink-500/20 hover:to-purple-500/20 rounded-lg border border-pink-200/50 text-pink-600 hover:text-pink-700 transition-all duration-200 text-sm font-medium"
+                >
+                  <Instagram className="w-4 h-4" />
+                  <span>@{profile.instagram_handle}</span>
+                  <ExternalLink className="w-3 h-3 opacity-60" />
+                </a>
               )}
+              
+              {/* Streaming Stats Button - Always show if viewing own profile */}
+              {isViewingOwnProfile && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🎵 View Streaming Stats button clicked');
+                    console.log('🎵 Current location:', window.location.href);
+                    console.log('🎵 Navigating to /streaming-stats');
+                    // Use absolute URL to ensure navigation works
+                    const url = '/streaming-stats';
+                    console.log('🎵 Navigating to:', url);
+                    window.location.href = url;
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-pink-500/10 to-purple-500/10 hover:from-pink-500/20 hover:to-purple-500/20 rounded-lg border border-pink-200/50 text-pink-600 hover:text-pink-700 transition-all duration-200 text-sm font-medium cursor-pointer hover:shadow-md"
+                >
+                  <Music className="w-4 h-4" />
+                  <span>View Streaming Stats</span>
+                </button>
+              )}
+              
+              {/* Show streaming profile link only if viewing someone else's profile */}
+              {!isViewingOwnProfile && profile.music_streaming_profile && (() => {
+                const serviceType = detectStreamingServiceType(profile.music_streaming_profile);
+                const isSpotify = serviceType === 'spotify';
+                const isAppleMusic = serviceType === 'apple-music';
+                
+                let href = profile.music_streaming_profile;
+                let displayText = profile.music_streaming_profile;
+                let bgClass = 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-200/50';
+                let textClass = 'text-blue-600 hover:text-blue-700';
+                
+                if (isSpotify) {
+                  href = profile.music_streaming_profile.startsWith('http') 
+                    ? profile.music_streaming_profile 
+                    : `https://open.spotify.com/user/${profile.music_streaming_profile}`;
+                  displayText = 'Spotify Profile';
+                  bgClass = 'bg-green-500/10 hover:bg-green-500/20 border-green-200/50';
+                  textClass = 'text-green-600 hover:text-green-700';
+                } else if (isAppleMusic) {
+                  href = profile.music_streaming_profile.startsWith('http') 
+                    ? profile.music_streaming_profile 
+                    : profile.music_streaming_profile;
+                  displayText = 'Apple Music Profile';
+                  bgClass = 'bg-red-500/10 hover:bg-red-500/20 border-red-200/50';
+                  textClass = 'text-red-600 hover:text-red-700';
+                }
+                
+                return (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center gap-2 px-3 py-2 ${bgClass} rounded-lg border ${textClass} transition-all duration-200 text-sm font-medium`}
+                  >
+                    <Music className="w-4 h-4" />
+                    <span>{displayText}</span>
+                    <ExternalLink className="w-3 h-3 opacity-60" />
+                  </a>
+                );
+              })()}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Instagram-style Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="glass-card inner-glow grid w-full grid-cols-4 mb-6 p-1 floating-shadow">
+          <TabsList className={`glass-card inner-glow grid w-full mb-6 p-1 floating-shadow ${canViewInterested ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <TabsTrigger value="my-events" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               Events
@@ -1423,10 +1441,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             <TabsTrigger value="achievements" className="flex items-center gap-2">
               <Award className="w-4 h-4" />
               Achievements
-            </TabsTrigger>
-            <TabsTrigger value="stats" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Stats
             </TabsTrigger>
           </TabsList>
 
@@ -2079,13 +2093,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 </>
               )}
             </div>
-          </TabsContent>
-
-          <TabsContent value="stats" className="mt-6">
-            <UnifiedStreamingStats 
-              musicStreamingProfile={profile.music_streaming_profile} 
-              isViewingOtherProfile={!isViewingOwnProfile}
-            />
           </TabsContent>
 
         </Tabs>

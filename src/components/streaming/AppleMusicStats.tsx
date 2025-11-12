@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { appleMusicService } from '@/services/appleMusicService';
 import { useToast } from '@/hooks/use-toast';
+import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
+import { useAuth } from '@/hooks/useAuth';
 import {
   AppleMusicSong,
   AppleMusicArtist,
@@ -45,7 +47,9 @@ export const AppleMusicStats = ({ className }: AppleMusicStatsProps) => {
   const [recentTracks, setRecentTracks] = useState<AppleMusicPlayHistoryObject[]>([]);
   const [listeningStats, setListeningStats] = useState<AppleMusicListeningStats | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<AppleMusicTimeRange>('last-week');
+  const [loadedFromDB, setLoadedFromDB] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     initializeAppleMusic();
@@ -133,9 +137,38 @@ export const AppleMusicStats = ({ className }: AppleMusicStatsProps) => {
   const loadStats = async () => {
     try {
       setLoading(true);
+      
+      // Try to load from database first
+      let loadedFromDatabase = false;
+      if (user) {
+        try {
+          const dbStats = await UserStreamingStatsService.getStats(user.id, 'apple-music');
+          if (dbStats && dbStats.top_artists.length > 0) {
+            // Convert database stats to component format
+            const dbArtists: AppleMusicArtist[] = dbStats.top_artists.map(artist => ({
+              id: artist.id || '',
+              type: 'artists',
+              href: '',
+              attributes: {
+                name: artist.name,
+                genreNames: dbStats.top_genres.map(g => g.genre)
+              }
+            }));
+
+            setTopArtists(dbArtists);
+            loadedFromDatabase = true;
+            setLoadedFromDB(true);
+            console.log('✅ Loaded Apple Music stats from database');
+          }
+        } catch (dbError) {
+          console.log('Could not load from database, falling back to API:', dbError);
+        }
+      }
+
+      // Always fetch detailed data from API
       const [songsResponse, artistsResponse, albumsResponse, recentResponse] = await Promise.allSettled([
         appleMusicService.getLibrarySongs(50),
-        appleMusicService.getLibraryArtists(50),
+        loadedFromDatabase ? Promise.resolve({ data: [] }) : appleMusicService.getLibraryArtists(50),
         appleMusicService.getLibraryAlbums(50),
         appleMusicService.getRecentlyPlayed(30)
       ]);
@@ -150,9 +183,10 @@ export const AppleMusicStats = ({ className }: AppleMusicStatsProps) => {
         setTopTracks(songs);
       }
 
-      if (artistsResponse.status === 'fulfilled') {
+      if (!loadedFromDatabase && artistsResponse.status === 'fulfilled') {
         artists = appleMusicService.processLibraryData(artistsResponse.value.data, currentPeriod);
         setTopArtists(artists);
+        setLoadedFromDB(false);
       }
 
       if (albumsResponse.status === 'fulfilled') {
@@ -166,7 +200,8 @@ export const AppleMusicStats = ({ className }: AppleMusicStatsProps) => {
       }
 
       // Calculate listening stats
-      const stats = appleMusicService.calculateListeningStats(songs, artists);
+      const finalArtists = loadedFromDatabase ? topArtists : artists;
+      const stats = appleMusicService.calculateListeningStats(songs, finalArtists);
       setListeningStats(stats);
 
     } catch (error) {

@@ -13,6 +13,7 @@ import {
 } from '@/types/spotify';
 import { trackInteraction, interactionTracker } from '@/services/interactionTrackingService';
 import { supabase } from '@/integrations/supabase/client';
+import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
 
 export class SpotifyService {
   private static instance: SpotifyService;
@@ -320,6 +321,42 @@ export class SpotifyService {
 
       // Flush batched interactions to DB
       await interactionTracker.flush();
+
+      // Store stats permanently in user_streaming_stats_summary
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Use combined data for stats summary (prioritize long_term for accuracy)
+          const combinedArtists = [
+            ...topArtistsLong.items,
+            ...topArtistsMed.items,
+            ...topArtistsShort.items
+          ];
+          // Remove duplicates by artist ID
+          const uniqueArtists = combinedArtists.filter((artist, index, self) =>
+            index === self.findIndex(a => a.id === artist.id)
+          );
+
+          const combinedTracks = [
+            ...topTracksLong.items,
+            ...topTracksMed.items,
+            ...topTracksShort.items
+          ];
+          const uniqueTracks = combinedTracks.filter((track, index, self) =>
+            index === self.findIndex(t => t.id === track.id)
+          );
+
+          await UserStreamingStatsService.syncSpotifyData(
+            user.id,
+            uniqueArtists,
+            uniqueTracks
+          );
+          console.log('✅ Spotify stats stored permanently');
+        }
+      } catch (statsError) {
+        console.error('Error storing Spotify stats:', statsError);
+        // Don't fail the whole sync if stats storage fails
+      }
 
       // Summary log
       trackInteraction.click('spotify', 'current_user', {

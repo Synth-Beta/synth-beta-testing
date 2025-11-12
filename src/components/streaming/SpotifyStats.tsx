@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { spotifyService } from '@/services/spotifyService';
 import { useToast } from '@/hooks/use-toast';
+import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
+import { useAuth } from '@/hooks/useAuth';
 import {
   SpotifyUser,
   SpotifyTrack,
@@ -44,7 +46,9 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
   const [recentTracks, setRecentTracks] = useState<SpotifyPlayHistoryObject[]>([]);
   const [listeningStats, setListeningStats] = useState<SpotifyListeningStats | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<SpotifyTimeRange>('short_term');
+  const [loadedFromDB, setLoadedFromDB] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     initializeSpotify();
@@ -278,23 +282,67 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     try {
       setLoading(true);
       
-      // Try to get comprehensive data
-      const [topTracksResponse, topArtistsResponse, recentlyPlayedResponse] = await Promise.allSettled([
-        spotifyService.getTopTracks(currentPeriod, 50), // Get more data
-        spotifyService.getTopArtists(currentPeriod, 50),
-        spotifyService.getRecentlyPlayed(50)
-      ]);
+      // Try to load from database first
+      let loadedFromDatabase = false;
+      if (user) {
+        try {
+          const dbStats = await UserStreamingStatsService.getStats(user.id, 'spotify');
+          if (dbStats && dbStats.top_artists.length > 0) {
+            // Convert database stats to component format
+            const dbArtists: SpotifyArtist[] = dbStats.top_artists.map(artist => ({
+              id: artist.id || '',
+              name: artist.name,
+              popularity: artist.popularity,
+              genres: dbStats.top_genres.map(g => g.genre),
+              external_urls: { spotify: '' },
+              href: '',
+              type: 'artist',
+              uri: ''
+            }));
 
-      // Handle successful responses
-      const topTracks = topTracksResponse.status === 'fulfilled' ? topTracksResponse.value.items : [];
-      const topArtists = topArtistsResponse.status === 'fulfilled' ? topArtistsResponse.value.items : [];
-      const recentTracks = recentlyPlayedResponse.status === 'fulfilled' ? recentlyPlayedResponse.value.items : [];
+            setTopArtists(dbArtists);
+            loadedFromDatabase = true;
+            setLoadedFromDB(true);
+            console.log('✅ Loaded Spotify stats from database');
+          }
+        } catch (dbError) {
+          console.log('Could not load from database, falling back to API:', dbError);
+        }
+      }
 
-      setTopTracks(topTracks);
-      setTopArtists(topArtists);
-      setRecentTracks(recentTracks);
+      // Always fetch recent tracks and detailed data from API
+      // Also fetch if we didn't get data from DB
+      if (!loadedFromDatabase) {
+        const [topTracksResponse, topArtistsResponse, recentlyPlayedResponse] = await Promise.allSettled([
+          spotifyService.getTopTracks(currentPeriod, 50),
+          spotifyService.getTopArtists(currentPeriod, 50),
+          spotifyService.getRecentlyPlayed(50)
+        ]);
 
-      // Calculate listening stats
+        // Handle successful responses
+        const topTracks = topTracksResponse.status === 'fulfilled' ? topTracksResponse.value.items : [];
+        const topArtists = topArtistsResponse.status === 'fulfilled' ? topArtistsResponse.value.items : [];
+        const recentTracks = recentlyPlayedResponse.status === 'fulfilled' ? recentlyPlayedResponse.value.items : [];
+
+        setTopTracks(topTracks);
+        setTopArtists(topArtists);
+        setRecentTracks(recentTracks);
+        setLoadedFromDB(false);
+      } else {
+        // Still fetch recent tracks and tracks for current period
+        const [topTracksResponse, recentlyPlayedResponse] = await Promise.allSettled([
+          spotifyService.getTopTracks(currentPeriod, 50),
+          spotifyService.getRecentlyPlayed(50)
+        ]);
+
+        const topTracks = topTracksResponse.status === 'fulfilled' ? topTracksResponse.value.items : [];
+        const recentTracks = recentlyPlayedResponse.status === 'fulfilled' ? recentlyPlayedResponse.value.items : [];
+
+        setTopTracks(topTracks);
+        setRecentTracks(recentTracks);
+      }
+
+      // Calculate listening stats from current data
       const stats = spotifyService.calculateListeningStats(topTracks, topArtists);
       setListeningStats(stats);
 

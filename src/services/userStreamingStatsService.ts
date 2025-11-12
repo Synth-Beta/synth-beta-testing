@@ -51,12 +51,18 @@ export class UserStreamingStatsService {
   static async upsertStats(stats: UserStreamingStatsInsert): Promise<UserStreamingStatsSummary | null> {
     try {
       // Check if stats already exist
-      const { data: existingStats } = await supabase
+      const { data: existingStats, error: checkError } = await supabase
         .from('user_streaming_stats_summary')
         .select('id')
         .eq('user_id', stats.user_id)
         .eq('service_type', stats.service_type)
         .single();
+      
+      // Handle table not found error
+      if (checkError && checkError.code === 'PGRST205') {
+        console.warn('Table user_streaming_stats_summary does not exist. Please run the migration.');
+        return null;
+      }
       
       let data;
       if (existingStats) {
@@ -69,12 +75,16 @@ export class UserStreamingStatsService {
           .single();
         
         if (error) {
+          if (error.code === 'PGRST205') {
+            console.warn('Table user_streaming_stats_summary does not exist. Please run the migration.');
+            return null;
+          }
           console.error('Error updating user streaming stats:', error);
           return null;
         }
         data = updatedData;
       } else {
-        // Insert new stats
+        // Insert new stats (PGRST116 means no rows found, which is expected)
         const { data: insertedData, error } = await supabase
           .from('user_streaming_stats_summary')
           .insert(stats)
@@ -82,6 +92,10 @@ export class UserStreamingStatsService {
           .single();
         
         if (error) {
+          if (error.code === 'PGRST205') {
+            console.warn('Table user_streaming_stats_summary does not exist. Please run the migration.');
+            return null;
+          }
           console.error('Error inserting user streaming stats:', error);
           return null;
         }
@@ -90,6 +104,9 @@ export class UserStreamingStatsService {
 
       return data;
     } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST205') {
+        return null;
+      }
       console.error('Error in upsertStats:', error);
       return null;
     }
@@ -108,12 +125,26 @@ export class UserStreamingStatsService {
         .single();
 
       if (error) {
+        // PGRST205 means table doesn't exist - handle gracefully
+        if (error.code === 'PGRST205') {
+          console.warn('Table user_streaming_stats_summary does not exist. Please run the migration.');
+          return null;
+        }
+        // PGRST116 means no rows found - this is expected if user hasn't synced yet
+        if (error.code === 'PGRST116') {
+          return null;
+        }
+        // Only log other errors
         console.error('Error fetching user streaming stats:', error);
         return null;
       }
 
       return data;
     } catch (error) {
+      // Silently handle table not found errors
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST205') {
+        return null;
+      }
       console.error('Error in getStats:', error);
       return null;
     }

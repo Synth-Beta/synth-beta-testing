@@ -15,6 +15,7 @@ import {
   AppleMusicChartsResponse,
   MusicKitInstance
 } from '@/types/appleMusic';
+import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
 
 class AppleMusicService {
   private developerToken: string = import.meta.env.VITE_APPLE_MUSIC_DEVELOPER_TOKEN || '';
@@ -417,6 +418,40 @@ class AppleMusicService {
 
       const result = await response.json();
       console.log('Profile data uploaded successfully:', result);
+
+      // Also store stats permanently in user_streaming_stats_summary
+      try {
+        const userId = await this.getCurrentUserId();
+        if (userId && profileData) {
+          const topArtists = profileData.topArtists || [];
+          const topGenres = profileData.topGenres || [];
+          
+          // Create stats summary
+          const statsInsert = {
+            user_id: userId,
+            service_type: 'apple-music' as const,
+            top_artists: topArtists.map((artist: any) => ({
+              name: artist.name || artist.attributes?.name || '',
+              popularity: artist.popularity || 0,
+              id: artist.id
+            })),
+            top_genres: topGenres.map((genre: any) => ({
+              genre: typeof genre === 'string' ? genre : genre.genre || '',
+              count: typeof genre === 'string' ? 1 : genre.count || 1
+            })),
+            total_tracks: profileData.totalTracks || 0,
+            unique_artists: topArtists.length,
+            total_listening_hours: profileData.totalListeningHours || 0
+          };
+
+          await UserStreamingStatsService.upsertStats(statsInsert);
+          console.log('✅ Apple Music stats stored permanently');
+        }
+      } catch (statsError) {
+        console.error('Error storing Apple Music stats:', statsError);
+        // Don't fail the whole upload if stats storage fails
+      }
+
       return true;
     } catch (error) {
       console.error('Error uploading profile data:', error);
