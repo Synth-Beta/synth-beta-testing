@@ -132,7 +132,7 @@ WHERE ur.is_public = true
   AND ur.review_text IS NOT NULL
   AND ur.review_text != ''
   AND ur.user_id != auth.uid() -- Exclude own reviews
-  -- Filter by connection degree: include 1st, 2nd, and relevant 3rd
+  -- Filter by connection degree: include 1st, 2nd, relevant 3rd, and brand-new public reviews
   AND (
     public.get_connection_degree(auth.uid(), ur.user_id) IN (1, 2) -- Always include 1st and 2nd
     OR (
@@ -145,6 +145,11 @@ WHERE ur.is_public = true
         je.venue_city,
         je.venue_state
       )
+    )
+    OR (
+      public.get_connection_degree(auth.uid(), ur.user_id) NOT IN (1, 2, 3)
+      AND ur.created_at = ur.updated_at -- Only surface brand-new reviews
+      AND ur.created_at >= (NOW() - INTERVAL '30 days')
     )
   );
 
