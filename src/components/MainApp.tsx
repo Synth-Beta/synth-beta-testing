@@ -4,7 +4,6 @@ import { ConcertFeed } from './events/ConcertFeed';
 import { UnifiedFeed } from './UnifiedFeed';
 import { UnifiedSearch } from './UnifiedSearch';
 import { SearchMap } from './SearchMap';
-import { RedesignedSearchPage } from './search/RedesignedSearchPage';
 import { ProfileView } from './profile/ProfileView';
 import { ProfileEdit } from './profile/ProfileEdit';
 import { ConcertEvents } from './ConcertEvents';
@@ -28,6 +27,9 @@ import CreatorAnalyticsDashboard from '@/pages/Analytics/CreatorAnalyticsDashboa
 import BusinessAnalyticsDashboard from '@/pages/Analytics/BusinessAnalyticsDashboard';
 import AdminAnalyticsDashboard from '@/pages/Analytics/AdminAnalyticsDashboard';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
+import { DiscoverView } from './discover/DiscoverView';
+import { ConnectView } from './connect/ConnectView';
+import { UnifiedBanner } from './UnifiedBanner';
 
 type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events' | 'onboarding';
 
@@ -393,7 +395,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         return <OnboardingFlow onComplete={handleOnboardingComplete} />;
       case 'feed':
         return (
-          <UnifiedFeed 
+          <DiscoverView
             currentUserId={user.id}
             onBack={handleBack}
             onViewChange={handleViewChange}
@@ -404,10 +406,11 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         );
       case 'search':
         return (
-          <RedesignedSearchPage 
-            userId={user.id}
+          <ConnectView
+            currentUserId={user.id}
             onNavigateToProfile={handleNavigateToProfile}
             onNavigateToChat={handleNavigateToChat}
+            onNavigateToNotifications={handleNavigateToNotifications}
           />
         );
       case 'profile':
@@ -506,8 +509,22 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     return renderCurrentView();
   }
 
+  // Show banner only for main navigation views
+  const showBanner = ['feed', 'search', 'profile'].includes(currentView);
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Unified Banner - Only show for main pages */}
+      {showBanner && (
+        <UnifiedBanner
+          currentView={currentView as 'feed' | 'search' | 'profile'}
+          onViewChange={handleViewChange}
+          onNavigateToNotifications={handleNavigateToNotifications}
+          onNavigateToChat={handleNavigateToChat}
+          currentUserId={user.id}
+        />
+      )}
+
       {/* Onboarding Reminder Banner */}
       {showOnboardingReminder && (
         <OnboardingReminderBanner onComplete={() => setCurrentView('onboarding')} />
@@ -531,11 +548,18 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         </div>
       )}
       
-      <div className="pb-16">
+      <div className={showBanner ? '' : 'pb-16'}>
         {renderCurrentView()}
       </div>
-      {/* Only show navigation when not in profile-edit mode and not in feed (feed handles its own nav) */}
-      {currentView !== 'profile-edit' && currentView !== 'feed' && (
+      {/* Show bottom navigation for main pages (Discover, Connect, Share) */}
+      {showBanner && (
+        <Navigation 
+          currentView={currentView as 'feed' | 'search' | 'profile' | 'analytics' | 'events'} 
+          onViewChange={handleViewChange}
+        />
+      )}
+      {/* Show bottom navigation for other pages (analytics, events, etc.) */}
+      {!showBanner && currentView !== 'profile-edit' && (
         <Navigation 
           currentView={currentView as 'search' | 'profile' | 'analytics' | 'events'} 
           onViewChange={handleViewChange}

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,9 +15,20 @@ import { EventMap } from '@/components/events/EventMap';
 
 interface RedesignedSearchPageProps {
   userId: string;
+  allowedTabs?: TabKey[];
+  showMap?: boolean;
+  layout?: 'full' | 'compact';
+  mode?: 'full' | 'embedded';
+  showResults?: boolean;
+  headerTitle?: string;
+  headerDescription?: string;
+  onNavigateToProfile?: (userId: string) => void;
+  onNavigateToChat?: (userId: string) => void;
+  onEventClick?: (event: EventSearchResult) => void;
 }
 
 type TabKey = 'users' | 'artists' | 'events' | 'venues';
+const ALL_TAB_KEYS: TabKey[] = ['users', 'artists', 'events', 'venues'];
 
 type UserSearchResult = {
   id: string;
@@ -88,10 +100,33 @@ const TAB_CONFIG: Array<{
   },
 ];
 
-export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ userId }) => {
+export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
+  userId,
+  allowedTabs,
+  showMap = true,
+  layout = 'full',
+  mode = 'full',
+  showResults = true,
+  headerTitle,
+  headerDescription,
+  onNavigateToProfile: _onNavigateToProfile,
+  onNavigateToChat: _onNavigateToChat,
+  onEventClick,
+}) => {
+  const isCompact = layout === 'compact';
+  const isEmbedded = mode === 'embedded';
+  const shouldShowResults = showResults;
+  const sanitizedTabs = useMemo<TabKey[]>(() => {
+    if (!allowedTabs || allowedTabs.length === 0) {
+      return ALL_TAB_KEYS;
+    }
+    const filtered = allowedTabs.filter((tab): tab is TabKey => ALL_TAB_KEYS.includes(tab));
+    return filtered.length > 0 ? filtered : ALL_TAB_KEYS;
+  }, [allowedTabs]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<TabKey>('users');
+  const [activeTab, setActiveTab] = useState<TabKey>(() => sanitizedTabs[0] ?? 'users');
   const [results, setResults] = useState(createEmptyResults);
   const [loading, setLoading] = useState<Record<TabKey, boolean>>({
     users: false,
@@ -103,6 +138,22 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   const [mapVenues, setMapVenues] = useState<MapVenue[]>([]);
   const [mapCenter, setMapCenter] = useState<[number, number]>([39.8283, -98.5795]);
   const [mapLoading, setMapLoading] = useState(false);
+  const filteredTabConfig = useMemo(
+    () => TAB_CONFIG.filter(({ key }) => sanitizedTabs.includes(key)),
+    [sanitizedTabs]
+  );
+  const tabCount = filteredTabConfig.length;
+  const tabGridClass =
+    tabCount >= 4 ? 'grid-cols-4' :
+    tabCount === 3 ? 'grid-cols-3' :
+    tabCount === 2 ? 'grid-cols-2' :
+    'grid-cols-1';
+
+  useEffect(() => {
+    if (!sanitizedTabs.includes(activeTab)) {
+      setActiveTab(sanitizedTabs[0] ?? 'users');
+    }
+  }, [sanitizedTabs, activeTab]);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 300);
@@ -175,8 +226,10 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
   }, [debouncedQuery, userId, activeTab]);
 
   useEffect(() => {
+    if (showMap) {
     loadInitialMapVenues();
-  }, []);
+    }
+  }, [showMap]);
 
   const loadInitialMapVenues = async () => {
     try {
@@ -246,33 +299,46 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
     return null;
   }, [searchQuery]);
 
+  const outerClassName = isEmbedded ? 'w-full' : `${isCompact ? '' : 'min-h-screen'} bg-background`;
+  const innerClassName = isEmbedded
+    ? `w-full ${isCompact ? 'space-y-4' : 'space-y-6'}`
+    : `max-w-5xl mx-auto px-4 ${isCompact ? 'py-4 space-y-6' : 'py-8 space-y-8'}`;
+  const resolvedTitle = headerTitle ?? 'Search';
+  const resolvedDescription =
+    headerDescription ?? 'Find friends, discover artists, and track upcoming shows — all in one place.';
+  const shouldShowDescription = !isCompact && resolvedDescription.length > 0;
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-        <div className="space-y-4">
-          <h1 className="text-3xl font-bold text-foreground">Search</h1>
+    <div className={outerClassName}>
+      <div className={innerClassName}>
+        <div className={`${isCompact ? 'space-y-2' : 'space-y-4'}`}>
+          <h1 className={`${isCompact ? 'text-2xl font-semibold' : 'text-3xl font-bold'} text-foreground`}>
+            {resolvedTitle}
+          </h1>
+          {shouldShowDescription && (
           <p className="text-muted-foreground">
-            Find friends, discover artists, and track upcoming shows — all in one place.
+              {resolvedDescription}
           </p>
+          )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Try “Radiohead”"
-              className="pl-9"
+              className={`pl-9 ${isCompact ? 'h-10 text-sm' : ''}`}
               id="global-search"
               autoComplete="off"
             />
           </div>
           {helperText && (
-            <p className="text-sm text-muted-foreground" aria-live="polite">
+            <p className={`${isCompact ? 'text-xs' : 'text-sm'} text-muted-foreground`} aria-live="polite">
               {helperText}
             </p>
           )}
         </div>
 
-        {debouncedQuery.length < MIN_QUERY_LENGTH && (
+        {shouldShowResults && showMap && debouncedQuery.length < MIN_QUERY_LENGTH && (
           <Card className="border border-dashed border-muted-foreground/40 bg-muted/10">
             <CardContent className="p-4 space-y-4">
               <div className="flex items-center justify-between">
@@ -318,10 +384,10 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
           </Card>
         )}
 
-        {debouncedQuery.length >= MIN_QUERY_LENGTH && (
+        {shouldShowResults && debouncedQuery.length >= MIN_QUERY_LENGTH && filteredTabConfig.length > 0 && (
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabKey)}>
-          <TabsList className="grid grid-cols-4 w-full md:w-auto md:inline-flex bg-muted/60">
-            {TAB_CONFIG.map(({ key, label, icon: Icon }) => (
+            <TabsList className={`grid w-full md:w-auto md:inline-flex bg-muted/60 ${tabGridClass}`}>
+              {filteredTabConfig.map(({ key, label, icon: Icon }) => (
               <TabsTrigger key={key} value={key} className="flex items-center gap-2">
                 <Icon className="h-4 w-4" />
                 <span>{label}</span>
@@ -329,7 +395,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
             ))}
           </TabsList>
 
-          {TAB_CONFIG.map(({ key, emptyMessage }) => (
+            {filteredTabConfig.map(({ key, emptyMessage }) => (
             <TabsContent key={key} value={key} className="mt-6 space-y-4">
               {activeTab === key && (
                 <>
@@ -356,7 +422,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({ user
                     <div className="space-y-4">
                       {key === 'users' && <UserResults results={results.users} />}
                       {key === 'artists' && <ArtistResults results={results.artists} />}
-                      {key === 'events' && <EventResults results={results.events} />}
+                      {key === 'events' && <EventResults results={results.events} onEventClick={onEventClick} />}
                       {key === 'venues' && <VenueResults results={results.venues} />}
                     </div>
                   )}
@@ -462,11 +528,17 @@ const UserResults: React.FC<{ results: UserSearchResult[] }> = ({ results }) => 
     ))}
   </>
 );
-const ArtistResults: React.FC<{ results: ArtistSearchResult[] }> = ({ results }) => (
-  <>
-    {results.map((artist) => (
-      <Card key={artist.id} className="hover:shadow-sm transition-shadow">
-        <CardContent className="p-4 flex items-center gap-4">
+const ArtistResults: React.FC<{ results: ArtistSearchResult[] }> = ({ results }) => {
+  const navigate = useNavigate();
+  return (
+    <>
+      {results.map((artist) => (
+        <Card 
+          key={artist.id} 
+          className="hover:shadow-sm transition-shadow cursor-pointer"
+          onClick={() => navigate(`/artist/${encodeURIComponent(artist.name)}`)}
+        >
+          <CardContent className="p-4 flex items-center gap-4">
           <div className="flex-shrink-0">
             {artist.image_url ? (
               <img
@@ -503,12 +575,15 @@ const ArtistResults: React.FC<{ results: ArtistSearchResult[] }> = ({ results })
         </CardContent>
       </Card>
     ))}
-                                        </>
-                                      );
+  </>
+  );
+};
 
-const EventResults: React.FC<{ results: EventSearchResult[] }> = ({ results }) => (
-  <>
-    {results.map((event) => {
+const EventResults: React.FC<{ results: EventSearchResult[]; onEventClick?: (event: EventSearchResult) => void }> = ({ results, onEventClick }) => {
+  const navigate = useNavigate();
+  return (
+    <>
+      {results.map((event) => {
       const formattedDate = (() => {
         if (!event.eventDate) return null;
         try {
@@ -519,7 +594,26 @@ const EventResults: React.FC<{ results: EventSearchResult[] }> = ({ results }) =
       })();
 
       return (
-        <Card key={event.id} className="hover:shadow-sm transition-shadow">
+        <Card 
+          key={event.id} 
+          className="hover:shadow-sm transition-shadow cursor-pointer"
+          onClick={() => {
+            if (onEventClick) {
+              onEventClick(event);
+            } else {
+              // Fallback: navigate to event if we have the ID
+              if (event.id) {
+                // Try to open event details modal via custom event
+                window.dispatchEvent(new CustomEvent('open-event-details', { 
+                  detail: { 
+                    event: event,
+                    eventId: event.id
+                  }
+                }));
+              }
+            }
+          }}
+        >
           <CardContent className="p-4 flex items-center gap-4">
             <div className="flex-shrink-0">
               {event.imageUrl ? (
@@ -551,16 +645,23 @@ const EventResults: React.FC<{ results: EventSearchResult[] }> = ({ results }) =
                             </div>
           </CardContent>
         </Card>
-                          );
-                        })}
+      );
+    })}
   </>
-);
+  );
+};
 
-const VenueResults: React.FC<{ results: VenueSearchResult[] }> = ({ results }) => (
-  <>
-    {results.map((venue) => (
-      <Card key={venue.id} className="hover:shadow-sm transition-shadow">
-        <CardContent className="p-4 flex items-start gap-4">
+const VenueResults: React.FC<{ results: VenueSearchResult[] }> = ({ results }) => {
+  const navigate = useNavigate();
+  return (
+    <>
+      {results.map((venue) => (
+        <Card 
+          key={venue.id} 
+          className="hover:shadow-sm transition-shadow cursor-pointer"
+          onClick={() => navigate(`/venue/${encodeURIComponent(venue.name)}`)}
+        >
+          <CardContent className="p-4 flex items-start gap-4">
           <div className="flex-shrink-0 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
             <MapPin className="h-5 w-5 text-muted-foreground" />
                           </div>
@@ -576,10 +677,11 @@ const VenueResults: React.FC<{ results: VenueSearchResult[] }> = ({ results }) =
               <p className="text-xs text-muted-foreground mt-1">
                 {venue.num_upcoming_events} upcoming {venue.num_upcoming_events === 1 ? 'show' : 'shows'}
               </p>
-                        )}
-                      </div>
-                  </CardContent>
-                </Card>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     ))}
   </>
-);
+  );
+};

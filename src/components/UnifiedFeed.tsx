@@ -56,9 +56,9 @@ import { format } from 'date-fns';
 import { Navigation } from '@/components/Navigation';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { getEventStatus, isEventPast, getPastEvents, getUpcomingEvents } from '@/utils/eventStatusUtils';
-import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
+import { ReviewService, PublicReviewWithProfile, ReviewWithEngagement } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
-import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
+import { ReviewCard } from '@/components/reviews/ReviewCard';
 import { ProfileReviewCard } from '@/components/reviews/ProfileReviewCard';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventCommentsModal } from '@/components/events/EventCommentsModal';
@@ -104,6 +104,25 @@ const DEFAULT_MAP_CENTER: [number, number] = [39.8283, -98.5795];
 
 // Using UnifiedFeedItem from service instead of local interface
 
+type FeedSectionKey = 'events' | 'reviews' | 'news';
+const DEFAULT_FEED_SECTIONS: FeedSectionKey[] = ['events', 'reviews', 'news'];
+const SECTION_META: Record<FeedSectionKey, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
+  events: { label: 'Events', icon: Calendar },
+  reviews: { label: 'Reviews', icon: Star },
+  news: { label: 'News', icon: Newspaper },
+};
+
+export interface FeedHeroHighlight {
+  eventId: string;
+  title: string;
+  artistName?: string;
+  venueName?: string;
+  eventDate?: string;
+  imageUrl?: string | null;
+  distanceMiles?: number;
+  eventData?: any;
+}
+
 interface UnifiedFeedProps {
   currentUserId: string;
   onBack: () => void;
@@ -111,6 +130,14 @@ interface UnifiedFeedProps {
   onViewChange?: (view: 'feed' | 'search' | 'profile') => void;
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
+  headerTitle?: string;
+  headerSubtitle?: string;
+  visibleSections?: FeedSectionKey[];
+  enableMap?: boolean;
+  sectionLayout?: 'tabs' | 'stacked';
+  onHighlightUpdate?: (highlight: FeedHeroHighlight | null) => void;
+  embedded?: boolean;
+  showSectionTabs?: boolean;
 }
 
 export const UnifiedFeed = ({ 
@@ -119,7 +146,15 @@ export const UnifiedFeed = ({
   onNavigateToNotifications, 
   onViewChange,
   onNavigateToProfile,
-  onNavigateToChat
+  onNavigateToChat,
+  headerTitle,
+  headerSubtitle,
+  visibleSections,
+  enableMap,
+  sectionLayout = 'tabs',
+  onHighlightUpdate,
+  embedded = false,
+  showSectionTabs = true,
 }: UnifiedFeedProps) => {
   // Debug: Check if navigation handlers and userId are provided (only log once)
   const hasLogged = useRef(false);
@@ -133,6 +168,30 @@ export const UnifiedFeed = ({
     hasLogged.current = true;
   }
   
+  const resolvedSections = useMemo<FeedSectionKey[]>(() => {
+    if (!visibleSections || visibleSections.length === 0) {
+      return DEFAULT_FEED_SECTIONS;
+    }
+    const filtered = visibleSections.filter((section): section is FeedSectionKey =>
+      DEFAULT_FEED_SECTIONS.includes(section)
+    );
+    return filtered.length > 0 ? filtered : DEFAULT_FEED_SECTIONS;
+  }, [visibleSections]);
+  const sectionCount = resolvedSections.length;
+  const isStacked = sectionLayout === 'stacked';
+  const sectionGridClass =
+    sectionCount === 1 ? 'grid-cols-1' :
+    sectionCount === 2 ? 'grid-cols-2' :
+    'grid-cols-3';
+  const isEmbedded = embedded;
+  const outerClassName = isEmbedded ? 'w-full' : 'min-h-screen bg-gray-50';
+  const innerClassName = isEmbedded ? 'w-full space-y-8' : 'max-w-4xl mx-auto p-6 space-y-8';
+  const headerSpacingClass = isEmbedded ? 'mb-4' : 'mb-8';
+  const resolvedHeaderTitle = headerTitle ?? 'Feed';
+  const resolvedHeaderSubtitle =
+    headerSubtitle ?? 'Discover reviews and events from friends and the community';
+  const mapEnabled = enableMap ?? true;
+  
   const [feedItems, setFeedItems] = useState<UnifiedFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -145,6 +204,7 @@ export const UnifiedFeed = ({
   const [isMapDialogOpen, setIsMapDialogOpen] = useState(false);
   const { toast } = useToast();
   const { sessionExpired } = useAuth();
+  const navigate = useNavigate();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedEventForDetails, setSelectedEventForDetails] = useState<any>(null);
   const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
@@ -206,7 +266,14 @@ export const UnifiedFeed = ({
   const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsSource, setNewsSource] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<string>('events');
+  const [activeTab, setActiveTab] = useState<FeedSectionKey>(() => resolvedSections[0] ?? 'events');
+
+  useEffect(() => {
+    if (isStacked) return;
+    if (!resolvedSections.includes(activeTab)) {
+      setActiveTab(resolvedSections[0] ?? 'events');
+    }
+  }, [resolvedSections, activeTab, isStacked]);
   
   // Artist and Venue dialog state
   const [artistDialog, setArtistDialog] = useState<{ open: boolean; artist: Artist | null }>({ open: false, artist: null });
@@ -241,9 +308,9 @@ export const UnifiedFeed = ({
   };
 
   // Handle tab change
-  const handleTabChange = (value: string) => {
+  const handleTabChange = (value: FeedSectionKey) => {
     setActiveTab(value);
-    if (value === 'news') {
+    if (value === 'news' && resolvedSections.includes('news')) {
       // Always fetch fresh personalized results when clicking News tab
       NewsService.clearCache(); // Clear cache for fresh results
       fetchNews();
@@ -471,8 +538,6 @@ export const UnifiedFeed = ({
   }, []);
 
   // Add event listeners for artist and venue card opening
-  const navigate = useNavigate();
-
   useEffect(() => {
     const openVenue = (e: Event) => {
       const detail = (e as CustomEvent).detail || {};
@@ -1458,6 +1523,42 @@ export const UnifiedFeed = ({
 
   const mapZoomLevel = mapEvents.length > 1 ? 6 : 9;
 
+  const heroHighlight = useMemo<FeedHeroHighlight | null>(() => {
+    const candidate = processedFeedItems.find(
+      (item): item is UnifiedFeedItem & { event_data: any } =>
+        item.type === 'event' && !!item.event_data
+    );
+
+    if (!candidate || !candidate.event_data) {
+      return null;
+    }
+
+    const event = candidate.event_data as any;
+    const imageUrl =
+      event.poster_image_url ||
+      (Array.isArray(event.images)
+        ? (event.images.find((img: any) => img?.url)?.url as string | undefined)
+        : undefined) ||
+      null;
+
+    return {
+      eventId: event.id || candidate.id,
+      title: event.title || candidate.title || event.artist_name || 'Upcoming Event',
+      artistName: event.artist_name || candidate.event_info?.artist_name,
+      venueName: event.venue_name || candidate.event_info?.venue_name,
+      eventDate: event.event_date || candidate.event_info?.event_date,
+      imageUrl,
+      distanceMiles: candidate.distance_miles,
+      eventData: event,
+    };
+  }, [processedFeedItems]);
+
+  useEffect(() => {
+    if (onHighlightUpdate) {
+      onHighlightUpdate(heroHighlight);
+    }
+  }, [heroHighlight, onHighlightUpdate]);
+
   useEffect(() => {
     if (isMapDialogOpen) return;
     const firstWithCoords = mapEvents.find(
@@ -1571,6 +1672,436 @@ export const UnifiedFeed = ({
 
   console.log('🔍 UnifiedFeed render - loading:', loading, 'feedItems.length:', feedItems.length);
 
+  const renderEventFiltersBlock = () => (
+    <div className="mb-6 lg:sticky lg:top-6 lg:z-20">
+      <div className="rounded-2xl border border-white/60 bg-white/90 shadow-sm backdrop-blur">
+        <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
+          <div className="md:flex-1">
+            <EventFilters
+              filters={pendingFilters}
+              onFiltersChange={(newFilters) => {
+                console.log('✅ Filter change detected:', newFilters);
+                userHasChangedFiltersRef.current = true;
+                autoCityAppliedRef.current = true;
+                setPendingFilters(newFilters);
+
+                if (filterDebounceTimeoutRef.current) {
+                  clearTimeout(filterDebounceTimeoutRef.current);
+                }
+
+                filterDebounceTimeoutRef.current = setTimeout(() => {
+                  console.log('🔄 Applying debounced filters, regenerating personalized feed...');
+                  setFilters(newFilters);
+                  setRefreshOffset(0);
+
+                  if (currentUserId) {
+                    loadFeedData(0, false, true, newFilters);
+                  }
+                }, 400);
+              }}
+              availableGenres={availableGenres}
+              availableCities={availableCities}
+              onOverlayChange={(open) => setPendingFilters((prev) => ({ ...prev, showFilters: open }))}
+            />
+          </div>
+          {mapEnabled && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="md:self-start"
+              onClick={() => setIsMapDialogOpen(true)}
+              disabled={mapEvents.length === 0}
+            >
+              <Map className="h-4 w-4 mr-2" />
+              Map View
+            </Button>
+          )}
+        </div>
+        <div className="flex flex-col gap-1 px-3 pb-3 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between">
+          <span>Tune these recommendations by genre, location, and dates.</span>
+          <span className="hidden md:inline">Filters apply across events and reviews.</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderEventsBody = (includeFilters = true) => (
+    <>
+      {includeFilters && renderEventFiltersBlock()}
+      {renderEventCards()}
+      {renderLoadMoreButton()}
+    </>
+  );
+
+  const renderEventCards = () => (
+    <div className="space-y-4">
+      {processedFeedItems
+        .filter((item) => item.type === 'event')
+        .map((item, index) => (
+          <Card
+            key={`event-${item.id}-${index}`}
+            className={cn(
+              'cursor-pointer overflow-hidden group',
+              item.event_data?.is_promoted &&
+                'ring-2 ring-yellow-400/50 shadow-lg shadow-yellow-200/30 border-yellow-200/50'
+            )}
+            ref={(el) => el && attachEventObserver(el, item.event_data?.id || item.id)}
+            data-tour={index === 0 ? 'event-card' : undefined}
+            onClick={async (e) => {
+              if (e.defaultPrevented) return;
+              if (item.event_data) {
+                const { PromotionTrackingService } = await import('@/services/promotionTrackingService');
+                PromotionTrackingService.trackPromotionInteraction(item.event_data.id, currentUserId, 'click', {
+                  source: 'feed_event_card_click',
+                  artist_name: item.event_data.artist_name,
+                  venue_name: item.event_data.venue_name,
+                });
+
+                setSelectedEventForDetails(item.event_data);
+                try {
+                  const interested = await UserEventService.isUserInterested(currentUserId, item.event_data.id);
+                  setSelectedEventInterested(interested);
+                } catch {
+                  setSelectedEventInterested(false);
+                }
+                setDetailsOpen(true);
+              }
+            }}
+          >
+            <CardContent className="p-6">
+              {item.type !== 'event' && (
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-10 h-10 ring-2 ring-synth-pink/20">
+                      <AvatarImage src={item.author?.avatar_url || undefined} />
+                      <AvatarFallback className="text-sm font-semibold bg-synth-pink/10 text-synth-pink">
+                        {item.author?.name?.split(' ').map((n) => n[0]).join('') || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="font-semibold text-sm text-gray-900">{item.author?.name || 'Anonymous'}</h3>
+                      <p className="text-xs text-gray-500">{item.type.charAt(0).toUpperCase() + item.type.slice(1)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className="synth-badge text-xs">
+                      <Calendar className="w-3 h-3 mr-1" />
+                      {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+                    </Badge>
+                  </div>
+                </div>
+              )}
+
+              <div className="mb-4">
+                <ReviewHeroImage item={item} />
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="font-bold text-lg text-gray-900">
+                      {item.event_data?.artist_name ? (
+                        <span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/artist/${encodeURIComponent(item.event_data.artist_name)}`);
+                            }}
+                            className="hover:text-synth-pink transition-colors underline"
+                          >
+                            {item.event_data.artist_name}
+                          </button>
+                          {item.title && item.title !== item.event_data.artist_name && (
+                            <span> - {item.title}</span>
+                          )}
+                        </span>
+                      ) : (
+                        item.title
+                      )}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <FollowIndicator
+                        followedArtists={followedArtists}
+                        followedVenues={followedVenues}
+                        artistName={item.event_data?.artist_name}
+                        venueName={item.event_data?.venue_name}
+                        venueCity={item.event_data?.venue_city}
+                        venueState={item.event_data?.venue_state}
+                      />
+                      {item.event_data?.is_promoted && item.event_data?.promotion_tier && (
+                        <PromotedEventBadge promotionTier={item.event_data.promotion_tier as 'basic' | 'premium' | 'featured'} />
+                      )}
+                    </div>
+                  </div>
+                  {item.event_data && (
+                    <div className="space-y-2 text-sm text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-synth-pink" />
+                        {item.event_data.venue_name && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/venue/${encodeURIComponent(item.event_data.venue_name)}`);
+                            }}
+                            className="hover:text-synth-pink transition-colors underline"
+                          >
+                            {item.event_data.venue_name}
+                          </button>
+                        )}
+                        {item.event_data.venue_city && (
+                          <span className="text-gray-500">· {item.event_data.venue_city}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-synth-pink" />
+                        <span>{format(parseISO(item.event_data.event_date), 'EEEE, MMMM d, yyyy')}</span>
+                      </div>
+                      {(() => {
+                        const event = item.event_data as any;
+                        const priceRange = event?.price_range;
+                        const priceMin = event?.ticket_price_min ?? event?.price_min;
+                        const priceMax = event?.ticket_price_max ?? event?.price_max;
+                        if (priceRange || priceMin || priceMax) {
+                          let priceDisplay = '';
+                          if (priceRange) {
+                            priceDisplay = formatPrice(priceRange);
+                          } else if (priceMin && priceMax) {
+                            priceDisplay = `$${priceMin} - $${priceMax}`;
+                          } else if (priceMin) {
+                            priceDisplay = `$${priceMin}+`;
+                          } else if (priceMax) {
+                            priceDisplay = `Up to $${priceMax}`;
+                          }
+                          return (
+                            <div className="flex items-center gap-2">
+                              <Ticket className="w-4 h-4 text-synth-pink" />
+                              <span className="font-medium">{priceDisplay}</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-4">
+                    {item.type === 'event' && item.event_data ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEventInterest(item);
+                        }}
+                        className={cn(
+                          'flex items-center gap-1 text-sm transition-colors px-3 py-1 rounded-md',
+                          interestedEvents.has(item.event_data.id)
+                            ? 'bg-pink-500 text-white hover:bg-pink-600'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        )}
+                      >
+                        <Heart className={cn('w-4 h-4', interestedEvents.has(item.event_data.id) && 'fill-current')} />
+                        <span>{interestedEvents.has(item.event_data.id) ? 'Interested' : "I'm Interested"}</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleInstagramLike(item);
+                        }}
+                        className={cn(
+                          'flex items-center gap-1 text-sm transition-colors',
+                          likedPosts.has(item.id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+                        )}
+                      >
+                        <Heart className={cn('w-4 h-4', likedPosts.has(item.id) && 'fill-current')} />
+                        <span>{item.likes_count || 0}</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenEventCommentsFor(item.event_data?.id || item.id);
+                      }}
+                      className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-500 transition-colors"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>{item.comments_count || 0}</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShare(item);
+                      }}
+                      className="flex items-center gap-1 text-sm text-gray-500 hover:text-green-500 transition-colors"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      <span>Share</span>
+                    </button>
+                  </div>
+                  <div className="text-xs text-gray-400">{formatTimeAgo(item.created_at)}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+    </div>
+  );
+
+  const renderLoadMoreButton = () => {
+    if (feedItems.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center py-6 mt-6">
+        {!hasMore && <p className="text-gray-500 text-sm mb-3">You're all caught up! 🎉</p>}
+        <Button
+          onClick={() => loadFeedData(feedItems.length)}
+          disabled={loadingMore || !hasMore}
+          className={cn(
+            'text-white shadow-lg px-6 py-2',
+            hasMore ? 'bg-synth-pink hover:bg-synth-pink-dark' : 'bg-gray-400 cursor-not-allowed'
+          )}
+        >
+          {loadingMore ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Loading more events...
+            </>
+          ) : hasMore ? (
+            <>Load more (20 events)</>
+          ) : (
+            <>You're all caught up</>
+          )}
+        </Button>
+      </div>
+    );
+  };
+
+  const renderReviewsBody = () => {
+    const reviews = feedItems.filter(
+      (item) => item.type === 'review' && !(item as any).deleted_at && !(item as any).is_deleted
+    );
+
+    if (reviews.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Star className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No reviews yet</h3>
+            <p className="text-gray-500">Be the first to share a concert review!</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {reviews.map((item, index) => {
+          const review = {
+            id: item.review_id || item.id,
+            user_id: item.author?.id || currentUserId,
+            event_id: (item as any).event_id || '',
+            rating:
+              typeof item.rating === 'number'
+                ? item.rating
+                : ((item as any).artist_performance_rating as number) || 0,
+            review_text: item.content || '',
+            is_public: true,
+            created_at: item.created_at,
+            updated_at: item.created_at,
+            likes_count: item.likes_count || 0,
+            comments_count: item.comments_count || 0,
+            shares_count: 0,
+            is_liked_by_user: likedPosts.has(item.id),
+            reaction_emoji: '',
+            photos: item.photos || [],
+            videos: [],
+            mood_tags: [],
+            genre_tags: [],
+            context_tags: [],
+            artist_name: item.event_info?.artist_name,
+            artist_id: (item.event_info as any)?.artist_id,
+            venue_name: item.event_info?.venue_name,
+            venue_id: (item.event_info as any)?.venue_id,
+          } as ReviewWithEngagement;
+
+          return (
+            <ReviewCard
+              key={`${item.id}-${index}`}
+              review={review}
+              userProfile={{
+                name: item.author?.name || 'User',
+                avatar_url: item.author?.avatar_url || undefined,
+                verified: (item.author as any)?.verified,
+                account_type: (item.author as any)?.account_type,
+              }}
+              isLiked={likedPosts.has(item.id)}
+              onLike={(reviewId) => {
+                const isLiked = likedPosts.has(item.id);
+                if (isLiked) {
+                  setLikedPosts((prev) => {
+                    const next = new Set(prev);
+                    next.delete(item.id);
+                    return next;
+                  });
+                } else {
+                  setLikedPosts((prev) => new Set([...prev, item.id]));
+                }
+                handleInstagramLike(item);
+              }}
+              onComment={() => setOpenReviewCommentsFor(item.review_id || item.id)}
+              onShare={() => handleShare(item)}
+              onOpenReviewDetail={(review) => {
+                setSelectedReviewDetail(item);
+                setShowReviewDetailModal(true);
+              }}
+              onOpenArtist={(artistId, artistName) => {
+                navigate(`/artist/${encodeURIComponent(artistName)}`);
+              }}
+              onOpenVenue={(venueId, venueName) => {
+                navigate(`/venue/${encodeURIComponent(venueName)}`);
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderNewsBody = () => {
+    if (newsLoading && newsArticles.length === 0) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <NewsCardSkeleton key={index} />
+          ))}
+        </div>
+      );
+    }
+
+    if (!newsLoading && newsArticles.length === 0) {
+      return (
+        <EmptyState
+          icon={<Newspaper className="w-12 h-12 text-gray-400" />}
+          title="No news articles found"
+          description="Check back later for the latest music news and updates!"
+        />
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {NewsService.filterBySource(newsArticles, newsSource).map((article) => (
+          <NewsCard key={article.id} article={article} />
+        ))}
+      </div>
+    );
+  };
+
   if (loading) {
     console.log('🔍 Showing skeleton loading state');
     return (
@@ -1585,12 +2116,14 @@ export const UnifiedFeed = ({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-8">
+    <div className={outerClassName}>
+      <div className={innerClassName}>
+        <div className={`flex items-center justify-between ${headerSpacingClass}`}>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Feed</h1>
-            <p className="text-gray-600 mt-2">Discover reviews and events from friends and the community</p>
+            <h1 className="text-3xl font-bold text-gray-900">{resolvedHeaderTitle}</h1>
+            {resolvedHeaderSubtitle && (
+              <p className="text-gray-600 mt-2">{resolvedHeaderSubtitle}</p>
+            )}
         </div>
         
           {/* Right side icons */}
@@ -1618,24 +2151,27 @@ export const UnifiedFeed = ({
         </div>
 
         {/* Feed type tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="grid w-full grid-cols-3 mb-6 bg-white/60 backdrop-blur-sm border border-white/20 rounded-2xl p-1">
-            <TabsTrigger value="events" className="flex items-center gap-2 data-[state=active]:bg-synth-pink data-[state=active]:text-white rounded-xl">
-              <Calendar className="w-4 h-4" />
-              Events
+        <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as FeedSectionKey)}>
+          {showSectionTabs !== false && (
+            <TabsList className={`grid w-full mb-6 bg-white/60 backdrop-blur-sm border border-white/20 rounded-2xl p-1 ${sectionGridClass}`}>
+              {resolvedSections.map((section) => {
+                const { label, icon: Icon } = SECTION_META[section];
+                return (
+                  <TabsTrigger
+                    key={section}
+                    value={section}
+                    className="flex items-center gap-2 data-[state=active]:bg-synth-pink data-[state=active]:text-white rounded-xl"
+                  >
+                    <Icon className="w-4 h-4" />
+                    {label}
             </TabsTrigger>
-            <TabsTrigger value="reviews" className="flex items-center gap-2 data-[state=active]:bg-synth-pink data-[state=active]:text-white rounded-xl">
-              <Star className="w-4 h-4" />
-              Reviews
-            </TabsTrigger>
-            <TabsTrigger value="news" className="flex items-center gap-2 data-[state=active]:bg-synth-pink data-[state=active]:text-white rounded-xl">
-              <Newspaper className="w-4 h-4" />
-              News
-            </TabsTrigger>
+                );
+              })}
           </TabsList>
+          )}
 
           {/* Filters and Refresh Button - Only show on Events tab */}
-          {activeTab === 'events' && (
+          {activeTab === 'events' && resolvedSections.includes('events') && (
             <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="md:flex-1">
                 <EventFilters
@@ -1665,6 +2201,7 @@ export const UnifiedFeed = ({
                   onOverlayChange={(open) => setPendingFilters(prev => ({ ...prev, showFilters: open }))}
                 />
               </div>
+              {mapEnabled && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1675,9 +2212,11 @@ export const UnifiedFeed = ({
                 <Map className="h-4 w-4 mr-2" />
                 Map View
               </Button>
+              )}
             </div>
           )}
 
+          {resolvedSections.includes('events') && (
           <TabsContent
             value="events"
             className="space-y-4"
@@ -1918,7 +2457,9 @@ export const UnifiedFeed = ({
               </div>
             )}
           </TabsContent>
+          )}
 
+          {resolvedSections.includes('reviews') && (
           <TabsContent value="reviews" className="mt-6">
             {/* Reviews feed */}
             {feedItems.filter(item => item.type === 'review' && !(item as any).deleted_at && !(item as any).is_deleted).length === 0 ? (
@@ -2148,7 +2689,9 @@ export const UnifiedFeed = ({
               </div>
             )}
           </TabsContent>
+          )}
 
+          {resolvedSections.includes('news') && (
           <TabsContent
             value="news"
             className="space-y-4"
@@ -2214,8 +2757,10 @@ export const UnifiedFeed = ({
               />
             )}
           </TabsContent>
+          )}
         </Tabs>
 
+        {mapEnabled && (
         <Dialog open={isMapDialogOpen} onOpenChange={setIsMapDialogOpen}>
           <DialogContent className="sm:max-w-[900px] w-full h-[80vh]">
             <DialogHeader>
@@ -2243,6 +2788,7 @@ export const UnifiedFeed = ({
             )}
           </DialogContent>
         </Dialog>
+        )}
             </div>
 
       <div className="pb-20"></div>

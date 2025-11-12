@@ -1,8 +1,7 @@
 "use client";
 
-import { User, Search, Users, BarChart3, Calendar } from "lucide-react";
+import { Compass, Users, Share2, BarChart3, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SynthSLogo } from "@/components/SynthSLogo";
 import { useAccountType } from "@/hooks/useAccountType";
 
 interface NavigationProps {
@@ -15,9 +14,9 @@ export const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
   
   // Base navigation items for all users
   const baseNavItems: Array<{ id: "feed" | "search" | "profile" | "events" | "analytics"; icon: any; label: string }> = [
-    { id: "feed", icon: Users, label: "Feed" },
-    { id: "search", icon: Search, label: "Search" },
-    { id: "profile", icon: User, label: "Profile" },
+    { id: "feed", icon: Compass, label: "Discover" },
+    { id: "search", icon: Users, label: "Connect" },
+    { id: "profile", icon: Share2, label: "Share" },
   ];
 
   // Add Events for Creator, Business, and Admin account types

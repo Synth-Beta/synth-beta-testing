@@ -349,18 +349,26 @@ export class FriendsReviewService {
         });
 
       if (error) {
-        // Fallback: query the view directly
+        // Fallback: query the view directly (if it exists)
         console.warn('RPC function failed, trying direct view query:', error);
-        const { data: viewData, error: viewError } = await supabase
-          .from('reviews_with_connection_degree')
-          .select('*')
-          .order('connection_degree', { ascending: true })
-          .order('created_at', { ascending: false })
-          .range(offset, offset + limit - 1);
+        try {
+          const { data: viewData, error: viewError } = await supabase
+            .from('reviews_with_connection_degree')
+            .select('*')
+            .order('connection_degree', { ascending: true })
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
 
-        if (viewError) throw viewError;
+          if (viewError) {
+            console.warn('View query also failed, returning empty array:', viewError);
+            return [];
+          }
 
-        return (viewData || []).map((review: any) => this.transformConnectionReview(review));
+          return (viewData || []).map((review: any) => this.transformConnectionReview(review));
+        } catch (viewErr) {
+          console.warn('Error querying view, returning empty array:', viewErr);
+          return [];
+        }
       }
 
       return (data || []).map((review: any) => this.transformConnectionReview(review));
