@@ -42,6 +42,7 @@ import { FriendActivityFeed } from '@/components/social/FriendActivityFeed';
 import { WorkingConnectionBadge } from '../WorkingConnectionBadge';
 import { VerificationBadge } from '@/components/verification/VerificationBadge';
 import type { AccountType } from '@/utils/verificationUtils';
+import { PageActions } from '@/components/PageActions';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -52,6 +53,7 @@ interface ProfileViewProps {
   onSignOut?: () => void;
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
+  onNavigateToNotifications?: () => void;
 }
 
 interface UserProfile {
@@ -126,7 +128,7 @@ interface ConcertReview {
   };
 }
 
-export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat }: ProfileViewProps) => {
+export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat, onNavigateToNotifications }: ProfileViewProps) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<JamBaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1171,7 +1173,15 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       <div className="max-w-2xl mx-auto">
 
         {/* Enhanced Profile Header */}
-        <div className="mb-8 bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 rounded-2xl p-8 border border-pink-100/50 shadow-sm">
+        <div className="mb-8 bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 rounded-2xl p-8 border border-pink-100/50 shadow-sm relative overflow-hidden">
+          <div className="absolute top-6 right-6">
+            <PageActions
+              currentUserId={currentUserId}
+              onNavigateToNotifications={onNavigateToNotifications}
+              onNavigateToChat={onNavigateToChat}
+            />
+          </div>
+
           {/* Main Profile Row */}
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-6">
             {/* Profile Picture */}

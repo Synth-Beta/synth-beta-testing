@@ -423,6 +423,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onSignOut={handleSignOut}
             onNavigateToProfile={handleNavigateToProfile}
             onNavigateToChat={handleNavigateToChat}
+            onNavigateToNotifications={handleNavigateToNotifications}
           />
         );
       case 'profile-edit':
@@ -508,22 +509,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     return renderCurrentView();
   }
 
-  // Show banner only for main navigation views
-  const showBanner = ['feed', 'search', 'profile'].includes(currentView);
+  const showMainNav = ['feed', 'search', 'profile'].includes(currentView);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Unified Banner - Only show for main pages */}
-      {showBanner && (
-        <UnifiedBanner
-          currentView={currentView as 'feed' | 'search' | 'profile'}
-          onViewChange={handleViewChange}
-          onNavigateToNotifications={handleNavigateToNotifications}
-          onNavigateToChat={handleNavigateToChat}
-          currentUserId={user.id}
-        />
-      )}
-
       {/* Onboarding Reminder Banner */}
       {showOnboardingReminder && (
         <OnboardingReminderBanner onComplete={() => setCurrentView('onboarding')} />
@@ -547,18 +536,18 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         </div>
       )}
       
-      <div className={showBanner ? '' : 'pb-16'}>
+      <div className={showMainNav ? '' : 'pb-16'}>
         {renderCurrentView()}
       </div>
       {/* Show bottom navigation for main pages (Discover, Connect, Share) */}
-      {showBanner && (
+      {showMainNav && (
         <Navigation 
           currentView={currentView as 'feed' | 'search' | 'profile' | 'analytics' | 'events'} 
           onViewChange={handleViewChange}
         />
       )}
       {/* Show bottom navigation for other pages (analytics, events, etc.) */}
-      {!showBanner && currentView !== 'profile-edit' && (
+      {!showMainNav && currentView !== 'profile-edit' && (
         <Navigation 
           currentView={currentView as 'search' | 'profile' | 'analytics' | 'events'} 
           onViewChange={handleViewChange}

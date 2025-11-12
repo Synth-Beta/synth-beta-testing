@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Loader2, Users, MessageCircle, Sparkles, Calendar, MapPin, Bell, UserPlus, Star, Heart, Share2, Bookmark, Images, Play, X, UserCheck, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
+import { PageActions } from '@/components/PageActions';
 
 type ConnectionProfile = {
   connected_user_id: string;
@@ -1374,141 +1375,69 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        <div className="grid gap-4 lg:grid-cols-[280px,1fr]">
-          {/* Left Column - Minimal sidebar for User Search, Chats and Recommended Users */}
-          <div className="space-y-4">
-            {/* User Search Bar */}
-            <div className="relative">
+        {/* Connection discovery */}
+        <section className="glass-card inner-glow rounded-3xl border border-white/60 bg-white/70 p-6 shadow-xl">
+          <div className="grid gap-4 lg:grid-cols-[280px,1fr]">
+            {/* Left Column - Minimal sidebar for User Search, Chats and Recommended Users */}
+            <div className="space-y-4">
+              {/* User Search Bar */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  type="text"
-                  placeholder="Search users..."
-                  value={userSearchQuery}
-                  onChange={handleUserSearchChange}
-                  onFocus={() => {
-                    if (userSearchResults.length > 0) {
-                      setUserSearchOpen(true);
-                    }
-                  }}
-                  onBlur={() => {
-                    // Delay closing to allow for click events
-                    setTimeout(() => {
-                      setUserSearchOpen(false);
-                    }, 150);
-                  }}
-                  className="pl-10 pr-10"
-                  autoComplete="off"
-                />
-                {userSearchQuery && !userSearchLoading && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setUserSearchQuery('');
-                      setUserSearchResults([]);
-                      setUserSearchOpen(false);
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    type="text"
+                    placeholder="Search users..."
+                    value={userSearchQuery}
+                    onChange={handleUserSearchChange}
+                    onFocus={() => {
+                      if (userSearchResults.length > 0) {
+                        setUserSearchOpen(true);
+                      }
                     }}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
-                )}
-                {userSearchLoading && (
-                  <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
-                )}
-              </div>
+                    onBlur={() => {
+                      // Delay closing to allow for click events
+                      setTimeout(() => {
+                        setUserSearchOpen(false);
+                      }, 150);
+                    }}
+                    className="pl-10 pr-10"
+                    autoComplete="off"
+                  />
+                  {userSearchQuery && !userSearchLoading && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setUserSearchQuery('');
+                        setUserSearchResults([]);
+                        setUserSearchOpen(false);
+                      }}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  )}
+                  {userSearchLoading && (
+                    <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                  )}
+                </div>
 
-              {/* Search Results Dropdown */}
-              {userSearchOpen && userSearchResults.length > 0 && (
-                <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-80 overflow-y-auto shadow-lg border">
-                  <CardContent className="p-0">
-                    <div className="py-2">
-                      {userSearchResults.map((user) => (
-                        <div
-                          key={user.user_id}
-                          className="px-3 py-2 hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => handleUserSelect(user.user_id)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Avatar className="w-8 h-8">
-                              <AvatarImage src={user.avatar_url || undefined} />
-                              <AvatarFallback>
-                                {user.name
-                                  ? user.name
-                                      .split(' ')
-                                      .map((part) => part[0])
-                                      .join('')
-                                      .slice(0, 2)
-                                      .toUpperCase()
-                                  : 'U'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm text-gray-900 truncate">
-                                {user.name || 'User'}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            <Card className="shadow-sm flex flex-col max-h-[600px]">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 flex-shrink-0">
-                <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                  <MessageCircle className="w-3.5 h-3.5 text-purple-500" />
-                  Chats
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-3 pb-3 flex-1 overflow-y-auto">
-                {renderChatSection()}
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-md">
-              <CardHeader className="pb-3 px-4 pt-4">
-                <CardTitle className="text-base font-bold text-foreground flex items-center gap-2 mb-1">
-                  <UserPlus className="w-4 h-4 text-green-500" />
-                  People you might know
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  Based on your shared interests and network
-                </p>
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                {recommendationsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-synth-pink" />
-                  </div>
-                ) : recommendedUsers.length === 0 ? (
-                  <div className="text-center py-6">
-                    <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-muted-foreground text-sm">
-                      More coming soon.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto pb-2 -mx-4 px-4">
-                    <div className="flex gap-3 min-w-max">
-                      {recommendedUsers.map((user) => (
-                        <Card 
-                          key={user.recommended_user_id} 
-                          className="border flex-shrink-0 w-[280px] hover:shadow-md transition-shadow"
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex flex-col items-center text-center mb-3">
-                              <Avatar 
-                                className="w-16 h-16 mb-2 cursor-pointer" 
-                                onClick={() => onNavigateToProfile?.(user.recommended_user_id)}
-                              >
+                {/* Search Results Dropdown */}
+                {userSearchOpen && userSearchResults.length > 0 && (
+                  <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-80 overflow-y-auto shadow-lg border">
+                    <CardContent className="p-0">
+                      <div className="py-2">
+                        {userSearchResults.map((user) => (
+                          <div
+                            key={user.user_id}
+                            className="px-3 py-2 hover:bg-muted/50 cursor-pointer transition-colors"
+                            onClick={() => handleUserSelect(user.user_id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Avatar className="w-8 h-8">
                                 <AvatarImage src={user.avatar_url || undefined} />
-                                <AvatarFallback className="text-lg">
+                                <AvatarFallback>
                                   {user.name
                                     ? user.name
                                         .split(' ')
@@ -1519,123 +1448,206 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                                     : 'U'}
                                 </AvatarFallback>
                               </Avatar>
-                              <h3 
-                                className="font-semibold text-sm text-gray-900 mb-1 cursor-pointer hover:text-synth-pink transition-colors"
-                                onClick={() => onNavigateToProfile?.(user.recommended_user_id)}
-                              >
-                                {user.name || 'User'}
-                              </h3>
-                              <Badge 
-                                variant="outline" 
-                                className="text-xs mb-2"
-                              >
-                                {user.connection_label}
-                              </Badge>
-                            </div>
-                            
-                            {user.recommendation_reasons && user.recommendation_reasons.length > 0 && (
-                              <div className="space-y-1 mb-3">
-                                {user.recommendation_reasons.map((reason, idx) => (
-                                  <p key={idx} className="text-xs text-muted-foreground text-center">
-                                    {reason}
-                                  </p>
-                                ))}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm text-gray-900 truncate">
+                                  {user.name || 'User'}
+                                </p>
                               </div>
-                            )}
-
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full flex items-center justify-center gap-2"
-                              onClick={async () => {
-                                if (sendingFriendRequest) return;
-                                try {
-                                  setSendingFriendRequest(true);
-                                  const { error } = await supabase.rpc('create_friend_request', {
-                                    receiver_user_id: user.recommended_user_id
-                                  });
-                                  
-                                  if (error) throw error;
-                                  
-                                  toast({
-                                    title: "Friend Request Sent! 🎉",
-                                    description: "Your friend request has been sent.",
-                                  });
-                                  
-                                  // Remove from recommendations (will be refreshed on next load)
-                                  setRecommendedUsers(prev => 
-                                    prev.filter(u => u.recommended_user_id !== user.recommended_user_id)
-                                  );
-                                } catch (error: any) {
-                                  console.error('Error sending friend request:', error);
-                                  toast({
-                                    title: "Error",
-                                    description: error.message || "Failed to send friend request. Please try again.",
-                                    variant: "destructive",
-                                  });
-                                } finally {
-                                  setSendingFriendRequest(false);
-                                }
-                              }}
-                              disabled={sendingFriendRequest}
-                            >
-                              {sendingFriendRequest ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                  Sending...
-                                </>
-                              ) : (
-                                <>
-                                  <UserPlus className="h-4 w-4" />
-                                  Add Friend
-                                </>
-                              )}
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
-              </CardContent>
-            </Card>
-          </div>
+              </div>
 
-          {/* Right Column - Prominent scrollable Network Reviews feed (Main Focus) */}
-          <div>
-            {/* Friends Interested in Same Events Section */}
-            {connectionInterests.length > 0 && (
-              <div className="mb-6">
-                <div className="mb-4">
-                  <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-2">
-                    <Sparkles className="w-6 h-6 text-green-500" />
-                    Friends Interested in Same Events
+              <Card className="shadow-sm flex flex-col max-h-[600px]">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 pt-3 flex-shrink-0">
+                  <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    <MessageCircle className="w-3.5 h-3.5 text-purple-500" />
+                    Chats
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-3 pb-3 flex-1 overflow-y-auto">
+                  {renderChatSection()}
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-md">
+                <CardHeader className="pb-3 px-4 pt-4">
+                  <CardTitle className="text-base font-bold text-foreground flex items-center gap-2 mb-1">
+                    <UserPlus className="w-4 h-4 text-green-500" />
+                    People you might know
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Based on your shared interests and network
+                  </p>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  {recommendationsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-synth-pink" />
+                    </div>
+                  ) : recommendedUsers.length === 0 ? (
+                    <div className="text-center py-6">
+                      <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-muted-foreground text-sm">
+                        More coming soon.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto pb-2 -mx-4 px-4">
+                      <div className="flex gap-3 min-w-max">
+                        {recommendedUsers.map((user) => (
+                          <Card 
+                            key={user.recommended_user_id} 
+                            className="border flex-shrink-0 w-[280px] hover:shadow-md transition-shadow"
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex flex-col items-center text-center mb-3">
+                                <Avatar 
+                                  className="w-16 h-16 mb-2 cursor-pointer" 
+                                  onClick={() => onNavigateToProfile?.(user.recommended_user_id)}
+                                >
+                                  <AvatarImage src={user.avatar_url || undefined} />
+                                  <AvatarFallback className="text-lg">
+                                    {user.name
+                                      ? user.name
+                                          .split(' ')
+                                          .map((part) => part[0])
+                                          .join('')
+                                          .slice(0, 2)
+                                          .toUpperCase()
+                                      : 'U'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <h3 
+                                  className="font-semibold text-sm text-gray-900 mb-1 cursor-pointer hover:text-synth-pink transition-colors"
+                                  onClick={() => onNavigateToProfile?.(user.recommended_user_id)}
+                                >
+                                  {user.name || 'User'}
+                                </h3>
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs mb-2"
+                                >
+                                  {user.connection_label}
+                                </Badge>
+                              </div>
+                              
+                              {user.recommendation_reasons && user.recommendation_reasons.length > 0 && (
+                                <div className="space-y-1 mb-3">
+                                  {user.recommendation_reasons.map((reason, idx) => (
+                                    <p key={idx} className="text-xs text-muted-foreground text-center">
+                                      {reason}
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full flex items-center justify-center gap-2"
+                                onClick={async () => {
+                                  if (sendingFriendRequest) return;
+                                  try {
+                                    setSendingFriendRequest(true);
+                                    const { error } = await supabase.rpc('create_friend_request', {
+                                      receiver_user_id: user.recommended_user_id
+                                    });
+                                    
+                                    if (error) throw error;
+                                    
+                                    toast({
+                                      title: "Friend Request Sent! 🎉",
+                                      description: "Your friend request has been sent.",
+                                    });
+                                    
+                                    // Remove from recommendations (will be refreshed on next load)
+                                    setRecommendedUsers(prev => 
+                                      prev.filter(u => u.recommended_user_id !== user.recommended_user_id)
+                                    );
+                                  } catch (error: any) {
+                                    console.error('Error sending friend request:', error);
+                                    toast({
+                                      title: "Error",
+                                      description: error.message || "Failed to send friend request. Please try again.",
+                                      variant: "destructive",
+                                    });
+                                  } finally {
+                                    setSendingFriendRequest(false);
+                                  }
+                                }}
+                                disabled={sendingFriendRequest}
+                              >
+                                {sendingFriendRequest ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Sending...
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserPlus className="h-4 w-4" />
+                                    Add Friend
+                                  </>
+                                )}
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right Column - Prominent scrollable Network Reviews feed (Main Focus) */}
+            <div>
+              {/* Friends Interested in Same Events Section */}
+              {connectionInterests.length > 0 && (
+                <div className="mb-6">
+                  <div className="mb-4">
+                    <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-2">
+                      <Sparkles className="w-6 h-6 text-green-500" />
+                      Friends Interested in Same Events
+                    </h2>
+                    <p className="text-muted-foreground text-sm">
+                      Start a conversation with friends going to the same events
+                    </p>
+                  </div>
+                  {renderInterestsSection()}
+                </div>
+              )}
+
+              {/* Network Reviews Section */}
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-3xl font-bold text-foreground flex items-center gap-3 mb-2">
+                    <Users className="w-7 h-7 text-indigo-500" />
+                    Network Reviews
                   </h2>
                   <p className="text-muted-foreground text-sm">
-                    Start a conversation with friends going to the same events
+                    See what your network is saying about concerts and events
                   </p>
                 </div>
-                {renderInterestsSection()}
+                <PageActions
+                  currentUserId={currentUserId}
+                  onNavigateToNotifications={onNavigateToNotifications}
+                  onNavigateToChat={onNavigateToChat}
+                  className="self-start sm:self-auto"
+                />
               </div>
-            )}
-
-            {/* Network Reviews Section */}
-            <div className="mb-4">
-              <h2 className="text-3xl font-bold text-foreground flex items-center gap-3 mb-2">
-                <Users className="w-7 h-7 text-indigo-500" />
-                Network Reviews
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                See what your network is saying about concerts and events
-              </p>
-            </div>
-            <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
-              <div className="space-y-6">
-                {renderReviewsSection()}
+              <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
+                <div className="space-y-6">
+                  {renderReviewsSection()}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
       </div>
 
       {/* Review Detail Modal - Enhanced with all review information */}

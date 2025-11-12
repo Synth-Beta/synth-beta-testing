@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { RedesignedSearchPage } from '@/components/search/RedesignedSearchPage';
 import { UnifiedFeed } from '@/components/UnifiedFeed';
 import { Card, CardContent } from '@/components/ui/card';
+import { PageActions } from '@/components/PageActions';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
@@ -86,13 +87,21 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         <Card className="border-none bg-gradient-to-br from-rose-50 via-white to-amber-50 shadow-sm">
           <CardContent className="p-6 space-y-6">
-            <div className="space-y-2">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-synth-black">
-                Discover
-              </h1>
-              <p className="text-synth-black/70 max-w-2xl">
-                Search artists, events, and venues, then browse a personalized lineup tailored to your taste.
-              </p>
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-2">
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-synth-black">
+                  Discover
+                </h1>
+                <p className="text-synth-black/70 max-w-2xl">
+                  Search artists, events, and venues, then browse a personalized lineup tailored to your taste.
+                </p>
+              </div>
+              <PageActions
+                currentUserId={currentUserId}
+                onNavigateToNotifications={onNavigateToNotifications}
+                onNavigateToChat={onNavigateToChat}
+                className="self-end"
+              />
             </div>
 
             <div className="bg-white/85 rounded-2xl border border-white/60 shadow-inner p-4 md:p-6">
