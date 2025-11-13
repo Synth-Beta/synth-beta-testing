@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { PreferenceSignalsService } from '@/services/preferenceSignalsService';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -30,6 +31,10 @@ export function useAuth() {
             setSessionExpired(false);
             setSession(session);
             setUser(session.user);
+            // Refresh preference signals at session start
+            PreferenceSignalsService.refreshIfNeeded().catch(err => {
+              console.warn('Failed to refresh preference signals:', err);
+            });
           }
         } else {
           setSessionExpired(false);
@@ -101,6 +106,13 @@ export function useAuth() {
             setSessionExpired(false);
             setSession(session);
             setUser(session.user);
+            // Refresh preference signals when a new session is established
+            // This handles SIGNED_IN, TOKEN_REFRESHED, and other auth events
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+              PreferenceSignalsService.refreshIfNeeded().catch(err => {
+                console.warn('Failed to refresh preference signals:', err);
+              });
+            }
           }
         } else {
           // No session available
