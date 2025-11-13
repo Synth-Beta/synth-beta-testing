@@ -210,16 +210,7 @@ export class SpotifyService {
       trackInteraction.click('spotify', 'current_user', {
         action: 'connect_success'
       });
-      // After successful auth, kick off a full sync of listening data
-      // This must complete before redirecting
-      console.log('🔄 Starting comprehensive sync...');
-      await this.syncUserMusicPreferences();
-      console.log('✅ Sync completed successfully!');
-    } catch (syncError) {
-      console.error('❌ Sync error during callback:', syncError);
-      // Don't throw - auth was successful, sync can be retried
-      // But log it so we know there was an issue
-    }
+    } catch {}
     
     console.log('🎉 Authentication completed successfully!');
     
@@ -401,9 +392,26 @@ export class SpotifyService {
             long_term: { artists: allArtistsLong.length, tracks: allTracksLong.length },
             recently_played: recentlyPlayedExtended.length
           });
+
+          // Notify sync service that sync completed (only if sync is being tracked)
+          try {
+            const { streamingSyncService } = await import('@/services/streamingSyncService');
+            if (streamingSyncService.isSyncing()) {
+              streamingSyncService.completeSync();
+            }
+          } catch (importError) {
+            console.warn('Could not notify sync service:', importError);
+          }
         }
       } catch (statsError) {
         console.error('Error storing comprehensive Spotify stats:', statsError);
+        // Notify sync service of error
+        try {
+          const { streamingSyncService } = await import('@/services/streamingSyncService');
+          streamingSyncService.errorSync(statsError instanceof Error ? statsError.message : 'Unknown error');
+        } catch (importError) {
+          console.warn('Could not notify sync service of error:', importError);
+        }
         // Don't fail the whole sync if stats storage fails
       }
 

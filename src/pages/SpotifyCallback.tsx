@@ -1,30 +1,41 @@
 import { useEffect, useState } from 'react';
 import { spotifyService } from '@/services/spotifyService';
 import { useToast } from '@/hooks/use-toast';
+import { streamingSyncService } from '@/services/streamingSyncService';
 
 const SpotifyCallback = () => {
   const { toast } = useToast();
-  const [status, setStatus] = useState<'connecting' | 'syncing' | 'complete' | 'error'>('connecting');
+  const [status, setStatus] = useState<'connecting' | 'complete' | 'error'>('connecting');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
         setStatus('connecting');
+        
+        // Authenticate (this exchanges the code for token)
         const success = await spotifyService.handleAuthCallback();
         
         if (success) {
-          // handleAuthCallback already performs the sync, so we're done
+          // Start background sync
+          streamingSyncService.startSync('spotify');
+          
+          // Start the sync in the background (don't await)
+          spotifyService.syncUserMusicPreferences().catch((error) => {
+            console.error('Background sync error:', error);
+            streamingSyncService.errorSync(error.message || 'Sync failed');
+          });
+          
           setStatus('complete');
           toast({
             title: "Connected to Spotify",
-            description: "Successfully connected and synced! Redirecting to your stats...",
+            description: "Your stats are syncing in the background. You'll be notified when ready!",
           });
           
-          // Wait a moment for toast to show, then redirect
+          // Redirect immediately to home so user can continue using app
           setTimeout(() => {
-            // Use window.location.href for full page redirect (consistent with app pattern)
-            window.location.href = '/streaming-stats';
+            window.location.href = '/';
+            localStorage.setItem('intendedView', 'feed');
           }, 1500);
         } else {
           setStatus('error');
@@ -85,14 +96,6 @@ const SpotifyCallback = () => {
           </>
         )}
         
-        {status === 'syncing' && (
-          <>
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-            <h2 className="text-xl font-semibold mb-2">Syncing Your Stats...</h2>
-            <p className="text-muted-foreground">This may take 10-30 seconds. We're fetching all your streaming data.</p>
-          </>
-        )}
-        
         {status === 'complete' && (
           <>
             <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -101,7 +104,8 @@ const SpotifyCallback = () => {
               </svg>
             </div>
             <h2 className="text-xl font-semibold mb-2">Successfully Connected!</h2>
-            <p className="text-muted-foreground">Redirecting to your streaming stats...</p>
+            <p className="text-muted-foreground mb-2">Your stats are syncing in the background.</p>
+            <p className="text-sm text-muted-foreground">You'll be notified when they're ready. Redirecting to app...</p>
           </>
         )}
         

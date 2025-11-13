@@ -25,6 +25,7 @@ import { spotifyService } from '@/services/spotifyService';
 import { appleMusicService } from '@/services/appleMusicService';
 import { detectStreamingServiceType } from '@/components/streaming/UnifiedStreamingStats';
 import { format } from 'date-fns';
+import { streamingSyncService } from '@/services/streamingSyncService';
 
 export const StreamingStatsPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -235,37 +236,38 @@ export const StreamingStatsPage = () => {
       
       await appleMusicService.authenticate();
       
-      // Wait for sync to complete (autoSync is called after auth)
+      // Start background sync tracking
+      streamingSyncService.startSync('apple-music');
+      
       toast({
         title: "Connected!",
-        description: "Syncing your Apple Music data... This may take a moment.",
+        description: "Your stats are syncing in the background. You'll be notified when ready!",
       });
       
-      // Give it a moment for the sync to start, then wait a bit
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Trigger manual sync to ensure data is saved
-      const profileData = await appleMusicService.generateProfileData();
-      if (profileData) {
-        await appleMusicService.uploadProfileData(profileData);
-      }
-      
-      // Reload stats after sync
-      await loadStats(selectedTimeRange);
-      setNeedsConnection(false);
-      
-      toast({
-        title: "Sync Complete",
-        description: "Your Apple Music stats have been synced and stored permanently.",
+      // Trigger sync in background (don't await)
+      appleMusicService.syncProfileData().then(() => {
+        streamingSyncService.completeSync();
+        // Reload stats after sync completes
+        loadStats(selectedTimeRange);
+        setNeedsConnection(false);
+      }).catch((error) => {
+        console.error('Background sync error:', error);
+        streamingSyncService.errorSync(error.message || 'Sync failed');
       });
+      
+      // Redirect to home so user can continue using app
+      setTimeout(() => {
+        window.location.href = '/';
+        localStorage.setItem('intendedView', 'feed');
+      }, 1500);
     } catch (error) {
       console.error('Error connecting Apple Music:', error);
+      streamingSyncService.errorSync(error instanceof Error ? error.message : 'Connection failed');
       toast({
         title: "Connection Failed",
         description: "Failed to connect to Apple Music. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setSyncing(false);
     }
   };
@@ -279,6 +281,9 @@ export const StreamingStatsPage = () => {
         title: "Syncing Stats",
         description: "Fetching comprehensive streaming data... This may take a moment.",
       });
+      
+      // Don't track this sync in the sync service (user is already on stats page)
+      // This prevents showing a notification when they're already viewing stats
       
       if (serviceType === 'spotify') {
         if (!spotifyService.isAuthenticated()) {
@@ -519,10 +524,12 @@ export const StreamingStatsPage = () => {
                       key={range}
                       variant={isSelected ? "default" : "outline"}
                       size="sm"
-                      disabled={!isAvailable}
-                      onClick={() => {
+                      disabled={!isAvailable || loading}
+                      onClick={async () => {
+                        if (isSelected) return; // Don't reload if already selected
                         setSelectedTimeRange(range);
-                        loadStats(range);
+                        setLoading(true);
+                        await loadStats(range);
                       }}
                       className={
                         isSelected
@@ -636,8 +643,9 @@ export const StreamingStatsPage = () => {
 
               {/* Detailed Stats Tabs */}
               <Tabs defaultValue="artists" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="artists">Top Artists</TabsTrigger>
+                  <TabsTrigger value="tracks">Top Tracks</TabsTrigger>
                   <TabsTrigger value="genres">Top Genres</TabsTrigger>
                   <TabsTrigger value="insights">Insights</TabsTrigger>
                 </TabsList>
@@ -671,6 +679,46 @@ export const StreamingStatsPage = () => {
                         <div className="text-center py-12">
                           <Music className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
                           <p className="text-muted-foreground">No artist data available. Sync your stats to see your top artists.</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="tracks" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Your Top Tracks</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {stats.top_tracks && stats.top_tracks.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {stats.top_tracks.slice(0, 30).map((track, index) => (
+                            <div
+                              key={track.id || `${track.name}-${index}`}
+                              className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors"
+                            >
+                              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
+                                {index + 1}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-lg truncate">{track.name || 'Unknown Track'}</p>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {track.artist || 'Unknown Artist'}
+                                </p>
+                                {track.popularity !== undefined && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Popularity: {track.popularity}/100
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <PlayCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                          <p className="text-muted-foreground">No track data available. Sync your stats to see your top tracks.</p>
                         </div>
                       )}
                     </CardContent>

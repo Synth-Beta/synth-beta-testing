@@ -446,9 +446,26 @@ class AppleMusicService {
 
           await UserStreamingStatsService.upsertStats(statsInsert);
           console.log('✅ Apple Music stats stored permanently');
+
+          // Notify sync service that sync completed (only if sync is being tracked)
+          try {
+            const { streamingSyncService } = await import('@/services/streamingSyncService');
+            if (streamingSyncService.isSyncing()) {
+              streamingSyncService.completeSync();
+            }
+          } catch (importError) {
+            console.warn('Could not notify sync service:', importError);
+          }
         }
       } catch (statsError) {
         console.error('Error storing Apple Music stats:', statsError);
+        // Notify sync service of error
+        try {
+          const { streamingSyncService } = await import('@/services/streamingSyncService');
+          streamingSyncService.errorSync(statsError instanceof Error ? statsError.message : 'Unknown error');
+        } catch (importError) {
+          console.warn('Could not notify sync service of error:', importError);
+        }
         // Don't fail the whole upload if stats storage fails
       }
 

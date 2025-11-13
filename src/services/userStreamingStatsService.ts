@@ -199,49 +199,139 @@ export class UserStreamingStatsService {
     timeRange: TimeRange
   ): UserStreamingStatsSummary {
     const threshold = this.getDateThreshold(timeRange);
-    if (!threshold || !stats.recently_played || stats.recently_played.length === 0) {
-      return stats; // No filtering needed or no data to filter
+    if (!threshold) {
+      return stats; // No filtering needed for all_time
     }
 
-    // Filter recently played tracks by date
-    const filteredRecentlyPlayed = stats.recently_played.filter((item: any) => {
+    // Start with top_tracks from API if available (they're already ranked and filtered by API time range)
+    // Then filter by recently_played timestamps to get tracks in the specific sub-range
+    let filteredTracks: any[] = [];
+    
+    if (stats.top_tracks && stats.top_tracks.length > 0) {
+      // Use top_tracks as base (they're already ranked by API)
+      filteredTracks = stats.top_tracks.map(track => ({ ...track }));
+    }
+
+    // Filter recently played tracks by date to get play counts for the specific time range
+    const filteredRecentlyPlayed = (stats.recently_played || []).filter((item: any) => {
       if (!item.played_at) return false;
-      const playedAt = new Date(item.played_at);
-      return playedAt >= threshold;
+      try {
+        const playedAt = new Date(item.played_at);
+        return playedAt >= threshold;
+      } catch {
+        return false;
+      }
     });
 
-    // Extract unique artists and tracks from filtered recently played
-    const artistIds = new Set<string>();
-    const trackIds = new Set<string>();
-    const artistMap = new Map<string, any>();
+    // Build maps of tracks and artists that appear in the filtered time range
+    const trackPlayCounts = new Map<string, number>();
+    const artistPlayCounts = new Map<string, number>();
     const trackMap = new Map<string, any>();
 
+    // Count plays for tracks and artists in the filtered time range from recently_played
     filteredRecentlyPlayed.forEach((item: any) => {
-      if (item.id) trackIds.add(item.id);
-      // Track artists from recently played (we'll need to match with top_artists)
+      const trackId = item.id || item.track?.id;
+      const trackName = item.name || item.track?.name;
+      const artistName = item.artist || item.track?.artists?.[0]?.name;
+      
+      if (trackId || trackName) {
+        const key = trackId || trackName;
+        trackPlayCounts.set(key, (trackPlayCounts.get(key) || 0) + 1);
+        
+        if (!trackMap.has(key)) {
+          trackMap.set(key, {
+            id: trackId,
+            name: trackName,
+            artist: artistName,
+            popularity: item.popularity || item.track?.popularity || 0,
+            duration_ms: item.duration_ms || item.track?.duration_ms
+          });
+        }
+      }
+      
+      if (artistName) {
+        artistPlayCounts.set(artistName, (artistPlayCounts.get(artistName) || 0) + 1);
+      }
     });
 
-    // Filter top artists and tracks that appear in filtered recently played
-    // For simplicity, we'll use a subset based on the filtered data
-    const filteredArtists = stats.top_artists.filter((artist: any) => {
-      // If we have recently played data, prioritize artists that appear there
-      // Otherwise, include all artists (they're already ranked)
-      return true; // Keep all for now, can be enhanced with better matching
-    }).slice(0, Math.min(stats.top_artists.length, 50));
+    // Merge top_tracks with recently_played data
+    // Prioritize tracks that appear in both, ranked by play count from recently_played
+    const mergedTracks = new Map<string, any>();
+    
+    // First, add all tracks from recently_played (they have actual play counts)
+    trackMap.forEach((track, key) => {
+      mergedTracks.set(key, {
+        ...track,
+        playCount: trackPlayCounts.get(key) || 0
+      });
+    });
+    
+    // Then add top_tracks that aren't in recently_played (they're API-ranked)
+    filteredTracks.forEach((track, index) => {
+      const key = track.id || track.name;
+      if (key && !mergedTracks.has(key)) {
+        mergedTracks.set(key, {
+          ...track,
+          playCount: Math.max(1, 50 - index) // Give API tracks a base score
+        });
+      } else if (key && mergedTracks.has(key)) {
+        // Track exists in both - keep the higher play count
+        const existing = mergedTracks.get(key);
+        existing.playCount = Math.max(existing.playCount || 0, Math.max(1, 50 - index));
+      }
+    });
 
-    const filteredTracks = stats.top_tracks?.filter((track: any) => {
-      return trackIds.has(track.id || '');
-    }).slice(0, Math.min(stats.top_tracks?.length || 0, 50)) || [];
+    // Sort by play count and return top 50
+    filteredTracks = Array.from(mergedTracks.values())
+      .sort((a, b) => {
+        // Sort by play count first, then by popularity
+        if (b.playCount !== a.playCount) {
+          return b.playCount - a.playCount;
+        }
+        return (b.popularity || 0) - (a.popularity || 0);
+      })
+      .slice(0, 50)
+      .map(({ playCount, ...track }) => track); // Remove playCount from output
+
+    // Filter top artists - prioritize those that appear in filtered recently played
+    // But also include top artists from the original list (they're already ranked)
+    const filteredArtists = stats.top_artists
+      .map(artist => ({
+        ...artist,
+        playCount: artistPlayCounts.get(artist.name) || 0
+      }))
+      .sort((a, b) => {
+        // Sort by play count first, then by original popularity
+        if (b.playCount !== a.playCount) {
+          return b.playCount - a.playCount;
+        }
+        return (b.popularity || 0) - (a.popularity || 0);
+      })
+      .slice(0, 50);
+
+    // Filter genres - count how many filtered artists belong to each genre
+    const genreCounts = new Map<string, number>();
+    filteredArtists.forEach(artist => {
+      // Note: We don't have genre info in the filtered artists, so we'll use the original genre counts
+      // but this is a limitation - ideally we'd have genre info per artist
+    });
+
+    // Use original genres but adjust counts based on filtered artists
+    const filteredGenres = stats.top_genres.map(genre => ({
+      ...genre,
+      // Keep original count as approximation
+    }));
 
     // Recalculate stats based on filtered data
     const uniqueArtists = new Set(filteredArtists.map((a: any) => a.id || a.name)).size;
-    const totalTracks = filteredTracks.length || filteredRecentlyPlayed.length;
+    const totalTracks = filteredTracks.length;
 
     return {
       ...stats,
-      top_artists: filteredArtists,
-      top_tracks: filteredTracks,
+      top_artists: filteredArtists.map(({ playCount, ...artist }) => artist), // Remove playCount from output
+      top_tracks: filteredTracks, // Already has playCount removed
       recently_played: filteredRecentlyPlayed,
+      top_genres: filteredGenres,
       unique_artists: uniqueArtists,
       total_tracks: totalTracks
     };
@@ -316,13 +406,17 @@ export class UserStreamingStatsService {
 
       if (!data) return null;
 
-      // If the requested range matches the API range, return as-is
-      if (timeRange === apiRange) {
-        return data;
+      // Always apply filtering if the requested range is different from the API range
+      // This handles cases like:
+      // - last_day/week (sub-ranges of last_month)
+      // - last_year/3yr/5yr (sub-ranges of all_time)
+      // - last_3_months (sub-range of last_6_months)
+      if (timeRange !== apiRange) {
+        return this.filterStatsByDateRange(data, timeRange);
       }
 
-      // Otherwise, filter the data for the requested range
-      return this.filterStatsByDateRange(data, timeRange);
+      // For exact matches (e.g., last_month -> last_month, all_time -> all_time), return as-is
+      return data;
     } catch (error) {
       // Silently handle table not found errors
       if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST205') {

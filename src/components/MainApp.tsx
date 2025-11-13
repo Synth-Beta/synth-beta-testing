@@ -28,6 +28,8 @@ import AdminAnalyticsDashboard from '@/pages/Analytics/AdminAnalyticsDashboard';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
 import { DiscoverView } from './discover/DiscoverView';
 import { ConnectView } from './connect/ConnectView';
+import { streamingSyncService } from '@/services/streamingSyncService';
+import { ToastAction } from '@/components/ui/toast';
 
 type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events' | 'onboarding';
 
@@ -49,6 +51,50 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   
   // Track user activity (updates last_active_at periodically)
   useActivityTracker();
+
+  // Listen for streaming sync completion and show notification
+  useEffect(() => {
+    // Restore sync state on mount (in case page was reloaded during sync)
+    streamingSyncService.restoreState();
+
+    const unsubscribe = streamingSyncService.subscribe((syncState) => {
+      if (syncState.status === 'completed' && syncState.serviceType) {
+        const serviceName = syncState.serviceType === 'spotify' ? 'Spotify' : 'Apple Music';
+        
+        toast({
+          title: "🎵 Stats Ready!",
+          description: `Your ${serviceName} streaming stats have been synced and are ready to view.`,
+          action: (
+            <ToastAction
+              altText="View stats"
+              onClick={() => {
+                window.location.href = '/streaming-stats';
+                localStorage.setItem('intendedView', 'profile');
+              }}
+              className="bg-pink-500 hover:bg-pink-600 text-white"
+            >
+              View Stats
+            </ToastAction>
+          ),
+        });
+
+        // Clear sync state after showing notification
+        setTimeout(() => {
+          streamingSyncService.clearSync();
+        }, 1000);
+      } else if (syncState.status === 'error') {
+        toast({
+          title: "Sync Error",
+          description: `Failed to sync your ${syncState.serviceType === 'spotify' ? 'Spotify' : 'Apple Music'} stats: ${syncState.error || 'Unknown error'}`,
+          variant: "destructive",
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [toast]);
 
   // Check onboarding status on mount
   useEffect(() => {
