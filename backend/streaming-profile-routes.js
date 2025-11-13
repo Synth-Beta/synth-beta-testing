@@ -101,7 +101,7 @@ router.post('/api/user/streaming-profile', async (req, res) => {
           music_streaming_profile: profileUrl,
           updated_at: new Date().toISOString()
         })
-        .eq('id', userId);
+        .eq('user_id', userId);
 
       if (userUpdateError) {
         console.warn('Warning: Failed to update user profile with streaming URL:', userUpdateError);

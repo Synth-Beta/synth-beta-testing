@@ -20,7 +20,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { UserStreamingStatsService, type UserStreamingStatsSummary } from '@/services/userStreamingStatsService';
+import { UserStreamingStatsService, type UserStreamingStatsSummary, type TimeRange } from '@/services/userStreamingStatsService';
 import { spotifyService } from '@/services/spotifyService';
 import { appleMusicService } from '@/services/appleMusicService';
 import { detectStreamingServiceType } from '@/components/streaming/UnifiedStreamingStats';
@@ -36,6 +36,8 @@ export const StreamingStatsPage = () => {
   const [serviceType, setServiceType] = useState<'spotify' | 'apple-music' | 'unknown'>('unknown');
   const [needsConnection, setNeedsConnection] = useState(false);
   const [hasCheckedStats, setHasCheckedStats] = useState(false);
+  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('all_time');
+  const [availableTimeRanges, setAvailableTimeRanges] = useState<TimeRange[]>([]);
 
   useEffect(() => {
     if (authLoading) {
@@ -60,7 +62,7 @@ export const StreamingStatsPage = () => {
       const newServiceType = detected === 'spotify' ? 'spotify' : detected === 'apple-music' ? 'apple-music' : 'unknown';
       setServiceType(newServiceType);
       if (newServiceType !== 'unknown') {
-        loadStats();
+        loadStats(selectedTimeRange);
       } else {
         setLoading(false);
         setNeedsConnection(true);
@@ -73,23 +75,33 @@ export const StreamingStatsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamingProfile, user]);
 
+  // Note: Time range changes are handled by onClick in the time range buttons
+  // This ensures stats are loaded when the component first mounts with a time range
+
   const checkForExistingStats = async () => {
     if (!user) return;
     try {
       setLoading(true);
-      // Check both services in parallel
+      // Check both services in parallel, defaulting to 'all_time'
       const [spotifyStats, appleStats] = await Promise.all([
-        UserStreamingStatsService.getStats(user.id, 'spotify'),
-        UserStreamingStatsService.getStats(user.id, 'apple-music')
+        UserStreamingStatsService.getStats(user.id, 'spotify', 'all_time'),
+        UserStreamingStatsService.getStats(user.id, 'apple-music', 'all_time')
       ]);
       
+      // Check available time ranges for the service that has stats
       if (spotifyStats) {
         setServiceType('spotify');
         setStats(spotifyStats);
+        const ranges = await UserStreamingStatsService.getAllTimeRanges(user.id, 'spotify');
+        setAvailableTimeRanges(ranges.length > 0 ? ranges : ['all_time']);
+        setSelectedTimeRange(ranges.includes('all_time') ? 'all_time' : ranges[0] || 'all_time');
         setLoading(false);
       } else if (appleStats) {
         setServiceType('apple-music');
         setStats(appleStats);
+        const ranges = await UserStreamingStatsService.getAllTimeRanges(user.id, 'apple-music');
+        setAvailableTimeRanges(ranges.length > 0 ? ranges : ['all_time']);
+        setSelectedTimeRange(ranges.includes('all_time') ? 'all_time' : ranges[0] || 'all_time');
         setLoading(false);
       } else {
         setLoading(false);
@@ -132,7 +144,7 @@ export const StreamingStatsPage = () => {
     }
   };
 
-  const loadStats = async () => {
+  const loadStats = async (timeRange?: TimeRange) => {
     if (!user || serviceType === 'unknown') {
       setLoading(false);
       setNeedsConnection(true);
@@ -141,15 +153,39 @@ export const StreamingStatsPage = () => {
 
     try {
       setLoading(true);
+      const rangeToLoad = timeRange || selectedTimeRange;
       const statsData = await UserStreamingStatsService.getStats(
         user.id,
-        serviceType as 'spotify' | 'apple-music'
+        serviceType as 'spotify' | 'apple-music',
+        rangeToLoad
       );
       
       if (statsData) {
         setStats(statsData);
         setNeedsConnection(false);
+        
+        // Update available time ranges
+        const ranges = await UserStreamingStatsService.getAllTimeRanges(
+          user.id,
+          serviceType as 'spotify' | 'apple-music'
+        );
+        setAvailableTimeRanges(ranges.length > 0 ? ranges : ['all_time']);
       } else {
+        // No stats found for this time range - try all_time as fallback
+        if (rangeToLoad !== 'all_time') {
+          const fallbackStats = await UserStreamingStatsService.getStats(
+            user.id,
+            serviceType as 'spotify' | 'apple-music',
+            'all_time'
+          );
+          if (fallbackStats) {
+            setStats(fallbackStats);
+            setSelectedTimeRange('all_time');
+            setNeedsConnection(false);
+            return;
+          }
+        }
+        
         // No stats found - check if user needs to connect
         if (serviceType === 'spotify' && !spotifyService.isAuthenticated()) {
           setNeedsConnection(true);
@@ -191,7 +227,37 @@ export const StreamingStatsPage = () => {
 
   const handleConnectAppleMusic = async () => {
     try {
+      setSyncing(true);
+      toast({
+        title: "Connecting to Apple Music",
+        description: "Please authorize in the popup window...",
+      });
+      
       await appleMusicService.authenticate();
+      
+      // Wait for sync to complete (autoSync is called after auth)
+      toast({
+        title: "Connected!",
+        description: "Syncing your Apple Music data... This may take a moment.",
+      });
+      
+      // Give it a moment for the sync to start, then wait a bit
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Trigger manual sync to ensure data is saved
+      const profileData = await appleMusicService.generateProfileData();
+      if (profileData) {
+        await appleMusicService.uploadProfileData(profileData);
+      }
+      
+      // Reload stats after sync
+      await loadStats(selectedTimeRange);
+      setNeedsConnection(false);
+      
+      toast({
+        title: "Sync Complete",
+        description: "Your Apple Music stats have been synced and stored permanently.",
+      });
     } catch (error) {
       console.error('Error connecting Apple Music:', error);
       toast({
@@ -199,6 +265,8 @@ export const StreamingStatsPage = () => {
         description: "Failed to connect to Apple Music. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -207,6 +275,10 @@ export const StreamingStatsPage = () => {
 
     try {
       setSyncing(true);
+      toast({
+        title: "Syncing Stats",
+        description: "Fetching comprehensive streaming data... This may take a moment.",
+      });
       
       if (serviceType === 'spotify') {
         if (!spotifyService.isAuthenticated()) {
@@ -219,18 +291,8 @@ export const StreamingStatsPage = () => {
           return;
         }
         
+        // This will pull ALL data and store for all time ranges
         await spotifyService.syncUserMusicPreferences();
-        
-        const [topArtistsShort, topTracksShort] = await Promise.all([
-          spotifyService.getTopArtists('short_term', 50, 0).catch(() => ({ items: [] })),
-          spotifyService.getTopTracks('short_term', 50, 0).catch(() => ({ items: [] }))
-        ]);
-
-        await UserStreamingStatsService.syncSpotifyData(
-          user.id,
-          topArtistsShort.items,
-          topTracksShort.items
-        );
       } else if (serviceType === 'apple-music') {
         if (!appleMusicService.checkStoredToken()) {
           toast({
@@ -270,12 +332,13 @@ export const StreamingStatsPage = () => {
         }
       }
 
-      await loadStats();
+      // Reload stats after sync
+      await loadStats(selectedTimeRange);
       setNeedsConnection(false);
 
       toast({
         title: "Sync Complete",
-        description: "Your streaming stats have been updated.",
+        description: "Your comprehensive streaming stats have been updated and stored permanently.",
       });
     } catch (error) {
       console.error('Error syncing stats:', error);
@@ -410,15 +473,80 @@ export const StreamingStatsPage = () => {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
-            <Button
-              onClick={handleSync}
-              disabled={syncing}
-              variant="outline"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Sync Stats'}
-            </Button>
+            <div className="flex items-center gap-3">
+              {syncing && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <RefreshCw className="w-4 h-4 animate-spin text-pink-500" />
+                  <span>Syncing your stats...</span>
+                </div>
+              )}
+              <Button
+                onClick={handleSync}
+                disabled={syncing}
+                variant="outline"
+                className="bg-pink-50 hover:bg-pink-100 border-pink-200"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing...' : 'Refresh Stats'}
+              </Button>
+            </div>
           </div>
+
+          {/* Time Range Selector */}
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-1">Time Period</h3>
+                  {stats?.last_updated && (
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium text-pink-600">Last synced:</span>{' '}
+                      {format(new Date(stats.last_updated), 'MMM d, yyyy h:mm a')}
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        (Data is permanently stored)
+                      </span>
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(['last_day', 'last_week', 'last_month', 'last_3_months', 'last_6_months', 'last_year', 'last_3_years', 'last_5_years', 'all_time'] as TimeRange[]).map((range) => {
+                  // All ranges are available if we have any stats (we filter client-side)
+                  const isAvailable = stats !== null;
+                  const isSelected = selectedTimeRange === range;
+                  return (
+                    <Button
+                      key={range}
+                      variant={isSelected ? "default" : "outline"}
+                      size="sm"
+                      disabled={!isAvailable}
+                      onClick={() => {
+                        setSelectedTimeRange(range);
+                        loadStats(range);
+                      }}
+                      className={
+                        isSelected
+                          ? "bg-pink-500 hover:bg-pink-600 text-white"
+                          : isAvailable
+                          ? "hover:bg-pink-50"
+                          : "opacity-50 cursor-not-allowed"
+                      }
+                    >
+                      {range === 'last_day' && 'Day'}
+                      {range === 'last_week' && 'Week'}
+                      {range === 'last_month' && 'Month'}
+                      {range === 'last_3_months' && '3 Months'}
+                      {range === 'last_6_months' && '6 Months'}
+                      {range === 'last_year' && 'Year'}
+                      {range === 'last_3_years' && '3 Years'}
+                      {range === 'last_5_years' && '5 Years'}
+                      {range === 'all_time' && 'All Time'}
+                    </Button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Hero Section */}
           <Card className="mb-6 border-2">

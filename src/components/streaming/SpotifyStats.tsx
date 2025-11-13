@@ -313,20 +313,20 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       // Always fetch recent tracks and detailed data from API
       // Also fetch if we didn't get data from DB
       if (!loadedFromDatabase) {
-        const [topTracksResponse, topArtistsResponse, recentlyPlayedResponse] = await Promise.allSettled([
+      const [topTracksResponse, topArtistsResponse, recentlyPlayedResponse] = await Promise.allSettled([
           spotifyService.getTopTracks(currentPeriod, 50),
-          spotifyService.getTopArtists(currentPeriod, 50),
-          spotifyService.getRecentlyPlayed(50)
-        ]);
+        spotifyService.getTopArtists(currentPeriod, 50),
+        spotifyService.getRecentlyPlayed(50)
+      ]);
 
-        // Handle successful responses
-        const topTracks = topTracksResponse.status === 'fulfilled' ? topTracksResponse.value.items : [];
-        const topArtists = topArtistsResponse.status === 'fulfilled' ? topArtistsResponse.value.items : [];
-        const recentTracks = recentlyPlayedResponse.status === 'fulfilled' ? recentlyPlayedResponse.value.items : [];
+      // Handle successful responses
+      const topTracks = topTracksResponse.status === 'fulfilled' ? topTracksResponse.value.items : [];
+      const topArtists = topArtistsResponse.status === 'fulfilled' ? topArtistsResponse.value.items : [];
+      const recentTracks = recentlyPlayedResponse.status === 'fulfilled' ? recentlyPlayedResponse.value.items : [];
 
-        setTopTracks(topTracks);
-        setTopArtists(topArtists);
-        setRecentTracks(recentTracks);
+      setTopTracks(topTracks);
+      setTopArtists(topArtists);
+      setRecentTracks(recentTracks);
         setLoadedFromDB(false);
       } else {
         // Still fetch recent tracks and tracks for current period

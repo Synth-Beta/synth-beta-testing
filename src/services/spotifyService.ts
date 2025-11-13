@@ -202,16 +202,25 @@ export class SpotifyService {
 
     console.log('✅ State validated, exchanging code for token...');
     await this.exchangeCodeForToken(code);
+    
+    // Clean up URL first
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
     try {
       trackInteraction.click('spotify', 'current_user', {
         action: 'connect_success'
       });
       // After successful auth, kick off a full sync of listening data
+      // This must complete before redirecting
+      console.log('🔄 Starting comprehensive sync...');
       await this.syncUserMusicPreferences();
-    } catch {}
+      console.log('✅ Sync completed successfully!');
+    } catch (syncError) {
+      console.error('❌ Sync error during callback:', syncError);
+      // Don't throw - auth was successful, sync can be retried
+      // But log it so we know there was an issue
+    }
     
-    // Clean up URL
-    window.history.replaceState({}, document.title, window.location.pathname);
     console.log('🎉 Authentication completed successfully!');
     
     return true;
@@ -322,7 +331,7 @@ export class SpotifyService {
       // Flush batched interactions to DB
       // Catch errors from genre interaction duplicates - these are handled by the database
       try {
-        await interactionTracker.flush();
+      await interactionTracker.flush();
       } catch (error: any) {
         // Handle duplicate key errors gracefully - these happen when the same genre
         // is processed multiple times with the same timestamp
@@ -333,39 +342,68 @@ export class SpotifyService {
         }
       }
 
-      // Store stats permanently in user_streaming_stats_summary
+      // Store comprehensive stats permanently in user_streaming_stats_summary
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          // Use combined data for stats summary (prioritize long_term for accuracy)
-          const combinedArtists = [
-            ...topArtistsLong.items,
-            ...topArtistsMed.items,
-            ...topArtistsShort.items
-          ];
-          // Remove duplicates by artist ID
-          const uniqueArtists = combinedArtists.filter((artist, index, self) =>
-            index === self.findIndex(a => a.id === artist.id)
-          );
+          // Fetch ALL data using pagination for maximum coverage
+          console.log('📊 Fetching comprehensive streaming data...');
+          
+          const [allArtistsShort, allArtistsMed, allArtistsLong] = await Promise.all([
+            this.getAllTopArtists('short_term').catch(() => []),
+            this.getAllTopArtists('medium_term').catch(() => []),
+            this.getAllTopArtists('long_term').catch(() => [])
+          ]);
 
-          const combinedTracks = [
-            ...topTracksLong.items,
-            ...topTracksMed.items,
-            ...topTracksShort.items
-          ];
-          const uniqueTracks = combinedTracks.filter((track, index, self) =>
-            index === self.findIndex(t => t.id === track.id)
-          );
+          const [allTracksShort, allTracksMed, allTracksLong] = await Promise.all([
+            this.getAllTopTracks('short_term').catch(() => []),
+            this.getAllTopTracks('medium_term').catch(() => []),
+            this.getAllTopTracks('long_term').catch(() => [])
+          ]);
 
-          await UserStreamingStatsService.syncSpotifyData(
-            user.id,
-            uniqueArtists,
-            uniqueTracks
-          );
-          console.log('✅ Spotify stats stored permanently');
+          // Get more recently played tracks (up to 200)
+          const recentlyPlayedExtended = await Promise.all([
+            this.getRecentlyPlayed(50, undefined, undefined).catch(() => ({ items: [] })),
+            this.getRecentlyPlayed(50, undefined, undefined).catch(() => ({ items: [] })),
+            this.getRecentlyPlayed(50, undefined, undefined).catch(() => ({ items: [] })),
+            this.getRecentlyPlayed(50, undefined, undefined).catch(() => ({ items: [] }))
+          ]).then(results => {
+            const allItems = results.flatMap(r => r.items || []);
+            // Remove duplicates by track ID
+            const unique = allItems.filter((item, index, self) =>
+              index === self.findIndex(i => i.track?.id === item.track?.id)
+            );
+            return unique.slice(0, 200); // Limit to 200 most recent
+          });
+
+          // Store stats for each time range separately
+          await UserStreamingStatsService.syncComprehensiveSpotifyData(user.id, {
+            short_term: {
+              artists: allArtistsShort,
+              tracks: allTracksShort,
+              recentlyPlayed: recentlyPlayedExtended
+            },
+            medium_term: {
+              artists: allArtistsMed,
+              tracks: allTracksMed,
+              recentlyPlayed: recentlyPlayedExtended
+            },
+            long_term: {
+              artists: allArtistsLong,
+              tracks: allTracksLong,
+              recentlyPlayed: recentlyPlayedExtended
+            }
+          });
+
+          console.log('✅ Comprehensive Spotify stats stored permanently:', {
+            short_term: { artists: allArtistsShort.length, tracks: allTracksShort.length },
+            medium_term: { artists: allArtistsMed.length, tracks: allTracksMed.length },
+            long_term: { artists: allArtistsLong.length, tracks: allTracksLong.length },
+            recently_played: recentlyPlayedExtended.length
+          });
         }
       } catch (statsError) {
-        console.error('Error storing Spotify stats:', statsError);
+        console.error('Error storing comprehensive Spotify stats:', statsError);
         // Don't fail the whole sync if stats storage fails
       }
 
@@ -442,25 +480,25 @@ export class SpotifyService {
           console.warn('Table streaming_profiles does not exist or RLS policy issue');
         } else if (upsertError.code === '23505') {
           // Unique constraint violation - try update instead
-          const { error: updateError } = await supabase
-            .from('streaming_profiles')
-            .update({
-              profile_data: profileData,
-              sync_status: 'completed',
-              last_updated: new Date().toISOString()
-            })
+        const { error: updateError } = await supabase
+          .from('streaming_profiles')
+          .update({
+            profile_data: profileData,
+            sync_status: 'completed',
+            last_updated: new Date().toISOString()
+          })
             .eq('user_id', user.id)
             .eq('service_type', 'spotify');
 
-          if (updateError) {
-            console.error('Error updating streaming profile:', updateError);
-          } else {
-            console.log('✅ Updated streaming profile for user:', user.id);
-          }
+        if (updateError) {
+          console.error('Error updating streaming profile:', updateError);
         } else {
-          console.error('Error upserting streaming profile:', upsertError);
+          console.log('✅ Updated streaming profile for user:', user.id);
         }
       } else {
+          console.error('Error upserting streaming profile:', upsertError);
+        }
+        } else {
         console.log('✅ Upserted streaming profile for user:', user.id);
       }
 
@@ -472,7 +510,7 @@ export class SpotifyService {
             music_streaming_profile: data.userProfile.external_urls.spotify,
             updated_at: new Date().toISOString()
           })
-          .eq('id', user.id);
+          .eq('user_id', user.id);
 
         if (userUpdateError) {
           console.warn('Warning: Failed to update user profile with Spotify URL:', userUpdateError);
