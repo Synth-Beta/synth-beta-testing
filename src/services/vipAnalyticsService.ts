@@ -48,10 +48,9 @@ export class VIPAnalyticsService {
 
       // Get events created by this user to find their customers
       const { data: userEvents, error: eventsError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('id')
         .eq('created_by_user_id', userId)
-        .eq('event_status', 'published');
 
       if (eventsError) {
         console.error('Error fetching user events for VIP analysis:', eventsError);
@@ -67,7 +66,7 @@ export class VIPAnalyticsService {
 
       // Get users who interacted with these events
       const { data: interactions, error: interactionsError } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('user_id, event_type, entity_type, occurred_at')
         .in('entity_id', eventIds)
         .eq('entity_type', 'event');
@@ -79,9 +78,11 @@ export class VIPAnalyticsService {
 
       // Get users who are interested in these events
       const { data: interestedUsers, error: interestedError } = await supabase
-        .from('user_jambase_events')
-        .select('user_id, jambase_event_id')
-        .in('jambase_event_id', eventIds);
+        .from('relationships')
+        .select('user_id, related_entity_id')
+        .eq('related_entity_type', 'event')
+        .in('relationship_type', ['interest', 'going', 'maybe'])
+        .in('related_entity_id', eventIds);
 
       if (interestedError) {
         console.error('Error fetching interested users for VIP analysis:', interestedError);
@@ -90,7 +91,7 @@ export class VIPAnalyticsService {
 
       // Get reviews for these events
       const { data: reviews, error: reviewsError } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select('user_id, event_id, review_text, rating, created_at')
         .in('event_id', eventIds)
         .eq('is_draft', false);
@@ -121,7 +122,7 @@ export class VIPAnalyticsService {
 
       for (const profile of profiles || []) {
         const userInteractions = interactions?.filter(i => i.user_id === profile.user_id) || [];
-        const userInterested = interestedUsers?.filter(i => i.user_id === profile.user_id) || [];
+        const userInterested = interestedUsers?.filter(i => i.user_id === profile.user_id || i.related_entity_id === profile.user_id) || [];
         const userReviews = reviews?.filter(r => r.user_id === profile.user_id) || [];
 
         // Calculate engagement metrics

@@ -513,7 +513,7 @@ export class SpotifyService {
       // Also update user's music_streaming_profile field in profiles table
       if (data.userProfile?.external_urls?.spotify) {
         const { error: userUpdateError } = await supabase
-          .from('profiles')
+          .from('users')
           .update({
             music_streaming_profile: data.userProfile.external_urls.spotify,
             updated_at: new Date().toISOString()

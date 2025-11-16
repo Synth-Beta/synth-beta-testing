@@ -63,7 +63,7 @@ export class AdminService {
         .from('event_claims')
         .select(`
           *,
-          event:jambase_events(
+          event:events(
             id,
             title,
             artist_name,
@@ -81,7 +81,7 @@ export class AdminService {
       if (claims && claims.length > 0) {
         const userIds = claims.map((c: any) => c.claimed_by_user_id);
         const { data: profiles } = await (supabase as any)
-          .from('profiles')
+          .from('users')
           .select('user_id, name, avatar_url, account_type')
           .in('user_id', userIds);
         
@@ -134,7 +134,7 @@ export class AdminService {
         ])];
         
         const { data: profiles } = await supabase
-          .from('profiles')
+          .from('users')
           .select('user_id, name, avatar_url')
           .in('user_id', userIds);
         
@@ -164,7 +164,7 @@ export class AdminService {
         .from('admin_actions')
         .select(`
           *,
-          admin:profiles!admin_actions_admin_user_id_fkey(
+          admin:users!admin_actions_admin_user_id_fkey(
             user_id,
             name,
             avatar_url
@@ -242,7 +242,7 @@ export class AdminService {
         const userIds = flags.map((f: any) => f.flagged_by_user_id);
         console.log('🔍 AdminService: Fetching profiles for user IDs:', userIds);
         const { data: profiles } = await supabase
-          .from('profiles')
+          .from('users')
           .select('user_id, name, avatar_url')
           .in('user_id', userIds);
         
@@ -292,7 +292,7 @@ export class AdminService {
         ])];
         
         const { data: profiles } = await supabase
-          .from('profiles')
+          .from('users')
           .select('user_id, name, avatar_url')
           .in('user_id', userIds);
         
@@ -348,7 +348,7 @@ export class AdminService {
   static async deleteEvent(eventId: string, reason: string): Promise<void> {
     try {
       const { error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .delete()
         .eq('id', eventId);
 
@@ -436,7 +436,7 @@ export class AdminService {
   ): Promise<any[]> {
     try {
       let query: any = (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*')
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
@@ -462,7 +462,7 @@ export class AdminService {
   static async searchUsers(searchTerm: string): Promise<any[]> {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .or(`name.ilike.%${searchTerm}%,bio.ilike.%${searchTerm}%`)
         .limit(20);
@@ -483,8 +483,8 @@ export class AdminService {
       // Get various counts
       const [usersCount, eventsCount, claimsCount, flagsCount, promotionsCount] =
         await Promise.all([
-          supabase.from('profiles').select('*', { count: 'exact', head: true }),
-          supabase.from('jambase_events').select('*', { count: 'exact', head: true }),
+          supabase.from('users').select('*', { count: 'exact', head: true }),
+          supabase.from('events').select('*', { count: 'exact', head: true }),
           (supabase as any).from('event_claims').select('*', { count: 'exact', head: true }),
           (supabase as any)
             .from('moderation_flags')

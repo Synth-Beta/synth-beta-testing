@@ -40,13 +40,14 @@ export class ArtistFollowService {
         console.warn('⚠️ RPC function set_artist_follow not available, using direct table operations');
         
         if (following) {
-          // Insert follow record (presence-based: row exists = following)
-          // Use artist_follows table (existing infrastructure)
+          // Insert follow record in relationships table
           const { error: insertError } = await supabase
-            .from('artist_follows')
+            .from('relationships')
             .insert({
               user_id: userId,
-              artist_id: artistId
+              related_entity_type: 'artist',
+              related_entity_id: artistId,
+              relationship_type: 'follow'
             });
 
           // Ignore unique constraint errors (already following)
@@ -54,13 +55,14 @@ export class ArtistFollowService {
             throw insertError;
           }
         } else {
-          // Delete follow record
-          // Use artist_follows table (existing infrastructure)
+          // Delete follow record from relationships table
           const { error: deleteError } = await supabase
-            .from('artist_follows')
+            .from('relationships')
             .delete()
             .eq('user_id', userId)
-            .eq('artist_id', artistId);
+            .eq('related_entity_type', 'artist')
+            .eq('related_entity_id', artistId)
+            .eq('relationship_type', 'follow');
 
           if (deleteError) throw deleteError;
         }

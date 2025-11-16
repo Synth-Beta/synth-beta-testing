@@ -92,7 +92,7 @@ export class LocationService {
       const maxLng = longitude + lngDelta;
 
       let query = supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .not('latitude', 'is', null)
         .not('longitude', 'is', null)

@@ -77,7 +77,7 @@ export class BusinessAnalyticsService {
 
       // Get events created by this user
       const { data: events, error: eventsError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .eq('created_by_user_id', userId)
         .eq('event_status', 'published');
@@ -181,7 +181,7 @@ export class BusinessAnalyticsService {
 
       // Get events created by this user
       const { data: events, error: eventsError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .eq('created_by_user_id', userId)
         .eq('event_status', 'published');
@@ -217,7 +217,7 @@ export class BusinessAnalyticsService {
       const eventPerformance: EventPerformance[] = events.map((event: any) => {
         const eventInteractions = interactions?.filter((i: any) => i.entity_id === event.id) || [];
         const eventReviews = reviews?.filter((r: any) => r.event_id === event.id) || [];
-        const eventInterested = interestedUsers?.filter((u: any) => u.jambase_event_id === event.id) || [];
+        const eventInterested = interestedUsers?.filter((u: any) => u.related_entity_id === event.id) || [];
 
         const totalViews = eventInteractions.filter((i: any) => i.event_type === 'view').length;
         const ticketClicks = eventInteractions.filter((i: any) => i.event_type === 'click_ticket').length;
@@ -262,7 +262,7 @@ export class BusinessAnalyticsService {
 
       // Get events created by this user
       const { data: events, error: eventsError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .eq('created_by_user_id', userId)
         .eq('event_status', 'published');
@@ -282,14 +282,16 @@ export class BusinessAnalyticsService {
       const eventIds = events.map((e: any) => e.id);
 
       // Get interested users
-      const { data: interestedUsers } = await (supabase as any)
-        .from('user_jambase_events')
+      const { data: interestedUsers } = await supabase
+        .from('relationships')
         .select('*')
-        .in('jambase_event_id', eventIds);
+        .eq('related_entity_type', 'event')
+        .in('relationship_type', ['interest', 'going', 'maybe'])
+        .in('related_entity_id', eventIds);
 
       // Get reviews to determine satisfaction
       const { data: reviews } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select('*')
         .in('event_id', eventIds);
 
@@ -367,7 +369,7 @@ export class BusinessAnalyticsService {
 
       // Get events created by this user
       const { data: events, error: eventsError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .eq('created_by_user_id', userId)
         .eq('event_status', 'published')
@@ -388,7 +390,7 @@ export class BusinessAnalyticsService {
 
       // Get interactions for these events
       const { data: interactions } = await (supabase as any)
-        .from('user_interactions')
+        .from('interactions')
         .select('*')
         .in('entity_id', eventIds)
         .eq('entity_type', 'event')
@@ -450,7 +452,7 @@ export class BusinessAnalyticsService {
     try {
       // Get events created by this user
       const { data: events, error: eventsError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .eq('created_by_user_id', userId)
         .eq('event_status', 'published');
@@ -469,11 +471,15 @@ export class BusinessAnalyticsService {
       const eventIds = events.map((e: any) => e.id);
 
       // Get interactions and reviews
-      const [interactions, reviews, interestedUsers] = await Promise.all([
-        (supabase as any).from('user_interactions').select('*').in('entity_id', eventIds).eq('entity_type', 'event'),
-        (supabase as any).from('user_reviews').select('*').in('event_id', eventIds),
-        (supabase as any).from('user_jambase_events').select('*').in('jambase_event_id', eventIds),
+      const [interactionsResult, reviewsResult, interestedUsersResult] = await Promise.all([
+        supabase.from('interactions').select('*').in('entity_id', eventIds).eq('entity_type', 'event'),
+        supabase.from('reviews').select('*').in('event_id', eventIds),
+        supabase.from('relationships').select('*').eq('related_entity_type', 'event').in('relationship_type', ['interest', 'going', 'maybe']).in('related_entity_id', eventIds),
       ]);
+      
+      const interactions = interactionsResult.data || [];
+      const reviews = reviewsResult.data || [];
+      const interestedUsers = interestedUsersResult.data || [];
 
       // Group by artist
       const artistStats = new Map<string, {
@@ -496,22 +502,22 @@ export class BusinessAnalyticsService {
         artistStats.get(artistName)!.events.push(event);
       });
 
-      interactions.data?.forEach((interaction: any) => {
+      interactions.forEach((interaction: any) => {
         const event = events.find((e: any) => e.id === interaction.entity_id);
         if (event) {
           artistStats.get(event.artist_name)?.interactions.push(interaction);
         }
       });
 
-      reviews.data?.forEach((review: any) => {
+      reviews.forEach((review: any) => {
         const event = events.find((e: any) => e.id === review.event_id);
         if (event) {
           artistStats.get(event.artist_name)?.reviews.push(review);
         }
       });
 
-      interestedUsers.data?.forEach((user: any) => {
-        const event = events.find((e: any) => e.id === user.event_id);
+      interestedUsers.forEach((user: any) => {
+        const event = events.find((e: any) => e.id === user.related_entity_id);
         if (event) {
           artistStats.get(event.artist_name)?.interested.push(user);
         }

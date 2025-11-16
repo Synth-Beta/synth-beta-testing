@@ -40,10 +40,11 @@ export class UserEventService {
 
       // Return fresh state
       const { data, error: fetchError } = await supabase
-        .from('user_jambase_events')
+        .from('relationships')
         .select('*')
+        .eq('related_entity_type', 'event')
         .eq('user_id', userId)
-        .eq('jambase_event_id', jambaseEventId)
+        .eq('related_entity_id', jambaseEventId)
         .maybeSingle();
       if (fetchError) throw fetchError;
       try {
@@ -65,10 +66,11 @@ export class UserEventService {
   static async removeEventInterest(userId: string, jambaseEventId: string): Promise<void> {
     try {
       const { error } = await supabase
-        .from('user_jambase_events')
+        .from('relationships')
         .delete()
+        .eq('related_entity_type', 'event')
         .eq('user_id', userId)
-        .eq('jambase_event_id', jambaseEventId);
+        .eq('related_entity_id', jambaseEventId);
 
       if (error) throw error;
       try {
@@ -86,10 +88,11 @@ export class UserEventService {
   static async isUserInterested(userId: string, jambaseEventId: string): Promise<boolean> {
     try {
       const { data, error } = await supabase
-        .from('user_jambase_events')
+        .from('relationships')
         .select('id')
+        .eq('related_entity_type', 'event')
         .eq('user_id', userId)
-        .eq('jambase_event_id', jambaseEventId)
+        .eq('related_entity_id', jambaseEventId)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
@@ -112,11 +115,12 @@ export class UserEventService {
   }> {
     try {
       const { data, error } = await supabase
-        .from('user_jambase_events')
+        .from('relationships')
         .select(`
           *,
-          jambase_event:jambase_events(*)
+          event:events(*)
         `)
+        .eq('related_entity_type', 'event')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
@@ -128,10 +132,10 @@ export class UserEventService {
               interest: {
                 id: row.id,
                 user_id: row.user_id,
-                jambase_event_id: row.jambase_event_id,
+                jambase_event_id: row.related_entity_id, // Map to expected interface name
                 created_at: row.created_at,
-              },
-              event: row.jambase_event,
+              } as UserJamBaseEvent,
+              event: row.event,
             }))
           : [],
         total: Array.isArray(data) ? data.length : 0
@@ -157,10 +161,11 @@ export class UserEventService {
     try {
       // First check if the user already has a review for this event
       const { data: existingReview, error: checkError } = await supabase
-        .from('user_event_reviews' as any)
+        .from('reviews')
         .select('*')
         .eq('user_id', userId)
-        .eq('jambase_event_id', jambaseEventId)
+        .eq('entity_type', 'event')
+        .eq('entity_id', jambaseEventId)
         .maybeSingle();
 
       if (checkError) {
@@ -170,13 +175,14 @@ export class UserEventService {
       if (existingReview) {
         // Update existing review
         const { data, error } = await supabase
-          .from('user_event_reviews' as any)
+          .from('reviews')
           .update({
             ...reviewData,
             updated_at: new Date().toISOString()
           })
           .eq('user_id', userId)
-          .eq('jambase_event_id', jambaseEventId)
+          .eq('entity_type', 'event')
+          .eq('entity_id', jambaseEventId)
           .select()
           .single();
 
@@ -188,10 +194,11 @@ export class UserEventService {
       } else {
         // Create new review
         const { data, error } = await supabase
-          .from('user_event_reviews' as any)
+          .from('reviews')
           .insert({
             user_id: userId,
-            jambase_event_id: jambaseEventId,
+            entity_type: 'event',
+            entity_id: jambaseEventId,
             ...reviewData
           })
           .select()
@@ -215,10 +222,11 @@ export class UserEventService {
   static async getUserEventReview(userId: string, jambaseEventId: string): Promise<EventReview | null> {
     try {
       const { data, error } = await supabase
-        .from('user_event_reviews' as any)
+        .from('reviews')
         .select('*')
         .eq('user_id', userId)
-        .eq('jambase_event_id', jambaseEventId)
+        .eq('entity_type', 'event')
+        .eq('entity_id', jambaseEventId)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -253,21 +261,22 @@ export class UserEventService {
     try {
       // Use 'any' to avoid deep type instantiation issues with Supabase's select
       const { data, error } = await (supabase
-        .from('public_reviews_with_profiles')
+        .from('reviews')
         .select(`
           id,
           user_id,
-          jambase_event_id,
+          entity_id,
           rating,
-          review,
+          review_text,
           created_at,
-          profiles (
-            id,
+          user:users!reviews_user_id_fkey (
+            user_id,
             name,
             avatar_url
           )
         `) as any)
-        .eq('jambase_event_id', jambaseEventId)
+        .eq('entity_type', 'event')
+        .eq('entity_id', jambaseEventId)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -304,22 +313,23 @@ export class UserEventService {
     try {
       // Use 'any' to avoid deep type instantiation issues with Supabase's select
       const { data, error } = await (supabase
-        .from('public_reviews_with_profiles')
+        .from('reviews')
         .select(`
           id,
           user_id,
-          jambase_event_id,
+          entity_id,
           rating,
-          review,
+          review_text,
           created_at,
-          profiles (
-            id,
+          user:users!reviews_user_id_fkey (
+            user_id,
             name,
             avatar_url
           ),
-          jambase_event:jambase_events(*)
+          event:events!reviews_entity_id_fkey(*)
         `) as any)
         .eq('user_id', userId)
+        .eq('entity_type', 'event')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -343,12 +353,13 @@ export class UserEventService {
     try {
       // Use the correct view/table for deletion: 'user_event_reviews' is not a valid table in the Supabase types.
       // Instead, delete from 'public_reviews_with_profiles' if that's the correct view, or from the actual table storing reviews.
-      // Assuming the actual table is 'user_jambase_events' and reviews are stored there:
+      // Delete review from reviews table
       const { error } = await supabase
-        .from('user_jambase_events')
+        .from('reviews')
         .delete()
         .eq('user_id', userId)
-        .eq('jambase_event_id', jambaseEventId);
+        .eq('entity_type', 'event')
+        .eq('entity_id', jambaseEventId);
 
       if (error) throw error;
     } catch (error) {
@@ -374,14 +385,15 @@ export class UserEventService {
 
       // Use explicit typing to avoid deep type instantiation
       const { data, error } = await (supabase
-        .from('user_jambase_events')
+        .from('relationships')
         .select(`
           *,
-          jambase_event:jambase_events(*)
-        `) as any)
+          event:events(*)
+        `)
+        .eq('related_entity_type', 'event') as any)
         .eq('user_id', userId)
-        .gte('jambase_event.event_date', nowISOString)
-        .order('jambase_event.event_date', { ascending: true });
+        .gte('events.event_date', nowISOString)
+        .order('events.event_date', { ascending: true });
 
       if (error) {
         throw new Error(`Failed to fetch upcoming events: ${error.message}`);
@@ -392,11 +404,11 @@ export class UserEventService {
           interest: {
             id: row.id,
             user_id: row.user_id,
-            jambase_event_id: row.jambase_event_id,
+            related_entity_id: row.related_entity_id,
             created_at: row.created_at,
-            // add other UserJamBaseEvent fields if needed
+            // add other relationship fields if needed
           },
-          event: row.jambase_event
+          event: row.event
         })),
         total: data?.length || 0
       };
@@ -417,10 +429,11 @@ export class UserEventService {
     try {
       // Check if user already has a review for this event
       const { data: existingReview, error: checkError } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select('id, was_there, review_text')
         .eq('user_id', userId)
-        .eq('event_id', eventId)
+        .eq('entity_type', 'event')
+        .eq('entity_id', eventId)
         .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
@@ -431,13 +444,14 @@ export class UserEventService {
         if (wasThere) {
           // Update existing review to mark as attended
           const { error } = await (supabase as any)
-            .from('user_reviews')
+            .from('reviews')
             .update({
               was_there: wasThere,
               updated_at: new Date().toISOString()
             })
             .eq('user_id', userId)
-            .eq('event_id', eventId);
+            .eq('entity_type', 'event')
+            .eq('entity_id', eventId);
 
           if (error) throw error;
         } else {
@@ -445,7 +459,7 @@ export class UserEventService {
           if (existingReview.review_text === 'ATTENDANCE_ONLY') {
             console.log('🗑️ Deleting ATTENDANCE_ONLY record for:', { userId, eventId });
             const { error } = await (supabase as any)
-              .from('user_reviews')
+              .from('reviews')
               .delete()
               .eq('user_id', userId)
               .eq('event_id', eventId);
@@ -458,7 +472,7 @@ export class UserEventService {
           } else {
             // If it's a real review, just update was_there to false
             const { error } = await (supabase as any)
-              .from('user_reviews')
+              .from('reviews')
               .update({
                 was_there: wasThere,
                 updated_at: new Date().toISOString()
@@ -510,7 +524,7 @@ export class UserEventService {
         console.log('🎯 ATTENDANCE_ONLY record data:', attendanceRecord);
         
         const { data, error } = await (supabase as any)
-          .from('user_reviews')
+          .from('reviews')
           .insert(attendanceRecord)
           .select('id, is_public, review_text')
           .single();
@@ -529,7 +543,7 @@ export class UserEventService {
           
           // Try to fix it immediately
           const { error: fixError } = await (supabase as any)
-            .from('user_reviews')
+            .from('reviews')
             .update({ is_public: false })
             .eq('id', data.id);
             
@@ -557,10 +571,11 @@ export class UserEventService {
   static async getUserAttendance(userId: string, eventId: string): Promise<boolean> {
     try {
       const { data, error } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select('was_there, review_text, id, created_at')
         .eq('user_id', userId)
-        .eq('event_id', eventId)
+        .eq('entity_type', 'event')
+        .eq('entity_id', eventId)
         .maybeSingle();
 
       console.log('🔍 getUserAttendance:', { userId, eventId, data, error });
@@ -577,10 +592,11 @@ export class UserEventService {
         if (hasReview && !wasThere) {
           console.log('🔧 Auto-fixing attendance for review:', eventId);
           await (supabase as any)
-            .from('user_reviews')
+            .from('reviews')
             .update({ was_there: true })
             .eq('user_id', userId)
-            .eq('event_id', eventId);
+            .eq('entity_type', 'event')
+            .eq('entity_id', eventId);
           return true;
         }
         
@@ -590,7 +606,7 @@ export class UserEventService {
       // Debug: Let's see if there are ANY reviews for this user/event combination
       console.log('🔍 No review found, checking for any reviews for this user...');
       const { data: allUserReviews, error: allError } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select('id, event_id, review_text, was_there, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
@@ -611,9 +627,10 @@ export class UserEventService {
   static async getEventAttendanceCount(eventId: string): Promise<number> {
     try {
       const { count, error } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select('*', { count: 'exact', head: true })
-        .eq('event_id', eventId)
+        .eq('entity_type', 'event')
+        .eq('entity_id', eventId)
         .eq('was_there', true);
 
       if (error) throw error;
@@ -634,10 +651,10 @@ export class UserEventService {
   }>> {
     try {
       const { data, error } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select(`
           user_id,
-          profiles(
+          user:users!reviews_user_id_fkey(
             user_id,
             name,
             avatar_url

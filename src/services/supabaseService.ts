@@ -1,20 +1,24 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+// Note: Types will need to be regenerated after migration
+// Using any for now until types.ts is regenerated from Supabase
+type Tables<T extends string> = any;
+type TablesInsert<T extends string> = any;
+type TablesUpdate<T extends string> = any;
 
 // Type exports for easier use
-export type Profile = Tables<'profiles'>;
-export type JamBaseEvent = Tables<'jambase_events'>;
-export type Match = Tables<'matches'>;
+export type Profile = Tables<'users'>;
+export type JamBaseEvent = Tables<'events'>;
+export type Match = Tables<'relationships'>; // matches migrated to relationships
 export type Chat = Tables<'chats'>;
 export type Message = Tables<'messages'>;
-export type UserSwipe = Tables<'user_swipes'>;
-export type EventInterest = Tables<'user_jambase_events'>;
+export type UserSwipe = Tables<'engagements'>; // user_swipes migrated to engagements
+export type EventInterest = Tables<'relationships'>; // user_jambase_events migrated to relationships
 
 export class SupabaseService {
-  // ===== PROFILES =====
+  // ===== USERS (formerly profiles) =====
   static async getProfile(userId: string) {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('users')
       .select('*')
       .eq('user_id', userId)
       .single();
@@ -23,9 +27,9 @@ export class SupabaseService {
     return data;
   }
 
-  static async createProfile(profile: TablesInsert<'profiles'>) {
+  static async createProfile(profile: TablesInsert<'users'>) {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('users')
       .insert(profile)
       .select()
       .single();
@@ -34,9 +38,9 @@ export class SupabaseService {
     return data;
   }
 
-  static async updateProfile(userId: string, updates: TablesUpdate<'profiles'>) {
+  static async updateProfile(userId: string, updates: TablesUpdate<'users'>) {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('users')
       .update(updates)
       .eq('user_id', userId)
       .select()
@@ -48,7 +52,7 @@ export class SupabaseService {
 
   static async searchProfiles(query: string, limit = 10) {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('users')
       .select('*')
       .ilike('name', `%${query}%`)
       .limit(limit);
@@ -57,10 +61,10 @@ export class SupabaseService {
     return data;
   }
 
-  // ===== JAMBASE EVENTS =====
+  // ===== EVENTS (formerly jambase_events) =====
   static async getEvents(limit = 50, offset = 0) {
     const { data, error } = await supabase
-      .from('jambase_events')
+      .from('events')
       .select('*')
       .order('event_date', { ascending: true })
       .range(offset, offset + limit - 1);
@@ -75,7 +79,7 @@ export class SupabaseService {
     // Try UUID-based lookup first
     if (uuidPattern.test(id)) {
       const { data, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .eq('id', id)
         .single();
@@ -85,7 +89,7 @@ export class SupabaseService {
 
     // Fallback: treat input as JamBase external ID
     const { data: byJambase, error: byJambaseError } = await supabase
-      .from('jambase_events')
+      .from('events')
       .select('*')
       .eq('jambase_event_id', id)
       .single();
@@ -96,7 +100,7 @@ export class SupabaseService {
 
   static async searchEvents(query: string, limit = 20) {
     const { data, error } = await supabase
-      .from('jambase_events')
+      .from('events')
       .select('*')
       .or(`title.ilike.%${query}%,artist_name.ilike.%${query}%,venue_name.ilike.%${query}%`)
       .order('event_date', { ascending: true })
@@ -106,13 +110,16 @@ export class SupabaseService {
     return data;
   }
 
-  // ===== EVENT INTERESTS =====
+  // ===== EVENT INTERESTS (migrated to relationships) =====
   static async getUserEventInterests(userId: string) {
     const { data, error } = await supabase
-      .from('user_jambase_events')
+      .from('relationships')
       .select(`
+        id,
         created_at,
-        jambase_events:jambase_events(
+        relationship_type,
+        metadata,
+        events:events!relationships_related_entity_id_fkey(
           id,
           title,
           artist_name,
@@ -124,6 +131,8 @@ export class SupabaseService {
         )
       `)
       .eq('user_id', userId)
+      .eq('related_entity_type', 'event')
+      .in('relationship_type', ['interest', 'going', 'maybe'])
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -132,10 +141,14 @@ export class SupabaseService {
 
   static async addEventInterest(userId: string, eventId: string) {
     const { data, error } = await supabase
-      .from('user_jambase_events')
+      .from('relationships')
       .insert({
         user_id: userId,
-        jambase_event_id: eventId
+        related_entity_type: 'event',
+        related_entity_id: eventId,
+        relationship_type: 'interest',
+        status: 'accepted',
+        metadata: { event_id: eventId }
       })
       .select()
       .single();
@@ -146,25 +159,26 @@ export class SupabaseService {
 
   static async removeEventInterest(userId: string, eventId: string) {
     const { error } = await supabase
-      .from('user_jambase_events')
+      .from('relationships')
       .delete()
       .eq('user_id', userId)
-      .eq('jambase_event_id', eventId);
+      .eq('related_entity_type', 'event')
+      .eq('related_entity_id', eventId)
+      .in('relationship_type', ['interest', 'going', 'maybe']);
 
     if (error) throw error;
   }
 
-  // ===== MATCHES =====
+  // ===== MATCHES (migrated to relationships) =====
   static async getMatches(userId: string) {
     const { data, error } = await supabase
-      .from('matches')
+      .from('relationships')
       .select(`
         id,
-        event_id,
-        user1_id,
-        user2_id,
+        related_entity_id,
+        metadata,
         created_at,
-        event:jambase_events(
+        events:events!relationships_related_entity_id_fkey(
           id,
           title,
           artist_name,
@@ -174,54 +188,79 @@ export class SupabaseService {
           event_date,
           doors_time
         ),
-        user1:profiles!matches_user1_id_fkey(
-          id,
+        user1:users!relationships_user_id_fkey(
+          user_id,
           name,
           avatar_url,
           bio
         ),
-        user2:profiles!matches_user2_id_fkey(
-          id,
+        user2:users!relationships_related_entity_id_fkey(
+          user_id,
           name,
           avatar_url,
           bio
         )
       `)
-      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+      .eq('related_entity_type', 'user')
+      .eq('relationship_type', 'match')
+      .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
     return data;
   }
 
-  static async createMatch(match: TablesInsert<'matches'>) {
-    const { data, error } = await supabase
-      .from('matches')
-      .insert(match)
+  static async createMatch(user1Id: string, user2Id: string, eventId: string) {
+    // Create bidirectional match relationships
+    const { data: data1, error: error1 } = await supabase
+      .from('relationships')
+      .insert({
+        user_id: user1Id,
+        related_entity_type: 'user',
+        related_entity_id: user2Id,
+        relationship_type: 'match',
+        status: 'accepted',
+        metadata: { event_id: eventId, matched_user_id: user2Id }
+      })
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    if (error1) throw error1;
+
+    const { data: data2, error: error2 } = await supabase
+      .from('relationships')
+      .insert({
+        user_id: user2Id,
+        related_entity_type: 'user',
+        related_entity_id: user1Id,
+        relationship_type: 'match',
+        status: 'accepted',
+        metadata: { event_id: eventId, matched_user_id: user1Id }
+      })
+      .select()
+      .single();
+
+    if (error2) throw error2;
+    return data1;
   }
 
-  // ===== USER SWIPES =====
+  // ===== USER SWIPES (migrated to engagements) =====
   static async getUserSwipes(userId: string, eventId?: string) {
     let query = supabase
-      .from('user_swipes')
+      .from('engagements')
       .select(`
         id,
-        swiped_user_id,
-        event_id,
-        is_interested,
+        entity_id,
+        engagement_value,
+        metadata,
         created_at,
-        swiped_user:profiles!user_swipes_swiped_user_id_fkey(
-          id,
+        users:users!engagements_entity_id_fkey(
+          user_id,
           name,
           avatar_url,
           bio
         ),
-        event:jambase_events(
+        events:events!engagements_metadata_fkey(
           id,
           title,
           artist_name,
@@ -231,11 +270,13 @@ export class SupabaseService {
           event_date
         )
       `)
-      .eq('swiper_user_id', userId)
+      .eq('user_id', userId)
+      .eq('entity_type', 'user')
+      .eq('engagement_type', 'swipe')
       .order('created_at', { ascending: false });
 
     if (eventId) {
-      query = query.eq('event_id', eventId);
+      query = query.contains('metadata', { event_id: eventId });
     }
 
     const { data, error } = await query;
@@ -244,10 +285,17 @@ export class SupabaseService {
     return data;
   }
 
-  static async createSwipe(swipe: TablesInsert<'user_swipes'>) {
+  static async createSwipe(swiperUserId: string, swipedUserId: string, eventId: string, isInterested: boolean) {
     const { data, error } = await supabase
-      .from('user_swipes')
-      .insert(swipe)
+      .from('engagements')
+      .insert({
+        user_id: swiperUserId,
+        entity_type: 'user',
+        entity_id: swipedUserId,
+        engagement_type: 'swipe',
+        engagement_value: isInterested ? 'right' : 'left',
+        metadata: { event_id: eventId, is_interested: isInterested }
+      })
       .select()
       .single();
 
@@ -258,14 +306,13 @@ export class SupabaseService {
   // ===== CHATS =====
   static async getChats(userId: string) {
     const { data, error } = await supabase
-      .from('matches')
+      .from('relationships')
       .select(`
         id,
-        event_id,
-        user1_id,
-        user2_id,
+        related_entity_id,
+        metadata,
         created_at,
-        event:jambase_events(
+        events:events!relationships_metadata_fkey(
           id,
           title,
           artist_name,
@@ -274,13 +321,13 @@ export class SupabaseService {
           venue_state,
           event_date
         ),
-        user1:profiles!matches_user1_id_fkey(
-          id,
+        user1:users!relationships_user_id_fkey(
+          user_id,
           name,
           avatar_url
         ),
-        user2:profiles!matches_user2_id_fkey(
-          id,
+        user2:users!relationships_related_entity_id_fkey(
+          user_id,
           name,
           avatar_url
         ),
@@ -290,7 +337,9 @@ export class SupabaseService {
           updated_at
         )
       `)
-      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+      .eq('related_entity_type', 'user')
+      .eq('relationship_type', 'match')
+      .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`)
       .not('chat', 'is', null)
       .order('created_at', { ascending: false });
 
@@ -320,8 +369,8 @@ export class SupabaseService {
         content,
         created_at,
         sender_id,
-        sender:profiles!messages_sender_id_fkey(
-          id,
+        sender:users!messages_sender_id_fkey(
+          user_id,
           name,
           avatar_url
         )
@@ -343,8 +392,8 @@ export class SupabaseService {
         content,
         created_at,
         sender_id,
-        sender:profiles!messages_sender_id_fkey(
-          id,
+        sender:users!messages_sender_id_fkey(
+          user_id,
           name,
           avatar_url
         )
@@ -358,10 +407,12 @@ export class SupabaseService {
   // ===== UTILITY METHODS =====
   static async isUserInterestedInEvent(userId: string, eventId: string) {
     const { data, error } = await supabase
-      .from('user_jambase_events')
+      .from('relationships')
       .select('id')
       .eq('user_id', userId)
-      .eq('jambase_event_id', eventId)
+      .eq('related_entity_type', 'event')
+      .eq('related_entity_id', eventId)
+      .in('relationship_type', ['interest', 'going', 'maybe'])
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
@@ -370,11 +421,13 @@ export class SupabaseService {
 
   static async hasUserSwipedOnUser(swiperId: string, swipedId: string, eventId: string) {
     const { data, error } = await supabase
-      .from('user_swipes')
+      .from('engagements')
       .select('id')
-      .eq('swiper_user_id', swiperId)
-      .eq('swiped_user_id', swipedId)
-      .eq('event_id', eventId)
+      .eq('user_id', swiperId)
+      .eq('entity_type', 'user')
+      .eq('entity_id', swipedId)
+      .eq('engagement_type', 'swipe')
+      .contains('metadata', { event_id: eventId })
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
@@ -383,19 +436,21 @@ export class SupabaseService {
 
   static async getUsersForEvent(eventId: string, excludeUserId?: string) {
     let query = supabase
-      .from('user_jambase_events')
+      .from('relationships')
       .select(`
         user_id,
         created_at,
-        profiles:profiles(
-          id,
+        users:users!relationships_user_id_fkey(
+          user_id,
           name,
           avatar_url,
           bio,
           instagram_handle
         )
       `)
-      .eq('jambase_event_id', eventId)
+      .eq('related_entity_type', 'event')
+      .eq('related_entity_id', eventId)
+      .in('relationship_type', ['interest', 'going', 'maybe'])
       .order('created_at', { ascending: false });
 
     if (excludeUserId) {

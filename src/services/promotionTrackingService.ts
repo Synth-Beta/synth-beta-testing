@@ -104,7 +104,7 @@ export class PromotionTrackingService {
 
       // Calculate metrics from user_interactions table
       const { data: interactions, error: interactionsError } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('event_type, entity_type, occurred_at')
         .eq('entity_id', eventId)
         .eq('entity_type', 'event')

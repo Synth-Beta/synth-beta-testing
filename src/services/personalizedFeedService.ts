@@ -177,7 +177,7 @@ export class PersonalizedFeedService {
       
     try {
       let query = supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .order('event_date', { ascending: true })
         .range(offset, offset + limit - 1);
@@ -279,9 +279,11 @@ export class PersonalizedFeedService {
 
     try {
       const { data: followRows, error: followError } = await supabase
-        .from('artist_follows')
-        .select('artist_id')
-        .eq('user_id', userId);
+        .from('relationships')
+        .select('related_entity_id')
+        .eq('user_id', userId)
+        .eq('related_entity_type', 'artist')
+        .eq('relationship_type', 'follow');
 
       if (followError) {
         console.warn('⚠️ Unable to load artist_follows for fallback filter:', followError);
@@ -289,7 +291,7 @@ export class PersonalizedFeedService {
       }
 
       const artistIds = (followRows ?? [])
-        .map((row: any) => (row.artist_id ? String(row.artist_id) : null))
+        .map((row: any) => (row.related_entity_id ? String(row.related_entity_id) : null))
         .filter((id): id is string => !!id);
 
       artistIds.forEach((id) => followedUuidSet.add(id.toLowerCase()));
@@ -382,14 +384,14 @@ export class PersonalizedFeedService {
   static async userHasMusicData(userId: string): Promise<boolean> {
     try {
       const { data, error } = await supabase
-        .from('music_preference_signals')
-        .select('id')
+        .from('user_preferences')
+        .select('music_preference_signals')
         .eq('user_id', userId)
-        .limit(1)
         .maybeSingle();
       
       if (error) throw error;
-      return !!data;
+      const signals = data?.music_preference_signals || [];
+      return Array.isArray(signals) && signals.length > 0;
     } catch (error) {
       console.error('❌ Error checking music data:', error);
       return false;

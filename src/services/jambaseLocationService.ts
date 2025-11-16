@@ -228,7 +228,7 @@ export class JamBaseLocationService {
         try {
           // Check if event already exists
           const { data: existing } = await supabase
-            .from('jambase_events')
+            .from('events')
             .select('id')
             .eq('jambase_event_id', event.jambase_event_id)
             .single();
@@ -236,7 +236,7 @@ export class JamBaseLocationService {
           if (!existing) {
             // Insert new event
             const { error: insertError } = await supabase
-              .from('jambase_events')
+              .from('events')
               .insert(event);
             
             if (insertError) {

@@ -58,7 +58,7 @@ export class MusicTasteService {
     // 2) Fallback: aggregate from user_interactions
     try {
       const { data: interactions, error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('event_type, entity_type, entity_id, metadata, occurred_at')
         .eq('user_id', userId)
         .in('event_type', ['music_pref', 'listen'])

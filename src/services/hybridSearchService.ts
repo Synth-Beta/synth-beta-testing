@@ -61,7 +61,7 @@ class HybridSearchService {
   private async searchSupabaseEvents(query: string, date?: string): Promise<Event[]> {
     try {
       let supabaseQuery = supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .or(`title.ilike.%${query}%,artist_name.ilike.%${query}%,venue_name.ilike.%${query}%`);
 
@@ -229,9 +229,9 @@ class HybridSearchService {
         // Check if event already exists by jambase_event_id
         if (event.jambase_event_id) {
           const { data: existing } = await supabase
-            .from('jambase_events')
+            .from('events')
             .select('*')
-            .eq('jambase_event_id', event.jambase_event_id)
+            .eq('metadata->>jambase_event_id', event.jambase_event_id)
             .single();
 
           if (existing) {
@@ -241,10 +241,17 @@ class HybridSearchService {
           }
         }
 
-        // Create new event
+        // Create new event - need to transform to events table structure
+        const eventData = {
+          ...event,
+          metadata: {
+            ...((event as any).metadata || {}),
+            jambase_event_id: event.jambase_event_id
+          }
+        };
         const { data, error } = await supabase
-          .from('jambase_events')
-          .insert([event])
+          .from('events')
+          .insert([eventData])
           .select()
           .single();
 
@@ -409,12 +416,12 @@ class HybridSearchService {
   // Create event in Supabase from Jambase data
   private async createEventFromJambase(jambaseEvent: Event): Promise<Event> {
     try {
-      // First check if event already exists by jambase_event_id
+      // First check if event already exists by jambase_event_id (stored in metadata)
       if (jambaseEvent.jambase_event_id) {
         const { data: existing } = await supabase
-          .from('jambase_events')
+          .from('events')
           .select('*')
-          .eq('jambase_event_id', jambaseEvent.jambase_event_id)
+          .eq('metadata->>jambase_event_id', jambaseEvent.jambase_event_id)
           .single();
 
         if (existing) {
@@ -423,10 +430,17 @@ class HybridSearchService {
         }
       }
 
-      // Create new event
+      // Create new event - need to transform to events table structure
+      const eventData = {
+        ...jambaseEvent,
+        metadata: {
+          ...((jambaseEvent as any).metadata || {}),
+          jambase_event_id: jambaseEvent.jambase_event_id
+        }
+      };
       const { data, error } = await supabase
-        .from('jambase_events')
-        .insert([jambaseEvent])
+        .from('events')
+        .insert([eventData])
         .select()
         .single();
 
@@ -446,11 +460,12 @@ class HybridSearchService {
   // Link event to user
   private async linkEventToUser(eventId: string, userId: string): Promise<void> {
     try {
-      // Check if link already exists
+      // Check if link already exists in relationships table
       const { data: existing } = await supabase
-        .from('user_jambase_events')
+        .from('relationships')
         .select('*')
-        .eq('jambase_event_id', eventId)
+        .eq('related_entity_type', 'event')
+        .eq('related_entity_id', eventId)
         .eq('user_id', userId)
         .single();
 
@@ -459,10 +474,15 @@ class HybridSearchService {
         return;
       }
 
-      // Create new link
+      // Create new link in relationships table
       const { error } = await supabase
-        .from('user_jambase_events')
-        .insert({ jambase_event_id: eventId, user_id: userId });
+        .from('relationships')
+        .insert({ 
+          related_entity_type: 'event',
+          related_entity_id: eventId,
+          relationship_type: 'interest',
+          user_id: userId 
+        });
 
       if (error) {
         console.error('Error linking event to user:', error);

@@ -57,7 +57,7 @@ export class SimpleArtistVenueService {
 
       // If not found by exact name, try to find by jambase_artist_id from jambase_events
       const { data: eventData, error: eventError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('artist_id, artist_name')
         .eq('artist_name', artistName)
         .not('artist_id', 'is', null)
@@ -122,7 +122,7 @@ export class SimpleArtistVenueService {
 
       // If not found by exact name, try to find by jambase_venue_id from jambase_events
       const { data: eventData, error: eventError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('venue_id, venue_name')
         .eq('venue_name', venueName)
         .not('venue_id', 'is', null)
@@ -180,7 +180,7 @@ export class SimpleArtistVenueService {
 
       // Fallback: query jambase_events directly
       const { data: fallbackEvents, error: fallbackError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('id, title, venue_name, event_date, venue_city, venue_state')
         .eq('artist_uuid', artistId)
         .order('event_date', { ascending: false })
@@ -222,7 +222,7 @@ export class SimpleArtistVenueService {
 
       // Fallback: query jambase_events directly
       const { data: fallbackEvents, error: fallbackError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('id, title, artist_name, event_date, venue_city, venue_state')
         .eq('venue_uuid', venueId)
         .order('event_date', { ascending: false })
@@ -252,7 +252,7 @@ export class SimpleArtistVenueService {
   private static async getEventsForArtistByName(artistName: string): Promise<Array<any>> {
     try {
       const { data: events, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('id, title, venue_name, event_date, venue_city, venue_state')
         .eq('artist_name', artistName)
         .order('event_date', { ascending: false })
@@ -282,7 +282,7 @@ export class SimpleArtistVenueService {
   private static async getEventsForVenueByName(venueName: string): Promise<Array<any>> {
     try {
       const { data: events, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('id, title, artist_name, event_date, venue_city, venue_state')
         .eq('venue_name', venueName)
         .order('event_date', { ascending: false })

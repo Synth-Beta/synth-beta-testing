@@ -34,34 +34,40 @@ export class UserStatsService {
 
   private static async countReviews(userId: string): Promise<number> {
     const { count } = await supabase
-      .from('public_reviews_with_profiles')
-      .select('*', { count: 'exact', head: true } as any)
-      .eq('user_id', userId);
+      .from('reviews')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_public', true)
+      .eq('is_draft', false);
     return count ?? 0;
   }
 
   private static async getInterestedEventCounts(userId: string): Promise<{ total: number; upcoming: number }> {
     const totalRes = await supabase
-      .from('user_jambase_events')
+      .from('relationships')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .eq('related_entity_type', 'event')
+      .in('relationship_type', ['interest', 'going', 'maybe']);
     const total = totalRes.count ?? 0;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const dateStr = today.toISOString().split('T')[0];
-    const upcomingRes = await (supabase
-      .from('user_jambase_events')
-      .select('jambase_event:jambase_events(event_date)', { count: 'exact', head: true } as any)
+    const dateStr = today.toISOString();
+    const upcomingRes = await supabase
+      .from('relationships')
+      .select('*, event:events!inner(event_date)', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .gte('jambase_event.event_date', dateStr) as any);
+      .eq('related_entity_type', 'event')
+      .in('relationship_type', ['interest', 'going', 'maybe'])
+      .gte('event.event_date', dateStr);
     const upcoming = upcomingRes.count ?? 0;
     return { total, upcoming };
   }
 
   private static async countInteractions(userId: string, entityType: string): Promise<number> {
     const { data, error } = await supabase
-      .from('user_interactions')
+      .from('interactions')
       .select('entity_id')
       .eq('user_id', userId)
       .eq('entity_type', entityType)
@@ -75,7 +81,7 @@ export class UserStatsService {
 
   private static async countSpecificClick(userId: string, entityType: string): Promise<number> {
     const { count } = await supabase
-      .from('user_interactions')
+      .from('interactions')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('event_type', 'click')
@@ -85,9 +91,12 @@ export class UserStatsService {
 
   private static async countFriends(userId: string): Promise<number> {
     const { count } = await supabase
-      .from('friends')
+      .from('relationships')
       .select('*', { count: 'exact', head: true })
-      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+      .eq('related_entity_type', 'user')
+      .eq('relationship_type', 'friend')
+      .eq('status', 'accepted')
+      .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`);
     return count ?? 0;
   }
 }

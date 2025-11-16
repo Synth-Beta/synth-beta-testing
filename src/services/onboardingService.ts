@@ -21,7 +21,7 @@ export class OnboardingService {
   static async checkOnboardingStatus(userId: string): Promise<OnboardingStatus | null> {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('onboarding_completed, onboarding_skipped, tour_completed')
         .eq('user_id', userId)
         .single();
@@ -41,7 +41,7 @@ export class OnboardingService {
   static async saveProfileSetup(userId: string, data: ProfileSetupData): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('users')
         .update({
           location_city: data.location_city,
           birthday: data.birthday,
@@ -94,7 +94,7 @@ export class OnboardingService {
   static async skipOnboarding(userId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('users')
         .update({
           onboarding_skipped: true,
           updated_at: new Date().toISOString(),
@@ -116,7 +116,7 @@ export class OnboardingService {
   static async completeOnboarding(userId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('users')
         .update({
           onboarding_completed: true,
           onboarding_skipped: false,
@@ -139,7 +139,7 @@ export class OnboardingService {
   static async completeTour(userId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('users')
         .update({
           tour_completed: true,
           updated_at: new Date().toISOString(),

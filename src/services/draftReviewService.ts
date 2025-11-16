@@ -60,7 +60,7 @@ export class DraftReviewService {
   ): Promise<string | undefined> {
     try {
       const { data: eventData, error: eventError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('id, artist_uuid, artist_id, artist_name')
         .eq('id', eventId)
         .maybeSingle();
@@ -136,7 +136,7 @@ export class DraftReviewService {
 
       if (artistProfileId && isValidUuid(artistProfileId)) {
         await supabase
-          .from('jambase_events')
+          .from('events')
           .update({ artist_uuid: artistProfileId })
           .eq('id', eventId);
         return artistProfileId;
@@ -286,10 +286,11 @@ export class DraftReviewService {
   ): Promise<DraftReviewData | null> {
     try {
       const { data, error } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select('draft_data')
         .eq('user_id', userId)
-        .eq('event_id', eventId)
+        .eq('entity_type', 'event')
+        .eq('entity_id', eventId)
         .eq('is_draft', true)
         .single();
 
@@ -317,8 +318,8 @@ export class DraftReviewService {
     eventId: string
   ): Promise<boolean> {
     try {
-      const { data, error } = await (supabase as any)
-        .from('user_reviews')
+      const { data, error } = await supabase
+        .from('reviews')
         .select('id')
         .eq('user_id', userId)
         .eq('event_id', eventId)

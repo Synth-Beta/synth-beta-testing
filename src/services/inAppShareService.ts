@@ -74,11 +74,14 @@ export class InAppShareService {
     avatar_url: string | null;
   }>> {
     try {
-      // Query friends from the friends table
+      // Query friends from the relationships table
       const { data: friendships, error: friendsError } = await supabase
-        .from('friends')
-        .select('id, user1_id, user2_id, created_at')
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+        .from('relationships')
+        .select('id, user_id, related_entity_id, created_at')
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`)
         .order('created_at', { ascending: false });
 
       if (friendsError) {
@@ -92,12 +95,12 @@ export class InAppShareService {
 
       // Get all the user IDs we need to fetch
       const userIds = friendships.map(f => 
-        f.user1_id === userId ? f.user2_id : f.user1_id
+        f.user_id === userId ? f.related_entity_id : f.user_id
       );
 
       // Fetch the profiles for those users
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('user_id, name, avatar_url')
         .in('user_id', userIds);
 
@@ -125,7 +128,7 @@ export class InAppShareService {
     try {
       // Verify the event exists
       const { data: event, error: eventError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('id, title, artist_name, venue_name, event_date')
         .eq('id', eventId)
         .single();

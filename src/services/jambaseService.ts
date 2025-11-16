@@ -34,7 +34,7 @@ export class JamBaseService {
    */
   static async getEvents(limit = 50, offset = 0) {
     const { data, error } = await supabase
-      .from('jambase_events')
+      .from('events')
       .select('*')
       .order('event_date', { ascending: true })
       .range(offset, offset + limit - 1);
@@ -48,7 +48,7 @@ export class JamBaseService {
    */
   static async getEventById(id: string) {
     const { data, error } = await supabase
-      .from('jambase_events')
+      .from('events')
       .select('*')
       .eq('id', id)
       .single();
@@ -65,7 +65,7 @@ export class JamBaseService {
     
     // First, try to get upcoming events (sorted by date ascending - nearest first)
     const { data: upcomingEvents, error: upcomingError } = await supabase
-      .from('jambase_events')
+      .from('events')
       .select('*')
       .ilike('artist_name', `%${artistName}%`)
       .gte('event_date', now) // Only events in the future
@@ -83,7 +83,7 @@ export class JamBaseService {
     if (upcomingEvents && upcomingEvents.length > 0) {
       const remainingSlots = limit - upcomingEvents.length;
       const { data: pastEvents, error: pastError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .ilike('artist_name', `%${artistName}%`)
         .lt('event_date', now)
@@ -97,7 +97,7 @@ export class JamBaseService {
     
     // If no upcoming events, just return the most recent past events
     const { data: allEvents, error: allError } = await supabase
-      .from('jambase_events')
+      .from('events')
       .select('*')
       .ilike('artist_name', `%${artistName}%`)
       .order('event_date', { ascending: false })
@@ -112,7 +112,7 @@ export class JamBaseService {
    */
   static async searchEventsByVenue(venueName: string, limit = 20) {
     const { data, error } = await supabase
-      .from('jambase_events')
+      .from('events')
       .select('*')
       .ilike('venue_name', `%${venueName}%`)
       .order('event_date', { ascending: true })
@@ -127,7 +127,7 @@ export class JamBaseService {
    */
   static async getEventsByDateRange(startDate: string, endDate: string) {
     const { data, error } = await supabase
-      .from('jambase_events')
+      .from('events')
       .select('*')
       .gte('event_date', startDate)
       .lte('event_date', endDate)
@@ -142,7 +142,7 @@ export class JamBaseService {
    */
   static async createEvent(event: JamBaseEventInsert) {
     const { data, error } = await supabase
-      .from('jambase_events')
+      .from('events')
       .insert(event)
       .select()
       .single();
@@ -156,7 +156,7 @@ export class JamBaseService {
    */
   static async updateEvent(id: string, updates: JamBaseEventUpdate) {
     const { data, error } = await supabase
-      .from('jambase_events')
+      .from('events')
       .update(updates)
       .eq('id', id)
       .select()
@@ -171,7 +171,7 @@ export class JamBaseService {
    */
   static async deleteEvent(id: string) {
     const { error } = await supabase
-      .from('jambase_events')
+      .from('events')
       .delete()
       .eq('id', id);
 
@@ -182,12 +182,12 @@ export class JamBaseService {
    * Get user's interested JamBase events
    */
   static async getUserEvents(userId: string) {
-    // Get all user's interested events
+    // Get all user's interested events from relationships table
     const { data, error } = await supabase
-      .from('user_jambase_events')
+      .from('relationships')
       .select(`
         created_at,
-        jambase_event:jambase_events(
+        event:events(
           id,
           jambase_event_id,
           title,
@@ -219,6 +219,8 @@ export class JamBaseService {
         )
       `)
       .eq('user_id', userId)
+      .eq('related_entity_type', 'event')
+      .in('relationship_type', ['interest', 'going', 'maybe'])
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -227,7 +229,7 @@ export class JamBaseService {
     // This ensures "Interested Events" only shows events user hasn't attended yet
     try {
       const { data: attendedData, error: attendedError } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select('event_id')
         .eq('user_id', userId)
         .eq('was_there', true);
@@ -242,7 +244,7 @@ export class JamBaseService {
       
       // Filter out attended events from the interested events list
       const filteredData = data?.filter(item => {
-        const eventId = item.jambase_event?.id;
+        const eventId = item.event?.id;
         return eventId && !attendedEventIds.has(eventId);
       });
       
@@ -260,10 +262,14 @@ export class JamBaseService {
    */
   static async addUserEvent(userId: string, jambaseEventId: string) {
     const { data, error } = await supabase
-      .from('user_jambase_events')
+      .from('relationships')
       .insert({
         user_id: userId,
-        jambase_event_id: jambaseEventId
+        related_entity_type: 'event',
+        related_entity_id: jambaseEventId,
+        relationship_type: 'interest',
+        status: 'accepted',
+        metadata: { event_id: jambaseEventId }
       })
       .select()
       .single();
@@ -277,10 +283,12 @@ export class JamBaseService {
    */
   static async removeUserEvent(userId: string, jambaseEventId: string) {
     const { error } = await supabase
-      .from('user_jambase_events')
+      .from('relationships')
       .delete()
       .eq('user_id', userId)
-      .eq('jambase_event_id', jambaseEventId);
+      .eq('related_entity_type', 'event')
+      .eq('related_entity_id', jambaseEventId)
+      .in('relationship_type', ['interest', 'going', 'maybe']);
 
     if (error) throw error;
   }
@@ -290,10 +298,12 @@ export class JamBaseService {
    */
   static async isUserInterested(userId: string, jambaseEventId: string) {
     const { data, error } = await supabase
-      .from('user_jambase_events')
+      .from('relationships')
       .select('id')
       .eq('user_id', userId)
-      .eq('jambase_event_id', jambaseEventId)
+      .eq('related_entity_type', 'event')
+      .eq('related_entity_id', jambaseEventId)
+      .in('relationship_type', ['interest', 'going', 'maybe'])
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
@@ -306,11 +316,12 @@ export class JamBaseService {
   static async getUpcomingUserEvents(userId: string) {
     const now = new Date().toISOString();
     
+    // Get all user's interested events, then filter for upcoming ones
     const { data, error } = await supabase
-      .from('user_jambase_events')
+      .from('relationships')
       .select(`
         created_at,
-        jambase_event:jambase_events(
+        event:events(
           id,
           title,
           artist_name,
@@ -334,11 +345,21 @@ export class JamBaseService {
         )
       `)
       .eq('user_id', userId)
-      .gte('jambase_events.event_date', now)
-      .order('jambase_events.event_date', { ascending: true });
+      .eq('related_entity_type', 'event')
+      .in('relationship_type', ['interest', 'going', 'maybe']);
 
     if (error) throw error;
-    return data;
+    
+    // Filter for upcoming events and sort by date
+    const upcomingEvents = data
+      ?.filter(item => item.event && item.event.event_date >= now)
+      .sort((a, b) => {
+        const dateA = a.event?.event_date || '';
+        const dateB = b.event?.event_date || '';
+        return dateA.localeCompare(dateB);
+      }) || [];
+    
+    return upcomingEvents;
   }
 
   // ===== ARTIST SEARCH METHODS =====
@@ -359,7 +380,7 @@ export class JamBaseService {
       // 1. Search database for artists
       console.log('📊 Searching database...');
       const { data: events, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('artist_name, artist_id, genres')
         .ilike('artist_name', `%${query}%`)
         .limit(limit);
@@ -528,7 +549,7 @@ export class JamBaseService {
 
       // Build query for events using artist_name (case-insensitive partial match)
       let query = supabase
-        .from('jambase_events')
+        .from('events')
         .select('*', { count: 'exact' })
         .ilike('artist_name', `%${artistName}%`);
 
@@ -618,7 +639,7 @@ export class JamBaseService {
         try {
           // Check if event already exists
           const { data: existing } = await supabase
-            .from('jambase_events')
+            .from('events')
             .select('id')
             .eq('jambase_event_id', event.jambase_event_id)
             .single();
@@ -626,7 +647,7 @@ export class JamBaseService {
           if (!existing) {
             // Insert new event
             const { error: insertError } = await supabase
-              .from('jambase_events')
+              .from('events')
               .insert(event);
             
             if (insertError) {

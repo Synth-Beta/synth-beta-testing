@@ -105,7 +105,7 @@ export class ConversionFunnelService {
     try {
       // Get users of the specified type
       const { data: users } = await supabase
-        .from('profiles')
+        .from('users')
         .select('user_id')
         .eq('account_type', userType);
 
@@ -117,7 +117,7 @@ export class ConversionFunnelService {
 
       // Get all interactions for these users in the time range
       const { data: interactions, error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('*')
         .in('user_id', userIds)
         .gte('occurred_at', timeRange.start.toISOString())

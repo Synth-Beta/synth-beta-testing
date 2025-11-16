@@ -74,10 +74,10 @@ export class UserAnalyticsService {
     daysBack: number = 30
   ): Promise<UserStats> {
     try {
-      // For now, use raw user_interactions since analytics tables don't exist yet
+      // For now, use raw interactions since analytics tables don't exist yet
       // TODO: Switch to aggregated data once analytics tables are deployed
       const { data: rawData, error: rawError } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('event_type, entity_type')
         .eq('user_id', userId)
         .gte('occurred_at', new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString());
@@ -99,9 +99,9 @@ export class UserAnalyticsService {
 
       // Get counts from other tables
       const [interested, completedReviews, friends] = await Promise.all([
-        supabase.from('user_jambase_events').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-        (supabase as any).from('user_reviews').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_draft', false).neq('review_text', 'ATTENDANCE_ONLY'),
-        supabase.from('friends').select('*', { count: 'exact', head: true }).or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+        supabase.from('relationships').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('related_entity_type', 'event').in('relationship_type', ['interest', 'going', 'maybe']),
+        supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_draft', false).neq('review_text', 'ATTENDANCE_ONLY'),
+        supabase.from('relationships').select('*', { count: 'exact', head: true }).eq('related_entity_type', 'user').eq('relationship_type', 'friend').eq('user_id', userId)
       ]);
 
       stats.events_interested = interested.count || 0;
@@ -121,7 +121,7 @@ export class UserAnalyticsService {
   static async getTopArtists(userId: string, limit: number = 5): Promise<TopArtist[]> {
     try {
       const { data, error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('metadata')
         .eq('user_id', userId)
         .not('metadata->artist_name', 'is', null)
@@ -161,7 +161,7 @@ export class UserAnalyticsService {
   static async getTopVenues(userId: string, limit: number = 5): Promise<TopVenue[]> {
     try {
       const { data, error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('metadata')
         .eq('user_id', userId)
         .not('metadata->venue_name', 'is', null)
@@ -207,9 +207,9 @@ export class UserAnalyticsService {
    */
   static async getReviewStats(userId: string): Promise<ReviewStats> {
     try {
-      const { data: reviews, error } = await (supabase as any)
-        .from('user_reviews')
-        .select('id, rating, likes_count, comments_count, jambase_events(title)')
+      const { data: reviews, error } = await supabase
+        .from('reviews')
+        .select('id, rating, likes_count, comments_count, event:events(title)')
         .eq('user_id', userId)
         .eq('is_draft', false)
         .neq('review_text', 'ATTENDANCE_ONLY')
@@ -237,7 +237,7 @@ export class UserAnalyticsService {
       if (reviews[0] && reviews[0].likes_count > 0) {
         stats.most_liked_review = {
           id: reviews[0].id,
-          event_name: (reviews[0] as any).jambase_events?.title || 'Unknown Event',
+          event_name: (reviews[0] as any).event?.title || 'Unknown Event',
           likes_count: reviews[0].likes_count
         };
       }
@@ -261,7 +261,7 @@ export class UserAnalyticsService {
     try {
       // Get all event interactions with genres
       const { data, error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('metadata')
         .eq('user_id', userId)
         .eq('entity_type', 'event')
@@ -302,23 +302,23 @@ export class UserAnalyticsService {
   static async getActualAttendedEventsCount(userId: string): Promise<number> {
     try {
       // Count completed reviews (real reviews with content)
-      const { count: reviewsCount } = await (supabase as any)
-        .from('user_reviews')
+      const { count: reviewsCount } = await supabase
+        .from('reviews')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('is_draft', false)
         .neq('review_text', 'ATTENDANCE_ONLY');
 
       // Count draft reviews (in progress)
-      const { count: draftsCount } = await (supabase as any)
-        .from('user_reviews')
+      const { count: draftsCount } = await supabase
+        .from('reviews')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('is_draft', true);
 
       // Count attendance-only records (marked attended but no review yet)
-      const { count: attendanceCount } = await (supabase as any)
-        .from('user_reviews')
+      const { count: attendanceCount } = await supabase
+        .from('reviews')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('review_text', 'ATTENDANCE_ONLY');
@@ -338,11 +338,11 @@ export class UserAnalyticsService {
    */
   static async getActualUniqueVenuesCount(userId: string): Promise<number> {
     try {
-      // Get venue names from all user_reviews records (completed, drafts, attendance-only)
-      const { data: allReviewsData } = await (supabase as any)
-        .from('user_reviews')
+      // Get venue names from all reviews records (completed, drafts, attendance-only)
+      const { data: allReviewsData } = await supabase
+        .from('reviews')
         .select(`
-          id, is_draft, review_text, jambase_events!inner(venue_name, title, artist_name)
+          id, is_draft, review_text, event:events!inner(venue_name, title, artist_name)
         `)
         .eq('user_id', userId);
 
@@ -351,9 +351,9 @@ export class UserAnalyticsService {
       const venueDetails: Array<{venue: string, event: string, type: string}> = [];
       
       allReviewsData?.forEach(review => {
-        const venueName = (review as any).jambase_events?.venue_name;
-        const eventTitle = (review as any).jambase_events?.title;
-        const artistName = (review as any).jambase_events?.artist_name;
+        const venueName = (review as any).event?.venue_name;
+        const eventTitle = (review as any).event?.title;
+        const artistName = (review as any).event?.artist_name;
         
         if (venueName) {
           venueNames.add(venueName);
@@ -409,9 +409,11 @@ export class UserAnalyticsService {
   static async getActualInterestedEventsCount(userId: string): Promise<number> {
     try {
       const { count } = await supabase
-        .from('user_jambase_events')
+        .from('relationships')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('related_entity_type', 'event')
+        .in('relationship_type', ['interest', 'going', 'maybe']);
 
       const interestedCount = count || 0;
       console.log(`🎯 Interested events: ${interestedCount}`);
@@ -719,7 +721,7 @@ export class UserAnalyticsService {
   static async hasPremium(userId: string): Promise<boolean> {
     try {
       const { data: profile, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('subscription_tier, subscription_expires_at')
         .eq('user_id', userId)
         .single();
@@ -801,14 +803,14 @@ export class UserAnalyticsService {
   }> {
     try {
       const { data: profile } = await supabase
-        .from('profiles')
+        .from('users')
         .select('subscription_tier, subscription_started_at, subscription_expires_at')
         .eq('user_id', userId)
         .single();
 
       // Get subscription change history from interactions
       const { data: subscriptionChanges } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('*')
         .eq('user_id', userId)
         .eq('event_type', 'profile_update')

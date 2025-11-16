@@ -166,14 +166,14 @@ export class UnifiedFeedService {
     try {
       // First, fetch the user's profile to get their name and avatar
       const { data: profile } = await supabase
-        .from('profiles')
+        .from('users')
         .select('name, avatar_url, verified, account_type')
         .eq('user_id', userId)
         .single();
 
-      const { data: reviews, error } = await (supabase as any)
-        .from('user_reviews')
-        .select(`*, jambase_events: jambase_events (id, title, artist_name, venue_name, event_date, setlist)`)
+      const { data: reviews, error } = await supabase
+        .from('reviews')
+        .select(`*, event:events (id, title, artist_name, venue_name, event_date, setlist)`)
         .eq('user_id', userId)
         .eq('is_draft', false) // Only show published reviews, not drafts
         .neq('review_text', 'ATTENDANCE_ONLY') // Exclude attendance-only records from review feed
@@ -184,12 +184,12 @@ export class UnifiedFeedService {
       if (error) throw error;
       
       return (reviews || []).map((review: any) => {
-        // Use the setlist from user_reviews if available, otherwise fall back to event setlist
-        const setlistToUse = review.setlist || review.jambase_events?.setlist;
+        // Use the setlist from reviews if available, otherwise fall back to event setlist
+        const setlistToUse = review.setlist || review.event?.setlist;
         console.log('🎵 getUserReviews: Processing review:', {
           reviewId: review.id,
           hasUserReviewSetlist: !!review.setlist,
-          hasEventSetlist: !!review.jambase_events?.setlist,
+          hasEventSetlist: !!review.event?.setlist,
           setlistToUse: !!setlistToUse
         });
         
@@ -197,7 +197,7 @@ export class UnifiedFeedService {
           id: `review-${review.id}`,
           type: 'review' as const,
           review_id: review.id,
-          title: review.jambase_events?.title || (review.is_public ? 'Your Public Review' : 'Your Private Review'),
+          title: review.event?.title || (review.is_public ? 'Your Public Review' : 'Your Private Review'),
           content: review.review_text || '',
           author: {
             id: userId,
@@ -216,11 +216,11 @@ export class UnifiedFeedService {
           comments_count: review.comments_count || 0,
           shares_count: review.shares_count || 0,
           event_info: {
-            event_name: review.jambase_events?.title || 'Concert Review',
-            venue_name: review.jambase_events?.venue_name || 'Unknown Venue',
-            event_date: review.jambase_events?.event_date || review.created_at,
-            artist_name: review.jambase_events?.artist_name,
-            artist_id: review.jambase_events?.artist_id
+            event_name: review.event?.title || 'Concert Review',
+            venue_name: review.event?.venue_name || 'Unknown Venue',
+            event_date: review.event?.event_date || review.created_at,
+            artist_name: review.event?.artist_name,
+            artist_id: review.event?.artist_id
           },
           relevance_score: this.calculateReviewRelevance(review, true) // Higher score for own reviews
         };
@@ -357,7 +357,7 @@ export class UnifiedFeedService {
       // Fallback: standard event loading (non-personalized)
       console.log('📋 Using STANDARD feed (no personalization)');
       let query = supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .gte('event_date', new Date().toISOString())
         .order('event_date', { ascending: true });
@@ -381,7 +381,7 @@ export class UnifiedFeedService {
         console.log(`⚠️ Standard feed: Only got ${finalEvents.length} events, fetching more to reach ${limit}...`);
         // Try fetching even more
         const { data: moreEvents } = await supabase
-          .from('jambase_events')
+          .from('events')
           .select('*')
           .gte('event_date', new Date().toISOString())
           .order('event_date', { ascending: true })
@@ -547,12 +547,15 @@ export class UnifiedFeedService {
    */
   private static async getFriendActivity(userId: string, limit: number): Promise<UnifiedFeedItem[]> {
     try {
-      // Get recent friend requests that were accepted
-      // First get the friendship records
+      // Get recent friend relationships
+      // First get the friendship records from relationships table
       const { data: friendships, error } = await supabase
-        .from('friends')
-        .select('id, user1_id, user2_id, created_at')
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+        .from('relationships')
+        .select('id, user_id, related_entity_id, created_at')
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`)
         .order('created_at', { ascending: false })
         .limit(limit);
       
@@ -565,11 +568,11 @@ export class UnifiedFeedService {
 
       // Get profile information for all friend user IDs
       const allFriendIds = friendships.map(friendship => 
-        friendship.user1_id === userId ? friendship.user2_id : friendship.user1_id
+        friendship.user_id === userId ? friendship.related_entity_id : friendship.user_id
       );
       
       const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('user_id, name, avatar_url')
         .in('user_id', allFriendIds);
 
@@ -582,7 +585,7 @@ export class UnifiedFeedService {
       const profileMap = new Map(profiles?.map(profile => [profile.user_id, profile]) || []);
 
       return friendships.map(friendship => {
-        const otherUserId = friendship.user1_id === userId ? friendship.user2_id : friendship.user1_id;
+        const otherUserId = friendship.user_id === userId ? friendship.related_entity_id : friendship.user_id;
         const otherUser = profileMap.get(otherUserId);
         
         return {

@@ -72,7 +72,7 @@ export class RevenueEstimationService {
   ): Promise<RevenueAttribution[]> {
     try {
       const { data: ticketClicks, error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('*')
         .eq('user_id', userId)
         .eq('event_type', 'click')
@@ -127,7 +127,7 @@ export class RevenueEstimationService {
     try {
       // Get subscription-related interactions
       const { data: subscriptionInteractions, error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('*')
         .eq('user_id', userId)
         .in('event_type', ['profile_update', 'form_submit'])
@@ -187,7 +187,7 @@ export class RevenueEstimationService {
     try {
       // Get share interactions that might lead to affiliate revenue
       const { data: shareInteractions, error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('*')
         .eq('user_id', userId)
         .eq('event_type', 'share')
@@ -274,7 +274,7 @@ export class RevenueEstimationService {
   ): Promise<ConversionFunnel[]> {
     try {
       const { data: interactions } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('*')
         .eq('user_id', userId)
         .gte('occurred_at', timeRange.start.toISOString())
@@ -333,7 +333,7 @@ export class RevenueEstimationService {
   ): Promise<RevenueTrend[]> {
     try {
       const { data: interactions } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('*')
         .gte('occurred_at', timeRange.start.toISOString())
         .lte('occurred_at', timeRange.end.toISOString())

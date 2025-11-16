@@ -236,7 +236,7 @@ export class JamBaseEventsService {
 
       // Use a more flexible approach to handle apostrophe variations
       let query = supabase
-        .from('jambase_events')
+        .from('events')
         .select('*', { count: 'exact' });
       
       // Try multiple matching strategies for better artist name matching

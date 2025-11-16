@@ -150,7 +150,7 @@ export class EventPhotoService {
         })
         .select(`
           *,
-          user:profiles!event_photo_comments_user_id_fkey (
+          user:users!event_photo_comments_user_id_fkey (
             name,
             avatar_url
           )
@@ -183,7 +183,7 @@ export class EventPhotoService {
         .from('event_photo_comments')
         .select(`
           *,
-          user:profiles!event_photo_comments_user_id_fkey (
+          user:users!event_photo_comments_user_id_fkey (
             name,
             avatar_url
           )
@@ -278,13 +278,13 @@ export class EventPhotoService {
         .from('event_photos')
         .select(`
           *,
-          event:jambase_events (
+          event:events (
             id,
             title,
             artist_name,
             event_date
           ),
-          user:profiles!event_photos_user_id_fkey (
+          user:users!event_photos_user_id_fkey (
             name,
             avatar_url
           )

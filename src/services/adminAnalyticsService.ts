@@ -200,12 +200,12 @@ export class AdminAnalyticsService {
     try {
       // Get user counts
       const { count: totalUsers } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*', { count: 'exact', head: true });
 
       // Get event counts
       const { count: totalEvents } = await (supabase as any)
-        .from('jambase_events')
+        .from('events')
         .select('*', { count: 'exact', head: true });
 
       // Get interaction counts (all users)
@@ -219,7 +219,7 @@ export class AdminAnalyticsService {
       endOfToday.setHours(23, 59, 59, 999);
 
       const { count: dailyActiveUsers } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*', { count: 'exact', head: true })
         .gte('last_active_at', startOfToday.toISOString())
         .lte('last_active_at', endOfToday.toISOString());
@@ -230,7 +230,7 @@ export class AdminAnalyticsService {
       startOfMauWindow.setHours(0, 0, 0, 0);
 
       const { count: monthlyActiveUsers } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*', { count: 'exact', head: true })
         .gte('last_active_at', startOfMauWindow.toISOString());
 
@@ -238,7 +238,7 @@ export class AdminAnalyticsService {
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       const { count: newUsersThisMonth } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', startOfMonth.toISOString());
 
@@ -247,7 +247,7 @@ export class AdminAnalyticsService {
       lastMonth.setMonth(lastMonth.getMonth() - 1);
       lastMonth.setDate(1);
       const { count: newUsersLastMonth } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', lastMonth.toISOString())
         .lt('created_at', startOfMonth.toISOString());
@@ -296,13 +296,13 @@ export class AdminAnalyticsService {
 
       // Get user registrations by date
       const { data: userRegistrations } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('created_at')
         .gte('created_at', startDate.toISOString());
 
       // Get daily active users
       const { data: dailyActiveUsers } = await (supabase as any)
-        .from('user_interactions')
+        .from('interactions')
         .select('user_id, created_at')
         .gte('created_at', startDate.toISOString());
 
@@ -371,7 +371,7 @@ export class AdminAnalyticsService {
     try {
       // Get total interactions
       const { data: interactions } = await (supabase as any)
-        .from('user_interactions')
+        .from('interactions')
         .select('*');
 
       // Categorize interactions
@@ -381,7 +381,7 @@ export class AdminAnalyticsService {
 
       // Get reviews count
       const { count: reviewsWritten } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select('*', { count: 'exact', head: true });
 
       // Calculate sessions (unique users per day)
@@ -479,7 +479,7 @@ export class AdminAnalyticsService {
 
       // Get geographic distribution for active users
       const { data: activeUserProfiles } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('user_id, location_city, created_at')
         .in('user_id', activeUserIds);
 
@@ -514,7 +514,7 @@ export class AdminAnalyticsService {
 
       // Get verification stats for active users
       const { data: activeUserVerification } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('user_id, verified, trust_score, verification_criteria_met')
         .in('user_id', activeUserIds);
 
@@ -607,7 +607,7 @@ export class AdminAnalyticsService {
       startDate.setHours(0, 0, 0, 0);
 
       const { data: interactions } = await (supabase as any)
-        .from('user_interactions')
+        .from('interactions')
         .select('user_id, occurred_at')
         .gte('occurred_at', startDate.toISOString());
 
@@ -654,23 +654,23 @@ export class AdminAnalyticsService {
         venuesCount,
         reviewsCount
       ] = await Promise.all([
-        (supabase as any).from('jambase_events').select('*', { count: 'exact', head: true }),
+        (supabase as any).from('events').select('*', { count: 'exact', head: true }),
         (supabase as any).from('artists').select('*', { count: 'exact', head: true }),
         (supabase as any).from('venues').select('*', { count: 'exact', head: true }),
-        (supabase as any).from('user_reviews').select('*', { count: 'exact', head: true }),
+        (supabase as any).from('reviews').select('*', { count: 'exact', head: true }),
       ]);
 
       // Get this month's events
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       const { count: eventsThisMonth } = await (supabase as any)
-        .from('jambase_events')
+        .from('events')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', startOfMonth.toISOString());
 
       // Get average rating
       const { data: reviews } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select('rating')
         .not('rating', 'is', null);
 
@@ -838,12 +838,12 @@ export class AdminAnalyticsService {
     try {
       // Get all users with their activity
       const { data: users } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('user_id, created_at');
 
       // Get user interactions for segmentation
       const { data: interactions } = await (supabase as any)
-        .from('user_interactions')
+        .from('interactions')
         .select('user_id, created_at');
 
       // Segment users based on activity
@@ -912,7 +912,7 @@ export class AdminAnalyticsService {
     try {
       // Get users with their location cities
       const { data: profiles } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('user_id, location_city, created_at');
 
       if (!profiles || profiles.length === 0) {
@@ -950,7 +950,7 @@ export class AdminAnalyticsService {
       // Get events by city (if we have city data in events)
       // For now, we'll estimate based on user distribution
       const totalEvents = await (supabase as any)
-        .from('jambase_events')
+        .from('events')
         .select('*', { count: 'exact', head: true });
       
       const totalEventCount = totalEvents.count || 0;
@@ -999,7 +999,7 @@ export class AdminAnalyticsService {
 
       // Get all user interactions grouped by date
       const { data: interactions } = await (supabase as any)
-        .from('user_interactions')
+        .from('interactions')
         .select('user_id, occurred_at')
         .gte('occurred_at', startDate.toISOString());
 
@@ -1016,7 +1016,7 @@ export class AdminAnalyticsService {
 
       // Also check profiles.last_active_at for users who haven't interacted but were active
       const { data: profiles } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('user_id, last_active_at')
         .not('last_active_at', 'is', null)
         .gte('last_active_at', startDate.toISOString());
@@ -1064,13 +1064,13 @@ export class AdminAnalyticsService {
 
       // Get all user interactions
       const { data: interactions } = await (supabase as any)
-        .from('user_interactions')
+        .from('interactions')
         .select('user_id, occurred_at')
         .gte('occurred_at', startDate.toISOString());
 
       // Get profiles with last_active_at
       const { data: profiles } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('user_id, last_active_at')
         .not('last_active_at', 'is', null)
         .gte('last_active_at', startDate.toISOString());
@@ -1130,7 +1130,7 @@ export class AdminAnalyticsService {
 
       // Get user registrations by date
       const { data: userRegistrations } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('created_at')
         .gte('created_at', startDate.toISOString());
 
@@ -1177,42 +1177,42 @@ export class AdminAnalyticsService {
 
       // Get total users
       const { count: totalUsers } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*', { count: 'exact', head: true });
 
       // Get verified users
       const { count: verifiedUsers } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*', { count: 'exact', head: true })
         .eq('verified', true);
 
       // Get active users (7 days)
       const { count: activeUsers7d } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*', { count: 'exact', head: true })
         .gte('last_active_at', sevenDaysAgo.toISOString());
 
       // Get active users (30 days)
       const { count: activeUsers30d } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*', { count: 'exact', head: true })
         .gte('last_active_at', thirtyDaysAgo.toISOString());
 
       // Get new users (7 days)
       const { count: newUsers7d } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', sevenDaysAgo.toISOString());
 
       // Get new users (30 days)
       const { count: newUsers30d } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', thirtyDaysAgo.toISOString());
 
       // Get average account age
       const { data: allUsers } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('created_at');
 
       const avgAccountAge = allUsers && allUsers.length > 0
@@ -1224,7 +1224,7 @@ export class AdminAnalyticsService {
 
       // Get users with reviews
       const { data: reviews } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select('user_id')
         .eq('is_draft', false);
       
@@ -1232,12 +1232,15 @@ export class AdminAnalyticsService {
 
       // Get users with friends
       const { data: friends } = await (supabase as any)
-        .from('friends')
-        .select('user1_id, user2_id');
+        .from('relationships')
+          .eq('related_entity_type', 'user')
+          .eq('relationship_type', 'friend')
+          .eq('status', 'accepted')
+        .select('user_id, related_entity_id');
       
       const usersWithFriends = new Set([
-        ...(friends?.map((f: any) => f.user1_id) || []),
-        ...(friends?.map((f: any) => f.user2_id) || []),
+        ...(friends?.map((f: any) => f.user_id) || []),
+        ...(friends?.map((f: any) => f.related_entity_id) || []),
       ]).size;
 
       return {
@@ -1370,7 +1373,7 @@ export class AdminAnalyticsService {
       // Get concert intent interactions for current month
       // This includes: event interest (saves/RSVPs), shares, and attendance marking
       const { data: currentMonthInteractions } = await (supabase as any)
-        .from('user_interactions')
+        .from('interactions')
         .select('user_id, event_type, entity_type, entity_id, metadata')
         .gte('occurred_at', startOfMonth.toISOString())
         .in('event_type', ['interest', 'share', 'attendance'])
@@ -1378,7 +1381,7 @@ export class AdminAnalyticsService {
 
       // Get last month's interactions for growth calculation
       const { data: lastMonthInteractions } = await (supabase as any)
-        .from('user_interactions')
+        .from('interactions')
         .select('user_id, event_type, entity_type, entity_id, metadata')
         .gte('occurred_at', startOfLastMonth.toISOString())
         .lt('occurred_at', endOfLastMonth.toISOString())
@@ -1387,13 +1390,17 @@ export class AdminAnalyticsService {
 
       // Also get event interest from user_jambase_events table (RSVPs)
       const { data: currentMonthRSVPs } = await (supabase as any)
-        .from('user_jambase_events')
+        .from('relationships')
+          .eq('related_entity_type', 'event')
+          .in('relationship_type', ['interest', 'going', 'maybe'])
         .select('user_id, jambase_event_id, rsvp_status')
         .gte('created_at', startOfMonth.toISOString())
         .in('rsvp_status', ['going', 'interested']);
 
       const { data: lastMonthRSVPs } = await (supabase as any)
-        .from('user_jambase_events')
+        .from('relationships')
+          .eq('related_entity_type', 'event')
+          .in('relationship_type', ['interest', 'going', 'maybe'])
         .select('user_id, jambase_event_id, rsvp_status')
         .gte('created_at', startOfLastMonth.toISOString())
         .lt('created_at', endOfLastMonth.toISOString())
@@ -1502,7 +1509,7 @@ export class AdminAnalyticsService {
       if (topEngagedUsers.length > 0) {
         const userIds = topEngagedUsers.map(u => u.user_id);
         const { data: profiles } = await (supabase as any)
-          .from('profiles')
+          .from('users')
           .select('user_id, name')
           .in('user_id', userIds);
 
@@ -1748,12 +1755,15 @@ export class AdminAnalyticsService {
     try {
       // Get all friendships (from friends table - accepted friendships)
       const { data: friendships } = await (supabase as any)
-        .from('friends')
-        .select('user1_id, user2_id, created_at');
+        .from('relationships')
+          .eq('related_entity_type', 'user')
+          .eq('relationship_type', 'friend')
+          .eq('status', 'accepted')
+        .select('user_id, related_entity_id, created_at');
 
       // Get total users
       const { count: totalUsers } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('*', { count: 'exact', head: true });
 
       // Count connections per user
@@ -1761,10 +1771,10 @@ export class AdminAnalyticsService {
       const usersWithConnections = new Set<string>();
 
       friendships?.forEach((friendship: any) => {
-        userConnections.set(friendship.user1_id, (userConnections.get(friendship.user1_id) || 0) + 1);
-        userConnections.set(friendship.user2_id, (userConnections.get(friendship.user2_id) || 0) + 1);
-        usersWithConnections.add(friendship.user1_id);
-        usersWithConnections.add(friendship.user2_id);
+        userConnections.set(friendship.user_id, (userConnections.get(friendship.user_id) || 0) + 1);
+        userConnections.set(friendship.related_entity_id, (userConnections.get(friendship.related_entity_id) || 0) + 1);
+        usersWithConnections.add(friendship.user_id);
+        usersWithConnections.add(friendship.related_entity_id);
       });
 
       const totalConnections = friendships?.length || 0;

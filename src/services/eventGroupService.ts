@@ -110,7 +110,7 @@ export class EventGroupService {
         .from('event_group_members')
         .select(`
           *,
-          user:profiles!event_group_members_user_id_fkey (
+          user:users!event_group_members_user_id_fkey (
             user_id,
             name,
             avatar_url,
@@ -141,14 +141,14 @@ export class EventGroupService {
         .select(`
           group:event_groups (
             *,
-            event:jambase_events (
+            event:events (
               id,
               title,
               artist_name,
               event_date,
               poster_image_url
             ),
-            creator:profiles!event_groups_created_by_user_id_fkey (
+            creator:users!event_groups_created_by_user_id_fkey (
               name,
               avatar_url
             )

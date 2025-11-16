@@ -223,34 +223,34 @@ export class ContentModerationService {
       switch (contentType) {
         case 'event':
           query = supabase
-            .from('jambase_events')
+            .from('events')
             .select('*')
             .eq('id', contentId)
             .single();
           break;
         case 'review':
           query = supabase
-            .from('user_reviews')
+            .from('reviews')
             .select(`
               *,
-              user:profiles!user_reviews_user_id_fkey(name, avatar_url)
+              user:users!reviews_user_id_fkey(name, avatar_url)
             `)
             .eq('id', contentId)
             .single();
           break;
         case 'comment':
           query = supabase
-            .from('event_comments')
+            .from('comments')
             .select(`
               *,
-              user:profiles!event_comments_user_id_fkey(name, avatar_url)
+              user:users!comments_user_id_fkey(name, avatar_url)
             `)
             .eq('id', contentId)
             .single();
           break;
         case 'profile':
           query = supabase
-            .from('profiles')
+            .from('users')
             .select('*')
             .eq('user_id', contentId)
             .single();
@@ -281,7 +281,7 @@ export class ContentModerationService {
   static async getUserModerationStatus(userId: string): Promise<any> {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('moderation_status, warning_count, last_warned_at, suspended_until, ban_reason')
         .eq('user_id', userId)
         .single();

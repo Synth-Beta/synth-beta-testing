@@ -18,8 +18,8 @@ export class EventLikesService {
   private static async resolveInternalEventId(eventId: string): Promise<string> {
     const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (uuidV4Regex.test(eventId)) return eventId;
-    const { data } = await (supabase as any)
-      .from('jambase_events')
+    const { data } = await supabase
+      .from('events')
       .select('id')
       .eq('jambase_event_id', eventId)
       .limit(1)
@@ -34,18 +34,25 @@ export class EventLikesService {
     const existingLike = await this.isLikedByUser(userId, eventId);
     if (existingLike) {
       // User already liked this event, return the existing like
-      const { data } = await (supabase as any)
-        .from('event_likes')
+      const { data } = await supabase
+        .from('engagements')
         .select('*')
         .eq('user_id', userId)
-        .eq('event_id', internalEventId)
+        .eq('entity_type', 'event')
+        .eq('entity_id', internalEventId)
+        .eq('engagement_type', 'like')
         .single();
-      return data as EventLike;
+      return data as unknown as EventLike;
     }
     
-    const { data, error } = await (supabase as any)
-      .from('event_likes')
-      .insert({ user_id: userId, event_id: internalEventId })
+    const { data, error } = await supabase
+      .from('engagements')
+      .insert({ 
+        user_id: userId, 
+        entity_type: 'event',
+        entity_id: internalEventId,
+        engagement_type: 'like'
+      })
       .select('*')
       .single();
     if (error) {
@@ -72,11 +79,13 @@ export class EventLikesService {
 
   static async unlikeEvent(userId: string, eventId: string): Promise<void> {
     const internalEventId = await this.resolveInternalEventId(eventId);
-    const { error } = await (supabase as any)
-      .from('event_likes')
+    const { error } = await supabase
+      .from('engagements')
       .delete()
       .eq('user_id', userId)
-      .eq('event_id', internalEventId);
+      .eq('entity_type', 'event')
+      .eq('entity_id', internalEventId)
+      .eq('engagement_type', 'like');
     if (error) {
       if ((error as any).code === 'PGRST205') return; // silent if table missing
       throw error;
@@ -85,18 +94,20 @@ export class EventLikesService {
 
   static async getEventLikers(eventId: string): Promise<LikerProfile[]> {
     const internalEventId = await this.resolveInternalEventId(eventId);
-    const { data, error } = await (supabase as any)
-      .from('event_likes')
+    const { data, error } = await supabase
+      .from('engagements')
       .select('user_id')
-      .eq('event_id', internalEventId);
+      .eq('entity_type', 'event')
+      .eq('entity_id', internalEventId)
+      .eq('engagement_type', 'like');
     if (error) {
       if ((error as any).code === 'PGRST205') return [];
       throw error;
     }
     const userIds = (data || []).map((r: any) => r.user_id);
     if (userIds.length === 0) return [];
-    const { data: profiles, error: profilesError } = await (supabase as any)
-      .from('profiles')
+    const { data: profiles, error: profilesError } = await supabase
+      .from('users')
       .select('id, user_id, name, avatar_url')
       .in('user_id', userIds);
     if (profilesError) throw profilesError;
@@ -106,11 +117,13 @@ export class EventLikesService {
   static async isLikedByUser(userId: string, eventId: string): Promise<boolean> {
     try {
       const internalEventId = await this.resolveInternalEventId(eventId);
-      const { data, error } = await (supabase as any)
-        .from('event_likes')
+      const { data, error } = await supabase
+        .from('engagements')
         .select('id')
         .eq('user_id', userId)
-        .eq('event_id', internalEventId)
+        .eq('entity_type', 'event')
+        .eq('entity_id', internalEventId)
+        .eq('engagement_type', 'like')
         .limit(1)
         .maybeSingle();
       

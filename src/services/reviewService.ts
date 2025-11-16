@@ -274,7 +274,7 @@ export class ReviewService {
       
       if (isUuid) {
         const result = await (supabase as any)
-          .from('user_reviews')
+          .from('reviews')
           .select('id, is_draft')
           .eq('user_id', userId)
           .eq('event_id', eventId)
@@ -337,14 +337,14 @@ export class ReviewService {
 
         // Perform update without returning to avoid 400/406 in some environments
         let { error } = await supabase
-          .from('user_reviews')
+          .from('reviews')
           .update(fullUpdate)
           .eq('id', existingReview.id);
         // Fetch the updated row separately
         let data: any = null;
         if (!error) {
           const fetched = await supabase
-            .from('user_reviews')
+            .from('reviews')
             .select('*')
             .eq('id', existingReview.id)
             .maybeSingle();
@@ -369,7 +369,7 @@ export class ReviewService {
           };
 
           const retry = await supabase
-            .from('user_reviews')
+            .from('reviews')
             .update(legacyUpdate)
             .eq('id', existingReview.id)
             .select()
@@ -387,7 +387,7 @@ export class ReviewService {
       let draftId: string | null = null;
       if (isUuid) {
         const draftResult = await (supabase as any)
-          .from('user_reviews')
+          .from('reviews')
           .select('id')
           .eq('user_id', userId)
           .eq('event_id', eventId)
@@ -439,7 +439,7 @@ export class ReviewService {
         };
 
         let { data, error } = await supabase
-          .from('user_reviews')
+          .from('reviews')
           .update(draftUpdate)
           .eq('id', draftId)
           .select()
@@ -460,7 +460,7 @@ export class ReviewService {
           };
 
           const retry = await supabase
-            .from('user_reviews')
+            .from('reviews')
             .update(legacyDraftUpdate)
             .eq('id', draftId)
             .select()
@@ -516,7 +516,7 @@ export class ReviewService {
       // Debug: Check if the event has artist_uuid populated
       console.log('🔍 ReviewService: Checking event artist_uuid for eventId:', eventId);
       const { data: eventData, error: eventError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('id, artist_uuid, artist_id, artist_name, venue_id')
         .eq('id', eventId)
         .single();
@@ -569,7 +569,7 @@ export class ReviewService {
           if (!isValidUuid(eventArtistUuid)) {
             try {
               const updateResult = await supabase
-                .from('jambase_events')
+                .from('events')
                 .update({ artist_uuid: resolvedArtistUuid })
                 .eq('id', eventId);
               if (updateResult.error) {
@@ -610,7 +610,7 @@ export class ReviewService {
 
       // Try full insert first
       let { data, error } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .insert(insertPayload as any)
         .select()
         .maybeSingle();
@@ -620,7 +620,7 @@ export class ReviewService {
         const err: any = error as any;
         if (err?.code === '23505' || /duplicate key/i.test(err?.message || '')) {
           const upd = await supabase
-            .from('user_reviews')
+            .from('reviews')
             .update(insertPayload as any)
             .eq('user_id', userId)
             .eq('event_id', eventId)
@@ -648,7 +648,7 @@ export class ReviewService {
         };
 
         const retry = await supabase
-          .from('user_reviews')
+          .from('reviews')
           .insert(legacyInsert)
           .select()
           .single();
@@ -663,7 +663,7 @@ export class ReviewService {
       if (isUuid && data) {
         try {
           const deleteResult = await (supabase as any)
-            .from('user_reviews')
+            .from('reviews')
             .delete()
             .eq('user_id', userId)
             .eq('event_id', eventId)
@@ -703,7 +703,7 @@ export class ReviewService {
       }
 
       const { data, error } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select('*')
         .eq('user_id', userId)
         .eq('event_id', eventId)
@@ -739,7 +739,7 @@ export class ReviewService {
     try {
       // Get reviews with user engagement data
       const { data: reviews, error } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select(`
           *,
           jambase_events: jambase_events (id, title, artist_name, artist_id, venue_name, venue_id, event_date),
@@ -755,12 +755,14 @@ export class ReviewService {
       let userLikes: string[] = [];
       if (userId) {
         const { data: likes } = await supabase
-          .from('review_likes')
-          .select('review_id')
+          .from('engagements')
+          .select('entity_id')
           .eq('user_id', userId)
-          .in('review_id', reviews?.map(r => r.id) || []);
+          .eq('entity_type', 'review')
+          .eq('engagement_type', 'like')
+          .in('entity_id', reviews?.map(r => r.id) || []);
         
-        userLikes = likes?.map(l => l.review_id) || [];
+        userLikes = likes?.map(l => l.entity_id) || [];
       }
 
       // Process reviews with engagement data
@@ -810,7 +812,7 @@ export class ReviewService {
       console.log('🔍 ReviewService: Getting user review history for userId:', userId);
       
       const { data, error } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select(`
           *,
           jambase_events: jambase_events (
@@ -912,7 +914,7 @@ export class ReviewService {
 
         // Use 'as any' to bypass type error since 'rank_order' exists in DB but not in generated types
         const { error } = await (supabase as any)
-          .from('user_reviews')
+          .from('reviews')
           .update({ rank_order: u.rank_order })
           .eq('id', u.id)
           .eq('user_id', userId);
@@ -936,7 +938,7 @@ export class ReviewService {
   static async clearRankOnRatingChange(reviewId: string): Promise<void> {
     try {
       const { error } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .update({ rank_order: null })
         .eq('id', reviewId);
       if (error) throw error;
@@ -952,7 +954,7 @@ export class ReviewService {
     try {
       console.log('🗑️ Deleting review:', { userId, reviewId });
       const { error } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .delete()
         .eq('id', reviewId)
         .eq('user_id', userId);
@@ -978,10 +980,12 @@ export class ReviewService {
       // Check if user already liked this review
       console.log('🔍 ReviewService: Checking for existing like...');
       const { data: existingLike, error: checkError } = await supabase
-        .from('review_likes')
+        .from('engagements')
         .select('id')
         .eq('user_id', userId)
-        .eq('review_id', reviewId)
+        .eq('entity_type', 'review')
+        .eq('entity_id', reviewId)
+        .eq('engagement_type', 'like')
         .maybeSingle();
 
       console.log('🔍 ReviewService: Existing like check result:', { existingLike, checkError });
@@ -998,10 +1002,12 @@ export class ReviewService {
 
       console.log('🔍 ReviewService: Inserting new like...');
       const { data, error } = await supabase
-        .from('review_likes')
+        .from('engagements')
         .insert({
           user_id: userId,
-          review_id: reviewId
+          entity_type: 'review',
+          entity_id: reviewId,
+          engagement_type: 'like'
         })
         .select()
         .single();
@@ -1015,10 +1021,12 @@ export class ReviewService {
           console.log('🔍 ReviewService: Duplicate key error, fetching existing like...');
           // Try to get the existing like
           const { data: existing } = await supabase
-            .from('review_likes')
+            .from('engagements')
             .select('*')
             .eq('user_id', userId)
-            .eq('review_id', reviewId)
+            .eq('entity_type', 'review')
+            .eq('entity_id', reviewId)
+            .eq('engagement_type', 'like')
             .single();
           console.log('✅ ReviewService: Found existing like after duplicate error:', existing);
           return existing as ReviewLike;
@@ -1040,10 +1048,12 @@ export class ReviewService {
   static async unlikeReview(userId: string, reviewId: string): Promise<void> {
     try {
       const { error } = await supabase
-        .from('review_likes')
+        .from('engagements')
         .delete()
         .eq('user_id', userId)
-        .eq('review_id', reviewId);
+        .eq('entity_type', 'review')
+        .eq('entity_id', reviewId)
+        .eq('engagement_type', 'like');
 
       if (error) throw error;
     } catch (error) {
@@ -1063,10 +1073,11 @@ export class ReviewService {
   ): Promise<ReviewComment> {
     try {
       const { data, error } = await supabase
-        .from('review_comments')
+        .from('comments')
         .insert({
           user_id: userId,
-          review_id: reviewId,
+          entity_type: 'review',
+          entity_id: reviewId,
           comment_text: commentText,
           parent_comment_id: parentCommentId
         })
@@ -1092,9 +1103,10 @@ export class ReviewService {
     try {
       // First, get the comments
       const { data: comments, error: commentsError } = await supabase
-        .from('review_comments')
+        .from('comments')
         .select('*')
-        .eq('review_id', reviewId)
+        .eq('entity_type', 'review')
+        .eq('entity_id', reviewId)
         .order('created_at', { ascending: true });
 
       if (commentsError) throw commentsError;
@@ -1151,11 +1163,14 @@ export class ReviewService {
   ): Promise<ReviewShare> {
     try {
       const { data, error } = await supabase
-        .from('review_shares')
+        .from('engagements')
         .insert({
           user_id: userId,
-          review_id: reviewId,
-          share_platform: platform
+          entity_type: 'review',
+          entity_id: reviewId,
+          engagement_type: 'share',
+          engagement_value: platform || 'unknown',
+          metadata: { review_id: reviewId, share_platform: platform }
         })
         .select()
         .single();
@@ -1227,7 +1242,7 @@ export class ReviewService {
       
       // Use direct read-modify-write approach since RPC function may not exist
       const { data: current, error: fetchError } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select('likes_count, comments_count, shares_count')
         .eq('id', reviewId)
         .single();
@@ -1243,7 +1258,7 @@ export class ReviewService {
       console.log('🔍 ReviewService: Updating count', { currentCount, nextCount });
       
       const { error: updateError } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .update({ [column]: nextCount })
         .eq('id', reviewId);
       
@@ -1282,7 +1297,7 @@ export class ReviewService {
       
       // Get review counts
       const { data: reviewData, error: reviewError } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select('likes_count, comments_count, shares_count')
         .eq('id', reviewId)
         .single();
@@ -1296,9 +1311,11 @@ export class ReviewService {
       let isLiked = false;
       if (userId) {
         const { data: likeData, error: likeError } = await supabase
-          .from('review_likes')
+          .from('engagements')
           .select('id')
-          .eq('review_id', reviewId)
+          .eq('entity_type', 'review')
+          .eq('entity_id', reviewId)
+          .eq('engagement_type', 'like')
           .eq('user_id', userId)
           .maybeSingle();
         
@@ -1330,7 +1347,7 @@ export class ReviewService {
   ): Promise<Record<string, { likes_count: number; comments_count: number; shares_count: number; is_liked_by_user: boolean }>> {
     try {
       const { data, error } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select(`
           id, 
           likes_count, 
@@ -1370,7 +1387,7 @@ export class ReviewService {
     try {
       const column = `${type}_tags`;
       const { data, error } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select(column)
         .not(column, 'is', null)
         .eq('is_public', true);
@@ -1456,7 +1473,7 @@ export class ReviewService {
     try {
       // Get reviews with user engagement data
       const { data: reviews, error } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select(`
           *,
           review_likes!left(id, user_id)
@@ -1471,12 +1488,14 @@ export class ReviewService {
       let userLikes: string[] = [];
       if (userId) {
         const { data: likes } = await supabase
-          .from('review_likes')
-          .select('review_id')
+          .from('engagements')
+          .select('entity_id')
           .eq('user_id', userId)
-          .in('review_id', reviews?.map(r => r.id) || []);
+          .eq('entity_type', 'review')
+          .eq('engagement_type', 'like')
+          .in('entity_id', reviews?.map(r => r.id) || []);
         
-        userLikes = likes?.map(l => l.review_id) || [];
+        userLikes = likes?.map(l => l.entity_id) || [];
       }
 
       // Process reviews with engagement data
@@ -1520,7 +1539,7 @@ export class ReviewService {
     try {
       // Get reviews with user engagement data
       const { data: reviews, error } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select(`
           *,
           review_likes!left(id, user_id)
@@ -1535,12 +1554,14 @@ export class ReviewService {
       let userLikes: string[] = [];
       if (userId) {
         const { data: likes } = await supabase
-          .from('review_likes')
-          .select('review_id')
+          .from('engagements')
+          .select('entity_id')
           .eq('user_id', userId)
-          .in('review_id', reviews?.map(r => r.id) || []);
+          .eq('entity_type', 'review')
+          .eq('engagement_type', 'like')
+          .in('entity_id', reviews?.map(r => r.id) || []);
         
-        userLikes = likes?.map(l => l.review_id) || [];
+        userLikes = likes?.map(l => l.entity_id) || [];
       }
 
       // Process reviews with engagement data

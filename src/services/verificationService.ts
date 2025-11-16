@@ -33,29 +33,33 @@ export class VerificationService {
 
       // Get review count
       const { count: reviewCount } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
 
       // Get friend count
       const { count: friendCount } = await supabase
-        .from('friendships')
+        .from('relationships')
         .select('*', { count: 'exact', head: true })
-        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
-        .eq('status', 'accepted');
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`);
 
       // Get event interest count
       const { count: eventCount } = await supabase
-        .from('user_jambase_events')
+        .from('relationships')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('related_entity_type', 'event')
+        .in('relationship_type', ['interest', 'going', 'maybe']);
 
       // Get attended event count (events with reviews)
       const { count: attendedCount } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .not('attended_date', 'is', null);
+        .eq('was_there', true);
 
       // Calculate trust score
       const trustScoreBreakdown = calculateUserTrustScore(
@@ -68,7 +72,7 @@ export class VerificationService {
 
       // Update profile with new trust score and verification status
       const { error: updateError } = await supabase
-        .from('profiles')
+        .from('users')
         .update({
           trust_score: trustScoreBreakdown.score,
           verification_criteria_met: trustScoreBreakdown.criteria,
@@ -99,7 +103,7 @@ export class VerificationService {
     try {
       // Get profile data
       const { data: profile, error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('user_id', userId)
         .single();
@@ -110,29 +114,33 @@ export class VerificationService {
 
       // Get review count
       const { count: reviewCount } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
 
       // Get friend count
       const { count: friendCount } = await supabase
-        .from('friendships')
+        .from('relationships')
         .select('*', { count: 'exact', head: true })
-        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
-        .eq('status', 'accepted');
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`);
 
       // Get event interest count
       const { count: eventCount } = await supabase
-        .from('user_jambase_events')
+        .from('relationships')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('related_entity_type', 'event')
+        .in('relationship_type', ['interest', 'going', 'maybe']);
 
       // Get attended event count
       const { count: attendedCount } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .not('attended_date', 'is', null);
+        .eq('was_there', true);
 
       return calculateUserTrustScore(
         profile,
@@ -165,7 +173,7 @@ export class VerificationService {
     try {
       // Check if the requesting user is an admin
       const { data: adminProfile } = await supabase
-        .from('profiles')
+        .from('users')
         .select('account_type')
         .eq('user_id', adminUserId)
         .single();
@@ -176,7 +184,7 @@ export class VerificationService {
 
       // Update the target user's verification status
       const { error } = await supabase
-        .from('profiles')
+        .from('users')
         .update({
           verified,
           verified_by: verified ? adminUserId : null,
@@ -199,7 +207,7 @@ export class VerificationService {
   static async getUsersNearVerification(limit: number = 50): Promise<any[]> {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('account_type', 'user')
         .eq('verified', false)

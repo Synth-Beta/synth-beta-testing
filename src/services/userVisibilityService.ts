@@ -175,7 +175,7 @@ export class UserVisibilityService {
   } | null> {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('avatar_url, is_public_profile, last_active_at')
         .eq('user_id', userId)
         .single();
@@ -205,7 +205,7 @@ export class UserVisibilityService {
   ): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('users')
         .update({ is_public_profile: isPublic })
         .eq('user_id', userId);
 
@@ -227,7 +227,7 @@ export class UserVisibilityService {
   static async hasProfilePicture(userId: string): Promise<boolean> {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('avatar_url')
         .eq('user_id', userId)
         .single();
@@ -250,9 +250,12 @@ export class UserVisibilityService {
   static async getFriendIds(currentUserId: string): Promise<string[]> {
     try {
       const { data, error } = await supabase
-        .from('friends')
-        .select('user1_id, user2_id')
-        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
+        .from('relationships')
+        .select('user_id, related_entity_id')
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${currentUserId},related_entity_id.eq.${currentUserId}`);
 
       if (error) {
         console.error('Error fetching friends:', error);
@@ -261,9 +264,9 @@ export class UserVisibilityService {
 
       // Extract the friend IDs (the other user in each friendship)
       return (data || []).map(friendship => 
-        friendship.user1_id === currentUserId 
-          ? friendship.user2_id 
-          : friendship.user1_id
+        friendship.user_id === currentUserId 
+          ? friendship.related_entity_id 
+          : friendship.user_id
       );
     } catch (error) {
       console.error('Failed to fetch friends:', error);

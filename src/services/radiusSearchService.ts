@@ -101,7 +101,7 @@ export class RadiusSearchService {
       const lngRange = radiusMiles / (69 * Math.cos(centerCoords.lat * Math.PI / 180)); // Adjust for longitude
 
       const { data, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .gte('event_date', new Date().toISOString())
         .gte('latitude', centerCoords.lat - latRange)
@@ -181,7 +181,7 @@ export class RadiusSearchService {
       const lngRange = radiusMiles / (69 * Math.cos(centerCoords.lat * Math.PI / 180)); // Adjust for longitude
 
       const { data, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .gte('event_date', new Date().toISOString())
         .gte('latitude', centerCoords.lat - latRange)
@@ -245,7 +245,7 @@ export class RadiusSearchService {
     try {
       // For now, get unique zip codes from events in the city until RPC functions are available
       let query = supabase
-        .from('jambase_events')
+        .from('events')
         .select('venue_zip, venue_city, venue_state, latitude, longitude')
         .eq('venue_city', city)
         .gte('event_date', new Date().toISOString())
@@ -288,7 +288,7 @@ export class RadiusSearchService {
     try {
       // For now, get coordinates from jambase_events until zip_codes table is available
       const { data, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('latitude, longitude')
         .eq('venue_zip', zipCode)
         .not('latitude', 'is', null)
@@ -318,7 +318,7 @@ export class RadiusSearchService {
       
       // Try exact match first
       let query = supabase
-        .from('jambase_events')
+        .from('events')
         .select('latitude, longitude, venue_city, venue_state')
         .ilike('venue_city', `%${normalizedCity}%`)
         .not('latitude', 'is', null)

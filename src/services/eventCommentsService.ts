@@ -25,8 +25,8 @@ export class EventCommentsService {
   private static async resolveInternalEventId(eventId: string): Promise<string> {
     const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (uuidV4Regex.test(eventId)) return eventId;
-    const { data } = await (supabase as any)
-      .from('jambase_events')
+    const { data } = await supabase
+      .from('events')
       .select('id')
       .eq('jambase_event_id', eventId)
       .limit(1)
@@ -38,9 +38,10 @@ export class EventCommentsService {
     
     // Get total count
     const { count, error: countError } = await supabase
-      .from('event_comments' as any)
+      .from('comments')
       .select('*', { count: 'exact', head: true })
-      .eq('event_id', internalEventId);
+      .eq('entity_type', 'event')
+      .eq('entity_id', internalEventId);
     
     if (countError && (countError as any).code !== 'PGRST205') {
       throw countError;
@@ -50,16 +51,17 @@ export class EventCommentsService {
     
     // Get comments with pagination
     const { data: comments, error: commentsError } = await supabase
-      .from('event_comments' as any)
+      .from('comments')
       .select('*')
-      .eq('event_id', internalEventId)
+      .eq('entity_type', 'event')
+      .eq('entity_id', internalEventId)
       .order('created_at', { ascending: true })
       .range(offset, offset + limit - 1);
     
     if (commentsError) {
       // Gracefully handle missing table in environments where migration hasn't run
       if ((commentsError as any).code === 'PGRST205') {
-        console.warn('event_comments table not found. Did you run the migration 20250923_add_event_comments.sql?');
+        console.warn('comments table not found. Did you run the consolidation migration?');
         return { comments: [], total: 0, hasMore: false };
       }
       throw commentsError;
@@ -68,7 +70,7 @@ export class EventCommentsService {
 
     const userIds = [...new Set(comments.map((c: any) => c.user_id))];
     const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
+      .from('users')
       .select('id, name, avatar_url, user_id')
       .in('user_id', userIds);
 
@@ -103,10 +105,11 @@ export class EventCommentsService {
   ): Promise<EventComment> {
     const internalEventId = await this.resolveInternalEventId(eventId);
     const { data, error } = await supabase
-      .from('event_comments' as any)
+      .from('comments')
       .insert({
         user_id: userId,
-        event_id: internalEventId,
+        entity_type: 'event',
+        entity_id: internalEventId,
         comment_text: commentText,
         parent_comment_id: parentCommentId
       })
@@ -115,7 +118,7 @@ export class EventCommentsService {
     
     if (error) {
       if ((error as any).code === 'PGRST205') {
-        throw new Error('Event comments are not yet enabled. Please apply the Supabase migration 20250923_add_event_comments.sql.');
+        throw new Error('Event comments are not yet enabled. Please apply the consolidation migration.');
       }
       // Fix: Cast error to unknown first before throwing, to avoid type issues.
       throw error as unknown;

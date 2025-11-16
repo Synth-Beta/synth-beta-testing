@@ -604,7 +604,7 @@ export class UnifiedArtistSearchService {
     try {
       // Get events from database to extract unique artists
       const { data: events, error } = await (supabase as any)
-        .from('jambase_events')
+        .from('events')
         .select('artist_name, artist_id, genres')
         .ilike('artist_name', `%${query}%`)
         .order('event_date', { ascending: false })
@@ -789,7 +789,7 @@ export class UnifiedArtistSearchService {
       console.log(`🎵 Searching events for: "${query}" with limit: ${limit}`);
       
       const { data: events, error } = await (supabase as any)
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .or(`artist_name.ilike.%${query}%,venue_name.ilike.%${query}%,title.ilike.%${query}%`)
         .order('event_date', { ascending: true })
@@ -815,8 +815,8 @@ export class UnifiedArtistSearchService {
     try {
       console.log(`👤 Searching users for: "${query}" with limit: ${limit}`);
       
-      const { data: users, error } = await (supabase as any)
-        .from('profiles')
+      const { data: users, error } = await supabase
+        .from('users')
         .select('user_id, name, bio, avatar_url, instagram_handle')
         .or(`name.ilike.%${query}%,bio.ilike.%${query}%,instagram_handle.ilike.%${query}%`)
         .order('created_at', { ascending: false })

@@ -275,7 +275,7 @@ class InteractionTrackingService {
 
       // Use insert instead of rpc due to lint error and to match table structure
       const { error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .insert([{
           user_id: user.id,
           session_id: event.sessionId || this.sessionId,
@@ -354,7 +354,7 @@ class InteractionTrackingService {
 
       // Use direct insert instead of RPC for better compatibility
       const { error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .insert(dbBatch);
 
       if (error) {

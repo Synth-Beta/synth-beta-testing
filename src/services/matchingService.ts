@@ -44,14 +44,20 @@ export class MatchingService {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('User not authenticated');
 
-      // Record swipe
+      // Record swipe in engagements table
       const { error } = await supabase
-        .from('user_swipes')
+        .from('engagements')
         .insert({
-          swiper_user_id: user.id,
-          swiped_user_id: action.swiped_user_id,
-          event_id: action.event_id,
-          is_interested: action.is_interested,
+          user_id: user.id,
+          entity_type: 'user',
+          entity_id: action.swiped_user_id,
+          engagement_type: 'swipe',
+          engagement_value: action.is_interested ? 'right' : 'left',
+          metadata: {
+            event_id: action.event_id,
+            swiped_user_id: action.swiped_user_id,
+            is_interested: action.is_interested
+          }
         });
 
       if (error) throw error;
@@ -77,33 +83,48 @@ export class MatchingService {
     try {
       // Check if other user also swiped right
       const { data: reciprocalSwipe } = await supabase
-        .from('user_swipes')
+        .from('engagements')
         .select('*')
-        .eq('swiper_user_id', user2_id)
-        .eq('swiped_user_id', user1_id)
-        .eq('event_id', event_id)
-        .eq('is_interested', true)
+        .eq('user_id', user2_id)
+        .eq('entity_type', 'user')
+        .eq('entity_id', user1_id)
+        .eq('engagement_type', 'swipe')
+        .eq('engagement_value', 'right')
+        .eq('metadata->>event_id', event_id)
         .single();
 
       if (reciprocalSwipe) {
-        // Create match!
-        await supabase.from('matches').insert({
-          user1_id,
-          user2_id,
-          event_id,
-        });
+        // Create match in relationships table (bidirectional - create 2 rows)
+        await supabase.from('relationships').insert([
+          {
+            user_id: user1_id,
+            related_entity_type: 'user',
+            related_entity_id: user2_id,
+            relationship_type: 'match',
+            status: 'accepted',
+            metadata: { event_id, matched_user_id: user2_id }
+          },
+          {
+            user_id: user2_id,
+            related_entity_type: 'user',
+            related_entity_id: user1_id,
+            relationship_type: 'match',
+            status: 'accepted',
+            metadata: { event_id, matched_user_id: user1_id }
+          }
+        ]);
 
         // Send match notifications to both users
         const { data: eventData } = await supabase
-          .from('jambase_events')
+          .from('events')
           .select('title, artist_name')
           .eq('id', event_id)
           .single();
 
         // Get user names for personalized notifications
         const [user1Profile, user2Profile] = await Promise.all([
-          supabase.from('profiles').select('name').eq('user_id', user1_id).single(),
-          supabase.from('profiles').select('name').eq('user_id', user2_id).single(),
+          supabase.from('users').select('name').eq('user_id', user1_id).single(),
+          supabase.from('users').select('name').eq('user_id', user2_id).single(),
         ]);
 
         const user1Name = user1Profile.data?.name || 'Someone';
@@ -167,9 +188,11 @@ export class MatchingService {
       // - Blocked users
       // First get the user IDs interested in this event
       const { data: eventUsers, error: eventUsersError } = await supabase
-        .from('user_jambase_events')
+        .from('relationships')
         .select('user_id')
-        .eq('jambase_event_id', eventId)
+        .eq('related_entity_type', 'event')
+        .eq('related_entity_id', eventId)
+        .in('relationship_type', ['interest', 'going', 'maybe'])
         .neq('user_id', user.id);
 
       if (eventUsersError) throw eventUsersError;
@@ -181,7 +204,7 @@ export class MatchingService {
       // Then get the profile data for these users
       const userIds = eventUsers.map(item => item.user_id);
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select(`
           user_id,
           name,
@@ -203,11 +226,13 @@ export class MatchingService {
 
           // Check if already swiped
           const { data: existingSwipe } = await supabase
-            .from('user_swipes')
+            .from('engagements')
             .select('id')
-            .eq('swiper_user_id', user.id)
-            .eq('swiped_user_id', profile.user_id)
-            .eq('event_id', eventId)
+            .eq('user_id', user.id)
+            .eq('entity_type', 'user')
+            .eq('entity_id', profile.user_id)
+            .eq('engagement_type', 'swipe')
+            .eq('metadata->>event_id', eventId)
             .single();
 
           if (existingSwipe) return null;
@@ -263,34 +288,39 @@ export class MatchingService {
     user2_id: string
   ): Promise<number> {
     try {
-      // Get both users' music preference data
+      // Get both users' music preference data from user_preferences table
       const [user1Prefs, user2Prefs] = await Promise.all([
         supabase
-          .from('music_preference_signals')
-          .select('preference_type, preference_value, preference_score')
-          .eq('user_id', user1_id),
+          .from('user_preferences')
+          .select('music_preference_signals')
+          .eq('user_id', user1_id)
+          .single(),
         supabase
-          .from('music_preference_signals')
-          .select('preference_type, preference_value, preference_score')
-          .eq('user_id', user2_id),
+          .from('user_preferences')
+          .select('music_preference_signals')
+          .eq('user_id', user2_id)
+          .single(),
       ]);
 
-      if (!user1Prefs.data || !user2Prefs.data) return 50; // Default score
+      const user1Signals = user1Prefs.data?.music_preference_signals || [];
+      const user2Signals = user2Prefs.data?.music_preference_signals || [];
+
+      if (!user1Signals.length || !user2Signals.length) return 50; // Default score
 
       // Separate artists and genres
-      const user1Artists = user1Prefs.data
-        .filter(p => p.preference_type === 'artist')
-        .map(p => p.preference_value.toLowerCase());
-      const user1Genres = user1Prefs.data
-        .filter(p => p.preference_type === 'genre')
-        .map(p => p.preference_value.toLowerCase());
+      const user1Artists = user1Signals
+        .filter((p: any) => p.preference_type === 'artist')
+        .map((p: any) => p.preference_value.toLowerCase());
+      const user1Genres = user1Signals
+        .filter((p: any) => p.preference_type === 'genre')
+        .map((p: any) => p.preference_value.toLowerCase());
       
-      const user2Artists = user2Prefs.data
-        .filter(p => p.preference_type === 'artist')
-        .map(p => p.preference_value.toLowerCase());
-      const user2Genres = user2Prefs.data
-        .filter(p => p.preference_type === 'genre')
-        .map(p => p.preference_value.toLowerCase());
+      const user2Artists = user2Signals
+        .filter((p: any) => p.preference_type === 'artist')
+        .map((p: any) => p.preference_value.toLowerCase());
+      const user2Genres = user2Signals
+        .filter((p: any) => p.preference_type === 'genre')
+        .map((p: any) => p.preference_value.toLowerCase());
 
       // Calculate overlap
       const sharedArtists = this.calculateOverlap(user1Artists, user2Artists);
@@ -326,32 +356,37 @@ export class MatchingService {
     try {
       const [user1Prefs, user2Prefs] = await Promise.all([
         supabase
-          .from('music_preference_signals')
-          .select('preference_type, preference_value')
-          .eq('user_id', user1_id),
+          .from('user_preferences')
+          .select('music_preference_signals')
+          .eq('user_id', user1_id)
+          .single(),
         supabase
-          .from('music_preference_signals')
-          .select('preference_type, preference_value')
-          .eq('user_id', user2_id),
+          .from('user_preferences')
+          .select('music_preference_signals')
+          .eq('user_id', user2_id)
+          .single(),
       ]);
 
-      if (!user1Prefs.data || !user2Prefs.data) {
+      const user1Signals = user1Prefs.data?.music_preference_signals || [];
+      const user2Signals = user2Prefs.data?.music_preference_signals || [];
+
+      if (!user1Signals.length || !user2Signals.length) {
         return { artists: [], genres: [] };
       }
 
-      const user1Artists = user1Prefs.data
-        .filter(p => p.preference_type === 'artist')
-        .map(p => p.preference_value);
-      const user1Genres = user1Prefs.data
-        .filter(p => p.preference_type === 'genre')
-        .map(p => p.preference_value);
+      const user1Artists = user1Signals
+        .filter((p: any) => p.preference_type === 'artist')
+        .map((p: any) => p.preference_value);
+      const user1Genres = user1Signals
+        .filter((p: any) => p.preference_type === 'genre')
+        .map((p: any) => p.preference_value);
       
-      const user2Artists = user2Prefs.data
-        .filter(p => p.preference_type === 'artist')
-        .map(p => p.preference_value);
-      const user2Genres = user2Prefs.data
-        .filter(p => p.preference_type === 'genre')
-        .map(p => p.preference_value);
+      const user2Artists = user2Signals
+        .filter((p: any) => p.preference_type === 'artist')
+        .map((p: any) => p.preference_value);
+      const user2Genres = user2Signals
+        .filter((p: any) => p.preference_type === 'genre')
+        .map((p: any) => p.preference_value);
 
       // Find intersections
       const sharedArtists = user1Artists.filter(artist => 
@@ -392,7 +427,7 @@ export class MatchingService {
 
       // Get event details for chat name
       const { data: eventData } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('title, artist_name')
         .eq('id', eventId)
         .single();
@@ -431,38 +466,46 @@ export class MatchingService {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('User not authenticated');
 
+      // Get matches from relationships table
       const { data, error } = await supabase
-        .from('matches')
-        .select(`
-          *,
-          event:event_id (
-            id,
-            title,
-            artist_name,
-            venue_name,
-            event_date
-          )
-        `)
-        .eq('event_id', eventId)
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+        .from('relationships')
+        .select('*')
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'match')
+        .eq('user_id', user.id)
+        .eq('metadata->>event_id', eventId);
 
       if (error) throw error;
 
-      // Get matched user profiles
+      // Get matched user profiles and event data
       const matchesWithProfiles = await Promise.all(
         (data || []).map(async (match: any) => {
-          const matchedUserId =
-            match.user1_id === user.id ? match.user2_id : match.user1_id;
+          // In relationships table, related_entity_id is the matched user
+          const matchedUserId = match.related_entity_id;
+          const eventIdFromMetadata = match.metadata?.event_id;
 
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('user_id, name, avatar_url, bio')
-            .eq('user_id', matchedUserId)
-            .single();
+          const [profile, eventData] = await Promise.all([
+            supabase
+              .from('users')
+              .select('user_id, name, avatar_url, bio')
+              .eq('user_id', matchedUserId)
+              .single(),
+            eventIdFromMetadata
+              ? supabase
+                  .from('events')
+                  .select('id, title, artist_name, venue_name, event_date')
+                  .eq('id', eventIdFromMetadata)
+                  .single()
+              : Promise.resolve({ data: null })
+          ]);
 
           return {
             ...match,
-            matched_user: profile,
+            user1_id: match.user_id,
+            user2_id: match.related_entity_id,
+            event_id: eventIdFromMetadata || eventId,
+            matched_user: profile.data,
+            event: eventData.data,
           };
         })
       );
@@ -483,38 +526,44 @@ export class MatchingService {
       if (userError || !user) throw new Error('User not authenticated');
 
       const { data, error } = await supabase
-        .from('matches')
-        .select(`
-          *,
-          event:event_id (
-            id,
-            title,
-            artist_name,
-            venue_name,
-            event_date,
-            poster_image_url
-          )
-        `)
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+        .from('relationships')
+        .select('*')
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'match')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Get matched user profiles
+      // Get matched user profiles and event data
       const matchesWithProfiles = await Promise.all(
         (data || []).map(async (match: any) => {
-          const matchedUserId =
-            match.user1_id === user.id ? match.user2_id : match.user1_id;
+          // In relationships table, related_entity_id is the matched user
+          const matchedUserId = match.related_entity_id;
+          const eventIdFromMetadata = match.metadata?.event_id;
 
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('user_id, name, avatar_url, bio, music_streaming_profile')
-            .eq('user_id', matchedUserId)
-            .single();
+          const [profile, eventData] = await Promise.all([
+            supabase
+              .from('users')
+              .select('user_id, name, avatar_url, bio, music_streaming_profile')
+              .eq('user_id', matchedUserId)
+              .single(),
+            eventIdFromMetadata
+              ? supabase
+                  .from('events')
+                  .select('id, title, artist_name, venue_name, event_date, poster_image_url')
+                  .eq('id', eventIdFromMetadata)
+                  .single()
+              : Promise.resolve({ data: null })
+          ]);
 
           return {
             ...match,
-            matched_user: profile,
+            user1_id: match.user_id,
+            user2_id: match.related_entity_id,
+            event_id: eventIdFromMetadata || '',
+            matched_user: profile.data,
+            event: eventData.data,
           };
         })
       );
@@ -535,11 +584,13 @@ export class MatchingService {
       if (userError || !user) throw new Error('User not authenticated');
 
       const { data } = await supabase
-        .from('user_swipes')
+        .from('engagements')
         .select('id')
-        .eq('swiper_user_id', user.id)
-        .eq('swiped_user_id', userId)
-        .eq('event_id', eventId)
+        .eq('user_id', user.id)
+        .eq('entity_type', 'user')
+        .eq('entity_id', userId)
+        .eq('engagement_type', 'swipe')
+        .eq('metadata->>event_id', eventId)
         .single();
 
       return !!data;
@@ -557,9 +608,11 @@ export class MatchingService {
       if (userError || !user) return 0;
 
       const { count, error } = await supabase
-        .from('matches')
+        .from('relationships')
         .select('*', { count: 'exact', head: true })
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'match')
+        .eq('user_id', user.id);
 
       if (error) throw error;
       return count || 0;

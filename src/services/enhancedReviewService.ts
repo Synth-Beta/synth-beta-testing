@@ -88,12 +88,14 @@ export class EnhancedReviewService {
       let userLikes: string[] = [];
       if (userId) {
         const { data: likes } = await supabase
-          .from('review_likes')
-          .select('review_id')
+          .from('engagements')
+          .select('entity_id')
           .eq('user_id', userId)
-          .in('review_id', reviews?.map(r => r.id) || []);
+          .eq('entity_type', 'review')
+          .eq('engagement_type', 'like')
+          .in('entity_id', reviews?.map(r => r.id) || []);
         
-        userLikes = likes?.map(l => l.review_id) || [];
+        userLikes = likes?.map(l => l.entity_id) || [];
       }
 
       // Process reviews with engagement data

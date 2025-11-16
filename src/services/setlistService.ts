@@ -250,7 +250,7 @@ export class SetlistService {
   private static async searchSetlistsFromDatabase(params: SetlistSearchParams): Promise<SetlistData[] | null> {
     try {
       let query = supabase
-        .from('jambase_events')
+        .from('events')
         .select('setlist, artist_name, venue_name, event_date')
         .not('setlist', 'is', null);
 
@@ -299,7 +299,7 @@ export class SetlistService {
   static async getSetlistForEvent(eventId: string): Promise<SetlistData | null> {
     try {
       const { data, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('setlist, setlist_enriched, setlist_song_count, setlist_fm_id, artist_name, venue_name, event_date')
         .eq('id', eventId)
         .single();

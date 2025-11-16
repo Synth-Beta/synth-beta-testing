@@ -54,19 +54,21 @@ export class CreatorAnalyticsService {
    */
   static async getCreatorStats(creatorId: string): Promise<CreatorStats> {
     try {
-      // Get follower count
-      const { count: followerCount } = await (supabase as any)
-        .from('artist_follows')
+      // Get follower count from relationships table
+      const { count: followerCount } = await supabase
+        .from('relationships')
         .select('*', { count: 'exact', head: true })
-        .eq('artist_id', creatorId);
+        .eq('related_entity_type', 'artist')
+        .eq('relationship_type', 'follow')
+        .eq('related_entity_id', creatorId);
 
       // Get events created or claimed by this creator
       console.log('🔍 CreatorAnalyticsService: Searching for events with creatorId:', creatorId);
       
-      const { data: creatorEvents, error: eventsError } = await (supabase as any)
-        .from('jambase_events')
-        .select('id, title, artist_name, venue_name, event_date, created_by_user_id, claimed_by_creator_id')
-        .or(`created_by_user_id.eq.${creatorId},claimed_by_creator_id.eq.${creatorId}`);
+      const { data: creatorEvents, error: eventsError } = await supabase
+        .from('events')
+        .select('id, title, artist_name, venue_name, event_date, created_by_user_id')
+        .eq('created_by_user_id', creatorId);
 
       if (eventsError) {
         console.error('❌ CreatorAnalyticsService: Error fetching events:', eventsError);
@@ -77,16 +79,15 @@ export class CreatorAnalyticsService {
         console.log('📊 CreatorAnalyticsService: Event details:', creatorEvents.map(e => ({
           id: e.id,
           title: e.title,
-          created_by: e.created_by_user_id,
-          claimed_by: e.claimed_by_creator_id
+          created_by: e.created_by_user_id
         })));
       } else {
         console.log('⚠️ CreatorAnalyticsService: No events found. Let me check all events in database...');
         
         // Debug: Check all events to see what's in the database
-        const { data: allEvents, error: allEventsError } = await (supabase as any)
-          .from('jambase_events')
-          .select('id, title, artist_name, created_by_user_id, claimed_by_creator_id')
+        const { data: allEvents, error: allEventsError } = await supabase
+          .from('events')
+          .select('id, title, artist_name, created_by_user_id')
           .limit(10);
         
         if (allEventsError) {
@@ -95,8 +96,7 @@ export class CreatorAnalyticsService {
           console.log('📊 CreatorAnalyticsService: Sample events in database:', allEvents?.map(e => ({
             id: e.id,
             title: e.title,
-            created_by: e.created_by_user_id,
-            claimed_by: e.claimed_by_creator_id
+            created_by: e.created_by_user_id
           })));
         }
       }
@@ -133,13 +133,13 @@ export class CreatorAnalyticsService {
       }
 
       // Get reviews for this creator's events
-      const { data: reviews } = await (supabase as any)
-        .from('user_reviews')
+      const { data: reviews } = await supabase
+        .from('reviews')
         .select(`
           *,
-          jambase_events!inner(id, artist_name)
+          event:events!inner(id, artist_name)
         `)
-        .in('jambase_events.id', eventIds);
+        .in('event_id', eventIds);
 
       console.log('🔍 CreatorAnalyticsService: Found reviews for events:', reviews?.length || 0);
 
@@ -193,11 +193,11 @@ export class CreatorAnalyticsService {
    */
   static async getFanInsights(creatorId: string): Promise<FanInsight[]> {
     try {
-      // Get events created or claimed by this creator
-      const { data: events } = await (supabase as any)
-        .from('jambase_events')
+      // Get events created by this creator
+      const { data: events } = await supabase
+        .from('events')
         .select('*')
-        .or(`created_by_user_id.eq.${creatorId},claimed_by_creator_id.eq.${creatorId}`);
+        .eq('created_by_user_id', creatorId);
 
       if (!events || events.length === 0) {
         return [];
@@ -271,11 +271,11 @@ export class CreatorAnalyticsService {
    */
   static async getGeographicInsights(creatorId: string): Promise<GeographicInsight[]> {
     try {
-      // Get events created or claimed by this creator
-      const { data: events } = await (supabase as any)
-        .from('jambase_events')
+      // Get events created by this creator
+      const { data: events } = await supabase
+        .from('events')
         .select('*')
-        .or(`created_by_user_id.eq.${creatorId},claimed_by_creator_id.eq.${creatorId}`);
+        .eq('created_by_user_id', creatorId);
 
       if (!events || events.length === 0) {
         return [];
@@ -353,11 +353,11 @@ export class CreatorAnalyticsService {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-      // Get events created or claimed by this creator
-      const { data: events } = await (supabase as any)
-        .from('jambase_events')
+      // Get events created by this creator
+      const { data: events } = await supabase
+        .from('events')
         .select('id')
-        .or(`created_by_user_id.eq.${creatorId},claimed_by_creator_id.eq.${creatorId}`);
+        .eq('created_by_user_id', creatorId);
 
       if (!events || events.length === 0) {
         return [];

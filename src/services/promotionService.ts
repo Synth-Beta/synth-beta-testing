@@ -117,7 +117,7 @@ export class PromotionService {
           .from('event_promotions')
           .select(`
             *,
-            event:jambase_events(
+            event:events(
               id,
               title,
               artist_name,
@@ -150,7 +150,7 @@ export class PromotionService {
         .from('event_promotions')
         .select(`
           *,
-          event:jambase_events(*)
+          event:events(*)
         `)
         .eq('promotion_status', 'active')
         .lte('starts_at', new Date().toISOString())
@@ -181,7 +181,7 @@ export class PromotionService {
         .from('event_promotions')
         .select(`
           *,
-          event:jambase_events(*)
+          event:events(*)
         `)
         .eq('id', promotionId)
         .single();
@@ -211,7 +211,7 @@ export class PromotionService {
             event_date,
             poster_image_url
           ),
-          promoter:profiles!event_promotions_promoted_by_user_id_fkey(
+          promoter:users!event_promotions_promoted_by_user_id_fkey(
             user_id,
             name,
             avatar_url,
@@ -407,17 +407,14 @@ export class PromotionService {
 
       // Check if user owns the event
       const { data: event } = await supabase
-        .from('jambase_events')
-        .select('created_by_user_id, claimed_by_creator_id')
+        .from('events')
+        .select('created_by_user_id')
         .eq('id', eventId)
         .single();
 
       if (!event) return false;
 
-      return (
-        event.created_by_user_id === user.id ||
-        event.claimed_by_creator_id === user.id
-      );
+      return event.created_by_user_id === user.id;
     } catch (error) {
       console.error('Error checking promotion eligibility:', error);
       return false;

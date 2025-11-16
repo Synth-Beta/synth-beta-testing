@@ -66,7 +66,7 @@ export class AnalyticsDataService {
   ): Promise<any[]> {
     try {
       let query = supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('*');
 
       if (eventIds && eventIds.length > 0) {
@@ -101,7 +101,7 @@ export class AnalyticsDataService {
   static async getAllUserReviews(eventIds?: string[]): Promise<any[]> {
     try {
       let query = supabase
-        .from('user_reviews')
+        .from('reviews')
         .select('*')
         .eq('is_draft', false)
         .neq('review_text', 'ATTENDANCE_ONLY');
@@ -130,11 +130,13 @@ export class AnalyticsDataService {
   static async getAllInterestedUsers(eventIds?: string[]): Promise<any[]> {
     try {
       let query = supabase
-        .from('user_jambase_events')
-        .select('*');
+        .from('relationships')
+        .select('*')
+        .eq('related_entity_type', 'event')
+        .in('relationship_type', ['interest', 'going', 'maybe']);
 
       if (eventIds && eventIds.length > 0) {
-        query = query.in('jambase_event_id', eventIds);
+        query = query.in('related_entity_id', eventIds);
       }
 
       const { data, error } = await query;

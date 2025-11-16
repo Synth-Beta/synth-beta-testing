@@ -35,7 +35,7 @@ class EventManagementService {
 
       // Check user account type
       const { data: profile, error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('account_type')
         .eq('user_id', user.id)
         .single();
@@ -49,11 +49,10 @@ class EventManagementService {
 
       // Create event with simple ownership tracking
       const { data: event, error: eventError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .insert({
           ...eventData,
           created_by_user_id: user.id,
-          owned_by_account_type: profile.account_type,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -78,7 +77,7 @@ class EventManagementService {
       if (userError || !user) throw new Error('User not authenticated');
 
       const { data, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .eq('created_by_user_id', user.id)
         .order('created_at', { ascending: false });
@@ -101,7 +100,7 @@ class EventManagementService {
 
       // Verify user owns this event
       const { data: event, error: eventError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('created_by_user_id')
         .eq('id', eventId)
         .single();
@@ -113,7 +112,7 @@ class EventManagementService {
 
       // Update the event
       const { data: updatedEvent, error: updateError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
@@ -140,7 +139,7 @@ class EventManagementService {
 
       // Verify user owns this event
       const { data: event, error: eventError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('created_by_user_id')
         .eq('id', eventId)
         .single();
@@ -152,7 +151,7 @@ class EventManagementService {
 
       // Delete the event
       const { error: deleteError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .delete()
         .eq('id', eventId);
 

@@ -11,11 +11,14 @@ export class FriendsReviewService {
     offset: number = 0
   ): Promise<UnifiedFeedItem[]> {
     try {
-      // First get the user's friends
+      // First get the user's friends from relationships table
       const { data: friends, error: friendsError } = await supabase
-        .from('friends')
-        .select('user1_id, user2_id')
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+        .from('relationships')
+        .select('user_id, related_entity_id')
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`);
 
       if (friendsError) throw friendsError;
 
@@ -25,19 +28,19 @@ export class FriendsReviewService {
 
       // Extract friend user IDs
       const friendIds = friends.map(f => 
-        f.user1_id === userId ? f.user2_id : f.user1_id
+        f.user_id === userId ? f.related_entity_id : f.user_id
       );
 
       // Get reviews from friends
       const { data: reviews, error } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select(`
           *,
-          profiles:user_id (
+          user:users!reviews_user_id_fkey (
             name,
             avatar_url
           ),
-          jambase_events:event_id (
+          event:events (
             title,
             artist_name,
             venue_name,
@@ -62,12 +65,12 @@ export class FriendsReviewService {
         id: `friends-review-${review.id}`,
         type: 'review' as const,
         review_id: review.id,
-        title: `${review.profiles?.name || 'Friend'}'s Review`,
+        title: `${review.user?.name || 'Friend'}'s Review`,
         content: review.review_text || '',
         author: {
           id: review.user_id,
-          name: review.profiles?.name || 'Anonymous',
-          avatar_url: review.profiles?.avatar_url
+          name: review.user?.name || 'Anonymous',
+          avatar_url: review.user?.avatar_url
         },
         created_at: review.created_at,
         updated_at: review.updated_at,
@@ -79,11 +82,11 @@ export class FriendsReviewService {
         comments_count: review.comments_count || 0,
         shares_count: review.shares_count || 0,
         event_info: {
-          event_name: review.jambase_events?.title || 'Concert Review',
-          venue_name: review.jambase_events?.venue_name || 'Unknown Venue',
-          event_date: review.jambase_events?.event_date || review.created_at,
-          artist_name: review.jambase_events?.artist_name,
-          artist_id: review.jambase_events?.artist_id
+          event_name: review.event?.title || 'Concert Review',
+          venue_name: review.event?.venue_name || 'Unknown Venue',
+          event_date: review.event?.event_date || review.created_at,
+          artist_name: review.event?.artist_name,
+          artist_id: review.event?.artist_id
         },
         relevance_score: this.calculateFriendReviewRelevance(review, 1) // Direct friend = higher score
       }));
@@ -102,11 +105,14 @@ export class FriendsReviewService {
     offset: number = 0
   ): Promise<UnifiedFeedItem[]> {
     try {
-      // Get user's friends
+      // Get user's friends from relationships table
       const { data: friends, error: friendsError } = await supabase
-        .from('friends')
-        .select('user1_id, user2_id')
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+        .from('relationships')
+        .select('user_id, related_entity_id')
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`);
 
       if (friendsError) throw friendsError;
 
@@ -116,20 +122,23 @@ export class FriendsReviewService {
 
       // Extract direct friend IDs
       const directFriendIds = friends.map(f => 
-        f.user1_id === userId ? f.user2_id : f.user1_id
+        f.user_id === userId ? f.related_entity_id : f.user_id
       );
 
       // Get friends of friends
       const { data: friendsOfFriends, error: fofError } = await supabase
-        .from('friends')
-        .select('user1_id, user2_id')
-        .in('user1_id', directFriendIds);
+        .from('relationships')
+        .select('user_id, related_entity_id')
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .in('user_id', directFriendIds);
 
       if (fofError) throw fofError;
 
       // Extract friends of friends IDs (excluding direct friends)
       const friendsOfFriendsIds = (friendsOfFriends || [])
-        .map(f => f.user1_id === userId ? f.user2_id : f.user1_id)
+        .map(f => f.user_id === userId ? f.related_entity_id : f.user_id)
         .filter(id => !directFriendIds.includes(id) && id !== userId);
 
       // Combine all friend IDs (direct friends + friends of friends)
@@ -141,14 +150,14 @@ export class FriendsReviewService {
 
       // Get reviews from all friends
       const { data: reviews, error } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select(`
           *,
-          profiles:user_id (
+          user:users!reviews_user_id_fkey (
             name,
             avatar_url
           ),
-          jambase_events:event_id (
+          event:events (
             title,
             artist_name,
             venue_name,
@@ -177,7 +186,7 @@ export class FriendsReviewService {
           id: `friends-plus-one-review-${review.id}`,
           type: 'review' as const,
           review_id: review.id,
-          title: `${review.profiles?.name || 'Friend'}'s Review`,
+          title: `${review.user?.name || 'Friend'}'s Review`,
           content: review.review_text || '',
           author: {
             id: review.user_id,
@@ -299,9 +308,12 @@ export class FriendsReviewService {
   static async getFriendCount(userId: string): Promise<number> {
     try {
       const { count, error } = await supabase
-        .from('friends')
+        .from('relationships')
         .select('*', { count: 'exact', head: true })
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`);
 
       if (error) throw error;
       return count || 0;
@@ -317,9 +329,12 @@ export class FriendsReviewService {
   static async areFriends(userId1: string, userId2: string): Promise<boolean> {
     try {
       const { data, error } = await supabase
-        .from('friends')
+        .from('relationships')
         .select('id')
-        .or(`and(user1_id.eq.${userId1},user2_id.eq.${userId2}),and(user1_id.eq.${userId2},user2_id.eq.${userId1})`)
+        .eq('related_entity_type', 'user')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`and(user_id.eq.${userId1},related_entity_id.eq.${userId2}),and(user_id.eq.${userId2},related_entity_id.eq.${userId1})`)
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
