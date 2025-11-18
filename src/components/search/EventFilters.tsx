@@ -96,7 +96,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
         console.warn('Error loading cities from database function, falling back to direct query:', error);
         // Fallback to direct query using display_city
         const { data: eventsData, error: eventsError } = await supabase
-          .from('jambase_events')
+          .from('events')
           .select('display_city, venue_state')
           .not('display_city', 'is', null)
           .gte('event_date', new Date().toISOString());

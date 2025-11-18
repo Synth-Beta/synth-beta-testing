@@ -100,7 +100,7 @@ export function ArtistVenueReviews({
         // Query reviews where the event's artist_name matches
         // First get event IDs for this artist
         const { data: eventIds, error: eventIdsError } = await supabase
-          .from('jambase_events')
+          .from('events')
           .select('id')
           .ilike('artist_name', `%${artistName}%`);
 
@@ -128,7 +128,7 @@ export function ArtistVenueReviews({
 
         // Now query reviews for those event IDs
         const { data: artistReviewsData, error: artistError } = await (supabase as any)
-          .from('user_reviews')
+          .from('reviews')
           .select(`
             rating,
             review_text,
@@ -166,7 +166,7 @@ export function ArtistVenueReviews({
 
           // Fetch detailed review data for individual review display - using separate queries
           const { data: detailedReviews, error: detailedError } = await (supabase as any)
-            .from('user_reviews')
+            .from('reviews')
             .select(`
               id,
               user_id,
@@ -215,7 +215,7 @@ export function ArtistVenueReviews({
             // Get event data
             const eventIds = filteredReviews.map(r => r.event_id).filter(Boolean);
             const { data: events } = await (supabase as any)
-              .from('jambase_events')
+              .from('events')
               .select('id, artist_name, venue_name, event_date, title')
               .in('id', eventIds);
 
@@ -293,7 +293,7 @@ export function ArtistVenueReviews({
         
         // First get event IDs for this venue
         const { data: venueEventIds, error: venueEventIdsError } = await supabase
-          .from('jambase_events')
+          .from('events')
           .select('id')
           .ilike('venue_name', `%${venueName}%`);
 
@@ -321,7 +321,7 @@ export function ArtistVenueReviews({
 
         // Now query reviews for those event IDs
         const { data: venueReviewsData, error: venueError } = await (supabase as any)
-          .from('user_reviews')
+          .from('reviews')
           .select(`
             rating,
             review_text,
@@ -339,7 +339,7 @@ export function ArtistVenueReviews({
         
         // Also check for any reviews for this venue (not just venue ratings)
         const { data: allVenueReviews, error: allVenueError } = await (supabase as any)
-          .from('user_reviews')
+          .from('reviews')
           .select(`
             id,
             jambase_events!inner(venue_name, artist_name, title)
@@ -384,7 +384,7 @@ export function ArtistVenueReviews({
 
           // Fetch detailed review data for ALL venue reviews - using separate queries
           const { data: detailedReviews, error: detailedError } = await (supabase as any)
-            .from('user_reviews')
+            .from('reviews')
             .select(`
               id,
               user_id,
@@ -435,7 +435,7 @@ export function ArtistVenueReviews({
             // Get event data for venue reviews
             const eventIds = venueReviews.map(r => r.event_id).filter(Boolean);
             const { data: events } = await (supabase as any)
-              .from('jambase_events')
+              .from('events')
               .select('id, artist_name, venue_name, event_date, title')
               .in('id', eventIds);
 

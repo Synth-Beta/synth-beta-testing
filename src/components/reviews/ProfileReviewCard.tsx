@@ -210,7 +210,7 @@ export function ProfileReviewCard({
       try {
         // fetch media and ratings
         const { data } = await (supabase as any)
-          .from('user_reviews')
+          .from('reviews')
           .select('photos, videos, artist_performance_rating, production_rating, venue_rating, location_rating, value_rating')
           .eq('id', reviewId)
           .maybeSingle();

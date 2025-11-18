@@ -1414,7 +1414,7 @@ export const UnifiedFeed = ({
   const loadCities = async () => {
     try {
       const { data, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('venue_city')
         .not('venue_city', 'is', null);
       if (error) throw error;
@@ -1748,7 +1748,7 @@ export const UnifiedFeed = ({
 
           // 2) try artist image via any review that carries photos for this artist
           const artist = await (supabase as any)
-            .from('user_reviews')
+            .from('reviews')
             .select('photos, jambase_events!inner(artist_name)')
             .not('photos', 'is', null)
             .ilike('jambase_events.artist_name', `%${artistName}%`)
@@ -1763,7 +1763,7 @@ export const UnifiedFeed = ({
 
           // 3) try most-liked review photo for same artist across events (same as step 2, but explicit)
           const byArtist = await (supabase as any)
-            .from('user_reviews')
+            .from('reviews')
             .select('photos, jambase_events!inner(artist_name)')
             .not('photos', 'is', null)
             .ilike('jambase_events.artist_name', `%${artistName}%`)
@@ -2659,7 +2659,7 @@ export const UnifiedFeed = ({
                         try {
                           // Get the event_id from the review
                           const { data: reviewData, error: reviewError } = await supabase
-                            .from('user_reviews')
+                            .from('reviews')
                             .select(`
                               *,
                               jambase_events!inner (

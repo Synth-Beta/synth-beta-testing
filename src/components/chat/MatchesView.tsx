@@ -130,7 +130,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
 
           // Fetch the event data separately
           const { data: eventData, error: eventError } = await supabase
-            .from('jambase_events')
+            .from('events')
             .select('title, venue_city, venue_state, event_date')
             .eq('id', match.event_id)
             .single();
@@ -257,7 +257,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
       const invitationsWithProfiles = await Promise.all(
         pendingSwipes.map(async (swipe) => {
           const { data: eventData, error: eventError } = await supabase
-            .from('jambase_events')
+            .from('events')
             .select('title, venue_city, venue_state, event_date')
             .eq('id', swipe.event_id)
             .single();

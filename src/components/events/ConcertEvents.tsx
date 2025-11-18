@@ -66,7 +66,7 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
       
       // Fetch future concerts from jambase_events table
       const { data, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .gte('event_date', new Date().toISOString())
         .order('event_date', { ascending: true })

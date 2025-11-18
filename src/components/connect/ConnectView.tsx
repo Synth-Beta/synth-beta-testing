@@ -1029,7 +1029,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                     // performance_rating, venue_rating, overall_experience_rating
                     // performance_review_text, venue_review_text, overall_experience_review_text
                     const { data, error } = await (supabase as any)
-                      .from('user_reviews')
+                      .from('reviews')
                       .select(`
                         photos,
                         videos,

@@ -37,7 +37,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     // We need to fetch the full event data from the database
     try {
       const { data, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .eq('id', event.id)
         .single();

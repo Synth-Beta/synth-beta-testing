@@ -73,7 +73,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
     try {
       // First, get event IDs for this artist
       const { data: eventIds, error: eventIdsError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('id')
         .ilike('artist_name', `%${artistName}%`);
 
@@ -97,7 +97,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
 
       // Fetch artist stats and reviews for events matching this artist
       const { data: reviewsData, error: reviewsError } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select(`
           id,
           user_id,
@@ -218,7 +218,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       
       // Fetch events from database first (existing behavior)
       let { data: eventsData, error: eventsError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .eq('artist_id', artistId)
         .order('event_date', { ascending: true });
@@ -227,7 +227,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       if (!eventsData || eventsData.length === 0) {
         // Use exact match instead of fuzzy match to avoid showing similar artists
         const { data: nameSearchData, error: nameSearchError } = await supabase
-          .from('jambase_events')
+          .from('events')
           .select('*')
           .eq('artist_name', decodedArtistId) // Exact match, not fuzzy
           .order('event_date', { ascending: true });

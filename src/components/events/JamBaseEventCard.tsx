@@ -181,7 +181,7 @@ export function JamBaseEventCard({
 
         // 2) Try a user review photo for this specific event
         const byEvent = await (supabase as any)
-          .from('user_reviews')
+          .from('reviews')
           .select('photos')
           .eq('event_id', event.id)
           .not('photos', 'is', null)
@@ -196,7 +196,7 @@ export function JamBaseEventCard({
         // 3) Try artist image via any review that carries artist image url
         if (event.artist_name) {
           const artist = await (supabase as any)
-            .from('user_reviews')
+            .from('reviews')
             .select('photos, jambase_events!inner(artist_name)')
             .not('photos', 'is', null)
             .ilike('jambase_events.artist_name', `%${event.artist_name}%`)
@@ -210,7 +210,7 @@ export function JamBaseEventCard({
 
           // 4) Try most-liked review photo for same artist across events
           const byArtist = await (supabase as any)
-            .from('user_reviews')
+            .from('reviews')
             .select('photos, jambase_events!inner(artist_name)')
             .not('photos', 'is', null)
             .ilike('jambase_events.artist_name', `%${event.artist_name}%`)

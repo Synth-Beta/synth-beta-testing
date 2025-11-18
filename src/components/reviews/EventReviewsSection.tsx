@@ -183,7 +183,7 @@ export function EventReviewsSection({
       try {
         // Look up the review to get event_id
         const { data: reviewRow } = await (supabase as any)
-          .from('user_reviews')
+          .from('reviews')
           .select('event_id')
           .eq('id', editingReviewId)
           .single();
@@ -191,7 +191,7 @@ export function EventReviewsSection({
         if (!eventId) return;
         // Fetch event metadata for nicer context in the form
         const { data: eventRow } = await (supabase as any)
-          .from('jambase_events')
+          .from('events')
           .select('*')
           .eq('id', eventId)
           .single();

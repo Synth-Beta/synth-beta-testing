@@ -34,7 +34,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
         // Search by artist, title, or venue with OR conditions
         // Prioritize past events for reviews by ordering past events first
         const { data, error } = await supabase
-          .from('jambase_events')
+          .from('events')
           .select('id, title, artist_name, venue_name, event_date, artist_id, venue_id')
           .or(`artist_name.ilike.%${q}%,title.ilike.%${q}%,venue_name.ilike.%${q}%`)
           .order('event_date', { ascending: false })

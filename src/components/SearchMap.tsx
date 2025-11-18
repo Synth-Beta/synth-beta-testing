@@ -140,7 +140,7 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
     try {
       // Get events from database
       const { data: events, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .gte('event_date', new Date().toISOString())
         .not('latitude', 'is', null)

@@ -227,7 +227,7 @@ export function EventDetailsModal({
 
           if (uuidPattern.test(event.id)) {
             const resp = await supabase
-              .from('jambase_events')
+              .from('events')
               .select('*')
               .eq('id', event.id)
               .single();
@@ -235,7 +235,7 @@ export function EventDetailsModal({
             error = resp.error;
           } else {
             const resp = await supabase
-              .from('jambase_events')
+              .from('events')
               .select('*')
               .eq('jambase_event_id', event.id)
               .single();
@@ -350,7 +350,7 @@ export function EventDetailsModal({
 
             // Update the event in the database with the setlist
             const { error: updateError } = await supabase
-              .from('jambase_events')
+              .from('events')
               .update({
                 setlist: bestSetlist,
                 setlist_enriched: true,
@@ -385,7 +385,7 @@ export function EventDetailsModal({
               setTimeout(async () => {
                 try {
                   const { data: refreshedData, error: refreshError } = await supabase
-                    .from('jambase_events')
+                    .from('events')
                     .select('*')
                     .eq('id', actualEvent.id)
                     .single();
@@ -442,7 +442,7 @@ export function EventDetailsModal({
           console.log('🔍 EventId is not UUID format, looking up UUID...');
           // This is likely a jambase_event_id string, try to find the UUID
           const { data: jambaseEvent, error: jambaseError } = await supabase
-            .from('jambase_events')
+            .from('events')
             .select('id')
             .eq('jambase_event_id', eventId.toString())
             .single();
@@ -749,7 +749,7 @@ export function EventDetailsModal({
       if (!eventId.includes('-')) {
         // This is likely a jambase_event_id string, try to find the UUID
         const { data: jambaseEvent, error: jambaseError } = await supabase
-          .from('jambase_events')
+          .from('events')
           .select('id')
           .eq('jambase_event_id', eventId.toString())
           .single();

@@ -88,7 +88,7 @@ export function EventMessageCard({
     try {
       // Check attendance using the same logic as the working inside button
       const { data, error } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select('was_there')
         .eq('user_id', currentUserId)
         .eq('event_id', event.id)
@@ -116,7 +116,7 @@ export function EventMessageCard({
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .eq('id', eventId)
         .single();

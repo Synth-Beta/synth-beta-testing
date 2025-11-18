@@ -106,7 +106,7 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
     try {
       // Fetch venue stats and reviews
       const { data: reviewsData, error: reviewsError } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select(`
           id,
           user_id,
@@ -336,7 +336,7 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
 
       // Fetch events from database first (existing behavior)
       let { data: eventsData, error: eventsError } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .eq('venue_id', venueId)
         .order('event_date', { ascending: true });
@@ -345,7 +345,7 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
       if (!eventsData || eventsData.length === 0) {
         // Use exact match instead of fuzzy match to avoid showing similar venues
         const { data: nameSearchData, error: nameSearchError } = await supabase
-          .from('jambase_events')
+          .from('events')
           .select('*')
           .eq('venue_name', decodedVenueId) // Exact match, not fuzzy
           .order('event_date', { ascending: true });

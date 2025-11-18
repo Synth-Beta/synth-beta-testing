@@ -59,7 +59,7 @@ export const useSetlist = (eventId: string): UseSetlistResult => {
         setError(null);
 
         const { data, error: fetchError } = await supabase
-          .from('jambase_events')
+          .from('events')
           .select('setlist, setlist_enriched, setlist_song_count, setlist_fm_id')
           .eq('id', eventId)
           .single();

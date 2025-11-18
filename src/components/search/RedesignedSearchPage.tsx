@@ -241,7 +241,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
     try {
       setMapLoading(true);
       const { data, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('venue_id, venue_name, venue_city, venue_state, latitude, longitude')
         .not('latitude', 'is', null)
         .not('longitude', 'is', null)
@@ -496,7 +496,7 @@ const fetchEvents = async (query: string): Promise<EventSearchResult[]> => {
   try {
     const likeQuery = `%${query}%`;
     const { data, error } = await supabase
-      .from('jambase_events')
+      .from('events')
       .select('id, title, artist_name, venue_name, event_date, images')
       .or(`title.ilike.${likeQuery},artist_name.ilike.${likeQuery},venue_name.ilike.${likeQuery}`)
       .order('event_date', { ascending: true })

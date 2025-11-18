@@ -258,6 +258,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           console.error('❌ Invalid date format:', formData.eventDate);
           throw new Error(`Invalid event date format: ${formData.eventDate}`);
         }
+        // resolvedVenueId is a UUID from venues.id (not jambase_venue_id)
         const resolvedVenueId =
           formData.selectedVenue?.is_from_database &&
           isValidUUID(formData.selectedVenue.id)
@@ -268,7 +269,8 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           title: `${formData.selectedArtist.name} at ${formData.selectedVenue.name}`,
           artist_name: formData.selectedArtist.name,
           venue_name: formData.selectedVenue.name,
-          ...(resolvedVenueId ? { venue_id: resolvedVenueId } : {}),
+          // Use venue_uuid for UUID foreign key to venues.id (not venue_id which is TEXT)
+          ...(resolvedVenueId ? { venue_uuid: resolvedVenueId } : {}),
           venue_city: formData.selectedVenue.address?.addressLocality || 'Unknown',
           venue_state: formData.selectedVenue.address?.addressRegion || 'Unknown',
           event_date: eventDateTime.toISOString(),
@@ -280,7 +282,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         
         // First, check if an event with similar details already exists
         const { data: existingEvent } = await (supabase as any)
-          .from('jambase_events')
+          .from('events')
           .select('id')
           .eq('artist_name', formData.selectedArtist.name)
           .eq('venue_name', formData.selectedVenue.name)
@@ -305,7 +307,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           
           // Insert the new event
           const { data: newEvent, error: insertError } = await (supabase as any)
-            .from('jambase_events')
+            .from('events')
             .insert(insertPayloadWithId)
             .select()
             .single();
@@ -339,7 +341,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         if (existingReviewId && isValidUUID(existingReviewId)) {
           // Edit mode: fetch review by ID
           const { data, error } = await (supabase as any)
-            .from('user_reviews')
+            .from('reviews')
             .select('*')
             .eq('id', existingReviewId)
             .maybeSingle();
@@ -364,12 +366,12 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         if (review) {
           setExistingReview(review);
           
-          // Fetch event details from jambase_events to get artist_name, venue_name, and event_date
+          // Fetch event details from events to get artist_name, venue_name, and event_date
           let eventDetails = null;
           if (review.event_id) {
             if (isValidUUID(review.event_id)) {
               const { data: eventData } = await (supabase as any)
-                .from('jambase_events')
+                .from('events')
                 .select('artist_name, artist_id, venue_name, venue_id, event_date')
                 .eq('id', review.event_id)
                 .single();
@@ -379,7 +381,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                 console.log('🎯 Fetched event details for review:', eventDetails);
               }
             } else {
-              console.warn('⚠️ review.event_id is not a valid UUID, skipping jambase_events lookup', review.event_id);
+              console.warn('⚠️ review.event_id is not a valid UUID, skipping events lookup', review.event_id);
             }
           }
           
@@ -728,7 +730,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           const eventDateTime = new Date(formData.eventDate + 'T20:00:00Z');
           if (!isNaN(eventDateTime.getTime())) {
             const { data: existingEvent } = await (supabase as any)
-              .from('jambase_events')
+              .from('events')
               .select('event_date')
               .eq('id', eventId)
               .single();
@@ -740,7 +742,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               if (daysDiff > 1) {
                 console.log('🔧 Updating event date from', existingDate, 'to', expectedDate);
                 await (supabase as any)
-                  .from('jambase_events')
+                  .from('events')
                   .update({ event_date: eventDateTime.toISOString() })
                   .eq('id', eventId);
               }
@@ -766,7 +768,8 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           throw new Error(`Invalid event date: ${formData.eventDate}`);
         }
         
-        // Resolve venue_id only if we have a real UUID (user-created placeholders will fail Supabase)
+        // resolvedVenueId is a UUID from venues.id (not jambase_venue_id)
+        // Resolve venue_uuid only if we have a real UUID (user-created placeholders will fail Supabase)
         const resolvedVenueId =
           formData.selectedVenue?.is_from_database &&
           isValidUUID(formData.selectedVenue.id)
@@ -778,14 +781,15 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           title: `${formData.selectedArtist?.name || 'Concert'} at ${formData.selectedVenue?.name || 'Venue'}`,
           artist_name: formData.selectedArtist?.name || '',
           venue_name: formData.selectedVenue?.name || '',
-          ...(resolvedVenueId ? { venue_id: resolvedVenueId } : {}),
+          // Use venue_uuid for UUID foreign key to venues.id (not venue_id which is TEXT for JamBase IDs)
+          ...(resolvedVenueId ? { venue_uuid: resolvedVenueId } : {}),
           venue_city: formData.selectedVenue?.address?.addressLocality || 'Unknown',
           venue_state: formData.selectedVenue?.address?.addressRegion || 'Unknown',
           event_date: eventDateTime.toISOString(),
           description: `Concert by ${formData.selectedArtist?.name || ''} at ${formData.selectedVenue?.name || ''}`
         };
         let ins = await (supabase as any)
-          .from('jambase_events')
+          .from('events')
           .insert(insertPayload)
           .select()
           .single();
@@ -797,7 +801,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             event_date: insertPayload.event_date,
           };
           ins = await (supabase as any)
-            .from('jambase_events')
+            .from('events')
             .insert(insertPayload)
             .select()
             .single();
@@ -805,9 +809,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         // If we resolved artist_profile, update event row with artist_uuid for future accuracy
         if (!ins.error && artistProfileId) {
           try {
-            console.log('🔍 EventReviewForm: Updating jambase_events with artist_uuid:', artistProfileId);
+            console.log('🔍 EventReviewForm: Updating events with artist_uuid:', artistProfileId);
             const updateResult = await (supabase as any)
-              .from('jambase_events')
+              .from('events')
               .update({ artist_uuid: artistProfileId })
               .eq('id', ins.data.id);
             console.log('🔍 EventReviewForm: Artist UUID update result:', updateResult);
@@ -818,7 +822,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           console.log('⚠️ EventReviewForm: No artistProfileId to update:', { artistProfileId, hasError: !!ins.error });
         }
         
-        // Note: venue_uuid column doesn't exist in jambase_events table
+        // Note: venue_uuid column exists in events table
         // The venueId will be passed directly to ReviewService
         if (!ins.error && venueId) {
           console.log('🔍 EventReviewForm: VenueId resolved for ReviewService:', venueId);
@@ -833,7 +837,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         if (existingReview && (artistChanged || venueChanged)) {
           console.log('🔄 EventReviewForm: Artist/venue changed, deleting old review and creating new one');
           await supabase
-            .from('user_reviews')
+            .from('reviews')
             .delete()
             .eq('id', existingReview.id);
           setExistingReview(null); // Treat as new review
@@ -1011,11 +1015,11 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       // Clear localStorage draft after successful submission
       clearDraft(eventId);
       
-      // Update jambase_events table with API setlist data ONLY (not custom setlist)
+      // Update events table with API setlist data ONLY (not custom setlist)
       // Custom setlist stays in user_reviews.custom_setlist column only
       if (formData.selectedSetlist) {
         try {
-          console.log('🎵 EventReviewForm: Updating jambase_events with API setlist data:', {
+          console.log('🎵 EventReviewForm: Updating events with API setlist data:', {
             eventId,
             setlist: formData.selectedSetlist,
             songCount: formData.selectedSetlist.songCount
@@ -1042,17 +1046,17 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           }
           
           const { error: updateError } = await supabase
-            .from('jambase_events')
+            .from('events')
             .update(updateData)
             .eq('id', eventId);
           
           if (updateError) {
-            console.error('🎵 Error updating jambase_events with setlist:', updateError);
+            console.error('🎵 Error updating events with setlist:', updateError);
           } else {
-            console.log('🎵 Successfully updated jambase_events with setlist data');
+            console.log('🎵 Successfully updated events with setlist data');
           }
         } catch (error) {
-          console.error('🎵 Error updating jambase_events with setlist:', error);
+          console.error('🎵 Error updating events with setlist:', error);
         }
       }
       

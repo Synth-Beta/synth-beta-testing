@@ -238,7 +238,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       }
 
       const { data, error } = await supabase
-        .from('jambase_events')
+        .from('events')
         .select('*')
         .order('event_date', { ascending: true });
 
