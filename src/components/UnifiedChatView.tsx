@@ -335,7 +335,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         
         // Also check if we can access profiles table
         const { data: allProfiles, error: allProfilesError } = await supabase
-          .from('profiles')
+          .from('users')
           .select('user_id, name')
           .limit(5);
         
@@ -363,7 +363,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       // Fetch the profiles for those users
       console.log('🔍 Querying profiles table...');
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('id, name, avatar_url, bio, user_id, created_at')
         .in('user_id', userIds);
 
@@ -439,7 +439,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       // Get sender profiles separately
       const senderIds = [...new Set((data || []).map(msg => msg.sender_id))];
       const { data: profiles } = await supabase
-        .from('profiles')
+        .from('users')
         .select('user_id, name, avatar_url')
         .in('user_id', senderIds);
 

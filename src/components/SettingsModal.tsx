@@ -218,7 +218,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
 
       // Fetch verification status
       supabase
-        .from('profiles')
+        .from('users')
         .select('account_type, verified')
         .eq('user_id', user.id)
         .single()

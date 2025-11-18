@@ -18,7 +18,7 @@ export const DatabaseStatus = ({ currentUserId }: DatabaseStatusProps) => {
     try {
       // Get current profile data
       const { data: profile, error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('user_id', currentUserId)
         .single();
@@ -33,7 +33,7 @@ export const DatabaseStatus = ({ currentUserId }: DatabaseStatusProps) => {
       const { data: columns, error: columnsError } = await supabase
         .from('information_schema.columns')
         .select('column_name, data_type, is_nullable')
-        .eq('table_name', 'profiles')
+        .eq('table_name', 'users')
         .eq('table_schema', 'public');
 
       if (columnsError) {
@@ -75,7 +75,7 @@ export const DatabaseStatus = ({ currentUserId }: DatabaseStatusProps) => {
 
           {/* Table Structure */}
           <div>
-            <h4 className="font-semibold mb-2">Profiles Table Structure:</h4>
+            <h4 className="font-semibold mb-2">Users Table Structure:</h4>
             {tableInfo ? (
               <div className="space-y-1">
                 {tableInfo.map((column: any) => (

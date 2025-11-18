@@ -784,7 +784,7 @@ export function EventDetailsModal({
       // Get profile details
       const userIds = interestedUserIds?.map(row => row && 'user_id' in row ? row.user_id : null).filter(Boolean) || [];
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('id, user_id, name, avatar_url, bio, created_at, last_active_at, gender, birthday, music_streaming_profile')
         .in('user_id', userIds);
         

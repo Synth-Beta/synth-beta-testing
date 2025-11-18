@@ -236,10 +236,28 @@ export class UnifiedFeedService {
    */
   private static async getPublicReviews(userId: string, limit: number): Promise<UnifiedFeedItem[]> {
     try {
-      const { data: reviews, error } = await supabase
-        .from('public_reviews_with_profiles')
-        .select('*')
+      const { data: reviews, error } = await (supabase as any)
+        .from('reviews')
+        .select(`
+          *,
+          users:users!reviews_user_id_fkey (
+            user_id,
+            name,
+            avatar_url,
+            verified,
+            account_type
+          ),
+          events:events (
+            id,
+            title,
+            artist_name,
+            venue_name,
+            event_date
+          )
+        `)
         .neq('user_id', userId) // Exclude user's own reviews
+        .eq('is_public', true)
+        .eq('is_draft', false)
         .neq('review_text', 'ATTENDANCE_ONLY') // Exclude attendance-only records from public feed
         .not('review_text', 'is', null) // Exclude null review_text
         .order('created_at', { ascending: false })
@@ -251,28 +269,28 @@ export class UnifiedFeedService {
         id: `public-review-${review.id}`,
         type: 'review' as const,
         review_id: review.id,
-        title: `${review.reviewer_name || 'Someone'}'s Review`,
+        title: `${review.users?.name || 'Someone'}'s Review`,
         content: review.review_text || '',
         author: {
-          id: review.reviewer_id || review.user_id,
-          name: review.reviewer_name || 'Anonymous',
-          avatar_url: review.reviewer_avatar,
-          verified: review.reviewer_verified,
-          account_type: review.reviewer_account_type
+          id: review.users?.user_id || review.user_id,
+          name: review.users?.name || 'Anonymous',
+          avatar_url: review.users?.avatar_url,
+          verified: review.users?.verified,
+          account_type: review.users?.account_type
         },
         created_at: review.created_at,
         rating: review.rating,
         is_public: true,
-        photos: (review as any).photos || undefined,
-        setlist: (review as any).setlist || undefined,
+        photos: review.photos || undefined,
+        setlist: review.events?.setlist || undefined,
         likes_count: review.likes_count || 0,
         comments_count: review.comments_count || 0,
         shares_count: review.shares_count || 0,
         event_info: {
-          event_name: review.event_title || 'Concert Review',
-          venue_name: review.venue_name || 'Unknown Venue',
-          event_date: review.event_date || review.created_at,
-          artist_name: review.artist_name,
+          event_name: review.events?.title || 'Concert Review',
+          venue_name: review.events?.venue_name || 'Unknown Venue',
+          event_date: review.events?.event_date || review.created_at,
+          artist_name: review.events?.artist_name,
           artist_id: review.artist_id
         },
         relevance_score: this.calculateReviewRelevance(review, false)

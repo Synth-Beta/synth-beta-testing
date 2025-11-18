@@ -121,7 +121,7 @@ export const StreamingStatsPage = () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('music_streaming_profile')
         .eq('user_id', user.id)
         .single();

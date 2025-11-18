@@ -13,7 +13,7 @@ export class VerificationService {
     try {
       // Get profile data
       const { data: profile, error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('user_id', userId)
         .single();

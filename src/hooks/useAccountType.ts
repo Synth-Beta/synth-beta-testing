@@ -37,7 +37,7 @@ export function useAccountType() {
       console.log('🔍 useAccountType: Fetching account info for user:', user.id);
 
       const { data, error: fetchError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('account_type, subscription_tier, verified, verification_level, business_info')
         .eq('user_id', user.id)
         .single();

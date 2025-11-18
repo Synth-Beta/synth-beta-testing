@@ -19,7 +19,7 @@ interface ProfileEditProps {
 }
 
 export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps) => {
-  const [profile, setProfile] = useState<Tables<'profiles'> | null>(null);
+  const [profile, setProfile] = useState<Tables<'users'> | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -40,48 +40,65 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
   const fetchProfile = async () => {
     try {
       console.log('Fetching profile for user:', currentUserId);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, gender, birthday, created_at, updated_at')
-        .eq('user_id', currentUserId)
-        .single();
+      const selectFields = 'id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, gender, birthday, created_at, updated_at';
+      const fetchProfileRecord = async (column: 'user_id' | 'id') => {
+        console.log(`ProfileEdit: Attempting profile lookup by ${column}`);
+        return await supabase
+          .from('users')
+          .select(selectFields)
+          .eq(column, currentUserId)
+          .maybeSingle();
+      };
 
-      if (error) {
+      let profileData: Tables<'users'> | null = null;
+      const { data, error } = await fetchProfileRecord('user_id');
+
+      if (error && error.code !== 'PGRST116') {
         console.error('Profile fetch error:', error);
         console.error('Error code:', error.code);
         console.error('Error message:', error.message);
         console.error('Error details:', error.details);
-        
-        // If no profile exists, create a basic one
-        if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
-          console.log('No profile found, will create one when user saves');
-          // Don't throw error, just show empty form
-          setFormData({
-            name: '',
-            bio: '',
-            instagram_handle: '',
-            music_streaming_profile: '',
-            avatar_url: null,
-            gender: '',
-            birthday: ''
-          });
-          setLoading(false);
-          return;
-        }
-        
         throw error;
+      } else {
+        profileData = data as Tables<'users'> | null;
+      }
+
+      if (!profileData) {
+        const { data: fallbackData, error: fallbackError } = await fetchProfileRecord('id');
+
+        if (fallbackError && fallbackError.code !== 'PGRST116') {
+          console.error('Profile fetch fallback error:', fallbackError);
+          throw fallbackError;
+        }
+
+        profileData = fallbackData as Tables<'users'> | null;
+      }
+
+      if (!profileData) {
+        console.log('No profile found, will create one when user saves');
+        setFormData({
+          name: '',
+          bio: '',
+          instagram_handle: '',
+          music_streaming_profile: '',
+          avatar_url: null,
+          gender: '',
+          birthday: ''
+        });
+        setLoading(false);
+        return;
       }
       
-      console.log('Profile data received:', data);
-      setProfile(data as any);
+      console.log('Profile data received:', profileData);
+      setProfile(profileData as any);
       setFormData({
-        name: data.name || '',
-        bio: data.bio || '',
-        instagram_handle: data.instagram_handle || '',
-        music_streaming_profile: data.music_streaming_profile || '',
-        avatar_url: data.avatar_url || null,
-        gender: data.gender || '',
-        birthday: data.birthday || ''
+        name: profileData.name || '',
+        bio: profileData.bio || '',
+        instagram_handle: profileData.instagram_handle || '',
+        music_streaming_profile: profileData.music_streaming_profile || '',
+        avatar_url: profileData.avatar_url || null,
+        gender: profileData.gender || '',
+        birthday: profileData.birthday || ''
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -128,7 +145,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         // Update existing profile
         console.log('Updating existing profile');
         result = await supabase
-          .from('profiles')
+          .from('users')
           .update(profileData)
           .eq('user_id', currentUserId)
           .select()
@@ -137,7 +154,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         // Create new profile
         console.log('Creating new profile');
         result = await supabase
-          .from('profiles')
+          .from('users')
           .insert(profileData)
           .select()
           .single();

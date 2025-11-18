@@ -135,7 +135,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
 
       // Fetch profiles for those interested users
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('id, user_id, name, avatar_url, bio, instagram_handle, gender, birthday, created_at, updated_at, account_type, verified')
         .in('user_id', interestedUserIds);
 

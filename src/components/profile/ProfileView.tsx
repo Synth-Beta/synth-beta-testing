@@ -135,6 +135,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [showPastEvents, setShowPastEvents] = useState(false);
   const [showAddReview, setShowAddReview] = useState(false);
   const [reviews, setReviews] = useState<ConcertReview[]>([]);
+  const [reviewsCount, setReviewsCount] = useState<number>(0);
   const [reviewModalEvent, setReviewModalEvent] = useState<any>(null);
   const [friends, setFriends] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('my-events');
@@ -204,6 +205,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           await fetchUserEvents();
           console.log('🔍 ProfileView: About to fetch reviews...');
           await fetchReviews();
+          console.log('🔍 ProfileView: About to fetch reviews count...');
+          await fetchReviewsCount();
           console.log('🔍 ProfileView: About to fetch friends...');
           await fetchFriends();
           console.log('🔍 ProfileView: About to fetch attended events...');
@@ -278,21 +281,27 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       
       // First try to get the profile
       console.log('ProfileView: Fetching profile for user:', targetUserId);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, user_id, name, avatar_url, bio, instagram_handle, music_streaming_profile, created_at, updated_at, last_active_at, is_public_profile, account_type, verified, verification_level')
-        .eq('user_id', targetUserId)
-        .single();
-      
-      console.log('ProfileView: Profile query result:', { data, error });
 
-      if (error) {
+      const fetchProfileRecord = async (column: 'user_id' | 'id') => {
+        console.log(`ProfileView: Attempting profile lookup by ${column}`);
+        return await supabase
+          .from('users')
+          .select('*')
+          .eq(column, targetUserId)
+          .maybeSingle();
+      };
+
+      let profileData: UserProfile | null = null;
+
+      const { data, error } = await fetchProfileRecord('user_id');
+      console.log('ProfileView: Profile query result (user_id):', { data, error });
+
+      if (error && error.code !== 'PGRST116') {
         console.error('Profile query error:', error);
         console.error('Error code:', error.code);
         console.error('Error message:', error.message);
         console.error('Error details:', error.details);
         
-        // Handle session/authentication errors
         if (error.message?.includes('invalid') || error.message?.includes('API key') || error.message?.includes('JWT') || error.message?.includes('expired')) {
           console.error('Session error in ProfileView:', error);
           toast({
@@ -303,60 +312,70 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           setLoading(false);
           return;
         }
-        
-        // If no profile exists, create a default one
-        if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
-          console.log('No profile found for user:', currentUserId);
-          
-          console.log('Creating default profile for user:', currentUserId);
-          
-          // Get user metadata from auth
-          const { data: { user } } = await supabase.auth.getUser();
-          const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'New User';
-          
-          console.log('Creating profile with name:', userName);
-          
-          const { data: newProfile, error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              user_id: currentUserId,
-              name: userName,
-              bio: 'Music lover looking to connect at events!',
-              instagram_handle: null,
-              music_streaming_profile: null
-            })
-            .select()
-            .single();
-          
-          console.log('Profile creation result:', { newProfile, insertError });
-          
-          if (insertError) {
-            console.error('Error creating profile:', insertError);
-            console.error('Insert error details:', insertError.details);
-            console.error('Insert error hint:', insertError.hint);
-            
-            // If we can't create a profile, show a fallback
-            setProfile({
-              id: 'temp',
-              user_id: currentUserId,
-              name: userName,
-              avatar_url: null,
-              bio: 'Music lover looking to connect at events!',
-              instagram_handle: null,
-              music_streaming_profile: null,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-          } else {
-            console.log('Profile created successfully:', newProfile);
-            setProfile(newProfile);
-          }
-        } else {
-          throw error;
-        }
       } else {
-        console.log('Profile found:', data);
-        setProfile(data);
+        profileData = data as UserProfile | null;
+      }
+
+      if (!profileData) {
+        const { data: fallbackData, error: fallbackError } = await fetchProfileRecord('id');
+        console.log('ProfileView: Profile query result (id):', { fallbackData, fallbackError });
+
+        if (fallbackError && fallbackError.code !== 'PGRST116') {
+          throw fallbackError;
+        }
+
+        profileData = fallbackData as UserProfile | null;
+      }
+
+      if (profileData) {
+        console.log('Profile found:', profileData);
+        setProfile(profileData);
+        return;
+      }
+
+      console.log('No profile found for user:', currentUserId);
+      console.log('Creating default profile for user:', currentUserId);
+      
+      // Get user metadata from auth
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const userName = authUser?.user_metadata?.name || authUser?.email?.split('@')[0] || 'New User';
+      
+      console.log('Creating profile with name:', userName);
+      
+      const { data: newProfile, error: insertError } = await supabase
+        .from('users')
+        .insert({
+          user_id: currentUserId,
+          name: userName,
+          bio: 'Music lover looking to connect at events!',
+          instagram_handle: null,
+          music_streaming_profile: null
+        })
+        .select()
+        .single();
+      
+      console.log('Profile creation result:', { newProfile, insertError });
+      
+      if (insertError) {
+        console.error('Error creating profile:', insertError);
+        console.error('Insert error details:', insertError.details);
+        console.error('Insert error hint:', insertError.hint);
+        
+        // If we can't create a profile, show a fallback
+        setProfile({
+          id: 'temp',
+          user_id: currentUserId,
+          name: userName,
+          avatar_url: null,
+          bio: 'Music lover looking to connect at events!',
+          instagram_handle: null,
+          music_streaming_profile: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      } else if (newProfile) {
+        console.log('Profile created successfully:', newProfile);
+        setProfile(newProfile as UserProfile);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -393,7 +412,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       
       // Get events that user has attended to exclude them from interested events
       const { data: attendanceData } = await (supabase as any)
-        .from('user_reviews')
+        .from('reviews')
         .select('event_id')
         .eq('user_id', targetUserId)
         .eq('was_there', true);
@@ -505,16 +524,44 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       }
 
       console.log('🔍 ProfileView: Fetching reviews for user:', targetUserId);
+      console.log('🔍 ProfileView: isViewingOwnProfile:', isViewingOwnProfile);
+      console.log('🔍 ProfileView: Session user:', user?.id);
       
       // Fetch user's reviews from the database
-      const result = await ReviewService.getUserReviewHistory(targetUserId);
-      
+      let result;
+      try {
+        result = await ReviewService.getUserReviewHistory(targetUserId);
       console.log('🔍 ProfileView: Raw review data:', result);
+      console.log('🔍 ProfileView: Number of reviews in result:', result.reviews.length);
+      if (result.reviews.length > 0) {
+        console.log('🔍 ProfileView: First review event data:', {
+          reviewId: result.reviews[0].review.id,
+          eventId: result.reviews[0].review.event_id,
+          event: result.reviews[0].event,
+          eventTitle: result.reviews[0].event?.title
+        });
+      }
+      } catch (serviceError) {
+        console.error('❌ ProfileView: Error calling ReviewService.getUserReviewHistory:', serviceError);
+        setReviews([]);
+        return;
+      }
       
       // Transform to match the expected interface for display (include rank_order and category ratings for display)
       // Filter reviews based on privacy: show all reviews for own profile, only public reviews for others
+      // Also exclude ATTENDANCE_ONLY reviews that don't have was_there=true
       const transformedReviews = result.reviews
-        .filter((item: any) => isViewingOwnProfile || item.review.is_public)
+        .filter((item: any) => {
+          // Show all reviews for own profile, only public reviews for others
+          if (!isViewingOwnProfile && !item.review.is_public) {
+            return false;
+          }
+          // Exclude ATTENDANCE_ONLY reviews unless was_there is true
+          if (item.review.review_text === 'ATTENDANCE_ONLY' && !item.review.was_there) {
+            return false;
+          }
+          return true;
+        })
         .map((item: any) => ({
           id: item.review.id,
           user_id: item.review.user_id,
@@ -542,29 +589,102 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           videos: item.review.videos || [],
           setlist: item.review.setlist,
           is_public: item.review.is_public,
+          was_there: item.review.was_there,
           created_at: item.review.created_at,
           ticket_price_paid: item.review.ticket_price_paid,
           category_average: calculateCategoryAverage(item.review),
-          // Add jambase_events data for the modal to access
-          jambase_events: item.event,
+          // Add jambase_events data for the modal to access (keep full event object)
+          jambase_events: item.event || null,
           event: {
-            event_name: item.event?.title || item.event?.event_name || 'Concert Review',
+            event_name: item.event?.title 
+              || (item.event?.artist_name && item.event?.venue_name 
+                ? `${item.event.artist_name} at ${item.event.venue_name}`
+                : item.event?.event_name || 'Concert Review'),
             location: item.event?.venue_name || 'Unknown Venue',
             event_date: item.event?.event_date || item.review.created_at,
-            event_time: item.event?.event_time || 'TBD'
+            event_time: item.event?.event_time || item.event?.doors_time || 'TBD',
+            // Keep full event data for PostsGrid
+            _fullEvent: item.event || null
           }
         }));
       
       console.log('🔍 ProfileView: Transformed reviews:', transformedReviews);
+      console.log('🔍 ProfileView: Number of transformed reviews:', transformedReviews.length);
       
       // Debug: Check if any reviews have setlist data
       const reviewsWithSetlist = transformedReviews.filter((review: any) => review.setlist);
       console.log('🎵 ProfileView: Reviews with setlist:', reviewsWithSetlist.length, reviewsWithSetlist);
       
+      // Debug: Check reviews that will be shown in PostsGrid
+      const reviewsForPosts = transformedReviews.filter(review => {
+        if ((review as any).review_text === 'ATTENDANCE_ONLY' && !(review as any).was_there) {
+          return false;
+        }
+        return true;
+      });
+      console.log('🔍 ProfileView: Reviews for PostsGrid:', reviewsForPosts.length);
+      console.log('🔍 ProfileView: Reviews for PostsGrid (first 3):', reviewsForPosts.slice(0, 3).map(r => ({
+        id: r.id,
+        event_name: r.event?.event_name,
+        review_text: (r as any).review_text,
+        was_there: (r as any).was_there
+      })));
+      
       setReviews(transformedReviews);
     } catch (error) {
       console.error('❌ ProfileView: Error fetching reviews:', error);
       setReviews([]);
+    }
+  };
+
+  const fetchReviewsCount = async () => {
+    try {
+      console.log('🔍 ProfileView: Fetching reviews count for user:', targetUserId);
+      
+      // Query reviews table directly to get accurate count
+      // Count all non-draft reviews that the user has either:
+      // 1. Attended (was_there = true), OR
+      // 2. Written a review (review_text is not null and not 'ATTENDANCE_ONLY')
+      let query = supabase
+        .from('reviews')
+        .select('id, was_there, review_text, is_public', { count: 'exact' })
+        .eq('user_id', targetUserId)
+        .eq('is_draft', false);
+
+      // If viewing someone else's profile, only count public reviews
+      if (!isViewingOwnProfile) {
+        query = query.eq('is_public', true);
+      }
+
+      const { data, count, error } = await query;
+
+      if (error) {
+        console.error('❌ ProfileView: Error fetching reviews count:', error);
+        setReviewsCount(0);
+        return;
+      }
+
+      // Filter in JavaScript to match the logic used in fetchReviews
+      const filteredData = (data || []).filter((item: any) => {
+        // Include if was_there is true
+        if (item.was_there === true) {
+          return true;
+        }
+        // Include if review_text exists and is not ATTENDANCE_ONLY
+        if (item.review_text && item.review_text !== 'ATTENDANCE_ONLY') {
+          return true;
+        }
+        return false;
+      });
+
+      const actualCount = filteredData.length;
+
+      console.log('🔍 ProfileView: Reviews count (raw):', count);
+      console.log('🔍 ProfileView: Reviews count (filtered):', actualCount);
+      setReviewsCount(actualCount);
+    } catch (error) {
+      console.error('❌ ProfileView: Error fetching reviews count:', error);
+      setReviewsCount(0);
     }
   };
 
@@ -605,11 +725,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
-      // First, get the friendship records
+      // Get friendship records from user_relationships table
       const { data: friendships, error: friendsError } = await supabase
-        .from('friends')
-        .select('id, user1_id, user2_id, created_at')
-        .or(`user1_id.eq.${targetUserId},user2_id.eq.${targetUserId}`)
+        .from('user_relationships')
+        .select('id, user_id, related_user_id, created_at')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${targetUserId},related_user_id.eq.${targetUserId}`)
         .order('created_at', { ascending: false });
 
       if (friendsError) {
@@ -623,14 +745,14 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
-      // Get all the user IDs we need to fetch
+      // Get all the user IDs we need to fetch (the other user in each relationship)
       const userIds = friendships.map(f => 
-        f.user1_id === targetUserId ? f.user2_id : f.user1_id
+        f.user_id === targetUserId ? f.related_user_id : f.user_id
       );
 
       // Fetch the profiles for those users
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('id, name, avatar_url, bio, user_id, created_at, last_active_at, is_public_profile')
         .in('user_id', userIds);
 
@@ -642,7 +764,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
       // Transform the data to get the other user's profile
       const friendsList = friendships.map(friendship => {
-        const otherUserId = friendship.user1_id === targetUserId ? friendship.user2_id : friendship.user1_id;
+        const otherUserId = friendship.user_id === targetUserId ? friendship.related_user_id : friendship.user_id;
         const profile = profiles?.find(p => p.user_id === otherUserId);
         
         return {
@@ -712,7 +834,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       // Fetch events where user has reviews (implies attendance)
       // Also include events where was_there = true (attendance without review)
     const { data, error } = await (supabase as any)
-      .from('user_reviews')
+      .from('reviews')
       .select(`
         id, 
         event_id, 
@@ -722,7 +844,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         is_public, 
         created_at, 
         updated_at,
-        jambase_events(
+        events (
           id,
           title,
           artist_name,
@@ -740,7 +862,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         )
       `)
       .eq('user_id', targetUserId)
-      .or('was_there.eq.true,and(review_text.not.is.null,review_text.not.eq.ATTENDANCE_ONLY)')
+      .eq('is_draft', false)
       .order('created_at', { ascending: false });
 
       if (error) {
@@ -749,38 +871,42 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
-      console.log('🔍 ProfileView: Attended events data:', data);
-      console.log('🔍 ProfileView: Total attended events fetched:', data?.length);
+      console.log('🔍 ProfileView: Attended events data (raw):', data);
+      console.log('🔍 ProfileView: Total attended events fetched (raw):', data?.length);
+      
+      // Filter reviews: include those where user either attended or wrote a review
+      const filteredData = (data || []).filter((item: any) => {
+        // Include if was_there is true
+        if (item.was_there === true) {
+          return true;
+        }
+        // Include if review_text exists and is not ATTENDANCE_ONLY
+        if (item.review_text && item.review_text !== 'ATTENDANCE_ONLY') {
+          return true;
+        }
+        return false;
+      });
+      
+      console.log('🔍 ProfileView: Attended events data (filtered):', filteredData);
+      console.log('🔍 ProfileView: Total attended events fetched (filtered):', filteredData?.length);
       
       // Log breakdown of event types
-      const withReviews = data?.filter(item => item.review_text && item.review_text !== 'ATTENDANCE_ONLY').length || 0;
-      const attendanceOnly = data?.filter(item => item.review_text === 'ATTENDANCE_ONLY').length || 0;
-      const noReview = data?.filter(item => !item.review_text).length || 0;
+      const withReviews = filteredData?.filter(item => item.review_text && item.review_text !== 'ATTENDANCE_ONLY').length || 0;
+      const attendanceOnly = filteredData?.filter(item => item.review_text === 'ATTENDANCE_ONLY').length || 0;
+      const noReview = filteredData?.filter(item => !item.review_text).length || 0;
       
       console.log('📊 Event breakdown:');
       console.log(`   With reviews: ${withReviews}`);
       console.log(`   Attendance only: ${attendanceOnly}`);
       console.log(`   No review: ${noReview}`);
-      console.log(`   Total: ${data?.length}`);
+      console.log(`   Total: ${filteredData?.length}`);
       
-      // Fetch event details for each attendance record
-      if (data && data.length > 0) {
-        const eventIds = data.map(item => item.event_id);
-        const { data: events, error: eventsError } = await supabase
-          .from('jambase_events')
-          .select('id, title, artist_name, venue_name, event_date, venue_city, venue_state')
-          .in('id', eventIds);
-          
-        if (eventsError) {
-          console.error('Error fetching event details:', eventsError);
-          setAttendedEvents([]);
-          return;
-        }
-        
-        // Combine attendance records with event data
-        const combinedData = data.map(attendance => ({
+      // Event data is already joined from the query above
+      if (filteredData && filteredData.length > 0) {
+        // Map the joined event data to the expected structure
+        const combinedData = filteredData.map(attendance => ({
           ...attendance,
-          jambase_events: events?.find(event => event.id === attendance.event_id)
+          jambase_events: attendance.events || null
         }));
         
         setAttendedEvents(combinedData);
@@ -1256,7 +1382,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 
                 <div className="text-center">
                   <div className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                    {reviews.filter(review => (review as any).review_text !== 'ATTENDANCE_ONLY').length}
+                    {reviewsCount}
                   </div>
                   <p className="text-sm text-gray-600 font-medium">Reviews</p>
                 </div>
@@ -1492,22 +1618,51 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
             {rankingMode === false && (
             <PostsGrid 
-              posts={[
-                  // Transform reviews into posts (exclude attendance-only records)
-                  ...reviews.filter(review => (review as any).review_text !== 'ATTENDANCE_ONLY').map((review) => ({
-                  id: `review-${review.id}`,
-                  type: 'review' as const,
-                  image: Array.isArray((review as any)?.photos) && (review as any).photos.length > 0 ? (review as any).photos[0] : undefined,
-                  images: Array.isArray((review as any)?.photos) ? (review as any).photos : [],
-                  title: review.event?.event_name || 'Concert Review',
-                  subtitle: `Posted by: ${profile?.name || 'User'}`,
-                  rating: (() => {
-                    const avg = review.category_average ?? calculateCategoryAverage(review);
-                    return Math.round(avg * 2) / 2;
-                  })(),
-                  date: review.event?.event_date || review.created_at
-                }))
-              ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())}
+              posts={(() => {
+                console.log('🔍 ProfileView: Rendering PostsGrid with reviews:', reviews.length);
+                console.log('🔍 ProfileView: Reviews array:', reviews);
+                
+                // Transform reviews into posts (exclude attendance-only records that don't have was_there=true)
+                const filteredReviews = reviews.filter(review => {
+                  // Show all reviews except ATTENDANCE_ONLY reviews that don't have was_there=true
+                  if ((review as any).review_text === 'ATTENDANCE_ONLY' && !(review as any).was_there) {
+                    return false;
+                  }
+                  return true;
+                });
+                
+                console.log('🔍 ProfileView: Filtered reviews for PostsGrid:', filteredReviews.length);
+                
+                const posts = filteredReviews.map((review) => {
+                  // Try multiple sources for event name - check full event object first
+                  const fullEvent = (review.event as any)?._fullEvent || review.jambase_events;
+                  const eventName = fullEvent?.title 
+                    || (fullEvent?.artist_name && fullEvent?.venue_name 
+                      ? `${fullEvent.artist_name} at ${fullEvent.venue_name}`
+                      : review.event?.event_name || 'Concert Review');
+                  const eventDate = fullEvent?.event_date || review.event?.event_date || review.jambase_events?.event_date || review.created_at;
+                  
+                  return {
+                    id: `review-${review.id}`,
+                    type: 'review' as const,
+                    image: Array.isArray((review as any)?.photos) && (review as any).photos.length > 0 ? (review as any).photos[0] : undefined,
+                    images: Array.isArray((review as any)?.photos) ? (review as any).photos : [],
+                    title: eventName,
+                    subtitle: `Posted by: ${profile?.name || 'User'}`,
+                    rating: (() => {
+                      const avg = review.category_average ?? calculateCategoryAverage(review);
+                      return Math.round(avg * 2) / 2;
+                    })(),
+                    date: eventDate,
+                    likes: (review as any).likes_count || 0,
+                    comments: (review as any).comments_count || 0
+                  };
+                });
+                
+                console.log('🔍 ProfileView: Posts for PostsGrid:', posts.length, posts);
+                
+                return posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              })()}
               onPostClick={(post) => {
                 if (post.type === 'review') {
                   const reviewId = post.id.replace('review-', '');

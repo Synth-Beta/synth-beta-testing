@@ -141,7 +141,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
           }
 
           const { data: profile, error: profileError } = await supabase
-            .from('profiles')
+            .from('users')
             .select('id, user_id, name, avatar_url, bio, instagram_handle')
             .eq('user_id', otherUserId)
             .single();
@@ -238,7 +238,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
       // Get profiles for the swipers
       const swiperIds = pendingSwipes.map(swipe => swipe.swiper_user_id);
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('id, user_id, name, avatar_url, bio')
         .in('user_id', swiperIds);
 

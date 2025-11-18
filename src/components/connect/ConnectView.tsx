@@ -454,7 +454,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
         if (userIdsToFetch.size > 0) {
           const { data: profiles } = await supabase
-            .from('profiles')
+            .from('users')
             .select('user_id, name')
             .in('user_id', Array.from(userIdsToFetch));
 
@@ -545,7 +545,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
       // Get profiles for friends who don't have chats yet
       const { data: profiles } = await supabase
-        .from('profiles')
+        .from('users')
         .select('user_id, name, avatar_url')
         .in('user_id', friendIds.filter(id => !existingChatUserIds.has(id)))
         .limit(5);
@@ -682,7 +682,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     try {
       setUserSearchLoading(true);
       const { data: profiles, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('user_id, name, avatar_url')
         .ilike('name', `%${query}%`)
         .neq('user_id', currentUserId) // Exclude current user
@@ -1363,7 +1363,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       // Get profiles for these friends
       const friendUserIds = Array.from(friendMap.keys());
       const { data: profiles } = await supabase
-        .from('profiles')
+        .from('users')
         .select('user_id, name, avatar_url')
         .in('user_id', friendUserIds);
 

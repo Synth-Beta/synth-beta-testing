@@ -208,7 +208,7 @@ export function ArtistVenueReviews({
             // Get user profiles
             const userIds = filteredReviews.map(r => r.user_id).filter(Boolean);
             const { data: profiles } = await (supabase as any)
-              .from('profiles')
+              .from('users')
               .select('user_id, name, avatar_url')
               .in('user_id', userIds);
 
@@ -428,7 +428,7 @@ export function ArtistVenueReviews({
             // Get user profiles for venue reviews
             const userIds = venueReviews.map(r => r.user_id).filter(Boolean);
             const { data: profiles } = await (supabase as any)
-              .from('profiles')
+              .from('users')
               .select('user_id, name, avatar_url')
               .in('user_id', userIds);
 

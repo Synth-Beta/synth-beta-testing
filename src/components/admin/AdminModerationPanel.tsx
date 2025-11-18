@@ -90,7 +90,7 @@ export function AdminModerationPanel() {
         console.log('🔍 AdminModerationPanel: Fetching profiles for pending flags user IDs:', userIds);
         
         const { data: profiles } = await (supabase as any)
-          .from('profiles')
+          .from('users')
           .select('user_id, name, avatar_url')
           .in('user_id', userIds);
         
@@ -120,7 +120,7 @@ export function AdminModerationPanel() {
         console.log('🔍 AdminModerationPanel: Fetching profiles for reviewed flags user IDs:', userIds);
         
         const { data: profiles } = await (supabase as any)
-          .from('profiles')
+          .from('users')
           .select('user_id, name, avatar_url')
           .in('user_id', userIds);
         

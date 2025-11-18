@@ -150,7 +150,7 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
       // Fetch user profiles for reviewers
       const userIds = reviewsData?.map((r: any) => r.user_id).filter(Boolean) || [];
       const { data: profiles } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('user_id, name, avatar_url')
         .in('user_id', userIds);
 

@@ -43,7 +43,7 @@ export function AttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnS
       setIsSearching(true);
       try {
         const { data: profiles, error } = await supabase
-          .from('profiles')
+          .from('users')
           .select('user_id, name, avatar_url')
           .ilike('name', `%${searchQuery}%`)
           .neq('user_id', userId) // Exclude current user

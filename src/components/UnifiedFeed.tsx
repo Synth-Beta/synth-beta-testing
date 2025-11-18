@@ -457,7 +457,7 @@ export const UnifiedFeed = ({
     const loadUserCityAndApply = async () => {
       try {
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('users')
           .select('location_city')
           .eq('user_id', currentUserId)
           .maybeSingle();

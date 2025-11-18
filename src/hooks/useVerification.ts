@@ -37,7 +37,7 @@ export function useVerification(userId: string | undefined): VerificationStatus 
     const fetchVerificationStatus = async () => {
       try {
         const { data: profile, error } = await supabase
-          .from('profiles')
+          .from('users')
           .select('verified, account_type, trust_score')
           .eq('user_id', userId)
           .single();
@@ -80,7 +80,7 @@ export function useVerification(userId: string | undefined): VerificationStatus 
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'profiles',
+          table: 'users',
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {

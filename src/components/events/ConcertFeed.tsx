@@ -154,8 +154,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
       // Fetch the profiles for those users
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, name, avatar_url, bio')
+        .from('users')
+        .select('id, user_id, name, avatar_url, bio')
         .in('user_id', userIds);
 
       if (profilesError) {
@@ -167,7 +167,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
       // Transform the data to get the other user's profile
       const friendsList = friendships.map(friendship => {
         const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
-        const profile = profiles?.find(p => p.id === otherUserId);
+        const profile = profiles?.find(p => p.user_id === otherUserId);
         
         return {
           id: profile?.id || otherUserId,
@@ -326,7 +326,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
       
       // Search for users by name (profiles table doesn't have email or username columns)
       const { data: profiles, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .ilike('name', `%${query}%`)
         .limit(10);
@@ -381,13 +381,13 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
       // Get user details for email notification
       const { data: receiverData } = await supabase
-        .from('profiles')
+        .from('users')
         .select('name, user_id')
         .eq('user_id', userId)
         .single();
 
       const { data: senderData } = await supabase
-        .from('profiles')
+        .from('users')
         .select('name')
         .eq('user_id', currentUserId)
         .single();

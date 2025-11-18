@@ -465,7 +465,7 @@ const fetchUsers = async (query: string, currentUserId: string): Promise<UserSea
   try {
     const likeQuery = `%${query}%`;
     const { data, error } = await supabase
-      .from('profiles')
+      .from('users')
       .select('user_id, name, avatar_url, bio, verified, account_type')
       .ilike('name', likeQuery)
       .neq('user_id', currentUserId)

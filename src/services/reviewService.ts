@@ -811,35 +811,119 @@ export class ReviewService {
     try {
       console.log('🔍 ReviewService: Getting user review history for userId:', userId);
       
-      const { data, error } = await (supabase as any)
+      // Fetch reviews first (without join since FK doesn't exist)
+      console.log('🔍 ReviewService: Starting query for userId:', userId);
+      
+      // First, check total reviews for this user (including drafts) for debugging
+      const { count: totalCount } = await supabase
         .from('reviews')
-        .select(`
-          *,
-          jambase_events: jambase_events (
-            id,
-            title,
-            artist_name,
-            venue_name,
-            venue_id,
-            event_date,
-            doors_time,
-            venue_city,
-            venue_state,
-            venue_zip
-          )
-        `)
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+      console.log('🔍 ReviewService: Total reviews (including drafts) for user:', totalCount);
+      
+      const { data: reviewsData, error: reviewsError, count } = await supabase
+        .from('reviews')
+        .select('*', { count: 'exact' })
         .eq('user_id', userId)
         .eq('is_draft', false) // Only show published reviews, not drafts
         .order('rating', { ascending: false })
         .order('rank_order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false });
+      
+      console.log('🔍 ReviewService: Query completed. Count:', count, 'Data length:', reviewsData?.length);
+      if (reviewsData && reviewsData.length > 0) {
+        console.log('🔍 ReviewService: First review sample:', {
+          id: reviewsData[0].id,
+          user_id: reviewsData[0].user_id,
+          event_id: reviewsData[0].event_id,
+          is_draft: reviewsData[0].is_draft,
+          was_there: reviewsData[0].was_there,
+          review_text: reviewsData[0].review_text?.substring(0, 50)
+        });
+      }
 
-      console.log('🔍 ReviewService: Raw query result:', { data, error });
+      console.log('🔍 ReviewService: Raw query result:', { 
+        dataLength: reviewsData?.length, 
+        error: reviewsError,
+        firstReview: reviewsData?.[0],
+        userId: userId
+      });
 
-      if (error) throw error;
+      if (reviewsError) {
+        console.error('❌ ReviewService: Query error:', reviewsError);
+        throw reviewsError;
+      }
+
+      if (!reviewsData || reviewsData.length === 0) {
+        console.warn('⚠️ ReviewService: No reviews found for user:', userId);
+        return {
+          reviews: [],
+          total: 0
+        };
+      }
+
+      // Fetch events separately and create a map
+      const eventIds = [...new Set((reviewsData || []).map((r: any) => r.event_id).filter(Boolean))];
+      console.log('🔍 ReviewService: Event IDs to fetch:', eventIds.length, eventIds);
+      let eventsMap: Record<string, any> = {};
+      
+      if (eventIds.length > 0) {
+        const { data: eventsData, error: eventsError } = await supabase
+          .from('events')
+          .select('id, title, artist_name, venue_name, venue_id, event_date, doors_time, venue_city, venue_state, venue_zip')
+          .in('id', eventIds);
+        
+        console.log('🔍 ReviewService: Events query result:', {
+          dataLength: eventsData?.length,
+          error: eventsError,
+          firstEvent: eventsData?.[0]
+        });
+        
+        if (!eventsError && eventsData) {
+          eventsMap = eventsData.reduce((acc: Record<string, any>, event: any) => {
+            acc[event.id] = event;
+            return acc;
+          }, {});
+          console.log('🔍 ReviewService: Events map created with', Object.keys(eventsMap).length, 'events');
+          console.log('🔍 ReviewService: Sample event in map:', eventsMap[Object.keys(eventsMap)[0]]);
+        } else if (eventsError) {
+          console.error('❌ ReviewService: Error fetching events:', eventsError);
+        }
+      } else {
+        console.warn('⚠️ ReviewService: No event IDs found in reviews');
+      }
+
+      const data = reviewsData;
+
+      // Filter reviews: include those where user either attended or wrote a review
+      // Exclude ATTENDANCE_ONLY reviews that don't have was_there=true
+      const filteredData = (data || []).filter((item: any) => {
+        // Include if was_there is true
+        if (item.was_there === true) {
+          return true;
+        }
+        // Include if review_text exists and is not ATTENDANCE_ONLY
+        if (item.review_text && item.review_text !== 'ATTENDANCE_ONLY') {
+          return true;
+        }
+        // Exclude everything else
+        return false;
+      });
+
+      console.log('🔍 ReviewService: Total reviews fetched:', data?.length);
+      console.log('🔍 ReviewService: Reviews after filtering:', filteredData.length);
+      console.log('🔍 ReviewService: Sample filtered review:', filteredData[0] ? {
+        id: filteredData[0].id,
+        user_id: filteredData[0].user_id,
+        event_id: filteredData[0].event_id,
+        was_there: filteredData[0].was_there,
+        review_text: filteredData[0].review_text,
+        hasEventInMap: !!eventsMap[filteredData[0].event_id],
+        eventTitle: eventsMap[filteredData[0].event_id]?.title
+      } : 'No reviews');
 
       const result = {
-        reviews: (data || []).map((item: any) => ({
+        reviews: filteredData.map((item: any) => ({
           review: {
             id: item.id,
             user_id: item.user_id,
@@ -879,10 +963,11 @@ export class ReviewService {
             comments_count: item.comments_count,
             shares_count: item.shares_count,
             is_public: item.is_public,
+            was_there: item.was_there,
             attendees: item.attendees,
             met_on_synth: item.met_on_synth,
           },
-          event: item.jambase_events
+          event: item.event_id ? (eventsMap[item.event_id] || null) : null
         })),
         total: Array.isArray(data) ? data.length : 0
       };
@@ -1120,7 +1205,7 @@ export class ReviewService {
 
       // Fetch user profiles
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('id, name, avatar_url, user_id')
         .in('user_id', userIds);
 
@@ -1200,9 +1285,27 @@ export class ReviewService {
     total: number;
   }> {
     try {
-      let query = supabase
-        .from('public_reviews_with_profiles')
-        .select('*', { count: 'exact' })
+      let query = (supabase as any)
+        .from('reviews')
+        .select(`
+          *,
+          users:users!reviews_user_id_fkey (
+            user_id,
+            name,
+            avatar_url,
+            verified,
+            account_type
+          ),
+          events:events (
+            id,
+            title,
+            artist_name,
+            venue_name,
+            event_date
+          )
+        `, { count: 'exact' })
+        .eq('is_public', true)
+        .eq('is_draft', false)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -1210,16 +1313,29 @@ export class ReviewService {
         query = query.eq('event_id', eventId);
       }
 
-      // Note: Some environments' views may not expose venue_id. To keep compatibility,
-      // we do not push a venue_id equality filter here. Callers can filter by venue
-      // name client-side if needed.
+      if (venueId) {
+        query = query.eq('venue_id', venueId);
+      }
 
-      const { data, error, count } = await query as any;
+      const { data, error, count } = await query;
 
       if (error) throw error;
 
+      // Transform the data to match the expected format
+      const transformedReviews: PublicReviewWithProfile[] = (data || []).map((review: any) => ({
+        ...review,
+        reviewer_name: review.users?.name,
+        reviewer_avatar: review.users?.avatar_url,
+        reviewer_verified: review.users?.verified,
+        reviewer_account_type: review.users?.account_type,
+        event_title: review.events?.title,
+        artist_name: review.events?.artist_name,
+        venue_name: review.events?.venue_name,
+        event_date: review.events?.event_date,
+      }));
+
       return {
-        reviews: data || [],
+        reviews: transformedReviews,
         total: count || 0
       };
     } catch (error) {

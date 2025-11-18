@@ -207,9 +207,10 @@ export class UserAnalyticsService {
    */
   static async getReviewStats(userId: string): Promise<ReviewStats> {
     try {
+      // Fetch reviews without join (FK doesn't exist)
       const { data: reviews, error } = await supabase
         .from('reviews')
-        .select('id, rating, likes_count, comments_count, event:events(title)')
+        .select('id, rating, likes_count, comments_count, event_id')
         .eq('user_id', userId)
         .eq('is_draft', false)
         .neq('review_text', 'ATTENDANCE_ONLY')
@@ -217,7 +218,31 @@ export class UserAnalyticsService {
 
       if (error) throw error;
 
-      if (!reviews || reviews.length === 0) {
+      // Fetch events separately if needed
+      const eventIds = [...new Set((reviews || []).map((r: any) => r.event_id).filter(Boolean))];
+      let eventsMap: Record<string, any> = {};
+      
+      if (eventIds.length > 0) {
+        const { data: eventsData, error: eventsError } = await supabase
+          .from('events')
+          .select('id, title')
+          .in('id', eventIds);
+        
+        if (!eventsError && eventsData) {
+          eventsMap = eventsData.reduce((acc: Record<string, any>, event: any) => {
+            acc[event.id] = event;
+            return acc;
+          }, {});
+        }
+      }
+
+      // Attach event data to reviews
+      const reviewsWithEvents = (reviews || []).map((r: any) => ({
+        ...r,
+        event: r.event_id ? eventsMap[r.event_id] || null : null
+      }));
+
+      if (!reviewsWithEvents || reviewsWithEvents.length === 0) {
         return {
           review_count: 0,
           avg_rating: 0,
@@ -227,18 +252,18 @@ export class UserAnalyticsService {
       }
 
       const stats: ReviewStats = {
-        review_count: reviews.length,
-        avg_rating: reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length,
-        total_likes: reviews.reduce((sum, r) => sum + (r.likes_count || 0), 0),
-        total_comments: reviews.reduce((sum, r) => sum + (r.comments_count || 0), 0)
+        review_count: reviewsWithEvents.length,
+        avg_rating: reviewsWithEvents.reduce((sum, r) => sum + r.rating, 0) / reviewsWithEvents.length,
+        total_likes: reviewsWithEvents.reduce((sum, r) => sum + (r.likes_count || 0), 0),
+        total_comments: reviewsWithEvents.reduce((sum, r) => sum + (r.comments_count || 0), 0)
       };
 
       // Get most liked review
-      if (reviews[0] && reviews[0].likes_count > 0) {
+      if (reviewsWithEvents[0] && reviewsWithEvents[0].likes_count > 0) {
         stats.most_liked_review = {
-          id: reviews[0].id,
-          event_name: (reviews[0] as any).event?.title || 'Unknown Event',
-          likes_count: reviews[0].likes_count
+          id: reviewsWithEvents[0].id,
+          event_name: (reviewsWithEvents[0] as any).event?.title || 'Unknown Event',
+          likes_count: reviewsWithEvents[0].likes_count
         };
       }
 

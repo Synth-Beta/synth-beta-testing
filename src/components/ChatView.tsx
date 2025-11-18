@@ -173,7 +173,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
       // Get the other user's profile information
       const otherUserId = targetUserId;
       const { data: otherUserProfile, error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('name, avatar_url')
         .eq('user_id', otherUserId)
         .single();
@@ -234,7 +234,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
           const otherUserId = chat.users.find((id: string) => id !== currentUserId);
           if (otherUserId) {
             const { data: otherUserProfile } = await supabase
-              .from('profiles')
+              .from('users')
               .select('name, avatar_url')
               .eq('user_id', otherUserId)
               .single();
@@ -308,8 +308,8 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
 
       // Fetch the profiles for those users
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, name, avatar_url, bio')
+        .from('users')
+        .select('id, user_id, name, avatar_url, bio')
         .in('user_id', userIds);
 
       if (profilesError) {
@@ -320,7 +320,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
       // Transform the data to get the other user's profile
       const friendsList = friendships.map(friendship => {
         const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
-        const profile = profiles?.find(p => p.id === otherUserId);
+        const profile = profiles?.find(p => p.user_id === otherUserId);
         
         return {
           id: profile?.id || otherUserId,
@@ -365,8 +365,8 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
 
       // Fetch sender profiles
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, name, avatar_url')
+        .from('users')
+        .select('id, user_id, name, avatar_url')
         .in('user_id', senderIds);
 
       if (profilesError) {
@@ -386,7 +386,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
 
       // Transform the data to match the expected interface
       const transformedMessages = data.map(msg => {
-        const profile = profiles?.find(p => p.id === msg.sender_id);
+        const profile = profiles?.find(p => p.user_id === msg.sender_id);
         return {
           ...msg,
           message: msg.content, // Map content to message for compatibility
@@ -591,7 +591,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
 
       // Get profiles for all users in the chat
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('user_id, name, avatar_url')
         .in('user_id', chatData.users);
 

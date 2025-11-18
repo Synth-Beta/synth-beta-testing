@@ -10,6 +10,7 @@
     "backend:install": "cd backend && npm install",
     "backend:dev": "cd backend && npm run dev",
     "backend:start": "cd backend && npm start",
+    "ingest:tm": "node --enable-source-maps ./scripts/ingest_ticketmaster_events.mjs",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

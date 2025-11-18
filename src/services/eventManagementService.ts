@@ -171,7 +171,7 @@ class EventManagementService {
       if (userError || !user) return false;
 
       const { data: profile, error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('account_type')
         .eq('user_id', user.id)
         .single();

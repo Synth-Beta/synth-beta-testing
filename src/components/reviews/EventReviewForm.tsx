@@ -1084,7 +1084,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           try {
             // Get user's profile name
             const { data: profile } = await supabase
-              .from('profiles')
+              .from('users')
               .select('name')
               .eq('user_id', userId)
               .single();

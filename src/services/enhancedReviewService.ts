@@ -33,53 +33,45 @@ export class EnhancedReviewService {
     totalReviews: number;
   }> {
     try {
-      // Use the enhanced view that already has proper relationships
-      const { data: reviews, error } = await supabase
-        .from('enhanced_reviews_with_profiles')
+      // Query reviews table with proper joins
+      const { data: reviews, error } = await (supabase as any)
+        .from('reviews')
         .select(`
-          id,
-          user_id,
-          event_id,
-          venue_id,
-          artist_id,
-          rating,
-          artist_rating,
-          venue_rating,
-          review_type,
-          reaction_emoji,
-          review_text,
-          photos,
-          videos,
-          mood_tags,
-          genre_tags,
-          context_tags,
-          venue_tags,
-          artist_tags,
-          likes_count,
-          comments_count,
-          shares_count,
-          created_at,
-          updated_at,
-          reviewer_name,
-          reviewer_avatar,
-          event_title,
-          artist_name,
-          venue_name,
-          event_date,
-          artist_uuid,
-          artist_normalized_name,
-          artist_image_url,
-          artist_url,
-          artist_jambase_id,
-          venue_uuid,
-          venue_normalized_name,
-          venue_image_url,
-          venue_address,
-          venue_city,
-          venue_state,
-          venue_jambase_id
+          *,
+          users:users!reviews_user_id_fkey (
+            user_id,
+            name,
+            avatar_url,
+            verified,
+            account_type
+          ),
+          events:events (
+            id,
+            title,
+            artist_name,
+            venue_name,
+            event_date
+          ),
+          artists:artists (
+            id,
+            normalized_name,
+            image_url,
+            url,
+            jambase_id
+          ),
+          venues:venues (
+            id,
+            normalized_name,
+            image_url,
+            address,
+            city,
+            state,
+            jambase_id
+          )
         `)
         .eq('event_id', eventId)
+        .eq('is_public', true)
+        .eq('is_draft', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -93,21 +85,41 @@ export class EnhancedReviewService {
           .eq('user_id', userId)
           .eq('entity_type', 'review')
           .eq('engagement_type', 'like')
-          .in('entity_id', reviews?.map(r => r.id) || []);
+          .in('entity_id', reviews?.map((r: any) => r.id) || []);
         
         userLikes = likes?.map(l => l.entity_id) || [];
       }
 
-      // Process reviews with engagement data
+      // Process reviews with engagement data and transform to match expected format
       const processedReviews: EnhancedReviewWithEngagement[] = (reviews || []).map((review: any) => ({
         ...review,
+        reviewer_name: review.users?.name,
+        reviewer_avatar: review.users?.avatar_url,
+        reviewer_verified: review.users?.verified,
+        reviewer_account_type: review.users?.account_type,
+        event_title: review.events?.title,
+        artist_name: review.events?.artist_name,
+        venue_name: review.events?.venue_name,
+        event_date: review.events?.event_date,
+        artist_uuid: review.artists?.id,
+        artist_normalized_name: review.artists?.normalized_name,
+        artist_image_url: review.artists?.image_url,
+        artist_url: review.artists?.url,
+        artist_jambase_id: review.artists?.jambase_id,
+        venue_uuid: review.venues?.id,
+        venue_normalized_name: review.venues?.normalized_name,
+        venue_image_url: review.venues?.image_url,
+        venue_address: review.venues?.address,
+        venue_city: review.venues?.city,
+        venue_state: review.venues?.state,
+        venue_jambase_id: review.venues?.jambase_id,
         is_liked_by_user: userLikes.includes(review.id),
         user_like_id: userLikes.includes(review.id) 
           ? review.review_likes?.find((l: any) => l.user_id === userId)?.id 
           : undefined,
         // Use the proper UUIDs for clickable links
-        artist_id: review.artist_uuid || review.artist_id,
-        venue_id: review.venue_uuid || review.venue_id,
+        artist_id: review.artists?.id || review.artist_id,
+        venue_id: review.venues?.id || review.venue_id,
       }));
 
       const totalReviews = processedReviews.length;
@@ -140,9 +152,43 @@ export class EnhancedReviewService {
     total: number;
   }> {
     try {
-      let query = supabase
-        .from('enhanced_reviews_with_profiles')
-        .select('*', { count: 'exact' })
+      let query = (supabase as any)
+        .from('reviews')
+        .select(`
+          *,
+          users:users!reviews_user_id_fkey (
+            user_id,
+            name,
+            avatar_url,
+            verified,
+            account_type
+          ),
+          events:events (
+            id,
+            title,
+            artist_name,
+            venue_name,
+            event_date
+          ),
+          artists:artists (
+            id,
+            normalized_name,
+            image_url,
+            url,
+            jambase_id
+          ),
+          venues:venues (
+            id,
+            normalized_name,
+            image_url,
+            address,
+            city,
+            state,
+            jambase_id
+          )
+        `, { count: 'exact' })
+        .eq('is_public', true)
+        .eq('is_draft', false)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -150,16 +196,40 @@ export class EnhancedReviewService {
         query = query.eq('event_id', eventId);
       }
 
+      if (venueId) {
+        query = query.eq('venue_id', venueId);
+      }
+
       const { data, error, count } = await query;
 
       if (error) throw error;
 
-      // Process reviews to use proper UUIDs
+      // Process reviews to use proper UUIDs and transform to match expected format
       const processedReviews: EnhancedPublicReviewWithProfile[] = (data || []).map((review: any) => ({
         ...review,
+        reviewer_name: review.users?.name,
+        reviewer_avatar: review.users?.avatar_url,
+        reviewer_verified: review.users?.verified,
+        reviewer_account_type: review.users?.account_type,
+        event_title: review.events?.title,
+        artist_name: review.events?.artist_name,
+        venue_name: review.events?.venue_name,
+        event_date: review.events?.event_date,
+        artist_uuid: review.artists?.id,
+        artist_normalized_name: review.artists?.normalized_name,
+        artist_image_url: review.artists?.image_url,
+        artist_url: review.artists?.url,
+        artist_jambase_id: review.artists?.jambase_id,
+        venue_uuid: review.venues?.id,
+        venue_normalized_name: review.venues?.normalized_name,
+        venue_image_url: review.venues?.image_url,
+        venue_address: review.venues?.address,
+        venue_city: review.venues?.city,
+        venue_state: review.venues?.state,
+        venue_jambase_id: review.venues?.jambase_id,
         // Use the proper UUIDs for clickable links
-        artist_id: review.artist_uuid || review.artist_id,
-        venue_id: review.venue_uuid || review.venue_id,
+        artist_id: review.artists?.id || review.artist_id,
+        venue_id: review.venues?.id || review.venue_id,
       }));
 
       return {

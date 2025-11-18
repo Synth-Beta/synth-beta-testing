@@ -34,7 +34,7 @@ export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferences
   const { user } = useAuth();
   const { toast } = useToast();
   
-  const [profile, setProfile] = useState<Tables<'profiles'> | null>(null);
+  const [profile, setProfile] = useState<Tables<'users'> | null>(null);
   const [musicTags, setMusicTags] = useState<MusicTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -66,7 +66,7 @@ export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferences
     try {
       // Fetch profile data
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('user_id', user.id)
         .single();
@@ -172,7 +172,7 @@ export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferences
     try {
       // Update profile data
       const { error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .update({
           location_city: formData.location_city.trim() || null,
           gender: formData.gender.trim() || null,
