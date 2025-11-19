@@ -173,7 +173,7 @@ export class UnifiedFeedService {
 
       const { data: reviews, error } = await supabase
         .from('reviews')
-        .select(`*, event:events (id, title, artist_name, venue_name, event_date, setlist)`)
+        .select(`*, events(id, title, artist_name, venue_name, event_date, setlist)`)
         .eq('user_id', userId)
         .eq('is_draft', false) // Only show published reviews, not drafts
         .neq('review_text', 'ATTENDANCE_ONLY') // Exclude attendance-only records from review feed
@@ -185,11 +185,13 @@ export class UnifiedFeedService {
       
       return (reviews || []).map((review: any) => {
         // Use the setlist from reviews if available, otherwise fall back to event setlist
-        const setlistToUse = review.setlist || review.event?.setlist;
+        // Note: query returns events as an object (singular) not array
+        const eventData = Array.isArray(review.events) ? review.events[0] : review.events;
+        const setlistToUse = review.setlist || eventData?.setlist;
         console.log('🎵 getUserReviews: Processing review:', {
           reviewId: review.id,
           hasUserReviewSetlist: !!review.setlist,
-          hasEventSetlist: !!review.event?.setlist,
+          hasEventSetlist: !!eventData?.setlist,
           setlistToUse: !!setlistToUse
         });
         
@@ -197,7 +199,7 @@ export class UnifiedFeedService {
           id: `review-${review.id}`,
           type: 'review' as const,
           review_id: review.id,
-          title: review.event?.title || (review.is_public ? 'Your Public Review' : 'Your Private Review'),
+          title: eventData?.title || (review.is_public ? 'Your Public Review' : 'Your Private Review'),
           content: review.review_text || '',
           author: {
             id: userId,
@@ -216,11 +218,11 @@ export class UnifiedFeedService {
           comments_count: review.comments_count || 0,
           shares_count: review.shares_count || 0,
           event_info: {
-            event_name: review.event?.title || 'Concert Review',
-            venue_name: review.event?.venue_name || 'Unknown Venue',
-            event_date: review.event?.event_date || review.created_at,
-            artist_name: review.event?.artist_name,
-            artist_id: review.event?.artist_id
+            event_name: eventData?.title || 'Concert Review',
+            venue_name: eventData?.venue_name || 'Unknown Venue',
+            event_date: eventData?.event_date || review.created_at,
+            artist_name: eventData?.artist_name,
+            artist_id: eventData?.artist_id
           },
           relevance_score: this.calculateReviewRelevance(review, true) // Higher score for own reviews
         };

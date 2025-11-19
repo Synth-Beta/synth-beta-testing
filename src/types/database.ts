@@ -214,7 +214,7 @@ export interface EventInterest {
 }
 
 // ============================================
-// 6. REVIEWS TABLE (from user_reviews)
+// 6. REVIEWS TABLE (from reviews)
 // ============================================
 export interface Review {
   id: string; // UUID

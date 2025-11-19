@@ -367,7 +367,7 @@ export class UserAnalyticsService {
       const { data: allReviewsData } = await supabase
         .from('reviews')
         .select(`
-          id, is_draft, review_text, event:events!inner(venue_name, title, artist_name)
+          id, is_draft, review_text, events!inner(venue_name, title, artist_name)
         `)
         .eq('user_id', userId);
 

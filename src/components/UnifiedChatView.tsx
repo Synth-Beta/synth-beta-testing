@@ -814,7 +814,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         .from('event_groups')
         .select(`
           event_id,
-          jambase_events!inner(
+          events!inner(
             id,
             title,
             artist_name,
@@ -827,7 +827,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         .single();
 
       if (!error && data) {
-        setLinkedEvent(data.jambase_events);
+        setLinkedEvent(data.events);
       }
     } catch (error) {
       console.error('Error fetching linked event:', error);

@@ -1747,34 +1747,33 @@ export const UnifiedFeed = ({
           }
 
           // 2) try artist image via any review that carries photos for this artist
-          const artist = await (supabase as any)
-            .from('reviews')
-            .select('photos, jambase_events!inner(artist_name)')
-            .not('photos', 'is', null)
-            .ilike('jambase_events.artist_name', `%${artistName}%`)
-            .order('likes_count', { ascending: false })
-            .limit(1);
-          const artistImg = Array.isArray(artist.data) && artist.data[0]?.photos?.[0];
-          if (artistImg) { 
-            console.log('ReviewHeroImage: Using artist review photo:', artistImg);
-            setUrl(artistImg); 
-            return; 
+          // Query events first, then find reviews for those events
+          const { data: matchingEvents } = await supabase
+            .from('events')
+            .select('id')
+            .ilike('artist_name', `%${artistName}%`)
+            .limit(20);
+          
+          if (matchingEvents && matchingEvents.length > 0) {
+            const eventIds = matchingEvents.map(e => e.id);
+            const artist = await supabase
+              .from('reviews')
+              .select('photos')
+              .not('photos', 'is', null)
+              .in('event_id', eventIds)
+              .order('likes_count', { ascending: false })
+              .limit(1);
+            
+            const artistImg = Array.isArray(artist.data) && artist.data[0]?.photos?.[0];
+            if (artistImg) { 
+              console.log('ReviewHeroImage: Using artist review photo:', artistImg);
+              setUrl(artistImg); 
+              return; 
+            }
           }
 
           // 3) try most-liked review photo for same artist across events (same as step 2, but explicit)
-          const byArtist = await (supabase as any)
-            .from('reviews')
-            .select('photos, jambase_events!inner(artist_name)')
-            .not('photos', 'is', null)
-            .ilike('jambase_events.artist_name', `%${artistName}%`)
-            .order('likes_count', { ascending: false })
-            .limit(1);
-          const artistPhoto = Array.isArray(byArtist.data) && byArtist.data[0]?.photos?.[0];
-          if (artistPhoto) { 
-            console.log('ReviewHeroImage: Using popular artist photo:', artistPhoto);
-            setUrl(artistPhoto); 
-            return; 
-          }
+          // Already handled above, skip duplicate query
           
           console.log('ReviewHeroImage: No image found, setting null');
           setUrl(null);
@@ -2662,7 +2661,7 @@ export const UnifiedFeed = ({
                             .from('reviews')
                             .select(`
                               *,
-                              jambase_events!inner (
+                              events!inner (
                                 id,
                                 title,
                                 artist_name,

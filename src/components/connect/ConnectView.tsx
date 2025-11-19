@@ -292,7 +292,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
               jambase_event_id,
               created_at,
               profiles!inner(user_id, name, avatar_url),
-              jambase_events!inner(
+              events!inner(
                 id,
                 title,
                 artist_name,
@@ -1328,7 +1328,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         .select(`
           user_id,
           jambase_event_id,
-          jambase_events!inner(
+          events!inner(
             id,
             title,
             artist_name,

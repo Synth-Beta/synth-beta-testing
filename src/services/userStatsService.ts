@@ -56,11 +56,11 @@ export class UserStatsService {
     const dateStr = today.toISOString();
     const upcomingRes = await supabase
       .from('relationships')
-      .select('*, event:events!inner(event_date)', { count: 'exact', head: true })
+      .select('*, events!inner(event_date)', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('related_entity_type', 'event')
       .in('relationship_type', ['interest', 'going', 'maybe'])
-      .gte('event.event_date', dateStr);
+      .gte('events.event_date', dateStr);
     const upcoming = upcomingRes.count ?? 0;
     return { total, upcoming };
   }

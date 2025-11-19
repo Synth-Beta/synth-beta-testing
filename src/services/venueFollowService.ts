@@ -160,16 +160,30 @@ export class VenueFollowService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        // If view doesn't exist, fallback to base table
-        console.warn('⚠️ venue_follows_with_details view not found, using venue_follows table');
+        // If view doesn't exist, fallback to relationships table
+        console.warn('⚠️ venue_follows_with_details view not found, using relationships table');
         const { data: fallbackData, error: fallbackError } = await (supabase as any)
-          .from('venue_follows')
+          .from('relationships')
           .select('*')
           .eq('user_id', userId)
+          .eq('related_entity_type', 'venue')
+          .eq('relationship_type', 'follow')
           .order('created_at', { ascending: false });
           
         if (fallbackError) throw fallbackError;
-        return (fallbackData || []) as VenueFollowWithDetails[];
+        
+        // Transform to match expected format
+        return (fallbackData || []).map((item: any) => ({
+          id: item.id,
+          user_id: item.user_id,
+          venue_id: item.related_entity_id,
+          created_at: item.created_at,
+          venue_name: null,
+          venue_image_url: null,
+          num_upcoming_events: null,
+          user_name: null,
+          user_avatar_url: null
+        })) as VenueFollowWithDetails[];
       }
 
       return (data as VenueFollowWithDetails[]) || [];

@@ -129,8 +129,8 @@ export interface TagCount {
 }
 
 // Legacy type definitions for backwards compatibility
-export type UserReviewInsert = TablesInsert<'user_reviews'>;
-export type UserReviewUpdate = TablesUpdate<'user_reviews'>;
+export type UserReviewInsert = TablesInsert<'reviews'>;
+export type UserReviewUpdate = TablesUpdate<'reviews'>;
 
 export type ReviewLike = Tables<'review_likes'>;
 export type ReviewLikeInsert = TablesInsert<'review_likes'>;

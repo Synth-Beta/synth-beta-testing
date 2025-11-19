@@ -118,7 +118,7 @@ export class UserEventService {
         .from('relationships')
         .select(`
           *,
-          event:events(*)
+          events(*)
         `)
         .eq('related_entity_type', 'event')
         .eq('user_id', userId)
@@ -388,7 +388,7 @@ export class UserEventService {
         .from('relationships')
         .select(`
           *,
-          event:events(*)
+          events(*)
         `)
         .eq('related_entity_type', 'event') as any)
         .eq('user_id', userId)

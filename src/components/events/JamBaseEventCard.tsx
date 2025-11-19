@@ -195,32 +195,31 @@ export function JamBaseEventCard({
 
         // 3) Try artist image via any review that carries artist image url
         if (event.artist_name) {
-          const artist = await (supabase as any)
-            .from('reviews')
-            .select('photos, jambase_events!inner(artist_name)')
-            .not('photos', 'is', null)
-            .ilike('jambase_events.artist_name', `%${event.artist_name}%`)
-            .order('likes_count', { ascending: false })
-            .limit(1);
-          const artistImg = Array.isArray(artist.data) && artist.data[0]?.photos?.[0];
-          if (artistImg) { 
-            setHeroImageUrl(artistImg); 
-            return; 
+          // Query events first, then find reviews for those events
+          const { data: matchingEvents } = await supabase
+            .from('events')
+            .select('id')
+            .ilike('artist_name', `%${event.artist_name}%`)
+            .limit(20);
+          
+          if (matchingEvents && matchingEvents.length > 0) {
+            const eventIds = matchingEvents.map(e => e.id);
+            const artist = await supabase
+              .from('reviews')
+              .select('photos')
+              .not('photos', 'is', null)
+              .in('event_id', eventIds)
+              .order('likes_count', { ascending: false })
+              .limit(1);
+            
+            const artistImg = Array.isArray(artist.data) && artist.data[0]?.photos?.[0];
+            if (artistImg) { 
+              setHeroImageUrl(artistImg); 
+              return; 
+            }
           }
 
-          // 4) Try most-liked review photo for same artist across events
-          const byArtist = await (supabase as any)
-            .from('reviews')
-            .select('photos, jambase_events!inner(artist_name)')
-            .not('photos', 'is', null)
-            .ilike('jambase_events.artist_name', `%${event.artist_name}%`)
-            .order('likes_count', { ascending: false })
-            .limit(1);
-          const artistPhoto = Array.isArray(byArtist.data) && byArtist.data[0]?.photos?.[0];
-          if (artistPhoto) { 
-            setHeroImageUrl(artistPhoto); 
-            return; 
-          }
+          // 4) Try most-liked review photo for same artist across events (already handled above)
         }
       } catch (error) {
         console.error('Error resolving event image:', error);

@@ -262,29 +262,62 @@ export class ArtistFollowService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        // If view doesn't exist, fallback to base table
-        console.warn('⚠️ artist_follows_with_details view not found, using artist_follows table');
-        const { data: fallbackData, error: fallbackError } = await (supabase as any)
-          .from('artist_follows')
-          .select('*, artists(name, image_url, jambase_artist_id)')
+        // If view doesn't exist, fallback to relationships table
+        console.warn('⚠️ artist_follows_with_details view not found, using relationships table');
+        // Query relationships without join (related_entity_id is TEXT, not UUID FK)
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('relationships')
+          .select('*')
           .eq('user_id', userId)
+          .eq('related_entity_type', 'artist')
+          .eq('relationship_type', 'follow')
           .order('created_at', { ascending: false });
           
-        if (fallbackError) throw fallbackError;
+        if (fallbackError) {
+          throw fallbackError;
+        }
+        
+        // Fetch artist details separately because related_entity_id is TEXT, not UUID FK
+        // Filter for valid UUIDs only (related_entity_id might contain non-UUID values)
+        const isValidUUID = (str: string) => {
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          return uuidRegex.test(str);
+        };
+        
+        const artistIds = (fallbackData || [])
+          .map((r: any) => r.related_entity_id)
+          .filter((id: string) => id && isValidUUID(id));
+        
+        const artistsMap = new Map();
+        
+        if (artistIds.length > 0) {
+          const { data: artists } = await supabase
+            .from('artists')
+            .select('id, name, image_url, jambase_artist_id')
+            .in('id', artistIds);
+            
+          (artists || []).forEach((artist: any) => {
+            artistsMap.set(artist.id, artist);
+          });
+        }
+        
         // Transform to match expected format
-        return (fallbackData || []).map((item: any) => ({
-          id: item.id,
-          user_id: item.user_id,
-          artist_id: item.artist_id,
-          created_at: item.created_at,
-          artist_name: item.artists?.name || null,
-          artist_image_url: item.artists?.image_url || null,
-          jambase_artist_id: item.artists?.jambase_artist_id || null,
-          num_upcoming_events: null,
-          genres: item.artist_genres || null,
-          user_name: null,
-          user_avatar_url: null
-        })) as ArtistFollowWithDetails[];
+        return (fallbackData || []).map((item: any) => {
+          const artist = artistsMap.get(item.related_entity_id);
+          return {
+            id: item.id,
+            user_id: item.user_id,
+            artist_id: item.related_entity_id,
+            created_at: item.created_at,
+            artist_name: artist?.name || null,
+            artist_image_url: artist?.image_url || null,
+            jambase_artist_id: artist?.jambase_artist_id || null,
+            num_upcoming_events: null,
+            genres: null,
+            user_name: null,
+            user_avatar_url: null
+          };
+        }) as ArtistFollowWithDetails[];
       }
 
       return (data as ArtistFollowWithDetails[]) || [];

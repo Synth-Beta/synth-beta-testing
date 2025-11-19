@@ -135,11 +135,11 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
           genre_tags,
           reaction_emoji,
           photos,
-          jambase_events!inner(venue_name, artist_name, event_date, title)
+          events!inner(venue_name, artist_name, event_date, title)
         `)
         .eq('is_public', true)
         .eq('is_draft', false)
-        .ilike('jambase_events.venue_name', venueName)
+        .ilike('events.venue_name', venueName)
         .or('venue_rating.not.is.null,rating.not.is.null');
 
       if (reviewsError) {

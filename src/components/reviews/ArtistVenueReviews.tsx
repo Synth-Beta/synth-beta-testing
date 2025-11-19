@@ -133,7 +133,7 @@ export function ArtistVenueReviews({
             rating,
             review_text,
             created_at,
-            jambase_events!inner(artist_name, event_date)
+            events!inner(artist_name, event_date)
           `)
           .eq('is_public', true)
           .in('event_id', eventIdList);
@@ -326,7 +326,7 @@ export function ArtistVenueReviews({
             rating,
             review_text,
             created_at,
-            jambase_events!inner(venue_name, event_date, artist_name)
+            events!inner(venue_name, event_date, artist_name)
           `)
           .eq('is_public', true)
           .in('event_id', venueEventIdList);
@@ -342,10 +342,10 @@ export function ArtistVenueReviews({
           .from('reviews')
           .select(`
             id,
-            jambase_events!inner(venue_name, artist_name, title)
+            events!inner(venue_name, artist_name, title)
           `)
           .eq('is_public', true)
-          .ilike('jambase_events.venue_name', venueName);
+          .ilike('events.venue_name', venueName);
         
         console.log('🏢 All reviews for venue:', {
           count: allVenueReviews?.length || 0,
