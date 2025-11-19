@@ -408,13 +408,27 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $function$
+DECLARE
+  v_user_id UUID;
 BEGIN
-  -- Trigger music preference recalculation
-  -- Note: This is a simplified version - the full recalculation should be done by a scheduled job
-  -- For now, we'll just mark the preferences as needing recalculation
-  UPDATE public.user_preferences
-  SET updated_at = now()
-  WHERE user_id = COALESCE(NEW.user_id, (NEW.metadata->>'user_id')::UUID);
+  -- Get user_id based on which table the trigger is on
+  -- reviews and relationships tables both have user_id as a required field
+  v_user_id := NEW.user_id;
+  
+  -- Only try to access metadata if user_id is NULL and table might have metadata column
+  -- Note: reviews table doesn't have metadata, it has moderation_metadata
+  -- relationships table has metadata, but user_id should always be present
+  IF v_user_id IS NULL AND TG_TABLE_NAME = 'relationships' THEN
+    -- Fallback for relationships (shouldn't be needed, but safe)
+    v_user_id := (NEW.metadata->>'user_id')::UUID;
+  END IF;
+  
+  -- Only update if we have a valid user_id
+  IF v_user_id IS NOT NULL THEN
+    UPDATE public.user_preferences
+    SET updated_at = now()
+    WHERE user_id = v_user_id;
+  END IF;
   
   RETURN NEW;
 END;
@@ -448,13 +462,25 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $function$
+DECLARE
+  v_user_id UUID;
 BEGIN
-  -- Trigger recommendation recalculation
-  -- Note: This is a simplified version - the full recalculation should be done by a scheduled job
-  -- For now, we'll just mark the recommendations as needing recalculation
-  UPDATE public.user_preferences
-  SET updated_at = now()
-  WHERE user_id = COALESCE(NEW.user_id, (NEW.metadata->>'user_id')::UUID);
+  -- Get user_id based on which table the trigger is on
+  -- relationships table has user_id as a required field
+  v_user_id := NEW.user_id;
+  
+  -- Only try to access metadata if user_id is NULL (shouldn't happen, but safe fallback)
+  IF v_user_id IS NULL AND TG_TABLE_NAME = 'relationships' THEN
+    -- Fallback for relationships (shouldn't be needed, but safe)
+    v_user_id := (NEW.metadata->>'user_id')::UUID;
+  END IF;
+  
+  -- Only update if we have a valid user_id
+  IF v_user_id IS NOT NULL THEN
+    UPDATE public.user_preferences
+    SET updated_at = now()
+    WHERE user_id = v_user_id;
+  END IF;
   
   RETURN NEW;
 END;
@@ -577,100 +603,123 @@ BEGIN
 END;
 $function$;
 
--- Update notify_group_chat_invite function
-DROP FUNCTION IF EXISTS public.notify_group_chat_invite() CASCADE;
-
-CREATE OR REPLACE FUNCTION public.notify_group_chat_invite()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $function$
-DECLARE
-  v_event_title TEXT;
-  v_adder_name TEXT;
+-- Update notify_group_chat_invite function (only if event_groups table exists)
+DO $$
 BEGIN
-  -- Get event info if this is an event group
-  SELECT e.title INTO v_event_title
-  FROM public.event_groups eg
-  LEFT JOIN public.events e ON eg.event_id = e.id
-  WHERE eg.id = NEW.group_id;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = 'event_groups'
+  ) THEN
+    -- Function only makes sense if event_groups table exists
+    DROP FUNCTION IF EXISTS public.notify_group_chat_invite() CASCADE;
 
-  -- Get person who added them
-  SELECT name INTO v_adder_name
-  FROM public.users
-  WHERE user_id = auth.uid();
+    EXECUTE '
+    CREATE OR REPLACE FUNCTION public.notify_group_chat_invite()
+    RETURNS TRIGGER
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    AS $function$
+    DECLARE
+      v_event_title TEXT;
+      v_adder_name TEXT;
+    BEGIN
+      -- Get event info if this is an event group
+      SELECT e.title INTO v_event_title
+      FROM public.event_groups eg
+      LEFT JOIN public.events e ON eg.event_id = e.id
+      WHERE eg.id = NEW.group_id;
 
-  -- Notify the new member
-  INSERT INTO public.notifications (user_id, type, title, message, data, actor_user_id)
-  VALUES (
-    NEW.user_id,
-    'group_chat_invite',
-    'Added to Group Chat 💬',
-    COALESCE(v_adder_name, 'Someone') || ' added you to a group for "' || COALESCE(v_event_title, 'an event') || '"',
-    jsonb_build_object(
-      'group_id', NEW.group_id,
-      'event_id', (SELECT event_id FROM public.event_groups WHERE id = NEW.group_id),
-      'event_title', v_event_title,
-      'adder_id', auth.uid(),
-      'adder_name', v_adder_name
-    ),
-    auth.uid()
-  );
+      -- Get person who added them
+      SELECT name INTO v_adder_name
+      FROM public.users
+      WHERE user_id = auth.uid();
 
-  RETURN NEW;
-END;
-$function$;
+      -- Notify the new member
+      INSERT INTO public.notifications (user_id, type, title, message, data, actor_user_id)
+      VALUES (
+        NEW.user_id,
+        ''group_chat_invite'',
+        ''Added to Group Chat 💬'',
+        COALESCE(v_adder_name, ''Someone'') || '' added you to a group for "'' || COALESCE(v_event_title, ''an event'') || ''"'',
+        jsonb_build_object(
+          ''group_id'', NEW.group_id,
+          ''event_id'', (SELECT event_id FROM public.event_groups WHERE id = NEW.group_id),
+          ''event_title'', v_event_title,
+          ''adder_id'', auth.uid(),
+          ''adder_name'', v_adder_name
+        ),
+        auth.uid()
+      );
 
--- Update update_event_promotion_fields function
-DROP FUNCTION IF EXISTS public.update_event_promotion_fields() CASCADE;
+      RETURN NEW;
+    END;
+    $function$';
+  END IF;
+END $$;
 
-CREATE OR REPLACE FUNCTION public.update_event_promotion_fields()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $function$
+-- Update update_event_promotion_fields function (only if event_promotions table exists)
+-- Note: This function is only needed if event_promotions table still exists
+-- If promotions were consolidated into monetization_tracking, this may not be needed
+DO $$
 BEGIN
-  -- Handle INSERT of new active promotions
-  IF TG_OP = 'INSERT' AND NEW.promotion_status = 'active' THEN
-    -- Set event as promoted immediately
-    UPDATE public.events
-    SET 
-      promoted = true,
-      promotion_tier = NEW.promotion_tier,
-      promotion_start_date = NEW.starts_at,
-      promotion_end_date = NEW.expires_at,
-      updated_at = now()
-    WHERE id = NEW.event_id;
-  END IF;
-  
-  -- Handle UPDATE of promotion status
-  IF TG_OP = 'UPDATE' AND OLD.promotion_status != NEW.promotion_status THEN
-    IF NEW.promotion_status = 'active' THEN
-      -- Set event as promoted
-      UPDATE public.events
-      SET 
-        promoted = true,
-        promotion_tier = NEW.promotion_tier,
-        promotion_start_date = NEW.starts_at,
-        promotion_end_date = NEW.expires_at,
-        updated_at = now()
-      WHERE id = NEW.event_id;
-    ELSIF NEW.promotion_status IN ('expired', 'paused', 'rejected', 'cancelled') THEN
-      -- Remove promotion from event
-      UPDATE public.events
-      SET 
-        promoted = false,
-        promotion_tier = NULL,
-        promotion_start_date = NULL,
-        promotion_end_date = NULL,
-        updated_at = now()
-      WHERE id = NEW.event_id;
-    END IF;
-  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = 'event_promotions'
+  ) THEN
+    DROP FUNCTION IF EXISTS public.update_event_promotion_fields() CASCADE;
 
-  RETURN COALESCE(NEW, OLD);
-END;
-$function$;
+    EXECUTE '
+    CREATE OR REPLACE FUNCTION public.update_event_promotion_fields()
+    RETURNS TRIGGER
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    AS $function$
+    BEGIN
+      -- Handle INSERT of new active promotions
+      IF TG_OP = ''INSERT'' AND NEW.promotion_status = ''active'' THEN
+        -- Set event as promoted immediately
+        UPDATE public.events
+        SET 
+          promoted = true,
+          promotion_tier = NEW.promotion_tier,
+          promotion_start_date = NEW.starts_at,
+          promotion_end_date = NEW.expires_at,
+          updated_at = now()
+        WHERE id = NEW.event_id;
+      END IF;
+      
+      -- Handle UPDATE of promotion status
+      IF TG_OP = ''UPDATE'' AND OLD.promotion_status != NEW.promotion_status THEN
+        IF NEW.promotion_status = ''active'' THEN
+          -- Set event as promoted
+          UPDATE public.events
+          SET 
+            promoted = true,
+            promotion_tier = NEW.promotion_tier,
+            promotion_start_date = NEW.starts_at,
+            promotion_end_date = NEW.expires_at,
+            updated_at = now()
+          WHERE id = NEW.event_id;
+        ELSIF NEW.promotion_status IN (''expired'', ''paused'', ''rejected'', ''cancelled'') THEN
+          -- Remove promotion from event
+          UPDATE public.events
+          SET 
+            promoted = false,
+            promotion_tier = NULL,
+            promotion_start_date = NULL,
+            promotion_end_date = NULL,
+            updated_at = now()
+          WHERE id = NEW.event_id;
+        END IF;
+      END IF;
+
+      RETURN COALESCE(NEW, OLD);
+    END;
+    $function$';
+  END IF;
+END $$;
 
 -- Recreate triggers for these functions
 DROP TRIGGER IF EXISTS notify_event_share_trigger ON public.messages;
@@ -679,17 +728,50 @@ CREATE TRIGGER notify_event_share_trigger
   FOR EACH ROW
   EXECUTE FUNCTION public.notify_event_share();
 
-DROP TRIGGER IF EXISTS notify_group_chat_invite_trigger ON public.event_group_members;
-CREATE TRIGGER notify_group_chat_invite_trigger
-  AFTER INSERT ON public.event_group_members
-  FOR EACH ROW
-  EXECUTE FUNCTION public.notify_group_chat_invite();
+-- Create trigger for event_group_members only if the table and function exist
+-- Note: This table may not exist in all consolidated schemas
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = 'event_group_members'
+  ) AND EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'public' 
+    AND p.proname = 'notify_group_chat_invite'
+  ) THEN
+    DROP TRIGGER IF EXISTS notify_group_chat_invite_trigger ON public.event_group_members;
+    CREATE TRIGGER notify_group_chat_invite_trigger
+      AFTER INSERT ON public.event_group_members
+      FOR EACH ROW
+      EXECUTE FUNCTION public.notify_group_chat_invite();
+  END IF;
+END $$;
 
-DROP TRIGGER IF EXISTS trigger_update_event_promotion_fields ON public.event_promotions;
-CREATE TRIGGER trigger_update_event_promotion_fields
-  AFTER INSERT OR UPDATE OF promotion_status ON public.event_promotions
-  FOR EACH ROW
-  EXECUTE FUNCTION public.update_event_promotion_fields();
+-- Create trigger for event_promotions only if the table and function exist
+-- Note: event_promotions was consolidated into monetization_tracking table
+-- This trigger may not be needed if promotions are handled differently now
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = 'event_promotions'
+  ) AND EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'public' 
+    AND p.proname = 'update_event_promotion_fields'
+  ) THEN
+    DROP TRIGGER IF EXISTS trigger_update_event_promotion_fields ON public.event_promotions;
+    CREATE TRIGGER trigger_update_event_promotion_fields
+      AFTER INSERT OR UPDATE OF promotion_status ON public.event_promotions
+      FOR EACH ROW
+      EXECUTE FUNCTION public.update_event_promotion_fields();
+  END IF;
+END $$;
 
 -- ============================================
 -- VERIFICATION QUERIES

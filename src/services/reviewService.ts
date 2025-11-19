@@ -306,7 +306,6 @@ export class ReviewService {
           reaction_emoji: reviewData.reaction_emoji,
           is_public: reviewData.is_public,
           is_draft: false, // Mark as published (not a draft)
-          draft_data: null, // Clear draft data when publishing
           artist_performance_rating: reviewData.artist_performance_rating,
           production_rating: reviewData.production_rating,
           venue_rating: reviewData.venue_rating,
@@ -362,7 +361,6 @@ export class ReviewService {
             reaction_emoji: reviewData.reaction_emoji,
             is_public: reviewData.is_public,
             is_draft: false, // Mark as published (not a draft)
-            draft_data: null, // Clear draft data when publishing
             photos: reviewData.photos, // Add photos field to legacy update
             was_there: true, // If someone writes a review, they obviously attended
             updated_at: new Date().toISOString()
@@ -409,7 +407,6 @@ export class ReviewService {
           review_text: reviewData.review_text,
           is_public: reviewData.is_public ?? true,
           is_draft: false, // Mark as published
-          draft_data: null, // Clear draft data
           artist_performance_rating: reviewData.artist_performance_rating,
           production_rating: reviewData.production_rating,
           venue_rating: reviewData.venue_rating,
@@ -453,7 +450,6 @@ export class ReviewService {
             review_text: reviewData.review_text,
             is_public: reviewData.is_public ?? true,
             is_draft: false,
-            draft_data: null,
             photos: reviewData.photos,
             was_there: true,
             updated_at: new Date().toISOString()
@@ -485,7 +481,6 @@ export class ReviewService {
         review_text: reviewData.review_text,
         is_public: reviewData.is_public ?? true,
         is_draft: false, // Explicitly mark as published (not a draft)
-        draft_data: null, // No draft data for published reviews
         artist_performance_rating: reviewData.artist_performance_rating,
         production_rating: reviewData.production_rating,
         venue_rating: reviewData.venue_rating,
@@ -642,7 +637,6 @@ export class ReviewService {
           review_text: reviewData.review_text,
           is_public: reviewData.is_public ?? true,
           is_draft: false, // Explicitly mark as published
-          draft_data: null, // No draft data for published reviews
           photos: reviewData.photos, // Add photos field to legacy insert
           was_there: true // If someone writes a review, they obviously attended
         };

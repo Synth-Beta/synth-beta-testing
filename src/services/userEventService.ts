@@ -497,7 +497,6 @@ export class UserEventService {
           was_there: wasThere,
           is_public: false, // EXPLICITLY keep attendance private - should NOT appear in feeds
           is_draft: false, // Not a draft, but also not a public review
-          draft_data: null, // No draft data
           likes_count: 0,
           comments_count: 0,
           shares_count: 0,
