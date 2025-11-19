@@ -450,7 +450,7 @@ export class MatchingService {
         await supabase.from('messages').insert({
           chat_id: chat.id,
           sender_id: user1Id, // System message
-          message: `🎉 You matched! Start chatting about ${eventData?.title || 'the event'}!`,
+          content: `🎉 You matched! Start chatting about ${eventData?.title || 'the event'}!`,
         });
       }
     } catch (error) {
@@ -733,7 +733,7 @@ export class MatchingService {
         .insert({
           chat_id: chatId,
           sender_id: user.id,
-          message: message,
+          content: message,
         });
 
       if (error) throw error;
