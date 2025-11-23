@@ -318,10 +318,11 @@ const overallRating =
         } else {
           // Check for pending friend request
           const { data: requestData, error: requestError } = await supabase
-            .from('friend_requests')
-            .select('id, sender_id, receiver_id, status')
-            .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${review.user_id}),and(sender_id.eq.${review.user_id},receiver_id.eq.${currentUserId})`)
+            .from('user_relationships')
+            .select('id, user_id, related_user_id, status')
+            .eq('relationship_type', 'friend')
             .eq('status', 'pending')
+            .or(`and(user_id.eq.${currentUserId},related_user_id.eq.${review.user_id}),and(user_id.eq.${review.user_id},related_user_id.eq.${currentUserId})`)
             .maybeSingle();
 
           if (requestError && requestError.code !== 'PGRST116') {

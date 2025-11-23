@@ -30,9 +30,10 @@ export async function filterActiveNotifications(notifications: Notification[]): 
       const requestId = (notification.data as any)?.request_id;
       if (requestId) {
         const { data: friendRequest } = await supabase
-          .from('friend_requests')
+          .from('user_relationships')
           .select('status')
           .eq('id', requestId)
+          .eq('relationship_type', 'friend')
           .single();
         
         if (friendRequest && friendRequest.status === 'pending') {

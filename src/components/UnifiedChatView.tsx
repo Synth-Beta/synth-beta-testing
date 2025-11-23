@@ -343,8 +343,10 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         
         // Check if there are any friend requests
         const { data: friendRequests, error: friendRequestsError } = await supabase
-          .from('friend_requests')
+          .from('user_relationships')
           .select('*')
+          .eq('relationship_type', 'friend')
+          .eq('status', 'pending')
           .limit(5);
         
         console.log('🔍 Friend requests (first 5):', { friendRequests, friendRequestsError });

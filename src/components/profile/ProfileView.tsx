@@ -985,11 +985,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
-      // Check if users are already friends
+      // Check if users are already friends (using user_relationships table)
       const { data: friendship, error: friendsError } = await supabase
-        .from('friends')
-        .select('id')
-        .or(`and(user1_id.eq.${currentUserId},user2_id.eq.${targetUserId}),and(user1_id.eq.${targetUserId},user2_id.eq.${currentUserId})`)
+        .from('user_relationships')
+        .select('id, status')
+        .eq('relationship_type', 'friend')
+        .or(`and(user_id.eq.${currentUserId},related_user_id.eq.${targetUserId}),and(user_id.eq.${targetUserId},related_user_id.eq.${currentUserId})`)
+        .in('status', ['accepted'])
         .limit(1);
 
       if (friendsError) {
@@ -1002,12 +1004,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
-      // Check for pending friend requests
+      // Check for pending friend requests (sent by current user)
       const { data: sentRequest, error: sentError } = await supabase
-        .from('friend_requests')
+        .from('user_relationships')
         .select('id')
-        .eq('sender_id', currentUserId)
-        .eq('receiver_id', targetUserId)
+        .eq('user_id', currentUserId)
+        .eq('related_user_id', targetUserId)
+        .eq('relationship_type', 'friend')
         .eq('status', 'pending')
         .limit(1);
 
@@ -1021,11 +1024,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
+      // Check for pending friend requests (received by current user)
       const { data: receivedRequest, error: receivedError } = await supabase
-        .from('friend_requests')
+        .from('user_relationships')
         .select('id')
-        .eq('sender_id', targetUserId)
-        .eq('receiver_id', currentUserId)
+        .eq('user_id', targetUserId)
+        .eq('related_user_id', currentUserId)
+        .eq('relationship_type', 'friend')
         .eq('status', 'pending')
         .limit(1);
 
@@ -1351,11 +1356,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                       verified={profile.verified}
                       size="lg"
                     />
-                  )}
-                  
-                  {/* Connection Degree Badge */}
-                  {!isViewingOwnProfile && (
-                    <WorkingConnectionBadge targetUserId={targetUserId} />
                   )}
                 </div>
                 

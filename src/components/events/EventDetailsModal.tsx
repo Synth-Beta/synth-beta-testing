@@ -1513,34 +1513,10 @@ export function EventDetailsModal({
             }}
             onAddFriend={async (friendUserId: string) => {
               try {
-                // Check if friend request already exists
-                const { data: existingRequest, error: checkError } = await supabase
-                  .from('friend_requests')
-                  .select('id')
-                  .eq('sender_id', currentUserId)
-                  .eq('receiver_id', friendUserId)
-                  .single();
-                
-                if (existingRequest) {
-                  return;
-                }
-                
-                // Check if they're already friends
-                const { data: existingFriend, error: friendCheckError } = await supabase
-                  .from('friends')
-                  .select('id')
-                  .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
-                  .or(`user1_id.eq.${friendUserId},user2_id.eq.${friendUserId}`)
-                  .single();
-                
-                if (existingFriend) {
-                  return;
-                }
-                
-                // Send friend request
-                const { error } = await supabase
-                  .from('friend_requests')
-                  .insert({ sender_id: currentUserId, receiver_id: friendUserId });
+                // Use RPC function to create friend request (handles all checks)
+                const { error } = await supabase.rpc('create_friend_request', {
+                  receiver_user_id: friendUserId
+                });
                 
                 if (error) throw error;
                 console.log('✅ Friend request sent successfully');

@@ -152,9 +152,10 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
   const checkFriendRequestStatus = async (requestId: string) => {
     try {
       const { data, error } = await supabase
-        .from('friend_requests')
+        .from('user_relationships')
         .select('status')
         .eq('id', requestId)
+        .eq('relationship_type', 'friend')
         .single();
 
       if (error) {
@@ -256,15 +257,16 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
 
     console.log('🔍 Debug: Declining friend request with ID:', requestId);
 
-    // If no request ID provided, try to find it from friend_requests table
+    // If no request ID provided, try to find it from user_relationships table
     let actualRequestId = requestId;
     if (!requestId) {
-      console.log('🔍 Debug: No request ID provided, trying to find from friend_requests table');
+      console.log('🔍 Debug: No request ID provided, trying to find from user_relationships table');
       
       const { data: friendRequests, error: fetchError } = await supabase
-        .from('friend_requests')
+        .from('user_relationships')
         .select('id')
-        .eq('receiver_id', currentUserId)
+        .eq('related_user_id', currentUserId)
+        .eq('relationship_type', 'friend')
         .eq('status', 'pending')
         .limit(1);
 
