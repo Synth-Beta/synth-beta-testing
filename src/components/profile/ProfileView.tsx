@@ -43,6 +43,7 @@ import { WorkingConnectionBadge } from '../WorkingConnectionBadge';
 import { VerificationBadge } from '@/components/verification/VerificationBadge';
 import type { AccountType } from '@/utils/verificationUtils';
 import { PageActions } from '@/components/PageActions';
+import { FriendsService } from '@/services/friendsService';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -251,10 +252,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     if (user.id === currentUserId) { setCanViewInterested(true); return; }
     (async () => {
       try {
+        // Check if users are friends using user_relationships table
         const { data } = await supabase
-          .from('friends')
+          .from('user_relationships')
           .select('id')
-          .or(`and(user1_id.eq.${user.id},user2_id.eq.${currentUserId}),and(user1_id.eq.${currentUserId},user2_id.eq.${user.id}))`)
+          .eq('relationship_type', 'friend')
+          .eq('status', 'accepted')
+          .or(`and(user_id.eq.${user.id},related_user_id.eq.${currentUserId}),and(user_id.eq.${currentUserId},related_user_id.eq.${user.id}))`)
           .limit(1);
         setCanViewInterested(Array.isArray(data) ? data.length > 0 : false);
       } catch {
@@ -420,7 +424,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       const attendedEventIds = new Set(attendanceData?.map((a: any) => a.event_id) || []);
       
       const events = data?.map(item => {
-        const jambaseEvent = item?.jambase_event as any; // Type assertion to include setlist fields
+        // Updated structure: item.event instead of item.jambase_event (3NF schema)
+        const jambaseEvent = item?.event as any; // Type assertion to include setlist fields
         
         // Debug all events to see what we're getting
         console.log('ProfileView: Processing event in getUserEvents:', {
@@ -725,60 +730,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
-      // Get friendship records from user_relationships table
-      const { data: friendships, error: friendsError } = await supabase
-        .from('user_relationships')
-        .select('id, user_id, related_user_id, created_at')
-        .eq('relationship_type', 'friend')
-        .eq('status', 'accepted')
-        .or(`user_id.eq.${targetUserId},related_user_id.eq.${targetUserId}`)
-        .order('created_at', { ascending: false });
-
-      if (friendsError) {
-        console.warn('Warning: Could not fetch friends:', friendsError);
-        setFriends([]);
-        return;
-      }
-
-      if (!friendships || friendships.length === 0) {
-        setFriends([]);
-        return;
-      }
-
-      // Get all the user IDs we need to fetch (the other user in each relationship)
-      const userIds = friendships.map(f => 
-        f.user_id === targetUserId ? f.related_user_id : f.user_id
-      );
-
-      // Fetch the profiles for those users
-      const { data: profiles, error: profilesError } = await supabase
-        .from('users')
-        .select('id, name, avatar_url, bio, user_id, created_at, last_active_at, is_public_profile')
-        .in('user_id', userIds);
-
-      if (profilesError) {
-        console.warn('Warning: Could not fetch friend profiles:', profilesError);
-        setFriends([]);
-        return;
-      }
-
-      // Transform the data to get the other user's profile
-      const friendsList = friendships.map(friendship => {
-        const otherUserId = friendship.user_id === targetUserId ? friendship.related_user_id : friendship.user_id;
-        const profile = profiles?.find(p => p.user_id === otherUserId);
-        
-        return {
-          id: profile?.id || otherUserId,
-          user_id: otherUserId, // Add user_id for chat functionality
-          name: profile?.name || 'Unknown User',
-          username: (profile?.name || 'unknown').toLowerCase().replace(/\s+/g, ''),
-          avatar_url: profile?.avatar_url || null,
-          bio: profile?.bio || null,
-          friendship_id: friendship.id,
-          created_at: friendship.created_at
-        };
-      });
-
+      // Use FriendsService to get friends (deduplicated)
+      const friendsList = await FriendsService.getFriends(targetUserId);
       setFriends(friendsList);
     } catch (error) {
       console.warn('Warning: Error fetching friends:', error);
@@ -1091,27 +1044,22 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
-      // Show confirmation dialog
-      const confirmed = window.confirm('Are you sure you want to unfriend this person?');
-      if (!confirmed) {
-        return;
-      }
-
       console.log('Unfriending user:', friendUserId);
       
-      // Call the database function to unfriend the user
-      const { error } = await supabase.rpc('unfriend_user', {
-        friend_user_id: friendUserId
-      });
+      // Use FriendsService to unfriend (which calls the RPC function)
+      // No confirmation needed - quick unfriend as requested
+      await FriendsService.unfriendUser(friendUserId);
 
-      if (error) {
-        console.error('Error unfriending user:', error);
-        throw error;
-      }
-
-      // Update local state
+      // Update local state - remove from friends list immediately
       setFriends(prevFriends => prevFriends.filter(friend => friend.user_id !== friendUserId));
-      setFriendStatus('none');
+      
+      // If viewing their profile, update friend status
+      if (targetUserId === friendUserId) {
+        setFriendStatus('none');
+      }
+      
+      // Refresh friends list to ensure it's up to date
+      await fetchFriends();
       
       toast({
         title: "Friend Removed",
@@ -1119,6 +1067,17 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       });
     } catch (error: any) {
       console.error('Error unfriending user:', error);
+      // Don't show error if friendship doesn't exist (already unfriended)
+      if (error?.message?.includes('Friendship does not exist')) {
+        // Silently update UI since friendship is already gone
+        setFriends(prevFriends => prevFriends.filter(friend => friend.user_id !== friendUserId));
+        if (targetUserId === friendUserId) {
+          setFriendStatus('none');
+        }
+        await fetchFriends();
+        return;
+      }
+      
       toast({
         title: "Error",
         description: error.message || "Failed to unfriend user. Please try again.",
@@ -2396,26 +2355,28 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         isInterested={true}
         onInterestToggle={async (eventId, interested) => {
           console.log('🎯 Interest toggled in profile view:', eventId, interested);
-          // Remove interest from the event
-          if (!interested) {
-            try {
-              await UserEventService.removeEventInterest(currentUserId, eventId);
-              // Close the modal
+          try {
+            // Use setEventInterest for consistency (handles both add and remove)
+            await UserEventService.setEventInterest(currentUserId, eventId, interested);
+            // Close the modal if removing interest
+            if (!interested) {
               setDetailsOpen(false);
-              // Refetch user events to update the UI
-              await fetchUserEvents();
-              toast({
-                title: "Interest Removed",
-                description: "You've removed this event from your interested list"
-              });
-            } catch (error) {
-              console.error('Error removing event interest:', error);
-              toast({
-                title: "Error",
-                description: "Failed to remove interest",
-                variant: "destructive"
-              });
             }
+            // Refetch user events to update the UI
+            await fetchUserEvents();
+            toast({
+              title: interested ? "Interest Added" : "Interest Removed",
+              description: interested 
+                ? "You're now interested in this event"
+                : "You've removed this event from your interested list"
+            });
+          } catch (error) {
+            console.error('Error toggling event interest:', error);
+            toast({
+              title: "Error",
+              description: "Failed to update interest",
+              variant: "destructive"
+            });
           }
         }}
         onNavigateToProfile={onNavigateToProfile}

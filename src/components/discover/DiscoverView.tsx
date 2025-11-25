@@ -155,6 +155,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             try {
               await UserEventService.setEventInterest(currentUserId, eventId, interested);
               setSelectedEventInterested(interested);
+              // The UnifiedFeed component will handle refreshing the feed state
             } catch (error) {
               console.error('Error toggling interest:', error);
             }

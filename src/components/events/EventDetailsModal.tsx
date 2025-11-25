@@ -78,6 +78,8 @@ export function EventDetailsModal({
   const navigate = useNavigate();
   const [actualEvent, setActualEvent] = useState<any>(event);
   const [loading, setLoading] = useState(false);
+  // Local state for isInterested to allow immediate UI updates
+  const [localIsInterested, setLocalIsInterested] = useState(isInterested);
   
   // Debug: Check if navigation handlers are provided
   const [interestedCount, setInterestedCount] = useState<number | null>(null);
@@ -127,6 +129,11 @@ export function EventDetailsModal({
       loadEventGroups();
     }
   }, [event, isCreator, isAdmin]);
+
+  // Sync local interest state with prop
+  useEffect(() => {
+    setLocalIsInterested(isInterested);
+  }, [isInterested]);
   
   const loadEventGroups = async () => {
     if (!actualEvent?.id) return;
@@ -457,11 +464,13 @@ export function EventDetailsModal({
         console.log('🔍 Using UUID for count query:', uuidId);
         
         // Use the UUID id to get the count, excluding current user
-        // The user_jambase_events table stores the jambase_events.id (UUID) in jambase_event_id column
+        // Use relationships table for 3NF - event interest is stored in relationships
         const { count, error } = await supabase
-          .from('user_jambase_events')
+          .from('relationships')
           .select('*', { count: 'exact', head: true })
-          .eq('jambase_event_id', uuidId)
+          .eq('related_entity_type', 'event')
+          .eq('related_entity_id', uuidId)
+          .eq('relationship_type', 'interest')
           .neq('user_id', currentUserId);
           
         console.log('🔍 Count query result:', { count, error });
@@ -470,18 +479,22 @@ export function EventDetailsModal({
         
         // Also check what users are actually in the database for this event
         const { data: allUsersCheck, error: allUsersCheckError } = await supabase
-          .from('user_jambase_events')
+          .from('relationships')
           .select('user_id')
-          .eq('jambase_event_id', uuidId);
+          .eq('related_entity_type', 'event')
+          .eq('related_entity_id', uuidId)
+          .eq('relationship_type', 'interest');
         console.log('🔍 All users check (no exclusion):', { allUsersCheck, allUsersCheckError });
         
         if (error) {
           console.error('🔍 Count query failed, trying alternative approach...');
           // Try alternative approach - get all users and count manually
           const { data: allUsers, error: allUsersError } = await supabase
-            .from('user_jambase_events')
+            .from('relationships')
             .select('user_id')
-            .eq('jambase_event_id', uuidId);
+            .eq('related_entity_type', 'event')
+            .eq('related_entity_id', uuidId)
+            .eq('relationship_type', 'interest');
             
           if (allUsersError) {
             console.error('🔍 Alternative query also failed:', allUsersError);
@@ -763,13 +776,15 @@ export function EventDetailsModal({
         }
       }
       
-      // Now query user_jambase_events with the correct UUID
+      // Now query relationships table with the correct UUID (3NF schema)
       const { data: interestedUserIds, error: interestsError } = await supabase
-        .from('user_jambase_events')
+        .from('relationships')
         .select('user_id')
-        .eq('jambase_event_id', uuidId)
-          .neq('user_id', currentUserId)
-          .range(from, to);
+        .eq('related_entity_type', 'event')
+        .eq('related_entity_id', uuidId)
+        .eq('relationship_type', 'interest')
+        .neq('user_id', currentUserId)
+        .range(from, to);
           
       if (interestsError) {
         console.error('Error fetching interested user IDs:', interestsError);
@@ -817,11 +832,16 @@ export function EventDetailsModal({
               <div className="mb-3 flex gap-2 flex-wrap">
                 {isUpcomingEvent && onInterestToggle && (
                   <Button
-                    variant={isInterested ? "default" : "outline"}
+                    variant={localIsInterested ? "default" : "outline"}
                     size="sm"
                     onClick={async () => {
+                      const newInterestState = !localIsInterested;
+                      
+                      // Update local state immediately for instant UI feedback
+                      setLocalIsInterested(newInterestState);
+                      
                       // 🎯 TRACK: Promotion interaction for interest toggle
-                      if (!isInterested) {
+                      if (newInterestState) {
                         // User is expressing interest - this is a conversion
                         PromotionTrackingService.trackPromotionInteraction(
                           actualEvent.id,
@@ -835,16 +855,22 @@ export function EventDetailsModal({
                       }
                       
                       // Call the original handler
-                      onInterestToggle(actualEvent.id, !isInterested);
+                      try {
+                        await onInterestToggle?.(actualEvent.id, newInterestState);
+                      } catch (error) {
+                        // Revert local state if there was an error
+                        console.error('Error toggling interest:', error);
+                        setLocalIsInterested(!newInterestState);
+                      }
                     }}
                     className={
-                      isInterested 
+                      localIsInterested 
                         ? "bg-red-500 hover:bg-red-600 text-white" 
                         : "hover:bg-red-50 hover:text-red-600 hover:border-red-300"
                     }
                   >
-                    <Heart className={`w-4 h-4 mr-1 ${isInterested ? 'fill-current' : ''}`} />
-                    {isInterested ? 'Interested' : "I'm Interested"}
+                    <Heart className={`w-4 h-4 mr-1 ${localIsInterested ? 'fill-current' : ''}`} />
+                    {localIsInterested ? 'Interested' : "I'm Interested"}
                   </Button>
                 )}
                 <Button
@@ -901,7 +927,7 @@ export function EventDetailsModal({
             </div>
             
             {/* Remove Interest Button for Past Events - Top Right */}
-            {isPastEvent && onInterestToggle && isInterested && (
+            {isPastEvent && onInterestToggle && localIsInterested && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1444,7 +1470,7 @@ export function EventDetailsModal({
                           venue_name: actualEvent.venue_name,
                           days_until_event: daysUntilEvent,
                           source: 'event_modal',
-                          user_interested: isInterested
+                          user_interested: localIsInterested
                         });
                         
                         // 🎯 TRACK: Promotion interaction for ticket click

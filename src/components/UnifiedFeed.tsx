@@ -2930,7 +2930,7 @@ export const UnifiedFeed = ({
             await UserEventService.setEventInterest(currentUserId, eventId, interested);
             setSelectedEventInterested(interested);
             
-            // Update the feed items locally without reloading
+            // Update the feed items locally
             setFeedItems(prevItems => 
               prevItems.map(item => {
                 if (item.type === 'event' && item.event_data?.id === eventId) {
@@ -2945,6 +2945,12 @@ export const UnifiedFeed = ({
                 return item;
               })
             );
+            
+            // Refresh feed to ensure all event cards reflect the new interest state
+            // Use a small delay to allow database write to complete
+            setTimeout(() => {
+              loadFeedData(0, false);
+            }, 500);
             
             toast({
               title: interested ? "Event Added!" : "Event Removed",
@@ -3030,8 +3036,8 @@ export const UnifiedFeed = ({
         />
       )}
 
-      {/* Bottom Navigation - Hide when chat is open */}
-      {!showUnifiedChat && onViewChange && (
+      {/* Bottom Navigation - Hide when chat is open or when embedded (MainApp handles navigation) */}
+      {!showUnifiedChat && onViewChange && !isEmbedded && (
         <Navigation 
           currentView="feed" 
           onViewChange={onViewChange} 

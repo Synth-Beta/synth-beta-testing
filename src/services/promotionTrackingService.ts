@@ -33,6 +33,11 @@ export class PromotionTrackingService {
         .gte('expires_at', new Date().toISOString());
 
       if (promotionsError) {
+        // If table doesn't exist, silently skip tracking (feature not available)
+        if (promotionsError.code === 'PGRST205' || promotionsError.message?.includes('does not exist')) {
+          console.log('Event promotions feature not available');
+          return;
+        }
         console.error('Error fetching promotions for tracking:', promotionsError);
         return;
       }

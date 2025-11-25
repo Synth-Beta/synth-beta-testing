@@ -91,14 +91,17 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
     if (!currentUserId) return;
 
     try {
+      // Use relationships table for 3NF schema
       const { data, error } = await supabase
-        .from('user_jambase_events')
-        .select('jambase_event_id')
+        .from('relationships')
+        .select('related_entity_id')
+        .eq('related_entity_type', 'event')
+        .eq('relationship_type', 'interest')
         .eq('user_id', currentUserId);
 
       if (error) throw error;
 
-      const interestedSet = new Set(data?.map(item => item.jambase_event_id) || []);
+      const interestedSet = new Set(data?.map(item => item.related_entity_id).filter(Boolean) || []);
       setInterestedEvents(interestedSet);
     } catch (error) {
       console.error('Error loading interested events:', error);

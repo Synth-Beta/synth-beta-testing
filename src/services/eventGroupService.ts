@@ -57,15 +57,35 @@ export class EventGroupService {
    */
   static async getEventGroups(eventId: string): Promise<EventGroup[]> {
     try {
-      const { data, error } = await supabase.rpc('get_event_groups', {
-        p_event_id: eventId,
-      });
+      // Check if event_groups table exists - if not, return empty array
+      // Event groups feature may not be available in all database schemas
+      try {
+        const { data, error } = await supabase.rpc('get_event_groups', {
+          p_event_id: eventId,
+        });
 
-      if (error) throw error;
-      return data || [];
+        if (error) {
+          // If function doesn't exist or table doesn't exist, return empty array
+          if (error.code === '42883' || error.message?.includes('does not exist')) {
+            console.log('Event groups feature not available:', error.message);
+            return [];
+          }
+          throw error;
+        }
+        return data || [];
+      } catch (error: any) {
+        // If it's a "relation does not exist" error, return empty array
+        if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+          console.log('Event groups feature not available:', error.message);
+          return [];
+        }
+        console.error('Error getting event groups:', error);
+        throw error;
+      }
     } catch (error) {
       console.error('Error getting event groups:', error);
-      throw error;
+      // Return empty array instead of throwing to prevent app crashes
+      return [];
     }
   }
 

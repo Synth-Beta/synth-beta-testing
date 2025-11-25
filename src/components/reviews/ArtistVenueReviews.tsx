@@ -133,10 +133,11 @@ export function ArtistVenueReviews({
             rating,
             review_text,
             created_at,
-            events!inner(artist_name, event_date)
+            event_id
           `)
           .eq('is_public', true)
-          .in('event_id', eventIdList);
+          .eq('entity_type', 'event')
+          .in('entity_id', eventIdList);
         
         if (artistError) {
           console.error('Error fetching artist reviews:', artistError);
@@ -326,10 +327,11 @@ export function ArtistVenueReviews({
             rating,
             review_text,
             created_at,
-            events!inner(venue_name, event_date, artist_name)
+            entity_id
           `)
           .eq('is_public', true)
-          .in('event_id', venueEventIdList);
+          .eq('entity_type', 'event')
+          .in('entity_id', venueEventIdList);
         
         console.log('🏢 Venue reviews query result:', {
           data: venueReviewsData?.length || 0,
@@ -338,22 +340,25 @@ export function ArtistVenueReviews({
         });
         
         // Also check for any reviews for this venue (not just venue ratings)
-        const { data: allVenueReviews, error: allVenueError } = await (supabase as any)
-          .from('reviews')
-          .select(`
-            id,
-            events!inner(venue_name, artist_name, title)
-          `)
-          .eq('is_public', true)
-          .ilike('events.venue_name', venueName);
+        // Use the existing venueEventIdList from above
+        const { data: allVenueReviews, error: allVenueError } = venueEventIdList.length > 0 
+          ? await (supabase as any)
+              .from('reviews')
+              .select(`
+                id,
+                entity_id
+              `)
+              .eq('is_public', true)
+              .eq('entity_type', 'event')
+              .in('entity_id', venueEventIdList)
+          : { data: [], error: null };
         
         console.log('🏢 All reviews for venue:', {
           count: allVenueReviews?.length || 0,
           error: allVenueError,
           sampleReviews: allVenueReviews?.slice(0, 3).map(r => ({
             id: r.id,
-            venue_name: r.jambase_events?.venue_name,
-            artist_name: r.jambase_events?.artist_name
+            entity_id: r.entity_id
           }))
         });
         

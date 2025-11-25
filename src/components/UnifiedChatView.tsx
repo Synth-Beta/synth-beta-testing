@@ -28,6 +28,7 @@ import {
   UserX
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { FriendsService } from '@/services/friendsService';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { SynthSLogo } from '@/components/SynthSLogo';
@@ -296,119 +297,11 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       console.log('🔍 Current user ID:', currentUserId);
       console.log('🔍 User ID type:', typeof currentUserId);
       
-      // Query friends from the friends table
-      console.log('🔍 Querying friends table...');
-      console.log('🔍 Query string:', `user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
-      
-      const { data: friendships, error: friendsError } = await supabase
-        .from('friends')
-        .select('id, user1_id, user2_id, created_at')
-        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
-        .order('created_at', { ascending: false });
-
-      console.log('🔍 Friends query result:', { friendships, friendsError });
-      console.log('🔍 Friendships length:', friendships?.length || 0);
-
-      if (friendsError) {
-        console.error('❌ Error fetching friends:', friendsError);
-        console.error('❌ Error details:', {
-          message: friendsError.message,
-          details: friendsError.details,
-          hint: friendsError.hint,
-          code: friendsError.code
-        });
-        setUsers([]);
-        return;
-      }
-
-      if (!friendships || friendships.length === 0) {
-        console.log('🔍 No friends found in database');
-        console.log('🔍 Checking if friends table exists and has data...');
-        
-        // Let's also check if the friends table has any data at all
-        const { data: allFriends, error: allFriendsError } = await supabase
-          .from('friends')
-          .select('*')
-          .limit(5);
-        
-        console.log('🔍 All friends in table (first 5):', { allFriends, allFriendsError });
-        
-        // Also check if we can access profiles table
-        const { data: allProfiles, error: allProfilesError } = await supabase
-          .from('users')
-          .select('user_id, name')
-          .limit(5);
-        
-        console.log('🔍 All profiles in table (first 5):', { allProfiles, allProfilesError });
-        
-        // Check if there are any friend requests
-        const { data: friendRequests, error: friendRequestsError } = await supabase
-          .from('user_relationships')
-          .select('*')
-          .eq('relationship_type', 'friend')
-          .eq('status', 'pending')
-          .limit(5);
-        
-        console.log('🔍 Friend requests (first 5):', { friendRequests, friendRequestsError });
-        
-        setUsers([]);
-        return;
-      }
-
-      // Get all the user IDs we need to fetch
-      const userIds = friendships.map(f => 
-        f.user1_id === currentUserId ? f.user2_id : f.user1_id
-      );
-
-      console.log('🔍 Friend user IDs to fetch:', userIds);
-
-      // Fetch the profiles for those users
-      console.log('🔍 Querying profiles table...');
-      const { data: profiles, error: profilesError } = await supabase
-        .from('users')
-        .select('id, name, avatar_url, bio, user_id, created_at')
-        .in('user_id', userIds);
-
-      console.log('🔍 Profiles query result:', { profiles, profilesError });
-      
-      // Enhanced debugging - log what we received
-      if (profiles && profiles.length > 0) {
-        console.log('🔍 Profiles fetched:', profiles.map(p => ({ user_id: p.user_id, name: p.name, has_avatar: !!p.avatar_url })));
-      } else {
-        console.warn('⚠️ No profiles returned from query');
-      }
-
-      if (profilesError) {
-        console.error('❌ Error fetching friend profiles:', profilesError);
-        setUsers([]);
-        return;
-      }
-
-      // Transform the data to get the other user's profile
-      console.log('🔍 Mapping friendships to profiles...');
-      const friendsList = friendships.map(friendship => {
-        const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
-        const profile = profiles?.find(p => p.user_id === otherUserId);
-        
-        console.log(`🔍 User ${otherUserId}: ${profile ? `FOUND - Name: "${profile.name}"` : 'NOT FOUND in profiles'}`);
-        
-        // If profile not found, try to fetch it directly as a fallback
-        if (!profile) {
-          console.warn(`⚠️ Profile not found for user ${otherUserId}, using Unknown User`);
-        }
-        
-        return {
-          id: profile?.id || otherUserId,
-          user_id: otherUserId,
-          name: profile?.name || 'Unknown User',
-          avatar_url: profile?.avatar_url || null,
-          bio: profile?.bio || null,
-          created_at: friendship.created_at
-        };
-      });
+      // Use FriendsService to get friends (deduplicated)
+      const friendsList = await FriendsService.getFriends(currentUserId);
 
       console.log('✅ Friends fetched successfully:', friendsList);
-      console.log('✅ Number of friends with valid names:', friendsList.filter(f => f.name !== 'Unknown User').length);
+      console.log('✅ Number of friends:', friendsList.length);
       setUsers(friendsList);
     } catch (error) {
       console.error('Error fetching friends:', error);

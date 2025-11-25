@@ -38,13 +38,15 @@ export class UserEventService {
         throw error;
       }
 
-      // Return fresh state
+      // Return fresh state - convert event ID to string for consistent comparison
+      const eventIdStr = String(jambaseEventId);
       const { data, error: fetchError } = await supabase
         .from('relationships')
         .select('*')
         .eq('related_entity_type', 'event')
+        .eq('relationship_type', 'interest')
         .eq('user_id', userId)
-        .eq('related_entity_id', jambaseEventId)
+        .eq('related_entity_id', eventIdStr)
         .maybeSingle();
       if (fetchError) throw fetchError;
       try {
@@ -87,12 +89,16 @@ export class UserEventService {
    */
   static async isUserInterested(userId: string, jambaseEventId: string): Promise<boolean> {
     try {
+      // Convert event ID to string for consistent comparison (relationships stores as TEXT)
+      const eventIdStr = String(jambaseEventId);
+      
       const { data, error } = await supabase
         .from('relationships')
         .select('id')
         .eq('related_entity_type', 'event')
+        .eq('relationship_type', 'interest')
         .eq('user_id', userId)
-        .eq('related_entity_id', jambaseEventId)
+        .eq('related_entity_id', eventIdStr)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
@@ -114,31 +120,67 @@ export class UserEventService {
     total: number;
   }> {
     try {
-      const { data, error } = await supabase
+      // First get all relationships for events user is interested in
+      const { data: relationships, error: relationshipsError } = await supabase
         .from('relationships')
-        .select(`
-          *,
-          events(*)
-        `)
+        .select('*')
         .eq('related_entity_type', 'event')
+        .eq('relationship_type', 'interest')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (relationshipsError) throw relationshipsError;
+
+      if (!relationships || relationships.length === 0) {
+        return { events: [], total: 0 };
+      }
+
+      // Extract event IDs and query events separately (no foreign key join available)
+      const eventIds = relationships.map((r: any) => r.related_entity_id).filter(Boolean);
+      
+      if (eventIds.length === 0) {
+        return { events: [], total: 0 };
+      }
+
+      // Query events using UUIDs (convert TEXT IDs to UUIDs)
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .in('id', eventIds);
+
+      // If UUID query fails, try as TEXT (some might be stored as TEXT)
+      let events = eventsData || [];
+      if (eventsError && events.length === 0) {
+        // Try querying by jambase_event_id if available
+        const { data: eventsByJambaseId } = await supabase
+          .from('events')
+          .select('*')
+          .in('jambase_event_id', eventIds);
+        if (eventsByJambaseId) events = eventsByJambaseId;
+      }
+
+      // Create a map of event ID to event data for efficient lookup
+      const eventMap = new Map(events.map((e: any) => [e.id || e.jambase_event_id, e]));
+
+      // Combine relationships with events
+      const combinedEvents = relationships
+        .map((row: any) => {
+          const event = eventMap.get(row.related_entity_id) || null;
+          return {
+            interest: {
+              id: row.id,
+              user_id: row.user_id,
+              jambase_event_id: row.related_entity_id,
+              created_at: row.created_at,
+            } as UserJamBaseEvent,
+            event: event,
+          };
+        })
+        .filter(item => item.event !== null); // Only include events that were found
 
       return {
-        events: Array.isArray(data)
-          ? data.map((row: any) => ({
-              interest: {
-                id: row.id,
-                user_id: row.user_id,
-                jambase_event_id: row.related_entity_id, // Map to expected interface name
-                created_at: row.created_at,
-              } as UserJamBaseEvent,
-              event: row.event,
-            }))
-          : [],
-        total: Array.isArray(data) ? data.length : 0
+        events: combinedEvents,
+        total: combinedEvents.length
       };
     } catch (error) {
       console.error('Error getting user interested events:', error);

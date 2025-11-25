@@ -24,6 +24,7 @@ import {
   User
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { FriendsService } from '@/services/friendsService';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { fetchUserNotifications } from '@/utils/notificationUtils';
@@ -127,59 +128,8 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
       console.log('👥 Fetching friends for user:', currentUserId);
       
-      // First, get the friendship records
-      const { data: friendships, error: friendsError } = await supabase
-        .from('friends')
-        .select('id, user1_id, user2_id, created_at')
-        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
-        .order('created_at', { ascending: false });
-
-      console.log('👥 Friends query result:', { data: friendships, error: friendsError });
-
-      if (friendsError) {
-        console.warn('Warning: Could not fetch friends:', friendsError);
-        setFriends([]);
-        return;
-      }
-
-      if (!friendships || friendships.length === 0) {
-        setFriends([]);
-        return;
-      }
-
-      // Get all the user IDs we need to fetch
-      const userIds = friendships.map(f => 
-        f.user1_id === currentUserId ? f.user2_id : f.user1_id
-      );
-
-      // Fetch the profiles for those users
-      const { data: profiles, error: profilesError } = await supabase
-        .from('users')
-        .select('id, user_id, name, avatar_url, bio')
-        .in('user_id', userIds);
-
-      if (profilesError) {
-        console.warn('Warning: Could not fetch friend profiles:', profilesError);
-        setFriends([]);
-        return;
-      }
-
-      // Transform the data to get the other user's profile
-      const friendsList = friendships.map(friendship => {
-        const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
-        const profile = profiles?.find(p => p.user_id === otherUserId);
-        
-        return {
-          id: profile?.id || otherUserId,
-          user_id: otherUserId, // Add user_id for chat functionality
-          name: profile?.name || 'Unknown User',
-          username: (profile?.name || 'unknown').toLowerCase().replace(/\s+/g, ''),
-          avatar_url: profile?.avatar_url || null,
-          bio: profile?.bio || null,
-          friendship_id: friendship.id,
-          created_at: friendship.created_at
-        };
-      });
+      // Use FriendsService to get friends (deduplicated)
+      const friendsList = await FriendsService.getFriends(currentUserId);
 
       console.log('👥 Processed friends list:', friendsList);
       setFriends(friendsList);

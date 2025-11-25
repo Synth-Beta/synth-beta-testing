@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import { UserEventService } from '@/services/userEventService';
 import { format, parseISO } from 'date-fns';
 
 interface EventMessageCardProps {
@@ -67,15 +68,10 @@ export function EventMessageCard({
     
     try {
       console.log('🔍 checkInterest called with:', { eventId: event.id, currentUserId });
-      const { data, error } = await supabase
-        .from('user_jambase_events')
-        .select('id')
-        .eq('user_id', currentUserId)
-        .eq('jambase_event_id', event.id)
-        .single();
-      
-      console.log('🔍 checkInterest result:', { data, error });
-      setIsInterested(!!data && !error);
+      // Use UserEventService for consistent checking with relationships table
+      const interested = await UserEventService.isUserInterested(currentUserId, event.id);
+      console.log('🔍 checkInterest result:', { interested });
+      setIsInterested(interested);
     } catch (error) {
       console.log('🔍 checkInterest error:', error);
       setIsInterested(false);

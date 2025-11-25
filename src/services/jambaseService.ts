@@ -182,12 +182,72 @@ export class JamBaseService {
    * Get user's interested JamBase events
    */
   static async getUserEvents(userId: string) {
-    // Get all user's interested events from relationships table
-    const { data, error } = await supabase
+    // Get all user's interested events from relationships table (3NF schema)
+    // First get relationships, then query events separately (no foreign key join available)
+    const { data: relationships, error: relationshipsError } = await supabase
       .from('relationships')
+      .select('related_entity_id, created_at')
+      .eq('user_id', userId)
+      .eq('related_entity_type', 'event')
+      .in('relationship_type', ['interest', 'going', 'maybe'])
+      .order('created_at', { ascending: false });
+
+    if (relationshipsError) throw relationshipsError;
+    
+    if (!relationships || relationships.length === 0) {
+      return [];
+    }
+
+    // Extract event IDs (they're stored as TEXT UUIDs in related_entity_id)
+    const eventIds = relationships.map(r => r.related_entity_id).filter(Boolean);
+    
+    if (eventIds.length === 0) {
+      return [];
+    }
+
+    // Query events separately - try UUID first (eventIds are TEXT UUIDs)
+    let events: any[] = [];
+    const { data: eventsByUuid, error: uuidError } = await supabase
+      .from('events')
       .select(`
-        created_at,
-        event:events(
+        id,
+        jambase_event_id,
+        title,
+        artist_name,
+        artist_id,
+        venue_name,
+        venue_id,
+        venue_city,
+        venue_state,
+        venue_address,
+        venue_zip,
+        event_date,
+        doors_time,
+        description,
+        genres,
+        latitude,
+        longitude,
+        price_range,
+        ticket_available,
+        ticket_urls,
+        setlist,
+        setlist_enriched,
+        setlist_song_count,
+        setlist_fm_id,
+        setlist_fm_url,
+        setlist_source,
+        setlist_last_updated,
+        tour_name
+      `)
+      .in('id', eventIds); // Supabase should handle TEXT UUID strings matching UUID columns
+
+    if (eventsByUuid) {
+      events = eventsByUuid;
+    } else {
+      // Fallback: try querying by jambase_event_id
+      const { data: eventsByJambaseId } = await supabase
+        .from('events')
+        .select(`
           id,
           jambase_event_id,
           title,
@@ -216,14 +276,65 @@ export class JamBaseService {
           setlist_source,
           setlist_last_updated,
           tour_name
-        )
-      `)
-      .eq('user_id', userId)
-      .eq('related_entity_type', 'event')
-      .in('relationship_type', ['interest', 'going', 'maybe'])
-      .order('created_at', { ascending: false });
+        `)
+        .in('jambase_event_id', eventIds);
+      
+      if (eventsByJambaseId) {
+        events = eventsByJambaseId;
+      }
+    }
 
-    if (error) throw error;
+    // Combine relationships with events, preserving order
+    // Create map with multiple key formats to ensure matching (handle UUID as both UUID and TEXT)
+    const eventMap = new Map<string, any>();
+    events.forEach(e => {
+      // Add by UUID (id) - normalize to lowercase string for consistent matching
+      if (e.id) {
+        const idStr = String(e.id).toLowerCase();
+        eventMap.set(idStr, e);
+        eventMap.set(String(e.id), e);
+        eventMap.set(e.id, e); // Also add as-is in case of type mismatch
+      }
+      // Add by jambase_event_id
+      if (e.jambase_event_id) {
+        eventMap.set(String(e.jambase_event_id).toLowerCase(), e);
+        eventMap.set(String(e.jambase_event_id), e);
+      }
+    });
+    
+    console.log('🔍 getUserEvents - Matching relationships to events:', {
+      relationshipsCount: relationships.length,
+      eventsCount: events.length,
+      eventMapKeys: Array.from(eventMap.keys()).slice(0, 5),
+      sampleRelatedEntityIds: relationships.slice(0, 3).map(r => r.related_entity_id)
+    });
+    
+    const data = relationships
+      .map(r => {
+        // Try to find event by related_entity_id (stored as TEXT UUID)
+        // Normalize to lowercase for consistent matching
+        const normalizedId = String(r.related_entity_id).toLowerCase();
+        const event = eventMap.get(normalizedId) || 
+                     eventMap.get(r.related_entity_id) || 
+                     eventMap.get(String(r.related_entity_id));
+        
+        if (!event) {
+          console.warn('⚠️ Could not match relationship to event:', {
+            related_entity_id: r.related_entity_id,
+            normalizedId,
+            availableKeys: Array.from(eventMap.keys()).slice(0, 10)
+          });
+        }
+        
+        return event ? { created_at: r.created_at, event } : null;
+      })
+      .filter(Boolean);
+
+    if (uuidError && !events.length) {
+      console.warn('Error fetching events:', uuidError);
+      // Return empty array if we can't fetch events
+      return [];
+    }
     
     // Filter out events that have been marked as attended (have a review with was_there=true)
     // This ensures "Interested Events" only shows events user hasn't attended yet
