@@ -176,14 +176,57 @@ export class PersonalizedFeedService {
     console.warn('⚠️ Falling back to basic feed query (RPC unavailable).');
       
     try {
+      // Build city filter - handle variations like "Washington D.C", "Washington DC", etc.
+      const cityFilter = filters.city || filters.cleanedCities?.[0];
+      
       let query = supabase
         .from('events')
         .select('*')
-        .order('event_date', { ascending: true })
-        .range(offset, offset + limit - 1);
+        .order('event_date', { ascending: true });
       
       if (!includePast) {
         query = query.gte('event_date', new Date().toISOString());
+      }
+      
+      // Filter by city if provided - handle variations by using ilike
+      if (cityFilter) {
+        const cityName = cityFilter.trim();
+        
+        // Create patterns to match common city name variations
+        // For "Washington D.C" -> match "Washington", "Washington D.C", "Washington DC", etc.
+        const cityPatterns: string[] = [];
+        
+        // Add the original city name
+        cityPatterns.push(cityName);
+        
+        // Add variation without periods
+        cityPatterns.push(cityName.replace(/\./g, ''));
+        
+        // Add base city name (without DC/D.C suffix) for cities like "Washington D.C"
+        const baseCityName = cityName
+          .replace(/\s+d\.?c\.?$/i, '')
+          .replace(/\s+dc$/i, '')
+          .replace(/\s+d\s+c$/i, '')
+          .trim();
+        if (baseCityName && baseCityName !== cityName) {
+          cityPatterns.push(baseCityName);
+        }
+        
+        // Use OR to match any of these patterns
+        const orConditions = cityPatterns
+          .filter(Boolean)
+          .map(pattern => `venue_city.ilike.${pattern}%`)
+          .join(',');
+        
+        if (orConditions) {
+          query = query.or(orConditions);
+        }
+        
+        console.log('🔍 Fallback feed: Filtering by city:', { 
+          originalCity: cityFilter,
+          patterns: cityPatterns,
+          orConditions
+        });
       }
       
       if (filters.genres?.length) {
@@ -198,12 +241,18 @@ export class PersonalizedFeedService {
         query = query.lte('event_date', filters.dateEndIso);
       }
 
+      // Fetch more events than needed to account for client-side filtering and pagination
+      const fetchLimit = Math.max(limit * 3, 100);
+      query = query.limit(fetchLimit).range(offset, offset + fetchLimit - 1);
+
       const { data, error } = await query;
       
       if (error) {
         console.error('❌ Fallback feed query error:', error);
         return [];
       }
+      
+      console.log(`✅ Fallback feed: Fetched ${data?.length || 0} events from database`);
       
       const rows = (data ?? []).map<PersonalizedFeedRow>((event: any) => ({
         event_id: event.id,
