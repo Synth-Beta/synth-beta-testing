@@ -171,9 +171,10 @@ export class UnifiedFeedService {
         .eq('user_id', userId)
         .single();
 
+      // Fetch reviews first
       const { data: reviews, error } = await supabase
         .from('reviews')
-        .select(`*, events(id, title, artist_name, venue_name, event_date, setlist)`)
+        .select('*')
         .eq('user_id', userId)
         .eq('is_draft', false) // Only show published reviews, not drafts
         .neq('review_text', 'ATTENDANCE_ONLY') // Exclude attendance-only records from review feed
@@ -182,11 +183,27 @@ export class UnifiedFeedService {
         .limit(20);
       
       if (error) throw error;
+      if (!reviews || reviews.length === 0) return [];
+
+      // Fetch events separately
+      const eventIds = reviews.map((r: any) => r.event_id).filter(Boolean);
+      const eventMap = new Map();
+      
+      if (eventIds.length > 0) {
+        const { data: events, error: eventsError } = await supabase
+          .from('events')
+          .select('id, title, artist_name, venue_name, event_date, setlist, artist_id')
+          .in('id', eventIds);
+        
+        if (!eventsError && events) {
+          events.forEach((event: any) => {
+            eventMap.set(event.id, event);
+          });
+        }
+      }
       
       return (reviews || []).map((review: any) => {
-        // Use the setlist from reviews if available, otherwise fall back to event setlist
-        // Note: query returns events as an object (singular) not array
-        const eventData = Array.isArray(review.events) ? review.events[0] : review.events;
+        const eventData = eventMap.get(review.event_id);
         const setlistToUse = review.setlist || eventData?.setlist;
         console.log('🎵 getUserReviews: Processing review:', {
           reviewId: review.id,

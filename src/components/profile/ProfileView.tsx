@@ -792,45 +792,56 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       console.log('🔍 ProfileView: Fetching attended events for user:', targetUserId);
       setAttendedEventsLoading(true);
       
-      // Fetch events where user has reviews (implies attendance)
-      // Also include events where was_there = true (attendance without review)
-    const { data, error } = await (supabase as any)
-      .from('reviews')
-      .select(`
-        id, 
-        event_id, 
-        rating, 
-        review_text, 
-        was_there, 
-        is_public, 
-        created_at, 
-        updated_at,
-        events (
-          id,
-          title,
-          artist_name,
-          venue_name,
-          event_date,
-          venue_city,
-          venue_state,
-          setlist,
-          setlist_enriched,
-          setlist_song_count,
-          setlist_fm_id,
-          setlist_fm_url,
-          setlist_source,
-          setlist_last_updated
-        )
-      `)
-      .eq('user_id', targetUserId)
-      .eq('is_draft', false)
-      .order('created_at', { ascending: false });
+      // Fetch reviews first
+      const { data: reviewsData, error } = await supabase
+        .from('reviews')
+        .select(`
+          id, 
+          event_id, 
+          rating, 
+          review_text, 
+          was_there, 
+          is_public, 
+          created_at, 
+          updated_at
+        `)
+        .eq('user_id', targetUserId)
+        .eq('is_draft', false)
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching attended events:', error);
         setAttendedEvents([]);
         return;
       }
+
+      if (!reviewsData || reviewsData.length === 0) {
+        setAttendedEvents([]);
+        return;
+      }
+
+      // Fetch events separately
+      const eventIds = reviewsData.map((r: any) => r.event_id).filter(Boolean);
+      const eventMap = new Map();
+      
+      if (eventIds.length > 0) {
+        const { data: eventsData } = await supabase
+          .from('events')
+          .select('id, title, artist_name, venue_name, event_date, venue_city, venue_state, setlist')
+          .in('id', eventIds);
+        
+        if (eventsData) {
+          eventsData.forEach((event: any) => {
+            eventMap.set(event.id, event);
+          });
+        }
+      }
+
+      // Map reviews with event data
+      const data = reviewsData.map((review: any) => ({
+        ...review,
+        events: eventMap.get(review.event_id)
+      }));
 
       console.log('🔍 ProfileView: Attended events data (raw):', data);
       console.log('🔍 ProfileView: Total attended events fetched (raw):', data?.length);

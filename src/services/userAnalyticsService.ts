@@ -363,22 +363,48 @@ export class UserAnalyticsService {
    */
   static async getActualUniqueVenuesCount(userId: string): Promise<number> {
     try {
-      // Get venue names from all reviews records (completed, drafts, attendance-only)
-      const { data: allReviewsData } = await supabase
+      // Get reviews first, then fetch events separately
+      const { data: reviewsData } = await supabase
         .from('reviews')
-        .select(`
-          id, is_draft, review_text, events!inner(venue_name, title, artist_name)
-        `)
+        .select('id, is_draft, review_text, event_id')
         .eq('user_id', userId);
+      
+      if (!reviewsData || reviewsData.length === 0) {
+        return 0;
+      }
+
+      // Fetch events separately
+      const eventIds = reviewsData.map((r: any) => r.event_id).filter(Boolean);
+      const eventMap = new Map();
+      
+      if (eventIds.length > 0) {
+        const { data: eventsData } = await supabase
+          .from('events')
+          .select('id, venue_name, title, artist_name')
+          .in('id', eventIds);
+        
+        if (eventsData) {
+          eventsData.forEach((event: any) => {
+            eventMap.set(event.id, event);
+          });
+        }
+      }
+
+      // Map reviews with event data
+      const allReviewsData = reviewsData.map((review: any) => ({
+        ...review,
+        events: eventMap.get(review.event_id)
+      }));
 
       // Collect unique venue names with detailed logging
       const venueNames = new Set<string>();
       const venueDetails: Array<{venue: string, event: string, type: string}> = [];
       
       allReviewsData?.forEach(review => {
-        const venueName = (review as any).event?.venue_name;
-        const eventTitle = (review as any).event?.title;
-        const artistName = (review as any).event?.artist_name;
+        const eventData = (review as any).events;
+        const venueName = eventData?.venue_name;
+        const eventTitle = eventData?.title;
+        const artistName = eventData?.artist_name;
         
         if (venueName) {
           venueNames.add(venueName);
@@ -663,39 +689,33 @@ export class UserAnalyticsService {
 
   /**
    * Get consistent artist follows count (same method used everywhere)
+   * Uses relationships table in 3NF schema
    */
   static async getArtistFollowsCount(userId: string): Promise<number> {
     try {
-      // Get both count and data in one query
-      const { count, data, error } = await (supabase as any)
-        .from('artist_follows')
-        .select('*')
-        .eq('user_id', userId);
+      // Use relationships table for 3NF schema
+      const { count, error } = await supabase
+        .from('relationships')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('related_entity_type', 'artist')
+        .eq('relationship_type', 'follow')
+        .eq('status', 'accepted');
 
       if (error) {
         console.error('🚨 Artist follows query error:', error);
-        return 0;
+        // Fallback without status filter
+        const { count: fallbackCount } = await supabase
+          .from('relationships')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('related_entity_type', 'artist')
+          .eq('relationship_type', 'follow');
+        return fallbackCount || 0;
       }
 
-      // 🚨 FIX: Use data.length instead of count when count is wrong
-      const countResult = count || data?.length || 0;
-      console.log(`🎯 Simple artist follows count: ${countResult} (from count: ${count}, from data.length: ${data?.length})`);
-
-      // If we have follows, get the artist names for debugging
-      if (countResult > 0 && data && data.length > 0) {
-        // Get artist names with joins for debugging - use the view instead
-        const { data: detailedData, error: detailedError } = await (supabase as any)
-          .from('artist_follows_with_details')
-          .select('artist_name')
-          .eq('user_id', userId);
-
-        if (detailedError) {
-          console.warn('⚠️ Could not fetch detailed artist data:', detailedError);
-        } else if (detailedData && detailedData.length > 0) {
-          const artistNames = detailedData.map((follow: any) => follow.artist_name || 'Unknown Artist');
-          console.log(`🎯 Followed artist names:`, artistNames);
-        }
-      }
+      const countResult = count || 0;
+      console.log(`🎯 Artist follows count: ${countResult}`);
       
       return countResult;
     } catch (error) {
@@ -708,30 +728,29 @@ export class UserAnalyticsService {
     try {
       console.log(`🔍 Getting venue follows count for user: ${userId}`);
       
-      // Get both count and detailed data for debugging
-      const { count, data, error } = await (supabase as any)
-        .from('venue_follows')
-        .select('*')
-        .eq('user_id', userId);
+      // Use relationships table for 3NF schema
+      const { count, error } = await supabase
+        .from('relationships')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('related_entity_type', 'venue')
+        .eq('relationship_type', 'follow')
+        .eq('status', 'accepted');
 
       if (error) {
         console.error('🚨 Venue follows query error:', error);
-        return 0;
+        // Fallback without status filter
+        const { count: fallbackCount } = await supabase
+          .from('relationships')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('related_entity_type', 'venue')
+          .eq('relationship_type', 'follow');
+        return fallbackCount || 0;
       }
 
-      // 🚨 FIX: Use data.length instead of count when count is wrong
-      const countResult = count || data?.length || 0;
-      console.log(`🎯 Consistent venue follows count: ${countResult} (from count: ${count}, from data.length: ${data?.length})`);
-      console.log(`🎯 Venue follows raw data:`, data);
-      
-      if (data && data.length > 0) {
-        const venueNames = data.map((follow: any) => 
-          follow.venue_name || 'Unknown Venue'
-        );
-        console.log(`🎯 Followed venue names:`, venueNames);
-      } else {
-        console.log(`🎯 No venue follows found for user ${userId}`);
-      }
+      const countResult = count || 0;
+      console.log(`🎯 Venue follows count: ${countResult}`);
       
       return countResult;
     } catch (error) {

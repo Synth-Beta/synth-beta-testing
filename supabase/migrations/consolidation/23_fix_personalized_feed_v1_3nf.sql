@@ -128,7 +128,7 @@ BEGIN
       e.price_range,
       e.price_min,
       e.price_max,
-      e.is_promoted,
+      e.promoted AS is_promoted,
       e.promotion_tier,
       -- Updated: Extract poster_image_url from images JSONB array if available
       CASE
