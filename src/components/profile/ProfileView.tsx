@@ -238,6 +238,14 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     return () => clearTimeout(fetchTimeout);
   }, [targetUserId, sessionExpired, user]);
 
+  // Refresh interested events when user switches to "interested" tab
+  useEffect(() => {
+    if (activeTab === 'interested' && targetUserId) {
+      console.log('🔍 ProfileView: User switched to interested tab, refreshing events...');
+      fetchUserEvents();
+    }
+  }, [activeTab, targetUserId]);
+
   useEffect(() => {
     // Check for hash in URL to determine active tab
     const hash = window.location.hash.substring(1);

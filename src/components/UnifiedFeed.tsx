@@ -260,6 +260,57 @@ export const UnifiedFeed = ({
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<string>>(new Set());
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
+
+  // Function to load all interested event IDs from database
+  const loadInterestedEvents = React.useCallback(async () => {
+    if (!currentUserId) return;
+    
+    try {
+      // Get all user's interested event IDs from relationships table
+      const { data: relationships, error } = await supabase
+        .from('relationships')
+        .select('related_entity_id')
+        .eq('user_id', currentUserId)
+        .eq('related_entity_type', 'event')
+        .eq('relationship_type', 'interest')
+        .eq('status', 'accepted');
+
+      if (error) {
+        // Try without status filter as fallback
+        const { data: relationshipsNoStatus, error: error2 } = await supabase
+          .from('relationships')
+          .select('related_entity_id')
+          .eq('user_id', currentUserId)
+          .eq('related_entity_type', 'event')
+          .eq('relationship_type', 'interest');
+
+        if (error2) {
+          console.warn('🔍 Error loading interested events:', error2);
+          return;
+        }
+
+        if (relationshipsNoStatus) {
+          const eventIds = relationshipsNoStatus.map(r => String(r.related_entity_id).toLowerCase()).filter(Boolean);
+          setInterestedEvents(new Set(eventIds));
+          console.log('🔍 Loaded interested events (no status filter):', eventIds.length, eventIds.slice(0, 3));
+        }
+        return;
+      }
+
+      if (relationships) {
+        const eventIds = relationships.map(r => String(r.related_entity_id).toLowerCase()).filter(Boolean);
+        setInterestedEvents(new Set(eventIds));
+        console.log('🔍 Loaded interested events:', eventIds.length, eventIds.slice(0, 3));
+      }
+    } catch (error) {
+      console.error('🔍 Error loading interested events:', error);
+    }
+  }, [currentUserId]);
+
+  // Load user's interested events on mount and when userId changes
+  useEffect(() => {
+    loadInterestedEvents();
+  }, [loadInterestedEvents]);
   
   // Following state
   const [followedArtists, setFollowedArtists] = useState<string[]>([]);
@@ -605,6 +656,7 @@ export const UnifiedFeed = ({
       loadUpcomingEvents();
       loadFollowedData();
       loadCities();
+      loadInterestedEvents();
     };
     
     loadUserCityAndApply();
@@ -1276,16 +1328,21 @@ export const UnifiedFeed = ({
     if (!currentUserId || !item.event_data) return;
     
     // Toggle interest without opening the modal
-    const isCurrentlyInterested = interestedEvents.has(item.event_data.id);
+    // Normalize event ID to lowercase string for consistent comparison
+    const eventIdNormalized = String(item.event_data.id).toLowerCase();
+    const isCurrentlyInterested = interestedEvents.has(eventIdNormalized);
     const newInterestState = !isCurrentlyInterested;
     
     // Optimistically update UI
-    if (newInterestState) {
-      interestedEvents.add(item.event_data.id);
-    } else {
-      interestedEvents.delete(item.event_data.id);
-    }
-    setInterestedEvents(new Set(interestedEvents));
+    setInterestedEvents(prev => {
+      const newSet = new Set(prev);
+      if (newInterestState) {
+        newSet.add(eventIdNormalized);
+      } else {
+        newSet.delete(eventIdNormalized);
+      }
+      return newSet;
+    });
     
     // Update in database
     try {
@@ -1301,15 +1358,22 @@ export const UnifiedFeed = ({
           ? "We'll notify you about this event" 
           : "You'll no longer receive notifications for this event",
       });
+
+      // Reload interested events Set from database to ensure consistency across all components
+      await loadInterestedEvents();
     } catch (error) {
       console.error('Error toggling interest:', error);
       // Revert optimistic update
-      if (newInterestState) {
-        interestedEvents.delete(item.event_data.id);
-      } else {
-        interestedEvents.add(item.event_data.id);
-      }
-      setInterestedEvents(new Set(interestedEvents));
+      setInterestedEvents(prev => {
+        const newSet = new Set(prev);
+        const normalizedEventId = String(item.event_data.id).toLowerCase();
+        if (newInterestState) {
+          newSet.delete(normalizedEventId);
+        } else {
+          newSet.add(normalizedEventId);
+        }
+        return newSet;
+      });
       
       toast({
         title: "Error",
@@ -2018,15 +2082,15 @@ export const UnifiedFeed = ({
                           e.stopPropagation();
                           handleEventInterest(item);
                         }}
-                        className={cn(
+                          className={cn(
                           'flex items-center gap-1 text-sm transition-colors px-3 py-1 rounded-md',
-                          interestedEvents.has(item.event_data.id)
+                          interestedEvents.has(String(item.event_data.id).toLowerCase())
                             ? 'bg-pink-500 text-white hover:bg-pink-600'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         )}
                       >
-                        <Heart className={cn('w-4 h-4', interestedEvents.has(item.event_data.id) && 'fill-current')} />
-                        <span>{interestedEvents.has(item.event_data.id) ? 'Interested' : "I'm Interested"}</span>
+                        <Heart className={cn('w-4 h-4', interestedEvents.has(String(item.event_data.id).toLowerCase()) && 'fill-current')} />
+                        <span>{interestedEvents.has(String(item.event_data.id).toLowerCase()) ? 'Interested' : "I'm Interested"}</span>
                       </button>
                     ) : (
                       <button
@@ -2480,13 +2544,13 @@ export const UnifiedFeed = ({
                               handleEventInterest(item);
                             }}
                             className={`flex items-center gap-1 text-sm transition-colors px-3 py-1 rounded-md ${
-                              interestedEvents.has(item.event_data.id) 
+                              interestedEvents.has(String(item.event_data.id).toLowerCase()) 
                                 ? 'bg-pink-500 text-white hover:bg-pink-600' 
                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                           >
-                            <Heart className={`w-4 h-4 ${interestedEvents.has(item.event_data.id) ? 'fill-current' : ''}`} />
-                            <span>{interestedEvents.has(item.event_data.id) ? 'Interested' : "I'm Interested"}</span>
+                            <Heart className={`w-4 h-4 ${interestedEvents.has(String(item.event_data.id).toLowerCase()) ? 'fill-current' : ''}`} />
+                            <span>{interestedEvents.has(String(item.event_data.id).toLowerCase()) ? 'Interested' : "I'm Interested"}</span>
                           </button>
                         ) : (
                           <button
@@ -2945,6 +3009,21 @@ export const UnifiedFeed = ({
                 return item;
               })
             );
+            
+            // Update interestedEvents Set immediately (normalize to lowercase string)
+            const normalizedEventId = String(eventId).toLowerCase();
+            setInterestedEvents(prev => {
+              const newSet = new Set(prev);
+              if (interested) {
+                newSet.add(normalizedEventId);
+              } else {
+                newSet.delete(normalizedEventId);
+              }
+              return newSet;
+            });
+            
+            // Reload interested events Set from database to ensure consistency
+            loadInterestedEvents();
             
             // Refresh feed to ensure all event cards reflect the new interest state
             // Use a small delay to allow database write to complete

@@ -184,13 +184,34 @@ export class JamBaseService {
   static async getUserEvents(userId: string) {
     // Get all user's interested events from relationships table (3NF schema)
     // First get relationships, then query events separately (no foreign key join available)
-    const { data: relationships, error: relationshipsError } = await supabase
+    // Try with status filter first
+    let { data: relationships, error: relationshipsError } = await supabase
       .from('relationships')
-      .select('related_entity_id, created_at')
+      .select('related_entity_id, created_at, status')
       .eq('user_id', userId)
       .eq('related_entity_type', 'event')
-      .in('relationship_type', ['interest', 'going', 'maybe'])
+      .eq('relationship_type', 'interest')
+      .eq('status', 'accepted')
       .order('created_at', { ascending: false });
+    
+    // If no results with status filter, try without it (in case status wasn't set)
+    if ((!relationships || relationships.length === 0) && !relationshipsError) {
+      console.log('🔍 getUserEvents: No relationships found with status filter, trying without...');
+      const { data: relationshipsWithoutStatus, error: errorWithoutStatus } = await supabase
+        .from('relationships')
+        .select('related_entity_id, created_at, status')
+        .eq('user_id', userId)
+        .eq('related_entity_type', 'event')
+        .eq('relationship_type', 'interest')
+        .order('created_at', { ascending: false });
+      
+      if (errorWithoutStatus) {
+        relationshipsError = errorWithoutStatus;
+      } else if (relationshipsWithoutStatus && relationshipsWithoutStatus.length > 0) {
+        relationships = relationshipsWithoutStatus;
+        console.log(`🔍 getUserEvents: Found ${relationships.length} relationships without status filter`);
+      }
+    }
 
     if (relationshipsError) throw relationshipsError;
     
@@ -202,50 +223,23 @@ export class JamBaseService {
     const eventIds = relationships.map(r => r.related_entity_id).filter(Boolean);
     
     if (eventIds.length === 0) {
+      console.log('🔍 getUserEvents: No event IDs found in relationships');
       return [];
     }
 
-    // Query events separately - try UUID first (eventIds are TEXT UUIDs)
-    let events: any[] = [];
-    const { data: eventsByUuid, error: uuidError } = await supabase
-      .from('events')
-      .select(`
-        id,
-        jambase_event_id,
-        title,
-        artist_name,
-        artist_id,
-        venue_name,
-        venue_id,
-        venue_city,
-        venue_state,
-        venue_address,
-        venue_zip,
-        event_date,
-        doors_time,
-        description,
-        genres,
-        latitude,
-        longitude,
-        price_range,
-        ticket_available,
-        ticket_urls,
-        setlist,
-        setlist_enriched,
-        setlist_song_count,
-        setlist_fm_id,
-        setlist_fm_url,
-        setlist_source,
-        setlist_last_updated,
-        tour_name
-      `)
-      .in('id', eventIds); // Supabase should handle TEXT UUID strings matching UUID columns
+    console.log('🔍 getUserEvents: Querying events for IDs:', eventIds.slice(0, 5));
 
-    if (eventsByUuid) {
-      events = eventsByUuid;
-    } else {
-      // Fallback: try querying by jambase_event_id
-      const { data: eventsByJambaseId } = await supabase
+    // Query events separately - eventIds are TEXT UUIDs, but events.id is UUID type
+    // Supabase should handle the conversion, but we'll query both ways to be safe
+    let events: any[] = [];
+    let uuidError: any = null;
+    
+    // First try: query by UUID (eventIds might be UUID strings)
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const validUuids = eventIds.filter(id => uuidPattern.test(String(id)));
+    
+    if (validUuids.length > 0) {
+      const result = await supabase
         .from('events')
         .select(`
           id,
@@ -269,18 +263,62 @@ export class JamBaseService {
           ticket_available,
           ticket_urls,
           setlist,
-          setlist_enriched,
-          setlist_song_count,
-          setlist_fm_id,
-          setlist_fm_url,
-          setlist_source,
-          setlist_last_updated,
           tour_name
         `)
-        .in('jambase_event_id', eventIds);
+        .in('id', validUuids);
       
-      if (eventsByJambaseId) {
-        events = eventsByJambaseId;
+      uuidError = result.error;
+      
+      if (result.data && !result.error) {
+        events = result.data;
+        console.log(`🔍 getUserEvents: Found ${events.length} events by UUID`);
+      } else if (result.error) {
+        console.warn('🔍 getUserEvents: Error querying by UUID:', result.error);
+      }
+    }
+    
+    // Second try: if we didn't find all events, try by jambase_event_id for any remaining
+    const foundEventIds = new Set(events.map(e => String(e.id || e.jambase_event_id)));
+    const missingIds = eventIds.filter(id => !foundEventIds.has(String(id)));
+    
+    if (missingIds.length > 0 && events.length < eventIds.length) {
+      console.log(`🔍 getUserEvents: ${missingIds.length} events not found by UUID, trying jambase_event_id`);
+      const { data: eventsByJambaseId, error: jambaseError } = await supabase
+        .from('events')
+        .select(`
+          id,
+          jambase_event_id,
+          title,
+          artist_name,
+          artist_id,
+          venue_name,
+          venue_id,
+          venue_city,
+          venue_state,
+          venue_address,
+          venue_zip,
+          event_date,
+          doors_time,
+          description,
+          genres,
+          latitude,
+          longitude,
+          price_range,
+          ticket_available,
+          ticket_urls,
+          setlist,
+          tour_name
+        `)
+        .in('jambase_event_id', missingIds);
+      
+      if (eventsByJambaseId && !jambaseError) {
+        // Merge with existing events, avoiding duplicates
+        const existingIds = new Set(events.map(e => String(e.id || e.jambase_event_id)));
+        const newEvents = eventsByJambaseId.filter(e => !existingIds.has(String(e.id || e.jambase_event_id)));
+        events = [...events, ...newEvents];
+        console.log(`🔍 getUserEvents: Added ${newEvents.length} more events by jambase_event_id`);
+      } else if (jambaseError) {
+        console.warn('🔍 getUserEvents: Error querying by jambase_event_id:', jambaseError);
       }
     }
 
@@ -331,7 +369,7 @@ export class JamBaseService {
       .filter(Boolean);
 
     if (uuidError && !events.length) {
-      console.warn('Error fetching events:', uuidError);
+      console.warn('🔍 getUserEvents: Error fetching events:', uuidError);
       // Return empty array if we can't fetch events
       return [];
     }
@@ -446,12 +484,6 @@ export class JamBaseService {
           price_range,
           ticket_available,
           setlist,
-          setlist_enriched,
-          setlist_song_count,
-          setlist_fm_id,
-          setlist_fm_url,
-          setlist_source,
-          setlist_last_updated,
           tour_name
         )
       `)

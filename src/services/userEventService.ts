@@ -27,8 +27,9 @@ export class UserEventService {
       
       // Presence-based interest model: if interested=true ensure row exists; if false, delete it
       // Use SECURITY DEFINER function to avoid recursive RLS
-      const { error } = await supabase.rpc('set_user_interest' as any, {
-        event_id: jambaseEventId,
+      // Always convert event ID to string to match TEXT function signature
+      const { error } = await supabase.rpc('set_user_interest', {
+        event_id: String(jambaseEventId), // Ensure it's always a string
         interested
       });
       
@@ -40,14 +41,45 @@ export class UserEventService {
 
       // Return fresh state - convert event ID to string for consistent comparison
       const eventIdStr = String(jambaseEventId);
+      console.log('🔍 Checking if relationship was saved:', { userId, eventIdStr, interested });
+      
+      // Wait a moment for the database write to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const { data, error: fetchError } = await supabase
         .from('relationships')
         .select('*')
         .eq('related_entity_type', 'event')
         .eq('relationship_type', 'interest')
+        .eq('status', 'accepted') // Only get accepted interests
         .eq('user_id', userId)
         .eq('related_entity_id', eventIdStr)
         .maybeSingle();
+      
+      console.log('🔍 Fresh state check result:', { 
+        found: !!data, 
+        error: fetchError,
+        eventIdStr,
+        interested
+      });
+      
+      // If interested=true but no data found, try without status filter (in case status wasn't set)
+      if (interested && !data && !fetchError) {
+        console.log('🔍 Retrying without status filter...');
+        const { data: retryData } = await supabase
+          .from('relationships')
+          .select('*')
+          .eq('related_entity_type', 'event')
+          .eq('relationship_type', 'interest')
+          .eq('user_id', userId)
+          .eq('related_entity_id', eventIdStr)
+          .maybeSingle();
+        
+        if (retryData) {
+          console.log('🔍 Found relationship without status filter:', retryData);
+        }
+      }
+      
       if (fetchError) throw fetchError;
       try {
         trackInteraction.interest('event', jambaseEventId, interested);
@@ -92,16 +124,39 @@ export class UserEventService {
       // Convert event ID to string for consistent comparison (relationships stores as TEXT)
       const eventIdStr = String(jambaseEventId);
       
+      // First try with status filter
       const { data, error } = await supabase
         .from('relationships')
         .select('id')
         .eq('related_entity_type', 'event')
         .eq('relationship_type', 'interest')
+        .eq('status', 'accepted') // Only check accepted interests
         .eq('user_id', userId)
         .eq('related_entity_id', eventIdStr)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
+      
+      // If not found with status filter, try without it (in case status wasn't set)
+      if (!data) {
+        console.log('🔍 isUserInterested: Not found with status filter, trying without...', { eventIdStr });
+        const { data: retryData, error: retryError } = await supabase
+          .from('relationships')
+          .select('id')
+          .eq('related_entity_type', 'event')
+          .eq('relationship_type', 'interest')
+          .eq('user_id', userId)
+          .eq('related_entity_id', eventIdStr)
+          .maybeSingle();
+        
+        if (retryError && retryError.code !== 'PGRST116') throw retryError;
+        
+        if (retryData) {
+          console.log('🔍 isUserInterested: Found relationship without status filter');
+          return true;
+        }
+      }
+      
       return Boolean(data);
     } catch (error) {
       console.error('Error checking event interest:', error);
