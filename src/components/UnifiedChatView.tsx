@@ -599,7 +599,13 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   };
 
   // Check if a group chat is event-created by looking for event_groups relationship
+  // NOTE: event_groups table does not exist in 3NF schema - return false immediately
   const isEventCreatedGroupChat = async (chatId: string): Promise<boolean> => {
+    // event_groups table doesn't exist in 3NF schema - feature not available
+    return false;
+    
+    // Disabled code - event_groups table removed in 3NF consolidation
+    /*
     try {
       const { data, error } = await supabase
         .from('event_groups')
@@ -622,6 +628,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       // Silently fail - not an event group
       return false;
     }
+    */
   };
 
   const getChatAvatar = (chat: Chat) => {
@@ -704,6 +711,29 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   };
 
   const fetchLinkedEvent = async (chatId: string) => {
+    // NOTE: event_groups table does not exist in 3NF schema - feature not available
+    // Check if chat has a shared_event_id in messages instead
+    try {
+      // Try to get event from messages table (for event shares)
+      const { data: messageData, error: messageError } = await supabase
+        .from('messages')
+        .select('shared_event_id, events:shared_event_id(id, title, artist_name, venue_name, event_date, images)')
+        .eq('chat_id', chatId)
+        .not('shared_event_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!messageError && messageData?.events) {
+        setLinkedEvent(messageData.events);
+        return;
+      }
+    } catch (error) {
+      // Silently handle - event groups feature not available in 3NF schema
+    }
+    
+    // Original event_groups query - disabled as table doesn't exist in 3NF
+    /*
     try {
       const { data, error } = await supabase
         .from('event_groups')
@@ -727,6 +757,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
     } catch (error) {
       console.error('Error fetching linked event:', error);
     }
+    */
   };
 
   const handleViewUsers = () => {

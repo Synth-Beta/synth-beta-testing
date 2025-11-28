@@ -238,6 +238,7 @@ export class UnifiedFeedService {
    */
   private static async getPublicReviews(userId: string, limit: number): Promise<UnifiedFeedItem[]> {
     try {
+      // Fetch reviews first
       const { data: reviews, error } = await (supabase as any)
         .from('reviews')
         .select(`
@@ -248,13 +249,6 @@ export class UnifiedFeedService {
             avatar_url,
             verified,
             account_type
-          ),
-          events:events (
-            id,
-            title,
-            artist_name,
-            venue_name,
-            event_date
           )
         `)
         .neq('user_id', userId) // Exclude user's own reviews
@@ -266,37 +260,59 @@ export class UnifiedFeedService {
         .limit(limit);
       
       if (error) throw error;
+      if (!reviews || reviews.length === 0) return [];
+
+      // Fetch events separately for all reviews
+      const eventIds = reviews.map((r: any) => r.event_id).filter(Boolean);
+      const eventMap = new Map();
       
-      return (reviews || []).map((review: any) => ({
-        id: `public-review-${review.id}`,
-        type: 'review' as const,
-        review_id: review.id,
-        title: `${review.users?.name || 'Someone'}'s Review`,
-        content: review.review_text || '',
-        author: {
-          id: review.users?.user_id || review.user_id,
-          name: review.users?.name || 'Anonymous',
-          avatar_url: review.users?.avatar_url,
-          verified: review.users?.verified,
-          account_type: review.users?.account_type
-        },
-        created_at: review.created_at,
-        rating: review.rating,
-        is_public: true,
-        photos: review.photos || undefined,
-        setlist: review.events?.setlist || undefined,
-        likes_count: review.likes_count || 0,
-        comments_count: review.comments_count || 0,
-        shares_count: review.shares_count || 0,
-        event_info: {
-          event_name: review.events?.title || 'Concert Review',
-          venue_name: review.events?.venue_name || 'Unknown Venue',
-          event_date: review.events?.event_date || review.created_at,
-          artist_name: review.events?.artist_name,
-          artist_id: review.artist_id
-        },
-        relevance_score: this.calculateReviewRelevance(review, false)
-      }));
+      if (eventIds.length > 0) {
+        const { data: events, error: eventsError } = await supabase
+          .from('events')
+          .select('id, title, artist_name, venue_name, event_date')
+          .in('id', eventIds);
+        
+        if (!eventsError && events) {
+          events.forEach((event: any) => {
+            eventMap.set(event.id, event);
+          });
+        }
+      }
+      
+      return (reviews || []).map((review: any) => {
+        const eventData = eventMap.get(review.event_id);
+        
+        return {
+          id: `public-review-${review.id}`,
+          type: 'review' as const,
+          review_id: review.id,
+          title: `${review.users?.name || 'Someone'}'s Review`,
+          content: review.review_text || '',
+          author: {
+            id: review.users?.user_id || review.user_id,
+            name: review.users?.name || 'Anonymous',
+            avatar_url: review.users?.avatar_url,
+            verified: review.users?.verified,
+            account_type: review.users?.account_type
+          },
+          created_at: review.created_at,
+          rating: review.rating,
+          is_public: true,
+          photos: review.photos || undefined,
+          setlist: eventData?.setlist || undefined,
+          likes_count: review.likes_count || 0,
+          comments_count: review.comments_count || 0,
+          shares_count: review.shares_count || 0,
+          event_info: {
+            event_name: eventData?.title || 'Concert Review',
+            venue_name: eventData?.venue_name || 'Unknown Venue',
+            event_date: eventData?.event_date || review.created_at,
+            artist_name: eventData?.artist_name,
+            artist_id: eventData?.artist_id || review.artist_id
+          },
+          relevance_score: this.calculateReviewRelevance(review, false)
+        };
+      });
     } catch (error) {
       console.error('Error fetching public reviews:', error);
       return [];

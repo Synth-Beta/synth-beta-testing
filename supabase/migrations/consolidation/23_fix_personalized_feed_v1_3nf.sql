@@ -236,9 +236,13 @@ BEGIN
       AND r.status = 'accepted'
       AND (
         -- Match by event UUID (related_entity_id should be UUID as text)
-        r.related_entity_id::uuid = ce.id
-        -- Fallback: match by text comparison (case-insensitive)
-        OR LOWER(r.related_entity_id) = LOWER(ce.id::text)
+        -- Use text comparison first to avoid UUID cast errors
+        LOWER(TRIM(r.related_entity_id)) = LOWER(ce.id::text)
+        -- Also try UUID cast if it's a valid UUID format
+        OR (
+          r.related_entity_id ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+          AND r.related_entity_id::uuid = ce.id
+        )
       )
     )
     GROUP BY ce.id

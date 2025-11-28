@@ -125,9 +125,10 @@ export function EventDetailsModal({
     setActualEvent(event);
     
     // Load event groups when modal opens
-    if (event) {
-      loadEventGroups();
-    }
+    // NOTE: event_groups table does not exist in 3NF schema - feature is disabled
+    // if (event) {
+    //   loadEventGroups();
+    // }
   }, [event, isCreator, isAdmin]);
 
   // Sync local interest state with prop
@@ -137,6 +138,12 @@ export function EventDetailsModal({
   
   const loadEventGroups = async () => {
     if (!actualEvent?.id) return;
+    
+    // Skip loading if event_groups feature is not available (3NF schema doesn't include this table)
+    // This prevents unnecessary 404 errors in console
+    // Event groups feature was removed during database consolidation
+    return; // Disabled until event_groups table is re-implemented for 3NF schema
+    
     try {
       // Get the database UUID (not Ticketmaster/JamBase ID)
       // If id is not a valid UUID, it's a Ticketmaster ID - skip loading groups
@@ -149,7 +156,8 @@ export function EventDetailsModal({
       const groups = await EventGroupService.getEventGroups(actualEvent.id);
       setEventGroups(groups);
     } catch (error) {
-      console.error('Error loading event groups:', error);
+      // Silently handle - event groups feature not available in 3NF schema
+      setEventGroups([]);
     }
   };
 
@@ -1588,7 +1596,7 @@ export function EventDetailsModal({
           }}
           onGroupCreated={(groupId) => {
             setShowCreateGroup(false);
-            loadEventGroups();
+            // loadEventGroups(); // Disabled - event_groups feature not available in 3NF schema
             toast({
               title: 'Group Created! 🎉',
               description: 'Your event group is ready',

@@ -1,9 +1,16 @@
 /**
  * Event Group Service
  * Handles event-based community groups with integrated chat
+ * 
+ * NOTE: event_groups table does not exist in 3NF schema.
+ * This service gracefully returns empty arrays when the feature is unavailable.
  */
 
 import { supabase } from '@/integrations/supabase/client';
+
+// Cache to track if event_groups feature is available (to prevent repeated failed calls)
+let eventGroupsFeatureAvailable: boolean | null = null;
+let eventGroupsFeatureChecked = false;
 
 export interface CreateGroupRequest {
   event_id: string;
@@ -56,37 +63,46 @@ export class EventGroupService {
    * Get groups for an event
    */
   static async getEventGroups(eventId: string): Promise<EventGroup[]> {
+    // event_groups table does not exist in 3NF schema - return empty array immediately
+    // This prevents repeated 404 errors from RPC calls
+    // Set flag once to prevent any RPC calls from being made
+    if (!eventGroupsFeatureChecked) {
+      eventGroupsFeatureChecked = true;
+      eventGroupsFeatureAvailable = false;
+    }
+    
+    // Always return empty array - feature not available in 3NF schema
+    return [];
+    
+    // Disabled code - event_groups table removed in 3NF consolidation
+    /*
     try {
-      // Check if event_groups table exists - if not, return empty array
-      // Event groups feature may not be available in all database schemas
-      try {
-        const { data, error } = await supabase.rpc('get_event_groups', {
-          p_event_id: eventId,
-        });
+      const { data, error } = await supabase.rpc('get_event_groups', {
+        p_event_id: eventId,
+      });
 
-        if (error) {
-          // If function doesn't exist or table doesn't exist, return empty array
-          if (error.code === '42883' || error.message?.includes('does not exist')) {
-            console.log('Event groups feature not available:', error.message);
-            return [];
-          }
-          throw error;
-        }
-        return data || [];
-      } catch (error: any) {
-        // If it's a "relation does not exist" error, return empty array
-        if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
-          console.log('Event groups feature not available:', error.message);
+      if (error) {
+        if (error.code === '42883' || error.code === 'PGRST202' || error.code === '42P01' || error.message?.includes('does not exist')) {
+          eventGroupsFeatureChecked = true;
+          eventGroupsFeatureAvailable = false;
           return [];
         }
-        console.error('Error getting event groups:', error);
         throw error;
       }
-    } catch (error) {
+      
+      eventGroupsFeatureChecked = true;
+      eventGroupsFeatureAvailable = true;
+      return data || [];
+    } catch (error: any) {
+      if (error?.code === '42P01' || error?.code === 'PGRST202' || error?.message?.includes('does not exist')) {
+        eventGroupsFeatureChecked = true;
+        eventGroupsFeatureAvailable = false;
+        return [];
+      }
       console.error('Error getting event groups:', error);
-      // Return empty array instead of throwing to prevent app crashes
       return [];
     }
+    */
   }
 
   /**
