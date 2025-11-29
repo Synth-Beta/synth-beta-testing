@@ -32,15 +32,60 @@ export class VenueFollowService {
     try {
       const normalizedName = this.normalizeVenueName(venueName);
 
-      // Use SECURITY DEFINER function to avoid recursive RLS
-      const { error } = await (supabase as any).rpc('set_venue_follow', {
-        p_venue_name: normalizedName,
-        p_venue_city: venueCity || null,
-        p_venue_state: venueState || null,
-        p_following: following
-      });
-
-      if (error) throw error;
+      // Use relationships table directly (3NF schema)
+      // First, try to find venue by name to get UUID
+      let venueId: string | null = null;
+      
+      let venueQuery = supabase
+        .from('venues')
+        .select('id')
+        .ilike('name', normalizedName)
+        .limit(1);
+      
+      if (venueCity) {
+        venueQuery = venueQuery.ilike('city', venueCity);
+      }
+      
+      if (venueState) {
+        venueQuery = venueQuery.ilike('state', venueState);
+      }
+      
+      const { data: venues } = await venueQuery;
+      if (venues && venues.length > 0) {
+        venueId = venues[0].id;
+      }
+      
+      // Use venue UUID if found, otherwise use venue name as identifier
+      const relatedEntityId = venueId || normalizedName;
+      
+      if (following) {
+        // Insert follow relationship - use insert with error handling to avoid upsert conflicts
+        const { error: insertError } = await supabase
+          .from('relationships')
+          .insert({
+            user_id: userId,
+            related_entity_type: 'venue',
+            relationship_type: 'follow',
+            related_entity_id: relatedEntityId,
+            status: 'accepted'
+          });
+        
+        // If duplicate, that's fine - relationship already exists
+        if (insertError && insertError.code !== '23505') { // 23505 = unique_violation
+          throw insertError;
+        }
+      } else {
+        // Delete follow relationship
+        const { error } = await supabase
+          .from('relationships')
+          .delete()
+          .eq('user_id', userId)
+          .eq('related_entity_type', 'venue')
+          .eq('relationship_type', 'follow')
+          .eq('related_entity_id', relatedEntityId);
+        
+        if (error) throw error;
+      }
 
       console.log(`✅ Venue follow ${following ? 'added' : 'removed'}:`, { 
         userId, 
@@ -70,18 +115,49 @@ export class VenueFollowService {
     try {
       const normalizedName = this.normalizeVenueName(venueName);
 
-      const { data, error } = await (supabase as any).rpc('is_following_venue', {
-        p_venue_name: normalizedName,
-        p_venue_city: venueCity || null,
-        p_venue_state: venueState || null,
-        p_user_id: userId
-      });
+      // Use relationships table directly instead of RPC
+      // First, find venues matching the name
+      let venueQuery = supabase
+        .from('venues')
+        .select('id')
+        .ilike('name', normalizedName);
 
-      if (error) throw error;
+      if (venueCity) {
+        venueQuery = venueQuery.ilike('city', venueCity);
+      }
 
-      return data as boolean;
+      if (venueState) {
+        venueQuery = venueQuery.ilike('state', venueState);
+      }
+
+      const { data: venues } = await venueQuery;
+      if (!venues || venues.length === 0) {
+        // Also try matching by name directly in relationships (for name-based follows)
+        const { count } = await supabase
+          .from('relationships')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('related_entity_type', 'venue')
+          .eq('relationship_type', 'follow')
+          .eq('related_entity_id', normalizedName);
+        
+        return (count || 0) > 0;
+      }
+
+      const venueIds = venues.map((v: any) => v.id);
+
+      // Check relationships table for follows
+      const { count } = await supabase
+        .from('relationships')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('related_entity_type', 'venue')
+        .eq('relationship_type', 'follow')
+        .in('related_entity_id', venueIds);
+
+      return (count || 0) > 0;
     } catch (error) {
-      console.error('Error checking if following venue:', error);
+      // Silently fail - feature might not be available
       return false;
     }
   }
@@ -100,17 +176,51 @@ export class VenueFollowService {
     try {
       const normalizedName = this.normalizeVenueName(venueName);
 
-      const { data, error } = await (supabase as any).rpc('get_venue_follower_count', {
-        p_venue_name: normalizedName,
-        p_venue_city: venueCity || null,
-        p_venue_state: venueState || null
-      });
+      // Use relationships table directly instead of RPC
+      // First, find venues matching the name
+      let venueQuery = supabase
+        .from('venues')
+        .select('id')
+        .ilike('name', normalizedName);
 
-      if (error) throw error;
+      if (venueCity) {
+        venueQuery = venueQuery.ilike('city', venueCity);
+      }
 
-      return (data as number) || 0;
+      if (venueState) {
+        venueQuery = venueQuery.ilike('state', venueState);
+      }
+
+      const { data: venues } = await venueQuery;
+      
+      let totalCount = 0;
+
+      // Count follows by venue ID
+      if (venues && venues.length > 0) {
+        const venueIds = venues.map((v: any) => v.id);
+        const { count } = await supabase
+          .from('relationships')
+          .select('*', { count: 'exact', head: true })
+          .eq('related_entity_type', 'venue')
+          .eq('relationship_type', 'follow')
+          .in('related_entity_id', venueIds);
+        
+        totalCount += (count || 0);
+      }
+
+      // Also count follows by name (for name-based follows)
+      const { count: nameCount } = await supabase
+        .from('relationships')
+        .select('*', { count: 'exact', head: true })
+        .eq('related_entity_type', 'venue')
+        .eq('relationship_type', 'follow')
+        .eq('related_entity_id', normalizedName);
+      
+      totalCount += (nameCount || 0);
+
+      return totalCount;
     } catch (error) {
-      console.error('Error getting venue follower count:', error);
+      // Silently fail - feature might not be available
       return 0;
     }
   }
@@ -344,18 +454,32 @@ export class VenueFollowService {
     userId: string,
     onFollowChange: (follow: VenueFollow, event: 'INSERT' | 'DELETE') => void
   ) {
+    // Use relationships table instead of venue_follows (3NF schema)
+    // Note: Real-time subscriptions with multiple filters need to be handled in the callback
     const channel = supabase
-      .channel('venue-follows')
+      .channel(`venue-follows-${userId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'venue_follows',
+          table: 'relationships',
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          onFollowChange(payload.new as VenueFollow, 'INSERT');
+          // Filter for venue follows only
+          if (payload.new.related_entity_type === 'venue' && payload.new.relationship_type === 'follow') {
+            // Transform relationships table data to VenueFollow format
+            const follow: VenueFollow = {
+              id: payload.new.id,
+              user_id: payload.new.user_id,
+              venue_name: payload.new.related_entity_id, // May be venue name or UUID
+              venue_city: null,
+              venue_state: null,
+              created_at: payload.new.created_at
+            };
+            onFollowChange(follow, 'INSERT');
+          }
         }
       )
       .on(
@@ -363,11 +487,23 @@ export class VenueFollowService {
         {
           event: 'DELETE',
           schema: 'public',
-          table: 'venue_follows',
+          table: 'relationships',
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          onFollowChange(payload.old as VenueFollow, 'DELETE');
+          // Filter for venue follows only
+          if (payload.old.related_entity_type === 'venue' && payload.old.relationship_type === 'follow') {
+            // Transform relationships table data to VenueFollow format
+            const follow: VenueFollow = {
+              id: payload.old.id,
+              user_id: payload.old.user_id,
+              venue_name: payload.old.related_entity_id, // May be venue name or UUID
+              venue_city: null,
+              venue_state: null,
+              created_at: payload.old.created_at
+            };
+            onFollowChange(follow, 'DELETE');
+          }
         }
       )
       .subscribe();
