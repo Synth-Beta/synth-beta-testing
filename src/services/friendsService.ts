@@ -26,13 +26,15 @@ export class FriendsService {
    */
   static async getFriends(userId: string): Promise<Friend[]> {
     try {
-      // Get friendship records from user_relationships table
+      // Get friendship records from relationships table
+      // Friends are stored as: related_entity_type='user', relationship_type='friend', status='accepted'
       const { data: friendships, error: friendsError } = await supabase
-        .from('user_relationships')
-        .select('id, user_id, related_user_id, created_at')
+        .from('relationships')
+        .select('id, user_id, related_entity_id, created_at')
+        .eq('related_entity_type', 'user')
         .eq('relationship_type', 'friend')
         .eq('status', 'accepted')
-        .or(`user_id.eq.${userId},related_user_id.eq.${userId}`)
+        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`)
         .order('created_at', { ascending: false });
 
       if (friendsError) {
@@ -45,12 +47,21 @@ export class FriendsService {
       }
 
       // Deduplicate: Get all unique user IDs (the other user in each relationship)
+      // related_entity_id contains the friend's user_id when user_id is the current user
+      // user_id contains the friend's user_id when related_entity_id is the current user
       const userIdsSet = new Set<string>();
       friendships.forEach(f => {
-        const otherUserId = f.user_id === userId ? f.related_user_id : f.user_id;
-        userIdsSet.add(otherUserId);
+        const otherUserId = f.user_id === userId ? f.related_entity_id : f.user_id;
+        // related_entity_id is TEXT, so we need to ensure it's a valid UUID
+        if (otherUserId && otherUserId !== userId) {
+          userIdsSet.add(String(otherUserId));
+        }
       });
       const userIds = Array.from(userIdsSet);
+
+      if (userIds.length === 0) {
+        return [];
+      }
 
       // Fetch the profiles for those users
       const { data: profiles, error: profilesError } = await supabase
@@ -69,14 +80,14 @@ export class FriendsService {
       // Transform the data to get the other user's profile
       // Only add each friend once (deduplicate)
       friendships.forEach(friendship => {
-        const otherUserId = friendship.user_id === userId ? friendship.related_user_id : friendship.user_id;
+        const otherUserId = friendship.user_id === userId ? String(friendship.related_entity_id) : String(friendship.user_id);
         
-        // Skip if we've already added this friend
-        if (friendsMap.has(otherUserId)) {
+        // Skip if we've already added this friend or if it's the current user
+        if (friendsMap.has(otherUserId) || otherUserId === userId) {
           return;
         }
         
-        const profile = profiles?.find(p => p.user_id === otherUserId);
+        const profile = profiles?.find(p => String(p.user_id) === otherUserId);
         
         friendsMap.set(otherUserId, {
           id: profile?.id || otherUserId,

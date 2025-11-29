@@ -19,7 +19,7 @@ import {
   MessageCircle, 
   Share2, 
   MapPin, 
-  Map,
+  Map as MapIcon,
   Calendar,
   Star,
   Globe,
@@ -50,6 +50,7 @@ import {
   Ticket
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { CityService } from '@/services/cityService';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
@@ -59,6 +60,7 @@ import { getEventStatus, isEventPast, getPastEvents, getUpcomingEvents } from '@
 import { ReviewService, PublicReviewWithProfile, ReviewWithEngagement } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
 import { ReviewCard } from '@/components/reviews/ReviewCard';
+import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
 import { ProfileReviewCard } from '@/components/reviews/ProfileReviewCard';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventCommentsModal } from '@/components/events/EventCommentsModal';
@@ -228,7 +230,20 @@ export const UnifiedFeed = ({
   const [selectedReviewDetail, setSelectedReviewDetail] = useState<UnifiedFeedItem | null>(null);
   const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'price' | 'popularity' | 'distance'>('relevance');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [filterByFollowing, setFilterByFollowing] = useState<'all' | 'following'>('all');
+  
+  // Check localStorage for feed filter on mount
+  const initialFollowingFilter = (() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('feedFilter');
+      if (stored === 'following') {
+        localStorage.removeItem('feedFilter'); // Clear after reading
+        return 'following';
+      }
+    }
+    return 'all';
+  })();
+  
+  const [filterByFollowing, setFilterByFollowing] = useState<'all' | 'following'>(initialFollowingFilter);
   
   // Filter state (same as search area)
   const [filters, setFilters] = useState<FilterState>({
@@ -237,7 +252,7 @@ export const UnifiedFeed = ({
     dateRange: { from: undefined, to: undefined },
     showFilters: false,
     radiusMiles: 30,
-    filterByFollowing: 'all',
+    filterByFollowing: initialFollowingFilter,
     daysOfWeek: []
   });
   
@@ -260,57 +275,6 @@ export const UnifiedFeed = ({
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<string>>(new Set());
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
-
-  // Function to load all interested event IDs from database
-  const loadInterestedEvents = React.useCallback(async () => {
-    if (!currentUserId) return;
-    
-    try {
-      // Get all user's interested event IDs from relationships table
-      const { data: relationships, error } = await supabase
-        .from('relationships')
-        .select('related_entity_id')
-        .eq('user_id', currentUserId)
-        .eq('related_entity_type', 'event')
-        .eq('relationship_type', 'interest')
-        .eq('status', 'accepted');
-
-      if (error) {
-        // Try without status filter as fallback
-        const { data: relationshipsNoStatus, error: error2 } = await supabase
-          .from('relationships')
-          .select('related_entity_id')
-          .eq('user_id', currentUserId)
-          .eq('related_entity_type', 'event')
-          .eq('relationship_type', 'interest');
-
-        if (error2) {
-          console.warn('🔍 Error loading interested events:', error2);
-          return;
-        }
-
-        if (relationshipsNoStatus) {
-          const eventIds = relationshipsNoStatus.map(r => String(r.related_entity_id).toLowerCase()).filter(Boolean);
-          setInterestedEvents(new Set(eventIds));
-          console.log('🔍 Loaded interested events (no status filter):', eventIds.length, eventIds.slice(0, 3));
-        }
-        return;
-      }
-
-      if (relationships) {
-        const eventIds = relationships.map(r => String(r.related_entity_id).toLowerCase()).filter(Boolean);
-        setInterestedEvents(new Set(eventIds));
-        console.log('🔍 Loaded interested events:', eventIds.length, eventIds.slice(0, 3));
-      }
-    } catch (error) {
-      console.error('🔍 Error loading interested events:', error);
-    }
-  }, [currentUserId]);
-
-  // Load user's interested events on mount and when userId changes
-  useEffect(() => {
-    loadInterestedEvents();
-  }, [loadInterestedEvents]);
   
   // Following state
   const [followedArtists, setFollowedArtists] = useState<string[]>([]);
@@ -522,12 +486,9 @@ export const UnifiedFeed = ({
           // Get available cities to find the best match
           let cityName = userCityRaw;
           try {
-            const { data: availableCities, error: citiesError } = await supabase.rpc('get_available_cities_for_filter', {
-              min_event_count: 1,
-              limit_count: 1000 // Get many cities to find best match
-            });
+            const availableCities = await CityService.getAvailableCities(1, 1000);
             
-            if (!citiesError && availableCities && availableCities.length > 0) {
+            if (availableCities && availableCities.length > 0) {
               // Find best matching city using fuzzy matching
               const userCityLower = userCityRaw.toLowerCase().trim();
               
@@ -559,12 +520,9 @@ export const UnifiedFeed = ({
                 // Use raw city name - let the RPC handle variations
                 cityName = userCityRaw;
               }
-            } else {
-              console.warn('⚠️ Could not load available cities. Using raw city name:', userCityRaw);
-              cityName = userCityRaw;
             }
           } catch (error) {
-            console.warn('⚠️ Error matching city, using raw name:', error);
+            console.warn('⚠️ Could not load available cities. Using raw city name:', error);
             cityName = userCityRaw;
           }
           
@@ -656,7 +614,6 @@ export const UnifiedFeed = ({
       loadUpcomingEvents();
       loadFollowedData();
       loadCities();
-      loadInterestedEvents();
     };
     
     loadUserCityAndApply();
@@ -669,11 +626,8 @@ export const UnifiedFeed = ({
       if (autoCityAppliedRef.current) return;
       if ((filters.selectedCities && filters.selectedCities.length > 0)) return;
       try {
-        const { data, error } = await supabase.rpc('get_available_cities_for_filter', {
-          min_event_count: 1,
-          limit_count: 200
-        });
-        if (error || !Array.isArray(data) || data.length === 0) return;
+        const data = await CityService.getAvailableCities(1, 200);
+        if (!Array.isArray(data) || data.length === 0) return;
         // Compute nearest city center by simple haversine on frontend
         const toRad = (deg: number) => deg * (Math.PI / 180);
         const dist = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -1328,21 +1282,16 @@ export const UnifiedFeed = ({
     if (!currentUserId || !item.event_data) return;
     
     // Toggle interest without opening the modal
-    // Normalize event ID to lowercase string for consistent comparison
-    const eventIdNormalized = String(item.event_data.id).toLowerCase();
-    const isCurrentlyInterested = interestedEvents.has(eventIdNormalized);
+    const isCurrentlyInterested = interestedEvents.has(item.event_data.id);
     const newInterestState = !isCurrentlyInterested;
     
     // Optimistically update UI
-    setInterestedEvents(prev => {
-      const newSet = new Set(prev);
-      if (newInterestState) {
-        newSet.add(eventIdNormalized);
-      } else {
-        newSet.delete(eventIdNormalized);
-      }
-      return newSet;
-    });
+    if (newInterestState) {
+      interestedEvents.add(item.event_data.id);
+    } else {
+      interestedEvents.delete(item.event_data.id);
+    }
+    setInterestedEvents(new Set(interestedEvents));
     
     // Update in database
     try {
@@ -1358,22 +1307,15 @@ export const UnifiedFeed = ({
           ? "We'll notify you about this event" 
           : "You'll no longer receive notifications for this event",
       });
-
-      // Reload interested events Set from database to ensure consistency across all components
-      await loadInterestedEvents();
     } catch (error) {
       console.error('Error toggling interest:', error);
       // Revert optimistic update
-      setInterestedEvents(prev => {
-        const newSet = new Set(prev);
-        const normalizedEventId = String(item.event_data.id).toLowerCase();
-        if (newInterestState) {
-          newSet.delete(normalizedEventId);
-        } else {
-          newSet.add(normalizedEventId);
-        }
-        return newSet;
-      });
+      if (newInterestState) {
+        interestedEvents.delete(item.event_data.id);
+      } else {
+        interestedEvents.add(item.event_data.id);
+      }
+      setInterestedEvents(new Set(interestedEvents));
       
       toast({
         title: "Error",
@@ -1836,8 +1778,22 @@ export const UnifiedFeed = ({
             }
           }
 
-          // 3) try most-liked review photo for same artist across events (same as step 2, but explicit)
-          // Already handled above, skip duplicate query
+          // 3) fallback to any review/ event poster image for this artist from the new view
+          const artistFallback = await (supabase as any)
+            .from('reviews_with_event_details')
+            .select('photos, poster_image_url, event_artist_name')
+            .ilike('event_artist_name', `%${artistName}%`)
+            .order('likes_count', { ascending: false })
+            .limit(1);
+          const fallbackPhoto =
+            (Array.isArray(artistFallback.data) && artistFallback.data[0]?.photos?.[0]) ||
+            artistFallback.data?.[0]?.poster_image_url ||
+            null;
+          if (fallbackPhoto) {
+            console.log('ReviewHeroImage: Using fallback artist image:', fallbackPhoto);
+            setUrl(fallbackPhoto);
+            return; 
+          }
           
           console.log('ReviewHeroImage: No image found, setting null');
           setUrl(null);
@@ -1901,7 +1857,7 @@ export const UnifiedFeed = ({
               onClick={() => setIsMapDialogOpen(true)}
               disabled={mapEvents.length === 0}
             >
-              <Map className="h-4 w-4 mr-2" />
+              <MapIcon className="h-4 w-4 mr-2" />
               Map View
             </Button>
           )}
@@ -2082,15 +2038,15 @@ export const UnifiedFeed = ({
                           e.stopPropagation();
                           handleEventInterest(item);
                         }}
-                          className={cn(
+                        className={cn(
                           'flex items-center gap-1 text-sm transition-colors px-3 py-1 rounded-md',
-                          interestedEvents.has(String(item.event_data.id).toLowerCase())
+                          interestedEvents.has(item.event_data.id)
                             ? 'bg-pink-500 text-white hover:bg-pink-600'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         )}
                       >
-                        <Heart className={cn('w-4 h-4', interestedEvents.has(String(item.event_data.id).toLowerCase()) && 'fill-current')} />
-                        <span>{interestedEvents.has(String(item.event_data.id).toLowerCase()) ? 'Interested' : "I'm Interested"}</span>
+                        <Heart className={cn('w-4 h-4', interestedEvents.has(item.event_data.id) && 'fill-current')} />
+                        <span>{interestedEvents.has(item.event_data.id) ? 'Interested' : "I'm Interested"}</span>
                       </button>
                     ) : (
                       <button
@@ -2379,7 +2335,7 @@ export const UnifiedFeed = ({
                 onClick={() => setIsMapDialogOpen(true)}
                 disabled={mapEvents.length === 0}
               >
-                <Map className="h-4 w-4 mr-2" />
+                <MapIcon className="h-4 w-4 mr-2" />
                 Map View
               </Button>
               )}
@@ -2544,13 +2500,13 @@ export const UnifiedFeed = ({
                               handleEventInterest(item);
                             }}
                             className={`flex items-center gap-1 text-sm transition-colors px-3 py-1 rounded-md ${
-                              interestedEvents.has(String(item.event_data.id).toLowerCase()) 
+                              interestedEvents.has(item.event_data.id) 
                                 ? 'bg-pink-500 text-white hover:bg-pink-600' 
                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                           >
-                            <Heart className={`w-4 h-4 ${interestedEvents.has(String(item.event_data.id).toLowerCase()) ? 'fill-current' : ''}`} />
-                            <span>{interestedEvents.has(String(item.event_data.id).toLowerCase()) ? 'Interested' : "I'm Interested"}</span>
+                            <Heart className={`w-4 h-4 ${interestedEvents.has(item.event_data.id) ? 'fill-current' : ''}`} />
+                            <span>{interestedEvents.has(item.event_data.id) ? 'Interested' : "I'm Interested"}</span>
                           </button>
                         ) : (
                           <button
@@ -2753,8 +2709,8 @@ export const UnifiedFeed = ({
                             return;
                           }
                           
-                          if (reviewData && reviewData.jambase_events) {
-                            const event = reviewData.jambase_events;
+                          if (reviewData && reviewData.events) {
+                            const event = reviewData.events;
                             const review = reviewData;
                             
                             console.log('🎵 Setting up edit modal with event data:', {
@@ -3009,21 +2965,6 @@ export const UnifiedFeed = ({
                 return item;
               })
             );
-            
-            // Update interestedEvents Set immediately (normalize to lowercase string)
-            const normalizedEventId = String(eventId).toLowerCase();
-            setInterestedEvents(prev => {
-              const newSet = new Set(prev);
-              if (interested) {
-                newSet.add(normalizedEventId);
-              } else {
-                newSet.delete(normalizedEventId);
-              }
-              return newSet;
-            });
-            
-            // Reload interested events Set from database to ensure consistency
-            loadInterestedEvents();
             
             // Refresh feed to ensure all event cards reflect the new interest state
             // Use a small delay to allow database write to complete

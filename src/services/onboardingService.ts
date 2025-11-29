@@ -20,18 +20,40 @@ export class OnboardingService {
    */
   static async checkOnboardingStatus(userId: string): Promise<OnboardingStatus | null> {
     try {
+      // Try to get onboarding fields, but handle gracefully if they don't exist
       const { data, error } = await supabase
         .from('users')
         .select('onboarding_completed, onboarding_skipped, tour_completed')
         .eq('user_id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If columns don't exist, return default values
+        if (error.code === '42703' || error.message?.includes('does not exist')) {
+          console.warn('Onboarding columns not found in users table, returning defaults');
+          return {
+            onboarding_completed: false,
+            onboarding_skipped: false,
+            tour_completed: false,
+          };
+        }
+        throw error;
+      }
 
-      return data;
+      // If data exists but fields are null, return defaults
+      return {
+        onboarding_completed: data?.onboarding_completed ?? false,
+        onboarding_skipped: data?.onboarding_skipped ?? false,
+        tour_completed: data?.tour_completed ?? false,
+      };
     } catch (error) {
       console.error('Error checking onboarding status:', error);
-      return null;
+      // Return default values on any error
+      return {
+        onboarding_completed: false,
+        onboarding_skipped: false,
+        tour_completed: false,
+      };
     }
   }
 
@@ -40,19 +62,42 @@ export class OnboardingService {
    */
   static async saveProfileSetup(userId: string, data: ProfileSetupData): Promise<boolean> {
     try {
+      // Build update object with only fields that exist
+      const updateData: any = {
+        updated_at: new Date().toISOString(),
+      };
+
+      // Only include fields that are provided and exist in the schema
+      if (data.birthday !== undefined) updateData.birthday = data.birthday;
+      if (data.gender !== undefined) updateData.gender = data.gender;
+      if (data.bio !== undefined) updateData.bio = data.bio;
+      if (data.avatar_url !== undefined) updateData.avatar_url = data.avatar_url;
+      
+      // Handle location_city gracefully if column doesn't exist
+      if (data.location_city !== undefined) {
+        updateData.location_city = data.location_city;
+      }
+
       const { error } = await supabase
         .from('users')
-        .update({
-          location_city: data.location_city,
-          birthday: data.birthday,
-          gender: data.gender,
-          bio: data.bio,
-          avatar_url: data.avatar_url,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('user_id', userId);
 
-      if (error) throw error;
+      if (error) {
+        // If location_city column doesn't exist, try again without it
+        if (error.code === 'PGRST204' && error.message?.includes('location_city')) {
+          console.warn('location_city column not found, saving without it');
+          const { location_city, ...updateWithoutCity } = updateData;
+          const { error: retryError } = await supabase
+            .from('users')
+            .update(updateWithoutCity)
+            .eq('user_id', userId);
+          
+          if (retryError) throw retryError;
+          return true;
+        }
+        throw error;
+      }
 
       return true;
     } catch (error) {
@@ -101,7 +146,14 @@ export class OnboardingService {
         })
         .eq('user_id', userId);
 
-      if (error) throw error;
+      if (error) {
+        // If column doesn't exist, just log and return true (graceful degradation)
+        if (error.code === '42703' || error.message?.includes('does not exist')) {
+          console.warn('onboarding_skipped column not found, skipping update');
+          return true;
+        }
+        throw error;
+      }
 
       return true;
     } catch (error) {
@@ -124,7 +176,14 @@ export class OnboardingService {
         })
         .eq('user_id', userId);
 
-      if (error) throw error;
+      if (error) {
+        // If column doesn't exist, just log and return true (graceful degradation)
+        if (error.code === '42703' || error.message?.includes('does not exist')) {
+          console.warn('onboarding_completed column not found, skipping update');
+          return true;
+        }
+        throw error;
+      }
 
       return true;
     } catch (error) {
@@ -146,7 +205,14 @@ export class OnboardingService {
         })
         .eq('user_id', userId);
 
-      if (error) throw error;
+      if (error) {
+        // If column doesn't exist, just log and return true (graceful degradation)
+        if (error.code === '42703' || error.message?.includes('does not exist')) {
+          console.warn('tour_completed column not found, skipping update');
+          return true;
+        }
+        throw error;
+      }
 
       return true;
     } catch (error) {

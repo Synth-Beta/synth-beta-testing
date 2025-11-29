@@ -31,7 +31,7 @@ BEGIN
     FROM chats c
     LEFT JOIN messages m ON c.latest_message_id = m.id
     LEFT JOIN profiles p ON m.sender_id = p.user_id
-    WHERE get_user_chats.user_id = ANY(c.users)
+    WHERE user_id = ANY(c.users)
     ORDER BY c.updated_at DESC;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

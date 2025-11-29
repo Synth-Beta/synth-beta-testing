@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { fetchUserChats } from '@/services/chatService';
 
 interface PageActionsProps {
   currentUserId: string;
@@ -25,9 +26,7 @@ export const PageActions: React.FC<PageActionsProps> = ({
 
     const loadUnreadCount = async () => {
       try {
-        const { data: chats, error } = await supabase.rpc('get_user_chats', {
-          user_id: currentUserId,
-        });
+        const { data: chats, error } = await fetchUserChats(currentUserId);
 
         if (error || cancelled || !chats) return;
 

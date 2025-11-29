@@ -153,40 +153,81 @@ export class VenueFollowService {
    */
   static async getUserFollowedVenues(userId: string): Promise<VenueFollowWithDetails[]> {
     try {
-      const { data, error } = await (supabase as any)
-        .from('venue_follows_with_details')
-        .select('*')
+      // Use relationships table directly (venue_follows_with_details view doesn't exist)
+      const { data: relationships, error: relationshipsError } = await supabase
+        .from('relationships')
+        .select('id, user_id, related_entity_id, created_at')
         .eq('user_id', userId)
+        .eq('related_entity_type', 'venue')
+        .eq('relationship_type', 'follow')
         .order('created_at', { ascending: false });
-
-      if (error) {
-        // If view doesn't exist, fallback to relationships table
-        console.warn('⚠️ venue_follows_with_details view not found, using relationships table');
-        const { data: fallbackData, error: fallbackError } = await (supabase as any)
-          .from('relationships')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('related_entity_type', 'venue')
-          .eq('relationship_type', 'follow')
-          .order('created_at', { ascending: false });
           
-        if (fallbackError) throw fallbackError;
-        
-        // Transform to match expected format
-        return (fallbackData || []).map((item: any) => ({
-          id: item.id,
-          user_id: item.user_id,
-          venue_id: item.related_entity_id,
-          created_at: item.created_at,
-          venue_name: null,
-          venue_image_url: null,
-          num_upcoming_events: null,
-          user_name: null,
-          user_avatar_url: null
-        })) as VenueFollowWithDetails[];
+      if (relationshipsError) throw relationshipsError;
+      
+      if (!relationships || relationships.length === 0) {
+        return [];
       }
 
-      return (data as VenueFollowWithDetails[]) || [];
+      // Fetch venue details separately
+      // Note: related_entity_id might be venue name (TEXT) or venue ID (UUID)
+      const venueIdentifiers = [...new Set(relationships.map((r: any) => r.related_entity_id).filter(Boolean))];
+      const venueMap = new Map<string, any>();
+      
+      if (venueIdentifiers.length > 0) {
+        // Check if identifiers are UUIDs or names
+        const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+        const uuidIds = venueIdentifiers.filter(id => isUUID(id));
+        
+        // Only query by UUID if we have valid UUIDs
+        // Venue follows use name-based matching, so related_entity_id is often a name
+        if (uuidIds.length > 0) {
+          const { data: venuesById } = await supabase
+            .from('venues')
+            .select('id, name, image_url, city, state, address')
+            .in('id', uuidIds);
+          
+          if (venuesById) {
+            venuesById.forEach((venue: any) => {
+              venueMap.set(venue.id, venue);
+              // Also map by name for lookup
+              if (venue.name) {
+                venueMap.set(venue.name, venue);
+              }
+            });
+          }
+        }
+      }
+
+      // Fetch user details separately
+      const { data: userData } = await supabase
+        .from('users')
+        .select('user_id, name, avatar_url')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      // Transform to match expected format
+      return relationships.map((item: any) => {
+        const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+        const identifier = item.related_entity_id;
+        const venue = isUUID(identifier) ? venueMap.get(identifier) : null;
+        
+        // If identifier is a UUID and we found a venue, use venue data
+        // If identifier is a name (not UUID), use it directly as venue_name
+        return {
+          id: item.id,
+          user_id: item.user_id,
+          venue_id: venue?.id || (isUUID(identifier) ? identifier : null),
+          venue_name: venue?.name || (isUUID(identifier) ? null : identifier),
+          venue_city: venue?.city || null,
+          venue_state: venue?.state || null,
+          venue_address: venue?.address || null,
+          venue_image_url: venue?.image_url || null,
+          num_upcoming_events: null, // Could be calculated separately if needed
+          created_at: item.created_at,
+          user_name: userData?.name || null,
+          user_avatar_url: userData?.avatar_url || null
+        } as VenueFollowWithDetails;
+      });
     } catch (error) {
       console.error('Error getting followed venues:', error);
       // Return empty array instead of throwing to prevent blocking the UI
@@ -208,24 +249,86 @@ export class VenueFollowService {
     try {
       const normalizedName = this.normalizeVenueName(venueName);
 
-      let query = (supabase as any)
-        .from('venue_follows_with_details')
-        .select('*')
-        .ilike('venue_name', normalizedName);
+      // First, find venues matching the name
+      let venueQuery = supabase
+        .from('venues')
+        .select('id, name, city, state')
+        .ilike('name', normalizedName);
 
       if (venueCity) {
-        query = query.ilike('venue_city', venueCity);
+        venueQuery = venueQuery.ilike('city', venueCity);
       }
 
       if (venueState) {
-        query = query.ilike('venue_state', venueState);
+        venueQuery = venueQuery.ilike('state', venueState);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data: venues, error: venuesError } = await venueQuery;
 
-      if (error) throw error;
+      if (venuesError) throw venuesError;
 
-      return (data as VenueFollowWithDetails[]) || [];
+      if (!venues || venues.length === 0) {
+        return [];
+      }
+
+      const venueIds = venues.map((v: any) => v.id);
+
+      // Get relationships for these venues
+      const { data: relationships, error: relationshipsError } = await supabase
+        .from('relationships')
+        .select('id, user_id, related_entity_id, created_at')
+        .in('related_entity_id', venueIds)
+        .eq('related_entity_type', 'venue')
+        .eq('relationship_type', 'follow')
+        .order('created_at', { ascending: false });
+
+      if (relationshipsError) throw relationshipsError;
+
+      if (!relationships || relationships.length === 0) {
+        return [];
+      }
+
+      // Fetch user details separately
+      const userIds = [...new Set(relationships.map((r: any) => r.user_id).filter(Boolean))];
+      const userMap = new Map<string, any>();
+      
+      if (userIds.length > 0) {
+        const { data: usersData } = await supabase
+          .from('users')
+          .select('user_id, name, avatar_url')
+          .in('user_id', userIds);
+        
+        if (usersData) {
+          usersData.forEach((user: any) => {
+            userMap.set(user.user_id, user);
+          });
+        }
+      }
+
+      // Create venue map
+      const venueMap = new Map<string, any>();
+      venues.forEach((venue: any) => {
+        venueMap.set(venue.id, venue);
+      });
+
+      // Transform to match expected format
+      return relationships.map((item: any) => {
+        const venue = venueMap.get(item.related_entity_id) || {};
+        const user = userMap.get(item.user_id) || {};
+        return {
+          id: item.id,
+          user_id: item.user_id,
+          venue_id: item.related_entity_id,
+          venue_name: venue.name || null,
+          venue_city: venue.city || null,
+          venue_state: venue.state || null,
+          venue_image_url: null,
+          num_upcoming_events: null,
+          created_at: item.created_at,
+          user_name: user.name || null,
+          user_avatar_url: user.avatar_url || null
+        } as VenueFollowWithDetails;
+      });
     } catch (error) {
       console.error('Error getting venue followers:', error);
       throw new Error(`Failed to get venue followers: ${error instanceof Error ? error.message : 'Unknown error'}`);

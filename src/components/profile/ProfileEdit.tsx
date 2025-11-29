@@ -75,20 +75,20 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
       }
 
       if (!profileData) {
-        console.log('No profile found, will create one when user saves');
-        setFormData({
-          name: '',
-          bio: '',
-          instagram_handle: '',
-          music_streaming_profile: '',
-          avatar_url: null,
-          gender: '',
-          birthday: ''
-        });
-        setLoading(false);
-        return;
-      }
-      
+          console.log('No profile found, will create one when user saves');
+          setFormData({
+            name: '',
+            bio: '',
+            instagram_handle: '',
+            music_streaming_profile: '',
+            avatar_url: null,
+            gender: '',
+            birthday: ''
+          });
+          setLoading(false);
+          return;
+        }
+        
       console.log('Profile data received:', profileData);
       setProfile(profileData as any);
       setFormData({

@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import type { JamBaseEvent } from './jambaseEventsService';
+import { fetchUserChats } from './chatService';
 
 export interface ShareTarget {
   id: string; // chat_id
@@ -40,9 +41,7 @@ export class InAppShareService {
   static async getShareTargets(userId: string): Promise<ShareTarget[]> {
     try {
       // Get user's chats using the existing RPC function
-      const { data: chats, error } = await supabase.rpc('get_user_chats', {
-        user_id: userId
-      });
+      const { data: chats, error } = await fetchUserChats(userId);
 
       if (error) {
         console.error('Error fetching share targets:', error);

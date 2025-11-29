@@ -228,6 +228,7 @@ export class JamBaseService {
     }
 
     console.log('🔍 getUserEvents: Querying events for IDs:', eventIds.slice(0, 5));
+    console.log('🔍 getUserEvents: Total event IDs to query:', eventIds.length);
 
     // Query events separately - eventIds are TEXT UUIDs, but events.id is UUID type
     // Supabase should handle the conversion, but we'll query both ways to be safe
@@ -237,6 +238,8 @@ export class JamBaseService {
     // First try: query by UUID (eventIds might be UUID strings)
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const validUuids = eventIds.filter(id => uuidPattern.test(String(id)));
+    
+    console.log('🔍 getUserEvents: Valid UUIDs:', validUuids.length, 'out of', eventIds.length);
     
     if (validUuids.length > 0) {
       const result = await supabase
@@ -271,13 +274,55 @@ export class JamBaseService {
       
       if (result.data && !result.error) {
         events = result.data;
-        console.log(`🔍 getUserEvents: Found ${events.length} events by UUID`);
+        console.log(`🔍 getUserEvents: Found ${events.length} events by UUID out of ${validUuids.length} queried`);
+        if (events.length === 0 && validUuids.length > 0) {
+          console.warn('🔍 getUserEvents: No events found despite valid UUIDs. Possible causes:');
+          console.warn('  - Events may have been deleted');
+          console.warn('  - RLS policies may be blocking access');
+          console.warn('  - Sample IDs that were queried:', validUuids.slice(0, 3));
+          
+          // Enhanced diagnostics: Check if events exist at all (bypassing potential RLS issues)
+          try {
+            const sampleIds = validUuids.slice(0, 3);
+            console.log('🔍 getUserEvents: Running diagnostic query for sample IDs...');
+            
+            // Try a direct query to see if events exist
+            const { data: diagnosticData, error: diagnosticError, count } = await supabase
+              .from('events')
+              .select('id, title, artist_name', { count: 'exact' })
+              .in('id', sampleIds);
+            
+            console.log('🔍 getUserEvents: Diagnostic query results:', {
+              found: diagnosticData?.length || 0,
+              totalCount: count,
+              error: diagnosticError,
+              queriedIds: sampleIds,
+              foundIds: diagnosticData?.map(e => e.id) || []
+            });
+            
+            // Also check if we can query any events at all (RLS test)
+            const { data: anyEvent, error: anyEventError } = await supabase
+              .from('events')
+              .select('id')
+              .limit(1);
+            
+            console.log('🔍 getUserEvents: RLS test - can query events table?', {
+              canQuery: !anyEventError && anyEvent && anyEvent.length > 0,
+              error: anyEventError
+            });
+          } catch (diagErr) {
+            console.error('🔍 getUserEvents: Diagnostic query failed:', diagErr);
+          }
+        }
       } else if (result.error) {
         console.warn('🔍 getUserEvents: Error querying by UUID:', result.error);
+        console.warn('🔍 getUserEvents: Error details:', JSON.stringify(result.error, null, 2));
       }
+    } else {
+      console.warn('🔍 getUserEvents: No valid UUIDs found in eventIds. Sample IDs:', eventIds.slice(0, 3));
     }
     
-    // Second try: if we didn't find all events, try by jambase_event_id for any remaining
+    // Second try: if we didn't find all events, try by jambase_event_id (in case IDs in relationships are jambase_event_id strings)
     const foundEventIds = new Set(events.map(e => String(e.id || e.jambase_event_id)));
     const missingIds = eventIds.filter(id => !foundEventIds.has(String(id)));
     
@@ -347,6 +392,9 @@ export class JamBaseService {
       sampleRelatedEntityIds: relationships.slice(0, 3).map(r => r.related_entity_id)
     });
     
+    // Track unmatched relationships for better debugging
+    const unmatchedRelationships: string[] = [];
+    
     const data = relationships
       .map(r => {
         // Try to find event by related_entity_id (stored as TEXT UUID)
@@ -357,16 +405,53 @@ export class JamBaseService {
                      eventMap.get(String(r.related_entity_id));
         
         if (!event) {
-          console.warn('⚠️ Could not match relationship to event:', {
-            related_entity_id: r.related_entity_id,
-            normalizedId,
-            availableKeys: Array.from(eventMap.keys()).slice(0, 10)
-          });
+          unmatchedRelationships.push(String(r.related_entity_id));
         }
         
         return event ? { created_at: r.created_at, event } : null;
       })
       .filter(Boolean);
+    
+    // Log a single consolidated warning if there are unmatched relationships
+    if (unmatchedRelationships.length > 0) {
+      const uniqueUnmatched = [...new Set(unmatchedRelationships)];
+      
+      // Try to verify if any of these events exist in the database (for debugging)
+      const sampleUnmatchedIds = uniqueUnmatched.slice(0, 3);
+      if (sampleUnmatchedIds.length > 0) {
+        try {
+          const { data: sampleCheck, error: checkError, count } = await supabase
+            .from('events')
+            .select('id, title, artist_name', { count: 'exact' })
+            .in('id', sampleUnmatchedIds);
+          
+          if (!checkError && sampleCheck) {
+            console.log('🔍 Verification: Sample unmatched IDs exist in events table:', sampleCheck.length, 'out of', sampleUnmatchedIds.length);
+            if (sampleCheck.length > 0) {
+              console.log('🔍 Verification: Found events:', sampleCheck.map(e => ({ id: e.id, title: e.title })));
+            }
+          } else if (checkError) {
+            console.warn('🔍 Verification: Error checking sample IDs:', checkError);
+            console.warn('🔍 Verification: This suggests an RLS policy issue or the events truly don\'t exist');
+          } else {
+            console.warn('🔍 Verification: Events with these IDs do not exist in the database');
+            console.warn('🔍 Verification: Consider cleaning up orphaned relationships for:', sampleUnmatchedIds);
+          }
+        } catch (err) {
+          console.error('🔍 Verification: Exception during verification check:', err);
+        }
+      }
+      
+      console.warn(`⚠️ Could not match ${unmatchedRelationships.length} relationship(s) to events.`, {
+        unmatchedCount: unmatchedRelationships.length,
+        uniqueUnmatchedIds: uniqueUnmatched.slice(0, 5),
+        totalRelationships: relationships.length,
+        foundEvents: events.length,
+        eventMapSize: eventMap.size,
+        sampleAvailableKeys: Array.from(eventMap.keys()).slice(0, 5),
+        note: 'These relationships may reference events that no longer exist in the database. Consider cleaning up orphaned relationships.'
+      });
+    }
 
     if (uuidError && !events.length) {
       console.warn('🔍 getUserEvents: Error fetching events:', uuidError);

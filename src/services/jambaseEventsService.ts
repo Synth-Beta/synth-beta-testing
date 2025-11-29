@@ -1,13 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-export type JamBaseEvent = Tables<'jambase_events'> & {
-  is_promoted?: boolean;
-  promotion_tier?: 'basic' | 'premium' | 'featured' | null;
-  active_promotion_id?: string;
+export type JamBaseEvent = JamBaseEventResponse & {
+  created_at?: string;
+  updated_at?: string;
 };
-export type JamBaseEventInsert = TablesInsert<'jambase_events'>;
-export type JamBaseEventUpdate = TablesUpdate<'jambase_events'>;
+export type JamBaseEventInsert = Partial<JamBaseEvent>;
+export type JamBaseEventUpdate = Partial<JamBaseEvent>;
 
 export interface JamBaseEventSearchParams {
   artistId?: string;
@@ -65,6 +63,7 @@ export interface JamBaseEventResponse {
   active_promotion_id?: string;
   // Ticketmaster images
   images?: any[];
+  source?: 'jambase' | 'ticketmaster' | 'manual' | string;
 }
 
 export interface JamBaseEventsApiResponse {

@@ -25,6 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { ContentModerationService } from '@/services/contentModerationService';
+import { fetchUserChats } from '@/services/chatService';
 
 interface ChatMessage {
   id: string;
@@ -214,9 +215,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
       setLoading(true);
       
       // Use the new function to get user's chats
-      const { data, error } = await supabase.rpc('get_user_chats', {
-        user_id: currentUserId
-      });
+      const { data, error } = await fetchUserChats(currentUserId);
 
       if (error) {
         console.error('Error fetching chats:', error);

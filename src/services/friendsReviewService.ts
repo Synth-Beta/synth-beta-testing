@@ -31,24 +31,24 @@ export class FriendsReviewService {
         f.user_id === userId ? f.related_entity_id : f.user_id
       );
 
-      // Get reviews from friends
+      // Get reviews from friends with automatic joins via foreign keys
       const { data: reviews, error } = await supabase
         .from('reviews')
         .select(`
           *,
           user:users!reviews_user_id_fkey (
             name,
-            avatar_url
+            avatar_url,
+            verified,
+            account_type
           ),
-          event:events (
+          events (
+            id,
             title,
-            artist_name,
             venue_name,
             event_date,
-            venue_city,
-            venue_state,
-            artist_id,
-            venue_id
+            artist_name,
+            artist_id
           )
         `)
         .in('user_id', friendIds)
@@ -61,7 +61,9 @@ export class FriendsReviewService {
 
       if (error) throw error;
 
-      return (reviews || []).map((review: any) => ({
+      return (reviews || []).map((review: any) => {
+        const event = review.events;
+        return {
         id: `friends-review-${review.id}`,
         type: 'review' as const,
         review_id: review.id,
@@ -82,14 +84,15 @@ export class FriendsReviewService {
         comments_count: review.comments_count || 0,
         shares_count: review.shares_count || 0,
         event_info: {
-          event_name: review.event?.title || 'Concert Review',
-          venue_name: review.event?.venue_name || 'Unknown Venue',
-          event_date: review.event?.event_date || review.created_at,
-          artist_name: review.event?.artist_name,
-          artist_id: review.event?.artist_id
+          event_name: event?.title || 'Concert Review',
+          venue_name: event?.venue_name || 'Unknown Venue',
+          event_date: event?.event_date || review.created_at,
+          artist_name: event?.artist_name,
+          artist_id: event?.artist_id
         },
         relevance_score: this.calculateFriendReviewRelevance(review, 1) // Direct friend = higher score
-      }));
+      };
+      });
     } catch (error) {
       console.error('Error fetching friends reviews:', error);
       return [];
@@ -148,24 +151,24 @@ export class FriendsReviewService {
         return [];
       }
 
-      // Get reviews from all friends
+      // Get reviews from all friends with automatic joins via foreign keys
       const { data: reviews, error } = await supabase
         .from('reviews')
         .select(`
           *,
           user:users!reviews_user_id_fkey (
             name,
-            avatar_url
+            avatar_url,
+            verified,
+            account_type
           ),
-          event:events (
+          events (
+            id,
             title,
-            artist_name,
             venue_name,
             event_date,
-            venue_city,
-            venue_state,
-            artist_id,
-            venue_id
+            artist_name,
+            artist_id
           )
         `)
         .in('user_id', allFriendIds)
@@ -181,6 +184,7 @@ export class FriendsReviewService {
       return (reviews || []).map((review: any) => {
         const isDirectFriend = directFriendIds.includes(review.user_id);
         const connectionDegree = isDirectFriend ? 1 : 2;
+        const event = review.events;
         
         return {
           id: `friends-plus-one-review-${review.id}`,
@@ -203,11 +207,11 @@ export class FriendsReviewService {
           comments_count: review.comments_count || 0,
           shares_count: review.shares_count || 0,
           event_info: {
-            event_name: review.jambase_events?.title || 'Concert Review',
-            venue_name: review.jambase_events?.venue_name || 'Unknown Venue',
-            event_date: review.jambase_events?.event_date || review.created_at,
-            artist_name: review.jambase_events?.artist_name,
-            artist_id: review.jambase_events?.artist_id
+            event_name: event?.title || 'Concert Review',
+            venue_name: event?.venue_name || 'Unknown Venue',
+            event_date: event?.event_date || review.created_at,
+            artist_name: event?.artist_name,
+            artist_id: event?.artist_id
           },
           relevance_score: this.calculateFriendReviewRelevance(review, connectionDegree)
         };
@@ -365,6 +369,16 @@ export class FriendsReviewService {
 
       if (error) {
         // Fallback: query the view directly (if it exists)
+        console.error('❌ RPC function get_connection_degree_reviews failed:', {
+          error,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          userId,
+          limit,
+          offset
+        });
         console.warn('RPC function failed, trying direct view query:', error);
         try {
           const { data: viewData, error: viewError } = await supabase
@@ -389,7 +403,7 @@ export class FriendsReviewService {
       return (data || []).map((review: any) => this.transformConnectionReview(review));
     } catch (error) {
       console.error('Error fetching connection degree reviews:', error);
-      return [];
+      return this.getFriendsPlusOneReviews(userId, limit, offset);
     }
   }
 
@@ -431,5 +445,35 @@ export class FriendsReviewService {
       connection_color: (review as any).connection_color, // Color for badge styling
       relevance_score: this.calculateFriendReviewRelevance(review, review.connection_degree || 3)
     };
+  }
+
+  private static async fetchEventsByIds(eventIds: string[]): Promise<Map<string, any>> {
+    const eventMap = new Map<string, any>();
+    const uniqueIds = Array.from(new Set(eventIds));
+    if (uniqueIds.length === 0) {
+      return eventMap;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('id, title, artist_name, artist_id, venue_name, venue_id, event_date, venue_city, venue_state')
+        .in('id', uniqueIds);
+
+      if (error) {
+        console.warn('⚠️ Unable to load events for friend reviews:', error);
+        return eventMap;
+      }
+
+      for (const event of data ?? []) {
+        if (event.id) {
+          eventMap.set(event.id, event);
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ Unexpected error while loading events for friend reviews:', err);
+    }
+
+    return eventMap;
   }
 }

@@ -15,6 +15,7 @@ import { Loader2, Users, MessageCircle, Sparkles, Calendar, MapPin, Bell, UserPl
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { PageActions } from '@/components/PageActions';
+import { fetchUserChats } from '@/services/chatService';
 
 type ConnectionProfile = {
   connected_user_id: string;
@@ -284,26 +285,11 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         }
 
         const { data, error } = await supabase
-          .from('user_jambase_events')
-          .select(
-            `
-              id,
-              user_id,
-              jambase_event_id,
-              created_at,
-              profiles!inner(user_id, name, avatar_url),
-              events!inner(
-                id,
-                title,
-                artist_name,
-                venue_name,
-                event_date,
-                poster_image_url,
-                images
-              )
-            `
-          )
+          .from('relationships')
+          .select('id, user_id, related_entity_id, created_at')
           .in('user_id', interestIds)
+          .eq('related_entity_type', 'event')
+          .in('relationship_type', ['interest', 'going', 'maybe'])
           .order('created_at', { ascending: false })
           .limit(12);
 
@@ -313,6 +299,40 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
         if (!active) return;
 
+        // Fetch user details separately
+        const userIds = [...new Set((data || []).map((row: any) => row.user_id).filter(Boolean))];
+        const userMap = new Map<string, any>();
+        
+        if (userIds.length > 0) {
+          const { data: usersData } = await supabase
+            .from('users')
+            .select('user_id, name, avatar_url')
+            .in('user_id', userIds);
+          
+          if (usersData) {
+            usersData.forEach((user: any) => {
+              userMap.set(user.user_id, user);
+            });
+          }
+        }
+
+        // Fetch event details separately since relationships table doesn't have direct FK join
+        const eventIds = [...new Set((data || []).map((row: any) => row.related_entity_id).filter(Boolean))];
+        const eventMap = new Map<string, any>();
+        
+        if (eventIds.length > 0) {
+          const { data: eventsData } = await supabase
+            .from('events')
+            .select('id, title, artist_name, venue_name, event_date, poster_image_url, images')
+            .in('id', eventIds);
+          
+          if (eventsData) {
+            eventsData.forEach((event: any) => {
+              eventMap.set(event.id, event);
+            });
+          }
+        }
+
         const interests = (data || []).map((row: any) => {
           const connectionMeta = resolveConnectionMeta(
             row.user_id,
@@ -321,20 +341,20 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
             thirdIds as Set<string>
           );
 
-          const eventData = row.jambase_events || {};
+          const eventData = eventMap.get(row.related_entity_id) || {};
           const images = Array.isArray(eventData.images) ? eventData.images : [];
           const fallbackImage =
             eventData.poster_image_url ||
             (images.length > 0 ? images.find((img: any) => img?.url)?.url : undefined);
 
           return {
-            id: row.id || `${row.user_id}-${row.jambase_event_id}`,
+            id: row.id || `${row.user_id}-${row.related_entity_id}`,
             userId: row.user_id,
             connectionDegree: connectionMeta.degree,
             connectionLabel: connectionMeta.label,
-            userName: row.profiles?.name || 'Connection',
-            userAvatar: row.profiles?.avatar_url || undefined,
-            eventId: eventData.id || row.jambase_event_id,
+            userName: userMap.get(row.user_id)?.name || 'Connection',
+            userAvatar: userMap.get(row.user_id)?.avatar_url || undefined,
+            eventId: eventData.id || row.related_entity_id,
             eventTitle: eventData.title,
             eventArtist: eventData.artist_name,
             eventVenue: eventData.venue_name,
@@ -370,9 +390,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     const loadChats = async () => {
       setChatsLoading(true);
       try {
-        const { data, error } = await supabase.rpc('get_user_chats', {
-          user_id: currentUserId,
-        });
+        const { data, error } = await fetchUserChats(currentUserId);
 
         if (error) throw error;
         if (!active) return;
@@ -528,9 +546,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       );
 
       // Get existing chats to exclude
-      const { data: existingChats } = await supabase.rpc('get_user_chats', {
-        user_id: currentUserId
-      });
+      const { data: existingChats } = await fetchUserChats(currentUserId);
 
       const existingChatUserIds = new Set<string>();
       existingChats?.forEach((chat: any) => {
@@ -598,59 +614,10 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       try {
         console.log('Loading recommendations for user:', currentUserId);
         
-        // First, try to fetch cached recommendations
-        const { data: cachedData, error: cachedError } = await supabase.rpc('get_user_recommendations', {
-          p_user_id: currentUserId,
-          p_limit: 10,
-        });
-
-        console.log('Cached data:', cachedData, 'Error:', cachedError);
-
-        // If we have cached data, use it immediately
-        if (cachedData && cachedData.length > 0 && active) {
-          console.log('Using cached recommendations:', cachedData.length);
-          setRecommendedUsers(cachedData as RecommendedUser[]);
-          setRecommendationsLoading(false);
-          
-          // Calculate/refresh in background (don't await)
-          supabase.rpc('calculate_user_recommendations', {
-            p_user_id: currentUserId,
-          }).then(({ error }) => {
-            if (error) {
-              console.error('Error refreshing recommendations in background:', error);
-            }
-          });
-          return;
-        }
-
-        // If no cache or error, calculate now
-        if (cachedError || !cachedData || cachedData.length === 0) {
-          console.log('No cached data, calculating recommendations...');
-          const calcResult = await supabase.rpc('calculate_user_recommendations', {
-            p_user_id: currentUserId,
-          });
-          console.log('Calculation result:', calcResult);
-
-          // Fetch the newly calculated recommendations
-          const { data, error } = await supabase.rpc('get_user_recommendations', {
-            p_user_id: currentUserId,
-            p_limit: 10,
-          });
-
-          console.log('Fetched recommendations:', data, 'Error:', error);
-
-          if (error) {
-            console.error('Error loading recommendations:', error);
-            if (active) {
-              setRecommendedUsers([]);
-            }
-            return;
-          }
-
-          if (active) {
-            console.log('Setting recommendations:', data?.length || 0);
-            setRecommendedUsers((data || []) as RecommendedUser[]);
-          }
+        // Recommendation system is disabled - function get_user_recommendations does not exist
+        // Set empty array to avoid 404 errors
+        if (active) {
+          setRecommendedUsers([]);
         }
       } catch (error) {
         console.error('Error loading recommendations:', error);
@@ -1150,14 +1117,16 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       try {
         // Get user's interested events
         const { data: userEvents } = await supabase
-          .from('user_jambase_events')
-          .select('jambase_event_id')
+          .from('relationships')
+          .select('related_entity_id')
           .eq('user_id', currentUserId)
+          .eq('related_entity_type', 'event')
+          .in('relationship_type', ['interest', 'going', 'maybe'])
           .limit(50);
 
         if (userEvents) {
           userEvents.forEach(event => {
-            userInterestedEvents.add(event.jambase_event_id);
+            userInterestedEvents.add(event.related_entity_id);
           });
         }
       } catch (error) {
@@ -1293,9 +1262,11 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     try {
       // First, get user's interested events
       const { data: userEvents } = await supabase
-        .from('user_jambase_events')
-        .select('jambase_event_id')
+        .from('relationships')
+        .select('related_entity_id')
         .eq('user_id', currentUserId)
+        .eq('related_entity_type', 'event')
+        .in('relationship_type', ['interest', 'going', 'maybe'])
         .limit(50);
 
       if (!userEvents || userEvents.length === 0) {
@@ -1304,7 +1275,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         return;
       }
 
-      const userEventIds = userEvents.map(e => e.jambase_event_id);
+      const userEventIds = userEvents.map(e => e.related_entity_id);
 
       // Get friends who are also interested in these events
       const { data: friendsData } = await supabase
@@ -1324,19 +1295,16 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
       // Get friends' interested events that match user's events
       const { data: friendInterests } = await supabase
-        .from('user_jambase_events')
+        .from('relationships')
         .select(`
           user_id,
-          jambase_event_id,
-          events!inner(
-            id,
-            title,
-            artist_name,
-            event_date
-          )
+          related_entity_id,
+          created_at
         `)
         .in('user_id', friendIds)
-        .in('jambase_event_id', userEventIds)
+        .eq('related_entity_type', 'event')
+        .in('relationship_type', ['interest', 'going', 'maybe'])
+        .in('related_entity_id', userEventIds)
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -1346,16 +1314,34 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         return;
       }
 
+      // Fetch event details separately
+      const sharedEventIds = [...new Set(friendInterests.map((i: any) => i.related_entity_id).filter(Boolean))];
+      const sharedEventMap = new Map<string, any>();
+      
+      if (sharedEventIds.length > 0) {
+        const { data: sharedEvents } = await supabase
+          .from('events')
+          .select('id, title, artist_name, event_date')
+          .in('id', sharedEventIds);
+        
+        if (sharedEvents) {
+          sharedEvents.forEach((event: any) => {
+            sharedEventMap.set(event.id, event);
+          });
+        }
+      }
+
       // Get unique friends (one per friend, with their first shared event)
       const friendMap = new Map<string, any>();
       friendInterests.forEach((interest: any) => {
         if (!friendMap.has(interest.user_id)) {
+          const eventData = sharedEventMap.get(interest.related_entity_id) || {};
           friendMap.set(interest.user_id, {
             user_id: interest.user_id,
-            shared_event_id: interest.jambase_event_id,
-            shared_event_title: interest.jambase_events?.title,
-            shared_event_artist: interest.jambase_events?.artist_name,
-            shared_event_date: interest.jambase_events?.event_date,
+            shared_event_id: interest.related_entity_id,
+            shared_event_title: eventData.title,
+            shared_event_artist: eventData.artist_name,
+            shared_event_date: eventData.event_date,
           });
         }
       });
@@ -1368,9 +1354,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         .in('user_id', friendUserIds);
 
       // Check which friends already have chats
-      const { data: existingChats } = await supabase.rpc('get_user_chats', {
-        user_id: currentUserId
-      });
+      const { data: existingChats } = await fetchUserChats(currentUserId);
 
       const existingChatUserIds = new Set<string>();
       existingChats?.forEach((chat: any) => {

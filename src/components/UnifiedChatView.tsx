@@ -36,6 +36,7 @@ import { EventMessageCard } from '@/components/chat/EventMessageCard';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
+import { fetchUserChats } from '@/services/chatService';
 
 interface Chat {
   id: string;
@@ -197,9 +198,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
 
   const fetchChats = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_user_chats', {
-        user_id: currentUserId
-      });
+      const { data, error } = await fetchUserChats(currentUserId);
 
       if (error) {
         console.error('Error fetching chats:', error);
@@ -616,7 +615,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       // If we get a 406 or other error, just return false (not an event group)
       if (error) {
         // 406 Not Acceptable usually means RLS or table doesn't exist
-        if (error.code === 'PGRST116' || error.code === '42P01' || error.status === 406) {
+        if (error.code === 'PGRST116' || error.code === '42P01') {
           return false;
         }
         console.warn('Error checking if chat is event-created:', error);

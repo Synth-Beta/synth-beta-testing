@@ -355,14 +355,14 @@ CREATE OR REPLACE FUNCTION get_available_cities_for_filter(
 BEGIN
   RETURN QUERY
   SELECT 
-    cc.city_name,
+    COALESCE(cc.aliases[1], cc.normalized_name) AS city_name,
     cc.state,
     cc.event_count::BIGINT,
     cc.center_latitude,
     cc.center_longitude
   FROM city_centers cc
   WHERE cc.event_count >= min_event_count
-  ORDER BY cc.event_count DESC, cc.city_name ASC
+  ORDER BY cc.event_count DESC, cc.normalized_name ASC
   LIMIT limit_count;
 END;
 $$ LANGUAGE plpgsql;

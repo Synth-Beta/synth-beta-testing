@@ -11,9 +11,11 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArtistFollowService } from '@/services/artistFollowService';
 import { VenueFollowService } from '@/services/venueFollowService';
 import { JamBaseService } from '@/services/jambaseService';
+import { UnifiedEventSearchService } from '@/services/unifiedEventSearchService';
 import type { ArtistFollowWithDetails } from '@/types/artistFollow';
 import type { VenueFollowWithDetails } from '@/types/venueFollow';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { UnifiedEvent } from '@/services/unifiedEventSearchService';
 import { format } from 'date-fns';
 import { ArtistCard } from '@/components/ArtistCard';
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
@@ -71,63 +73,89 @@ export function ArtistFollowingPage() {
       // Get followed artists
       const artists = await ArtistFollowService.getUserFollowedArtists(targetUserId);
       
-      // Get upcoming events for each artist
+      // Get upcoming events for each artist using Ticketmaster API
       const artistsWithEvents = await Promise.all(
         artists.map(async (artist) => {
           try {
-            // Get events by artist name only
-            const events = await JamBaseService.searchEventsByArtist(artist.artist_name, 20);
+            console.log(`🎫 Searching Ticketmaster API for artist: "${artist.artist_name}"`);
+            
+            // Search Ticketmaster API for this artist (upcoming events only)
+            let ticketmasterEvents: UnifiedEvent[] = [];
+            try {
+              ticketmasterEvents = await UnifiedEventSearchService.searchByArtist({
+                artistName: artist.artist_name,
+                includePastEvents: false, // Only upcoming events
+                limit: 50
+              });
+              console.log(`✅ Found ${ticketmasterEvents.length} Ticketmaster events for "${artist.artist_name}"`);
+            } catch (tmError) {
+              console.warn(`⚠️ Ticketmaster API search failed for "${artist.artist_name}":`, tmError);
+              // Fallback to JamBase if Ticketmaster fails
+              const jamBaseEvents = await JamBaseService.searchEventsByArtist(artist.artist_name, 20);
+              ticketmasterEvents = jamBaseEvents.map(event => ({
+                id: event.id,
+                title: event.title,
+                artist_name: event.artist_name,
+                venue_name: event.venue_name,
+                venue_city: event.venue_city,
+                venue_state: event.venue_state,
+                venue_address: event.venue_address,
+                event_date: event.event_date,
+                description: event.description,
+                ticket_urls: event.ticket_urls,
+                price_range: event.price_range,
+                source: 'jambase' as const
+              }));
+            }
+
+            // Convert UnifiedEvent to JamBaseEvent format
+            const events: JamBaseEvent[] = ticketmasterEvents.map((event: UnifiedEvent) => ({
+              id: event.id || `tm-${event.ticketmaster_event_id || Date.now()}`,
+              title: event.title,
+              artist_name: event.artist_name || artist.artist_name,
+              venue_name: event.venue_name,
+              venue_id: event.venue_id,
+              venue_city: event.venue_city,
+              venue_state: event.venue_state,
+              venue_address: event.venue_address,
+              venue_zip: event.venue_zip,
+              event_date: event.event_date,
+              doors_time: event.doors_time,
+              description: event.description,
+              ticket_urls: event.ticket_urls || [],
+              price_range: event.price_range,
+              ticket_available: event.ticket_available,
+              genres: event.genres,
+              jambase_event_id: event.jambase_event_id,
+              ticketmaster_event_id: event.ticketmaster_event_id,
+              source: event.source || 'ticketmaster'
+            }));
 
             console.log(`🔍 Checking events for "${artist.artist_name}":`, {
               totalEvents: events.length,
-              events: events.map(e => ({ title: e.title, artist: e.artist_name, date: e.event_date, event_date_type: typeof e.event_date })),
-              allEventTitles: events.map(e => e.title)
+              ticketmasterEvents: ticketmasterEvents.length,
+              events: events.map(e => ({ title: e.title, artist: e.artist_name, date: e.event_date, source: e.source }))
             });
 
             // Filter to only upcoming events
             const now = new Date();
             const upcomingEvents = events.filter(event => {
-              // Log the first event to check date structure
-              if (events.indexOf(event) === 0) {
-                console.log('🔍 Sample event date fields:', {
-                  event_date: event.event_date,
-                  dateTime: (event as any).dateTime,
-                  event: event
-                });
-              }
-              
-              // Try multiple date fields
-              const eventDate = event.event_date || (event as any).dateTime || event.event_date;
+              const eventDate = event.event_date;
               const eventDateObj = new Date(eventDate);
               const isUpcoming = eventDateObj > now;
               
-              // Only log if this is one of the first few events to reduce console spam
-              if (events.indexOf(event) < 3) {
-                console.log(`📅 Date check for "${event.title}":`, {
-                  event_date: event.event_date,
-                  eventDateObj: eventDateObj.toISOString(),
-                  now: now.toISOString(),
-                  isUpcoming,
-                  currentYear: now.getFullYear(),
-                  eventYear: eventDateObj.getFullYear()
-                });
-              }
-              
-              // Check if the event title starts with the artist name
-              // This handles events like "Goose at Venue" vs artist name "Goose"
-              const titleStartsWithArtist = event.title?.toLowerCase().startsWith(artist.artist_name.toLowerCase());
-              
-              // Check if artist_name matches exactly
-              const exactArtistMatch = event.artist_name === artist.artist_name;
+              // Check if the event title contains the artist name or artist_name matches
+              const titleContainsArtist = event.title?.toLowerCase().includes(artist.artist_name.toLowerCase());
+              const exactArtistMatch = event.artist_name?.toLowerCase() === artist.artist_name.toLowerCase();
               
               // Determine if the event matches the artist
-              const matches = isUpcoming && (titleStartsWithArtist || exactArtistMatch);
+              const matches = isUpcoming && (titleContainsArtist || exactArtistMatch);
               
               if (!matches && isUpcoming) {
                 console.log(`⚠️ Event not matched for "${artist.artist_name}":`, {
                   title: event.title,
                   artistInEvent: event.artist_name,
-                  titleStartsWithArtist,
+                  titleContainsArtist,
                   exactArtistMatch
                 });
               }
@@ -137,7 +165,7 @@ export function ArtistFollowingPage() {
 
             console.log(`✅ Filtered upcoming events for "${artist.artist_name}":`, {
               count: upcomingEvents.length,
-              events: upcomingEvents.map(e => ({ title: e.title, date: e.event_date }))
+              events: upcomingEvents.map(e => ({ title: e.title, date: e.event_date, source: e.source }))
             });
 
             return {
@@ -168,20 +196,77 @@ export function ArtistFollowingPage() {
       // Get followed venues
       const venues = await VenueFollowService.getUserFollowedVenues(targetUserId);
       
-      // Get upcoming events for each venue
+      // Get upcoming events for each venue using Ticketmaster API
       const venuesWithEvents = await Promise.all(
         venues.map(async (venue) => {
           try {
-            // Search for events by venue name
-            // JamBaseService.searchEventsByVenue now expects only 1-2 arguments.
-            // Pass only the venue name and (optionally) the limit.
-            const events = await JamBaseService.searchEventsByVenue(venue.venue_name, 20);
+            console.log(`🏢 Searching Ticketmaster API for venue: "${venue.venue_name}"`);
+            
+            // Search Ticketmaster API for this venue (upcoming events only)
+            let ticketmasterEvents: UnifiedEvent[] = [];
+            try {
+              ticketmasterEvents = await UnifiedEventSearchService.searchByVenue({
+                venueName: venue.venue_name,
+                venueCity: venue.venue_city || undefined,
+                venueState: venue.venue_state || undefined,
+                includePastEvents: false, // Only upcoming events
+                limit: 50
+              });
+              console.log(`✅ Found ${ticketmasterEvents.length} Ticketmaster events for "${venue.venue_name}"`);
+            } catch (tmError) {
+              console.warn(`⚠️ Ticketmaster API search failed for "${venue.venue_name}":`, tmError);
+              // Fallback to JamBase if Ticketmaster fails
+              const jamBaseEvents = await JamBaseService.searchEventsByVenue(venue.venue_name, 20);
+              ticketmasterEvents = jamBaseEvents.map(event => ({
+                id: event.id,
+                title: event.title,
+                artist_name: event.artist_name,
+                venue_name: event.venue_name,
+                venue_city: event.venue_city,
+                venue_state: event.venue_state,
+                venue_address: event.venue_address,
+                event_date: event.event_date,
+                description: event.description,
+                ticket_urls: event.ticket_urls,
+                price_range: event.price_range,
+                source: 'jambase' as const
+              }));
+            }
+
+            // Convert UnifiedEvent to JamBaseEvent format
+            const events: JamBaseEvent[] = ticketmasterEvents.map((event: UnifiedEvent) => ({
+              id: event.id || `tm-${event.ticketmaster_event_id || Date.now()}`,
+              title: event.title,
+              artist_name: event.artist_name || 'Unknown Artist',
+              venue_name: event.venue_name,
+              venue_id: event.venue_id,
+              venue_city: event.venue_city,
+              venue_state: event.venue_state,
+              venue_address: event.venue_address,
+              venue_zip: event.venue_zip,
+              event_date: event.event_date,
+              doors_time: event.doors_time,
+              description: event.description,
+              ticket_urls: event.ticket_urls || [],
+              price_range: event.price_range,
+              ticket_available: event.ticket_available,
+              genres: event.genres,
+              jambase_event_id: event.jambase_event_id,
+              ticketmaster_event_id: event.ticketmaster_event_id,
+              source: event.source || 'ticketmaster'
+            }));
 
             // Filter to only upcoming events
             const now = new Date();
-            const upcomingEvents = events.filter(event => 
-              new Date(event.event_date) > now
-            );
+            const upcomingEvents = events.filter(event => {
+              const eventDate = new Date(event.event_date);
+              return eventDate > now;
+            });
+
+            console.log(`✅ Filtered upcoming events for "${venue.venue_name}":`, {
+              count: upcomingEvents.length,
+              events: upcomingEvents.map(e => ({ title: e.title, date: e.event_date, source: e.source }))
+            });
 
             return {
               ...venue,

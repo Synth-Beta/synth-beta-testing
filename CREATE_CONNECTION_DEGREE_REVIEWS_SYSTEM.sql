@@ -22,6 +22,7 @@
 CREATE OR REPLACE FUNCTION public.is_event_relevant_to_user(
   p_user_id UUID,
   p_event_artist_id TEXT,
+  p_event_venue_id TEXT,
   p_event_venue_name TEXT,
   p_event_venue_city TEXT,
   p_event_venue_state TEXT
@@ -40,36 +41,37 @@ BEGIN
   IF p_event_artist_id IS NOT NULL THEN
     SELECT EXISTS (
       SELECT 1
-      FROM public.artist_follows af
-      JOIN public.artists a ON af.artist_id = a.id
-      WHERE af.user_id = p_user_id
-        AND (
-          a.jambase_artist_id = p_event_artist_id
-          OR a.id::TEXT = p_event_artist_id
-        )
+      FROM public.relationships r
+      WHERE r.user_id = p_user_id
+        AND r.related_entity_type = 'artist'
+        AND r.relationship_type = 'follow'
+        AND r.status = 'accepted'
+        AND LOWER(TRIM(r.related_entity_id)) = LOWER(TRIM(p_event_artist_id))
       LIMIT 1
     ) INTO v_follows_artist;
   END IF;
   
-  -- Check if user follows the venue of this event (by name + location)
-  IF p_event_venue_name IS NOT NULL THEN
+  -- Check if user follows the venue (prefer venue_id, fall back to name)
+  IF p_event_venue_id IS NOT NULL THEN
     SELECT EXISTS (
       SELECT 1
-      FROM public.venue_follows vf
-      WHERE vf.user_id = p_user_id
-        AND LOWER(TRIM(vf.venue_name)) = LOWER(TRIM(p_event_venue_name))
-        AND (
-          (vf.venue_city IS NULL AND (p_event_venue_city IS NULL OR p_event_venue_city = ''))
-          OR (p_event_venue_city IS NULL OR p_event_venue_city = '')
-          OR (vf.venue_city IS NOT NULL AND p_event_venue_city IS NOT NULL 
-              AND LOWER(TRIM(vf.venue_city)) = LOWER(TRIM(p_event_venue_city)))
-        )
-        AND (
-          (vf.venue_state IS NULL AND (p_event_venue_state IS NULL OR p_event_venue_state = ''))
-          OR (p_event_venue_state IS NULL OR p_event_venue_state = '')
-          OR (vf.venue_state IS NOT NULL AND p_event_venue_state IS NOT NULL 
-              AND LOWER(TRIM(vf.venue_state)) = LOWER(TRIM(p_event_venue_state)))
-        )
+      FROM public.relationships r
+      WHERE r.user_id = p_user_id
+        AND r.related_entity_type = 'venue'
+        AND r.relationship_type = 'follow'
+        AND r.status = 'accepted'
+        AND LOWER(TRIM(r.related_entity_id)) = LOWER(TRIM(p_event_venue_id))
+      LIMIT 1
+    ) INTO v_follows_venue;
+  ELSIF p_event_venue_name IS NOT NULL THEN
+    SELECT EXISTS (
+      SELECT 1
+      FROM public.relationships r
+      WHERE r.user_id = p_user_id
+        AND r.related_entity_type = 'venue'
+        AND r.relationship_type = 'follow'
+        AND r.status = 'accepted'
+        AND LOWER(TRIM(r.related_entity_id)) = LOWER(TRIM(p_event_venue_name))
       LIMIT 1
     ) INTO v_follows_venue;
   END IF;
@@ -78,7 +80,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.is_event_relevant_to_user(UUID, TEXT, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_event_relevant_to_user(UUID, TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
 
 -- ============================================
 -- STEP 3: CREATE MAIN VIEW FOR REVIEWS WITH CONNECTION DEGREES
@@ -91,10 +93,11 @@ SELECT
   ur.event_id,
   ur.rating::numeric AS rating,
   ur.review_text,
+  ur.review_text AS content,
   ur.is_public,
   ur.is_draft,
   ur.photos,
-  ur.setlist,
+  je.setlist AS setlist,
   ur.likes_count,
   ur.comments_count,
   ur.shares_count,
@@ -104,7 +107,7 @@ SELECT
   p.name as reviewer_name,
   p.avatar_url as reviewer_avatar,
   p.verified as reviewer_verified,
-  p.account_type as reviewer_account_type,
+  p.account_type::TEXT as reviewer_account_type,
   -- Event information
   je.title as event_title,
   je.artist_name,
@@ -123,9 +126,9 @@ SELECT
   (SELECT label FROM public.get_connection_info(auth.uid(), ur.user_id) LIMIT 1) as connection_type_label,
   -- Connection color for UI styling
   (SELECT color FROM public.get_connection_info(auth.uid(), ur.user_id) LIMIT 1) as connection_color
-FROM public.user_reviews ur
-JOIN public.profiles p ON ur.user_id = p.user_id
-JOIN public.jambase_events je ON ur.event_id = je.id
+FROM public.reviews ur
+JOIN public.users p ON ur.user_id = p.user_id
+JOIN public.events je ON ur.event_id = je.id
 WHERE ur.is_public = true 
   AND ur.is_draft = false
   AND ur.review_text != 'ATTENDANCE_ONLY'
@@ -141,6 +144,7 @@ WHERE ur.is_public = true
       AND public.is_event_relevant_to_user(
         auth.uid(), 
         je.artist_id,
+        je.venue_id,
         je.venue_name,
         je.venue_city,
         je.venue_state
@@ -160,17 +164,7 @@ GRANT SELECT ON public.reviews_with_connection_degree TO authenticated;
 COMMENT ON VIEW public.reviews_with_connection_degree IS 'Reviews from 1st, 2nd, and relevant 3rd degree connections. 3rd degree only shows if the current user follows the artist OR venue of the review event. Uses existing get_connection_degree function.';
 
 -- ============================================
--- STEP 4: CREATE INDEXES FOR PERFORMANCE (if not exist)
--- ============================================
-
-CREATE INDEX IF NOT EXISTS idx_artist_follows_user_artist ON public.artist_follows(user_id, artist_id);
-CREATE INDEX IF NOT EXISTS idx_venue_follows_user_location ON public.venue_follows(user_id, venue_name, venue_city, venue_state);
-CREATE INDEX IF NOT EXISTS idx_user_reviews_user_public ON public.user_reviews(user_id, is_public, is_draft) 
-  WHERE is_public = true AND is_draft = false;
-CREATE INDEX IF NOT EXISTS idx_user_reviews_created_at ON public.user_reviews(created_at DESC);
-
--- ============================================
--- STEP 5: CREATE RPC FUNCTION (OPTIONAL - VIEW CAN BE USED DIRECTLY)
+-- STEP 4: CREATE RPC FUNCTION (OPTIONAL - VIEW CAN BE USED DIRECTLY)
 -- ============================================
 
 CREATE OR REPLACE FUNCTION public.get_connection_degree_reviews(

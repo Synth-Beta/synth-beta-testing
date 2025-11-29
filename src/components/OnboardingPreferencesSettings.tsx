@@ -22,7 +22,6 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Tables } from '@/integrations/supabase/types';
 import { MusicTagsService, MusicTag } from '@/services/musicTagsService';
 import { MUSIC_GENRES } from '@/data/musicGenres';
 
@@ -30,11 +29,24 @@ interface OnboardingPreferencesSettingsProps {
   onClose?: () => void;
 }
 
+interface UserProfile {
+  id: string;
+  user_id: string;
+  name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  location_city: string | null;
+  gender: string | null;
+  birthday: string | null;
+  similar_users_notifications: boolean | null;
+  [key: string]: any;
+}
+
 export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferencesSettingsProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  const [profile, setProfile] = useState<Tables<'users'> | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [musicTags, setMusicTags] = useState<MusicTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -137,7 +149,7 @@ export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferences
           tag.tag_type === tagType && tag.tag_value === tagValue
         );
         if (existingTag) {
-          await MusicTagsService.removeMusicTag(existingTag.id);
+          await MusicTagsService.removeMusicTag(user.id, existingTag.id);
         }
       }
 

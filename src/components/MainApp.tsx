@@ -469,6 +469,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onNavigateToProfile={handleNavigateToProfile}
             onNavigateToChat={handleNavigateToChat}
             onNavigateToNotifications={handleNavigateToNotifications}
+            onViewChange={handleViewChange}
           />
         );
       case 'profile-edit':

@@ -6,6 +6,7 @@ export interface UnifiedEventSearchParams {
   keyword?: string;
   artistName?: string;
   venueName?: string;
+  venueId?: string; // Ticketmaster venue ID for accurate venue-based searches
   
   // Location
   city?: string;
@@ -174,12 +175,15 @@ export class UnifiedEventSearchService {
       // Build query params for Ticketmaster
       const queryParams = new URLSearchParams();
       
-      // For venue searches, use venueName; for artist searches, use artistName or keyword
-      if (params.venueName) {
-        // For venue searches, use the venue name as keyword
-        // Ticketmaster keyword searches across all fields, so we'll filter results by venue_name match
+      // For venue searches, prefer venueId for accuracy, fallback to venueName
+      if (params.venueId) {
+        // Use venueId for accurate venue-based event search
+        queryParams.append('venueId', params.venueId);
+        console.log(`🏢 Ticketmaster venue ID search: "${params.venueId}"`);
+      } else if (params.venueName) {
+        // Fallback to keyword search if venueId not available
         queryParams.append('keyword', params.venueName);
-        console.log(`🏢 Ticketmaster venue search: "${params.venueName}"`);
+        console.log(`🏢 Ticketmaster venue name search: "${params.venueName}"`);
       } else if (params.keyword || params.artistName) {
         queryParams.append('keyword', params.artistName || params.keyword || '');
         console.log(`🎤 Ticketmaster artist search: "${params.artistName || params.keyword}"`);
@@ -431,11 +435,70 @@ export class UnifiedEventSearchService {
   }
 
   /**
+   * Search for venue by name to get venue ID
+   * Uses Ticketmaster Venues API
+   */
+  private static async searchVenueByName(venueName: string, city?: string, stateCode?: string): Promise<string | null> {
+    try {
+      console.log(`🏢 Searching for venue ID: "${venueName}"`);
+      
+      const queryParams = new URLSearchParams();
+      queryParams.append('keyword', venueName);
+      if (city) queryParams.append('city', city);
+      if (stateCode) queryParams.append('stateCode', stateCode);
+      queryParams.append('size', '5'); // Get top 5 matches
+      
+      // Use relative URL in production (Vercel serverless functions) or backend URL in development
+      const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && !window.location.hostname.startsWith('127.0.0.1');
+      const backendUrl = isProduction ? '' : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001');
+      const url = `${backendUrl}/api/ticketmaster/venues?${queryParams.toString()}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Synth/1.0'
+        }
+      });
+
+      if (!response.ok) {
+        console.warn(`⚠️ Venue search API error: ${response.statusText}`);
+        return null;
+      }
+
+      const data = await response.json();
+      
+      if (!data.success || !data.venues || data.venues.length === 0) {
+        console.log(`⚠️ No venues found for "${venueName}"`);
+        return null;
+      }
+
+      // Find the best match (exact name match preferred)
+      const venueNameLower = venueName.toLowerCase().trim();
+      const exactMatch = data.venues.find((v: any) => 
+        v.name?.toLowerCase().trim() === venueNameLower
+      );
+      
+      const matchedVenue = exactMatch || data.venues[0];
+      const venueId = matchedVenue.id;
+      
+      console.log(`✅ Found venue ID: ${venueId} for "${venueName}" (matched: "${matchedVenue.name}")`);
+      return venueId;
+    } catch (error) {
+      console.error('❌ Error searching for venue:', error);
+      return null;
+    }
+  }
+
+  /**
    * Search events by venue name (includes both upcoming and past events)
    * This method fetches from Ticketmaster API ONLY (no JamBase)
+   * Uses venue ID-based search for accurate results
    */
   static async searchByVenue(params: {
     venueName: string;
+    venueCity?: string;
+    venueState?: string;
     includePastEvents?: boolean;
     pastEventsMonths?: number; // How many months back to fetch (default: 3)
     limit?: number;
@@ -449,46 +512,85 @@ export class UnifiedEventSearchService {
       ? pastDate.toISOString().split('T')[0] + 'T00:00:00Z'
       : now.toISOString().split('T')[0] + 'T00:00:00Z';
     
-    // Fetch upcoming events (from today onwards, no end date)
-    // IMPORTANT: Use venueName parameter, NOT keyword or artistName
-    const upcomingParams: UnifiedEventSearchParams = {
-      venueName: params.venueName, // Use venueName to trigger venue-specific filtering
-      startDate: now.toISOString().split('T')[0] + 'T00:00:00Z',
-      limit: params.limit || 200,
-      includePastEvents: false
-    };
+    // Step 1: Get venue ID by searching for the venue
+    const venueId = await this.searchVenueByName(
+      params.venueName,
+      params.venueCity,
+      params.venueState
+    );
 
-    // Fetch past events if requested
-    let pastEvents: UnifiedEvent[] = [];
-    if (params.includePastEvents) {
-      const pastParams: UnifiedEventSearchParams = {
-        venueName: params.venueName, // Use venueName to trigger venue-specific filtering
-        startDate: startDate,
-        endDate: now.toISOString().split('T')[0] + 'T23:59:59Z',
-        limit: params.limit || 200,
-        includePastEvents: true
-      };
-      
-      try {
-        console.log(`🏢 Fetching past events from Ticketmaster for venue "${params.venueName}"...`);
-        // Call Ticketmaster ONLY (skip JamBase)
-        const pastResult = await this.searchTicketmaster(pastParams);
-        pastEvents = pastResult;
-        console.log(`✅ Found ${pastEvents.length} past events from Ticketmaster for venue`);
-      } catch (error) {
-        console.warn('⚠️ Failed to fetch past events from Ticketmaster:', error);
-      }
-    }
-
-    // Fetch upcoming events from Ticketmaster ONLY
+    // Step 2: Search events using venue ID (more accurate than keyword search)
     let upcomingEvents: UnifiedEvent[] = [];
-    try {
-      console.log(`🏢 Fetching upcoming events from Ticketmaster for venue "${params.venueName}"...`);
-      // Call Ticketmaster ONLY (skip JamBase)
-      upcomingEvents = await this.searchTicketmaster(upcomingParams);
-      console.log(`✅ Found ${upcomingEvents.length} upcoming events from Ticketmaster for venue`);
-    } catch (error) {
-      console.warn('⚠️ Failed to fetch upcoming events from Ticketmaster:', error);
+    let pastEvents: UnifiedEvent[] = [];
+
+    if (venueId) {
+      // Use venue ID for accurate search
+      console.log(`🏢 Using venue ID ${venueId} to search for events`);
+      
+      const upcomingParams: UnifiedEventSearchParams = {
+        venueId: venueId, // Use venueId for accurate search
+        startDate: now.toISOString().split('T')[0] + 'T00:00:00Z',
+        limit: params.limit || 200,
+        includePastEvents: false
+      };
+
+      if (params.includePastEvents) {
+        const pastParams: UnifiedEventSearchParams = {
+          venueId: venueId,
+          startDate: startDate,
+          endDate: now.toISOString().split('T')[0] + 'T23:59:59Z',
+          limit: params.limit || 200,
+          includePastEvents: true
+        };
+        
+        try {
+          console.log(`🏢 Fetching past events from Ticketmaster for venue ID ${venueId}...`);
+          pastEvents = await this.searchTicketmaster(pastParams);
+          console.log(`✅ Found ${pastEvents.length} past events from Ticketmaster for venue`);
+        } catch (error) {
+          console.warn('⚠️ Failed to fetch past events from Ticketmaster:', error);
+        }
+      }
+
+      try {
+        console.log(`🏢 Fetching upcoming events from Ticketmaster for venue ID ${venueId}...`);
+        upcomingEvents = await this.searchTicketmaster(upcomingParams);
+        console.log(`✅ Found ${upcomingEvents.length} upcoming events from Ticketmaster for venue`);
+      } catch (error) {
+        console.warn('⚠️ Failed to fetch upcoming events from Ticketmaster:', error);
+      }
+    } else {
+      // Fallback to keyword search if venue ID not found
+      console.warn(`⚠️ Venue ID not found for "${params.venueName}", falling back to keyword search`);
+      
+      const upcomingParams: UnifiedEventSearchParams = {
+        venueName: params.venueName,
+        startDate: now.toISOString().split('T')[0] + 'T00:00:00Z',
+        limit: params.limit || 200,
+        includePastEvents: false
+      };
+
+      if (params.includePastEvents) {
+        const pastParams: UnifiedEventSearchParams = {
+          venueName: params.venueName,
+          startDate: startDate,
+          endDate: now.toISOString().split('T')[0] + 'T23:59:59Z',
+          limit: params.limit || 200,
+          includePastEvents: true
+        };
+        
+        try {
+          pastEvents = await this.searchTicketmaster(pastParams);
+        } catch (error) {
+          console.warn('⚠️ Failed to fetch past events from Ticketmaster:', error);
+        }
+      }
+
+      try {
+        upcomingEvents = await this.searchTicketmaster(upcomingParams);
+      } catch (error) {
+        console.warn('⚠️ Failed to fetch upcoming events from Ticketmaster:', error);
+      }
     }
 
     // Combine and deduplicate

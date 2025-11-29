@@ -17,10 +17,10 @@ export const OnboardingTour = ({ run, onFinish }: OnboardingTourProps) => {
       target: 'body',
       content: (
         <div className="space-y-2">
-          <h3 className="text-lg font-bold">Welcome to Synth!</h3>
+          <h3 className="text-lg font-bold">Discover • Connect • Share</h3>
           <p>
-            Let's take a quick tour of the app to help you discover events and connect with
-            other music lovers.
+            Synth is built around seeing what&apos;s happening, meeting people who love the
+            same shows, and sharing your take. Let&apos;s take the tour!
           </p>
         </div>
       ),
@@ -31,23 +31,10 @@ export const OnboardingTour = ({ run, onFinish }: OnboardingTourProps) => {
       target: '[data-tour="feed"]',
       content: (
         <div className="space-y-2">
-          <h3 className="text-lg font-bold">Event Feed</h3>
+          <h3 className="text-lg font-bold">Discover your feed</h3>
           <p>
-            Discover events happening near you. Your feed is personalized based on your music
-            preferences and the artists you follow.
-          </p>
-        </div>
-      ),
-      placement: 'bottom',
-    },
-    {
-      target: '[data-tour="search"]',
-      content: (
-        <div className="space-y-2">
-          <h3 className="text-lg font-bold">Search & Filters</h3>
-          <p>
-            Find specific events by artist, genre, or location. Use filters to narrow down
-            results and find exactly what you're looking for.
+            This feed mixes upcoming events with reviews from people you follow so you always
+            know what&apos;s worth attending.
           </p>
         </div>
       ),
@@ -57,49 +44,49 @@ export const OnboardingTour = ({ run, onFinish }: OnboardingTourProps) => {
       target: '[data-tour="event-card"]',
       content: (
         <div className="space-y-2">
-          <h3 className="text-lg font-bold">Event Details</h3>
+          <h3 className="text-lg font-bold">Share your review</h3>
           <p>
-            Click on any event to see details, mark yourself as interested, share with
-            friends, and see who else is going.
+            Tap an event to RSVP, drop photos, and leave a review so friends see your take in
+            their Discover feed.
           </p>
         </div>
       ),
       placement: 'top',
     },
     {
-      target: '[data-tour="profile"]',
+      target: '[data-tour="search"]',
       content: (
         <div className="space-y-2">
-          <h3 className="text-lg font-bold">Your Profile</h3>
+          <h3 className="text-lg font-bold">Connect with people</h3>
           <p>
-            View and edit your profile, connect your Spotify account, manage your music
-            preferences, and see your event history.
-          </p>
-        </div>
-      ),
-      placement: 'top',
-    },
-    {
-      target: '[data-tour="settings"]',
-      content: (
-        <div className="space-y-2">
-          <h3 className="text-lg font-bold">Settings</h3>
-          <p>
-            Customize your experience, manage notifications, adjust your privacy settings,
-            and more.
+            The Connect tab helps you find friends, hosts, and fans going to the same shows so
+            you never go alone.
           </p>
         </div>
       ),
       placement: 'bottom',
     },
     {
+      target: '[data-tour="profile"]',
+      content: (
+        <div className="space-y-2">
+          <h3 className="text-lg font-bold">Share your story</h3>
+          <p>
+            Your Share page highlights your reviews, music tags, and who you follow—making it
+            easy for others to vibe with your taste.
+          </p>
+        </div>
+      ),
+      placement: 'top',
+    },
+    {
       target: 'body',
       content: (
         <div className="space-y-2">
-          <h3 className="text-lg font-bold">You're all set!</h3>
+          <h3 className="text-lg font-bold">You&apos;re ready!</h3>
           <p>
-            Start exploring events, following artists, and connecting with other music fans.
-            Have fun and never go to shows alone!
+            Discover new shows, connect with the community, and share the nights that matter.
+            We&apos;ll see you in the crowd.
           </p>
         </div>
       ),

@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { JamBaseEventResponse } from './jambaseEventsService';
 import { calculateDistance, filterEventsByRadius, calculateCenter, calculateBounds, calculateZoomLevel } from '@/utils/distanceUtils';
+import { normalizeCityName } from '@/utils/cityNormalization';
 
 export interface RadiusSearchParams {
   zipCode?: string;
@@ -87,6 +88,7 @@ export class RadiusSearchService {
       if (!zipCode) {
         throw new Error('Zip code is required');
       }
+
 
       // First, get the center coordinates for the zip code
       const centerCoords = await this.getZipCoordinates(zipCode);
@@ -310,14 +312,53 @@ export class RadiusSearchService {
 
   /**
    * Get map center coordinates for a city
+   * First tries city_centers table, then falls back to event-based calculation
    */
   static async getCityCoordinates(city: string, state?: string): Promise<{ lat: number; lng: number } | null> {
     try {
-      // Normalize city name for better matching
-      const normalizedCity = city.toLowerCase().trim();
-      
-      // Try exact match first
+      const normalizedCity = normalizeCityName(city);
+      const stateNormalized = state ? state.toLowerCase().trim() : null;
+      const searchVariants = buildCitySearchVariants(normalizedCity, stateNormalized);
+      const normalizedVariantSet = new Set(searchVariants.map((variant) => normalizeCityName(variant)));
+
       let query = supabase
+        .from('city_centers')
+        .select('normalized_name, state, center_latitude, center_longitude, aliases, event_count');
+
+      if (searchVariants.length > 0) {
+        const normalizedNameFilters = searchVariants
+          .map((variant) => `normalized_name.ilike.%${variant}%`)
+          .join(',');
+        const aliasFilters = searchVariants
+          .map((variant) => `aliases.cs.{${variant}}`)
+          .join(',');
+        const combined = [normalizedNameFilters, aliasFilters].filter(Boolean).join(',');
+        if (combined) {
+          query = query.or(combined);
+        }
+      }
+
+      const { data: cityCenterData, error: cityCenterError } = await query.limit(10);
+
+      if (!cityCenterError && cityCenterData && cityCenterData.length > 0) {
+        const scored = cityCenterData
+          .map((match) => ({
+            match,
+            score: scoreCityCenterMatch(match, normalizedVariantSet, stateNormalized),
+          }))
+          .sort((a, b) => b.score - a.score);
+
+        const bestMatch = scored[0]?.match;
+        if (bestMatch && bestMatch.center_latitude && bestMatch.center_longitude) {
+          return {
+            lat: Number(bestMatch.center_latitude),
+            lng: Number(bestMatch.center_longitude),
+          };
+        }
+      }
+
+      // Fallback: Try to get coordinates from events table
+      let eventQuery = supabase
         .from('events')
         .select('latitude, longitude, venue_city, venue_state')
         .ilike('venue_city', `%${normalizedCity}%`)
@@ -325,56 +366,44 @@ export class RadiusSearchService {
         .not('longitude', 'is', null);
 
       if (state) {
-        query = query.ilike('venue_state', `%${state.toLowerCase().trim()}%`);
+        eventQuery = eventQuery.ilike('venue_state', `%${state.toLowerCase().trim()}%`);
       }
 
-      const { data, error } = await query.limit(5);
+      const { data: eventData, error: eventError } = await eventQuery.limit(5);
 
-      if (error) {
-        // Database error
-        return null;
-      }
-      
-      if (!data || data.length === 0) {
-        // No coordinates found in database for city
-        
-        // Try fallback coordinates for major cities
-        const fallbackKey = normalizedCity.replace(/\s+/g, ' ').trim();
-        const fallbackCoords = this.CITY_COORDINATES[fallbackKey];
-        
-        if (fallbackCoords) {
-          // Using fallback coordinates
-          return fallbackCoords;
+      if (!eventError && eventData && eventData.length > 0) {
+        // Calculate average coordinates for better center point
+        const validCoords = eventData.filter(d => 
+          d.latitude != null && 
+          d.longitude != null &&
+          !Number.isNaN(Number(d.latitude)) &&
+          !Number.isNaN(Number(d.longitude))
+        );
+
+        if (validCoords.length > 0) {
+          const avgLat = validCoords.reduce((sum, d) => sum + Number(d.latitude), 0) / validCoords.length;
+          const avgLng = validCoords.reduce((sum, d) => sum + Number(d.longitude), 0) / validCoords.length;
+
+          return {
+            lat: avgLat,
+            lng: avgLng
+          };
         }
-        
-        // No fallback coordinates available for city
-        return null;
       }
-
-      // Calculate average coordinates for better center point
-      const validCoords = data.filter(d => 
-        d.latitude != null && 
-        d.longitude != null &&
-        !Number.isNaN(Number(d.latitude)) &&
-        !Number.isNaN(Number(d.longitude))
-      );
-
-      if (validCoords.length === 0) {
-        // No valid coordinates found for city
-        return null;
-      }
-
-      const avgLat = validCoords.reduce((sum, d) => sum + Number(d.latitude), 0) / validCoords.length;
-      const avgLng = validCoords.reduce((sum, d) => sum + Number(d.longitude), 0) / validCoords.length;
-
-      // Found coordinates for city
       
-      return {
-        lat: avgLat,
-        lng: avgLng
-      };
+      // Final fallback: Try hardcoded coordinates for major cities
+      const fallbackCandidates = [...searchVariants, normalizedCity];
+      for (const candidate of fallbackCandidates) {
+        const fallbackKey = candidate.replace(/\s+/g, ' ').trim();
+        if (fallbackKey && this.CITY_COORDINATES[fallbackKey]) {
+          return this.CITY_COORDINATES[fallbackKey];
+        }
+      }
+      
+      // No coordinates found
+      return null;
     } catch (error) {
-      // Error getting city coordinates
+      console.error('Error getting city coordinates:', error);
       return null;
     }
   }
@@ -508,4 +537,88 @@ export class RadiusSearchService {
       return [];
     }
   }
+}
+
+const CITY_NAME_SUFFIXES = [
+  'district of columbia',
+  'city',
+  'county',
+  'borough',
+  'metro area',
+  'metropolitan area',
+  'municipality',
+  'township',
+  'parish',
+];
+
+function buildCitySearchVariants(normalizedCity: string, state?: string | null): string[] {
+  const variants = new Set<string>();
+  const cleaned = normalizedCity.replace(/\s+/g, ' ').trim();
+  if (cleaned) {
+    variants.add(cleaned);
+  }
+
+  const stateNormalized = state ? state.toLowerCase().trim() : null;
+  if (stateNormalized) {
+    variants.add(stateNormalized);
+    if (cleaned.endsWith(stateNormalized)) {
+      variants.add(cleaned.slice(0, -stateNormalized.length).trim());
+    }
+  }
+
+  CITY_NAME_SUFFIXES.forEach((suffix) => {
+    if (cleaned.endsWith(` ${suffix}`)) {
+      variants.add(cleaned.slice(0, -suffix.length).trim());
+    }
+  });
+
+  const parts = cleaned.split(' ').filter(Boolean);
+  if (parts.length > 1) {
+    variants.add(parts.slice(0, parts.length - 1).join(' '));
+    variants.add(parts.slice(0, Math.min(parts.length, 2)).join(' '));
+    variants.add(parts[0]);
+  }
+
+  if (!variants.has('washington') && cleaned.includes('washington')) {
+    variants.add('washington');
+    variants.add('washington dc');
+  }
+
+  return Array.from(variants)
+    .map((variant) => variant.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+}
+
+function scoreCityCenterMatch(
+  match: any,
+  normalizedVariants: Set<string>,
+  stateNormalized?: string | null
+): number {
+  let score = 0;
+  const normalizedName = normalizeCityName(match.normalized_name || '');
+  if (normalizedVariants.has(normalizedName)) {
+    score += 50;
+  }
+
+  if (Array.isArray(match.aliases)) {
+    const normalizedAliases = match.aliases.map((alias: string) => normalizeCityName(alias));
+    if (normalizedAliases.some((alias) => normalizedVariants.has(alias))) {
+      score += 40;
+    }
+  }
+
+  const matchState = match.state ? match.state.toLowerCase().trim() : null;
+  if (
+    stateNormalized &&
+    matchState &&
+    (matchState === stateNormalized || matchState === stateNormalized.replace(/\s+/g, ''))
+  ) {
+    score += 20;
+  }
+
+  if (typeof match.event_count === 'number') {
+    score += Math.min(match.event_count, 500);
+  }
+
+  return score;
 }

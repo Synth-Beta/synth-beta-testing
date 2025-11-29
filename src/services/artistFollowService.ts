@@ -147,14 +147,22 @@ export class ArtistFollowService {
    */
   static async isFollowingArtist(artistId: string, userId: string): Promise<boolean> {
     try {
-      const { data, error } = await (supabase as any).rpc('is_following_artist', {
-        p_artist_id: artistId,
-        p_user_id: userId
-      });
+      // Query relationships table directly
+      const { data, error } = await supabase
+        .from('relationships')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('related_entity_type', 'artist')
+        .eq('related_entity_id', artistId)
+        .eq('relationship_type', 'follow')
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking if following artist:', error);
+        return false;
+      }
 
-      return data as boolean;
+      return !!data;
     } catch (error) {
       console.error('Error checking if following artist:', error);
       return false;
@@ -167,13 +175,20 @@ export class ArtistFollowService {
    */
   static async getFollowerCount(artistId: string): Promise<number> {
     try {
-      const { data, error } = await (supabase as any).rpc('get_artist_follower_count', {
-        p_artist_id: artistId
-      });
+      // Query relationships table directly
+      const { count, error } = await supabase
+        .from('relationships')
+        .select('*', { count: 'exact', head: true })
+        .eq('related_entity_type', 'artist')
+        .eq('related_entity_id', artistId)
+        .eq('relationship_type', 'follow');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error getting follower count:', error);
+        return 0;
+      }
 
-      return (data as number) || 0;
+      return count || 0;
     } catch (error) {
       console.error('Error getting follower count:', error);
       return 0;
@@ -254,73 +269,69 @@ export class ArtistFollowService {
    */
   static async getUserFollowedArtists(userId: string): Promise<ArtistFollowWithDetails[]> {
     try {
-      // Try the view first, fallback to direct query if view doesn't exist
-      const { data, error } = await (supabase as any)
-        .from('artist_follows_with_details')
-        .select('*')
+      console.log('🔍 Getting followed artists for user:', userId);
+      
+      // Query relationships table for artist follows
+      const { data: relationships, error: relationshipsError } = await supabase
+        .from('relationships')
+        .select('id, related_entity_id, created_at, updated_at')
         .eq('user_id', userId)
+        .eq('related_entity_type', 'artist')
+        .eq('relationship_type', 'follow')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        // If view doesn't exist, fallback to relationships table
-        console.warn('⚠️ artist_follows_with_details view not found, using relationships table');
-        // Query relationships without join (related_entity_id is TEXT, not UUID FK)
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('relationships')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('related_entity_type', 'artist')
-          .eq('relationship_type', 'follow')
-          .order('created_at', { ascending: false });
-          
-        if (fallbackError) {
-          throw fallbackError;
-        }
-        
-        // Fetch artist details separately because related_entity_id is TEXT, not UUID FK
-        // Filter for valid UUIDs only (related_entity_id might contain non-UUID values)
-        const isValidUUID = (str: string) => {
-          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-          return uuidRegex.test(str);
-        };
-        
-        const artistIds = (fallbackData || [])
-          .map((r: any) => r.related_entity_id)
-          .filter((id: string) => id && isValidUUID(id));
-        
-        const artistsMap = new Map();
-        
-        if (artistIds.length > 0) {
-          const { data: artists } = await supabase
-            .from('artists')
-            .select('id, name, image_url, jambase_artist_id')
-            .in('id', artistIds);
-            
-          (artists || []).forEach((artist: any) => {
-            artistsMap.set(artist.id, artist);
-          });
-        }
-        
-        // Transform to match expected format
-        return (fallbackData || []).map((item: any) => {
-          const artist = artistsMap.get(item.related_entity_id);
-          return {
-            id: item.id,
-            user_id: item.user_id,
-            artist_id: item.related_entity_id,
-            created_at: item.created_at,
-            artist_name: artist?.name || null,
-            artist_image_url: artist?.image_url || null,
-            jambase_artist_id: artist?.jambase_artist_id || null,
-            num_upcoming_events: null,
-            genres: null,
-            user_name: null,
-            user_avatar_url: null
-          };
-        }) as ArtistFollowWithDetails[];
+      if (relationshipsError) {
+        console.error('Error fetching artist relationships:', relationshipsError);
+        return [];
       }
 
-      return (data as ArtistFollowWithDetails[]) || [];
+      if (!relationships || relationships.length === 0) {
+        console.log('No artist follows found');
+        return [];
+      }
+
+      // Extract artist IDs
+      const artistIds = relationships.map((rel: any) => rel.related_entity_id).filter(Boolean);
+      console.log('Artist IDs to fetch:', artistIds.length);
+
+      if (artistIds.length === 0) {
+        return [];
+      }
+
+      // Fetch artist details
+      const { data: artists, error: artistsError } = await supabase
+        .from('artists')
+        .select('id, name, image_url, jambase_artist_id')
+        .in('id', artistIds);
+
+      if (artistsError) {
+        console.error('Error fetching artist details:', artistsError);
+        return [];
+      }
+
+      // Create a map of artist_id -> artist data
+      const artistsMap = new Map((artists || []).map((a: any) => [a.id, a]));
+
+      // Transform to match expected format
+      const result = relationships.map((rel: any) => {
+        const artist = artistsMap.get(rel.related_entity_id);
+        return {
+          id: rel.id,
+          user_id: userId,
+          artist_id: rel.related_entity_id,
+          created_at: rel.created_at,
+          artist_name: artist?.name || null,
+          artist_image_url: artist?.image_url || null,
+          jambase_artist_id: artist?.jambase_artist_id || null,
+          num_upcoming_events: null,
+          genres: null,
+          user_name: null,
+          user_avatar_url: null
+        } as ArtistFollowWithDetails;
+      });
+
+      console.log('✅ Followed artists fetched:', result.length);
+      return result;
     } catch (error) {
       console.error('Error getting followed artists:', error);
       // Return empty array instead of throwing to prevent blocking the UI

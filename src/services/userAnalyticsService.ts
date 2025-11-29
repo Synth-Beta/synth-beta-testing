@@ -363,48 +363,35 @@ export class UserAnalyticsService {
    */
   static async getActualUniqueVenuesCount(userId: string): Promise<number> {
     try {
-      // Get reviews first, then fetch events separately
-      const { data: reviewsData } = await supabase
+      // Get reviews records with events joined automatically via foreign key
+      const { data: allReviewsData, error: reviewsQueryError } = await supabase
         .from('reviews')
-        .select('id, is_draft, review_text, event_id')
+        .select(`
+          id, 
+          is_draft, 
+          review_text, 
+          events(venue_name, title, artist_name)
+        `)
         .eq('user_id', userId);
       
-      if (!reviewsData || reviewsData.length === 0) {
+      if (reviewsQueryError) {
+        console.error('Error fetching reviews for venue count:', reviewsQueryError);
         return 0;
       }
 
-      // Fetch events separately
-      const eventIds = reviewsData.map((r: any) => r.event_id).filter(Boolean);
-      const eventMap = new Map();
-      
-      if (eventIds.length > 0) {
-        const { data: eventsData } = await supabase
-          .from('events')
-          .select('id, venue_name, title, artist_name')
-          .in('id', eventIds);
-        
-        if (eventsData) {
-          eventsData.forEach((event: any) => {
-            eventMap.set(event.id, event);
-          });
-        }
+      if (!allReviewsData || allReviewsData.length === 0) {
+        return 0;
       }
-
-      // Map reviews with event data
-      const allReviewsData = reviewsData.map((review: any) => ({
-        ...review,
-        events: eventMap.get(review.event_id)
-      }));
 
       // Collect unique venue names with detailed logging
       const venueNames = new Set<string>();
       const venueDetails: Array<{venue: string, event: string, type: string}> = [];
       
-      allReviewsData?.forEach(review => {
-        const eventData = (review as any).events;
-        const venueName = eventData?.venue_name;
-        const eventTitle = eventData?.title;
-        const artistName = eventData?.artist_name;
+      allReviewsData.forEach((review: any) => {
+        const event = review.events;
+        const venueName = event?.venue_name;
+        const eventTitle = event?.title;
+        const artistName = event?.artist_name;
         
         if (venueName) {
           venueNames.add(venueName);
@@ -689,33 +676,51 @@ export class UserAnalyticsService {
 
   /**
    * Get consistent artist follows count (same method used everywhere)
-   * Uses relationships table in 3NF schema
    */
   static async getArtistFollowsCount(userId: string): Promise<number> {
     try {
-      // Use relationships table for 3NF schema
-      const { count, error } = await supabase
+      console.log(`🔍 Getting artist follows count for user: ${userId}`);
+      
+      // Query relationships table for artist follows ONLY
+      // Explicitly exclude users/friends by filtering related_entity_type = 'artist'
+      const { count, data, error } = await supabase
         .from('relationships')
-        .select('*', { count: 'exact', head: true })
+        .select('*', { count: 'exact' })
         .eq('user_id', userId)
-        .eq('related_entity_type', 'artist')
-        .eq('relationship_type', 'follow')
-        .eq('status', 'accepted');
+        .eq('related_entity_type', 'artist') // ONLY artists, NOT users
+        .eq('relationship_type', 'follow'); // ONLY follows, NOT friends
 
       if (error) {
         console.error('🚨 Artist follows query error:', error);
-        // Fallback without status filter
-        const { count: fallbackCount } = await supabase
-          .from('relationships')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('related_entity_type', 'artist')
-          .eq('relationship_type', 'follow');
-        return fallbackCount || 0;
+        return 0;
       }
 
-      const countResult = count || 0;
-      console.log(`🎯 Artist follows count: ${countResult}`);
+      // Verify no user relationships slipped through (safety check)
+      if (data && data.length > 0) {
+        const hasUserRelationships = data.some((rel: any) => rel.related_entity_type !== 'artist');
+        if (hasUserRelationships) {
+          console.warn('⚠️ WARNING: Found non-artist relationships in artist follows query!', data);
+        }
+      }
+
+      const countResult = count || data?.length || 0;
+      console.log(`🎯 Artist follows count from relationships table: ${countResult} (from count: ${count}, from data.length: ${data?.length})`);
+
+      // If we have follows, get the artist names for debugging
+      if (countResult > 0 && data && data.length > 0) {
+        const artistIds = data.map((rel: any) => rel.related_entity_id).filter(Boolean);
+        if (artistIds.length > 0) {
+          const { data: artistsData, error: artistsError } = await supabase
+            .from('artists')
+            .select('name')
+            .in('id', artistIds);
+
+          if (!artistsError && artistsData) {
+            const artistNames = artistsData.map((a: any) => a.name || 'Unknown Artist');
+            console.log(`🎯 Followed artist names:`, artistNames);
+          }
+        }
+      }
       
       return countResult;
     } catch (error) {
@@ -728,29 +733,77 @@ export class UserAnalyticsService {
     try {
       console.log(`🔍 Getting venue follows count for user: ${userId}`);
       
-      // Use relationships table for 3NF schema
-      const { count, error } = await supabase
+      // Query relationships table for venue follows ONLY
+      // Explicitly exclude users/friends by filtering related_entity_type = 'venue'
+      const { count, data, error } = await supabase
         .from('relationships')
-        .select('*', { count: 'exact', head: true })
+        .select('*', { count: 'exact' })
         .eq('user_id', userId)
-        .eq('related_entity_type', 'venue')
-        .eq('relationship_type', 'follow')
-        .eq('status', 'accepted');
+        .eq('related_entity_type', 'venue') // ONLY venues, NOT users
+        .eq('relationship_type', 'follow'); // ONLY follows, NOT friends
 
       if (error) {
         console.error('🚨 Venue follows query error:', error);
-        // Fallback without status filter
-        const { count: fallbackCount } = await supabase
-          .from('relationships')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('related_entity_type', 'venue')
-          .eq('relationship_type', 'follow');
-        return fallbackCount || 0;
+        return 0;
       }
 
-      const countResult = count || 0;
-      console.log(`🎯 Venue follows count: ${countResult}`);
+      // Verify no user relationships slipped through (safety check)
+      if (data && data.length > 0) {
+        const hasUserRelationships = data.some((rel: any) => rel.related_entity_type !== 'venue');
+        if (hasUserRelationships) {
+          console.warn('⚠️ WARNING: Found non-venue relationships in venue follows query!', data);
+        }
+      }
+
+      const countResult = count || data?.length || 0;
+      console.log(`🎯 Venue follows count from relationships table: ${countResult} (from count: ${count}, from data.length: ${data?.length})`);
+      
+      // If we have follows, get the venue names for debugging
+      if (countResult > 0 && data && data.length > 0) {
+        const venueIds = data.map((rel: any) => rel.related_entity_id).filter(Boolean);
+        if (venueIds.length > 0) {
+          // Filter for valid UUIDs only (related_entity_id might be TEXT with venue names)
+          const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          const validUuids = venueIds.filter((id: string) => uuidPattern.test(String(id)));
+          
+          // Try querying by UUID first
+          let venuesData: any[] = [];
+          let venuesError: any = null;
+          
+          if (validUuids.length > 0) {
+            const result = await supabase
+              .from('venues')
+              .select('name')
+              .in('id', validUuids);
+            venuesData = result.data || [];
+            venuesError = result.error;
+          }
+          
+          // If we have non-UUID values, they might be venue names - query by name instead
+          const nonUuidIds = venueIds.filter((id: string) => !uuidPattern.test(String(id)));
+          if (nonUuidIds.length > 0 && !venuesError) {
+            const { data: venuesByName, error: nameError } = await supabase
+              .from('venues')
+              .select('name')
+              .in('name', nonUuidIds);
+            
+            if (!nameError && venuesByName) {
+              venuesData = [...venuesData, ...venuesByName];
+            }
+          }
+
+          if (!venuesError && venuesData && venuesData.length > 0) {
+            const venueNames = venuesData.map((v: any) => v.name || 'Unknown Venue');
+            console.log(`🎯 Followed venue names:`, venueNames);
+          } else {
+            // If venues table doesn't have the data, related_entity_id might be the venue name
+            const venueNames = venueIds.map((id: string) => id);
+            console.log(`🎯 Followed venue IDs/names (could not find in venues table):`, venueNames);
+          }
+        }
+      } else {
+        console.log(`🎯 No venue follows found for user ${userId}`);
+      }
       
       return countResult;
     } catch (error) {

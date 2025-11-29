@@ -1,8 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeCityName } from '@/utils/cityNormalization';
 import type { JamBaseEvent } from './jambaseEventsService';
 
 /**
- * Row returned by `get_personalized_feed_v1`
+ * Row returned by the Supabase personalized feed RPC.
  * Keep this in sync with the Supabase function definition.
  */
 type PersonalizedFeedRow = {
@@ -13,6 +14,7 @@ type PersonalizedFeedRow = {
   artist_uuid?: string | null;
   venue_name: string | null;
   venue_id?: string | null;
+  venue_uuid?: string | null;
   venue_city: string | null;
   venue_state?: string | null;
   venue_address?: string | null;
@@ -24,10 +26,10 @@ type PersonalizedFeedRow = {
   latitude: number | string | null;
   longitude: number | string | null;
   ticket_urls: string[] | null;
+  ticket_available?: boolean | null;
   price_range: string | null;
   ticket_price_min?: number | string | null;
   ticket_price_max?: number | string | null;
-  ticket_available?: boolean | null;
   relevance_score: number | null;
   friend_interest_count: number | null;
   total_interest_count: number | null;
@@ -79,6 +81,7 @@ type NormalizedFilters = {
   cleanedCities?: string[];
   originalCities: string[];
   city: string | null;
+  cityCoordinates?: { lat: number; lng: number } | null; // City center coordinates for radius filtering
   radiusMiles: number;
   dateStartIso?: string;
   dateEndIso?: string;
@@ -109,38 +112,61 @@ export class PersonalizedFeedService {
     filters?: PersonalizedFeedFilters
   ): Promise<PersonalizedEvent[]> {
     const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const normalizedFilters = this.normalizeFilters(filters);
+    const normalizedFilters = await this.normalizeFilters(filters);
 
-    const payload = {
+    const rpcPayload = {
         p_user_id: userId,
         p_limit: limit,
         p_offset: offset,
-      p_city: normalizedFilters.city,
+      p_include_past: includePast,
+      p_city_lat: normalizedFilters.cityCoordinates?.lat ?? null,
+      p_city_lng: normalizedFilters.cityCoordinates?.lng ?? null,
       p_radius_miles: normalizedFilters.radiusMiles,
-      p_date_start: includePast
-        ? normalizedFilters.dateStartIso ?? EARLIEST_DATE
-        : normalizedFilters.dateStartIso ?? new Date().toISOString(),
-      p_date_end: normalizedFilters.dateEndIso,
       p_genres: normalizedFilters.genres ?? null,
       p_following_only: normalizedFilters.followingOnly,
-      p_days_of_week: normalizedFilters.daysOfWeek ?? null,
     };
 
     try {
-      console.log('📡 Calling get_personalized_feed_v1 with payload:', payload);
-      const { data, error } = await supabase.rpc('get_personalized_feed_v1', payload);
+      console.log('📡 Calling get_personalized_feed_v2 with payload:', rpcPayload);
+      const { data, error } = await supabase.rpc('get_personalized_feed_v2', rpcPayload);
       
       if (error) {
-        console.error('❌ get_personalized_feed_v1 error:', error);
+        if (error.code === '42P01' || error.code === 'PGRST204' || error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+          console.warn('⚠️ get_personalized_feed_v2 RPC function not found, using fallback feed');
+          return this.getFallbackFeed(userId, limit, offset, includePast, normalizedFilters);
+        }
+        console.error('❌ get_personalized_feed_v2 error:', error);
         return this.getFallbackFeed(userId, limit, offset, includePast, normalizedFilters);
       }
 
-      const rows = (data ?? []) as PersonalizedFeedRow[];
+      const rows = (data ?? []).map((row: any) => this.mapRpcRowToFeedRow(row));
+      
+      console.log('📊 RPC response before client-side filtering:', {
+        rawDataCount: data?.length ?? 0,
+        mappedRowsCount: rows.length,
+        sampleRow: rows[0] ? {
+          title: rows[0].title,
+          venue_city: rows[0].venue_city,
+          event_date: rows[0].event_date,
+        } : null,
+        filters: normalizedFilters.debugSummary,
+      });
+      
       const filteredRows = this.applyClientSideFilters(rows, normalizedFilters, includePast);
+      
+      console.log('📊 After client-side filtering:', {
+        filteredCount: filteredRows.length,
+        removedCount: rows.length - filteredRows.length,
+      });
+      
       const events = filteredRows.map((row) => this.mapRowToEvent(row));
 
       if (filteredRows.length === 0 && offset === 0) {
-        console.warn('⚠️ RPC returned no events at offset 0 – falling back to basic feed.');
+        console.warn('⚠️ RPC returned no events at offset 0 – falling back to basic feed.', {
+          rawDataCount: data?.length ?? 0,
+          mappedRowsCount: rows.length,
+          filteredCount: filteredRows.length,
+        });
         return this.getFallbackFeed(userId, limit, offset, includePast, normalizedFilters);
       }
 
@@ -158,7 +184,7 @@ export class PersonalizedFeedService {
 
       return events;
     } catch (rpcException) {
-      console.error('❌ get_personalized_feed_v1 exception:', rpcException);
+      console.error('❌ get_personalized_feed_v2 exception:', rpcException);
       return this.getFallbackFeed(userId, limit, offset, includePast, normalizedFilters);
     }
   }
@@ -176,57 +202,14 @@ export class PersonalizedFeedService {
     console.warn('⚠️ Falling back to basic feed query (RPC unavailable).');
       
     try {
-      // Build city filter - handle variations like "Washington D.C", "Washington DC", etc.
-      const cityFilter = filters.city || filters.cleanedCities?.[0];
-      
       let query = supabase
         .from('events')
         .select('*')
-        .order('event_date', { ascending: true });
+        .order('event_date', { ascending: true })
+        .range(offset, offset + limit - 1);
       
       if (!includePast) {
         query = query.gte('event_date', new Date().toISOString());
-      }
-      
-      // Filter by city if provided - handle variations by using ilike
-      if (cityFilter) {
-        const cityName = cityFilter.trim();
-        
-        // Create patterns to match common city name variations
-        // For "Washington D.C" -> match "Washington", "Washington D.C", "Washington DC", etc.
-        const cityPatterns: string[] = [];
-        
-        // Add the original city name
-        cityPatterns.push(cityName);
-        
-        // Add variation without periods
-        cityPatterns.push(cityName.replace(/\./g, ''));
-        
-        // Add base city name (without DC/D.C suffix) for cities like "Washington D.C"
-        const baseCityName = cityName
-          .replace(/\s+d\.?c\.?$/i, '')
-          .replace(/\s+dc$/i, '')
-          .replace(/\s+d\s+c$/i, '')
-          .trim();
-        if (baseCityName && baseCityName !== cityName) {
-          cityPatterns.push(baseCityName);
-        }
-        
-        // Use OR to match any of these patterns
-        const orConditions = cityPatterns
-          .filter(Boolean)
-          .map(pattern => `venue_city.ilike.${pattern}%`)
-          .join(',');
-        
-        if (orConditions) {
-          query = query.or(orConditions);
-        }
-        
-        console.log('🔍 Fallback feed: Filtering by city:', { 
-          originalCity: cityFilter,
-          patterns: cityPatterns,
-          orConditions
-        });
       }
       
       if (filters.genres?.length) {
@@ -241,10 +224,6 @@ export class PersonalizedFeedService {
         query = query.lte('event_date', filters.dateEndIso);
       }
 
-      // Fetch more events than needed to account for client-side filtering and pagination
-      const fetchLimit = Math.max(limit * 3, 100);
-      query = query.limit(fetchLimit).range(offset, offset + fetchLimit - 1);
-
       const { data, error } = await query;
       
       if (error) {
@@ -252,9 +231,7 @@ export class PersonalizedFeedService {
         return [];
       }
       
-      console.log(`✅ Fallback feed: Fetched ${data?.length || 0} events from database`);
-      
-      const rows = (data ?? []).map<PersonalizedFeedRow>((event: any) => ({
+      let rows = (data ?? []).map<PersonalizedFeedRow>((event: any) => ({
         event_id: event.id,
         title: event.title,
         artist_name: event.artist_name,
@@ -287,6 +264,36 @@ export class PersonalizedFeedService {
         created_at: event.created_at,
         updated_at: event.updated_at,
       }));
+
+      if (filters.cityCoordinates?.lat !== undefined && filters.cityCoordinates?.lng !== undefined) {
+        const { lat, lng } = filters.cityCoordinates;
+        const radiusMiles = filters.radiusMiles ?? DEFAULT_RADIUS_MILES;
+
+        rows = rows
+          .map((row) => {
+            if (row.latitude == null || row.longitude == null) {
+              return row;
+            }
+
+            const distance = this.calculateDistanceMiles(
+              typeof row.latitude === 'string' ? Number(row.latitude) : row.latitude,
+              typeof row.longitude === 'string' ? Number(row.longitude) : row.longitude,
+              lat,
+              lng
+            );
+
+            return {
+              ...row,
+              distance_miles: Number.isFinite(distance) ? distance : row.distance_miles ?? null,
+            };
+          })
+          .filter((row) => {
+            if (row.distance_miles == null) return true;
+            const distanceValue =
+              typeof row.distance_miles === 'string' ? Number(row.distance_miles) : row.distance_miles;
+            return Number.isFinite(distanceValue) ? distanceValue <= radiusMiles : true;
+          });
+      }
 
       let filteredRows = this.applyClientSideFilters(rows, filters, includePast);
 
@@ -533,24 +540,46 @@ export class PersonalizedFeedService {
   /**
    * Normalize front-end filters to the parameters expected by the RPC.
    */
-  private static normalizeFilters(filters?: PersonalizedFeedFilters): NormalizedFilters {
+  private static async normalizeFilters(filters?: PersonalizedFeedFilters): Promise<NormalizedFilters> {
     const cleanedCities =
-      filters?.selectedCities?.map((city) => city.split(',')[0]?.trim()).filter(Boolean) ?? undefined;
+      filters?.selectedCities
+        ?.map((city) => city.split(',')[0]?.trim())
+        .filter(Boolean)
+        .map((city) => normalizeCityName(city || '')) ?? undefined;
 
-    const primaryCity = filters?.city ?? cleanedCities?.[0] ?? null;
+    const baseCity = filters?.city ?? cleanedCities?.[0] ?? null;
+    const normalizedCity = baseCity ? normalizeCityName(baseCity) : null;
       
     const genres = filters?.genres && filters.genres.length > 0 ? filters.genres : undefined;
     const daysOfWeek = filters?.daysOfWeek && filters.daysOfWeek.length > 0 ? filters.daysOfWeek : undefined;
     const followingOnly = filters?.filterByFollowing === 'following';
     const dateStartDate = filters?.dateRange?.from;
     const dateEndDate = filters?.dateRange?.to;
+    const radiusMiles = filters?.radiusMiles ?? DEFAULT_RADIUS_MILES;
+
+    // Look up city coordinates if city is specified
+    let cityCoordinates: { lat: number; lng: number } | null = null;
+    if (baseCity) {
+      try {
+        const { RadiusSearchService } = await import('@/services/radiusSearchService');
+        cityCoordinates = await RadiusSearchService.getCityCoordinates(baseCity);
+        if (cityCoordinates) {
+          console.log(`📍 Found coordinates for "${baseCity}":`, cityCoordinates);
+        } else {
+          console.warn(`⚠️ No coordinates found for city: "${baseCity}"`);
+        }
+      } catch (error) {
+        console.error('Error looking up city coordinates:', error);
+      }
+    }
 
     return {
       genres,
       cleanedCities,
       originalCities: filters?.selectedCities ?? [],
-      city: primaryCity,
-      radiusMiles: filters?.radiusMiles ?? DEFAULT_RADIUS_MILES,
+      city: normalizedCity,
+      cityCoordinates,
+      radiusMiles,
       dateStartIso: dateStartDate ? dateStartDate.toISOString() : undefined,
       dateEndIso: dateEndDate ? dateEndDate.toISOString() : undefined,
       dateStart: dateStartDate,
@@ -558,8 +587,8 @@ export class PersonalizedFeedService {
       daysOfWeek,
       followingOnly,
       debugSummary: {
-        city: primaryCity,
-        radius: filters?.radiusMiles ?? DEFAULT_RADIUS_MILES,
+        city: normalizedCity,
+        radius: radiusMiles,
         genres: genres?.length ?? 0,
         citiesSelected: cleanedCities?.length ?? 0,
         daysOfWeek: daysOfWeek?.length ?? 0,
@@ -586,24 +615,22 @@ export class PersonalizedFeedService {
       });
     }
 
+    // Skip city name filtering if coordinates were used (RPC already filtered by location)
+    // Only apply city name filter if no coordinates were provided
+    if (!filters.cityCoordinates) {
     const citySource = (filters.cleanedCities && filters.cleanedCities.length > 0)
       ? filters.cleanedCities
       : (filters.originalCities && filters.originalCities.length > 0 ? filters.originalCities : undefined);
 
     if (citySource && citySource.length > 0) {
       const normalizeCity = (city: string) =>
-        city
-          .trim()
-          .toLowerCase()
-          .replace(/\./g, '')
-          .replace(/\s+dc$/, '')
-          .replace(/\s+d\.c$/, '')
-          .replace(/\s+/g, ' ');
-      const allowed = new Set(citySource.map((city) => normalizeCity(city)));
+        normalizeCityName(city || '').replace(/\s+/g, ' ').trim();
+      const allowed = new Set(citySource.map(normalizeCity));
       result = result.filter((row) => {
         const city = row.venue_city ? normalizeCity(row.venue_city) : '';
         return allowed.has(city);
       });
+      }
     }
 
     if (filters.genres && filters.genres.length > 0) {
@@ -635,6 +662,65 @@ export class PersonalizedFeedService {
     }
 
     return result;
+  }
+
+  private static calculateDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 3959; // Earth's radius in miles
+    const toRadians = (degrees: number) => degrees * (Math.PI / 180);
+    const dLat = toRadians(lat2 - lat1);
+    const dLng = toRadians(lng2 - lng1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  private static mapRpcRowToFeedRow(row: any): PersonalizedFeedRow {
+    const ticketUrls = Array.isArray(row.ticket_urls)
+      ? row.ticket_urls
+      : row.ticket_url
+      ? [row.ticket_url]
+      : [];
+
+    return {
+      event_id: String(row.event_id ?? row.id ?? ''),
+      title: row.title ?? null,
+      artist_name: row.artist_name ?? null,
+      artist_id: row.artist_id ?? null,
+      artist_uuid: row.artist_uuid ?? null,
+      venue_name: row.venue_name ?? null,
+      venue_id: row.venue_id ?? null,
+      venue_uuid: row.venue_uuid ?? null,
+      venue_city: row.venue_city ?? null,
+      venue_state: row.venue_state ?? null,
+      venue_address: row.venue_address ?? null,
+      venue_zip: row.venue_zip ?? null,
+      event_date: row.event_date,
+      doors_time: row.doors_time ?? null,
+      description: row.description ?? null,
+      genres: Array.isArray(row.genres) ? row.genres : [],
+      latitude: row.latitude ?? null,
+      longitude: row.longitude ?? null,
+      ticket_urls: ticketUrls,
+      ticket_available:
+        row.ticket_available ??
+        (ticketUrls.length > 0 ? true : row.ticket_available ?? null),
+      price_range: row.price_range ?? null,
+      ticket_price_min: row.ticket_price_min ?? null,
+      ticket_price_max: row.ticket_price_max ?? null,
+      relevance_score: row.relevance_score ?? null,
+      friend_interest_count: row.friend_interest_count ?? row.friends_interested_count ?? null,
+      total_interest_count: row.total_interest_count ?? row.interested_count ?? null,
+      is_promoted: row.is_promoted ?? null,
+      promotion_tier: row.promotion_tier ?? null,
+      distance_miles: row.distance_miles ?? null,
+      poster_image_url: row.poster_image_url ?? null,
+      created_at: row.created_at ?? null,
+      updated_at: row.updated_at ?? null,
+    };
   }
 }
 
