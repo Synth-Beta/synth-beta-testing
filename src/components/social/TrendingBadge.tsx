@@ -1,7 +1,7 @@
 /**
  * Trending Badge
  * Shows if an event is trending based on recent activity
- * Leverages existing user_interactions data
+ * Leverages existing interactions data
  */
 
 import React, { useEffect, useState } from 'react';
@@ -28,19 +28,26 @@ export function TrendingBadge({ eventId, className }: TrendingBadgeProps) {
       const twentyFourHoursAgo = new Date();
       twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
-      const { data, error } = await supabase
-        .from('user_interactions')
+      const { count, error } = await supabase
+        .from('interactions')
         .select('id', { count: 'exact', head: true })
         .eq('entity_type', 'event')
         .eq('entity_id', eventId)
         .gte('occurred_at', twentyFourHoursAgo.toISOString());
 
-      if (error) throw error;
+      if (error) {
+        // Silently fail if table doesn't exist or query fails
+        if (error.code === 'PGRST205' || error.message?.includes('does not exist')) {
+          return;
+        }
+        throw error;
+      }
 
       // Event is trending if it has 20+ interactions in 24 hours
-      setIsTrending((data as any) >= 20);
+      setIsTrending((count || 0) >= 20);
     } catch (error) {
-      console.error('Error checking trending status:', error);
+      // Silently fail - trending badge is non-critical
+      console.debug('Trending status check failed (non-critical):', error);
     } finally {
       setLoading(false);
     }

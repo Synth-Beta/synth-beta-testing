@@ -50,22 +50,18 @@ DECLARE
   v_user_lon NUMERIC;
 BEGIN
   -- Resolve coordinates for the selected city (if provided)
-  -- Updated: city_centers.normalized_name instead of city_name
+  -- Updated: city_centers uses city_name column (not normalized_name)
   IF p_city IS NOT NULL THEN
     SELECT center_latitude, center_longitude
     INTO v_user_lat, v_user_lon
     FROM city_centers
-    WHERE LOWER(normalized_name) = LOWER(TRIM(p_city))
-       OR LOWER(normalized_name) = LOWER(TRIM(REPLACE(p_city, ' D.C', '')))
-       OR LOWER(normalized_name) = LOWER(TRIM(REPLACE(REPLACE(p_city, '.', ''), ' D.C', '')))
-       OR LOWER(normalized_name) = LOWER(TRIM(REPLACE(REPLACE(p_city, '.', ''), ' DC', '')))
-       -- Also check aliases array (simplified - check if city name is in aliases)
-       OR EXISTS (
-         SELECT 1 
-         FROM city_centers cc2 
-         WHERE cc2.id = city_centers.id 
-           AND LOWER(TRIM(p_city)) = ANY(SELECT LOWER(unnest(cc2.aliases)))
-       )
+    WHERE LOWER(city_name) = LOWER(TRIM(p_city))
+       OR LOWER(city_name) = LOWER(TRIM(REPLACE(p_city, ' D.C', '')))
+       OR LOWER(city_name) = LOWER(TRIM(REPLACE(REPLACE(p_city, '.', ''), ' D.C', '')))
+       OR LOWER(city_name) = LOWER(TRIM(REPLACE(REPLACE(p_city, '.', ''), ' DC', '')))
+       OR LOWER(city_name) = LOWER(TRIM(REPLACE(p_city, 'D.C.', 'DC')))
+       OR LOWER(city_name) = LOWER(TRIM(REPLACE(p_city, 'District of Columbia', 'Washington DC')))
+       OR LOWER(city_name) LIKE LOWER(TRIM('%' || REPLACE(p_city, ' D.C', '') || '%'))
     LIMIT 1;
   END IF;
 

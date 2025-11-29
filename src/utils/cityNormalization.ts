@@ -9,6 +9,7 @@
  * @returns Normalized city name
  */
 export const normalizeCityName = (city: string): string => {
+  if (!city || typeof city !== 'string') return '';
   return city
     .toLowerCase()
     .trim()
@@ -125,4 +126,125 @@ export const findSimilarCities = (searchQuery: string, cities: string[]): string
     return normalizedCity.includes(normalizedQuery) || 
            normalizedQuery.includes(normalizedCity);
   });
+};
+
+/**
+ * Deduplicate and consolidate city names - removes duplicates and variations
+ * For example: "Washington" and "Washington DC" become just "Washington DC"
+ * @param cities - Array of city names to deduplicate
+ * @returns Array of unique, consolidated city names
+ */
+export const deduplicateCities = (cities: string[]): string[] => {
+  if (!cities || cities.length === 0) return [];
+  
+  // Group cities by their normalized form
+  const cityGroups = new Map<string, string[]>();
+  
+  cities.forEach(city => {
+    if (!city || typeof city !== 'string') return;
+    
+    const normalized = normalizeCityName(city);
+    if (!normalized) return;
+    
+    if (!cityGroups.has(normalized)) {
+      cityGroups.set(normalized, []);
+    }
+    cityGroups.get(normalized)!.push(city);
+  });
+  
+  // For each group, pick the canonical (best) version
+  const result: string[] = [];
+  
+  cityGroups.forEach((variations, normalized) => {
+    // Use the canonical city name function to pick the best variation
+    const canonical = getCanonicalCityName(variations);
+    result.push(canonical);
+  });
+  
+  // Special handling: Remove "Washington" if "Washington DC" exists
+  const hasWashingtonDC = result.some(c => 
+    normalizeCityName(c).includes('washington') && 
+    (c.toLowerCase().includes('dc') || c.toLowerCase().includes('d.c'))
+  );
+  if (hasWashingtonDC) {
+    // Remove plain "Washington" entries
+    return result.filter(c => {
+      const normalized = normalizeCityName(c);
+      return !(normalized.includes('washington') && 
+               !c.toLowerCase().includes('dc') && 
+               !c.toLowerCase().includes('d.c'));
+    });
+  }
+  
+  return result;
+};
+
+/**
+ * Format city name for consistent display
+ * Expands abbreviations and ensures consistent format
+ * @param city - The city name (may be abbreviated)
+ * @returns Full city name in proper format
+ */
+export const formatCityNameForDisplay = (city: string): string => {
+  if (!city || typeof city !== 'string') return '';
+  
+  const trimmed = city.trim();
+  
+  // Map of abbreviations to full names
+  const abbreviationMap: Record<string, string> = {
+    'sea': 'Seattle',
+    'den': 'Denver',
+    'nyc': 'New York',
+    'ny': 'New York',
+    'la': 'Los Angeles',
+    'sf': 'San Francisco',
+    'chi': 'Chicago',
+    'mia': 'Miami',
+    'phx': 'Phoenix',
+    'lv': 'Las Vegas',
+    'vegas': 'Las Vegas',
+    'dc': 'Washington DC',
+    'd.c.': 'Washington DC',
+    'd c': 'Washington DC',
+    'washington': 'Washington DC',
+  };
+  
+  const lowerCity = trimmed.toLowerCase();
+  
+  // Check if it's an abbreviation
+  if (abbreviationMap[lowerCity]) {
+    return abbreviationMap[lowerCity];
+  }
+  
+  // Check if city name contains state (e.g., "Boston, MA")
+  // Remove state if present (we'll show it separately)
+  const cityStateMatch = trimmed.match(/^(.+?),\s*([A-Z]{2})$/);
+  if (cityStateMatch) {
+    return cityStateMatch[1].trim();
+  }
+  
+  // Capitalize first letter of each word for consistency
+  return trimmed
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
+/**
+ * Format city and state for consistent display
+ * @param city - The city name
+ * @param state - The state code/name
+ * @returns Formatted string: "City, State" or just "City" if no state
+ */
+export const formatCityStateForDisplay = (city: string, state?: string): string => {
+  const formattedCity = formatCityNameForDisplay(city);
+  
+  if (!state || state.trim() === '') {
+    return formattedCity;
+  }
+  
+  // Clean up state code (ensure uppercase, remove periods)
+  const cleanState = state.trim().toUpperCase().replace(/\./g, '');
+  
+  return `${formattedCity}, ${cleanState}`;
 };

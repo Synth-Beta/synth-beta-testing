@@ -505,6 +505,15 @@ export const UnifiedFeed = ({
                 );
               }
               
+              // Special handling for Washington DC variations
+              if (!match && (userCityLower.includes('washington') || userCityLower.includes('dc') || userCityLower.includes('district'))) {
+                match = availableCities.find((c: any) => {
+                  const cityLower = c.city_name?.toLowerCase() || '';
+                  return (cityLower.includes('washington') && (cityLower.includes('dc') || c.state === 'DC')) ||
+                         (c.state === 'DC' && cityLower.includes('washington'));
+                });
+              }
+              
               // Then try state code match (for DC, District of Columbia, etc.)
               if (!match && (userCityLower === 'dc' || userCityLower === 'district of columbia')) {
                 match = availableCities.find((c: any) => 
@@ -513,7 +522,9 @@ export const UnifiedFeed = ({
               }
               
               if (match) {
-                cityName = match.city_name;
+                cityName = (typeof match === 'object' && match !== null && 'city_name' in match) 
+                  ? match.city_name 
+                  : (typeof match === 'string' ? match : userCityRaw);
                 console.log('✅ Matched user city to database city:', userCityRaw, '→', cityName);
               } else {
                 console.warn('⚠️ Could not match user city to available cities. Using raw city name:', userCityRaw);
@@ -528,10 +539,14 @@ export const UnifiedFeed = ({
           
           console.log('✅ Auto-applying city filter from profile:', cityName);
           
+          // Deduplicate cities to ensure we don't add duplicates
+          const { deduplicateCities } = await import('@/utils/cityNormalization');
+          const deduplicatedCities = deduplicateCities([cityName]);
+          
           // Auto-apply city filter
           const newFilters: FilterState = {
             genres: [],
-            selectedCities: [cityName],
+            selectedCities: deduplicatedCities,
             dateRange: { from: undefined, to: undefined },
             daysOfWeek: [],
             filterByFollowing: 'all',
@@ -542,12 +557,18 @@ export const UnifiedFeed = ({
           setFilters(newFilters);
           
           // Get city coordinates for location-based boosts
-          const { RadiusSearchService } = await import('@/services/radiusSearchService');
-          const coords = await RadiusSearchService.getCityCoordinates(cityName);
-          if (coords) {
-            console.log('✅ Got city coordinates:', coords);
-            setUserLocation(coords);
-            setMapCenter([coords.lat, coords.lng]);
+          if (cityName) {
+            try {
+              const { RadiusSearchService } = await import('@/services/radiusSearchService');
+              const coords = await RadiusSearchService.getCityCoordinates(cityName);
+              if (coords) {
+                console.log('✅ Got city coordinates:', coords);
+                setUserLocation(coords);
+                setMapCenter([coords.lat, coords.lng]);
+              }
+            } catch (coordError) {
+              console.warn('⚠️ Could not get city coordinates:', coordError);
+            }
           }
           
           // Mark as applied so we don't do it again
@@ -570,7 +591,7 @@ export const UnifiedFeed = ({
                 includePrivateReviews: true,
                 filters: {
                   genres: [],
-                  selectedCities: [cityName], // This will be normalized to "Washington DC" + "Washington" in the service
+                  selectedCities: deduplicatedCities, // Already deduplicated above
                   dateRange: undefined,
                   daysOfWeek: [],
                   filterByFollowing: undefined
@@ -646,7 +667,10 @@ export const UnifiedFeed = ({
         const nearestCityName = (nearest as any).city_name as string;
         if (nearestCityName) {
           autoCityAppliedRef.current = true;
-          const next = { ...filters, selectedCities: [nearestCityName] } as FilterState;
+          // Deduplicate cities to prevent duplicates
+          const { deduplicateCities } = await import('@/utils/cityNormalization');
+          const deduplicatedNearestCity = deduplicateCities([nearestCityName]);
+          const next = { ...filters, selectedCities: deduplicatedNearestCity } as FilterState;
           setFilters(next);
           setPendingFilters(next);
           // Reload feed from top with city applied
@@ -1062,9 +1086,15 @@ export const UnifiedFeed = ({
       const minLoadingTime = (offset === 0 || isRefresh) && !isFilterUpdate ? new Promise(resolve => setTimeout(resolve, 800)) : Promise.resolve();
 
       // Build filter object for personalized feed using ACTUAL filters (not pending)
+      // Deduplicate cities to prevent duplicates
+      const { deduplicateCities } = await import('@/utils/cityNormalization');
+      const deduplicatedCities = activeFiltersState.selectedCities && activeFiltersState.selectedCities.length > 0 
+        ? deduplicateCities(activeFiltersState.selectedCities)
+        : undefined;
+      
       const feedFilters = {
         genres: activeFiltersState.genres && activeFiltersState.genres.length > 0 ? activeFiltersState.genres : undefined,
-        selectedCities: activeFiltersState.selectedCities && activeFiltersState.selectedCities.length > 0 ? activeFiltersState.selectedCities : undefined,
+        selectedCities: deduplicatedCities,
         dateRange:
           activeFiltersState.dateRange.from || activeFiltersState.dateRange.to ? activeFiltersState.dateRange : undefined,
         daysOfWeek:

@@ -34,11 +34,16 @@ export class PromotionTrackingService {
 
       if (promotionsError) {
         // If table doesn't exist, silently skip tracking (feature not available)
-        if (promotionsError.code === 'PGRST205' || promotionsError.message?.includes('does not exist')) {
-          console.log('Event promotions feature not available');
+        // Check for 404 or table not found errors
+        if (promotionsError.code === 'PGRST205' || 
+            promotionsError.code === '42P01' ||
+            promotionsError.message?.includes('does not exist') ||
+            promotionsError.message?.includes('Not Found')) {
+          // Feature not available - silently return (no console log to avoid noise)
           return;
         }
-        console.error('Error fetching promotions for tracking:', promotionsError);
+        // Other errors - log for debugging but don't throw
+        console.debug('Error fetching promotions for tracking (non-critical):', promotionsError);
         return;
       }
 

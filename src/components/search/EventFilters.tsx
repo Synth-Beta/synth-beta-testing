@@ -19,7 +19,7 @@ import { format, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
-import { normalizeCityName, getCanonicalCityName } from '@/utils/cityNormalization';
+import { normalizeCityName, getCanonicalCityName, deduplicateCities, formatCityNameForDisplay, formatCityStateForDisplay } from '@/utils/cityNormalization';
 
 export interface FilterState {
   genres: string[];
@@ -75,6 +75,21 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
   const [isLoadingCities, setIsLoadingCities] = useState(false);
   const [daysOfWeekOpen, setDaysOfWeekOpen] = useState(false);
 
+  // Ensure selectedCities are always deduplicated
+  useEffect(() => {
+    if (filters.selectedCities && filters.selectedCities.length > 0) {
+      const deduplicated = deduplicateCities(filters.selectedCities);
+      if (deduplicated.length !== filters.selectedCities.length || 
+          !deduplicated.every((city, i) => city === filters.selectedCities[i])) {
+        // Cities need to be deduplicated, update filters
+        onFiltersChange({
+          ...filters,
+          selectedCities: deduplicated
+        });
+      }
+    }
+  }, [filters.selectedCities]);
+
   // Load cities data
   useEffect(() => {
     if (locationsOpen) {
@@ -123,7 +138,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
           .map(([key, data]) => {
             const city = key.split('|')[0];
             return {
-              city,
+              city: formatCityNameForDisplay(city), // Format city name consistently
               state: data.state,
               eventCount: data.count
             };
@@ -182,7 +197,12 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
           }
         });
         
+        // Format all cities for consistent display
         const finalCities = Array.from(cityMap.values())
+          .map(cityData => ({
+            ...cityData,
+            city: formatCityNameForDisplay(cityData.city) // Expand abbreviations and normalize
+          }))
           .sort((a, b) => b.eventCount - a.eventCount);
         
         setCitiesData(finalCities);
@@ -232,9 +252,11 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
   };
 
   const handleCitiesApply = () => {
+    // Deduplicate cities to remove variations like "Washington" and "Washington DC"
+    const deduplicatedCities = deduplicateCities(tempSelectedCities);
     onFiltersChange({
       ...filters,
-      selectedCities: tempSelectedCities
+      selectedCities: deduplicatedCities
     });
   };
 
@@ -596,11 +618,34 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                   </div>
                 ) : (
                   filteredCities.map((cityData, index) => {
-                    const city = typeof cityData === 'string' ? cityData : cityData.city;
-                    const state = typeof cityData === 'string' ? '' : cityData.state;
-                    const checked = tempSelectedCities.includes(city);
-                    // Create unique key using city + state (or index as fallback)
-                    const uniqueKey = state ? `${city}-${state}-${index}` : `${city}-${index}`;
+                    // Extract and normalize city and state
+                    let rawCity = typeof cityData === 'string' ? cityData : cityData.city;
+                    let rawState = typeof cityData === 'string' ? '' : cityData.state;
+                    
+                    // If city name already includes state (e.g., "Boston, MA"), parse it out
+                    const cityStateMatch = rawCity.match(/^(.+?),\s*([A-Z]{2})$/);
+                    if (cityStateMatch) {
+                      rawCity = cityStateMatch[1].trim();
+                      rawState = cityStateMatch[2].trim() || rawState;
+                    }
+                    
+                    // Format for consistent display: always use full city name (expand abbreviations)
+                    const displayCity = formatCityNameForDisplay(rawCity);
+                    // Clean and format state code (uppercase, remove periods)
+                    const displayState = rawState ? rawState.trim().toUpperCase().replace(/\./g, '') : '';
+                    
+                    // For storage and comparison, use formatted city name (without state in name)
+                    const cityKey = displayCity;
+                    const checked = tempSelectedCities.some(c => {
+                      // Parse stored city if it has state in it
+                      const storedCityOnly = c.includes(',') ? c.split(',')[0].trim() : c;
+                      const normalizedStored = normalizeCityName(storedCityOnly);
+                      const normalizedDisplay = normalizeCityName(displayCity);
+                      return normalizedStored === normalizedDisplay;
+                    });
+                    
+                    // Create unique key using formatted city + state
+                    const uniqueKey = displayState ? `${displayCity}-${displayState}-${index}` : `${displayCity}-${index}`;
                     
                     return (
                       <label key={uniqueKey} className="flex items-center gap-2 text-sm cursor-pointer select-none p-2 rounded-lg hover:bg-synth-pink/5 transition-colors">
@@ -608,13 +653,26 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                           checked={checked}
                           onCheckedChange={(val) => {
                             const isChecked = Boolean(val);
-                            setTempSelectedCities(prev => isChecked ? Array.from(new Set([...prev, city])) : prev.filter(c => c !== city));
+                            if (isChecked) {
+                              // Add formatted city name (full name, not abbreviated) and deduplicate
+                              setTempSelectedCities(prev => {
+                                const updated = [...prev, cityKey];
+                                return deduplicateCities(updated);
+                              });
+                            } else {
+                              // Remove city and any variations of it
+                              const normalizedToRemove = normalizeCityName(displayCity);
+                              setTempSelectedCities(prev => prev.filter(c => {
+                                const storedCityOnly = c.includes(',') ? c.split(',')[0].trim() : c;
+                                return normalizeCityName(storedCityOnly) !== normalizedToRemove;
+                              }));
+                            }
                           }}
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{city}</div>
-                          {state && (
-                            <div className="text-xs text-gray-500 truncate">{state}</div>
+                          <div className="font-medium truncate">{displayCity}</div>
+                          {displayState && (
+                            <div className="text-xs text-gray-500 truncate">{displayState}</div>
                           )}
                         </div>
                       </label>
@@ -863,7 +921,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
               />
             </Badge>
           ))}
-          {(filters.selectedCities || []).map((city, index) => (
+          {deduplicateCities(filters.selectedCities || []).map((city, index) => (
             <Badge key={`selected-city-${city}-${index}`} variant="secondary" className="flex items-center gap-1 bg-synth-beige/30 text-synth-black border-synth-beige-dark hover:bg-synth-beige/50 transition-colors">
               <MapPin className="h-3 w-3" />
               {city}

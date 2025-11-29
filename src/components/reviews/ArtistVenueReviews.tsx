@@ -136,8 +136,7 @@ export function ArtistVenueReviews({
             event_id
           `)
           .eq('is_public', true)
-          .eq('entity_type', 'event')
-          .in('entity_id', eventIdList);
+          .in('event_id', eventIdList);
         
         if (artistError) {
           console.error('Error fetching artist reviews:', artistError);
@@ -327,11 +326,10 @@ export function ArtistVenueReviews({
             rating,
             review_text,
             created_at,
-            entity_id
+            event_id
           `)
           .eq('is_public', true)
-          .eq('entity_type', 'event')
-          .in('entity_id', venueEventIdList);
+          .in('event_id', venueEventIdList);
         
         console.log('🏢 Venue reviews query result:', {
           data: venueReviewsData?.length || 0,
@@ -346,11 +344,10 @@ export function ArtistVenueReviews({
               .from('reviews')
               .select(`
                 id,
-                entity_id
+                event_id
               `)
               .eq('is_public', true)
-              .eq('entity_type', 'event')
-              .in('entity_id', venueEventIdList)
+              .in('event_id', venueEventIdList)
           : { data: [], error: null };
         
         console.log('🏢 All reviews for venue:', {
@@ -358,7 +355,7 @@ export function ArtistVenueReviews({
           error: allVenueError,
           sampleReviews: allVenueReviews?.slice(0, 3).map(r => ({
             id: r.id,
-            entity_id: r.entity_id
+            event_id: r.event_id
           }))
         });
         

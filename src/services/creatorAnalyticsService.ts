@@ -366,11 +366,11 @@ export class CreatorAnalyticsService {
       // Get interactions for this creator's events
       const eventIds = events.map((e: any) => e.id);
       const { data: interactions } = await (supabase as any)
-        .from('user_interactions')
+        .from('interactions')
         .select('*')
         .eq('entity_type', 'event')
         .in('entity_id', eventIds)
-        .gte('created_at', startDate.toISOString());
+        .gte('occurred_at', startDate.toISOString());
 
       // Group by date
       const dailyStats = new Map<string, {

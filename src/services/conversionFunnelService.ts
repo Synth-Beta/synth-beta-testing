@@ -168,7 +168,7 @@ export class ConversionFunnelService {
   ): Promise<UserJourney[]> {
     try {
       const { data: interactions, error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('*')
         .eq('user_id', userId)
         .gte('occurred_at', timeRange.start.toISOString())

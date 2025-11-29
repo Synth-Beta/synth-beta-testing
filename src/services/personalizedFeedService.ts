@@ -215,6 +215,36 @@ export class PersonalizedFeedService {
       if (filters.genres?.length) {
           query = query.overlaps('genres', filters.genres);
         }
+      
+      // Add city filtering to fallback feed
+      if (filters.cleanedCities && filters.cleanedCities.length > 0) {
+        // Filter by city names - try multiple variations for Washington DC, etc.
+        const cityFilters: string[] = [];
+        filters.cleanedCities.forEach((city) => {
+          cityFilters.push(`venue_city.ilike.%${city}%`);
+          // Handle Washington DC variations
+          if (city.includes('washington') || city.includes('district')) {
+            cityFilters.push(`venue_city.ilike.%Washington%`);
+            cityFilters.push(`venue_city.ilike.%DC%`);
+            cityFilters.push(`venue_city.ilike.%D.C%`);
+          }
+        });
+        if (cityFilters.length > 0) {
+          query = query.or(cityFilters.join(','));
+        }
+      } else if (filters.originalCities && filters.originalCities.length > 0) {
+        // Fallback to original city names if cleaned cities aren't available
+        const cityFilters: string[] = [];
+        filters.originalCities.forEach((city) => {
+          const cleanCity = city.split(',')[0]?.trim();
+          if (cleanCity) {
+            cityFilters.push(`venue_city.ilike.%${cleanCity}%`);
+          }
+        });
+        if (cityFilters.length > 0) {
+          query = query.or(cityFilters.join(','));
+        }
+      }
         
       if (filters.dateStartIso) {
         query = query.gte('event_date', filters.dateStartIso);
