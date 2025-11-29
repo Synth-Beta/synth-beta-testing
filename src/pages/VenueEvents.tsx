@@ -87,24 +87,16 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const computeCategoryAverage = (review: any) => {
-    const values = [
-      review.artist_performance_rating,
-      review.production_rating,
-      review.venue_rating,
-      review.location_rating,
-      review.value_rating
-    ].filter((value: any): value is number => typeof value === 'number' && value > 0);
-
-    if (values.length > 0) {
-      return values.reduce((sum: number, value: number) => sum + value, 0) / values.length;
-    }
-
+    // In 3NF schema, only the main rating column exists
+    // Return the rating directly
     return typeof review.rating === 'number' ? review.rating : 0;
   };
 
   const fetchVenueProfile = async (venueName: string) => {
     try {
       // Fetch venue stats and reviews
+      // Fetch reviews first, then fetch events separately (can't join directly in 3NF schema)
+      // Only select columns that actually exist in the reviews table
       const { data: reviewsData, error: reviewsError } = await (supabase as any)
         .from('reviews')
         .select(`
@@ -112,72 +104,63 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
           user_id,
           event_id,
           rating,
-    1          venue_rating,
-          artist_performance_rating,
-          production_rating,
-          location_rating,
-          value_rating,
-          artist_performance_feedback,
-          production_feedback,
-          venue_feedback,
-          location_feedback,
-          value_feedback,
-          artist_performance_recommendation,
-          production_recommendation,
-          venue_recommendation,
-          location_recommendation,
-          value_recommendation,
-          ticket_price_paid,
           review_text,
-          venue_review_text,
           created_at,
           mood_tags,
           genre_tags,
           reaction_emoji,
           photos,
-          events!inner(venue_name, artist_name, event_date, title)
+          was_there,
+          is_public,
+          is_draft
         `)
         .eq('is_public', true)
         .eq('is_draft', false)
-        .ilike('events.venue_name', venueName)
-        .or('venue_rating.not.is.null,rating.not.is.null');
+        .not('review_text', 'is', null)
+        .neq('review_text', 'ATTENDANCE_ONLY');
 
       if (reviewsError) {
         console.error('Error fetching venue reviews:', reviewsError);
         return;
       }
 
+      // Fetch events separately for venue filtering
+      const eventIds = reviewsData?.map((r: any) => r.event_id).filter(Boolean) || [];
+      const eventMap = new Map();
+      if (eventIds.length > 0) {
+        const { data: eventsData } = await (supabase as any)
+          .from('events')
+          .select('id, venue_name, artist_name, event_date, title')
+          .in('id', eventIds);
+        
+        if (eventsData) {
+          eventsData.forEach((event: any) => {
+            eventMap.set(event.id, event);
+          });
+        }
+      }
+
+      // Filter reviews to only those for this venue
+      const venueReviews = (reviewsData || []).filter((review: any) => {
+        const event = eventMap.get(review.event_id);
+        return event && event.venue_name?.toLowerCase().includes(venueName.toLowerCase());
+      });
+
       // Fetch user profiles for reviewers
-      const userIds = reviewsData?.map((r: any) => r.user_id).filter(Boolean) || [];
+      const userIds = venueReviews?.map((r: any) => r.user_id).filter(Boolean) || [];
       const { data: profiles } = await (supabase as any)
         .from('users')
         .select('user_id, name, avatar_url')
         .in('user_id', userIds);
 
-      // Transform reviews data
-      const transformedReviews = reviewsData?.map((review: any) => {
+      // Transform reviews data - only use columns that actually exist
+      const transformedReviews = venueReviews?.map((review: any) => {
         const profile = profiles?.find((p: any) => p.user_id === review.user_id);
-        const event = review.jambase_events;
+        const event = eventMap.get(review.event_id);
         
         return {
           id: review.id,
           rating: review.rating,
-          venue_rating: review.venue_rating,
-          artist_performance_rating: review.artist_performance_rating,
-          production_rating: review.production_rating,
-          location_rating: review.location_rating,
-          value_rating: review.value_rating,
-          artist_performance_feedback: review.artist_performance_feedback,
-          production_feedback: review.production_feedback,
-          venue_feedback: review.venue_feedback,
-          location_feedback: review.location_feedback,
-          value_feedback: review.value_feedback,
-          artist_performance_recommendation: review.artist_performance_recommendation,
-          production_recommendation: review.production_recommendation,
-          venue_recommendation: review.venue_recommendation,
-          location_recommendation: review.location_recommendation,
-          value_recommendation: review.value_recommendation,
-          ticket_price_paid: review.ticket_price_paid,
           review_text: review.review_text,
           created_at: review.created_at,
           reviewer_name: profile?.name || 'Anonymous',
@@ -189,13 +172,13 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
           genre_tags: review.genre_tags || [],
           reaction_emoji: review.reaction_emoji || null,
           photos: Array.isArray(review.photos) ? review.photos : [],
-          category_average: computeCategoryAverage(review)
+          category_average: review.rating // Use main rating as category average since detailed ratings don't exist
         };
       }) || [];
 
-      // Calculate stats
+      // Calculate stats using the main rating column
       const validRatings = transformedReviews
-        .map(review => review.venue_rating ?? null)
+        .map(review => review.rating ?? null)
         .filter((value): value is number => typeof value === 'number' && value > 0);
 
       const totalReviews = validRatings.length;
@@ -212,11 +195,32 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
       setVenueReviews(transformedReviews);
 
       // Try to fetch venue details from database
-      const { data: venueData } = await (supabase as any)
-        .from('venues')
-        .select('address, city, state, zip, phone, website, capacity, image_url')
-        .eq('name', venueName)
-        .single();
+      // Note: Venue data is optional - if query fails, page will still work
+      // This query may fail due to schema differences or RLS policies
+      let venueData: any = null;
+      
+      // Only attempt query if we have a venue name
+      if (venueName) {
+        try {
+          // Query with minimal columns to avoid schema mismatch errors
+          const { data, error } = await (supabase as any)
+            .from('venues')
+            .select('id, name, url, image_url')
+            .ilike('name', `%${venueName}%`)
+            .limit(1)
+            .maybeSingle();
+          
+          if (!error && data) {
+            venueData = data;
+          } else if (error) {
+            // Silently fail - venue details are optional
+            console.debug('Venue query failed (non-critical):', error.message || error);
+          }
+        } catch (error: any) {
+          // Silently fail - venue details are optional for page functionality
+          console.debug('Venue query exception (non-critical):', error?.message || error);
+        }
+      }
 
       if (venueData) {
         console.log('🏢 Venue data found:', venueData);
@@ -224,9 +228,10 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
         setVenueCity(venueData.city || '');
         setVenueState(venueData.state || '');
         setVenueZip(venueData.zip || '');
-        setVenuePhone(venueData.phone || '');
-        setVenueWebsite(venueData.website || '');
-        setVenueCapacity(venueData.capacity || null);
+        // Note: phone and capacity columns don't exist in venues table
+        setVenuePhone(''); // Column doesn't exist in venues table
+        setVenueWebsite(venueData.url || ''); // Use 'url' column instead of 'website'
+        setVenueCapacity(null); // Column doesn't exist in venues table
         setVenueImage(venueData.image_url || '');
       } else {
         console.log('🏢 No venue data found in database for:', venueName);
