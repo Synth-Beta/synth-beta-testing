@@ -1808,24 +1808,7 @@ export const UnifiedFeed = ({
             }
           }
 
-          // 3) fallback to any review/ event poster image for this artist from the new view
-          const artistFallback = await (supabase as any)
-            .from('reviews_with_event_details')
-            .select('photos, poster_image_url, event_artist_name')
-            .ilike('event_artist_name', `%${artistName}%`)
-            .order('likes_count', { ascending: false })
-            .limit(1);
-          const fallbackPhoto =
-            (Array.isArray(artistFallback.data) && artistFallback.data[0]?.photos?.[0]) ||
-            artistFallback.data?.[0]?.poster_image_url ||
-            null;
-          if (fallbackPhoto) {
-            console.log('ReviewHeroImage: Using fallback artist image:', fallbackPhoto);
-            setUrl(fallbackPhoto);
-            return; 
-          }
-          
-          // No image found for event
+          // No image found for event (removed fallback to reviews_with_event_details - view doesn't exist)
           setUrl(null);
         } catch (error) {
           console.error('ReviewHeroImage: Error resolving image:', error);

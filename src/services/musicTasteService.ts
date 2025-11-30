@@ -26,36 +26,8 @@ function generateDescription(topArtists: string[], topGenres: string[]): string 
 
 export class MusicTasteService {
   static async getUserMusicTaste(userId: string): Promise<MusicTasteSummary> {
-    // 1) Try summary table first (fast path)
-    try {
-      const { data: summary, error } = await supabase
-        .from('user_streaming_stats_summary')
-        .select('top_artists, top_genres, total_listening_hours, service_type, last_updated')
-        .eq('user_id', userId)
-        .order('last_updated', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!error && summary) {
-        const topArtists = Array.isArray(summary.top_artists)
-          ? (summary.top_artists as any[]).map(a => ({ name: a.name as string, popularity: a.popularity as number | undefined }))
-          : [];
-        const topGenres = Array.isArray(summary.top_genres)
-          ? (summary.top_genres as any[]).map(g => ({ genre: String(g.genre ?? g), count: Number(g.count ?? 1) }))
-          : [];
-        const description = generateDescription(topArtists.map(a => a.name), topGenres.map(g => g.genre));
-        return {
-          topArtists,
-          topGenres,
-          totalListeningHours: summary.total_listening_hours ?? undefined,
-          description,
-          serviceType: (summary.service_type as any) ?? 'unknown',
-          lastUpdated: summary.last_updated ?? null,
-        };
-      }
-    } catch {}
-
-    // 2) Fallback: aggregate from user_interactions
+    // NOTE: user_streaming_stats_summary table has been removed - skip to fallback
+    // 1) Aggregate from user_interactions (fallback)
     try {
       const { data: interactions, error } = await supabase
         .from('interactions')

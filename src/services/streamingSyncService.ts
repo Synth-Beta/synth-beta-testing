@@ -111,66 +111,25 @@ class StreamingSyncService {
 
   /**
    * Restore sync state from localStorage (for page reloads)
+   * NOTE: Table has been removed - just clear any stored state
    */
   restoreState(): void {
-    try {
-      const stored = localStorage.getItem('streaming_sync_state');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Only restore if sync was in progress (not completed/error)
-        if (parsed.status === 'syncing') {
-          this.syncState = parsed;
-          this.startPolling();
-        } else {
-          // Clear old completed/error states
-          localStorage.removeItem('streaming_sync_state');
-        }
-      }
-    } catch (error) {
-      console.error('Error restoring sync state:', error);
-      localStorage.removeItem('streaming_sync_state');
-    }
+    // Table has been removed - clear any stored sync state to avoid errors
+    localStorage.removeItem('streaming_sync_state');
+    this.clearSync();
   }
 
   /**
    * Start polling to check if sync has completed
+   * NOTE: Disabled since user_streaming_stats_summary table has been removed
    */
   private startPolling(): void {
-    this.stopPolling(); // Clear any existing interval
-    
-    this.checkInterval = setInterval(async () => {
-      if (this.syncState.status !== 'syncing' || !this.syncState.serviceType) {
-        this.stopPolling();
-        return;
-      }
-
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          this.stopPolling();
-          return;
-        }
-
-        // Check if stats exist in database (indicates sync completed)
-        const stats = await UserStreamingStatsService.getStats(
-          user.id,
-          this.syncState.serviceType,
-          'all_time'
-        );
-
-        if (stats && stats.last_updated) {
-          const lastUpdated = new Date(stats.last_updated).getTime();
-          const startedAt = this.syncState.startedAt || 0;
-          
-          // If stats were updated after sync started, sync is complete
-          if (lastUpdated >= startedAt - 5000) { // 5 second buffer
-            this.completeSync();
-          }
-        }
-      } catch (error) {
-        console.error('Error checking sync status:', error);
-      }
-    }, 3000); // Check every 3 seconds
+    // Table has been removed - stop polling immediately to avoid 404 errors
+    this.stopPolling();
+    // Mark as completed since we can't track sync status without the table
+    if (this.syncState.status === 'syncing') {
+      this.completeSync();
+    }
   }
 
   /**

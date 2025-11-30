@@ -97,69 +97,11 @@ export interface UserTopArtist {
 export class UserStreamingStatsService {
   /**
    * Upsert user streaming stats summary
+   * NOTE: Table user_streaming_stats_summary has been removed - this function now returns null
    */
   static async upsertStats(stats: UserStreamingStatsInsert): Promise<UserStreamingStatsSummary | null> {
-    try {
-      // Check if stats already exist
-      const { data: existingStats, error: checkError } = await supabase
-        .from('user_streaming_stats_summary')
-        .select('id')
-        .eq('user_id', stats.user_id)
-        .eq('service_type', stats.service_type)
-        .single();
-      
-      // Handle table not found error
-      if (checkError && checkError.code === 'PGRST205') {
-        console.warn('Table user_streaming_stats_summary does not exist. Please run the migration.');
-        return null;
-      }
-      
-      let data;
-      if (existingStats) {
-        // Update existing stats
-        const { data: updatedData, error } = await supabase
-          .from('user_streaming_stats_summary')
-          .update(stats)
-          .eq('id', existingStats.id)
-          .select()
-          .single();
-        
-        if (error) {
-          if (error.code === 'PGRST205') {
-            console.warn('Table user_streaming_stats_summary does not exist. Please run the migration.');
-            return null;
-          }
-          console.error('Error updating user streaming stats:', error);
-          return null;
-        }
-        data = updatedData;
-      } else {
-        // Insert new stats (PGRST116 means no rows found, which is expected)
-        const { data: insertedData, error } = await supabase
-          .from('user_streaming_stats_summary')
-          .insert(stats)
-          .select()
-          .single();
-        
-        if (error) {
-          if (error.code === 'PGRST205') {
-            console.warn('Table user_streaming_stats_summary does not exist. Please run the migration.');
-            return null;
-          }
-          console.error('Error inserting user streaming stats:', error);
-          return null;
-        }
-        data = insertedData;
-      }
-
-      return data;
-    } catch (error) {
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST205') {
-        return null;
-      }
-      console.error('Error in upsertStats:', error);
-      return null;
-    }
+    // Table has been removed - return null immediately to avoid 404 errors
+    return null;
   }
 
   /**
@@ -340,120 +282,27 @@ export class UserStreamingStatsService {
   /**
    * Get user streaming stats summary for a specific time range
    * For ranges not directly from API (day, week, 3yr), filters data from all_time
+   * NOTE: Table user_streaming_stats_summary has been removed - this function now returns null
    */
   static async getStats(
     userId: string, 
     serviceType: 'spotify' | 'apple-music' = 'spotify',
     timeRange: TimeRange = 'all_time'
   ): Promise<UserStreamingStatsSummary | null> {
-    try {
-      // Map time ranges to API-supported ranges
-      // Spotify API supports: short_term (last month), medium_term (last 6 months), long_term (all time)
-      const apiRangeMap: Record<TimeRange, 'last_month' | 'last_6_months' | 'all_time'> = {
-        'last_day': 'last_month', // Use last_month data, filter client-side
-        'last_week': 'last_month',
-        'last_month': 'last_month',
-        'last_3_months': 'last_6_months',
-        'last_6_months': 'last_6_months',
-        'last_year': 'all_time',
-        'last_3_years': 'all_time',
-        'last_5_years': 'all_time',
-        'all_time': 'all_time'
-      };
-
-      const apiRange = apiRangeMap[timeRange];
-      
-      // Try to get stats for the API range first
-      const { data, error } = await supabase
-        .from('user_streaming_stats_summary')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('service_type', serviceType)
-        .eq('time_range', apiRange)
-        .single();
-
-      if (error) {
-        // PGRST205 means table doesn't exist - handle gracefully
-        if (error.code === 'PGRST205') {
-          console.warn('Table user_streaming_stats_summary does not exist. Please run the migration.');
-          return null;
-        }
-        // PGRST116 means no rows found - try all_time as fallback
-        if (error.code === 'PGRST116') {
-          // Try all_time as fallback
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('user_streaming_stats_summary')
-            .select('*')
-            .eq('user_id', userId)
-            .eq('service_type', serviceType)
-            .eq('time_range', 'all_time')
-            .single();
-
-          if (fallbackError || !fallbackData) {
-            return null;
-          }
-
-          // Filter the all_time data for the requested range
-          if (timeRange !== 'all_time') {
-            return this.filterStatsByDateRange(fallbackData, timeRange);
-          }
-          return fallbackData;
-        }
-        // Only log other errors
-        console.error('Error fetching user streaming stats:', error);
-        return null;
-      }
-
-      if (!data) return null;
-
-      // Always apply filtering if the requested range is different from the API range
-      // This handles cases like:
-      // - last_day/week (sub-ranges of last_month)
-      // - last_year/3yr/5yr (sub-ranges of all_time)
-      // - last_3_months (sub-range of last_6_months)
-      if (timeRange !== apiRange) {
-        return this.filterStatsByDateRange(data, timeRange);
-      }
-
-      // For exact matches (e.g., last_month -> last_month, all_time -> all_time), return as-is
-      return data;
-    } catch (error) {
-      // Silently handle table not found errors
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST205') {
-        return null;
-      }
-      console.error('Error in getStats:', error);
-      return null;
-    }
+    // Table has been removed - return null immediately to avoid 404 errors
+    return null;
   }
 
   /**
    * Get all time ranges for a user's streaming stats
+   * NOTE: Table user_streaming_stats_summary has been removed - this function now returns empty array
    */
   static async getAllTimeRanges(
     userId: string,
     serviceType: 'spotify' | 'apple-music' = 'spotify'
   ): Promise<TimeRange[]> {
-    try {
-      const { data, error } = await supabase
-        .from('user_streaming_stats_summary')
-        .select('time_range')
-        .eq('user_id', userId)
-        .eq('service_type', serviceType)
-        .not('time_range', 'is', null);
-
-      if (error) {
-        if (error.code === 'PGRST205') {
-          return [];
-        }
-        console.error('Error fetching time ranges:', error);
-        return [];
-      }
-
-      return (data?.map(d => d.time_range).filter(Boolean) as TimeRange[]) || [];
-    } catch (error) {
-      return [];
-    }
+    // Table has been removed - return empty array immediately to avoid 404 errors
+    return [];
   }
 
   /**
@@ -674,47 +523,19 @@ export class UserStreamingStatsService {
 
   /**
    * Delete user streaming stats
+   * NOTE: Table user_streaming_stats_summary has been removed - this function now returns true
    */
   static async deleteStats(userId: string, serviceType: 'spotify' | 'apple-music'): Promise<boolean> {
-    try {
-      const { error } = await supabase
-        .from('user_streaming_stats_summary')
-        .delete()
-        .eq('user_id', userId)
-        .eq('service_type', serviceType);
-
-      if (error) {
-        console.error('Error deleting user streaming stats:', error);
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error in deleteStats:', error);
-      return false;
-    }
+    // Table has been removed - return true immediately to avoid 404 errors
+    return true;
   }
 
   /**
    * Get all streaming stats for a user
+   * NOTE: Table user_streaming_stats_summary has been removed - this function now returns empty array
    */
   static async getAllStats(userId: string): Promise<UserStreamingStatsSummary[]> {
-    try {
-      const { data, error } = await supabase
-        .from('user_streaming_stats_summary')
-        .select('*')
-        .eq('user_id', userId)
-        .order('service_type', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching all user streaming stats:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('Error in getAllStats:', error);
-      return [];
-    }
+    // Table has been removed - return empty array immediately to avoid 404 errors
+    return [];
   }
 }
