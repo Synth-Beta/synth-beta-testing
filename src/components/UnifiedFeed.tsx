@@ -1766,7 +1766,7 @@ export const UnifiedFeed = ({
     useEffect(() => {
       (async () => {
         try {
-          console.log('ReviewHeroImage: Resolving image for item:', item.id, 'photos:', item.photos, 'artist:', item.event_info?.artist_name);
+          // Debug: Resolving image for event
           
           // 1) try a user review photo for this specific review
           if (Array.isArray(item.photos) && item.photos.length > 0) {
@@ -1825,7 +1825,7 @@ export const UnifiedFeed = ({
             return; 
           }
           
-          console.log('ReviewHeroImage: No image found, setting null');
+          // No image found for event
           setUrl(null);
         } catch (error) {
           console.error('ReviewHeroImage: Error resolving image:', error);
@@ -1834,7 +1834,7 @@ export const UnifiedFeed = ({
       })();
     }, [item.id, item.photos, item.event_info?.artist_name]);
 
-    console.log('ReviewHeroImage: Rendering with url:', url);
+    // Rendering hero image
     if (!url) return null;
     return (
       <div className="h-44 w-full overflow-hidden rounded-t-lg">
@@ -1845,7 +1845,7 @@ export const UnifiedFeed = ({
 
   // (Reverted) No custom EventHeroImage in unified feed
 
-  console.log('🔍 UnifiedFeed render - loading:', loading, 'feedItems.length:', feedItems.length);
+        // UnifiedFeed render
 
   const renderEventFiltersBlock = () => (
     <div className="mb-6 lg:sticky lg:top-6 lg:z-20">

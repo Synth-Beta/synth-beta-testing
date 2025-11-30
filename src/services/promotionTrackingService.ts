@@ -13,6 +13,46 @@ export interface PromotionTrackingEvent {
 }
 
 export class PromotionTrackingService {
+  private static tableExistsCache: boolean | null = null;
+  private static tableCheckPromise: Promise<boolean> | null = null;
+
+  /**
+   * Check if event_promotions table exists (cached)
+   */
+  private static async checkTableExists(): Promise<boolean> {
+    // Return cached result if available
+    if (this.tableExistsCache !== null) {
+      return this.tableExistsCache;
+    }
+
+    // If check is already in progress, wait for it
+    if (this.tableCheckPromise) {
+      return this.tableCheckPromise;
+    }
+
+    // Start new check
+    this.tableCheckPromise = (async () => {
+      try {
+        // Try a minimal query to check if table exists
+        const { error } = await supabase
+          .from('event_promotions')
+          .select('id')
+          .limit(0);
+
+        const exists = !error || (error.code !== 'PGRST205' && error.code !== '42P01' && !error.message?.includes('does not exist') && !error.message?.includes('Not Found'));
+        this.tableExistsCache = exists;
+        return exists;
+      } catch {
+        this.tableExistsCache = false;
+        return false;
+      } finally {
+        this.tableCheckPromise = null;
+      }
+    })();
+
+    return this.tableCheckPromise;
+  }
+
   /**
    * Track a promotion interaction and update promotion metrics
    */
@@ -23,6 +63,13 @@ export class PromotionTrackingService {
     metadata?: Record<string, any>
   ): Promise<void> {
     try {
+      // Check if table exists first (cached check)
+      const tableExists = await this.checkTableExists();
+      if (!tableExists) {
+        // Table doesn't exist - silently skip (feature not available)
+        return;
+      }
+
       // First, find all active promotions for this event
       const { data: promotions, error: promotionsError } = await supabase
         .from('event_promotions')
@@ -33,17 +80,7 @@ export class PromotionTrackingService {
         .gte('expires_at', new Date().toISOString());
 
       if (promotionsError) {
-        // If table doesn't exist, silently skip tracking (feature not available)
-        // Check for 404 or table not found errors
-        if (promotionsError.code === 'PGRST205' || 
-            promotionsError.code === '42P01' ||
-            promotionsError.message?.includes('does not exist') ||
-            promotionsError.message?.includes('Not Found')) {
-          // Feature not available - silently return (no console log to avoid noise)
-          return;
-        }
-        // Other errors - log for debugging but don't throw
-        console.debug('Error fetching promotions for tracking (non-critical):', promotionsError);
+        // If error occurs after existence check, silently skip
         return;
       }
 

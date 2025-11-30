@@ -289,7 +289,7 @@ export function ArtistVenueReviews({
 
       // Fetch venue stats and reviews - get ALL reviews for this venue
       try {
-        console.log('🏢 Fetching venue reviews for:', venueName);
+        // Fetching venue reviews
         
         // First get event IDs for this venue
         const { data: venueEventIds, error: venueEventIdsError } = await supabase
@@ -331,11 +331,7 @@ export function ArtistVenueReviews({
           .eq('is_public', true)
           .in('event_id', venueEventIdList);
         
-        console.log('🏢 Venue reviews query result:', {
-          data: venueReviewsData?.length || 0,
-          error: venueError,
-          venueName: venueName
-        });
+        // Venue reviews query completed
         
         // Also check for any reviews for this venue (not just venue ratings)
         // Use the existing venueEventIdList from above
@@ -350,14 +346,7 @@ export function ArtistVenueReviews({
               .in('event_id', venueEventIdList)
           : { data: [], error: null };
         
-        console.log('🏢 All reviews for venue:', {
-          count: allVenueReviews?.length || 0,
-          error: allVenueError,
-          sampleReviews: allVenueReviews?.slice(0, 3).map(r => ({
-            id: r.id,
-            event_id: r.event_id
-          }))
-        });
+        // All reviews fetched
         
         if (venueError) {
           console.error('Error fetching venue reviews:', venueError);

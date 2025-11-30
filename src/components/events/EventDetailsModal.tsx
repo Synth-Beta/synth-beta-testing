@@ -432,29 +432,24 @@ export function EventDetailsModal({
 
   // Fetch interested count using actualEvent
   useEffect(() => {
-    console.log('🔍 fetchInterestedCount useEffect triggered', { actualEventId: actualEvent?.id, isOpen });
+    // Fetching interested count
     const fetchInterestedCount = async () => {
       if (!actualEvent?.id) {
-        console.log('🔍 fetchInterestedCount: No actualEvent.id, skipping');
+        // Skipping fetch - no event ID
         return;
       }
       
       try {
         const eventId = actualEvent.jambase_event_id || actualEvent.id;
-        console.log('🔍 fetchInterestedCount - Event data:', {
-          actualEventId: actualEvent.id,
-          jambaseEventId: actualEvent.jambase_event_id,
-          eventId,
-          currentUserId
-        });
+        // Fetching interested count for event
         
-        // If eventId is already a UUID (from jambase_events.id), use it directly
+        // If eventId is already a UUID (from events.id), use it directly
         // Otherwise, try to find the UUID by querying jambase_events table
         let uuidId = eventId;
         
         // Check if eventId is not a UUID format (contains hyphens)
         if (!eventId.includes('-')) {
-          console.log('🔍 EventId is not UUID format, looking up UUID...');
+          // EventId is not UUID format, looking up UUID
           // This is likely a jambase_event_id string, try to find the UUID
           const { data: jambaseEvent, error: jambaseError } = await supabase
             .from('events')
@@ -469,7 +464,7 @@ export function EventDetailsModal({
           // If there's an error, we'll try using the original eventId as UUID
         }
         
-        console.log('🔍 Using UUID for count query:', uuidId);
+        // Using UUID for count query
         
         // Use the UUID id to get the count, excluding current user
         // Use relationships table for 3NF - event interest is stored in relationships
@@ -481,9 +476,8 @@ export function EventDetailsModal({
           .eq('relationship_type', 'interest')
           .neq('user_id', currentUserId);
           
-        console.log('🔍 Count query result:', { count, error });
-        console.log('🔍 Current user ID for exclusion:', currentUserId);
-        console.log('🔍 UUID being queried:', uuidId);
+        // Count query completed
+        // Querying relationships table
         
         // Also check what users are actually in the database for this event
         const { data: allUsersCheck, error: allUsersCheckError } = await supabase
@@ -492,10 +486,10 @@ export function EventDetailsModal({
           .eq('related_entity_type', 'event')
           .eq('related_entity_id', uuidId)
           .eq('relationship_type', 'interest');
-        console.log('🔍 All users check (no exclusion):', { allUsersCheck, allUsersCheckError });
+        // Checking all users
         
         if (error) {
-          console.error('🔍 Count query failed, trying alternative approach...');
+          // Count query failed, trying alternative approach
           // Try alternative approach - get all users and count manually
           const { data: allUsers, error: allUsersError } = await supabase
             .from('relationships')
@@ -505,20 +499,17 @@ export function EventDetailsModal({
             .eq('relationship_type', 'interest');
             
           if (allUsersError) {
-            console.error('🔍 Alternative query also failed:', allUsersError);
+            console.error('Alternative query also failed:', allUsersError);
             throw allUsersError;
           }
           
-          console.log('🔍 All users in database:', allUsers);
-          console.log('🔍 Current user ID:', currentUserId);
+          // Setting interested count
           const filteredUsers = allUsers?.filter(user => user && 'user_id' in user && user.user_id !== currentUserId) || [];
-          console.log('🔍 Filtered users (excluding current user):', filteredUsers);
           const dbCount = filteredUsers.length;
-          console.log('🔍 Alternative count result:', dbCount);
           setInterestedCount(dbCount);
         } else {
           const dbCount = count ?? 0;
-          console.log('🔍 Setting interested count to:', dbCount);
+          // Interested count set
           setInterestedCount(dbCount);
         }
       } catch (error) {

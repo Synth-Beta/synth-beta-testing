@@ -108,8 +108,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
           mood_tags,
           genre_tags,
           reaction_emoji,
-          photos,
-          jambase_events(artist_name, venue_name, event_date, title)
+          photos
         `)
         .eq('is_public', true)
         .eq('is_draft', false)
@@ -118,6 +117,22 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       if (reviewsError) {
         console.error('Error fetching artist reviews:', reviewsError);
         return;
+      }
+
+      // Fetch events separately (can't join directly in 3NF schema)
+      const reviewEventIds = reviewsData?.map((r: any) => r.event_id).filter(Boolean) || [];
+      const eventMap = new Map();
+      if (reviewEventIds.length > 0) {
+        const { data: eventsData } = await (supabase as any)
+          .from('events')
+          .select('id, artist_name, venue_name, event_date, title')
+          .in('id', reviewEventIds);
+        
+        if (eventsData) {
+          eventsData.forEach((event: any) => {
+            eventMap.set(event.id, event);
+          });
+        }
       }
 
       // Fetch user profiles for reviewers
@@ -130,7 +145,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       // Transform reviews data
       const transformedReviews = reviewsData?.map((review: any) => {
         const profile = profiles?.find((p: any) => p.user_id === review.user_id);
-        const event = review.jambase_events;
+        const event = eventMap.get(review.event_id);
         
         return {
           id: review.id,

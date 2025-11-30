@@ -139,7 +139,7 @@ export class UserEventService {
       
       // If not found with status filter, try without it (in case status wasn't set)
       if (!data) {
-        console.log('🔍 isUserInterested: Not found with status filter, trying without...', { eventIdStr });
+        // Retrying without status filter
         const { data: retryData, error: retryError } = await supabase
           .from('relationships')
           .select('id')
@@ -152,7 +152,7 @@ export class UserEventService {
         if (retryError && retryError.code !== 'PGRST116') throw retryError;
         
         if (retryData) {
-          console.log('🔍 isUserInterested: Found relationship without status filter');
+          // Found relationship without status filter
           return true;
         }
       }
