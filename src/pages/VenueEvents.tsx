@@ -104,6 +104,17 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
           user_id,
           event_id,
           rating,
+          venue_rating_decimal,
+          artist_performance_rating,
+          production_rating,
+          location_rating,
+          value_rating,
+          artist_performance_feedback,
+          production_feedback,
+          venue_feedback,
+          location_feedback,
+          value_feedback,
+          ticket_price_paid,
           review_text,
           created_at,
           mood_tags,
@@ -161,6 +172,17 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
         return {
           id: review.id,
           rating: review.rating,
+          venue_rating: (review as any).venue_rating_decimal || review.venue_rating,
+          artist_performance_rating: review.artist_performance_rating,
+          production_rating: review.production_rating,
+          location_rating: review.location_rating,
+          value_rating: review.value_rating,
+          artist_performance_feedback: review.artist_performance_feedback,
+          production_feedback: review.production_feedback,
+          venue_feedback: review.venue_feedback,
+          location_feedback: review.location_feedback,
+          value_feedback: review.value_feedback,
+          ticket_price_paid: review.ticket_price_paid,
           review_text: review.review_text,
           created_at: review.created_at,
           reviewer_name: profile?.name || 'Anonymous',
@@ -960,7 +982,6 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                               label: 'Artist performance',
                               rating: review.artist_performance_rating,
                               feedback: review.artist_performance_feedback,
-                              recommendation: review.artist_performance_recommendation
                             },
                             {
                               label: 'Production',
@@ -987,8 +1008,8 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                               recommendation: review.value_recommendation
                             }
                           ]
-                            .filter(({ rating, feedback, recommendation }) => rating || feedback || recommendation)
-                            .map(({ label, rating, feedback, recommendation }) => (
+                            .filter(({ rating, feedback }) => rating || feedback)
+                            .map(({ label, rating, feedback }) => (
                               <div key={label} className="text-sm border-l-4 border-blue-200 pl-2">
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-gray-600">{label}</span>
@@ -996,9 +1017,6 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                                     <span className="text-xs text-gray-500">{rating.toFixed(1)}</span>
                                   )}
                                 </div>
-                                {recommendation && (
-                                  <div className="text-xs text-gray-500">{recommendation}</div>
-                                )}
                                 {feedback && (
                                   <div className="text-xs text-gray-700 italic">“{feedback}”</div>
                                 )}

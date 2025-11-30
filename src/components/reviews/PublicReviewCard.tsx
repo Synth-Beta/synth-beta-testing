@@ -78,35 +78,30 @@ export function PublicReviewCard({ review, onOpen }: PublicReviewCardProps) {
             label: 'Artist performance',
             rating: review.artist_performance_rating,
             feedback: review.artist_performance_feedback,
-            recommendation: review.artist_performance_recommendation
           },
           {
             label: 'Production',
             rating: review.production_rating,
             feedback: review.production_feedback,
-            recommendation: review.production_recommendation
           },
           {
             label: 'Venue',
             rating: review.venue_rating,
-            feedback: review.venue_feedback,
-            recommendation: review.venue_recommendation
+            feedback: review.venue_feedback
           },
           {
             label: 'Location',
             rating: review.location_rating,
-            feedback: review.location_feedback,
-            recommendation: review.location_recommendation
+            feedback: review.location_feedback
           },
           {
             label: 'Value',
             rating: review.value_rating,
-            feedback: review.value_feedback,
-            recommendation: review.value_recommendation
+            feedback: review.value_feedback
           }
         ]
-          .filter(({ rating, feedback, recommendation }) => rating || feedback || recommendation)
-          .map(({ label, rating, feedback, recommendation }) => (
+          .filter(({ rating, feedback }) => rating || feedback)
+          .map(({ label, rating, feedback }) => (
             <div key={label} className="rounded-lg border-l-4 border-pink-200 bg-pink-50/40 p-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-gray-700 font-medium">{label}</span>
@@ -117,9 +112,6 @@ export function PublicReviewCard({ review, onOpen }: PublicReviewCardProps) {
                   </div>
                 )}
               </div>
-              {recommendation && (
-                <div className="text-gray-500">{recommendation}</div>
-              )}
               {feedback && (
                 <div className="text-gray-700 italic">“{feedback}”</div>
               )}

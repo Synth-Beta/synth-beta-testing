@@ -32,11 +32,6 @@ export interface ReviewData {
   venue_feedback?: string;
   location_feedback?: string;
   value_feedback?: string;
-  artist_performance_recommendation?: string;
-  production_recommendation?: string;
-  venue_recommendation?: string;
-  location_recommendation?: string;
-  value_recommendation?: string;
   ticket_price_paid?: number;
   artist_rating?: number; // Legacy field for backward compatibility
   review_type: 'event' | 'venue' | 'artist'; // Type of review
@@ -69,11 +64,6 @@ export interface UserReview {
   venue_feedback?: string;
   location_feedback?: string;
   value_feedback?: string;
-  artist_performance_recommendation?: string;
-  production_recommendation?: string;
-  venue_recommendation?: string;
-  location_recommendation?: string;
-  value_recommendation?: string;
   ticket_price_paid?: number;
   artist_rating?: number; // Legacy field
   review_type?: 'event' | 'venue' | 'artist';
@@ -228,41 +218,41 @@ export class ReviewService {
     try {
       // Helper to ensure a valid INTEGER rating value (1..5) for inserts/updates
       const deriveRating = (data: ReviewData): number => {
-        const clampToRange = (val: number) => Math.max(1, Math.min(5, val));
+        const clampToRange = (val: number) => Math.max(0.5, Math.min(5.0, val));
         if (typeof data.rating === 'number' && !Number.isNaN(data.rating)) {
-          return clampToRange(Math.round(data.rating));
+          return Number(clampToRange(data.rating).toFixed(1));
         }
 
-        // Prefer new five-category system if available (decimal halves permitted at column level)
+        // Use 5-category system (decimal halves permitted at column level)
         const newParts = [
           data.artist_performance_rating,
           data.production_rating,
-          data.venue_rating,
+          (data as any).venue_rating_decimal || data.venue_rating, // Use venue_rating_decimal, not INTEGER venue_rating
           data.location_rating,
           data.value_rating,
         ].filter(
           (v): v is number => typeof v === 'number' && v > 0
         );
-        if (newParts.length >= 3) {
+        if (newParts.length > 0) {
           const avg = newParts.reduce((a, b) => a + b, 0) / newParts.length;
-          return clampToRange(Math.round(avg));
+          return Number(clampToRange(avg).toFixed(1));
         }
 
-        // Fallback to legacy two-category system
-        const legacyParts = [data.artist_rating, data.venue_rating].filter(
+        // Fallback to legacy two-category system (only for reading old data)
+        const legacyParts = [data.artist_rating].filter(
           (v): v is number => typeof v === 'number' && v > 0
         );
         if (legacyParts.length > 0) {
-          const avg = legacyParts.reduce((a, b) => a + b, 0) / legacyParts.length;
-          return clampToRange(Math.round(avg));
+          return clampToRange(Math.round(legacyParts[0]));
         }
 
         // As a last resort, return mid rating to pass NOT NULL constraint while being neutral
         return 3;
       };
 
-      // Check if user already has a PUBLISHED review for this event (guard against non-UUID eventId)
-      // We filter by is_draft = false to only find published reviews, not drafts
+      // Check if user already has ANY review (draft OR published) for this event
+      // The unique constraint on (user_id, event_id) ensures only one row per user/event
+      // We should always UPDATE the existing row, never create a new one
       const isUuid = isValidUuid(eventId);
       const normalizedVenueId = isValidUuid(venueId) ? venueId : undefined;
       if (venueId && !normalizedVenueId) {
@@ -273,15 +263,20 @@ export class ReviewService {
       let checkError: any = null;
       
       if (isUuid) {
+        // Check for ANY review (draft or published) - there should only be one per user/event
         const result = await (supabase as any)
           .from('reviews')
           .select('id, is_draft')
           .eq('user_id', userId)
           .eq('event_id', eventId)
-          .eq('is_draft', false) // Only find published reviews, not drafts
           .maybeSingle();
         existingReview = result.data;
         checkError = result.error;
+        console.log('🔍 ReviewService: Checked for existing review:', { 
+          found: !!existingReview, 
+          is_draft: existingReview?.is_draft,
+          id: existingReview?.id 
+        });
       }
 
       if (checkError && checkError.code !== 'PGRST116' && (checkError as any).status !== 406) {
@@ -289,50 +284,73 @@ export class ReviewService {
       }
 
       if (existingReview) {
+        // Update the existing row (whether it's a draft or published)
+        // When publishing, set is_draft = false; the row stays the same
+        console.log('🔄 ReviewService: Updating existing review:', existingReview.id, 'is_draft:', existingReview.is_draft);
+        // Fetch existing review to preserve fields that weren't explicitly changed
+        const { data: existingReviewData } = await supabase
+          .from('reviews')
+          .select('setlist, custom_setlist')
+          .eq('id', existingReview.id)
+          .maybeSingle();
+        
         // Update existing review
-        // Try full update first; fallback to legacy columns if schema lacks new fields
+        // Save all 5 category ratings and feedback directly to database
         const fullUpdate: any = {
           ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
-          ...(typeof reviewData.rating === 'number' ||
-          typeof reviewData.artist_performance_rating === 'number' ||
-          typeof reviewData.production_rating === 'number' ||
-          typeof reviewData.venue_rating === 'number' ||
-          typeof reviewData.location_rating === 'number' ||
-          typeof reviewData.value_rating === 'number' ||
-          typeof reviewData.artist_rating === 'number'
-            ? { rating: deriveRating(reviewData) }
-            : {}),
+          // rating will be calculated by database trigger from category ratings
           review_text: reviewData.review_text,
           reaction_emoji: reviewData.reaction_emoji,
           is_public: reviewData.is_public,
           is_draft: false, // Mark as published (not a draft)
-          artist_performance_rating: reviewData.artist_performance_rating,
-          production_rating: reviewData.production_rating,
-          venue_rating: reviewData.venue_rating,
-          location_rating: reviewData.location_rating,
-          value_rating: reviewData.value_rating,
-          artist_performance_feedback: reviewData.artist_performance_feedback,
-          production_feedback: reviewData.production_feedback,
-          venue_feedback: reviewData.venue_feedback,
-          location_feedback: reviewData.location_feedback,
-          value_feedback: reviewData.value_feedback,
-          artist_performance_recommendation: reviewData.artist_performance_recommendation,
-          production_recommendation: reviewData.production_recommendation,
-          venue_recommendation: reviewData.venue_recommendation,
-          location_recommendation: reviewData.location_recommendation,
-          value_recommendation: reviewData.value_recommendation,
+          draft_data: null, // Clear draft data when publishing
+          last_saved_at: null, // Clear last_saved_at when publishing
+          // All 5 category ratings (0.5-5.0, rounded to 1 decimal) - MUST be included
+          artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' ? Number(reviewData.artist_performance_rating.toFixed(1)) : undefined,
+          production_rating: typeof reviewData.production_rating === 'number' ? Number(reviewData.production_rating.toFixed(1)) : undefined,
+          venue_rating_decimal: typeof reviewData.venue_rating === 'number' ? Number(reviewData.venue_rating.toFixed(1)) : undefined, // Use venue_rating_decimal (DECIMAL) since venue_rating is INTEGER
+          location_rating: typeof reviewData.location_rating === 'number' ? Number(reviewData.location_rating.toFixed(1)) : undefined,
+          value_rating: typeof reviewData.value_rating === 'number' ? Number(reviewData.value_rating.toFixed(1)) : undefined,
+          // All 5 category feedback text fields - MUST be included
+          artist_performance_feedback: reviewData.artist_performance_feedback?.trim() || undefined,
+          production_feedback: reviewData.production_feedback?.trim() || undefined,
+          venue_feedback: reviewData.venue_feedback?.trim() || undefined,
+          location_feedback: reviewData.location_feedback?.trim() || undefined,
+          value_feedback: reviewData.value_feedback?.trim() || undefined,
+          // All 5 category recommendation fields
           ticket_price_paid: reviewData.ticket_price_paid,
           artist_rating: reviewData.artist_rating, // Legacy field
           review_type: reviewData.review_type,
           venue_tags: reviewData.venue_tags,
           artist_tags: reviewData.artist_tags,
           photos: reviewData.photos, // Add photos field
-          setlist: reviewData.setlist, // Add setlist field
+          // Preserve setlist if not explicitly provided, otherwise use the new value
+          setlist: reviewData.setlist !== undefined ? reviewData.setlist : (existingReviewData?.setlist || null),
+          // Preserve custom_setlist if not explicitly provided
+          custom_setlist: reviewData.custom_setlist !== undefined ? reviewData.custom_setlist : (existingReviewData?.custom_setlist || null),
           attendees: reviewData.attendees, // Add attendees field
           met_on_synth: reviewData.met_on_synth, // Add met_on_synth field
           was_there: true, // If someone writes a review, they obviously attended
           updated_at: new Date().toISOString()
         };
+        
+        // Explicitly remove venue_rating (INTEGER) - we use venue_rating_decimal for decimals
+        delete fullUpdate.venue_rating;
+
+        console.log('🔍 ReviewService: Update payload category ratings:', {
+          artist_performance_rating: fullUpdate.artist_performance_rating,
+          production_rating: fullUpdate.production_rating,
+          venue_rating_decimal: fullUpdate.venue_rating_decimal,
+          location_rating: fullUpdate.location_rating,
+          value_rating: fullUpdate.value_rating,
+        });
+        console.log('🔍 ReviewService: Update payload category feedback:', {
+          artist_performance_feedback: fullUpdate.artist_performance_feedback,
+          production_feedback: fullUpdate.production_feedback,
+          venue_feedback: fullUpdate.venue_feedback,
+          location_feedback: fullUpdate.location_feedback,
+          value_feedback: fullUpdate.value_feedback,
+        });
 
         // Perform update without returning to avoid 400/406 in some environments
         let { error } = await supabase
@@ -349,6 +367,22 @@ export class ReviewService {
             .maybeSingle();
           data = fetched.data as any;
           error = fetched.error as any;
+          
+          // Verify the update worked
+          console.log('✅ ReviewService: Updated review category ratings:', {
+            artist_performance_rating: (data as any)?.artist_performance_rating,
+            production_rating: (data as any)?.production_rating,
+            venue_rating_decimal: (data as any)?.venue_rating_decimal,
+            location_rating: (data as any)?.location_rating,
+            value_rating: (data as any)?.value_rating,
+          });
+          console.log('✅ ReviewService: Updated review category feedback:', {
+            artist_performance_feedback: (data as any)?.artist_performance_feedback,
+            production_feedback: (data as any)?.production_feedback,
+            venue_feedback: (data as any)?.venue_feedback,
+            location_feedback: (data as any)?.location_feedback,
+            value_feedback: (data as any)?.value_feedback,
+          });
         }
 
         if (error) {
@@ -356,11 +390,13 @@ export class ReviewService {
           // Unknown columns: retry with legacy-only columns
           const legacyUpdate: any = {
             ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
-            rating: deriveRating(reviewData),
+            rating: typeof reviewData.rating === 'number' ? Number(reviewData.rating.toFixed(1)) : deriveRating(reviewData),
             review_text: reviewData.review_text,
             reaction_emoji: reviewData.reaction_emoji,
             is_public: reviewData.is_public,
             is_draft: false, // Mark as published (not a draft)
+            draft_data: null, // Clear draft data when publishing
+            last_saved_at: null, // Clear last_saved_at when publishing
             photos: reviewData.photos, // Add photos field to legacy update
             was_there: true, // If someone writes a review, they obviously attended
             updated_at: new Date().toISOString()
@@ -380,122 +416,35 @@ export class ReviewService {
         return data as any as UserReview;
       }
 
-      // Before creating a new review, check if there's an existing draft for this event
-      // If there is, we should update it instead of creating a new one
-      let draftId: string | null = null;
-      if (isUuid) {
-        const draftResult = await (supabase as any)
-          .from('reviews')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('event_id', eventId)
-          .eq('is_draft', true)
-          .maybeSingle();
-        
-        if (draftResult.data) {
-          draftId = draftResult.data.id;
-          console.log('🔄 Found existing draft, will convert to published review:', draftId);
-        }
-      }
-
-      // If we found a draft, update it instead of creating a new review
-      if (draftId) {
-        const draftUpdate: any = {
-          ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
-          rating: deriveRating(reviewData),
-          reaction_emoji: reviewData.reaction_emoji,
-          review_text: reviewData.review_text,
-          is_public: reviewData.is_public ?? true,
-          is_draft: false, // Mark as published
-          artist_performance_rating: reviewData.artist_performance_rating,
-          production_rating: reviewData.production_rating,
-          venue_rating: reviewData.venue_rating,
-          location_rating: reviewData.location_rating,
-          value_rating: reviewData.value_rating,
-          artist_performance_feedback: reviewData.artist_performance_feedback,
-          production_feedback: reviewData.production_feedback,
-          venue_feedback: reviewData.venue_feedback,
-          location_feedback: reviewData.location_feedback,
-          value_feedback: reviewData.value_feedback,
-          artist_performance_recommendation: reviewData.artist_performance_recommendation,
-          production_recommendation: reviewData.production_recommendation,
-          venue_recommendation: reviewData.venue_recommendation,
-          location_recommendation: reviewData.location_recommendation,
-          value_recommendation: reviewData.value_recommendation,
-          ticket_price_paid: reviewData.ticket_price_paid,
-          artist_rating: reviewData.artist_rating,
-          review_type: reviewData.review_type,
-          venue_tags: reviewData.venue_tags,
-          artist_tags: reviewData.artist_tags,
-          photos: reviewData.photos,
-          setlist: reviewData.setlist,
-          attendees: reviewData.attendees,
-          met_on_synth: reviewData.met_on_synth,
-          was_there: true,
-          updated_at: new Date().toISOString()
-        };
-
-        let { data, error } = await supabase
-          .from('reviews')
-          .update(draftUpdate)
-          .eq('id', draftId)
-          .select()
-          .maybeSingle();
-
-        if (error) {
-          const legacyDraftUpdate: any = {
-            ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
-            rating: deriveRating(reviewData),
-            reaction_emoji: reviewData.reaction_emoji,
-            review_text: reviewData.review_text,
-            is_public: reviewData.is_public ?? true,
-            is_draft: false,
-            photos: reviewData.photos,
-            was_there: true,
-            updated_at: new Date().toISOString()
-          };
-
-          const retry = await supabase
-            .from('reviews')
-            .update(legacyDraftUpdate)
-            .eq('id', draftId)
-            .select()
-            .maybeSingle();
-
-          data = retry.data as any;
-          error = retry.error as any;
-        }
-
-        if (error) throw error;
-        console.log('✅ Converted draft to published review:', draftId);
-        return data as any as UserReview;
-      }
-
-      // Create new review (no draft exists)
-      const insertPayload: UserReviewInsert = {
+      // No existing review found - create a new one
+      // The unique constraint on (user_id, event_id) ensures only one row per user/event
+      // This will be a published review (is_draft = false)
+      // Save all 5 category ratings and feedback directly to database
+      // Build insert payload - explicitly exclude venue_rating (INTEGER) since we use venue_rating_decimal for decimals
+      // NOTE: Do NOT send rating - let the database trigger calculate it from category ratings
+      const insertPayload: any = {
         user_id: userId,
         event_id: eventId,
         ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
-        rating: deriveRating(reviewData),
+        // rating will be calculated by ensure_draft_no_rating trigger from category ratings
         reaction_emoji: reviewData.reaction_emoji,
         review_text: reviewData.review_text,
         is_public: reviewData.is_public ?? true,
         is_draft: false, // Explicitly mark as published (not a draft)
-        artist_performance_rating: reviewData.artist_performance_rating,
-        production_rating: reviewData.production_rating,
-        venue_rating: reviewData.venue_rating,
-        location_rating: reviewData.location_rating,
-        value_rating: reviewData.value_rating,
-        artist_performance_feedback: reviewData.artist_performance_feedback,
-        production_feedback: reviewData.production_feedback,
-        venue_feedback: reviewData.venue_feedback,
-        location_feedback: reviewData.location_feedback,
-        value_feedback: reviewData.value_feedback,
-        artist_performance_recommendation: reviewData.artist_performance_recommendation,
-        production_recommendation: reviewData.production_recommendation,
-        venue_recommendation: reviewData.venue_recommendation,
-        location_recommendation: reviewData.location_recommendation,
-        value_recommendation: reviewData.value_recommendation,
+        // All 5 category ratings (0.5-5.0, rounded to 1 decimal)
+        artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' ? Number(reviewData.artist_performance_rating.toFixed(1)) : undefined,
+        production_rating: typeof reviewData.production_rating === 'number' ? Number(reviewData.production_rating.toFixed(1)) : undefined,
+        venue_rating_decimal: typeof reviewData.venue_rating === 'number' ? Number(reviewData.venue_rating.toFixed(1)) : undefined, // Use venue_rating_decimal since venue_rating is INTEGER
+        location_rating: typeof reviewData.location_rating === 'number' ? Number(reviewData.location_rating.toFixed(1)) : undefined,
+        value_rating: typeof reviewData.value_rating === 'number' ? Number(reviewData.value_rating.toFixed(1)) : undefined,
+        // DO NOT include venue_rating (INTEGER) - we use venue_rating_decimal for decimals
+        // All 5 category feedback text fields
+        artist_performance_feedback: reviewData.artist_performance_feedback?.trim() || undefined,
+        production_feedback: reviewData.production_feedback?.trim() || undefined,
+        venue_feedback: reviewData.venue_feedback?.trim() || undefined,
+        location_feedback: reviewData.location_feedback?.trim() || undefined,
+        value_feedback: reviewData.value_feedback?.trim() || undefined,
+        // All 5 category recommendation fields
         ticket_price_paid: reviewData.ticket_price_paid,
         artist_rating: reviewData.artist_rating, // Legacy field
         review_type: reviewData.review_type,
@@ -506,7 +455,26 @@ export class ReviewService {
         attendees: reviewData.attendees, // Add attendees field
         met_on_synth: reviewData.met_on_synth, // Add met_on_synth field
         was_there: true // If someone writes a review, they obviously attended
-      } as UserReviewInsert;
+      } as any;
+      
+      // Explicitly remove venue_rating (INTEGER) - we use venue_rating_decimal (DECIMAL) for all decimal values
+      // This prevents trying to cast decimals like 4.8 to INTEGER which causes errors
+      delete (insertPayload as any).venue_rating;
+
+      console.log('🔍 ReviewService: Insert payload category ratings:', {
+        artist_performance_rating: insertPayload.artist_performance_rating,
+        production_rating: insertPayload.production_rating,
+        venue_rating_decimal: insertPayload.venue_rating_decimal,
+        location_rating: insertPayload.location_rating,
+        value_rating: insertPayload.value_rating,
+      });
+      console.log('🔍 ReviewService: Insert payload category feedback:', {
+        artist_performance_feedback: insertPayload.artist_performance_feedback,
+        production_feedback: insertPayload.production_feedback,
+        venue_feedback: insertPayload.venue_feedback,
+        location_feedback: insertPayload.location_feedback,
+        value_feedback: insertPayload.value_feedback,
+      });
 
       // Debug: Check if the event has artist_uuid populated
       console.log('🔍 ReviewService: Checking event artist_uuid for eventId:', eventId);
@@ -600,8 +568,24 @@ export class ReviewService {
         }
       }
       
-      // Debug: Log the final insert payload
-      console.log('🔍 ReviewService: Final insert payload:', insertPayload);
+      // Debug: Log the final insert payload with all category data
+      console.log('🔍 ReviewService: Final insert payload:', {
+        ...insertPayload,
+        category_ratings: {
+          artist_performance_rating: insertPayload.artist_performance_rating,
+          production_rating: insertPayload.production_rating,
+          venue_rating_decimal: insertPayload.venue_rating_decimal,
+          location_rating: insertPayload.location_rating,
+          value_rating: insertPayload.value_rating,
+        },
+        category_feedback: {
+          artist_performance_feedback: insertPayload.artist_performance_feedback,
+          production_feedback: insertPayload.production_feedback,
+          venue_feedback: insertPayload.venue_feedback,
+          location_feedback: insertPayload.location_feedback,
+          value_feedback: insertPayload.value_feedback,
+        }
+      });
 
       // Try full insert first
       let { data, error } = await supabase
@@ -627,30 +611,68 @@ export class ReviewService {
       }
 
       if (error) {
-        // Retry with legacy-only columns
-        const legacyInsert: any = {
+        // Retry with minimal columns if full insert fails
+        // Still include all category ratings and feedback - they're essential
+        const minimalInsert: any = {
           user_id: userId,
           event_id: eventId,
           ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
-          rating: deriveRating(reviewData),
+          // rating will be calculated by database trigger from category ratings
           reaction_emoji: reviewData.reaction_emoji,
           review_text: reviewData.review_text,
           is_public: reviewData.is_public ?? true,
           is_draft: false, // Explicitly mark as published
-          photos: reviewData.photos, // Add photos field to legacy insert
-          was_there: true // If someone writes a review, they obviously attended
+          // All 5 category ratings (0.5-5.0, rounded to 1 decimal)
+          artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' ? Number(reviewData.artist_performance_rating.toFixed(1)) : undefined,
+          production_rating: typeof reviewData.production_rating === 'number' ? Number(reviewData.production_rating.toFixed(1)) : undefined,
+          venue_rating_decimal: typeof reviewData.venue_rating === 'number' ? Number(reviewData.venue_rating.toFixed(1)) : undefined,
+          location_rating: typeof reviewData.location_rating === 'number' ? Number(reviewData.location_rating.toFixed(1)) : undefined,
+          value_rating: typeof reviewData.value_rating === 'number' ? Number(reviewData.value_rating.toFixed(1)) : undefined,
+          // All 5 category feedback text fields
+          artist_performance_feedback: reviewData.artist_performance_feedback?.trim() || undefined,
+          production_feedback: reviewData.production_feedback?.trim() || undefined,
+          venue_feedback: reviewData.venue_feedback?.trim() || undefined,
+          location_feedback: reviewData.location_feedback?.trim() || undefined,
+          value_feedback: reviewData.value_feedback?.trim() || undefined,
+          ticket_price_paid: reviewData.ticket_price_paid,
+          photos: reviewData.photos,
+          setlist: reviewData.setlist,
+          was_there: true
         };
+        
+        // Explicitly remove venue_rating (INTEGER) - we use venue_rating_decimal for decimals
+        delete (minimalInsert as any).venue_rating;
 
+        console.error('⚠️ ReviewService: First insert failed, retrying with minimal insert. Error:', error);
         const retry = await supabase
           .from('reviews')
-          .insert(legacyInsert)
+          .insert(minimalInsert)
           .select()
           .single();
         data = retry.data as any;
         error = retry.error as any;
       }
 
-      if (error) throw error as any;
+      if (error) {
+        console.error('❌ ReviewService: Final insert/update error:', error);
+        throw error as any;
+      }
+      
+      console.log('✅ ReviewService: Review saved successfully. Data:', data);
+      console.log('✅ ReviewService: Saved category ratings:', {
+        artist_performance_rating: (data as any)?.artist_performance_rating,
+        production_rating: (data as any)?.production_rating,
+        venue_rating_decimal: (data as any)?.venue_rating_decimal,
+        location_rating: (data as any)?.location_rating,
+        value_rating: (data as any)?.value_rating,
+      });
+      console.log('✅ ReviewService: Saved category feedback:', {
+        artist_performance_feedback: (data as any)?.artist_performance_feedback,
+        production_feedback: (data as any)?.production_feedback,
+        venue_feedback: (data as any)?.venue_feedback,
+        location_feedback: (data as any)?.location_feedback,
+        value_feedback: (data as any)?.value_feedback,
+      });
       
       // Cleanup: Delete any orphaned drafts for this event after successfully creating the final review
       // This ensures we don't have leftover draft reviews cluttering the database
@@ -661,12 +683,16 @@ export class ReviewService {
             .delete()
             .eq('user_id', userId)
             .eq('event_id', eventId)
-            .eq('is_draft', true);
+            .eq('is_draft', true)
+            .neq('id', data.id); // Don't delete the review we just created/published
           
           if (deleteResult.error) {
             console.warn('⚠️ Failed to delete draft reviews after publishing:', deleteResult.error);
           } else {
-            console.log('🧹 Cleaned up any orphaned draft reviews for event:', eventId);
+            const deletedCount = deleteResult.data?.length || 0;
+            if (deletedCount > 0) {
+              console.log(`🧹 Cleaned up ${deletedCount} orphaned draft review(s) for event:`, eventId);
+            }
           }
         } catch (cleanupError) {
           console.warn('⚠️ Error during draft cleanup:', cleanupError);
@@ -720,6 +746,67 @@ export class ReviewService {
   }
 
   /**
+   * Get user's previous reviews at the same venue (excluding current event)
+   * Returns the most recent review with venue and location data
+   */
+  static async getPreviousVenueReview(
+    userId: string,
+    venueId: string | null | undefined,
+    currentEventId: string
+  ): Promise<UserReview | null> {
+    try {
+      if (!venueId) return null;
+
+      // Validate UUID format for both venueId and currentEventId
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(venueId)) {
+        return null;
+      }
+
+      // If currentEventId is not a valid UUID (e.g., "new-review"), don't filter by it
+      // Just get all reviews at this venue
+      const query = supabase
+        .from('reviews')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('venue_id', venueId)
+        .eq('is_draft', false) // Only published reviews
+        .order('created_at', { ascending: false });
+
+      // Only exclude current event if it's a valid UUID
+      if (currentEventId && uuidRegex.test(currentEventId)) {
+        query.neq('event_id', currentEventId);
+      }
+
+      const { data, error } = await query;
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error getting previous venue review:', error);
+        return null;
+      }
+
+      if (!data || data.length === 0) {
+        return null;
+      }
+
+      // Filter to find reviews with venue or location data (use only 5-category columns)
+      const reviewWithVenueData = data.find((review: any) => {
+        return (
+          review.venue_rating_decimal != null ||
+          review.location_rating != null ||
+          review.venue_feedback ||
+          review.location_feedback
+        );
+      });
+
+      return reviewWithVenueData || null;
+    } catch (error) {
+      console.error('Error getting previous venue review:', error);
+      return null;
+    }
+  }
+
+  /**
    * Get all reviews for an event with engagement data
    */
   static async getEventReviews(
@@ -740,8 +827,22 @@ export class ReviewService {
           review_likes!left(id, user_id)
         `)
         .eq('event_id', eventId)
-        .eq('is_public', true)
-        .order('created_at', { ascending: false });
+        .eq('is_public', true);
+      
+      // Sort by rating (which is calculated by database trigger from category ratings)
+      if (reviews) {
+        reviews.sort((a: any, b: any) => {
+          // Use review.rating directly - it's always calculated as the average of 5 category ratings by the database trigger
+          const ratingA = typeof a.rating === 'number' ? a.rating : 0;
+          const ratingB = typeof b.rating === 'number' ? b.rating : 0;
+          
+          // Primary sort: by rating (descending)
+          if (ratingB !== ratingA) return ratingB - ratingA;
+          
+          // Secondary sort: by created_at (descending)
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+      }
 
       if (error) throw error;
 
@@ -815,14 +916,35 @@ export class ReviewService {
         .eq('user_id', userId);
       console.log('🔍 ReviewService: Total reviews (including drafts) for user:', totalCount);
       
+      // Fetch reviews and calculate average rating for ordering
       const { data: reviewsData, error: reviewsError, count } = await supabase
         .from('reviews')
         .select('*', { count: 'exact' })
         .eq('user_id', userId)
         .eq('is_draft', false) // Only show published reviews, not drafts
-        .order('rating', { ascending: false })
-        .order('rank_order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false });
+      
+      // Sort by rating (which is calculated by database trigger from category ratings)
+      if (reviewsData) {
+        reviewsData.sort((a: any, b: any) => {
+          // Use review.rating directly - it's always calculated as the average of 5 category ratings by the database trigger
+          const ratingA = typeof a.rating === 'number' ? a.rating : 0;
+          const ratingB = typeof b.rating === 'number' ? b.rating : 0;
+          
+          // Primary sort: by rating (descending)
+          if (ratingB !== ratingA) return ratingB - ratingA;
+          
+          // Secondary sort: by rank_order (ascending, nulls last)
+          if (a.rank_order != null && b.rank_order != null) {
+            return a.rank_order - b.rank_order;
+          }
+          if (a.rank_order != null) return -1;
+          if (b.rank_order != null) return 1;
+          
+          // Tertiary sort: by created_at (descending)
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+      }
       
       console.log('🔍 ReviewService: Query completed. Count:', count, 'Data length:', reviewsData?.length);
       if (reviewsData && reviewsData.length > 0) {
@@ -937,7 +1059,7 @@ export class ReviewService {
             artist_rating: item.artist_rating,
             artist_performance_rating: item.artist_performance_rating,
             production_rating: item.production_rating,
-            venue_rating: item.venue_rating,
+            venue_rating: (item as any).venue_rating_decimal || item.venue_rating,
             location_rating: item.location_rating,
             value_rating: item.value_rating,
             artist_performance_feedback: item.artist_performance_feedback,
@@ -945,11 +1067,6 @@ export class ReviewService {
             venue_feedback: item.venue_feedback,
             location_feedback: item.location_feedback,
             value_feedback: item.value_feedback,
-            artist_performance_recommendation: item.artist_performance_recommendation,
-            production_recommendation: item.production_recommendation,
-            venue_recommendation: item.venue_recommendation,
-            location_recommendation: item.location_recommendation,
-            value_recommendation: item.value_recommendation,
             ticket_price_paid: item.ticket_price_paid,
             created_at: item.created_at,
             updated_at: item.updated_at,
@@ -976,18 +1093,68 @@ export class ReviewService {
 
   /**
    * Persist ordered ranks for a single rating group
+   * Handles decimal ratings by matching reviews with the same effective rating (rounded to 1 decimal)
    */
   static async setRankOrderForRatingGroup(
     userId: string,
-    rating: number,
+    rating: number, // Can be decimal like 4.5
     orderedReviewIds: string[]
   ): Promise<void> {
     console.log('💾 Saving rank order:', { userId, rating, count: orderedReviewIds.length });
+    
+    // Round rating to 1 decimal place for comparison
+    const roundedRating = Math.round(rating * 10) / 10;
     
     // Defensive: ensure dense 1..N ranks
     const updates = orderedReviewIds.map((id, idx) => ({ id, rank_order: idx + 1 }));
     
     try {
+      // First, clear rank_order for all reviews with this rating (to handle rating changes)
+      // Match reviews by effective rating (calculated from 5-category system, rounded to 1 decimal)
+      const { data: allReviewsWithRating, error: fetchError } = await (supabase as any)
+        .from('reviews')
+        .select('id, rating, artist_performance_rating, production_rating, venue_rating_decimal, location_rating, value_rating')
+        .eq('user_id', userId)
+        .eq('is_draft', false);
+      
+      if (fetchError) {
+        console.warn('⚠️ Could not fetch reviews to clear rank_order:', fetchError);
+      } else if (allReviewsWithRating) {
+        // Calculate effective rating for each review and clear rank_order for matching ones
+        const reviewsToClear = allReviewsWithRating.filter((review: any) => {
+          // Calculate effective rating from 5-category system
+          const values = [
+            review.artist_performance_rating,
+            review.production_rating,
+            review.venue_rating_decimal,
+            review.location_rating,
+            review.value_rating
+          ].filter((v: any): v is number => typeof v === 'number' && v > 0);
+          
+          if (values.length > 0) {
+            const avg = values.reduce((sum: number, val: number) => sum + val, 0) / values.length;
+            const effectiveRating = Math.round(avg * 10) / 10;
+            return effectiveRating === roundedRating;
+          }
+          
+          // Fallback to overall rating if no category ratings
+          const fallbackRating = review.rating ? Math.round(review.rating * 10) / 10 : null;
+          return fallbackRating === roundedRating;
+        });
+        
+        // Clear rank_order for reviews that match this rating but aren't in the ordered list
+        for (const review of reviewsToClear) {
+          if (!orderedReviewIds.includes(review.id)) {
+            await (supabase as any)
+              .from('reviews')
+              .update({ rank_order: null })
+              .eq('id', review.id)
+              .eq('user_id', userId);
+          }
+        }
+      }
+      
+      // Now update rank_order for the ordered reviews
       for (const u of updates) {
         console.log(`  Updating review ${u.id.slice(0, 8)}... → rank_order = ${u.rank_order}`);
 

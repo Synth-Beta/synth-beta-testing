@@ -36,11 +36,6 @@ interface Review {
   venue_feedback?: string;
   location_feedback?: string;
   value_feedback?: string;
-  artist_performance_recommendation?: string;
-  production_recommendation?: string;
-  venue_recommendation?: string;
-  location_recommendation?: string;
-  value_recommendation?: string;
   ticket_price_paid?: number;
   review_text: string;
   created_at: string;
@@ -182,11 +177,6 @@ export function ArtistVenueReviews({
               venue_feedback,
               location_feedback,
               value_feedback,
-              artist_performance_recommendation,
-              production_recommendation,
-              venue_recommendation,
-              location_recommendation,
-              value_recommendation,
               ticket_price_paid,
               review_text,
               created_at,
@@ -239,11 +229,6 @@ export function ArtistVenueReviews({
                   venue_feedback: review.venue_feedback ?? undefined,
                   location_feedback: review.location_feedback ?? undefined,
                   value_feedback: review.value_feedback ?? undefined,
-                  artist_performance_recommendation: review.artist_performance_recommendation ?? undefined,
-                  production_recommendation: review.production_recommendation ?? undefined,
-                  venue_recommendation: review.venue_recommendation ?? undefined,
-                  location_recommendation: review.location_recommendation ?? undefined,
-                  value_recommendation: review.value_recommendation ?? undefined,
                   ticket_price_paid: review.ticket_price_paid ?? undefined,
                   review_text: review.review_text,
                   created_at: review.created_at,
@@ -391,11 +376,6 @@ export function ArtistVenueReviews({
               venue_feedback,
               location_feedback,
               value_feedback,
-              artist_performance_recommendation,
-              production_recommendation,
-              venue_recommendation,
-              location_recommendation,
-              value_recommendation,
               ticket_price_paid,
               review_text,
               created_at,
@@ -450,11 +430,6 @@ export function ArtistVenueReviews({
                   venue_feedback: review.venue_feedback ?? undefined,
                   location_feedback: review.location_feedback ?? undefined,
                   value_feedback: review.value_feedback ?? undefined,
-                  artist_performance_recommendation: review.artist_performance_recommendation ?? undefined,
-                  production_recommendation: review.production_recommendation ?? undefined,
-                  venue_recommendation: review.venue_recommendation ?? undefined,
-                  location_recommendation: review.location_recommendation ?? undefined,
-                  value_recommendation: review.value_recommendation ?? undefined,
                   ticket_price_paid: review.ticket_price_paid ?? undefined,
                   review_text: review.review_text,
                   created_at: review.created_at,
@@ -618,35 +593,30 @@ export function ArtistVenueReviews({
             label: 'Artist performance',
             rating: review.artist_performance_rating,
             feedback: review.artist_performance_feedback,
-            recommendation: review.artist_performance_recommendation
           },
           {
             label: 'Production',
             rating: review.production_rating,
-            feedback: review.production_feedback,
-            recommendation: review.production_recommendation
+            feedback: review.production_feedback
           },
           {
             label: 'Venue',
             rating: review.venue_rating,
-            feedback: review.venue_feedback,
-            recommendation: review.venue_recommendation
+            feedback: review.venue_feedback
           },
           {
             label: 'Location',
             rating: review.location_rating,
-            feedback: review.location_feedback,
-            recommendation: review.location_recommendation
+            feedback: review.location_feedback
           },
           {
             label: 'Value',
             rating: review.value_rating,
-            feedback: review.value_feedback,
-            recommendation: review.value_recommendation
+            feedback: review.value_feedback
           }
         ]
-          .filter(({ rating, feedback, recommendation }) => rating || feedback || recommendation)
-          .map(({ label, rating, feedback, recommendation }) => (
+          .filter(({ rating, feedback }) => rating || feedback)
+          .map(({ label, rating, feedback }) => (
             <div key={label} className="text-sm border-l-4 border-pink-200 pl-2 mt-2">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-gray-600">{label}</span>
@@ -656,9 +626,6 @@ export function ArtistVenueReviews({
                   </span>
                 )}
               </div>
-              {recommendation && (
-                <div className="text-xs text-gray-500">{recommendation}</div>
-              )}
               {feedback && (
                 <div className="text-xs text-gray-700 italic">“{feedback}”</div>
               )}

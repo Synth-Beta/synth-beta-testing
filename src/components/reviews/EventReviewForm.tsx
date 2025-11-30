@@ -121,6 +121,40 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   const [actualEventId, setActualEventId] = useState<string>(getInitialEventId());
   const [currentDraft, setCurrentDraft] = useState<DraftReview | null>(null);
   const [isSetlistModalOpen, setIsSetlistModalOpen] = useState(false);
+  const [previousVenueReview, setPreviousVenueReview] = useState<UserReview | null>(null);
+
+  // Check for previous venue review when venue is selected
+  useEffect(() => {
+    const checkPreviousVenueReview = async () => {
+      if (!formData.selectedVenue?.is_from_database || !formData.selectedVenue.id || !userId || existingReview) {
+        setPreviousVenueReview(null);
+        return;
+      }
+
+      const venueId = formData.selectedVenue.id;
+      const eventId = actualEventId || event.id || '';
+      
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(venueId)) {
+        setPreviousVenueReview(null);
+        return;
+      }
+
+      try {
+        const prevReview = await ReviewService.getPreviousVenueReview(userId, venueId, eventId);
+        setPreviousVenueReview(prevReview);
+        if (prevReview) {
+          console.log('✅ Found previous venue review:', prevReview.id);
+        }
+      } catch (error) {
+        console.error('Error checking for previous venue review:', error);
+        setPreviousVenueReview(null);
+      }
+    };
+
+    checkPreviousVenueReview();
+  }, [formData.selectedVenue?.id, userId, actualEventId, event.id, existingReview]);
 
   const formatSetlistDate = (date?: string) => {
     if (!date) return '';
@@ -142,17 +176,23 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     updateFormData({ customSetlist: songs as any });
   };
 
-  // Auto-save functionality (localStorage only - no database records)
+  // Auto-save functionality (saves to database automatically on every change)
   const { manualSave, loadDraft, clearDraft } = useAutoSave({
     userId,
-    eventId: actualEventId,
+    eventId: actualEventId || null,
     formData: formData as DraftReviewData,
-    enabled: !existingReview, // Only auto-save if not editing existing review
-    requireEventSelection: true, // Only auto-save when a specific event is selected
+    enabled: true, // Always enabled - auto-save for both new and existing reviews
+    debounceMs: 2000, // 2 second debounce
     onSave: (success) => {
       setIsSaving(false);
       if (success) {
         setLastSaveTime(new Date());
+      }
+    },
+    onEventIdChange: (newEventId) => {
+      // Update actualEventId when it becomes available
+      if (newEventId && newEventId !== actualEventId) {
+        setActualEventId(newEventId);
       }
     }
   });
@@ -167,7 +207,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           : 'How did the artist deliver live? Share your honest take.',
         ratingKey: 'artistPerformanceRating',
         feedbackKey: 'artistPerformanceFeedback',
-        recommendationKey: 'artistPerformanceRecommendation',
         helperText: 'Tap a star (half points allowed) to capture the performance.',
         suggestions: ARTIST_SUGGESTIONS,
       },
@@ -176,7 +215,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         subtitle: 'Lights, visuals, sound mix — did the production elevate the night?',
         ratingKey: 'productionRating',
         feedbackKey: 'productionFeedback',
-        recommendationKey: 'productionRecommendation',
         helperText: 'Think about sound clarity, lighting, visuals, and pacing.',
         suggestions: PRODUCTION_SUGGESTIONS,
       },
@@ -187,7 +225,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           : 'Consider the staff, comfort, lines, and vibe inside the venue.',
         ratingKey: 'venueRating',
         feedbackKey: 'venueFeedback',
-        recommendationKey: 'venueRecommendation',
         helperText: 'Include staff vibes, comfort, and amenities.',
         suggestions: VENUE_SUGGESTIONS,
       },
@@ -196,7 +233,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         subtitle: 'Getting there, getting home, nearby spots — how easy was the night?',
         ratingKey: 'locationRating',
         feedbackKey: 'locationFeedback',
-        recommendationKey: 'locationRecommendation',
         helperText: 'Parking, transit, food options, safety — it all counts.',
         suggestions: LOCATION_SUGGESTIONS,
       },
@@ -205,7 +241,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         subtitle: 'Given what you paid, did the experience feel worth it?',
         ratingKey: 'valueRating',
         feedbackKey: 'valueFeedback',
-        recommendationKey: 'valueRecommendation',
         helperText: 'Honest value helps fans budget for future shows.',
         suggestions: VALUE_SUGGESTIONS,
       },
@@ -395,19 +430,14 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             eventDate: eventDateFromReview,
             artistPerformanceRating: review.artist_performance_rating || review.rating,
             productionRating: review.production_rating || review.artist_performance_rating || review.rating,
-            venueRating: review.venue_rating || review.rating,
-            locationRating: review.location_rating || review.venue_rating || review.rating,
+            venueRating: (review as any).venue_rating_decimal || review.venue_rating || review.rating,
+            locationRating: review.location_rating || (review as any).venue_rating_decimal || review.venue_rating || review.rating,
             valueRating: review.value_rating || review.rating,
             artistPerformanceFeedback: review.artist_performance_feedback || '',
             productionFeedback: review.production_feedback || '',
             venueFeedback: review.venue_feedback || '',
             locationFeedback: review.location_feedback || '',
             valueFeedback: review.value_feedback || '',
-            artistPerformanceRecommendation: review.artist_performance_recommendation || '',
-            productionRecommendation: review.production_recommendation || '',
-            venueRecommendation: review.venue_recommendation || '',
-            locationRecommendation: review.location_recommendation || '',
-            valueRecommendation: review.value_recommendation || '',
             ticketPricePaid: review.ticket_price_paid ? String(review.ticket_price_paid) : '',
             rating: review.rating,
             reviewText: review.review_text || '',
@@ -502,38 +532,26 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   }, [event?.id, userId]);
 
   const handleSaveDraft = async () => {
-    console.log('🔥 SAVE DRAFT CLICKED - FORCING SAVE');
-    
+    // Manual save trigger - auto-save is already happening, but this forces immediate save
+    console.log('💾 Manual save triggered (auto-save is already enabled)');
+    setIsSaving(true);
     try {
-      // Force save the draft directly using DraftReviewService
-      const success = await DraftReviewService.saveDraft(userId, actualEventId, formData as any);
-      
-      if (success) {
-        console.log('✅ Draft saved successfully!');
-        toast({
-          title: "Draft Saved",
-          description: "Your draft has been saved successfully!",
-        });
-        
-        // Close the form
-        if (onClose) {
-          onClose();
-        }
-      } else {
-        console.log('❌ Failed to save draft');
-        toast({
-          title: "Save Failed",
-          description: "Failed to save draft. Please try again.",
-          variant: "destructive",
-        });
-      }
+      await manualSave();
+      toast({
+        title: "Draft Saved",
+        description: "Your draft has been saved! (Auto-save is also active)",
+        variant: "default",
+      });
+      setLastSaveTime(new Date());
     } catch (error) {
-      console.error('❌ Error saving draft:', error);
+      console.error('❌ Error in manual save:', error);
       toast({
         title: "Save Failed",
-        description: "An error occurred while saving the draft.",
+        description: "Failed to save draft. Auto-save will retry automatically.",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -851,28 +869,8 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
     setLoading(true);
     try {
-      const categoryNotes = [
-        formData.artistPerformanceFeedback?.trim() || formData.artistPerformanceRecommendation
-          ? `Artist performance: ${formData.artistPerformanceFeedback?.trim() || formData.artistPerformanceRecommendation}`
-          : '',
-        formData.productionFeedback?.trim() || formData.productionRecommendation
-          ? `Production: ${formData.productionFeedback?.trim() || formData.productionRecommendation}`
-          : '',
-        formData.venueFeedback?.trim() || formData.venueRecommendation
-          ? `Venue: ${formData.venueFeedback?.trim() || formData.venueRecommendation}`
-          : '',
-        formData.locationFeedback?.trim() || formData.locationRecommendation
-          ? `Location: ${formData.locationFeedback?.trim() || formData.locationRecommendation}`
-          : '',
-        formData.valueFeedback?.trim() || formData.valueRecommendation
-          ? `Value: ${formData.valueFeedback?.trim() || formData.valueRecommendation}`
-          : '',
-      ].filter(Boolean).join('\n');
-
-      const combinedReviewText = [
-        formData.reviewText.trim(),
-        categoryNotes
-      ].filter(Boolean).join('\n\n');
+      // Individual category feedback fields are saved to their own columns
+      // Do NOT combine them into review_text - they go to production_feedback, venue_feedback, etc.
 
       const showsRankingBlock = shows.length
         ? `\n\nShow rankings:\n${shows
@@ -883,45 +881,98 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         `
         : '';
 
-      // Ensure overall rating is saved on a 1..5 integer scale without halving
-      const decimalAverage = formData.rating || 0;
-      const integerOverall = Math.max(1, Math.min(5, Math.round(decimalAverage))) as any;
+      // Calculate decimal average from 5 category ratings
+      const categoryRatings = [
+        formData.artistPerformanceRating,
+        formData.productionRating,
+        formData.venueRating,
+        formData.locationRating,
+        formData.valueRating
+      ].filter((r): r is number => typeof r === 'number' && r > 0);
+      
+      const decimalAverage = categoryRatings.length > 0
+        ? Number((categoryRatings.reduce((sum, r) => sum + r, 0) / categoryRatings.length).toFixed(1))
+        : (formData.rating || 0);
+      
       const ticketPrice = formData.ticketPricePaid ? Number(formData.ticketPricePaid) : undefined;
+      
+      // Round category ratings to 1 decimal place
+      const artistPerfRating = typeof formData.artistPerformanceRating === 'number' ? Number(formData.artistPerformanceRating.toFixed(1)) : undefined;
+      const prodRating = typeof formData.productionRating === 'number' ? Number(formData.productionRating.toFixed(1)) : undefined;
+      const venueRating = typeof formData.venueRating === 'number' ? Number(formData.venueRating.toFixed(1)) : undefined;
+      const locationRating = typeof formData.locationRating === 'number' ? Number(formData.locationRating.toFixed(1)) : undefined;
+      const valueRating = typeof formData.valueRating === 'number' ? Number(formData.valueRating.toFixed(1)) : undefined;
+      
+      // Trim feedback fields
+      const artistPerfFeedback = formData.artistPerformanceFeedback?.trim() || undefined;
+      const prodFeedback = formData.productionFeedback?.trim() || undefined;
+      const venueFeedback = formData.venueFeedback?.trim() || undefined;
+      const locationFeedback = formData.locationFeedback?.trim() || undefined;
+      const valueFeedback = formData.valueFeedback?.trim() || undefined;
+      
       const reviewData: ReviewData = {
         review_type: 'event',
-        // Send integer overall rating to satisfy NOT NULL integer column; decimals go to category columns
-        rating: integerOverall,
-        artist_performance_rating: formData.artistPerformanceRating || undefined,
-        production_rating: formData.productionRating || undefined,
-        venue_rating: formData.venueRating || undefined,
-        location_rating: formData.locationRating || undefined,
-        value_rating: formData.valueRating || undefined,
-        artist_performance_feedback: formData.artistPerformanceFeedback || undefined,
-        production_feedback: formData.productionFeedback || undefined,
-        venue_feedback: formData.venueFeedback || undefined,
-        location_feedback: formData.locationFeedback || undefined,
-        value_feedback: formData.valueFeedback || undefined,
-        artist_performance_recommendation: formData.artistPerformanceRecommendation || undefined,
-        production_recommendation: formData.productionRecommendation || undefined,
-        venue_recommendation: formData.venueRecommendation || undefined,
-        location_recommendation: formData.locationRecommendation || undefined,
-        value_recommendation: formData.valueRecommendation || undefined,
+        // Send decimal average rating (NUMERIC(3,1) supports decimals)
+        rating: decimalAverage,
+        artist_performance_rating: artistPerfRating,
+        production_rating: prodRating,
+        venue_rating: venueRating,
+        location_rating: locationRating,
+        value_rating: valueRating,
+        artist_performance_feedback: artistPerfFeedback,
+        production_feedback: prodFeedback,
+        venue_feedback: venueFeedback,
+        location_feedback: locationFeedback,
+        value_feedback: valueFeedback,
         ticket_price_paid: typeof ticketPrice === 'number' && !Number.isNaN(ticketPrice) ? ticketPrice : undefined,
-        review_text: (combinedReviewText + showsRankingBlock).trim() || undefined,
+        review_text: (formData.reviewText.trim() + showsRankingBlock).trim() || undefined,
         reaction_emoji: formData.reactionEmoji || undefined,
         photos: formData.photos && formData.photos.length > 0 ? formData.photos : undefined,
         videos: formData.videos && formData.videos.length > 0 ? formData.videos : undefined,
-        setlist: formData.selectedSetlist || undefined,
+        // Preserve existing setlist when editing if not explicitly changed
+        // If selectedSetlist is null, user cleared it; if undefined, preserve existing
+        setlist: formData.selectedSetlist !== undefined ? formData.selectedSetlist : ((existingReview as any)?.setlist || undefined),
         custom_setlist: formData.customSetlist && formData.customSetlist.length > 0 ? formData.customSetlist : undefined,
         is_public: formData.isPublic,
       };
 
       console.log('🎵 EventReviewForm: Review data being saved:', {
+        rating: reviewData.rating,
+        decimalAverage,
         hasSetlist: !!reviewData.setlist,
         setlistData: reviewData.setlist,
         formDataSelectedSetlist: formData.selectedSetlist,
         hasCustomSetlist: !!reviewData.custom_setlist,
-        customSetlistSongCount: reviewData.custom_setlist?.length || 0
+        customSetlistSongCount: reviewData.custom_setlist?.length || 0,
+        // Debug category ratings
+        categoryRatings: {
+          artist_performance_rating: reviewData.artist_performance_rating,
+          production_rating: reviewData.production_rating,
+          venue_rating: reviewData.venue_rating,
+          location_rating: reviewData.location_rating,
+          value_rating: reviewData.value_rating,
+        },
+        categoryFeedback: {
+          artist_performance_feedback: reviewData.artist_performance_feedback,
+          production_feedback: reviewData.production_feedback,
+          venue_feedback: reviewData.venue_feedback,
+          location_feedback: reviewData.location_feedback,
+          value_feedback: reviewData.value_feedback,
+        },
+        formDataRatings: {
+          artistPerformanceRating: formData.artistPerformanceRating,
+          productionRating: formData.productionRating,
+          venueRating: formData.venueRating,
+          locationRating: formData.locationRating,
+          valueRating: formData.valueRating,
+        },
+        formDataFeedback: {
+          artistPerformanceFeedback: formData.artistPerformanceFeedback,
+          productionFeedback: formData.productionFeedback,
+          venueFeedback: formData.venueFeedback,
+          locationFeedback: formData.locationFeedback,
+          valueFeedback: formData.valueFeedback,
+        }
       });
 
       // Ensure venue exists in DB to save venue_id if possible
@@ -1040,10 +1091,8 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             updateData.setlist_fm_url = formData.selectedSetlist.url;
           }
           
-          // Add setlist.fm ID if available
-          if (formData.selectedSetlist.setlistFmId) {
-            updateData.setlist_fm_id = formData.selectedSetlist.setlistFmId;
-          }
+          // Note: setlist_fm_id is not on the events table, only on jambase_events
+          // The setlist data will be synced via trigger if needed
           
           const { error: updateError } = await supabase
             .from('events')
@@ -1115,7 +1164,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           rating: review.rating,
           artist_performance_rating: (review as any).artist_performance_rating,
           production_rating: (review as any).production_rating,
-          venue_rating: review.venue_rating,
+          venue_rating: (review as any).venue_rating_decimal || review.venue_rating, // Prefer venue_rating_decimal, fallback to INTEGER venue_rating
           location_rating: (review as any).location_rating,
           value_rating: (review as any).value_rating,
         });
@@ -1124,7 +1173,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         const ratingParts = [
           (review as any).artist_performance_rating,
           (review as any).production_rating,
-          review.venue_rating,
+          (review as any).venue_rating_decimal || review.venue_rating, // Prefer venue_rating_decimal, fallback to INTEGER venue_rating
           (review as any).location_rating,
           (review as any).value_rating,
         ].filter((value): value is number => typeof value === 'number' && value > 0);
@@ -1200,27 +1249,27 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     {
       label: 'Artist performance',
       rating: formData.artistPerformanceRating,
-      annotation: formData.artistPerformanceRecommendation || formData.artistPerformanceFeedback
+      annotation: formData.artistPerformanceFeedback
     },
     {
       label: 'Production quality',
       rating: formData.productionRating,
-      annotation: formData.productionRecommendation || formData.productionFeedback
+      annotation: formData.productionFeedback
     },
     {
       label: 'Venue experience',
       rating: formData.venueRating,
-      annotation: formData.venueRecommendation || formData.venueFeedback
+      annotation: formData.venueFeedback
     },
     {
       label: 'Location & logistics',
       rating: formData.locationRating,
-      annotation: formData.locationRecommendation || formData.locationFeedback
+      annotation: formData.locationFeedback
     },
     {
       label: 'Value for ticket',
       rating: formData.valueRating,
-      annotation: formData.valueRecommendation || formData.valueFeedback
+      annotation: formData.valueFeedback
     }
   ];
 
@@ -1341,6 +1390,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             formData={formData}
             errors={errors}
             onUpdateFormData={updateFormData}
+            previousVenueReview={previousVenueReview}
           />
         );
       case 5:
@@ -1350,6 +1400,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             formData={formData}
             errors={errors}
             onUpdateFormData={updateFormData}
+            previousVenueReview={previousVenueReview}
           />
         );
       case 6:
@@ -1500,29 +1551,23 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               {isSaving ? (
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
-                  <span>Saving…</span>
+                  <span>Auto-saving…</span>
                 </div>
               ) : lastSaveTime ? (
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full" />
-                  <span>Saved {lastSaveTime.toLocaleTimeString()}</span>
+                  <span>Auto-saved {lastSaveTime.toLocaleTimeString()}</span>
                 </div>
               ) : (
-                <span>Progress auto-saves at each step</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-gray-300 rounded-full" />
+                  <span>Auto-save active - your progress is saved automatically</span>
+                </div>
               )}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {!existingReview && (
-                <Button
-                  variant="outline"
-                  onClick={handleSaveDraft}
-                  disabled={isLoading}
-                  className="border-gray-300"
-                >
-                  Save as Draft
-                </Button>
-              )}
+              {/* Manual save button removed - auto-save handles everything automatically */}
               {currentStep < REVIEW_FORM_TOTAL_STEPS && (
                 <Button
                   onClick={nextStep}

@@ -51,8 +51,8 @@ export function PostSubmitRankingModal({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const { toast } = useToast();
 
-  // Round rating to nearest 0.5 for display
-  const displayRating = Math.round(rating * 2) / 2;
+  // Round rating to 1 decimal place (never round to 0.5, always show actual decimal)
+  const displayRating = Math.round(rating * 10) / 10;
 
   useEffect(() => {
     console.log('🎭 PostSubmitRankingModal useEffect triggered:', { isOpen, userId: userId?.slice(0, 8), rating, newReviewId: newReview?.id?.slice(0, 8) });
@@ -86,7 +86,7 @@ export function PostSubmitRankingModal({
           rank_order: (review as any).rank_order || null,
         }))
         .filter(review => {
-          const reviewRating = Math.round(review.effectiveRating * 2) / 2;
+          const reviewRating = Math.round(review.effectiveRating * 10) / 10; // Round to 1 decimal place
           const matches = reviewRating === displayRating;
           console.log(`  Review ${review.id.slice(0, 8)}: rating=${review.rating}, effective=${review.effectiveRating}, rounded=${reviewRating}, matches=${matches}`);
           return matches;
@@ -94,13 +94,18 @@ export function PostSubmitRankingModal({
 
       console.log(`✅ Found ${matchingReviews.length} reviews matching ${displayRating}★`);
 
-      // Sort by existing rank_order (if any), then by created_at
+      // Sort by average rating (to 1 decimal place), then rank_order, then created_at
+      // All reviews in this list have the same effective rating (rounded to 1 decimal)
+      // So we sort by: rank_order first, then created_at
       matchingReviews.sort((a, b) => {
+        // Primary sort: by rank_order (reviews with same decimal rating need rank_order)
         if (a.rank_order != null && b.rank_order != null) {
           return a.rank_order - b.rank_order;
         }
         if (a.rank_order != null) return -1;
         if (b.rank_order != null) return 1;
+        
+        // Secondary sort: by created_at (newest first if no rank_order)
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
 
@@ -119,19 +124,26 @@ export function PostSubmitRankingModal({
   };
 
   const calculateEffectiveRating = (review: UserReview): number => {
+    // Use database 5-category system: artist_performance_rating, production_rating, venue_rating_decimal, location_rating, value_rating
     const values = [
       review.artist_performance_rating,
       review.production_rating,
-      review.venue_rating,
+      (review as any).venue_rating_decimal || review.venue_rating, // Prefer venue_rating_decimal, fallback to INTEGER venue_rating
       review.location_rating,
       review.value_rating
     ].filter((value): value is number => typeof value === 'number' && value > 0);
 
+    // If we have the 5-category ratings, calculate average and round to 1 decimal
     if (values.length > 0) {
-      return values.reduce((sum, value) => sum + value, 0) / values.length;
+      const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+      return Math.round(avg * 10) / 10; // Round to 1 decimal place
     }
 
-    return review.rating;
+    // No fallback to legacy columns - use only 5-category system
+    // If no 5-category ratings available, return overall rating
+
+    // Final fallback to overall rating
+    return review.rating || 0;
   };
 
   // Debug logging
@@ -193,7 +205,7 @@ export function PostSubmitRankingModal({
       
       toast({
         title: 'Rankings Saved! 🎉',
-        description: `Your ${displayRating}★ reviews have been ranked.`,
+        description: `Your ${displayRating.toFixed(1)}★ reviews have been ranked.`,
       });
       onClose();
     } catch (error) {
@@ -248,10 +260,10 @@ export function PostSubmitRankingModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Star className="w-5 h-5 text-yellow-400 fill-current" />
-            Rank Your {displayRating}★ Reviews
+            Rank Your {displayRating.toFixed(1)}★ Reviews
           </DialogTitle>
           <DialogDescription>
-            You have {reviews.length} reviews rated {displayRating}★. Drag to reorder them
+            You have {reviews.length} reviews rated {displayRating.toFixed(1)}★. Drag to reorder them
             from your favorite (top) to least favorite (bottom). This helps us give you
             better recommendations!
           </DialogDescription>

@@ -24,12 +24,6 @@ export interface ReviewFormData {
   locationFeedback: string;
   valueFeedback: string;
 
-  artistPerformanceRecommendation: string;
-  productionRecommendation: string;
-  venueRecommendation: string;
-  locationRecommendation: string;
-  valueRecommendation: string;
-
   ticketPricePaid: string;
 
   rating: number; // Overall rating (calculated as average of the three)
@@ -75,11 +69,6 @@ const initialFormData: ReviewFormData = {
   venueFeedback: '',
   locationFeedback: '',
   valueFeedback: '',
-  artistPerformanceRecommendation: '',
-  productionRecommendation: '',
-  venueRecommendation: '',
-  locationRecommendation: '',
-  valueRecommendation: '',
   ticketPricePaid: '',
   rating: 0,
   reviewText: '',

@@ -6,7 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3, Clock, Award, Trophy, Flag, Ban, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3, Clock, Award, Trophy, Flag, Ban, MoreVertical, Trash2 } from 'lucide-react';
 import { FollowersModal } from './FollowersModal';
 import { PostsGrid } from './PostsGrid';
 import { supabase } from '@/integrations/supabase/client';
@@ -97,11 +97,6 @@ interface ConcertReview {
   venue_feedback?: string;
   location_feedback?: string;
   value_feedback?: string;
-  artist_performance_recommendation?: string;
-  production_recommendation?: string;
-  venue_recommendation?: string;
-  location_recommendation?: string;
-  value_recommendation?: string;
   ticket_price_paid?: number;
   photos?: string[];
   videos?: string[];
@@ -583,7 +578,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           rank_order: (item.review as any).rank_order,
           artist_performance_rating: (item.review as any).artist_performance_rating,
           production_rating: (item.review as any).production_rating,
-          venue_rating: (item.review as any).venue_rating,
+          venue_rating: (item.review as any).venue_rating_decimal,
           location_rating: (item.review as any).location_rating,
           value_rating: (item.review as any).value_rating,
           review_text: item.review.review_text,
@@ -593,11 +588,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           venue_feedback: (item.review as any).venue_feedback,
           location_feedback: (item.review as any).location_feedback,
           value_feedback: (item.review as any).value_feedback,
-          artist_performance_recommendation: (item.review as any).artist_performance_recommendation,
-          production_recommendation: (item.review as any).production_recommendation,
-          venue_recommendation: (item.review as any).venue_recommendation,
-          location_recommendation: (item.review as any).location_recommendation,
-          value_recommendation: (item.review as any).value_recommendation,
           photos: item.review.photos || [],
           videos: item.review.videos || [],
           setlist: item.review.setlist,
@@ -702,32 +692,33 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   };
 
   const calculateCategoryAverage = (review: any) => {
-    const values = [
-      review.artist_performance_rating,
-      review.production_rating,
-      review.venue_rating,
-      review.location_rating,
-      review.value_rating
-    ].filter((value: any): value is number => typeof value === 'number' && value > 0);
-
-    if (values.length > 0) {
-      return values.reduce((sum: number, value: number) => sum + value, 0) / values.length;
-    }
-
+    // Use review.rating directly - it's always calculated as the average of 5 category ratings by the database trigger
+    // The database stores it as NUMERIC(3,1) which is already rounded to 1 decimal place
     if (typeof review.rating === 'number') {
       return review.rating;
     }
+    
+    // Handle string ratings from database (sometimes Supabase returns NUMERIC as string)
+    if (typeof review.rating === 'string') {
+      const parsed = parseFloat(review.rating);
+      return isNaN(parsed) ? 0 : parsed;
+    }
 
+    // Legacy fallback for old string ratings
     if (review.rating === 'good') return 5;
     if (review.rating === 'okay') return 3;
     if (review.rating === 'bad') return 1;
     return 0;
   };
 
-  // Compute display rating (0.5 increments) preferring category ratings when present
+  // Compute display rating - use review.rating directly from database (already rounded to 1 decimal)
+  // This ensures consistency - the database trigger calculates it as the average of 5 category ratings
+  // Round to 1 decimal for consistent display and comparison
   const getDisplayRating = (r: any) => {
-    const avg = calculateCategoryAverage(r);
-    return Math.round(avg * 2) / 2;
+    const rating = calculateCategoryAverage(r);
+    // Round to 1 decimal place for consistent grouping and display
+    // This matches the database NUMERIC(3,1) format
+    return parseFloat(rating.toFixed(1));
   };
 
   const fetchFriends = async () => {
@@ -1155,11 +1146,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         venue_feedback: review.venue_feedback,
         location_feedback: review.location_feedback,
         value_feedback: review.value_feedback,
-        artist_performance_recommendation: review.artist_performance_recommendation,
-        production_recommendation: review.production_recommendation,
-        venue_recommendation: review.venue_recommendation,
-        location_recommendation: review.location_recommendation,
-        value_recommendation: review.value_recommendation,
         ticket_price_paid: review.ticket_price_paid,
         reaction_emoji: review.reaction_emoji,
         is_public: review.is_public,
@@ -1667,12 +1653,33 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
             {rankingMode === true && isViewingOwnProfile && (
               <div className="space-y-6">
-                {[5,4.5,4,3.5,3,2.5,2,1.5,1].map(ratingGroup => {
-                  const group = reviews.filter(r => (r as any).review_text !== 'ATTENDANCE_ONLY' && getDisplayRating(r) === ratingGroup); // Exclude attendance-only records
-                  if (group.length === 0) return null as any;
-                  return (
-                    <div key={ratingGroup}>
-                      <div className="text-xs font-semibold text-muted-foreground mb-2">{ratingGroup}★</div>
+                {(() => {
+                  // Get all unique ratings from reviews
+                  // Use review.rating directly (already calculated as average of 5 categories by database trigger)
+                  // Round to 1 decimal for consistent grouping
+                  const uniqueRatings = Array.from(new Set(
+                    reviews
+                      .filter(r => (r as any).review_text !== 'ATTENDANCE_ONLY')
+                      .map(r => {
+                        const rating = getDisplayRating(r);
+                        // Round to 1 decimal for consistent grouping (database stores as NUMERIC(3,1))
+                        return Math.round(rating * 10) / 10;
+                      })
+                  )).sort((a, b) => b - a); // Sort descending
+                  
+                  return uniqueRatings.map(ratingGroup => {
+                    // Group reviews by rating (rounded to 1 decimal for comparison)
+                    const group = reviews.filter(r => {
+                      if ((r as any).review_text === 'ATTENDANCE_ONLY') return false;
+                      const displayRating = getDisplayRating(r);
+                      const roundedRating = Math.round(displayRating * 10) / 10;
+                      // Compare rounded ratings for consistent grouping
+                      return Math.abs(roundedRating - ratingGroup) < 0.01;
+                    });
+                    if (group.length === 0) return null as any;
+                    return (
+                      <div key={ratingGroup}>
+                        <div className="text-xs font-semibold text-muted-foreground mb-2">{ratingGroup.toFixed(1)}★</div>
                       <ul className="glass-card inner-glow divide-y rounded-lg border p-2 floating-shadow">
                         {group
                           .sort((a, b) => {
@@ -1736,8 +1743,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                         ))}
                       </ul>
                     </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
             )}
             
@@ -1978,6 +1986,43 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                       >
                                         <Edit className="w-4 h-4 mr-2" />
                                         Continue Draft
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          if (confirm('Are you sure you want to delete this draft? This action cannot be undone.')) {
+                                            try {
+                                              const success = await DraftReviewService.deleteDraft(draft.id, currentUserId);
+                                              if (success) {
+                                                // Reload drafts to refresh the list
+                                                const updatedDrafts = await DraftReviewService.getUserDrafts(currentUserId);
+                                                setDraftReviews(updatedDrafts || []);
+                                                toast({
+                                                  title: "Draft Deleted",
+                                                  description: "The draft has been deleted successfully.",
+                                                });
+                                              } else {
+                                                toast({
+                                                  title: "Error",
+                                                  description: "Failed to delete draft. Please try again.",
+                                                  variant: "destructive",
+                                                });
+                                              }
+                                            } catch (error) {
+                                              console.error('Error deleting draft:', error);
+                                              toast({
+                                                title: "Error",
+                                                description: "Failed to delete draft. Please try again.",
+                                                variant: "destructive",
+                                              });
+                                            }
+                                          }
+                                        }}
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
                                       </Button>
                                     </div>
                                   </div>
@@ -2287,11 +2332,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   venue_feedback: (selectedReview as any).venue_feedback,
                   location_feedback: (selectedReview as any).location_feedback,
                   value_feedback: (selectedReview as any).value_feedback,
-                  artist_performance_recommendation: (selectedReview as any).artist_performance_recommendation,
-                  production_recommendation: (selectedReview as any).production_recommendation,
-                  venue_recommendation: (selectedReview as any).venue_recommendation,
-                  location_recommendation: (selectedReview as any).location_recommendation,
-                  value_recommendation: (selectedReview as any).value_recommendation,
                   ticket_price_paid: (selectedReview as any).ticket_price_paid,
                   setlist: (selectedReview as any).setlist || selectedReview.jambase_events?.setlist,
                   custom_setlist: (selectedReview as any).custom_setlist

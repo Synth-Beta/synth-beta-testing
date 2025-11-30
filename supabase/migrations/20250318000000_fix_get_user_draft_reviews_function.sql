@@ -43,12 +43,29 @@ BEGIN
     r.event_id,
     r.draft_data,
     r.last_saved_at,
-    e.title as event_title,
-    e.artist_name,
-    e.venue_name,
-    e.event_date
+    COALESCE(
+      r.draft_data->>'eventTitle',
+      e.title
+    ) as event_title,
+    COALESCE(
+      r.draft_data->'selectedArtist'->>'name',
+      e.artist_name
+    ) as artist_name,
+    COALESCE(
+      r.draft_data->'selectedVenue'->>'name',
+      e.venue_name
+    ) as venue_name,
+    -- Prefer eventDate from draft_data, fallback to event's event_date
+    COALESCE(
+      CASE 
+        WHEN r.draft_data->>'eventDate' IS NOT NULL 
+        THEN (r.draft_data->>'eventDate' || 'T20:00:00Z')::TIMESTAMP WITH TIME ZONE
+        ELSE NULL
+      END,
+      e.event_date
+    ) as event_date
   FROM public.reviews r
-  JOIN public.events e ON r.event_id = e.id
+  LEFT JOIN public.events e ON r.event_id = e.id
   WHERE r.user_id = p_user_id 
     AND r.is_draft = true
   ORDER BY r.last_saved_at DESC;

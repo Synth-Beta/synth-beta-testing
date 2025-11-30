@@ -2,9 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Star } from 'lucide-react';
+import { Star, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
+import type { UserReview } from '@/services/reviewService';
 
 type RatingKey =
   | 'artistPerformanceRating'
@@ -20,19 +21,11 @@ type FeedbackKey =
   | 'locationFeedback'
   | 'valueFeedback';
 
-type RecommendationKey =
-  | 'artistPerformanceRecommendation'
-  | 'productionRecommendation'
-  | 'venueRecommendation'
-  | 'locationRecommendation'
-  | 'valueRecommendation';
-
 export interface CategoryConfig {
   title: string;
   subtitle: string;
   ratingKey: RatingKey;
   feedbackKey: FeedbackKey;
-  recommendationKey: RecommendationKey;
   helperText?: string;
   suggestions: Array<{
     id: string;
@@ -48,16 +41,53 @@ interface CategoryStepProps {
   errors: Record<string, string>;
   onUpdateFormData: (updates: Partial<ReviewFormData>) => void;
   children?: React.ReactNode;
+  previousVenueReview?: UserReview | null; // Previous review at same venue (for venue/location steps)
 }
 
-export function CategoryStep({ config, formData, errors, onUpdateFormData, children }: CategoryStepProps) {
+export function CategoryStep({ config, formData, errors, onUpdateFormData, children, previousVenueReview }: CategoryStepProps) {
   const [hoverValue, setHoverValue] = useState<number | null>(null);
 
   const currentRating = formData[config.ratingKey] as number;
   const currentFeedback = formData[config.feedbackKey] as string;
-  const currentRecommendation = formData[config.recommendationKey] as string;
 
   const displayRating = hoverValue ?? currentRating ?? 0;
+
+  // Check if this is a venue or location step that can copy from previous review
+  const canCopyFromPrevious = previousVenueReview && (config.ratingKey === 'venueRating' || config.ratingKey === 'locationRating');
+  
+  const handleCopyFromPrevious = () => {
+    if (!previousVenueReview || !canCopyFromPrevious) return;
+
+    const updates: Partial<ReviewFormData> = {};
+
+    if (config.ratingKey === 'venueRating') {
+      // Copy venue rating and feedback (use only 5-category column)
+      const venueRating = (previousVenueReview as any).venue_rating_decimal;
+      if (venueRating) {
+        const ratingValue = typeof venueRating === 'number' ? venueRating : parseFloat(String(venueRating));
+        if (!isNaN(ratingValue) && ratingValue > 0) {
+          updates.venueRating = ratingValue;
+        }
+      }
+      if ((previousVenueReview as any).venue_feedback) {
+        updates.venueFeedback = (previousVenueReview as any).venue_feedback;
+      }
+    } else if (config.ratingKey === 'locationRating') {
+      // Copy location rating and feedback (use only 5-category column)
+      const locationRating = (previousVenueReview as any).location_rating;
+      if (locationRating) {
+        const ratingValue = typeof locationRating === 'number' ? locationRating : parseFloat(String(locationRating));
+        if (!isNaN(ratingValue) && ratingValue > 0) {
+          updates.locationRating = ratingValue;
+        }
+      }
+      if ((previousVenueReview as any).location_feedback) {
+        updates.locationFeedback = (previousVenueReview as any).location_feedback;
+      }
+    }
+
+    onUpdateFormData(updates);
+  };
 
   const ratingLabel = useMemo(() => {
     if (!displayRating) return 'Not rated yet';
@@ -69,19 +99,22 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
   };
 
   const applyRecommendation = (suggestion: CategoryConfig['suggestions'][number]) => {
-    const updates: Partial<ReviewFormData> = {
-      [config.recommendationKey]: suggestion.label,
-    } as Partial<ReviewFormData>;
+    const updates: Partial<ReviewFormData> = {};
 
     if (!currentFeedback || currentFeedback.trim().length === 0) {
       (updates as Record<string, unknown>)[config.feedbackKey] = suggestion.description || suggestion.label;
+    } else {
+      // If feedback exists, append the suggestion description
+      const existingFeedback = currentFeedback.trim();
+      const suggestionText = suggestion.description || suggestion.label;
+      (updates as Record<string, unknown>)[config.feedbackKey] = existingFeedback + (existingFeedback ? ' ' : '') + suggestionText;
     }
 
     onUpdateFormData(updates);
   };
 
   const isSelected = (suggestion: CategoryConfig['suggestions'][number]) =>
-    currentRecommendation === suggestion.label;
+    currentFeedback && (currentFeedback.includes(suggestion.label) || currentFeedback.includes(suggestion.description || ''));
 
   return (
     <div className="space-y-8">
@@ -146,6 +179,29 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
           )}
         </div>
       </section>
+
+      {canCopyFromPrevious && (
+        <section className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-900">Copy from previous review at this venue?</p>
+              <p className="text-xs text-blue-700 mt-1">
+                You've reviewed this venue before. Copy your venue and location ratings and feedback.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCopyFromPrevious}
+              className="ml-4 border-blue-300 text-blue-700 hover:bg-blue-100"
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copy
+            </Button>
+          </div>
+        </section>
+      )}
 
       <section className="space-y-4">
         <Label htmlFor={`${config.ratingKey}-feedback`} className="text-sm font-semibold text-gray-900 flex items-center gap-2">

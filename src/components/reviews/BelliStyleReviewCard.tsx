@@ -330,7 +330,8 @@ const overallRating =
           }
 
           if (requestData) {
-            if (requestData.sender_id === currentUserId) {
+            // user_id is the sender, related_user_id is the receiver
+            if (requestData.user_id === currentUserId) {
               setFriendStatus('pending_sent');
             } else {
               setFriendStatus('pending_received');
@@ -656,7 +657,6 @@ const overallRating =
                 rating: (review as any).artist_performance_rating,
                 fallback: review.rating,
                 feedback: (review as any).artist_performance_feedback,
-                recommendation: (review as any).artist_performance_recommendation,
                 icon: Music2,
                 border: 'border-[#FF3399]',
                 gradient: 'from-[#FF3399]/5 to-[#FF3399]/10',
@@ -667,7 +667,6 @@ const overallRating =
                 rating: (review as any).production_rating,
                 fallback: review.rating,
                 feedback: (review as any).production_feedback,
-                recommendation: (review as any).production_recommendation,
                 icon: Lightbulb,
                 border: 'border-purple-500',
                 gradient: 'from-purple-50 to-purple-50/30',
@@ -711,7 +710,7 @@ const overallRating =
                 ? category.rating
                 : (typeof category.fallback === 'number' ? category.fallback : undefined);
 
-              if (!resolvedRating && !category.feedback && !category.recommendation) {
+              if (!resolvedRating && !category.feedback) {
                 return null;
               }
 
@@ -742,11 +741,6 @@ const overallRating =
                       </div>
                     )}
                   </div>
-                  {category.recommendation && (
-                    <Badge className="mb-2 bg-white/80 text-gray-800 border border-gray-200">
-                      {category.recommendation}
-                    </Badge>
-                  )}
                   {category.feedback && (
                     <p className="text-sm text-gray-700 italic leading-relaxed">
                       "{category.feedback}"

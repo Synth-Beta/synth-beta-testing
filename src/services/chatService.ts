@@ -38,4 +38,3 @@ export async function fetchUserChats(
     return { data: null, error };
   }
 }
-

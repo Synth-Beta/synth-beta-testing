@@ -3,12 +3,12 @@ import { DraftReviewService, DraftReviewData } from '@/services/draftReviewServi
 
 interface UseAutoSaveOptions {
   userId: string;
-  eventId: string;
+  eventId: string | null | undefined;
   formData: DraftReviewData;
   enabled?: boolean;
   debounceMs?: number;
   onSave?: (success: boolean) => void;
-  requireEventSelection?: boolean;
+  onEventIdChange?: (eventId: string) => void;
 }
 
 export function useAutoSave({
@@ -18,34 +18,80 @@ export function useAutoSave({
   enabled = true,
   debounceMs = 2000,
   onSave,
-  requireEventSelection = true
+  onEventIdChange
 }: UseAutoSaveOptions) {
   const timeoutRef = useRef<NodeJS.Timeout>();
   const lastSavedDataRef = useRef<string>('');
+  const isSavingRef = useRef<boolean>(false);
 
-  const saveDraft = useCallback(async (data: DraftReviewData) => {
+  // Helper to validate UUID
+  const isValidUUID = useCallback((value: string | null | undefined): boolean => {
+    if (!value) return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(value);
+  }, []);
+
+  const saveDraft = useCallback(async (data: DraftReviewData, targetEventId?: string) => {
     if (!enabled || !userId) {
       console.log('🚫 Auto-save skipped:', { enabled, userId: !!userId });
       return;
     }
 
-    try {
-      // Save to localStorage instead of database to prevent creating review records
-      const storageKey = `review_draft_${userId}_${eventId || 'new'}`;
-      localStorage.setItem(storageKey, JSON.stringify({
-        data,
-        timestamp: Date.now(),
-        eventId: eventId || null
-      }));
-      
-      console.log('💾 Auto-saved to localStorage:', storageKey);
-      onSave?.(true);
-      lastSavedDataRef.current = JSON.stringify(data);
-    } catch (error) {
-      console.error('Auto-save to localStorage failed:', error);
-      onSave?.(false);
+    const effectiveEventId = targetEventId || eventId;
+    
+    // If no event ID yet, we can't save to database - save to localStorage as fallback
+    if (!effectiveEventId || !isValidUUID(effectiveEventId)) {
+      console.log('💾 Auto-save: No valid event ID yet, saving to localStorage as fallback');
+      try {
+        const storageKey = `review_draft_${userId}_new`;
+        localStorage.setItem(storageKey, JSON.stringify({
+          data,
+          timestamp: Date.now(),
+          eventId: null
+        }));
+        onSave?.(true);
+        lastSavedDataRef.current = JSON.stringify(data);
+      } catch (error) {
+        console.error('Auto-save to localStorage failed:', error);
+        onSave?.(false);
+      }
+      return;
     }
-  }, [userId, eventId, enabled, onSave]);
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(effectiveEventId)) {
+      console.log('🚫 Auto-save skipped: Invalid event ID format:', effectiveEventId);
+      return;
+    }
+
+    // Prevent concurrent saves
+    if (isSavingRef.current) {
+      console.log('⏳ Auto-save: Already saving, skipping...');
+      return;
+    }
+
+    try {
+      isSavingRef.current = true;
+      console.log('💾 Auto-saving draft to database:', { userId, eventId: effectiveEventId });
+      
+      const draftId = await DraftReviewService.saveDraft(userId, effectiveEventId, data);
+      
+      if (draftId) {
+        console.log('✅ Auto-saved draft successfully:', draftId);
+        onSave?.(true);
+        lastSavedDataRef.current = JSON.stringify(data);
+      } else {
+        console.warn('⚠️ Auto-save returned null (may be expected)');
+        onSave?.(false);
+      }
+    } catch (error) {
+      console.error('❌ Auto-save to database failed:', error);
+      onSave?.(false);
+    } finally {
+      isSavingRef.current = false;
+    }
+  }, [userId, eventId, enabled, onSave, isValidUUID]);
 
   const debouncedSave = useCallback((data: DraftReviewData) => {
     if (timeoutRef.current) {
@@ -59,7 +105,7 @@ export function useAutoSave({
 
   // Auto-save when form data changes
   useEffect(() => {
-    if (!enabled || !userId || !eventId) return;
+    if (!enabled || !userId) return;
 
     const currentDataString = JSON.stringify(formData);
     
@@ -76,7 +122,32 @@ export function useAutoSave({
         debouncedSave(formData);
       }
     }
-  }, [formData, debouncedSave, enabled, userId, eventId]);
+  }, [formData, debouncedSave, enabled, userId]);
+
+  // Auto-save when eventId becomes available (if it was null before)
+  useEffect(() => {
+    if (!enabled || !userId || !eventId) return;
+    
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(eventId)) return;
+
+    // If we have form data and a valid event ID, save immediately
+    const hasData = Object.values(formData).some(value => {
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'object' && value !== null) return Object.keys(value).length > 0;
+      return value !== undefined && value !== null && value !== '';
+    });
+
+    if (hasData) {
+      console.log('💾 Event ID available, saving draft immediately');
+      // Clear any pending debounced save and save immediately
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      saveDraft(formData, eventId);
+      onEventIdChange?.(eventId);
+    }
+  }, [eventId, enabled, userId, formData, saveDraft, onEventIdChange]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -87,13 +158,13 @@ export function useAutoSave({
     };
   }, []);
 
-  // Manual save function
+  // Manual save function (for immediate save if needed)
   const manualSave = useCallback(async () => {
     console.log('💾 Manual save triggered:', { userId, eventId, hasFormData: !!formData });
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-    await saveDraft(formData);
+    await saveDraft(formData, eventId || undefined);
   }, [saveDraft, formData, userId, eventId]);
 
   // Load draft from localStorage
