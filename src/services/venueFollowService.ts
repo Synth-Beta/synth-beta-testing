@@ -476,7 +476,8 @@ export class VenueFollowService {
               venue_name: payload.new.related_entity_id, // May be venue name or UUID
               venue_city: null,
               venue_state: null,
-              created_at: payload.new.created_at
+              created_at: payload.new.created_at,
+              updated_at: payload.new.updated_at || payload.new.created_at
             };
             onFollowChange(follow, 'INSERT');
           }
@@ -500,7 +501,8 @@ export class VenueFollowService {
               venue_name: payload.old.related_entity_id, // May be venue name or UUID
               venue_city: null,
               venue_state: null,
-              created_at: payload.old.created_at
+              created_at: payload.old.created_at,
+              updated_at: payload.old.updated_at || payload.old.created_at
             };
             onFollowChange(follow, 'DELETE');
           }
