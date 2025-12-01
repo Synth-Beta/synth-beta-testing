@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3, Clock, Award, Trophy, Flag, Ban, MoreVertical, Trash2 } from 'lucide-react';
 import { FollowersModal } from './FollowersModal';
-import { PostsGrid } from './PostsGrid';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -44,6 +43,8 @@ import { VerificationBadge } from '@/components/verification/VerificationBadge';
 import type { AccountType } from '@/utils/verificationUtils';
 import { PageActions } from '@/components/PageActions';
 import { FriendsService } from '@/services/friendsService';
+import { ProfileDraftsSummary } from './ProfileDraftsSummary';
+import { ProfileStarBuckets } from './ProfileStarBuckets';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -1756,6 +1757,16 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           </div>
         </div>
 
+        {/* Drafts summary card – visible only on own profile when drafts exist */}
+        {isViewingOwnProfile && !draftReviewsLoading && Array.isArray(draftReviews) && draftReviews.length > 0 && (
+          <div className="mb-6">
+            <ProfileDraftsSummary
+              draftCount={draftReviews.length}
+              onClick={() => setRankingMode('unreviewed')}
+            />
+          </div>
+        )}
+
         {/* Instagram-style Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className={`glass-card inner-glow grid w-full mb-6 p-1 floating-shadow ${canViewInterested ? 'grid-cols-3' : 'grid-cols-2'}`}>
@@ -1822,74 +1833,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             </div>
 
             {rankingMode === false && (
-            <PostsGrid 
-              posts={(() => {
-                console.log('🔍 ProfileView: Rendering PostsGrid with reviews:', reviews.length);
-                console.log('🔍 ProfileView: Reviews array:', reviews);
-                
-                // Transform reviews into posts (exclude attendance-only records that don't have was_there=true)
-                const filteredReviews = reviews.filter(review => {
-                  // Show all reviews except ATTENDANCE_ONLY reviews that don't have was_there=true
-                  if ((review as any).review_text === 'ATTENDANCE_ONLY' && !(review as any).was_there) {
-                    return false;
-                  }
-                  return true;
-                });
-                
-                console.log('🔍 ProfileView: Filtered reviews for PostsGrid:', filteredReviews.length);
-                
-                const posts = filteredReviews.map((review) => {
-                  // Try multiple sources for event name - check full event object first
-                  const fullEvent = (review.event as any)?._fullEvent || review.jambase_events;
-                  const eventName = fullEvent?.title 
-                    || (fullEvent?.artist_name && fullEvent?.venue_name 
-                      ? `${fullEvent.artist_name} at ${fullEvent.venue_name}`
-                      : review.event?.event_name || 'Concert Review');
-                  const eventDate = fullEvent?.event_date || review.event?.event_date || review.jambase_events?.event_date || review.created_at;
-                  
-                  return {
-                    id: `review-${review.id}`,
-                    type: 'review' as const,
-                    image: Array.isArray((review as any)?.photos) && (review as any).photos.length > 0 ? (review as any).photos[0] : undefined,
-                    images: Array.isArray((review as any)?.photos) ? (review as any).photos : [],
-                    title: eventName,
-                    subtitle: `Posted by: ${profile?.name || 'User'}`,
-                    rating: (() => {
-                      const avg = review.category_average ?? calculateCategoryAverage(review);
-                      return Math.round(avg * 2) / 2;
-                    })(),
-                    date: eventDate,
-                    likes: (review as any).likes_count || 0,
-                    comments: (review as any).comments_count || 0
-                  };
-                });
-                
-                console.log('🔍 ProfileView: Posts for PostsGrid:', posts.length, posts);
-                
-                return posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-              })()}
-              onPostClick={(post) => {
-                if (post.type === 'review') {
-                  const reviewId = post.id.replace('review-', '');
-                  const review = reviews.find(r => r.id === reviewId);
-                  if (review) {
-                    // Open view modal first (same cool card as feed)
-                    console.log('ProfileView: Setting selectedReview from reviews array:', {
-                      review,
-                      'review.jambase_events': review.jambase_events,
-                      'review.jambase_events?.title': review.jambase_events?.title,
-                      'review.jambase_events?.artist_name': review.jambase_events?.artist_name,
-                      'review.jambase_events?.venue_name': review.jambase_events?.venue_name,
-                      'review.setlist': (review as any).setlist,
-                      'hasSetlist': !!(review as any).setlist
-                    });
-                    setSelectedReview(review as any);
-                    try { console.log('🔎 Opening review modal for', review.id); } catch {}
-                    setViewReviewOpen(true);
-                  }
-                }
+            <ProfileStarBuckets
+              reviews={reviews}
+              onSelectReview={(review) => {
+                setSelectedReview(review as any);
+                setViewReviewOpen(true);
               }}
-              />
+            />
             )}
 
             {rankingMode === true && isViewingOwnProfile && (

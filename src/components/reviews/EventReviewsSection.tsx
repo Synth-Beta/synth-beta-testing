@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { EventReviewModal } from './EventReviewModal';
-// import { EventReviewForm } from './EventReviewForm'; // Removed because module not found
 import { ReviewList } from './ReviewList';
 import { PublicReviewList } from './PublicReviewList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,6 +16,7 @@ import { SimpleArtistVenueService } from '@/services/simpleArtistVenueService';
 import { UnifiedEventSearchService } from '@/services/unifiedEventSearchService';
 import { JamBaseEventsService } from '@/services/jambaseEventsService';
 import { Loader2 } from 'lucide-react';
+import { ReviewMobileShell } from './ReviewMobileShell';
 
 interface EventReviewsSectionProps {
   event: JamBaseEvent;
@@ -311,26 +311,30 @@ export function EventReviewsSection({
         </TabsContent>
       </Tabs>
 
-      {/* Inline Single-Page Review Form (replaces modal for simpler UX) */}
+      {/* Inline Single-Page Review Form (wrapped in mobile shell, logic unchanged) */}
       {userId && isReviewModalOpen && (
         <div className="mt-4">
+          <ReviewMobileShell>
           <EventReviewForm
             event={event}
             userId={userId}
             onSubmitted={handleReviewSubmitted as any}
             onDeleted={handleReviewDeleted}
           />
+          </ReviewMobileShell>
         </div>
       )}
 
       {userId && editingReviewId && editingEvent && (
         <div className="mt-4">
+          <ReviewMobileShell>
           <EventReviewForm
             event={editingEvent as any}
             userId={userId}
             onSubmitted={handleReviewSubmitted as any}
             onDeleted={handleReviewDeleted}
           />
+          </ReviewMobileShell>
         </div>
       )}
 

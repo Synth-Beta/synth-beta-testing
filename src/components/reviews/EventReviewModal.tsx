@@ -1,10 +1,9 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import type { UserReview, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewForm } from './EventReviewForm.tsx';
+import { ReviewMobileShell } from './ReviewMobileShell';
 
 interface EventReviewModalProps {
   event: JamBaseEvent | PublicReviewWithProfile | null;
@@ -24,41 +23,37 @@ export function EventReviewModal({
   if (!event) return null;
 
   const handleClose = () => {
-      onClose();
+    onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col bg-white rounded-xl shadow-xl border" hideCloseButton>
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-4">
-          <div className="max-w-2xl mx-auto">
-            <EventReviewForm
-              event={event as any}
-              userId={userId}
-              onSubmitted={async (review: UserReview) => {
-                if (onReviewSubmitted) {
-                  // Await the callback if it returns a Promise (async function)
-                  const result = onReviewSubmitted(review);
-                  if (result instanceof Promise) {
-                    await result;
-                  }
+      <DialogContent className="max-w-4xl w-[98vw] h-[90dvh] max-h-[90dvh] p-0 overflow-hidden flex flex-col bg-transparent border-none shadow-none" hideCloseButton>
+        <ReviewMobileShell>
+          <EventReviewForm
+            event={event as any}
+            userId={userId}
+            onSubmitted={async (review: UserReview) => {
+              if (onReviewSubmitted) {
+                const result = onReviewSubmitted(review);
+                if (result instanceof Promise) {
+                  await result;
                 }
-                onClose();
-              }}
-              onDeleted={async () => {
-                // Refresh parent data
-                if (onReviewSubmitted) {
-                  const result = onReviewSubmitted(null as any);
-                  if (result instanceof Promise) {
-                    await result;
-                  }
+              }
+              onClose();
+            }}
+            onDeleted={async () => {
+              if (onReviewSubmitted) {
+                const result = onReviewSubmitted(null as any);
+                if (result instanceof Promise) {
+                  await result;
                 }
-                onClose();
-              }}
-              onClose={onClose}
-            />
-          </div>
-        </div>
+              }
+              onClose();
+            }}
+            onClose={onClose}
+          />
+        </ReviewMobileShell>
       </DialogContent>
     </Dialog>
   );
