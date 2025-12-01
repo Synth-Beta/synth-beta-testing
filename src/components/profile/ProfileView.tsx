@@ -592,6 +592,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           videos: item.review.videos || [],
           setlist: item.review.setlist,
           is_public: item.review.is_public,
+          is_draft: item.review.is_draft || false, // Include is_draft flag
           was_there: item.review.was_there,
           created_at: item.review.created_at,
           ticket_price_paid: item.review.ticket_price_paid,
@@ -901,13 +902,224 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
-      // Fetch draft reviews using the DraftReviewService
+      // DIRECT DATABASE QUERY: Get all drafts directly from database
+      // This bypasses any RPC function caching or issues
+      const { data: allDraftsDirect, error: directError } = await supabase
+        .from('reviews')
+        .select('id, event_id, is_draft, draft_data, last_saved_at')
+        .eq('user_id', targetUserId)
+        .eq('is_draft', true);
+      
+      if (directError) {
+        console.error('❌ ProfileView: Error fetching drafts directly:', directError);
+      }
+      
+      console.log('🔍 ProfileView: All drafts from database (direct query):', allDraftsDirect?.length || 0);
+      
+      // Fetch draft reviews using the DraftReviewService (uses RPC function)
       const drafts = await DraftReviewService.getUserDrafts(targetUserId);
       
-      console.log('🔍 ProfileView: Draft reviews data:', drafts);
-      console.log('🔍 ProfileView: Total draft reviews fetched:', drafts?.length);
+      console.log('🔍 ProfileView: Drafts from RPC function:', drafts?.length || 0);
       
-      setDraftReviews(drafts || []);
+      // CRITICAL: Filter out drafts that have published reviews
+      // Get all published reviews with event data to match by artist/venue/date too
+      const { data: publishedReviews } = await supabase
+        .from('reviews')
+        .select(`
+          event_id,
+          event:events!inner(
+            id,
+            artist_name,
+            venue_name,
+            event_date
+          )
+        `)
+        .eq('user_id', targetUserId)
+        .eq('is_draft', false)
+        .not('review_text', 'is', null)
+        .neq('review_text', 'ATTENDANCE_ONLY');
+      
+      const publishedEventIds = new Set(
+        (publishedReviews || [])
+          .map((r: any) => r.event_id)
+          .filter(Boolean)
+      );
+      
+      // Build a map of published reviews by artist/venue/date for matching
+      const publishedByConcert = new Map<string, any>();
+      (publishedReviews || []).forEach((review: any) => {
+        if (review.event) {
+          const key = `${review.event.artist_name}|${review.event.venue_name}|${review.event.event_date}`;
+          publishedByConcert.set(key, review);
+        }
+      });
+      
+      console.log('🔍 ProfileView: Published review event IDs:', Array.from(publishedEventIds));
+      console.log('🔍 ProfileView: Published reviews by concert:', publishedByConcert.size);
+      
+      // Helper function to normalize dates for comparison
+      const normalizeDate = (dateStr: string) => {
+        if (!dateStr) return null;
+        try {
+          const d = new Date(dateStr);
+          return d.toISOString().split('T')[0]; // Just the date part
+        } catch {
+          return dateStr;
+        }
+      };
+      
+      // Step 1: Identify drafts that should be deleted (don't filter yet)
+      const draftsToDelete: string[] = [];
+      const draftsToKeep: typeof drafts = [];
+      
+      for (const draft of (drafts || [])) {
+        if (!draft.event_id) {
+          console.log('⚠️ ProfileView: Draft has no event_id:', draft.id);
+          continue; // Skip drafts without event_id
+        }
+        
+        let shouldDelete = false;
+        let deleteReason = '';
+        
+        // Check by event_id first
+        const hasPublishedReview = publishedEventIds.has(draft.event_id);
+        if (hasPublishedReview) {
+          shouldDelete = true;
+          deleteReason = `published review exists for event ${draft.event_id}`;
+        } else {
+          // Also check by artist/venue/date (handles case where event_id changed)
+          const draftArtist = draft.artist_name || (draft.draft_data as any)?.selectedArtist?.name;
+          const draftVenue = draft.venue_name || (draft.draft_data as any)?.selectedVenue?.name;
+          const draftDate = draft.event_date || (draft.draft_data as any)?.eventDate;
+          
+          if (draftArtist && draftVenue && draftDate) {
+            const normalizedDraftDate = normalizeDate(draftDate);
+            
+            // Check if any published review matches this concert
+            for (const [key] of publishedByConcert.entries()) {
+              const [pubArtist, pubVenue, pubDate] = key.split('|');
+              const normalizedPubDate = normalizeDate(pubDate);
+              
+              if (pubArtist === draftArtist && 
+                  pubVenue === draftVenue && 
+                  normalizedPubDate === normalizedDraftDate) {
+                shouldDelete = true;
+                deleteReason = `published review exists for same concert (${draftArtist} at ${draftVenue})`;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (shouldDelete) {
+          draftsToDelete.push(draft.id);
+          console.log(`🚫 ProfileView: Marked draft ${draft.id} for deletion - ${deleteReason}`);
+        } else {
+          draftsToKeep.push(draft);
+        }
+      }
+      
+      // Step 2: Delete all identified drafts and await completion
+      if (draftsToDelete.length > 0) {
+        console.log(`🗑️ ProfileView: Deleting ${draftsToDelete.length} orphaned draft(s)...`);
+        const deletePromises = draftsToDelete.map(async (draftId) => {
+          try {
+            const { error } = await supabase
+              .from('reviews')
+              .delete()
+              .eq('id', draftId);
+            if (error) {
+              console.error(`❌ ProfileView: Failed to delete orphaned draft ${draftId}:`, error);
+              return { success: false, draftId, error };
+            } else {
+              console.log(`✅ ProfileView: Successfully deleted orphaned draft ${draftId}`);
+              return { success: true, draftId };
+            }
+          } catch (err) {
+            console.error(`❌ ProfileView: Exception deleting orphaned draft ${draftId}:`, err);
+            return { success: false, draftId, error: err };
+          }
+        });
+        
+        const deleteResults = await Promise.all(deletePromises);
+        const successfulDeletions = deleteResults.filter(r => r.success).length;
+        const failedDeletions = deleteResults.filter(r => !r.success);
+        
+        if (failedDeletions.length > 0) {
+          console.error(`❌ ProfileView: Failed to delete ${failedDeletions.length} draft(s):`, failedDeletions);
+          // Keep failed drafts in the UI so user can see them and potentially retry
+          // Add them back to draftsToKeep
+          const failedDraftIds = new Set(failedDeletions.map(r => r.draftId));
+          const failedDrafts = (drafts || []).filter(d => failedDraftIds.has(d.id));
+          draftsToKeep.push(...failedDrafts);
+        }
+        
+        console.log(`✅ ProfileView: Deletion complete - ${successfulDeletions} successful, ${failedDeletions.length} failed`);
+      }
+      
+      // Step 3: Use only the drafts we kept (deleted drafts are already excluded)
+      const validDrafts = draftsToKeep;
+      
+      // Also check direct database drafts and filter/delete them (by event_id OR by artist/venue/date)
+      if (allDraftsDirect) {
+        for (const directDraft of allDraftsDirect) {
+          let shouldDelete = false;
+          
+          // Check by event_id
+          if (directDraft.event_id && publishedEventIds.has(directDraft.event_id)) {
+            console.log(`🚫 ProfileView: Found orphaned draft ${directDraft.id} in database (same event_id) - deleting`);
+            shouldDelete = true;
+          }
+          
+          // Also check by artist/venue/date
+          if (!shouldDelete && directDraft.draft_data) {
+            const draftData = directDraft.draft_data as any;
+            const draftArtist = draftData?.selectedArtist?.name;
+            const draftVenue = draftData?.selectedVenue?.name;
+            const draftDate = draftData?.eventDate;
+            
+            if (draftArtist && draftVenue && draftDate) {
+              const normalizeDate = (dateStr: string) => {
+                if (!dateStr) return null;
+                try {
+                  const d = new Date(dateStr);
+                  return d.toISOString().split('T')[0];
+                } catch {
+                  return dateStr;
+                }
+              };
+              
+              const normalizedDraftDate = normalizeDate(draftDate);
+              
+              // Check if matches any published review
+              for (const [key] of publishedByConcert.entries()) {
+                const [pubArtist, pubVenue, pubDate] = key.split('|');
+                const normalizedPubDate = normalizeDate(pubDate);
+                
+                if (pubArtist === draftArtist && 
+                    pubVenue === draftVenue && 
+                    normalizedPubDate === normalizedDraftDate) {
+                  console.log(`🚫 ProfileView: Found orphaned draft ${directDraft.id} in database (same concert) - deleting`);
+                  shouldDelete = true;
+                  break;
+                }
+              }
+            }
+          }
+          
+          if (shouldDelete) {
+            await supabase
+              .from('reviews')
+              .delete()
+              .eq('id', directDraft.id);
+          }
+        }
+      }
+      
+      console.log('🔍 ProfileView: Draft reviews data (final):', validDrafts);
+      console.log('🔍 ProfileView: Total valid draft reviews (after filtering):', validDrafts?.length);
+      
+      setDraftReviews(validDrafts);
     } catch (error) {
       console.error('Error fetching draft reviews:', error);
       setDraftReviews([]);
@@ -1109,13 +1321,42 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     setShowAddReview(true);
   };
 
-  const handleReviewSubmitted = (review: any) => {
-    // Refresh reviews, attended events, and drafts after submission
-    fetchReviews();
-    fetchAttendedEvents();
-    fetchDraftReviews();
+  const handleReviewSubmitted = async (review: any) => {
+    // Close modal first
     setShowAddReview(false);
     setReviewModalEvent(null);
+    
+    // NUCLEAR: Delete ALL drafts for this event before refreshing
+    if (review?.event_id) {
+      try {
+        console.log('🗑️ ProfileView: NUCLEAR deletion of drafts for event:', review.event_id);
+        const { error } = await supabase
+          .from('reviews')
+          .delete()
+          .eq('user_id', currentUserId)
+          .eq('event_id', review.event_id)
+          .eq('is_draft', true);
+        
+        if (error) {
+          console.error('❌ ProfileView: Failed to delete drafts:', error);
+        } else {
+          console.log('✅ ProfileView: Deleted all drafts for event:', review.event_id);
+        }
+      } catch (error) {
+        console.error('❌ ProfileView: Exception deleting drafts:', error);
+      }
+    }
+    
+    // Wait longer to ensure database operations complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Refresh reviews, attended events, and drafts after submission
+    // The draft should now be converted to published, so it won't appear in drafts anymore
+    await Promise.all([
+      fetchReviews(),
+      fetchAttendedEvents(),
+      fetchDraftReviews()
+    ]);
     
     toast({
       title: "Review Added",
@@ -1764,10 +2005,32 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                       return isAttendanceOnly;
                     });
 
+                    // Get event IDs that have completed reviews (not drafts)
+                    // A completed review is one that is not a draft and has actual review content
+                    const completedReviewEventIds = new Set(
+                      reviews
+                        .filter((review: any) => {
+                          const isDraft = review.is_draft === true;
+                          const isAttendanceOnly = review.review_text === 'ATTENDANCE_ONLY';
+                          const hasContent = review.review_text && review.review_text.trim().length > 0;
+                          // Completed review: not a draft, has content, not just attendance marker
+                          return !isDraft && hasContent && !isAttendanceOnly;
+                        })
+                        .map((review: any) => review.event_id)
+                        .filter(Boolean)
+                    );
+
+                    // Filter out drafts for events that already have completed reviews
+                    const validDrafts = draftReviews.filter(draft => {
+                      const eventId = draft.event_id;
+                      if (!eventId) return false; // Skip drafts without event_id
+                      return !completedReviewEventIds.has(eventId);
+                    });
+
                     // Combine unreviewed events and draft reviews
                     const allUnreviewedItems = [
                       ...unreviewedEvents.map(event => ({ type: 'unreviewed', data: event })),
-                      ...draftReviews.map(draft => ({ type: 'draft', data: draft }))
+                      ...validDrafts.map(draft => ({ type: 'draft', data: draft }))
                     ];
 
                     if (allUnreviewedItems.length === 0) {

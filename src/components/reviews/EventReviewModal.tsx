@@ -11,7 +11,7 @@ interface EventReviewModalProps {
   userId: string;
   isOpen: boolean;
   onClose: () => void;
-  onReviewSubmitted?: (review: UserReview) => void;
+  onReviewSubmitted?: (review: UserReview) => void | Promise<void>;
 }
 
 export function EventReviewModal({
@@ -35,13 +35,24 @@ export function EventReviewModal({
             <EventReviewForm
               event={event as any}
               userId={userId}
-              onSubmitted={(review: UserReview) => {
-                if (onReviewSubmitted) onReviewSubmitted(review);
+              onSubmitted={async (review: UserReview) => {
+                if (onReviewSubmitted) {
+                  // Await the callback if it returns a Promise (async function)
+                  const result = onReviewSubmitted(review);
+                  if (result instanceof Promise) {
+                    await result;
+                  }
+                }
                 onClose();
               }}
-              onDeleted={() => {
+              onDeleted={async () => {
                 // Refresh parent data
-                if (onReviewSubmitted) onReviewSubmitted(null as any);
+                if (onReviewSubmitted) {
+                  const result = onReviewSubmitted(null as any);
+                  if (result instanceof Promise) {
+                    await result;
+                  }
+                }
                 onClose();
               }}
               onClose={onClose}

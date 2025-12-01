@@ -34,6 +34,13 @@ export interface EventShareResult {
   error?: string;
 }
 
+export interface ReviewShareResult {
+  success: boolean;
+  message_id?: string;
+  chat_id?: string;
+  error?: string;
+}
+
 export class InAppShareService {
   /**
    * Get list of available share targets (chats) for the current user
@@ -291,6 +298,161 @@ export class InAppShareService {
     } catch (error) {
       console.error('Error getting event share stats:', error);
       return { total_shares: 0, direct_shares: 0, group_shares: 0 };
+    }
+  }
+
+  /**
+   * Share a review to a specific chat
+   */
+  static async shareReviewToChat(
+    reviewId: string,
+    chatId: string,
+    userId: string,
+    customMessage?: string
+  ): Promise<ReviewShareResult> {
+    try {
+      // Verify the review exists and get its details
+      const { data: review, error: reviewError } = await supabase
+        .from('reviews')
+        .select('id, review_text, rating, event_id, user_id')
+        .eq('id', reviewId)
+        .single();
+
+      if (reviewError || !review) {
+        return {
+          success: false,
+          error: 'Review not found'
+        };
+      }
+
+      // Get event details if available
+      let eventTitle = '';
+      let artistName = '';
+      let venueName = '';
+      if (review.event_id) {
+        const { data: event } = await supabase
+          .from('events')
+          .select('title, artist_name, venue_name')
+          .eq('id', review.event_id)
+          .single();
+        if (event) {
+          eventTitle = event.title || `${event.artist_name} at ${event.venue_name}`;
+          artistName = event.artist_name || '';
+          venueName = event.venue_name || '';
+        }
+      }
+
+      // Create the default message content
+      const defaultMessage = customMessage || `Check out this review${eventTitle ? ` for ${eventTitle}` : ''}!`;
+
+      // Insert the message with review share data
+      const { data: message, error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          chat_id: chatId,
+          sender_id: userId,
+          content: defaultMessage,
+          message_type: 'review_share',
+          shared_review_id: reviewId,
+          metadata: {
+            custom_message: customMessage,
+            share_context: 'in_app_share',
+            review_text: review.review_text,
+            rating: review.rating,
+            artist_name: artistName,
+            venue_name: venueName,
+            event_title: eventTitle
+          }
+        })
+        .select('id, chat_id')
+        .single();
+
+      if (messageError) {
+        console.error('Error creating review share message:', messageError);
+        return {
+          success: false,
+          error: 'Failed to share review'
+        };
+      }
+
+      // Share is tracked in messages table (3NF compliant - no redundant data)
+      // Analytics can be queried directly from messages table where message_type = 'review_share'
+
+      return {
+        success: true,
+        message_id: message.id,
+        chat_id: message.chat_id
+      };
+    } catch (error) {
+      console.error('Error sharing review to chat:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Share a review to multiple chats at once
+   */
+  static async shareReviewToMultipleChats(
+    reviewId: string,
+    chatIds: string[],
+    userId: string,
+    customMessage?: string
+  ): Promise<{
+    successCount: number;
+    failureCount: number;
+    results: ReviewShareResult[];
+  }> {
+    const results: ReviewShareResult[] = [];
+
+    for (const chatId of chatIds) {
+      const result = await this.shareReviewToChat(reviewId, chatId, userId, customMessage);
+      results.push(result);
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+
+    return {
+      successCount,
+      failureCount,
+      results
+    };
+  }
+
+  /**
+   * Create a new direct chat and share review
+   */
+  static async shareReviewToNewChat(
+    reviewId: string,
+    friendUserId: string,
+    currentUserId: string,
+    customMessage?: string
+  ): Promise<ReviewShareResult> {
+    try {
+      // Create or get existing direct chat
+      const { data: chatId, error: chatError } = await supabase.rpc('create_direct_chat', {
+        user1_id: currentUserId,
+        user2_id: friendUserId
+      });
+
+      if (chatError || !chatId) {
+        return {
+          success: false,
+          error: 'Failed to create chat'
+        };
+      }
+
+      // Share the review to the chat
+      return await this.shareReviewToChat(reviewId, chatId, currentUserId, customMessage);
+    } catch (error) {
+      console.error('Error sharing review to new chat:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   }
 }

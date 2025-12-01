@@ -73,8 +73,8 @@ const STEP_LABELS = [
 interface EventReviewFormProps {
   event: JamBaseEvent | PublicReviewWithProfile;
   userId: string;
-  onSubmitted?: (review: UserReview) => void;
-  onDeleted?: () => void;
+  onSubmitted?: (review: UserReview) => void | Promise<void>;
+  onDeleted?: () => void | Promise<void>;
   onClose?: () => void;
 }
 
@@ -102,6 +102,12 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   const [submittedReview, setSubmittedReview] = useState<UserReview | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
+  const [isReviewSubmitted, setIsReviewSubmitted] = useState(false); // Track if review has been submitted
+  
+  // Reset submission state when event changes (form is reused for different event)
+  useEffect(() => {
+    setIsReviewSubmitted(false);
+  }, [event?.id]);
   const isValidUUID = (value?: string | null) => {
     if (!value) return false;
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -177,11 +183,12 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   };
 
   // Auto-save functionality (saves to database automatically on every change)
+  // CRITICAL: Disable auto-save after review is submitted to prevent creating new drafts
   const { manualSave, loadDraft, clearDraft } = useAutoSave({
     userId,
     eventId: actualEventId || null,
     formData: formData as DraftReviewData,
-    enabled: true, // Always enabled - auto-save for both new and existing reviews
+    enabled: !isReviewSubmitted, // Disable auto-save after review is submitted
     debounceMs: 2000, // 2 second debounce
     onSave: (success) => {
       setIsSaving(false);
@@ -495,6 +502,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           // No existing review - create new one
           setExistingReview(null);
           resetForm();
+          setIsReviewSubmitted(false); // Reset submission state for new review
           
           // Prefill from the provided event context (artist, venue, date)
           try {
@@ -868,6 +876,12 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     }
 
     setLoading(true);
+    
+    // CRITICAL: Stop auto-save only after validation passes and we're about to submit
+    // This prevents auto-save from creating drafts during/after submission
+    // Setting it here (after validation) ensures auto-save remains enabled if validation fails
+    setIsReviewSubmitted(true);
+    
     try {
       // Individual category feedback fields are saved to their own columns
       // Do NOT combine them into review_text - they go to production_feedback, venue_feedback, etc.
@@ -1066,6 +1080,99 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       // Clear localStorage draft after successful submission
       clearDraft(eventId);
       
+      // NUCLEAR OPTION: Delete ALL drafts for this user that match the same artist/venue/date
+      // This handles the case where a new event was created, leaving an old draft with a different event_id
+      try {
+        console.log('🗑️ EventReviewForm: Starting NUCLEAR draft deletion for event:', eventId);
+        
+        // First, delete drafts for this specific event
+        const { error: deleteError, data: deletedData } = await supabase
+          .from('reviews')
+          .delete()
+          .eq('user_id', userId)
+          .eq('event_id', eventId)
+          .eq('is_draft', true)
+          .select('id');
+        
+        if (deleteError) {
+          console.error('❌ EventReviewForm: First deletion failed:', deleteError);
+        } else {
+          const deletedCount = deletedData?.length || 0;
+          console.log(`🧹 EventReviewForm: Deleted ${deletedCount} draft(s) for event ${eventId}`);
+        }
+        
+        // CRITICAL: Also delete drafts that match the same artist/venue/date
+        // This handles drafts created with a different event_id before the final event was created
+        if (formData.selectedArtist?.name && formData.selectedVenue?.name && formData.eventDate) {
+          console.log('🔍 EventReviewForm: Looking for matching drafts by artist/venue/date...');
+          
+          // Get all user's drafts
+          const { data: allDrafts, error: draftsError } = await supabase
+            .from('reviews')
+            .select('id, event_id, draft_data, is_draft')
+            .eq('user_id', userId)
+            .eq('is_draft', true);
+          
+          if (!draftsError && allDrafts) {
+            const matchingDrafts = allDrafts.filter(draft => {
+              if (!draft.draft_data) return false;
+              const draftData = draft.draft_data as any;
+              const draftArtist = draftData?.selectedArtist?.name || draftData?.artist_name;
+              const draftVenue = draftData?.selectedVenue?.name || draftData?.venue_name;
+              const draftDate = draftData?.eventDate;
+              
+              const matches = draftArtist === formData.selectedArtist?.name &&
+                             draftVenue === formData.selectedVenue?.name &&
+                             draftDate === formData.eventDate;
+              
+              if (matches) {
+                console.log(`🎯 EventReviewForm: Found matching draft ${draft.id} for same concert (different event_id)`);
+              }
+              return matches;
+            });
+            
+            // Delete matching drafts
+            for (const draft of matchingDrafts) {
+              console.log(`🗑️ EventReviewForm: Deleting matching draft ${draft.id}`);
+              await supabase
+                .from('reviews')
+                .delete()
+                .eq('id', draft.id);
+            }
+            
+            if (matchingDrafts.length > 0) {
+              console.log(`🧹 EventReviewForm: Deleted ${matchingDrafts.length} matching draft(s) for same concert`);
+            }
+          }
+        }
+        
+        // Wait a moment for database to catch up
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // VERIFY: Check if drafts still exist for this event
+        const verifyResult = await supabase
+          .from('reviews')
+          .select('id, is_draft')
+          .eq('user_id', userId)
+          .eq('event_id', eventId)
+          .eq('is_draft', true);
+        
+        if (verifyResult.data && verifyResult.data.length > 0) {
+          console.error(`❌ EventReviewForm: ${verifyResult.data.length} draft(s) STILL EXIST! Force deleting...`, verifyResult.data);
+          // Force delete any remaining drafts
+          await supabase
+            .from('reviews')
+            .delete()
+            .eq('user_id', userId)
+            .eq('event_id', eventId)
+            .eq('is_draft', true);
+        } else {
+          console.log('✅ EventReviewForm: Verified - all drafts for this event successfully deleted');
+        }
+      } catch (error) {
+        console.error('❌ EventReviewForm: CRITICAL error during draft deletion:', error);
+      }
+      
       // Update events table with API setlist data ONLY (not custom setlist)
       // Custom setlist stays in user_reviews.custom_setlist column only
       if (formData.selectedSetlist) {
@@ -1196,29 +1303,41 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         // Don't reset form yet - wait until after ranking modal closes
         // DON'T call onSubmitted yet - will be called when modal closes
       } else {
-        // For edits, call onSubmitted immediately
-        if (onSubmitted) onSubmitted(review);
+        // For edits, call onSubmitted immediately and await if async
+        if (onSubmitted) {
+          const result = onSubmitted(review);
+          if (result instanceof Promise) {
+            await result;
+          }
+        }
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('Error submitting review:', e);
       toast({ title: 'Error', description: `Failed to submit review: ${msg}`, variant: 'destructive' });
+      // Reset submission flag on error so auto-save can work again
+      setIsReviewSubmitted(false);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRankingModalClose = () => {
+  const handleRankingModalClose = async () => {
     console.log('🚪 Ranking modal closing');
     setShowRankingModal(false);
     const reviewToSubmit = submittedReview;
     setSubmittedReview(null);
     resetForm();
+    setIsReviewSubmitted(false); // Reset submission state for next review
     
     // NOW call the onSubmitted callback (which triggers navigation)
+    // Await if it's async to ensure operations complete before proceeding
     if (onSubmitted && reviewToSubmit) {
       console.log('📞 Calling onSubmitted callback after modal close');
-      onSubmitted(reviewToSubmit);
+      const result = onSubmitted(reviewToSubmit);
+      if (result instanceof Promise) {
+        await result;
+      }
     }
   };
 
@@ -1477,6 +1596,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             onNewReview={() => {
               setCurrentDraft(null);
               resetForm();
+              setIsReviewSubmitted(false); // Reset submission state for new review
             }}
             currentMode={currentDraft ? 'draft' : 'new'}
           />
@@ -1605,10 +1725,15 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
                     setExistingReview(null);
                     resetForm();
+                    setIsReviewSubmitted(false); // Reset submission state after deletion
 
                     if (onDeleted) {
                       console.log('📢 Calling onDeleted callback');
-                      onDeleted();
+                      // Await the callback if it returns a Promise (async function)
+                      const result = onDeleted();
+                      if (result instanceof Promise) {
+                        await result;
+                      }
                     }
                   } catch (e) {
                     console.error('❌ Error deleting review:', e);

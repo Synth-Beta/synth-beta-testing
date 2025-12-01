@@ -172,6 +172,28 @@ export class DraftReviewService {
         return null;
       }
 
+      // CRITICAL: Check if a published review already exists for this event
+      // If it does, don't create/update a draft - the review is already complete
+      const { data: existingPublishedReview, error: checkError } = await supabase
+        .from('reviews')
+        .select('id, is_draft')
+        .eq('user_id', userId)
+        .eq('event_id', eventId)
+        .eq('is_draft', false)
+        .maybeSingle();
+      
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ Error checking for existing published review:', checkError);
+        // Continue anyway - don't block draft saving on check error
+      }
+      
+      if (existingPublishedReview && !existingPublishedReview.is_draft) {
+        console.log('🚫 Draft save blocked: Published review already exists for this event');
+        console.log('   Published review ID:', existingPublishedReview.id);
+        // Don't save draft if review is already published
+        return null;
+      }
+
       const resolvedArtistUuid = await this.ensureEventArtistUuid(eventId, draftData);
 
       const enrichedDraftData = resolvedArtistUuid

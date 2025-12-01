@@ -263,20 +263,69 @@ export class ReviewService {
       let checkError: any = null;
       
       if (isUuid) {
-        // Check for ANY review (draft or published) - there should only be one per user/event
-        const result = await (supabase as any)
+        // CRITICAL: Check for BOTH published reviews AND drafts separately
+        // There might be both a draft AND a published review (bad state)
+        // We need to find the published one first, and delete any drafts
+        
+        // First, check for a published review
+        const publishedResult = await (supabase as any)
           .from('reviews')
           .select('id, is_draft')
           .eq('user_id', userId)
           .eq('event_id', eventId)
+          .eq('is_draft', false)
           .maybeSingle();
-        existingReview = result.data;
-        checkError = result.error;
-        console.log('🔍 ReviewService: Checked for existing review:', { 
-          found: !!existingReview, 
-          is_draft: existingReview?.is_draft,
-          id: existingReview?.id 
+        
+        // Then, check for any drafts
+        const draftResult = await (supabase as any)
+          .from('reviews')
+          .select('id, is_draft')
+          .eq('user_id', userId)
+          .eq('event_id', eventId)
+          .eq('is_draft', true)
+          .maybeSingle();
+        
+        const publishedReview = publishedResult.data;
+        const draftReview = draftResult.data;
+        
+        console.log('🔍 ReviewService: Checked for existing reviews:', { 
+          published: !!publishedReview, 
+          published_id: publishedReview?.id,
+          draft: !!draftReview,
+          draft_id: draftReview?.id
         });
+        
+        // If there's a published review, use that (and we'll delete drafts)
+        if (publishedReview) {
+          existingReview = publishedReview;
+          checkError = publishedResult.error;
+          
+          // Delete any drafts that exist for this event (cleanup bad state)
+          if (draftReview) {
+            console.log('⚠️ ReviewService: Found both published review and draft - deleting draft:', draftReview.id);
+            try {
+              const { error: deleteError } = await supabase
+                .from('reviews')
+                .delete()
+                .eq('id', draftReview.id);
+              if (deleteError) {
+                console.warn('⚠️ Failed to delete draft:', deleteError);
+              } else {
+                console.log('✅ Deleted draft:', draftReview.id);
+              }
+            } catch (error) {
+              console.warn('⚠️ Error deleting draft:', error);
+            }
+          }
+        } else if (draftReview) {
+          // Only a draft exists, use that
+          existingReview = draftReview;
+          checkError = draftResult.error;
+        } else {
+          // No review exists at all
+          existingReview = null;
+          checkError = null;
+        }
       }
 
       if (checkError && checkError.code !== 'PGRST116' && (checkError as any).status !== 406) {
@@ -284,20 +333,74 @@ export class ReviewService {
       }
 
       if (existingReview) {
-        // Update the existing row (whether it's a draft or published)
-        // When publishing, set is_draft = false; the row stays the same
-        console.log('🔄 ReviewService: Updating existing review:', existingReview.id, 'is_draft:', existingReview.is_draft);
-        // Fetch existing review to preserve fields that weren't explicitly changed
-        const { data: existingReviewData } = await supabase
-          .from('reviews')
-          .select('setlist, custom_setlist')
-          .eq('id', existingReview.id)
-          .maybeSingle();
+        const isDraft = existingReview.is_draft === true;
         
-        // Update existing review
-        // Save all 5 category ratings and feedback directly to database
-        const fullUpdate: any = {
-          ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
+        // CRITICAL: If existing review IS a draft, DELETE it completely and create fresh published review
+        // This is safer than trying to update a draft, which can fail silently
+        if (isDraft) {
+          console.log('🗑️ ReviewService: Existing review is a draft - deleting it completely before creating published review:', existingReview.id);
+          try {
+            // Delete ALL drafts for this event (including the one we found)
+            const { error: deleteError } = await supabase
+              .from('reviews')
+              .delete()
+              .eq('user_id', userId)
+              .eq('event_id', eventId)
+              .eq('is_draft', true);
+            
+            if (deleteError) {
+              console.error('❌ Failed to delete draft before creating published review:', deleteError);
+              throw deleteError;
+            } else {
+              console.log('✅ Deleted draft completely - will create fresh published review');
+              // Set existingReview to null so we fall through to the insert path below
+              existingReview = null;
+            }
+          } catch (error) {
+            console.error('❌ Exception deleting draft:', error);
+            throw error;
+          }
+        } else {
+          // Existing review is already published - just delete any other drafts and update it
+          console.log('🔄 ReviewService: Existing review is already published - updating it:', existingReview.id);
+          if (isUuid) {
+            try {
+              // Delete all drafts (but not the published review we're updating)
+              const { error: deleteError } = await supabase
+                .from('reviews')
+                .delete()
+                .eq('user_id', userId)
+                .eq('event_id', eventId)
+                .eq('is_draft', true);
+              
+              if (!deleteError) {
+                console.log('✅ Deleted all drafts before updating published review');
+              } else {
+                console.warn('⚠️ Error deleting drafts before update:', deleteError);
+              }
+            } catch (error) {
+              console.warn('⚠️ Exception deleting drafts before update:', error);
+            }
+          }
+        }
+        
+        // If existingReview is null now (we deleted the draft), fall through to insert path below
+        if (!existingReview) {
+          // Fall through to the insert path - we'll create a fresh published review
+        } else {
+          // Update the existing published review
+          console.log('🔄 ReviewService: Updating existing published review:', existingReview.id);
+          // Fetch existing review to preserve fields that weren't explicitly changed
+          const { data: existingReviewData } = await supabase
+            .from('reviews')
+            .select('setlist, custom_setlist')
+            .eq('id', existingReview.id)
+            .maybeSingle();
+          
+          // Update existing review
+          // Save all 5 category ratings and feedback directly to database
+          const fullUpdate: any = {
+            ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
           // rating will be calculated by database trigger from category ratings
           review_text: reviewData.review_text,
           reaction_emoji: reviewData.reaction_emoji,
@@ -332,12 +435,12 @@ export class ReviewService {
           met_on_synth: reviewData.met_on_synth, // Add met_on_synth field
           was_there: true, // If someone writes a review, they obviously attended
           updated_at: new Date().toISOString()
-        };
-        
-        // Explicitly remove venue_rating (INTEGER) - we use venue_rating_decimal for decimals
-        delete fullUpdate.venue_rating;
+          };
+          
+          // Explicitly remove venue_rating (INTEGER) - we use venue_rating_decimal for decimals
+          delete fullUpdate.venue_rating;
 
-        console.log('🔍 ReviewService: Update payload category ratings:', {
+          console.log('🔍 ReviewService: Update payload category ratings:', {
           artist_performance_rating: fullUpdate.artist_performance_rating,
           production_rating: fullUpdate.production_rating,
           venue_rating_decimal: fullUpdate.venue_rating_decimal,
@@ -350,16 +453,16 @@ export class ReviewService {
           venue_feedback: fullUpdate.venue_feedback,
           location_feedback: fullUpdate.location_feedback,
           value_feedback: fullUpdate.value_feedback,
-        });
+          });
 
-        // Perform update without returning to avoid 400/406 in some environments
-        let { error } = await supabase
-          .from('reviews')
-          .update(fullUpdate)
-          .eq('id', existingReview.id);
-        // Fetch the updated row separately
-        let data: any = null;
-        if (!error) {
+          // Perform update without returning to avoid 400/406 in some environments
+          let { error } = await supabase
+            .from('reviews')
+            .update(fullUpdate)
+            .eq('id', existingReview.id);
+          // Fetch the updated row separately
+          let data: any = null;
+          if (!error) {
           const fetched = await supabase
             .from('reviews')
             .select('*')
@@ -383,37 +486,107 @@ export class ReviewService {
             location_feedback: (data as any)?.location_feedback,
             value_feedback: (data as any)?.value_feedback,
           });
+          }
+
+          if (error) {
+            // Retry with legacy-only columns on any 4xx schema error
+            // Unknown columns: retry with legacy-only columns
+            const legacyUpdate: any = {
+              ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
+              rating: typeof reviewData.rating === 'number' ? Number(reviewData.rating.toFixed(1)) : deriveRating(reviewData),
+              review_text: reviewData.review_text,
+              reaction_emoji: reviewData.reaction_emoji,
+              is_public: reviewData.is_public,
+              is_draft: false, // Mark as published (not a draft)
+              draft_data: null, // Clear draft data when publishing
+              last_saved_at: null, // Clear last_saved_at when publishing
+              photos: reviewData.photos, // Add photos field to legacy update
+              was_there: true, // If someone writes a review, they obviously attended
+              updated_at: new Date().toISOString()
+            };
+
+            const retry = await supabase
+              .from('reviews')
+              .update(legacyUpdate)
+              .eq('id', existingReview.id)
+              .select()
+              .single();
+            data = retry.data as any;
+            error = retry.error as any;
+          }
+
+          if (error) throw error as any;
+          
+          // CRITICAL: After updating an existing review (especially if converting from draft to published),
+          // we MUST ensure the draft is completely removed from the drafts list
+          // The update sets is_draft = false, but we also need to verify it worked and delete any remaining drafts
+          if (isUuid && data) {
+          try {
+            // First, ensure the current review is definitely not a draft anymore
+            // Sometimes the update might not have worked properly, so we verify and fix if needed
+            const verifyResult = await supabase
+              .from('reviews')
+              .select('id, is_draft')
+              .eq('id', data.id)
+              .maybeSingle();
+            
+            if (verifyResult.data) {
+              if (verifyResult.data.is_draft === true) {
+                // Draft flag is still true! Force update it to false
+                console.warn('⚠️ ReviewService: Draft flag still true after update, forcing is_draft = false');
+                await supabase
+                  .from('reviews')
+                  .update({ 
+                    is_draft: false, 
+                    draft_data: null, 
+                    last_saved_at: null 
+                  })
+                  .eq('id', data.id);
+              }
+            }
+            
+            // Delete ALL drafts for this event (including any that might still be marked as drafts)
+            // This ensures the draft completely disappears from "Unreviewed" section
+            // We delete ALL drafts because the review is now published, not a draft
+            const deleteResult = await (supabase as any)
+              .from('reviews')
+              .delete()
+              .eq('user_id', userId)
+              .eq('event_id', eventId)
+              .eq('is_draft', true);
+            
+            if (deleteResult.error) {
+              console.warn('⚠️ ReviewService: Failed to delete drafts after update:', deleteResult.error);
+            } else {
+              const deletedCount = deleteResult.data?.length || 0;
+              if (deletedCount > 0) {
+                console.log(`🧹 Deleted ${deletedCount} draft review(s) after submitting review for event:`, eventId);
+              } else {
+                console.log('✅ ReviewService: No drafts found to delete (review is now published)');
+              }
+              
+              // Final verification: check if any drafts still exist for this event
+              const remainingDrafts = await supabase
+                .from('reviews')
+                .select('id, is_draft')
+                .eq('user_id', userId)
+                .eq('event_id', eventId)
+                .eq('is_draft', true);
+              
+              if (remainingDrafts.data && remainingDrafts.data.length > 0) {
+                console.warn(`⚠️ ReviewService: WARNING - ${remainingDrafts.data.length} draft(s) still exist after cleanup for event:`, eventId);
+              } else {
+                console.log('✅ ReviewService: Verified - no drafts remain for this event');
+              }
+            }
+          } catch (cleanupError) {
+            console.warn('⚠️ ReviewService: Error during draft cleanup after update:', cleanupError);
+            // Don't throw - cleanup is not critical, but log for debugging
+          }
+          }
+          
+          return data as any as UserReview;
         }
-
-        if (error) {
-          // Retry with legacy-only columns on any 4xx schema error
-          // Unknown columns: retry with legacy-only columns
-          const legacyUpdate: any = {
-            ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
-            rating: typeof reviewData.rating === 'number' ? Number(reviewData.rating.toFixed(1)) : deriveRating(reviewData),
-            review_text: reviewData.review_text,
-            reaction_emoji: reviewData.reaction_emoji,
-            is_public: reviewData.is_public,
-            is_draft: false, // Mark as published (not a draft)
-            draft_data: null, // Clear draft data when publishing
-            last_saved_at: null, // Clear last_saved_at when publishing
-            photos: reviewData.photos, // Add photos field to legacy update
-            was_there: true, // If someone writes a review, they obviously attended
-            updated_at: new Date().toISOString()
-          };
-
-          const retry = await supabase
-            .from('reviews')
-            .update(legacyUpdate)
-            .eq('id', existingReview.id)
-            .select()
-            .single();
-          data = retry.data as any;
-          error = retry.error as any;
-        }
-
-        if (error) throw error as any;
-        return data as any as UserReview;
       }
 
       // No existing review found - create a new one
@@ -674,29 +847,61 @@ export class ReviewService {
         value_feedback: (data as any)?.value_feedback,
       });
       
-      // Cleanup: Delete any orphaned drafts for this event after successfully creating the final review
-      // This ensures we don't have leftover draft reviews cluttering the database
+      // CRITICAL: Delete ALL drafts for this event immediately after creating published review
+      // This is the nuclear option - delete ALL drafts, no exceptions
       if (isUuid && data) {
         try {
-          const deleteResult = await (supabase as any)
+          // Delete ALL drafts for this event (the published review has is_draft=false, so it's safe)
+          const { error: deleteError, data: deletedData } = await supabase
             .from('reviews')
             .delete()
             .eq('user_id', userId)
             .eq('event_id', eventId)
             .eq('is_draft', true)
-            .neq('id', data.id); // Don't delete the review we just created/published
+            .select('id');
           
-          if (deleteResult.error) {
-            console.warn('⚠️ Failed to delete draft reviews after publishing:', deleteResult.error);
+          if (deleteError) {
+            console.error('❌ CRITICAL: Failed to delete drafts after creating review:', deleteError);
           } else {
-            const deletedCount = deleteResult.data?.length || 0;
+            const deletedCount = deletedData?.length || 0;
             if (deletedCount > 0) {
-              console.log(`🧹 Cleaned up ${deletedCount} orphaned draft review(s) for event:`, eventId);
+              console.log(`🧹 NUCLEAR: Deleted ${deletedCount} draft(s) after review creation`);
+            }
+            
+            // VERIFY deletion worked - check if any drafts still exist
+            const verifyResult = await supabase
+              .from('reviews')
+              .select('id')
+              .eq('user_id', userId)
+              .eq('event_id', eventId)
+              .eq('is_draft', true);
+            
+            if (verifyResult.data && verifyResult.data.length > 0) {
+              console.error(`❌ CRITICAL ERROR: ${verifyResult.data.length} draft(s) STILL EXIST after deletion!`, verifyResult.data);
+              // Try one more time with force delete
+              await supabase
+                .from('reviews')
+                .delete()
+                .eq('user_id', userId)
+                .eq('event_id', eventId)
+                .eq('is_draft', true);
+            } else {
+              console.log('✅ Verified: All drafts deleted successfully');
             }
           }
         } catch (cleanupError) {
-          console.warn('⚠️ Error during draft cleanup:', cleanupError);
-          // Don't throw - cleanup is not critical
+          console.error('❌ CRITICAL: Exception during draft cleanup:', cleanupError);
+          // Try one more deletion attempt
+          try {
+            await supabase
+              .from('reviews')
+              .delete()
+              .eq('user_id', userId)
+              .eq('event_id', eventId)
+              .eq('is_draft', true);
+          } catch (retryError) {
+            console.error('❌ CRITICAL: Retry deletion also failed:', retryError);
+          }
         }
       }
       

@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
   MessageCircle, 
@@ -25,7 +26,13 @@ import {
   BellOff,
   Calendar,
   Eye,
-  UserX
+  UserX,
+  Star,
+  MapPin,
+  Images,
+  Play,
+  Heart,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { FriendsService } from '@/services/friendsService';
@@ -33,10 +40,13 @@ import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { EventMessageCard } from '@/components/chat/EventMessageCard';
+import { ReviewMessageCard } from '@/components/chat/ReviewMessageCard';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
 import { fetchUserChats } from '@/services/chatService';
+import type { ReviewWithEngagement } from '@/services/reviewService';
+import type { UnifiedFeedItem } from '@/services/unifiedFeedService';
 
 interface Chat {
   id: string;
@@ -61,8 +71,9 @@ interface Message {
   created_at: string;
   sender_name: string;
   sender_avatar: string | null;
-  message_type?: 'text' | 'event_share' | 'system';
+  message_type?: 'text' | 'event_share' | 'review_share' | 'system';
   shared_event_id?: string | null;
+  shared_review_id?: string | null;
   metadata?: any;
 }
 
@@ -99,6 +110,31 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   const [selectedEvent, setSelectedEvent] = useState<JamBaseEvent | null>(null);
   const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Review detail modal state
+  const [showReviewDetailModal, setShowReviewDetailModal] = useState(false);
+  const [selectedReviewDetail, setSelectedReviewDetail] = useState<UnifiedFeedItem | null>(null);
+  const [loadingReviewDetails, setLoadingReviewDetails] = useState(false);
+  const [reviewDetailData, setReviewDetailData] = useState<{
+    photos: string[];
+    videos: string[];
+    categoryRatings: {
+      performance?: number;
+      venue?: number;
+      overallExperience?: number;
+    };
+    categoryTexts: {
+      performance?: string;
+      venue?: string;
+      overallExperience?: string;
+    };
+    moodTags?: string[];
+    genreTags?: string[];
+    contextTags?: string[];
+    venueTags?: string[];
+    artistTags?: string[];
+    reactionEmoji?: string;
+  } | null>(null);
   
   // Track which group chats are event-created
   const [eventCreatedChats, setEventCreatedChats] = useState<Set<string>>(new Set());
@@ -175,6 +211,125 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         description: 'Failed to update interest',
         variant: 'destructive'
       });
+    }
+  };
+
+  const handleReviewClick = async (review: ReviewWithEngagement) => {
+    // Fetch author information first
+    let authorName = 'User';
+    let authorAvatar: string | undefined = undefined;
+    
+    if (review.user_id) {
+      try {
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('user_id, name, avatar_url')
+          .eq('user_id', review.user_id)
+          .maybeSingle();
+        
+        if (!userError && userData) {
+          authorName = userData.name || 'User';
+          authorAvatar = userData.avatar_url || undefined;
+        }
+      } catch (error) {
+        console.error('Error fetching author information:', error);
+        // Continue with default values if fetch fails
+      }
+    }
+    
+    // Convert ReviewWithEngagement to UnifiedFeedItem format for the modal
+    const reviewItem: UnifiedFeedItem = {
+      id: review.id,
+      type: 'review',
+      review_id: review.id,
+      title: review.artist_name && review.venue_name 
+        ? `${review.artist_name} at ${review.venue_name}`
+        : review.artist_name || review.venue_name || 'Concert Review',
+      content: review.review_text || '',
+      author: {
+        id: review.user_id,
+        name: authorName,
+        avatar_url: authorAvatar
+      },
+      created_at: review.created_at,
+      rating: review.rating,
+      photos: review.photos || [],
+      likes_count: review.likes_count || 0,
+      comments_count: review.comments_count || 0,
+      shares_count: review.shares_count || 0,
+      is_liked: review.is_liked_by_user || false,
+      event_info: {
+        artist_name: review.artist_name,
+        venue_name: review.venue_name,
+        artist_id: review.artist_id,
+        venue_id: review.venue_id
+      },
+      relevance_score: 0
+    };
+
+    setSelectedReviewDetail(reviewItem);
+    setShowReviewDetailModal(true);
+    setLoadingReviewDetails(true);
+    setReviewDetailData(null);
+
+    // Fetch full review details
+    try {
+      const { data, error } = await (supabase as any)
+        .from('reviews')
+        .select(`
+          photos,
+          videos,
+          performance_rating,
+          venue_rating,
+          overall_experience_rating,
+          performance_review_text,
+          venue_review_text,
+          overall_experience_review_text,
+          mood_tags,
+          genre_tags,
+          context_tags,
+          venue_tags,
+          artist_tags,
+          reaction_emoji,
+          review_text
+        `)
+        .eq('id', review.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching review details:', error);
+        setReviewDetailData(null);
+        setLoadingReviewDetails(false);
+        return;
+      }
+
+      if (data) {
+        setReviewDetailData({
+          photos: Array.isArray(data.photos) ? data.photos : [],
+          videos: Array.isArray(data.videos) ? data.videos : [],
+          categoryRatings: {
+            performance: typeof data.performance_rating === 'number' ? data.performance_rating : undefined,
+            venue: typeof data.venue_rating === 'number' ? data.venue_rating : undefined,
+            overallExperience: typeof data.overall_experience_rating === 'number' ? data.overall_experience_rating : undefined,
+          },
+          categoryTexts: {
+            performance: data.performance_review_text || undefined,
+            venue: data.venue_review_text || undefined,
+            overallExperience: data.overall_experience_review_text || undefined,
+          },
+          moodTags: Array.isArray(data.mood_tags) && data.mood_tags.length > 0 ? data.mood_tags : undefined,
+          genreTags: Array.isArray(data.genre_tags) && data.genre_tags.length > 0 ? data.genre_tags : undefined,
+          contextTags: Array.isArray(data.context_tags) && data.context_tags.length > 0 ? data.context_tags : undefined,
+          venueTags: Array.isArray(data.venue_tags) && data.venue_tags.length > 0 ? data.venue_tags : undefined,
+          artistTags: Array.isArray(data.artist_tags) && data.artist_tags.length > 0 ? data.artist_tags : undefined,
+          reactionEmoji: data.reaction_emoji || undefined,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching review details:', error);
+      setReviewDetailData(null);
+    } finally {
+      setLoadingReviewDetails(false);
     }
   };
 
@@ -320,6 +475,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
           created_at,
           message_type,
           shared_event_id,
+          shared_review_id,
           metadata
         `)
         .eq('chat_id', chatId)
@@ -349,6 +505,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
           sender_avatar: profile?.avatar_url || null,
           message_type: msg.message_type || 'text',
           shared_event_id: msg.shared_event_id,
+          shared_review_id: msg.shared_review_id,
           metadata: msg.metadata
         };
       });
@@ -360,6 +517,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
           message_type: 
             msg.message_type === 'text' ||
             msg.message_type === 'event_share' ||
+            msg.message_type === 'review_share' ||
             msg.message_type === 'system'
               ? msg.message_type
               : 'text'
@@ -1195,7 +1353,24 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                       message.sender_id === currentUserId ? 'justify-end' : 'justify-start'
                     }`}
                   >
-                    {message.message_type === 'event_share' && message.shared_event_id ? (
+                    {message.message_type === 'review_share' && message.shared_review_id ? (
+                      // Review Share Message Card
+                      <div className="max-w-md">
+                        <div className="text-xs text-gray-500 mb-1">
+                          {message.sender_id === currentUserId ? 'You' : message.sender_name} shared a review
+                        </div>
+                        <ReviewMessageCard
+                          reviewId={message.shared_review_id}
+                          customMessage={message.metadata?.custom_message}
+                          onReviewClick={handleReviewClick}
+                          currentUserId={currentUserId}
+                          metadata={message.metadata}
+                        />
+                        <p className="text-xs text-gray-400 mt-1 text-right">
+                          {format(parseISO(message.created_at), 'h:mm a')}
+                        </p>
+                      </div>
+                    ) : message.message_type === 'event_share' && message.shared_event_id ? (
                       // Event Share Message Card
                       <div className="max-w-md">
                         <div className="text-xs text-gray-500 mb-1">
@@ -1505,6 +1680,165 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
             </Button>
           </div>
         </div>
+      )}
+
+      {/* Review Detail Modal */}
+      {showReviewDetailModal && selectedReviewDetail && (
+        <Dialog 
+          open={showReviewDetailModal} 
+          onOpenChange={(open) => {
+            setShowReviewDetailModal(open);
+            if (!open) {
+              setSelectedReviewDetail(null);
+              setReviewDetailData(null);
+              setLoadingReviewDetails(false);
+            }
+          }}
+        >
+          <DialogContent className="max-w-6xl w-[95vw] h-[95vh] max-h-[95vh] p-0 overflow-hidden flex flex-col" hideCloseButton>
+            <DialogTitle className="sr-only">Review Details</DialogTitle>
+            <DialogDescription className="sr-only">Review details</DialogDescription>
+            
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+              <div className="flex items-center gap-3">
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src={selectedReviewDetail.author?.avatar_url || undefined} />
+                  <AvatarFallback className="bg-gradient-to-br from-pink-500 to-purple-600 text-white">
+                    {selectedReviewDetail.author?.name?.charAt(0) || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{selectedReviewDetail.author?.name || 'User'}</span>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(selectedReviewDetail.created_at).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setShowReviewDetailModal(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex-1 flex overflow-hidden">
+              {/* Left side - Hero Image */}
+              <div className="flex-1 bg-black flex items-center justify-center min-h-0 relative">
+                {(reviewDetailData?.photos && reviewDetailData.photos.length > 0) || (selectedReviewDetail.photos && selectedReviewDetail.photos.length > 0) ? (
+                  <img 
+                    src={reviewDetailData?.photos[0] || selectedReviewDetail.photos?.[0]} 
+                    alt="Review photo"
+                    className="max-w-full max-h-full object-contain"
+                  />
+                ) : (
+                  <div className="text-center text-white">
+                    <div className="text-6xl font-bold mb-4">
+                      <span className="text-pink-500">S</span>ynth
+                    </div>
+                    <div className="w-32 h-0.5 bg-white mx-auto mb-4"></div>
+                    <div className="text-sm opacity-80">Concert Review</div>
+                  </div>
+                )}
+                {reviewDetailData?.reactionEmoji && (
+                  <div className="absolute top-4 right-4 text-4xl bg-white/20 backdrop-blur-sm rounded-full w-16 h-16 flex items-center justify-center">
+                    {reviewDetailData.reactionEmoji}
+                  </div>
+                )}
+              </div>
+              
+              {/* Right side - Content */}
+              <div className="flex-1 flex flex-col bg-white overflow-y-auto">
+                {loadingReviewDetails ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">Loading review details...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-6 space-y-6">
+                    {/* Event Info */}
+                    <div>
+                      <h2 className="text-2xl font-bold mb-2">
+                        {selectedReviewDetail.event_info?.event_name || selectedReviewDetail.title || 'Concert Review'}
+                      </h2>
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 mb-3">
+                        {selectedReviewDetail.event_info?.artist_name && (
+                          <Badge variant="secondary" className="cursor-pointer hover:bg-indigo-100">
+                            {selectedReviewDetail.event_info.artist_name}
+                          </Badge>
+                        )}
+                      </div>
+                      {selectedReviewDetail.event_info?.venue_name && (
+                        <div className="flex items-center gap-1 text-sm text-gray-500">
+                          <MapPin className="w-4 h-4" />
+                          <span>{selectedReviewDetail.event_info.venue_name}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Overall Rating */}
+                    {selectedReviewDetail.rating && (
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: 5 }, (_, i) => {
+                            const starValue = i + 1;
+                            const rating = selectedReviewDetail.rating || 0;
+                            const isFull = starValue <= Math.floor(rating);
+                            const isHalf = !isFull && starValue - 0.5 <= rating;
+                            return (
+                              <div key={i} className="relative w-6 h-6">
+                                <Star className="w-6 h-6 text-gray-300" />
+                                {(isHalf || isFull) && (
+                                  <div className={`absolute left-0 top-0 h-full overflow-hidden pointer-events-none ${isFull ? 'w-full' : 'w-1/2'}`}>
+                                    <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <span className="text-lg font-semibold">{selectedReviewDetail.rating}/5</span>
+                      </div>
+                    )}
+
+                    {/* Review Text */}
+                    {selectedReviewDetail.content && (
+                      <div className="bg-white border border-gray-200 rounded-lg p-4">
+                        <h3 className="font-semibold mb-2 text-gray-900">Review</h3>
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                          {selectedReviewDetail.content}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-6 pt-4 border-t border-gray-200">
+                      <div className="flex items-center gap-2 text-gray-700">
+                        <Heart className="w-5 h-5" />
+                        <span className="font-medium">{selectedReviewDetail.likes_count || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-700">
+                        <MessageCircle className="w-5 h-5" />
+                        <span className="font-medium">{selectedReviewDetail.comments_count || 0}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Event Details Modal */}

@@ -68,6 +68,17 @@ BEGIN
   LEFT JOIN public.events e ON r.event_id = e.id
   WHERE r.user_id = p_user_id 
     AND r.is_draft = true
+    -- CRITICAL: Exclude drafts for events that already have published reviews
+    -- This prevents drafts from showing in "Unreviewed" when review is already submitted
+    AND NOT EXISTS (
+      SELECT 1 
+      FROM public.reviews r2 
+      WHERE r2.user_id = r.user_id 
+        AND r2.event_id = r.event_id 
+        AND r2.is_draft = false
+        AND r2.review_text IS NOT NULL
+        AND r2.review_text != 'ATTENDANCE_ONLY'
+    )
   ORDER BY r.last_saved_at DESC;
 END;
 $$;

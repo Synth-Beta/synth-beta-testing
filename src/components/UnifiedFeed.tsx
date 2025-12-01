@@ -68,6 +68,7 @@ import { ReviewCommentsModal } from '@/components/reviews/ReviewCommentsModal';
 import { EventLikersModal } from '@/components/events/EventLikersModal';
 import { EventLikesService } from '@/services/eventLikesService';
 import { EventShareModal } from '@/components/events/EventShareModal';
+import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
 import { ShareService } from '@/services/shareService';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { FriendActivityFeed } from '@/components/social/FriendActivityFeed';
@@ -284,6 +285,8 @@ export const UnifiedFeed = ({
   // In-app sharing state
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedEventForShare, setSelectedEventForShare] = useState<any>(null);
+  const [reviewShareModalOpen, setReviewShareModalOpen] = useState(false);
+  const [selectedReviewForShare, setSelectedReviewForShare] = useState<any>(null);
   
   // News state
   const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
@@ -803,6 +806,22 @@ export const UnifiedFeed = ({
     checkForSelectedEvent();
   }, []);
 
+  // Load interested events when feedItems change
+  useEffect(() => {
+    if (!currentUserId || feedItems.length === 0) return;
+    
+    const eventItems = feedItems.filter(item => item.type === 'event' && item.event_data?.id);
+    if (eventItems.length === 0) return;
+    
+    const eventIds = eventItems.map(item => item.event_data!.id).filter(Boolean) as string[];
+    
+    // Only load if we have events that aren't already in interestedEvents
+    const uncheckedEventIds = eventIds.filter(id => !interestedEvents.has(id));
+    if (uncheckedEventIds.length === 0) return;
+    
+    loadInterestedEventsForFeed(uncheckedEventIds);
+  }, [feedItems, currentUserId, interestedEvents]);
+
   const handleMapEventClick = (mapEvent: JamBaseEventResponse) => {
     const matchingFeedItem = processedFeedItems.find(
       (item) => item.type === 'event' && item.event_data?.id === mapEvent.id
@@ -1197,6 +1216,11 @@ export const UnifiedFeed = ({
       console.log(`📊 Loaded ${items.length} items (${eventItems.length} events), hasMore: ${newHasMore}`);
       setHasMore(newHasMore);
       
+      // Load interested events for the events in the feed
+      if (currentUserId && eventItems.length > 0) {
+        loadInterestedEventsForFeed(eventItems.map(item => item.event_data?.id).filter(Boolean) as string[]);
+      }
+      
     } catch (error) {
       console.error('Error loading feed data:', error);
       
@@ -1250,6 +1274,50 @@ export const UnifiedFeed = ({
     }
   };
 
+  // Load interested events for events in the feed
+  const loadInterestedEventsForFeed = async (eventIds: string[]) => {
+    if (!currentUserId || eventIds.length === 0) return;
+    
+    try {
+      // Query relationships table to get all events user is interested in
+      // Check for both status='accepted' and status=null (to match UserEventService logic)
+      const { data, error } = await supabase
+        .from('relationships')
+        .select('related_entity_id')
+        .eq('related_entity_type', 'event')
+        .eq('relationship_type', 'interest')
+        .eq('user_id', currentUserId)
+        .in('related_entity_id', eventIds.map(id => String(id)))
+        .or('status.eq.accepted,status.is.null');
+      
+      if (error) {
+        console.error('Error loading interested events:', error);
+        return;
+      }
+      
+      // Extract event IDs
+      const allInterestedIds = new Set<string>();
+      if (data) {
+        data.forEach((row: any) => {
+          if (row.related_entity_id) {
+            allInterestedIds.add(String(row.related_entity_id));
+          }
+        });
+      }
+      
+      // Update interestedEvents state
+      setInterestedEvents(prev => {
+        const newSet = new Set(prev);
+        allInterestedIds.forEach(id => newSet.add(id));
+        return newSet;
+      });
+      
+      console.log('✅ Loaded interested events:', allInterestedIds.size, 'events');
+    } catch (error) {
+      console.error('Error loading interested events for feed:', error);
+    }
+  };
+
   const handleLike = async (itemId: string) => {
     try {
       setFeedItems(prev => 
@@ -1293,15 +1361,45 @@ export const UnifiedFeed = ({
       if (item.type === 'event' && item.event_data) {
         setSelectedEventForShare(item.event_data);
         setShareModalOpen(true);
+      } else if (item.type === 'review') {
+        // For reviews, open ReviewShareModal
+        // Convert UnifiedFeedItem to ReviewWithEngagement format
+        const review = {
+          id: item.review_id || item.id,
+          user_id: item.author?.id || currentUserId,
+          event_id: (item as any).event_id || '',
+          rating: typeof item.rating === 'number' ? item.rating : ((item as any).artist_performance_rating as number) || 0,
+          review_text: item.content || '',
+          is_public: true,
+          created_at: item.created_at,
+          updated_at: item.updated_at || item.created_at,
+          likes_count: item.likes_count || 0,
+          comments_count: item.comments_count || 0,
+          shares_count: item.shares_count || 0,
+          is_liked_by_user: likedPosts.has(item.id),
+          reaction_emoji: '',
+          photos: item.photos || [],
+          videos: [],
+          mood_tags: [],
+          genre_tags: [],
+          context_tags: [],
+          artist_name: item.event_info?.artist_name,
+          artist_id: (item.event_info as any)?.artist_id,
+          venue_name: item.event_info?.venue_name,
+          venue_id: (item.event_info as any)?.venue_id,
+        } as ReviewWithEngagement;
+        
+        setSelectedReviewForShare(review);
+        setReviewShareModalOpen(true);
       } else {
-        // For non-events, just copy to clipboard
-      const shareText = `Check out this ${item.type}: ${item.title}`;
-      await navigator.clipboard.writeText(shareText);
-      
-      toast({
-        title: "Shared!",
-        description: "Link copied to clipboard",
-      });
+        // For other types, just copy to clipboard
+        const shareText = `Check out this ${item.type}: ${item.title}`;
+        await navigator.clipboard.writeText(shareText);
+        
+        toast({
+          title: "Shared!",
+          description: "Link copied to clipboard",
+        });
       }
     } catch (error) {
       console.error('Error sharing item:', error);
@@ -2170,10 +2268,10 @@ export const UnifiedFeed = ({
             review_text: item.content || '',
             is_public: true,
             created_at: item.created_at,
-            updated_at: item.created_at,
+            updated_at: item.updated_at || item.created_at,
             likes_count: item.likes_count || 0,
             comments_count: item.comments_count || 0,
-            shares_count: 0,
+            shares_count: item.shares_count || 0,
             is_liked_by_user: likedPosts.has(item.id),
             reaction_emoji: '',
             photos: item.photos || [],
@@ -2212,7 +2310,10 @@ export const UnifiedFeed = ({
                 handleInstagramLike(item);
               }}
               onComment={() => setOpenReviewCommentsFor(item.review_id || item.id)}
-              onShare={() => handleShare(item)}
+              onShare={(reviewId) => {
+                // Use the current item (it's already in scope)
+                handleShare(item);
+              }}
               onOpenReviewDetail={(review) => {
                 setSelectedReviewDetail(item);
                 setShowReviewDetailModal(true);
@@ -2632,10 +2733,10 @@ export const UnifiedFeed = ({
                       review_text: item.content || '',
                       is_public: true,
                       created_at: item.created_at,
-                      updated_at: item.created_at,
+                      updated_at: item.updated_at || item.created_at,
                       likes_count: item.likes_count || 0,
                       comments_count: item.comments_count || 0,
-                      shares_count: 0,
+                      shares_count: item.shares_count || 0,
                       is_liked_by_user: likedPosts.has(item.id),
                       reaction_emoji: '',
                       photos: item.photos || [],
@@ -2676,7 +2777,10 @@ export const UnifiedFeed = ({
                       }
                     }}
                     onComment={() => setOpenReviewCommentsFor(item.review_id || item.id)}
-                    onShare={() => handleShare(item)}
+                    onShare={(reviewId) => {
+                      // Use the current item (it's already in scope)
+                      handleShare(item);
+                    }}
                     onEdit={() => {
                       console.log('Edit button clicked for review:', item.review_id || item.id);
                       console.log('Full item data:', item);
@@ -3047,6 +3151,18 @@ export const UnifiedFeed = ({
                 currentUserId={currentUserId}
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
+      />
+      )}
+
+      {reviewShareModalOpen && selectedReviewForShare && (
+      <ReviewShareModal
+        review={selectedReviewForShare}
+        currentUserId={currentUserId}
+        isOpen={reviewShareModalOpen}
+        onClose={() => {
+          setReviewShareModalOpen(false);
+          setSelectedReviewForShare(null);
+        }}
       />
       )}
 

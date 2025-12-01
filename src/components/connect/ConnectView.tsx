@@ -5,6 +5,7 @@ import { FriendsReviewService } from '@/services/friendsReviewService';
 import type { UnifiedFeedItem } from '@/services/unifiedFeedService';
 import type { ReviewWithEngagement } from '@/services/reviewService';
 import { ReviewCard } from '@/components/reviews/ReviewCard';
+import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -187,6 +188,8 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
   }>>([]);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [userSearchOpen, setUserSearchOpen] = useState(false);
+  const [reviewShareModalOpen, setReviewShareModalOpen] = useState(false);
+  const [selectedReviewForShare, setSelectedReviewForShare] = useState<ReviewWithEngagement | null>(null);
   const [reviewDetailData, setReviewDetailData] = useState<{
     photos: string[];
     videos: string[];
@@ -948,7 +951,13 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                   console.log('Comment on review:', reviewId);
                 }}
                 onShare={(reviewId) => {
-                  console.log('Share review:', reviewId);
+                  // Find the review item and convert it to ReviewWithEngagement format
+                  const item = reviewItems.find(item => (item.review_id || item.id) === reviewId);
+                  if (item) {
+                    const review = transformFeedItemToReview(item, currentUserId);
+                    setSelectedReviewForShare(review);
+                    setReviewShareModalOpen(true);
+                  }
                 }}
                 onOpenReviewDetail={async (review) => {
                 // Find the corresponding UnifiedFeedItem to show in modal
@@ -1992,7 +2001,16 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                       <MessageCircle className="w-5 h-5" />
                       <span className="font-medium">{selectedReviewDetail.comments_count || 0}</span>
                     </button>
-                    <button className="flex items-center gap-2 text-gray-700 hover:text-green-500 transition-colors">
+                    <button 
+                      onClick={() => {
+                        if (selectedReviewDetail) {
+                          const review = transformFeedItemToReview(selectedReviewDetail, currentUserId);
+                          setSelectedReviewForShare(review);
+                          setReviewShareModalOpen(true);
+                        }
+                      }}
+                      className="flex items-center gap-2 text-gray-700 hover:text-green-500 transition-colors"
+                    >
                       <Share2 className="w-5 h-5" />
                       <span className="font-medium">Share</span>
                     </button>
@@ -2003,6 +2021,19 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
             </div>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Review Share Modal */}
+      {reviewShareModalOpen && selectedReviewForShare && (
+        <ReviewShareModal
+          review={selectedReviewForShare}
+          currentUserId={currentUserId}
+          isOpen={reviewShareModalOpen}
+          onClose={() => {
+            setReviewShareModalOpen(false);
+            setSelectedReviewForShare(null);
+          }}
+        />
       )}
     </div>
   );
