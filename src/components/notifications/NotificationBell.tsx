@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { NotificationService } from '@/services/notificationService';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface NotificationBellProps {
   onClick?: () => void;
@@ -20,6 +21,7 @@ export function NotificationBell({ onClick, className }: NotificationBellProps) 
     const loadUnreadCount = async () => {
       try {
         const count = await NotificationService.getUnreadCount();
+        console.log('🔔 NotificationBell: Unread count loaded:', count);
         setUnreadCount(count);
       } catch (error) {
         console.error('Error loading unread count:', error);
@@ -67,7 +69,7 @@ export function NotificationBell({ onClick, className }: NotificationBellProps) 
 
   if (isLoading) {
     return (
-      <Button variant="ghost" size="sm" className={className} disabled>
+      <Button variant="outline" size="icon" className={cn("relative", className)} disabled>
         <Bell className="h-5 w-5" />
       </Button>
     );
@@ -75,16 +77,17 @@ export function NotificationBell({ onClick, className }: NotificationBellProps) 
 
   return (
     <Button 
-      variant="ghost" 
-      size="sm" 
-      className={`relative ${className}`}
+      variant="outline" 
+      size="icon" 
+      className={cn("relative", className)}
       onClick={onClick}
+      aria-label="Notifications"
     >
       <Bell className="h-5 w-5" />
       {unreadCount > 0 && (
         <Badge 
           variant="destructive" 
-          className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+          className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full p-0 flex items-center justify-center text-[10px] font-bold bg-red-500 text-white border-0 shadow-sm z-10"
         >
           {unreadCount > 99 ? '99+' : unreadCount}
         </Badge>

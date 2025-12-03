@@ -84,14 +84,28 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
 
       const eventIdList = eventIds?.map(e => e.id) || [];
       
+      // Even if no events found, still try to fetch artist image and other data
       if (eventIdList.length === 0) {
-        // No events found for this artist, set empty stats
+        // Try to fetch artist data from database
+        const { data: artistData } = await (supabase as any)
+          .from('artists')
+          .select('id, name, jambase_artist_id, image_url')
+          .ilike('name', artistName)
+          .maybeSingle();
+
+        if (artistData?.image_url) {
+          setArtistImage(artistData.image_url);
+        }
+        
+        // Set empty stats but don't return - continue to fetch artist data
         setArtistStats({
           totalReviews: 0,
           averageRating: 0,
           loading: false
         });
         setArtistReviews([]);
+        
+        // Still try to get artist image even with no events
         return;
       }
 
@@ -186,15 +200,31 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       setArtistReviews(transformedReviews);
 
       // Try to fetch artist data from database (without description column)
+      // Use maybeSingle() instead of single() to avoid errors if not found
       const { data: artistData } = await (supabase as any)
         .from('artists')
         .select('id, name, jambase_artist_id, image_url')
-        .eq('name', artistName)
-        .single();
+        .ilike('name', artistName)
+        .maybeSingle();
 
       if (artistData) {
         setArtistDescription(''); // No description column available
-        setArtistImage(artistData.image_url || '');
+        if (artistData.image_url) {
+          setArtistImage(artistData.image_url);
+        }
+      }
+      
+      // If still no image, try exact match as fallback
+      if (!artistImage && !artistData) {
+        const { data: exactMatch } = await (supabase as any)
+          .from('artists')
+          .select('id, name, jambase_artist_id, image_url')
+          .eq('name', artistName)
+          .maybeSingle();
+          
+        if (exactMatch?.image_url) {
+          setArtistImage(exactMatch.image_url);
+        }
       }
     } catch (error) {
       console.error('Error fetching artist profile:', error);
@@ -227,15 +257,39 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       setLoading(true);
       setError(null);
 
-      // First try to get the artist name from the URL parameter
-      // If artistId is actually a name (not an ID), use it directly
+      // Check if artistId is a UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(decodedArtistId);
+      
       let artistNameToSearch = decodedArtistId;
+      let resolvedArtistId = decodedArtistId;
+      
+      // If it's a UUID, first look up the artist in the artists table to get the name and image
+      if (isUUID) {
+        const { data: artistData, error: artistError } = await supabase
+          .from('artists')
+          .select('id, name, image_url, jambase_artist_id')
+          .eq('id', decodedArtistId)
+          .maybeSingle();
+          
+        if (!artistError && artistData && artistData.name) {
+          artistNameToSearch = artistData.name;
+          resolvedArtistId = artistData.id;
+          console.log('✅ Found artist name from UUID:', artistNameToSearch);
+          
+          // Set artist image immediately if available
+          if (artistData.image_url) {
+            setArtistImage(artistData.image_url);
+          }
+        } else {
+          console.warn('⚠️ Could not find artist by UUID, will try to use UUID as name');
+        }
+      }
       
       // Fetch events from database first (existing behavior)
       let { data: eventsData, error: eventsError } = await supabase
         .from('events')
         .select('*')
-        .eq('artist_id', artistId)
+        .eq('artist_id', decodedArtistId)
         .order('event_date', { ascending: true });
 
       // If no events found by artist_id, try by exact artist_name match
@@ -244,7 +298,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
         const { data: nameSearchData, error: nameSearchError } = await supabase
           .from('events')
           .select('*')
-          .eq('artist_name', decodedArtistId) // Exact match, not fuzzy
+          .eq('artist_name', artistNameToSearch) // Use the resolved name, not the UUID
           .order('event_date', { ascending: true });
           
         if (!nameSearchError && nameSearchData && nameSearchData.length > 0) {
@@ -323,7 +377,39 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       );
 
       setEvents(deduplicatedEvents);
-      setArtistName(artistNameToSearch || decodedArtistId || 'Unknown Artist');
+      const finalArtistName = artistNameToSearch || decodedArtistId || 'Unknown Artist';
+      setArtistName(finalArtistName);
+      
+      // Fetch artist profile data (image, description, etc.) even if no events found
+      // This ensures we show artist info even when Ticketmaster is down
+      let foundImage = false;
+      
+      if (isUUID && resolvedArtistId) {
+        // Try to fetch artist data by ID
+        const { data: artistData } = await supabase
+          .from('artists')
+          .select('id, name, image_url, jambase_artist_id')
+          .eq('id', resolvedArtistId)
+          .maybeSingle();
+          
+        if (artistData?.image_url) {
+          setArtistImage(artistData.image_url);
+          foundImage = true;
+        }
+      }
+      
+      // Also try fetching by name as fallback if we didn't find image by ID
+      if (!foundImage && finalArtistName) {
+        const { data: artistByName } = await supabase
+          .from('artists')
+          .select('id, name, image_url, jambase_artist_id')
+          .ilike('name', finalArtistName)
+          .maybeSingle();
+          
+        if (artistByName?.image_url) {
+          setArtistImage(artistByName.image_url);
+        }
+      }
     } catch (err) {
       console.error('Error fetching artist events:', err);
       setError('Failed to load artist events');

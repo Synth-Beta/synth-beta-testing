@@ -107,23 +107,36 @@ export class NotificationService {
    */
   static async getUnreadCount(): Promise<number> {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('No user found, returning 0 unread count');
+        return 0;
+      }
+
       const { data, error } = await supabase.rpc('get_unread_notification_count');
 
       if (error) {
         // If the function doesn't exist yet, fallback to direct query
         if (error.code === 'PGRST202' || error.message?.includes('Could not find the function')) {
           console.log('Notification function not found, falling back to direct query');
-          const { count } = await supabase
+          const { count, error: countError } = await supabase
             .from('notifications')
             .select('*', { count: 'exact', head: true })
-            .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+            .eq('user_id', user.id)
             .eq('is_read', false);
           
+          if (countError) {
+            console.error('Error counting notifications:', countError);
+            return 0;
+          }
+          
+          console.log('Unread notification count:', count || 0);
           return count || 0;
         }
         throw error;
       }
 
+      console.log('Unread notification count (RPC):', data || 0);
       return data || 0;
     } catch (error) {
       console.error('Error fetching unread count:', error);

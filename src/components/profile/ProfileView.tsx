@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3, Clock, Award, Trophy, Flag, Ban, MoreVertical, Trash2 } from 'lucide-react';
 import { FollowersModal } from './FollowersModal';
+import { FollowingModal } from './FollowingModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -155,6 +156,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [isUserBlocked, setIsUserBlocked] = useState(false);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [followersModalType, setFollowersModalType] = useState<'followers' | 'following' | 'friends'>('friends');
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
   const [friendStatus, setFriendStatus] = useState<'none' | 'friends' | 'pending_sent' | 'pending_received'>('none');
   const [followedArtistsCount, setFollowedArtistsCount] = useState(0);
   const { toast } = useToast();
@@ -281,7 +283,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       // Check if session is expired before making any requests
       if (sessionExpired || !user) {
         console.log('❌ Session expired or no user, skipping profile fetch');
-        setLoading(false);
+        // Don't set loading to false here - let the main fetchData handle it
         return;
       }
 
@@ -317,7 +319,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             description: "Your session has expired. Please sign in again.",
             variant: "destructive",
           });
-          setLoading(false);
+          // Don't set loading to false here - let the main fetchData handle it
           return;
         }
       } else {
@@ -388,19 +390,18 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     } catch (error) {
       console.error('Error fetching profile:', error);
       // Show a fallback profile instead of error
-        setProfile({
-          id: 'temp',
-          user_id: currentUserId,
-          name: 'New User',
-          avatar_url: null,
-          bio: null,
-          instagram_handle: null,
-          music_streaming_profile: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-    } finally {
-      setLoading(false);
+      setProfile({
+        id: 'temp',
+        user_id: currentUserId,
+        name: 'New User',
+        avatar_url: null,
+        bio: null,
+        instagram_handle: null,
+        music_streaming_profile: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      // Don't set loading to false here - let the main fetchData handle it
     }
   };
 
@@ -1450,7 +1451,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   // Session expiration is handled by MainApp, so we don't need to handle it here
 
-  if (loading) {
+  // Show loading skeleton while loading or if profile hasn't loaded yet
+  if (loading || !profile) {
     return (
       <div className="min-h-screen synth-gradient-card p-4 pb-20">
         <div className="max-w-2xl mx-auto space-y-6">
@@ -1478,19 +1480,16 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     );
   }
 
+  // If loading is complete but no profile, show error (shouldn't happen with current logic)
   if (!profile) {
-    console.log('❌ ProfileView: No profile data available');
+    console.log('❌ ProfileView: No profile data available after loading');
     console.log('❌ ProfileView: Loading state:', loading);
     console.log('❌ ProfileView: Current user ID:', currentUserId);
-    console.log('❌ ProfileView: User from auth:', user);
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-bold mb-4">Profile not found</h2>
           <p className="text-muted-foreground mb-4">Unable to load profile data. Please try again.</p>
-          <div className="text-xs text-muted-foreground mb-4">
-            Debug: User ID: {currentUserId}, Loading: {loading.toString()}
-          </div>
           <Button onClick={onBack}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -1595,7 +1594,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 
                 <button
                   className="text-center hover:scale-105 transition-transform group"
-                  onClick={() => navigate(`/following${!isViewingOwnProfile ? `/${targetUserId}` : ''}`)}
+                  onClick={() => setShowFollowingModal(true)}
                 >
                   <div className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent group-hover:from-pink-700 group-hover:to-purple-700">
                     {followedArtistsCount}
@@ -2608,6 +2607,17 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         }}
         onUnfriend={unfriendUser}
       />
+
+      {/* Following Modal - shows artists and venues */}
+      {profile && (
+        <FollowingModal
+          isOpen={showFollowingModal}
+          onClose={() => setShowFollowingModal(false)}
+          userId={targetUserId}
+          profileName={profile.name}
+          isOwnProfile={isViewingOwnProfile}
+        />
+      )}
 
       {/* Event Details Modal - mount only when needed to avoid React static flag warning */}
       {detailsOpen && selectedEvent && (

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Star } from 'lucide-react';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
 
 interface ProfileStarBucketsProps {
@@ -64,7 +65,8 @@ export function ProfileStarBuckets({ reviews, onSelectReview }: ProfileStarBucke
   }, [reviews]);
 
   const renderStars = (rating: number) => {
-    const rounded = Math.round(rating * 2) / 2;
+    // Round DOWN to the nearest 0.5 star (e.g., 4.8 → 4.5, 4.7 → 4.5, 4.6 → 4.5)
+    const rounded = Math.floor(rating * 2) / 2;
     return (
       <div className="flex items-center gap-0.5">
         {Array.from({ length: 5 }, (_, i) => {
@@ -73,12 +75,11 @@ export function ProfileStarBuckets({ reviews, onSelectReview }: ProfileStarBucke
           const isHalf = !isFull && rounded >= starIndex - 0.5;
           return (
             <div key={i} className="relative w-3 h-3">
-              <span className="absolute inset-0 rounded-full bg-gray-200" />
-              {(isFull || isHalf) && (
-                <span
-                  className="absolute inset-0 rounded-full bg-yellow-400"
-                  style={{ width: isFull ? '100%' : '50%' }}
-                />
+              <Star className={`w-3 h-3 ${isFull ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+              {isHalf && (
+                <div className="absolute inset-0 overflow-hidden" style={{ width: '50%' }}>
+                  <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                </div>
               )}
             </div>
           );

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, MessageCircle } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { fetchUserChats } from '@/services/chatService';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface PageActionsProps {
   currentUserId: string;
@@ -80,15 +81,10 @@ export const PageActions: React.FC<PageActionsProps> = ({
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-10 w-10 rounded-full border-2 hover:bg-synth-pink/10 hover:border-synth-pink/50 transition-colors"
+      <NotificationBell
         onClick={onNavigateToNotifications}
-        aria-label="Notifications"
-      >
-        <Bell className="h-5 w-5" />
-      </Button>
+        className="h-10 w-10 rounded-full border-2 hover:bg-synth-pink/10 hover:border-synth-pink/50 transition-colors"
+      />
       <Button
         variant="outline"
         size="icon"
