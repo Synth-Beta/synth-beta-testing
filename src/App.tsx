@@ -28,6 +28,7 @@ const App = () => {
               <Route path="/artist/:artistId" element={<ArtistEvents />} />
               <Route path="/venue/:venueId" element={<VenueEvents />} />
               <Route path="/streaming-stats" element={<StreamingStatsPage />} />
+              {/* Following routes for artists and venues */}
               <Route path="/following" element={<ArtistFollowingPage />} />
               <Route path="/following/:userId" element={<ArtistFollowingPage />} />
               <Route path="/auth/spotify/callback" element={<SpotifyCallback />} />
