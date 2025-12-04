@@ -9,6 +9,7 @@ import AppPage from "./pages/App";
 import ArtistEvents from "./pages/ArtistEvents";
 import VenueEvents from "./pages/VenueEvents";
 import { StreamingStatsPage } from "./pages/StreamingStatsPage";
+import { ArtistFollowingPage } from "./pages/ArtistFollowingPage";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,8 @@ const App = () => {
               <Route path="/artist/:artistId" element={<ArtistEvents />} />
               <Route path="/venue/:venueId" element={<VenueEvents />} />
               <Route path="/streaming-stats" element={<StreamingStatsPage />} />
+              <Route path="/following" element={<ArtistFollowingPage />} />
+              <Route path="/following/:userId" element={<ArtistFollowingPage />} />
               <Route path="/auth/spotify/callback" element={<SpotifyCallback />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
