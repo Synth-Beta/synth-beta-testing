@@ -16,9 +16,15 @@ export class NotificationService {
     total: number;
   }> {
     try {
+      // Get current user ID for filtering (consistent with fallback method)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Try to use the view first
       let query = supabase
         .from('notifications_with_details')
         .select('*', { count: 'exact' })
+        .eq('user_id', user.id) // Explicitly filter by user_id for consistency and safety
         .order('created_at', { ascending: false });
 
       // Apply filters
@@ -30,23 +36,343 @@ export class NotificationService {
         query = query.eq('is_read', filters.is_read);
       }
 
-      // Apply pagination
-      const limit = filters.limit || 20;
+      // Apply pagination with buffer to account for client-side filtering
+      // The offset should apply to the database query, not the filtered results
+      // This ensures pagination is based on database position, not filtered position
+      const requestedLimit = filters.limit || 20;
       const offset = filters.offset || 0;
-      query = query.range(offset, offset + limit - 1);
+      // Fetch 50% more than requested to account for processed friend requests that will be filtered out
+      const fetchLimit = Math.ceil(requestedLimit * 1.5);
+      // Apply offset to database query - this ensures we get the correct database items for this page
+      query = query.range(offset, offset + fetchLimit - 1);
 
       const { data, error, count } = await query;
 
+      // If view doesn't exist, fallback to notifications table with manual joins
+      if (error && (error.code === 'PGRST205' || error.message?.includes('notifications_with_details'))) {
+        // Silently fallback - no need to log this expected error
+        return await this.getNotificationsWithManualJoin(filters);
+      }
+
       if (error) throw error;
 
+      // Filter out processed friend request notifications
+      // Batch check friend request statuses to reduce queries
+      const friendRequestNotifications = ((data as NotificationWithDetails[]) || []).filter(n => n.type === 'friend_request' && n.data?.request_id);
+      
+      // If we have friend request notifications, try to check their status in batch
+      let processedRequestIds: Set<string> = new Set();
+      if (friendRequestNotifications.length > 0) {
+        try {
+          const requestIds = friendRequestNotifications.map(n => n.data.request_id).filter(Boolean);
+          if (requestIds.length > 0) {
+            // Try to get all non-pending requests in one query
+            const { data: processedRequests } = await supabase
+              .from('user_relationships')
+              .select('id')
+              .in('id', requestIds)
+              .eq('relationship_type', 'friend')
+              .neq('status', 'pending');
+            
+            if (processedRequests) {
+              processedRequestIds = new Set(processedRequests.map(r => r.id));
+            }
+          }
+        } catch (error: any) {
+          // If batch query fails (RLS), skip filtering - include all notifications
+          // This is expected with RLS restrictions, so don't log
+        }
+      }
+
+      // Filter notifications
+      const filteredNotifications = ((data as NotificationWithDetails[]) || []).map((notif) => {
+        // Check if this is a processed friend request
+        if (notif.type === 'friend_request' && notif.data?.request_id) {
+          const requestId = notif.data.request_id;
+          if (processedRequestIds.has(requestId)) {
+            return null; // Filter out processed requests
+          }
+        }
+        return notif;
+      });
+
+      // Filter out null values (processed friend requests)
+      const validNotifications = filteredNotifications.filter(n => n !== null) as NotificationWithDetails[];
+
+      // Return only the requested amount to maintain pagination contract
+      // The offset was already applied to the database query, so we just need to limit the results
+      // After filtering, we may have fewer than requested, so we slice to the requested limit
+      const paginatedNotifications = validNotifications.slice(0, requestedLimit);
+
+      // Return the original database count to enable proper pagination
+      // Note: This count includes processed friend requests that are filtered out client-side.
+      // The returned array may contain fewer items than the total due to client-side filtering,
+      // but the total count allows pagination UI to work correctly.
       return {
-        notifications: (data as NotificationWithDetails[]) || [],
+        notifications: paginatedNotifications,
         total: count || 0
       };
     } catch (error) {
       console.error('Error fetching notifications:', error);
       throw new Error(`Failed to get notifications: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  /**
+   * Fallback method to get notifications with manual joins when view doesn't exist
+   */
+  private static async getNotificationsWithManualJoin(filters: NotificationFilters = {}): Promise<{
+    notifications: NotificationWithDetails[];
+    total: number;
+  }> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    // Query notifications table
+    let query = supabase
+      .from('notifications')
+      .select('*', { count: 'exact' })
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    // Apply filters
+    if (filters.type) {
+      query = query.eq('type', filters.type);
+    }
+    
+    if (filters.is_read !== undefined) {
+      query = query.eq('is_read', filters.is_read);
+    }
+
+    // Apply pagination with buffer to account for client-side filtering
+    // The offset should apply to the database query, not the filtered results
+    // This ensures pagination is based on database position, not filtered position
+    const requestedLimit = filters.limit || 20;
+    const offset = filters.offset || 0;
+    // Fetch 50% more than requested to account for processed friend requests that will be filtered out
+    const fetchLimit = Math.ceil(requestedLimit * 1.5);
+    // Apply offset to database query - this ensures we get the correct database items for this page
+    query = query.range(offset, offset + fetchLimit - 1);
+
+    const { data: notifications, error, count } = await query;
+    if (error) throw error;
+
+    if (!notifications || notifications.length === 0) {
+      return { notifications: [], total: count || 0 };
+    }
+
+    // Filter out processed friend request notifications first
+    // Batch check friend request statuses to reduce queries
+    const friendRequestNotifications = notifications.filter(n => n.type === 'friend_request' && n.data?.request_id);
+    
+    // If we have friend request notifications, try to check their status in batch
+    let processedRequestIds: Set<string> = new Set();
+    if (friendRequestNotifications.length > 0) {
+      try {
+        const requestIds = friendRequestNotifications.map(n => n.data.request_id).filter(Boolean);
+        if (requestIds.length > 0) {
+          // Try to get all non-pending requests in one query
+          const { data: processedRequests } = await supabase
+            .from('user_relationships')
+            .select('id')
+            .in('id', requestIds)
+            .eq('relationship_type', 'friend')
+            .neq('status', 'pending');
+          
+          if (processedRequests) {
+            processedRequestIds = new Set(processedRequests.map(r => r.id));
+          }
+        }
+      } catch (error: any) {
+        // If batch query fails (RLS), skip filtering - include all notifications
+        // This is expected with RLS restrictions, so don't log
+      }
+    }
+
+    // Filter notifications
+    const activeNotifications = notifications.map((notif) => {
+      // Check if this is a processed friend request
+      if (notif.type === 'friend_request' && notif.data?.request_id) {
+        const requestId = notif.data.request_id;
+        if (processedRequestIds.has(requestId)) {
+          return null; // Filter out processed requests
+        }
+      }
+      return notif;
+    });
+
+    // Filter out null values (processed friend requests)
+    const validNotifications = activeNotifications.filter(n => n !== null) as any[];
+
+    // Return only the requested amount to maintain pagination contract
+    // The offset was already applied to the database query, so we just need to limit the results
+    // After filtering, we may have fewer than requested, so we slice to the requested limit
+    const paginatedNotifications = validNotifications.slice(0, requestedLimit);
+
+    // Return the original database count to enable proper pagination (consistent with main method)
+    // Note: This count includes processed friend requests that are filtered out client-side.
+    // The returned array may contain fewer items than the total due to client-side filtering,
+    // but the total count allows pagination UI to work correctly.
+    if (paginatedNotifications.length === 0) {
+      return { notifications: [], total: count || 0 };
+    }
+
+    // Enrich notifications with related data
+    const enrichedNotifications: NotificationWithDetails[] = await Promise.all(
+      paginatedNotifications.map(async (notif) => {
+        const enriched: NotificationWithDetails = { ...notif } as NotificationWithDetails;
+
+        // Fetch actor details if actor_user_id exists
+        if (notif.actor_user_id) {
+          try {
+            // Try users table first, fallback to profiles
+            let actorProfile = null;
+            const { data: usersData, error: usersError } = await supabase
+              .from('users')
+              .select('name, avatar_url')
+              .eq('user_id', notif.actor_user_id)
+              .single();
+            
+            if (!usersError && usersData) {
+              actorProfile = usersData;
+            } else {
+              // Fallback to profiles table
+              const { data: profilesData, error: profilesError } = await supabase
+                .from('profiles')
+                .select('name, avatar_url')
+                .eq('user_id', notif.actor_user_id)
+                .single();
+              
+              if (!profilesError && profilesData) {
+                actorProfile = profilesData;
+              }
+            }
+            
+            if (actorProfile) {
+              enriched.actor_name = actorProfile.name;
+              enriched.actor_avatar = actorProfile.avatar_url;
+            }
+          } catch (error) {
+            // Silently fail - actor details are optional
+            console.log('Could not fetch actor profile:', error);
+          }
+        }
+
+        // Fetch review and event details if review_id exists
+        if (notif.review_id) {
+          const { data: review } = await supabase
+            .from('user_reviews')
+            .select('review_text, rating, event_id')
+            .eq('id', notif.review_id)
+            .single();
+          
+          if (review) {
+            enriched.review_text = review.review_text;
+            enriched.rating = review.rating;
+
+            // Fetch event details
+            if (review.event_id) {
+              const { data: event } = await supabase
+                .from('jambase_events')
+                .select('title, artist_name, venue_name')
+                .eq('id', review.event_id)
+                .single();
+              
+              if (event) {
+                enriched.event_title = event.title;
+                enriched.artist_name = event.artist_name;
+                enriched.venue_name = event.venue_name;
+              }
+            }
+          }
+        }
+
+        return enriched;
+      })
+    );
+
+    // Return the original database count to enable proper pagination
+    // Note: This count includes processed friend requests that are filtered out client-side.
+    // The returned array may contain fewer items than the total due to client-side filtering,
+    // but the total count allows pagination UI to work correctly.
+    return {
+      notifications: enrichedNotifications,
+      total: count || 0
+    };
+  }
+
+  /**
+   * Helper method to enrich a single notification with related data
+   */
+  private static async enrichNotification(notif: any): Promise<NotificationWithDetails> {
+    const enriched: NotificationWithDetails = { ...notif } as NotificationWithDetails;
+
+    // Fetch actor details if actor_user_id exists
+    if (notif.actor_user_id) {
+      try {
+        // Try users table first, fallback to profiles
+        let actorProfile = null;
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('name, avatar_url')
+          .eq('user_id', notif.actor_user_id)
+          .single();
+        
+        if (!usersError && usersData) {
+          actorProfile = usersData;
+        } else {
+          // Fallback to profiles table
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('name, avatar_url')
+            .eq('user_id', notif.actor_user_id)
+            .single();
+          
+          if (!profilesError && profilesData) {
+            actorProfile = profilesData;
+          }
+        }
+        
+        if (actorProfile) {
+          enriched.actor_name = actorProfile.name;
+          enriched.actor_avatar = actorProfile.avatar_url;
+        }
+      } catch (error) {
+        // Silently fail - actor details are optional
+        console.log('Could not fetch actor profile:', error);
+      }
+    }
+
+    // Fetch review and event details if review_id exists
+    if (notif.review_id) {
+      const { data: review } = await supabase
+        .from('user_reviews')
+        .select('review_text, rating, event_id')
+        .eq('id', notif.review_id)
+        .single();
+      
+      if (review) {
+        enriched.review_text = review.review_text;
+        enriched.rating = review.rating;
+
+        // Fetch event details
+        if (review.event_id) {
+          const { data: event } = await supabase
+            .from('jambase_events')
+            .select('title, artist_name, venue_name')
+            .eq('id', review.event_id)
+            .single();
+          
+          if (event) {
+            enriched.event_title = event.title;
+            enriched.artist_name = event.artist_name;
+            enriched.venue_name = event.venue_name;
+          }
+        }
+      }
+    }
+
+    return enriched;
   }
 
   /**
@@ -86,8 +412,21 @@ export class NotificationService {
           artist_new_event: 0,
           artist_profile_updated: 0,
           venue_new_event: 0,
-          venue_profile_updated: 0
-        }
+          venue_profile_updated: 0,
+          event_share: 0,
+          friend_rsvp_going: 0,
+          friend_rsvp_changed: 0,
+          friend_review_posted: 0,
+          friend_attended_same_event: 0,
+          event_reminder: 0,
+          group_chat_invite: 0,
+          trending_in_network: 0,
+          mutual_attendance: 0,
+          flag_reviewed: 0,
+          user_warned: 0,
+          user_restricted: 0,
+          user_suspended: 0
+        } as Record<NotificationType, number>
       };
 
       // Count by type
@@ -104,6 +443,7 @@ export class NotificationService {
 
   /**
    * Get unread notification count
+   * Filters out processed friend request notifications to match getNotifications behavior
    */
   static async getUnreadCount(): Promise<number> {
     try {
@@ -113,31 +453,60 @@ export class NotificationService {
         return 0;
       }
 
-      const { data, error } = await supabase.rpc('get_unread_notification_count');
+      // Fetch all unread notifications to filter out processed friend requests
+      // This ensures the count matches what getNotifications returns
+      const { data: notifications, error: fetchError } = await supabase
+        .from('notifications')
+        .select('id, type, data, is_read')
+        .eq('user_id', user.id)
+        .eq('is_read', false);
 
-      if (error) {
-        // If the function doesn't exist yet, fallback to direct query
-        if (error.code === 'PGRST202' || error.message?.includes('Could not find the function')) {
-          console.log('Notification function not found, falling back to direct query');
-          const { count, error: countError } = await supabase
-            .from('notifications')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .eq('is_read', false);
-          
-          if (countError) {
-            console.error('Error counting notifications:', countError);
-            return 0;
-          }
-          
-          console.log('Unread notification count:', count || 0);
-          return count || 0;
-        }
-        throw error;
+      if (fetchError) {
+        console.error('Error fetching notifications for unread count:', fetchError);
+        return 0;
       }
 
-      console.log('Unread notification count (RPC):', data || 0);
-      return data || 0;
+      if (!notifications || notifications.length === 0) {
+        return 0;
+      }
+
+      // Filter out processed friend request notifications (same logic as getNotifications)
+      const friendRequestNotifications = notifications.filter(n => n.type === 'friend_request' && n.data?.request_id);
+      
+      let processedRequestIds: Set<string> = new Set();
+      if (friendRequestNotifications.length > 0) {
+        try {
+          const requestIds = friendRequestNotifications.map(n => n.data.request_id).filter(Boolean);
+          if (requestIds.length > 0) {
+            // Get all non-pending requests in one query
+            const { data: processedRequests } = await supabase
+              .from('user_relationships')
+              .select('id')
+              .in('id', requestIds)
+              .eq('relationship_type', 'friend')
+              .neq('status', 'pending');
+            
+            if (processedRequests) {
+              processedRequestIds = new Set(processedRequests.map(r => r.id));
+            }
+          }
+        } catch (error: any) {
+          // If batch query fails (RLS), skip filtering - include all notifications
+          // This is expected with RLS restrictions, so don't log
+        }
+      }
+
+      // Filter out processed friend request notifications
+      const validNotifications = notifications.filter((notif) => {
+        if (notif.type === 'friend_request' && notif.data?.request_id) {
+          const requestId = notif.data.request_id;
+          // Exclude if this is a processed friend request
+          return !processedRequestIds.has(requestId);
+        }
+        return true; // Include all non-friend-request notifications
+      });
+
+      return validNotifications.length;
     } catch (error) {
       console.error('Error fetching unread count:', error);
       return 0;
@@ -205,11 +574,20 @@ export class NotificationService {
   /**
    * Subscribe to real-time notification updates
    */
-  static subscribeToNotifications(
+  static async subscribeToNotifications(
     onNotification: (notification: NotificationWithDetails) => void,
     onUpdate: (notification: NotificationWithDetails) => void,
     onDelete: (notificationId: string) => void
   ) {
+    // Get user ID first before setting up subscription
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.error('Cannot subscribe to notifications: User not authenticated');
+      return null;
+    }
+
+    const userId = user.id;
     const channel = supabase
       .channel('notifications')
       .on(
@@ -218,19 +596,37 @@ export class NotificationService {
           event: 'INSERT',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${(supabase.auth.getUser() as any).data?.user?.id}`
+          filter: `user_id=eq.${userId}`
         },
         async (payload) => {
           try {
-            // Fetch the full notification with details
-            const { data } = await supabase
+            // Try to fetch from view first, fallback to manual enrichment
+            let data: NotificationWithDetails | null = null;
+            
+            const { data: viewData, error: viewError } = await supabase
               .from('notifications_with_details')
               .select('*')
               .eq('id', payload.new.id)
               .single();
 
+            if (!viewError && viewData) {
+              data = viewData as NotificationWithDetails;
+            } else {
+              // Fallback: fetch from notifications table and enrich
+              const { data: notifData } = await supabase
+                .from('notifications')
+                .select('*')
+                .eq('id', payload.new.id)
+                .single();
+
+              if (notifData) {
+                const enriched = await this.enrichNotification(notifData as any);
+                data = enriched;
+              }
+            }
+
             if (data) {
-              onNotification(data as NotificationWithDetails);
+              onNotification(data);
             }
           } catch (error) {
             console.error('Error fetching new notification details:', error);
@@ -243,19 +639,37 @@ export class NotificationService {
           event: 'UPDATE',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${(supabase.auth.getUser() as any).data?.user?.id}`
+          filter: `user_id=eq.${userId}`
         },
         async (payload) => {
           try {
-            // Fetch the updated notification with details
-            const { data } = await supabase
+            // Try to fetch from view first, fallback to manual enrichment
+            let data: NotificationWithDetails | null = null;
+            
+            const { data: viewData, error: viewError } = await supabase
               .from('notifications_with_details')
               .select('*')
               .eq('id', payload.new.id)
               .single();
 
+            if (!viewError && viewData) {
+              data = viewData as NotificationWithDetails;
+            } else {
+              // Fallback: fetch from notifications table and enrich
+              const { data: notifData } = await supabase
+                .from('notifications')
+                .select('*')
+                .eq('id', payload.new.id)
+                .single();
+
+              if (notifData) {
+                const enriched = await this.enrichNotification(notifData as any);
+                data = enriched;
+              }
+            }
+
             if (data) {
-              onUpdate(data as NotificationWithDetails);
+              onUpdate(data);
             }
           } catch (error) {
             console.error('Error fetching updated notification details:', error);
@@ -268,7 +682,7 @@ export class NotificationService {
           event: 'DELETE',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${(supabase.auth.getUser() as any).data?.user?.id}`
+          filter: `user_id=eq.${userId}`
         },
         (payload) => {
           onDelete(payload.old.id);

@@ -15,17 +15,17 @@ Configure these in your Vercel dashboard (Settings → Environment Variables):
 
 ```env
 # Supabase Configuration
-VITE_SUPABASE_URL=https://glpiolbrafqikqhnseto.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5Mzc4MjQsImV4cCI6MjA3MjUxMzgyNH0.O5G3fW-YFtpACNqNfo_lsLK44F-3L3p69Ka-G2lSTLE
+VITE_SUPABASE_URL=[YOUR_SUPABASE_URL]
+VITE_SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
 
 # JamBase API
-VITE_JAMBASE_API_KEY=e7ed3a9b-e73a-446e-b7c6-a96d1c53a030
+VITE_JAMBASE_API_KEY=[YOUR_JAMBASE_API_KEY]
 
 # Backend Configuration
 VITE_BACKEND_URL=http://localhost:3001
 
 # Apple Music Integration (Optional)
-VITE_APPLE_MUSIC_DEVELOPER_TOKEN=your_jwt_token_here
+VITE_APPLE_MUSIC_DEVELOPER_TOKEN=[YOUR_APPLE_MUSIC_TOKEN]
 ```
 
 ### Deployment Steps

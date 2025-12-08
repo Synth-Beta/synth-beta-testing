@@ -24,7 +24,7 @@ export interface VenueSearchResult {
 
 export class UnifiedVenueSearchService {
   private static readonly JAMBASE_VENUES_URL = '/api/jambase/venues';
-  private static readonly API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+  private static readonly API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
 
   /**
    * Main search function - PROTECTED API USAGE:

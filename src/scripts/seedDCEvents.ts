@@ -2,12 +2,26 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Event } from '@/types/concertSearch';
 
 export class DCEventSeeder {
-  private static readonly JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+  private static readonly JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
+  
+  private static validateApiKey(): boolean {
+    if (!this.JAMBASE_API_KEY) {
+      console.error('❌ VITE_JAMBASE_API_KEY is not set. Please set it in your .env.local file.');
+      return false;
+    }
+    return true;
+  }
   private static readonly JAMBASE_BASE_URL = 'https://api.jambase.com';
 
   // Fetch upcoming events in Washington, DC from JamBase
   static async fetchDCEvents(): Promise<Event[]> {
     try {
+      // Validate API key before making any requests
+      if (!this.validateApiKey()) {
+        console.error('❌ Cannot fetch DC events: JAMBASE_API_KEY is not set');
+        return [];
+      }
+
       console.log('🎵 Starting to fetch DC events from JamBase...');
       
       const events: Event[] = [];
@@ -25,7 +39,7 @@ export class DCEventSeeder {
 
       while (events.length < 100 && page <= 3) { // Max 3 pages to avoid rate limiting
         const url = new URL(`${this.JAMBASE_BASE_URL}/events`);
-        url.searchParams.append('api_key', this.JAMBASE_API_KEY);
+        url.searchParams.append('api_key', this.JAMBASE_API_KEY!);
         url.searchParams.append('geoCity', 'Washington');
         url.searchParams.append('geoState', 'DC');
         url.searchParams.append('eventDateFrom', todayString);

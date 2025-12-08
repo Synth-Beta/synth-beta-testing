@@ -642,7 +642,11 @@ export class JamBaseService {
       // 2. Search JamBase API for additional artists
       console.log('🌐 Searching JamBase API...');
       try {
-        const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+        const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
+        if (!JAMBASE_API_KEY) {
+          console.warn('⚠️  VITE_JAMBASE_API_KEY is not set. Skipping JamBase API search.');
+          return results;
+        }
 
         // Use relative URL in production (Vercel serverless functions) or backend URL in development
         const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && !window.location.hostname.startsWith('127.0.0.1');

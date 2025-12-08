@@ -14,17 +14,23 @@ const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
 
-// Supabase Configuration - Set defaults if not provided
+// Supabase Configuration - Required environment variables
 if (!process.env.SUPABASE_URL) {
-  process.env.SUPABASE_URL = 'https://glpiolbrafqikqhnseto.supabase.co';
+  console.error('❌ ERROR: SUPABASE_URL environment variable is not set!');
+  console.error('   Please set SUPABASE_URL in your .env.local file or environment.');
+  process.exit(1);
 }
 if (!process.env.SUPABASE_ANON_KEY) {
-  // Use the SERVICE ROLE key for backend operations (has full database access)
-  process.env.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjkzNzgyNCwiZXhwIjoyMDcyNTEzODI0fQ.cS0y6dQiw2VvGD7tKfKADKqM8whaopJ716G4dexBRGI';
+  console.error('❌ ERROR: SUPABASE_ANON_KEY environment variable is not set!');
+  console.error('   Please set SUPABASE_ANON_KEY in your .env.local file or environment.');
+  process.exit(1);
 }
 
-// JamBase API
-process.env.JAMBASE_API_KEY = process.env.JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+// JamBase API - Required for event searches
+if (!process.env.JAMBASE_API_KEY) {
+  console.warn('⚠️  WARNING: JAMBASE_API_KEY environment variable is not set!');
+  console.warn('   Some features may not work. Set JAMBASE_API_KEY in your .env.local file.');
+}
 
 // Middleware
 const allowedOrigins = [

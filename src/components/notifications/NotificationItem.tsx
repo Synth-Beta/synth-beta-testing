@@ -35,7 +35,6 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
 }) => {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isDismissed, setIsDismissed] = useState(false);
 
   const getNotificationIcon = () => {
     switch (notification.type) {
@@ -107,10 +106,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
         variant: 'default'
       });
 
-      // Mark as dismissed to hide the notification
-      setIsDismissed(true);
-      
-      // Call the onMarkAsRead callback
+      // Mark as read (notification will remain visible but marked as read)
       if (onMarkAsRead) {
         onMarkAsRead(notification.id);
       }
@@ -127,14 +123,9 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
   };
 
   const handleDismiss = () => {
-    setIsDismissed(true);
+    // Simply mark as read - notification will remain visible but marked as read
     handleMarkAsRead();
   };
-
-  // Don't render if dismissed
-  if (isDismissed) {
-    return null;
-  }
 
   return (
     <Card 

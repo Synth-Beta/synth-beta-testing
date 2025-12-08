@@ -18,7 +18,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { SynthSLogo } from '@/components/SynthSLogo';
-import { fetchUserNotifications, type Notification } from '@/utils/notificationUtils';
+import { NotificationService } from '@/services/notificationService';
+import type { NotificationWithDetails } from '@/types/notifications';
 import { SkeletonNotificationCard } from '@/components/skeleton/SkeletonNotificationCard';
 
 
@@ -28,7 +29,7 @@ interface NotificationsPageProps {
 }
 
 export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPageProps) => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const { toast } = useToast();
@@ -52,62 +53,22 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
         return;
       }
 
-      // Use the utility function to fetch and filter notifications
-      const activeNotifications = await fetchUserNotifications(currentUserId, 50);
-
-      setNotifications(activeNotifications);
-      setUnreadCount(activeNotifications.filter(n => !n.is_read).length);
+      // Use NotificationService to fetch notifications with details
+      const result = await NotificationService.getNotifications({ limit: 50 });
+      setNotifications(result.notifications);
+      
+      // Get unread count
+      const count = await NotificationService.getUnreadCount();
+      setUnreadCount(count);
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      // Create some mock notifications for demo purposes
-      const mockNotifications: Notification[] = [
-        {
-          id: '1',
-          type: 'friend_request',
-          title: 'New Friend Request',
-          message: 'Sarah Johnson wants to be your friend',
-          user_id: 'user123',
-          is_read: false,
-          created_at: new Date().toISOString(),
-          data: {
-            sender_id: 'user123',
-            request_id: 'mock-request-123',
-            sender_name: 'Sarah Johnson'
-          }
-        },
-        {
-          id: '2',
-          type: 'event_interest',
-          title: 'Event Interest',
-          message: 'John liked the same event you\'re interested in: Cage The Elephant at Boeing Center',
-          user_id: 'user456',
-          event_id: 'event789',
-          is_read: false,
-          created_at: new Date(Date.now() - 3600000).toISOString(),
-        },
-        {
-          id: '3',
-          type: 'review_like',
-          title: 'Review Liked',
-          message: 'Mike liked your review of the Taylor Swift concert',
-          user_id: 'user789',
-          review_id: 'review123',
-          is_read: true,
-          created_at: new Date(Date.now() - 7200000).toISOString(),
-        },
-        {
-          id: '4',
-          type: 'event_reminder',
-          title: 'Event Reminder',
-          message: 'Cage The Elephant concert is tomorrow at 8:00 PM',
-          event_id: 'event456',
-          is_read: false,
-          created_at: new Date(Date.now() - 86400000).toISOString(),
-        },
-      ];
-      
-      setNotifications(mockNotifications);
-      setUnreadCount(mockNotifications.filter(n => !n.is_read).length);
+      toast({
+        title: "Error",
+        description: "Failed to load notifications. Please try again.",
+        variant: "destructive",
+      });
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
@@ -115,30 +76,31 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notificationId);
+      await NotificationService.markAsRead(notificationId);
 
       setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      
+      // Refresh unread count
+      const count = await NotificationService.getUnreadCount();
+      setUnreadCount(count);
     } catch (error) {
       console.error('Error marking notification as read:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark notification as read",
+        variant: "destructive",
+      });
     }
   };
 
   const markAllAsRead = async () => {
     try {
-      await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', currentUserId)
-        .eq('is_read', false);
-
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      setUnreadCount(0);
+      await NotificationService.markAllAsRead();
+      
+      // Refresh notifications to get updated state
+      await fetchNotifications();
       
       toast({
         title: "All notifications marked as read",
@@ -146,6 +108,11 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
       });
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark all notifications as read",
+        variant: "destructive",
+      });
     }
   };
 
@@ -159,6 +126,51 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
         .single();
 
       if (error) {
+        // If 406 or RLS error, try alternative approach
+        // Check error message for 406 or RLS-related errors
+        const errorMessage = error.message || '';
+        if (error.code === 'PGRST301' || error.code === '42501' || errorMessage.includes('406') || errorMessage.includes('Not Acceptable')) {
+          console.log('🔍 RLS restriction, cannot check status directly');
+          
+          // Try to find the notification to get the sender_id, then check if we're friends with that specific person
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            // Find the notification for this request to get the sender_id
+            const { data: notification } = await supabase
+              .from('notifications')
+              .select('data')
+              .eq('type', 'friend_request')
+              .eq('user_id', user.id)
+              .eq('data->>request_id', requestId)
+              .single();
+            
+            if (notification?.data?.sender_id) {
+              const senderId = notification.data.sender_id;
+              
+              // Check if there's an accepted friendship specifically with this sender
+              // Query for relationships where current user is involved
+              const { data: friendships } = await supabase
+                .from('user_relationships')
+                .select('user_id, related_user_id, status')
+                .eq('relationship_type', 'friend')
+                .eq('status', 'accepted')
+                .or(`user_id.eq.${user.id},related_user_id.eq.${user.id}`);
+              
+              // Filter to find the specific friendship with the sender
+              if (friendships && friendships.length > 0) {
+                const friendshipWithSender = friendships.find(f => 
+                  (f.user_id === user.id && f.related_user_id === senderId) ||
+                  (f.user_id === senderId && f.related_user_id === user.id)
+                );
+                
+                if (friendshipWithSender) {
+                  return 'accepted';
+                }
+              }
+            }
+          }
+          return 'unknown'; // Can't determine
+        }
         console.log('🔍 Request not found:', error);
         return 'not_found';
       }
@@ -167,6 +179,58 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
     } catch (error) {
       console.error('Error checking friend request status:', error);
       return 'not_found';
+    }
+  };
+
+  const deleteFriendRequestNotification = async (requestId: string): Promise<void> => {
+    try {
+      // First, find all friend request notifications for this user
+      const { data: notifications, error: fetchError } = await supabase
+        .from('notifications')
+        .select('id, data')
+        .eq('type', 'friend_request')
+        .eq('user_id', currentUserId);
+
+      if (fetchError) {
+        console.error('Could not fetch notifications for deletion:', fetchError);
+        throw new Error(`Failed to fetch notifications: ${fetchError.message}`);
+      }
+
+      // Find the notification(s) with matching request_id
+      // Check for null/undefined explicitly to avoid String(undefined) === String("undefined") bug
+      const matchingNotifications = notifications?.filter(n => {
+        const notifRequestId = (n.data as any)?.request_id;
+        // Explicitly check for null/undefined before string conversion
+        if (notifRequestId == null || requestId == null) {
+          return notifRequestId === requestId; // Both must be null/undefined to match
+        }
+        return String(notifRequestId) === String(requestId);
+      }) || [];
+
+      if (matchingNotifications.length === 0) {
+        // No matching notification found - this is not necessarily an error
+        // (notification may have already been deleted or never existed)
+        console.log('No matching notification found to delete');
+        return;
+      }
+
+      // Delete all matching notifications
+      const notificationIds = matchingNotifications.map(n => n.id);
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .in('id', notificationIds);
+
+      if (error) {
+        console.error('Could not delete notification:', error);
+        throw new Error(`Failed to delete notification: ${error.message}`);
+      } else {
+        console.log(`✅ Deleted ${notificationIds.length} friend request notification(s)`);
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      // Re-throw the error so callers can handle it appropriately
+      throw error;
     }
   };
 
@@ -179,21 +243,6 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
         description: "Invalid friend request. Please refresh and try again.",
         variant: "destructive",
       });
-      return;
-    }
-
-    // First check if the request is still valid
-    const requestStatus = await checkFriendRequestStatus(requestId);
-    console.log('🔍 Request status:', requestStatus);
-
-    if (requestStatus === 'not_found' || requestStatus === 'accepted' || requestStatus === 'declined') {
-      toast({
-        title: "Request Already Processed",
-        description: "This friend request has already been handled. Refreshing notifications...",
-        variant: "destructive",
-      });
-      // Refresh notifications to remove the processed request
-      fetchNotifications();
       return;
     }
 
@@ -211,23 +260,70 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
       if (error) {
         console.error('Error accepting friend request:', error);
         
-        // Handle specific error cases
-        if (error.message.includes('not found') || error.message.includes('already processed')) {
-          toast({
-            title: "Request Already Processed",
-            description: "This friend request has already been handled. Refreshing notifications...",
-            variant: "destructive",
-          });
-          // Refresh notifications to remove the processed request
-          fetchNotifications();
+        // Handle specific error cases - if already processed, just refresh and show success
+        if (error.message?.includes('not found') || error.message?.includes('already processed')) {
+          // Check if they're already friends (request was already accepted)
+          const requestStatus = await checkFriendRequestStatus(requestId);
+          if (requestStatus === 'accepted') {
+            toast({
+              title: "Already Friends! ✅",
+              description: "You're already friends with this person.",
+            });
+          } else {
+            toast({
+              title: "Request Already Processed",
+              description: "This friend request has already been handled.",
+            });
+          }
+          
+          // Immediately remove from UI
+          setNotifications(prev => prev.filter(n => {
+            const notifRequestId = (n.data as any)?.request_id;
+            // Check for null/undefined explicitly to avoid String(undefined) === String("undefined") bug
+            if (notifRequestId == null || requestId == null) {
+              return notifRequestId !== requestId; // Keep if they don't match (one is null, other isn't)
+            }
+            return String(notifRequestId) !== String(requestId);
+          }));
+          
+          // Manually delete the notification if it still exists
+          try {
+            await deleteFriendRequestNotification(requestId);
+          } catch (deleteError) {
+            // If deletion fails, log but continue - notification is already removed from UI
+            console.error('Failed to delete notification, but continuing:', deleteError);
+          }
+          
+          // Small delay to ensure deletion completes, then refresh
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await fetchNotifications();
           return;
         }
         
         throw error;
       }
 
-      // Remove the notification from UI immediately
-      setNotifications(prev => prev.filter(n => (n.data as any)?.request_id !== requestId));
+      // Success - immediately remove from UI, then delete and refresh
+      setNotifications(prev => prev.filter(n => {
+        const notifRequestId = (n.data as any)?.request_id;
+        // Check for null/undefined explicitly to avoid String(undefined) === String("undefined") bug
+        if (notifRequestId == null || requestId == null) {
+          return notifRequestId !== requestId; // Keep if they don't match (one is null, other isn't)
+        }
+        return String(notifRequestId) !== String(requestId);
+      }));
+      
+      try {
+        await deleteFriendRequestNotification(requestId);
+      } catch (deleteError) {
+        // If deletion fails, log but continue - notification is already removed from UI
+        // The refresh will re-fetch, but we'll filter it out again if it still exists
+        console.error('Failed to delete notification, but continuing:', deleteError);
+      }
+      
+      // Small delay to ensure deletion completes, then refresh
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await fetchNotifications();
       
       toast({
         title: "Friend Request Accepted! 🎉",
@@ -257,34 +353,9 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
 
     console.log('🔍 Debug: Declining friend request with ID:', requestId);
 
-    // If no request ID provided, try to find it from user_relationships table
-    let actualRequestId = requestId;
-    if (!requestId) {
-      console.log('🔍 Debug: No request ID provided, trying to find from user_relationships table');
-      
-      const { data: friendRequests, error: fetchError } = await supabase
-        .from('user_relationships')
-        .select('id')
-        .eq('related_user_id', currentUserId)
-        .eq('relationship_type', 'friend')
-        .eq('status', 'pending')
-        .limit(1);
-
-      if (fetchError) {
-        console.error('Error fetching friend requests:', fetchError);
-        throw new Error('Could not find friend request');
-      }
-
-      if (!friendRequests || friendRequests.length === 0) {
-        throw new Error('No pending friend requests found');
-      }
-
-      actualRequestId = friendRequests[0].id;
-    }
-
     try {
       const { error } = await supabase.rpc('decline_friend_request', {
-        request_id: actualRequestId
+        request_id: requestId
       });
 
       console.log('❌ Decline friend request result:', error);
@@ -292,23 +363,63 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
       if (error) {
         console.error('Error declining friend request:', error);
         
-        // Handle specific error cases
-        if (error.message.includes('not found') || error.message.includes('already processed')) {
+        // Handle specific error cases (use optional chaining for consistency)
+        if (error.message?.includes('not found') || error.message?.includes('already processed')) {
           toast({
             title: "Request Already Processed",
-            description: "This friend request has already been handled. Refreshing notifications...",
+            description: "This friend request has already been handled.",
             variant: "destructive",
           });
-          // Refresh notifications to remove the processed request
-          fetchNotifications();
+          
+          // Immediately remove from UI (consistent with handleAcceptFriendRequest)
+          setNotifications(prev => prev.filter(n => {
+            const notifRequestId = (n.data as any)?.request_id;
+            // Check for null/undefined explicitly to avoid String(undefined) === String("undefined") bug
+            if (notifRequestId == null || requestId == null) {
+              return notifRequestId !== requestId; // Keep if they don't match (one is null, other isn't)
+            }
+            return String(notifRequestId) !== String(requestId);
+          }));
+          
+          // Manually delete the notification if it still exists
+          try {
+            await deleteFriendRequestNotification(requestId);
+          } catch (deleteError) {
+            // If deletion fails, log but continue - notification is already removed from UI
+            console.error('Failed to delete notification, but continuing:', deleteError);
+          }
+          
+          // Small delay to ensure deletion completes, then refresh
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await fetchNotifications();
           return;
         }
         
         throw error;
       }
 
-      // Remove the notification from UI immediately
-      setNotifications(prev => prev.filter(n => (n.data as any)?.request_id !== requestId));
+      // Immediately remove from UI
+      setNotifications(prev => prev.filter(n => {
+        const notifRequestId = (n.data as any)?.request_id;
+        // Check for null/undefined explicitly to avoid String(undefined) === String("undefined") bug
+        if (notifRequestId == null || requestId == null) {
+          return notifRequestId !== requestId; // Keep if they don't match (one is null, other isn't)
+        }
+        return String(notifRequestId) !== String(requestId);
+      }));
+      
+      // Manually delete the notification and refresh
+      try {
+        await deleteFriendRequestNotification(requestId);
+      } catch (deleteError) {
+        // If deletion fails, log but continue - notification is already removed from UI
+        // The refresh will re-fetch, but we'll filter it out again if it still exists
+        console.error('Failed to delete notification, but continuing:', deleteError);
+      }
+      
+      // Small delay to ensure deletion completes, then refresh
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await fetchNotifications();
 
       toast({
         title: "Friend Request Declined",

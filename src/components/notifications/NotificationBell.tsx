@@ -32,8 +32,12 @@ export function NotificationBell({ onClick, className }: NotificationBellProps) 
 
     const setupRealtimeSubscription = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          console.error('Error getting user for notification subscription:', userError);
+          setIsLoading(false);
+          return;
+        }
 
         // Subscribe to notification changes
         channel = supabase
@@ -46,14 +50,22 @@ export function NotificationBell({ onClick, className }: NotificationBellProps) 
               table: 'notifications',
               filter: `user_id=eq.${user.id}`
             },
-            () => {
+            (payload) => {
+              console.log('🔔 NotificationBell: Notification change detected:', payload.eventType);
               // Refresh count when notifications change
               loadUnreadCount();
             }
           )
-          .subscribe();
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('🔔 NotificationBell: Successfully subscribed to notifications');
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error('🔔 NotificationBell: Channel subscription error');
+            }
+          });
       } catch (error) {
         console.error('Error setting up notification subscription:', error);
+        setIsLoading(false);
       }
     };
 

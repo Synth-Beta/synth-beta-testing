@@ -18,7 +18,7 @@ export class UnifiedArtistSearchService {
   private static readonly BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
   private static readonly JAMBASE_ARTISTS_URL = `${UnifiedArtistSearchService.BACKEND_URL}/api/jambase/artists`;
   private static readonly JAMBASE_ARTIST_URL = `${UnifiedArtistSearchService.BACKEND_URL}/api/jambase/artists/id`;
-  private static readonly API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+  private static readonly API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
 
   /**
    * Main search function - PROTECTED API USAGE:

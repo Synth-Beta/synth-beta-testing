@@ -27,11 +27,11 @@ Create a `.env.local` file in the root directory with:
 
 ```env
 # Supabase Configuration
-VITE_SUPABASE_URL=https://glpiolbrafqikqhnseto.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU5MzAwMzQsImV4cCI6MjA1MTUwNjAzNH0.A_oPKO0oFuKJhZITGGu-BmLNEOzBa3w8KXIUJqnHrLY
+VITE_SUPABASE_URL=[YOUR_SUPABASE_URL]
+VITE_SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
 
 # JamBase API
-VITE_JAMBASE_API_KEY=e7ed3a9b-e73a-446e-b7c6-a96d1c53a030
+VITE_JAMBASE_API_KEY=[YOUR_JAMBASE_API_KEY]
 
 # Backend URL
 VITE_BACKEND_URL=http://localhost:3001
@@ -39,6 +39,10 @@ VITE_BACKEND_URL=http://localhost:3001
 # Development flags
 VITE_NODE_ENV=development
 ```
+
+**Note:** Replace `[YOUR_*]` placeholders with your actual API keys. Get these from:
+- Supabase: Your project settings at https://supabase.com
+- JamBase: https://www.jambase.com/api
 
 ## Fixed Chrome Issues
 

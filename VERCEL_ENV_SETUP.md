@@ -7,18 +7,18 @@ Add these environment variables in your **Vercel Dashboard**:
 
 ### 1. Ticketmaster API Key (REQUIRED)
 **Variable Name:** `TICKETMASTER_API_KEY`  
-**Value:** `rM94dPPl7ne1EAkGeZBEq5AH7zLvCAVA`  
+**Value:** `[YOUR_TICKETMASTER_API_KEY]` - Get from https://developer.ticketmaster.com  
 **Environments:** Production, Preview, Development
 
 ### 2. Supabase Configuration (REQUIRED)
 These should already be set, but verify they exist:
 
 **Variable Name:** `SUPABASE_URL`  
-**Value:** `https://glpiolbrafqikqhnseto.supabase.co`  
+**Value:** `[YOUR_SUPABASE_URL]` - Get from your Supabase project settings  
 **Environments:** Production, Preview, Development
 
 **Variable Name:** `SUPABASE_ANON_KEY` or `SUPABASE_SERVICE_ROLE_KEY`  
-**Value:** `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjkzNzgyNCwiZXhwIjoyMDcyNTEzODI0fQ.cS0y6dQiw2VvGD7tKfKADKqM8whaopJ716G4dexBRGI`  
+**Value:** `[YOUR_SUPABASE_KEY]` - Get from your Supabase project settings  
 **Environments:** Production, Preview, Development
 
 **Note:** The serverless function will check for `SUPABASE_ANON_KEY` first, then fall back to `SUPABASE_SERVICE_ROLE_KEY`.

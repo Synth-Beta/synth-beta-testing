@@ -82,7 +82,11 @@ class HybridSearchService {
   // Search Jambase API for events
   private async searchJambaseEvents(query: string, date?: string): Promise<Event[]> {
     try {
-      const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+      const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
+      if (!JAMBASE_API_KEY) {
+        console.warn('⚠️  VITE_JAMBASE_API_KEY is not set. Skipping JamBase API search.');
+        return [];
+      }
       const JAMBASE_BASE_URL = 'https://api.jambase.com';
 
       const url = new URL(`${JAMBASE_BASE_URL}/events`);
@@ -123,7 +127,11 @@ class HybridSearchService {
   // Broader JamBase search with multiple strategies
   private async searchJambaseEventsWithBroaderQuery(query: string, date?: string): Promise<Event[]> {
     try {
-      const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+      const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
+      if (!JAMBASE_API_KEY) {
+        console.warn('⚠️  VITE_JAMBASE_API_KEY is not set. Skipping JamBase API search.');
+        return [];
+      }
       const JAMBASE_BASE_URL = 'https://api.jambase.com';
 
       // Try multiple search strategies

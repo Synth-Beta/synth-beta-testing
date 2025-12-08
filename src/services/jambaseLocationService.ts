@@ -16,7 +16,7 @@ export interface LocationEventSearchResult {
 }
 
 export class JamBaseLocationService {
-  private static readonly JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+  private static readonly JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
   private static readonly BACKEND_BASE_URL = (
     import.meta.env.VITE_BACKEND_URL ||
     import.meta.env.VITE_API_BASE_URL ||

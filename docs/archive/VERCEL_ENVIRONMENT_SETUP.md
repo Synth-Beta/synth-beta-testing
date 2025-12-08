@@ -11,24 +11,24 @@ Make sure to select **All** environments (Production, Preview, Development) for 
 ### 1. Supabase Variables
 
 **Variable**: `VITE_SUPABASE_PROJECT_ID`  
-**Value**: `glpiolbrafqikqhnseto`
+**Value**: `[YOUR_SUPABASE_PROJECT_ID]` - Get from your Supabase project settings
 
 **Variable**: `VITE_SUPABASE_URL`  
-**Value**: `https://glpiolbrafqikqhnseto.supabase.co`
+**Value**: `[YOUR_SUPABASE_URL]` - Get from your Supabase project settings
 
 **Variable**: `VITE_SUPABASE_ANON_KEY`  
-**Value**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5Mzc4MjQsImV4cCI6MjA3MjUxMzgyNH0.O5G3fW-YFtpACNqNfo_lsLK44F-3L3p69Ka-G2lSTLE`
+**Value**: `[YOUR_SUPABASE_ANON_KEY]` - Get from your Supabase project settings
 
 **Variable**: `VITE_SUPABASE_PUBLISHABLE_KEY`  
-**Value**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5Mzc4MjQsImV4cCI6MjA3MjUxMzgyNH0.O5G3fW-YFtpACNqNfo_lsLK44F-3L3p69Ka-G2lSTLE`
+**Value**: `[YOUR_SUPABASE_PUBLISHABLE_KEY]` - Usually same as anon key
 
 ### 2. API Keys
 
 **Variable**: `VITE_JAMBASE_API_KEY`  
-**Value**: `e7ed3a9b-e73a-446e-b7c6-a96d1c53a030`
+**Value**: `[YOUR_JAMBASE_API_KEY]` - Get from https://www.jambase.com/api
 
 **Variable**: `VITE_SETLIST_FM_API_KEY`  
-**Value**: `QxGjjwxk0MUyxyCJa2FADnFRwEqFUy__7wpt`
+**Value**: `[YOUR_SETLIST_FM_API_KEY]` - Get from https://www.setlist.fm/api
 
 ### 3. Spotify Configuration (REQUIRED for Music Stats)
 
@@ -154,10 +154,11 @@ Both places (Vercel and Spotify) must have the SAME redirect URI!
 
 ## Security Note
 
-These environment variables are safe to commit to documentation because:
-- ✅ Supabase anon key is public (RLS protects data)
-- ✅ JamBase and Setlist.fm keys are client-side only
-- ✅ Spotify Client ID is public (Client Secret is NOT used)
+⚠️ **IMPORTANT**: Never commit actual API keys or secrets to your repository!
+- ✅ Use `.env.local` for local development (already in `.gitignore`)
+- ✅ Use Vercel's environment variables for production
+- ✅ Replace all `[YOUR_*]` placeholders with your actual keys
+- ❌ **Never** commit `.env` files or hardcode secrets in code
 - ❌ **Never** commit Client Secrets or private keys
 
 ## Need Help?

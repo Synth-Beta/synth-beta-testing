@@ -113,13 +113,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     try {
       await NotificationService.markAllAsRead();
       
-      // Update local state
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, is_read: true }))
-      );
-      
-      // Update unread count
-      setUnreadCount(0);
+      // Refresh notifications to get updated state from server
+      await loadNotifications();
+      await loadUnreadCount();
       
       toast({
         title: "All notifications marked as read",

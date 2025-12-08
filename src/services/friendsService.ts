@@ -26,15 +26,14 @@ export class FriendsService {
    */
   static async getFriends(userId: string): Promise<Friend[]> {
     try {
-      // Get friendship records from relationships table
-      // Friends are stored as: related_entity_type='user', relationship_type='friend', status='accepted'
+      // Get friendship records from user_relationships table (3NF structure)
+      // Friends are stored as: relationship_type='friend', status='accepted'
       const { data: friendships, error: friendsError } = await supabase
-        .from('relationships')
-        .select('id, user_id, related_entity_id, created_at')
-        .eq('related_entity_type', 'user')
+        .from('user_relationships')
+        .select('id, user_id, related_user_id, created_at')
         .eq('relationship_type', 'friend')
         .eq('status', 'accepted')
-        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`)
+        .or(`user_id.eq.${userId},related_user_id.eq.${userId}`)
         .order('created_at', { ascending: false });
 
       if (friendsError) {
@@ -47,12 +46,12 @@ export class FriendsService {
       }
 
       // Deduplicate: Get all unique user IDs (the other user in each relationship)
-      // related_entity_id contains the friend's user_id when user_id is the current user
-      // user_id contains the friend's user_id when related_entity_id is the current user
+      // related_user_id contains the friend's user_id when user_id is the current user
+      // user_id contains the friend's user_id when related_user_id is the current user
       const userIdsSet = new Set<string>();
       friendships.forEach(f => {
-        const otherUserId = f.user_id === userId ? f.related_entity_id : f.user_id;
-        // related_entity_id is TEXT, so we need to ensure it's a valid UUID
+        const otherUserId = f.user_id === userId ? f.related_user_id : f.user_id;
+        // related_user_id is UUID, so we need to ensure it's a valid UUID
         if (otherUserId && otherUserId !== userId) {
           userIdsSet.add(String(otherUserId));
         }
@@ -80,7 +79,7 @@ export class FriendsService {
       // Transform the data to get the other user's profile
       // Only add each friend once (deduplicate)
       friendships.forEach(friendship => {
-        const otherUserId = friendship.user_id === userId ? String(friendship.related_entity_id) : String(friendship.user_id);
+        const otherUserId = friendship.user_id === userId ? String(friendship.related_user_id) : String(friendship.user_id);
         
         // Skip if we've already added this friend or if it's the current user
         if (friendsMap.has(otherUserId) || otherUserId === userId) {
@@ -138,6 +137,60 @@ export class FriendsService {
       }
       console.error('Error in unfriendUser:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Cancel a pending friend request
+   * @param requestId - The friend request ID to cancel
+   * @returns Promise that resolves when cancellation is complete
+   */
+  static async cancelFriendRequest(requestId: string): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('cancel_friend_request', {
+        request_id: requestId
+      });
+
+      if (error) {
+        console.error('Error cancelling friend request:', error);
+        throw error;
+      }
+    } catch (error: any) {
+      console.error('Error in cancelFriendRequest:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get pending friend request ID for a user
+   * @param senderId - The sender's user ID
+   * @param receiverId - The receiver's user ID
+   * @returns Promise that resolves to the request ID or null
+   */
+  static async getPendingRequestId(senderId: string, receiverId: string): Promise<string | null> {
+    try {
+      const { data, error } = await supabase
+        .from('user_relationships')
+        .select('id')
+        .eq('user_id', senderId)
+        .eq('related_user_id', receiverId)
+        .eq('relationship_type', 'friend')
+        .eq('status', 'pending')
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No rows returned
+          return null;
+        }
+        console.error('Error getting pending request ID:', error);
+        return null;
+      }
+
+      return data?.id || null;
+    } catch (error) {
+      console.error('Error in getPendingRequestId:', error);
+      return null;
     }
   }
 }

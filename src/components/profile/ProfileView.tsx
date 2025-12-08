@@ -158,6 +158,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [followersModalType, setFollowersModalType] = useState<'followers' | 'following' | 'friends'>('friends');
   const [showFollowingModal, setShowFollowingModal] = useState(false);
   const [friendStatus, setFriendStatus] = useState<'none' | 'friends' | 'pending_sent' | 'pending_received'>('none');
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const [followedArtistsCount, setFollowedArtistsCount] = useState(0);
   const { toast } = useToast();
   const { user, sessionExpired } = useAuth();
@@ -1198,6 +1199,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
       if (sentRequest && sentRequest.length > 0) {
         setFriendStatus('pending_sent');
+        setPendingRequestId(sentRequest[0].id);
         return;
       }
 
@@ -1246,6 +1248,18 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         throw error;
       }
 
+      // Get the request ID first before updating status to ensure Cancel button works
+      let requestId: string | null = null;
+      if (data) {
+        requestId = data;
+      } else {
+        // Fetch the request ID if not returned
+        requestId = await FriendsService.getPendingRequestId(currentUserId, targetUserId);
+      }
+      
+      // Set both state updates together after we have the request ID
+      // This ensures the Cancel button is functional when the UI updates
+      setPendingRequestId(requestId);
       setFriendStatus('pending_sent');
       
       toast({
@@ -1624,9 +1638,46 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                       </Button>
                     )}
                     {friendStatus === 'pending_sent' && (
-                      <Button disabled variant="outline" size="sm" className="border-orange-200 text-orange-600">
-                        Friend Request Sent
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button disabled variant="outline" size="sm" className="border-orange-200 text-orange-600">
+                          Friend Request Sent
+                        </Button>
+                        <Button 
+                          onClick={async () => {
+                            if (!pendingRequestId) {
+                              toast({
+                                title: "Cannot Cancel",
+                                description: "Request ID not available. Please refresh the page.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            
+                            try {
+                              await FriendsService.cancelFriendRequest(pendingRequestId);
+                              setFriendStatus('none');
+                              setPendingRequestId(null);
+                              toast({
+                                title: "Request Cancelled",
+                                description: "Friend request has been cancelled.",
+                              });
+                            } catch (error: any) {
+                              toast({
+                                title: "Error",
+                                description: error.message || "Failed to cancel request.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          disabled={!pendingRequestId}
+                          variant="outline" 
+                          size="sm" 
+                          className="border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={!pendingRequestId ? "Request ID not available" : "Cancel friend request"}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
                     )}
                     {friendStatus === 'pending_received' && (
                       <Button disabled variant="outline" size="sm" className="border-blue-200 text-blue-600">

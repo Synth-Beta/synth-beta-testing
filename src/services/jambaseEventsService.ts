@@ -76,7 +76,15 @@ export interface JamBaseEventsApiResponse {
 }
 
 export class JamBaseEventsService {
-  private static readonly JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+  private static readonly JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
+  
+  private static validateApiKey(): boolean {
+    if (!this.JAMBASE_API_KEY) {
+      console.error('❌ VITE_JAMBASE_API_KEY is not set. Please set it in your .env.local file.');
+      return false;
+    }
+    return true;
+  }
   private static readonly JAMBASE_BASE_URL = (
     import.meta.env.VITE_API_BASE_URL ||
     import.meta.env.VITE_BACKEND_URL ||
@@ -87,6 +95,19 @@ export class JamBaseEventsService {
    * Search for events using JamBase API
    */
   static async searchEvents(params: JamBaseEventSearchParams): Promise<JamBaseEventsApiResponse> {
+    // Validate API key before making any requests
+    if (!this.validateApiKey()) {
+      console.error('❌ Cannot search events: JAMBASE_API_KEY is not set');
+      return {
+        events: [],
+        total: 0,
+        page: params.page || 1,
+        perPage: params.perPage || 40,
+        hasNextPage: false,
+        hasPreviousPage: false
+      };
+    }
+
     // Call backend JamBase proxy if configured
     
     try {
@@ -105,7 +126,7 @@ export class JamBaseEventsService {
       if (!params.eventType) searchParams.append('eventType', 'concerts');
 
       // Add API key to URL parameters
-      searchParams.append('apikey', this.JAMBASE_API_KEY);
+      searchParams.append('apikey', this.JAMBASE_API_KEY!);
       const finalUrl = `${this.JAMBASE_BASE_URL}/events?${searchParams.toString()}`;
       
       console.log('🔍 Final JamBase events URL:', finalUrl);
