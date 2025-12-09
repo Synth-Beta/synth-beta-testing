@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { PreferenceSignalsService } from '@/services/preferenceSignalsService';
@@ -8,6 +8,7 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const preferenceRefreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Get initial session
@@ -31,10 +32,16 @@ export function useAuth() {
             setSessionExpired(false);
             setSession(session);
             setUser(session.user);
-            // Refresh preference signals at session start
-            PreferenceSignalsService.refreshIfNeeded().catch(err => {
-              console.warn('Failed to refresh preference signals:', err);
-            });
+            // Refresh preference signals at session start (debounced)
+            if (preferenceRefreshTimeoutRef.current) {
+              clearTimeout(preferenceRefreshTimeoutRef.current);
+            }
+            preferenceRefreshTimeoutRef.current = setTimeout(() => {
+              PreferenceSignalsService.refreshIfNeeded().catch(err => {
+                console.warn('Failed to refresh preference signals:', err);
+              });
+              preferenceRefreshTimeoutRef.current = null;
+            }, 1000);
           }
         } else {
           setSessionExpired(false);
@@ -107,11 +114,20 @@ export function useAuth() {
             setSession(session);
             setUser(session.user);
             // Refresh preference signals when a new session is established
-            // This handles SIGNED_IN, TOKEN_REFRESHED, and other auth events
+            // Debounce to prevent multiple rapid calls
             if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-              PreferenceSignalsService.refreshIfNeeded().catch(err => {
-                console.warn('Failed to refresh preference signals:', err);
-              });
+              // Clear any existing timeout
+              if (preferenceRefreshTimeoutRef.current) {
+                clearTimeout(preferenceRefreshTimeoutRef.current);
+              }
+              
+              // Set new timeout with 1 second debounce
+              preferenceRefreshTimeoutRef.current = setTimeout(() => {
+                PreferenceSignalsService.refreshIfNeeded().catch(err => {
+                  console.warn('Failed to refresh preference signals:', err);
+                });
+                preferenceRefreshTimeoutRef.current = null;
+              }, 1000);
             }
           }
         } else {
@@ -129,6 +145,11 @@ export function useAuth() {
     return () => {
       subscription.unsubscribe();
       clearInterval(sessionCheckInterval);
+      // Clear any pending preference refresh timeout
+      if (preferenceRefreshTimeoutRef.current) {
+        clearTimeout(preferenceRefreshTimeoutRef.current);
+        preferenceRefreshTimeoutRef.current = null;
+      }
     };
   }, []);
 

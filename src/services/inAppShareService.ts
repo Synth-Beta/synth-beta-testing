@@ -150,6 +150,8 @@ export class InAppShareService {
       const defaultMessage = customMessage || `Check out this event: ${event.title} by ${event.artist_name}!`;
 
       // Insert the message with event share data
+      // 3NF COMPLIANT: Only store message-specific metadata, not duplicated event data
+      // Event data should be retrieved via shared_event_id FK join
       const { data: message, error: messageError } = await supabase
         .from('messages')
         .insert({
@@ -160,11 +162,9 @@ export class InAppShareService {
           shared_event_id: eventId,
           metadata: {
             custom_message: customMessage,
-            share_context: 'in_app_share',
-            event_title: event.title,
-            artist_name: event.artist_name,
-            venue_name: event.venue_name,
-            event_date: event.event_date
+            share_context: 'in_app_share'
+            // DO NOT store: event_title, artist_name, venue_name, event_date
+            // These are available via shared_event_id FK join with events table
           }
         })
         .select('id, chat_id')
@@ -346,6 +346,8 @@ export class InAppShareService {
       const defaultMessage = customMessage || `Check out this review${eventTitle ? ` for ${eventTitle}` : ''}!`;
 
       // Insert the message with review share data
+      // 3NF COMPLIANT: Only store message-specific metadata, not duplicated review/event data
+      // Review and event data should be retrieved via shared_review_id FK join
       const { data: message, error: messageError } = await supabase
         .from('messages')
         .insert({
@@ -356,12 +358,9 @@ export class InAppShareService {
           shared_review_id: reviewId,
           metadata: {
             custom_message: customMessage,
-            share_context: 'in_app_share',
-            review_text: review.review_text,
-            rating: review.rating,
-            artist_name: artistName,
-            venue_name: venueName,
-            event_title: eventTitle
+            share_context: 'in_app_share'
+            // DO NOT store: review_text, rating, artist_name, venue_name, event_title
+            // These are available via shared_review_id FK join with reviews/events tables
           }
         })
         .select('id, chat_id')

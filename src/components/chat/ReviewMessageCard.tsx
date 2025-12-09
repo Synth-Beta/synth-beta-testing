@@ -94,10 +94,10 @@ export function ReviewMessageCard({
         }
       }
 
-      // Fetch event data separately
-      let artistName = metadata?.artist_name || '';
-      let venueName = metadata?.venue_name || '';
-      let eventTitle = metadata?.event_title || '';
+      // Fetch event data separately (3NF compliant - use FK join, not metadata)
+      let artistName = '';
+      let venueName = '';
+      let eventTitle = '';
       
       if (reviewData.event_id) {
         const { data: eventData } = await supabase
@@ -107,9 +107,9 @@ export function ReviewMessageCard({
           .single();
         
         if (eventData) {
-          artistName = eventData.artist_name || artistName;
-          venueName = eventData.venue_name || venueName;
-          eventTitle = eventData.title || eventTitle;
+          artistName = eventData.artist_name || '';
+          venueName = eventData.venue_name || '';
+          eventTitle = eventData.title || '';
         }
       }
 
@@ -168,10 +168,10 @@ export function ReviewMessageCard({
     );
   }
 
-  const eventTitle = metadata?.event_title || 
-    (review.artist_name && review.venue_name 
-      ? `${review.artist_name} at ${review.venue_name}`
-      : review.artist_name || review.venue_name || 'Concert Review');
+  // 3NF compliant: Get event title from review data (fetched via FK join), not metadata
+  const eventTitle = review.artist_name && review.venue_name 
+    ? `${review.artist_name} at ${review.venue_name}`
+    : review.artist_name || review.venue_name || 'Concert Review';
 
   const reviewPreview = review.review_text 
     ? (review.review_text.length > 100 

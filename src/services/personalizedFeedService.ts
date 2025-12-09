@@ -1,6 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeCityName } from '@/utils/cityNormalization';
 import type { JamBaseEvent } from './jambaseEventsService';
+import { cacheService, CacheTTL } from './cacheService';
+import { logger } from '@/utils/logger';
 
 /**
  * Row returned by the Supabase personalized feed RPC.
@@ -114,6 +116,21 @@ export class PersonalizedFeedService {
     const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const normalizedFilters = await this.normalizeFilters(filters);
 
+    // Create cache key based on all parameters (only cache first page)
+    const shouldCache = offset === 0 && !includePast;
+    const cacheKey = shouldCache 
+      ? `personalized_feed_${userId}_${limit}_${normalizedFilters.cityCoordinates?.lat}_${normalizedFilters.cityCoordinates?.lng}_${normalizedFilters.genres?.join(',')}_${normalizedFilters.followingOnly}`
+      : null;
+
+      // Check cache first (only for first page)
+      if (shouldCache && cacheKey) {
+        const cached = cacheService.get<PersonalizedEvent[]>(cacheKey);
+        if (cached) {
+          logger.log('✅ Personalized feed (cached):', { count: cached.length, userId });
+          return cached;
+        }
+      }
+
     const rpcPayload = {
         p_user_id: userId,
         p_limit: limit,
@@ -127,21 +144,20 @@ export class PersonalizedFeedService {
     };
 
     try {
-      console.log('📡 Calling get_personalized_feed_v2 with payload:', rpcPayload);
       const { data, error } = await supabase.rpc('get_personalized_feed_v2', rpcPayload);
       
       if (error) {
         if (error.code === '42P01' || error.code === 'PGRST204' || error.code === 'PGRST116' || error.message?.includes('does not exist')) {
-          console.warn('⚠️ get_personalized_feed_v2 RPC function not found, using fallback feed');
+          logger.warn('⚠️ get_personalized_feed_v2 RPC function not found, using fallback feed');
           return this.getFallbackFeed(userId, limit, offset, includePast, normalizedFilters);
         }
-        console.error('❌ get_personalized_feed_v2 error:', error);
+        logger.error('❌ get_personalized_feed_v2 error:', error);
         return this.getFallbackFeed(userId, limit, offset, includePast, normalizedFilters);
       }
 
       const rows = (data ?? []).map((row: any) => this.mapRpcRowToFeedRow(row));
       
-      console.log('📊 RPC response before client-side filtering:', {
+      logger.debug('📊 RPC response before client-side filtering:', {
         rawDataCount: data?.length ?? 0,
         mappedRowsCount: rows.length,
         sampleRow: rows[0] ? {
@@ -154,7 +170,7 @@ export class PersonalizedFeedService {
       
       const filteredRows = this.applyClientSideFilters(rows, normalizedFilters, includePast);
       
-      console.log('📊 After client-side filtering:', {
+      logger.debug('📊 After client-side filtering:', {
         filteredCount: filteredRows.length,
         removedCount: rows.length - filteredRows.length,
       });
@@ -162,7 +178,7 @@ export class PersonalizedFeedService {
       const events = filteredRows.map((row) => this.mapRowToEvent(row));
 
       if (filteredRows.length === 0 && offset === 0) {
-        console.warn('⚠️ RPC returned no events at offset 0 – falling back to basic feed.', {
+        logger.warn('⚠️ RPC returned no events at offset 0 – falling back to basic feed.', {
           rawDataCount: data?.length ?? 0,
           mappedRowsCount: rows.length,
           filteredCount: filteredRows.length,
@@ -173,18 +189,23 @@ export class PersonalizedFeedService {
       const finishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const duration = finishedAt - startedAt;
 
-      console.log('✅ Personalized feed (RPC):', {
+      // Cache the result (only for first page)
+      if (shouldCache && cacheKey) {
+        cacheService.set(cacheKey, events, CacheTTL.REVIEWS); // Use 3 min TTL (same as reviews)
+      }
+
+      logger.log('✅ Personalized feed (RPC):', {
         userId,
         count: events.length,
         limit,
         offset,
         loadTimeMs: Math.round(duration),
-        filters: normalizedFilters.debugSummary,
+        cached: shouldCache && !!cacheKey,
       });
 
       return events;
     } catch (rpcException) {
-      console.error('❌ get_personalized_feed_v2 exception:', rpcException);
+      logger.error('❌ get_personalized_feed_v2 exception:', rpcException);
       return this.getFallbackFeed(userId, limit, offset, includePast, normalizedFilters);
     }
   }
@@ -199,7 +220,7 @@ export class PersonalizedFeedService {
     includePast: boolean,
     filters: NormalizedFilters
   ): Promise<PersonalizedEvent[]> {
-    console.warn('⚠️ Falling back to basic feed query (RPC unavailable).');
+    logger.warn('⚠️ Falling back to basic feed query (RPC unavailable).');
       
     try {
       let query = supabase
@@ -257,7 +278,7 @@ export class PersonalizedFeedService {
       const { data, error } = await query;
       
       if (error) {
-        console.error('❌ Fallback feed query error:', error);
+        logger.error('❌ Fallback feed query error:', error);
         return [];
       }
       
@@ -349,7 +370,7 @@ export class PersonalizedFeedService {
 
       return filteredRows.map((row) => this.mapRowToEvent(row));
     } catch (fallbackException) {
-      console.error('❌ Fallback feed exception:', fallbackException);
+      logger.error('❌ Fallback feed exception:', fallbackException);
         return [];
       }
   }
@@ -372,7 +393,7 @@ export class PersonalizedFeedService {
         .eq('relationship_type', 'follow');
 
       if (followError) {
-        console.warn('⚠️ Unable to load artist_follows for fallback filter:', followError);
+        logger.warn('⚠️ Unable to load artist_follows for fallback filter:', followError);
         return { followedUuidSet, followedJambaseSet, followedNameSet };
       }
 
@@ -389,7 +410,7 @@ export class PersonalizedFeedService {
           .in('id', artistIds);
 
         if (artistError) {
-          console.warn('⚠️ Unable to load artists for fallback filter:', artistError);
+          logger.warn('⚠️ Unable to load artists for fallback filter:', artistError);
         } else {
           for (const artist of artistRows ?? []) {
             if (artist.jambase_artist_id) {
@@ -402,7 +423,7 @@ export class PersonalizedFeedService {
         }
       }
     } catch (error) {
-      console.warn('⚠️ Unexpected error while loading followed artist identifiers:', error);
+      logger.warn('⚠️ Unexpected error while loading followed artist identifiers:', error);
     }
 
     return { followedUuidSet, followedJambaseSet, followedNameSet };
@@ -422,7 +443,7 @@ export class PersonalizedFeedService {
       
       return data as unknown as UserMusicProfile;
     } catch (error) {
-      console.error('❌ Error fetching music profile:', error);
+      logger.error('❌ Error fetching music profile:', error);
       return null;
     }
   }
@@ -442,7 +463,7 @@ export class PersonalizedFeedService {
       
       return data;
     } catch (error) {
-      console.error('❌ Error fetching top genres:', error);
+      logger.error('❌ Error fetching top genres:', error);
       return [];
     }
   }
@@ -462,7 +483,7 @@ export class PersonalizedFeedService {
       
       return data;
     } catch (error) {
-      console.error('❌ Error fetching top artists:', error);
+      logger.error('❌ Error fetching top artists:', error);
       return [];
     }
   }
@@ -479,7 +500,7 @@ export class PersonalizedFeedService {
       const signals = data?.music_preference_signals || [];
       return Array.isArray(signals) && signals.length > 0;
     } catch (error) {
-      console.error('❌ Error checking music data:', error);
+      logger.error('❌ Error checking music data:', error);
       return false;
     }
   }
@@ -494,7 +515,7 @@ export class PersonalizedFeedService {
       if (error) throw error;
       return data || 0;
     } catch (error) {
-      console.error('❌ Error calculating relevance:', error);
+      logger.error('❌ Error calculating relevance:', error);
       return 0;
     }
   }
@@ -594,12 +615,12 @@ export class PersonalizedFeedService {
         const { RadiusSearchService } = await import('@/services/radiusSearchService');
         cityCoordinates = await RadiusSearchService.getCityCoordinates(baseCity);
         if (cityCoordinates) {
-          console.log(`📍 Found coordinates for "${baseCity}":`, cityCoordinates);
+          logger.log(`📍 Found coordinates for "${baseCity}":`, cityCoordinates);
         } else {
-          console.warn(`⚠️ No coordinates found for city: "${baseCity}"`);
+          logger.warn(`⚠️ No coordinates found for city: "${baseCity}"`);
         }
       } catch (error) {
-        console.error('Error looking up city coordinates:', error);
+        logger.error('Error looking up city coordinates:', error);
       }
     }
 

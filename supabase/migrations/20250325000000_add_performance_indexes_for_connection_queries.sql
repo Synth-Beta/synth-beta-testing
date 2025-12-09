@@ -51,13 +51,96 @@ CREATE INDEX IF NOT EXISTS idx_notifications_type ON public.notifications(type);
 CREATE INDEX IF NOT EXISTS idx_users_user_id ON public.users(user_id);
 CREATE INDEX IF NOT EXISTS idx_users_name ON public.users(name);
 
-COMMENT ON INDEX idx_relationships_user_id IS 'Optimizes get_first_degree_connections queries (friends view uses relationships)';
-COMMENT ON INDEX idx_relationships_friends IS 'Optimizes friend queries when friends is a view pointing to relationships';
-COMMENT ON INDEX idx_relationships_user_type_entity IS 'Optimizes connection interests queries and connection degree functions';
-COMMENT ON INDEX idx_reviews_user_public_created IS 'Optimizes connection degree reviews queries';
-COMMENT ON INDEX idx_messages_chat_created IS 'Optimizes chat unread count queries';
-COMMENT ON INDEX idx_notifications_user_read_created IS 'Optimizes notifications page queries';
-COMMENT ON INDEX idx_users_user_id IS 'Optimizes profile and chat queries';
+-- Indexes for personalized feed RPC function (get_personalized_feed_v2)
+-- These indexes optimize the 17-second query bottleneck
+CREATE INDEX IF NOT EXISTS idx_relationships_user_type_status ON public.relationships(user_id, related_entity_type, relationship_type, status);
+CREATE INDEX IF NOT EXISTS idx_relationships_entity_type_status ON public.relationships(related_entity_id, related_entity_type, relationship_type, status);
+
+-- Indexes for music_preference_signals table (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = 'music_preference_signals'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_music_pref_signals_user_type_value ON public.music_preference_signals(user_id, preference_type, preference_value);
+    CREATE INDEX IF NOT EXISTS idx_music_pref_signals_user_type_score ON public.music_preference_signals(user_id, preference_type, preference_score DESC);
+  END IF;
+END $$;
+
+-- Indexes for user_preferences table (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = 'user_preferences'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_user_preferences_user_id ON public.user_preferences(user_id);
+  END IF;
+END $$;
+
+-- Indexes for jambase_events table (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = 'jambase_events'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_jambase_events_date_genres ON public.jambase_events(event_date, genres) WHERE event_date >= CURRENT_DATE;
+    CREATE INDEX IF NOT EXISTS idx_jambase_events_artist_name ON public.jambase_events(artist_name);
+    CREATE INDEX IF NOT EXISTS idx_jambase_events_venue_name ON public.jambase_events(venue_name);
+    CREATE INDEX IF NOT EXISTS idx_jambase_events_date_artist ON public.jambase_events(event_date, artist_name) WHERE event_date >= CURRENT_DATE;
+  END IF;
+END $$;
+
+-- Add comments to indexes (only if they exist)
+DO $$
+BEGIN
+  -- Comments for core indexes
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_relationships_user_id') THEN
+    COMMENT ON INDEX idx_relationships_user_id IS 'Optimizes get_first_degree_connections queries (friends view uses relationships)';
+  END IF;
+  
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_relationships_friends') THEN
+    COMMENT ON INDEX idx_relationships_friends IS 'Optimizes friend queries when friends is a view pointing to relationships';
+  END IF;
+  
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_relationships_user_type_entity') THEN
+    COMMENT ON INDEX idx_relationships_user_type_entity IS 'Optimizes connection interests queries and connection degree functions';
+  END IF;
+  
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_reviews_user_public_created') THEN
+    COMMENT ON INDEX idx_reviews_user_public_created IS 'Optimizes connection degree reviews queries';
+  END IF;
+  
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_messages_chat_created') THEN
+    COMMENT ON INDEX idx_messages_chat_created IS 'Optimizes chat unread count queries';
+  END IF;
+  
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_notifications_user_read_created') THEN
+    COMMENT ON INDEX idx_notifications_user_read_created IS 'Optimizes notifications page queries';
+  END IF;
+  
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_users_user_id') THEN
+    COMMENT ON INDEX idx_users_user_id IS 'Optimizes profile and chat queries';
+  END IF;
+  
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_relationships_user_type_status') THEN
+    COMMENT ON INDEX idx_relationships_user_type_status IS 'Optimizes get_personalized_feed_v2 friend and follow queries';
+  END IF;
+  
+  -- Comments for optional indexes (only if tables exist)
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_music_pref_signals_user_type_value') THEN
+    COMMENT ON INDEX idx_music_pref_signals_user_type_value IS 'Optimizes get_personalized_feed_v2 relevance score calculations';
+  END IF;
+  
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_jambase_events_date_genres') THEN
+    COMMENT ON INDEX idx_jambase_events_date_genres IS 'Optimizes get_personalized_feed_v2 event filtering and scoring';
+  END IF;
+END $$;
 
 COMMIT;
 
