@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RedesignedSearchPage } from '@/components/search/RedesignedSearchPage';
 import { UnifiedFeed } from '@/components/UnifiedFeed';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageActions } from '@/components/PageActions';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
-import type { EventSearchResult } from '@/components/search/RedesignedSearchPage';
 
 interface DiscoverViewProps {
   currentUserId: string;
@@ -30,9 +28,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
-  const [isSearchActive, setIsSearchActive] = useState(false);
 
-  const handleEventClick = async (event: EventSearchResult) => {
+  const handleEventClick = async (event: any) => {
     // Convert EventSearchResult to event format expected by EventDetailsModal
     // We need to fetch the full event data from the database
     try {
@@ -85,57 +82,24 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        <Card className="border-none bg-gradient-to-br from-rose-50 via-white to-amber-50 shadow-sm">
+      <div className="max-w-5xl mx-auto px-0 pb-4">
+        <Card className="border-none bg-gradient-to-br from-rose-50 via-white to-amber-50 shadow-sm rounded-t-none">
           <CardContent className="p-0">
-            <div
-              className={`bg-white/85 rounded-3xl border border-white/60 shadow-inner p-4 md:p-6 ${
-                isSearchActive ? 'space-y-4' : 'space-y-0'
-              }`}
-            >
-              <RedesignedSearchPage
-                userId={currentUserId}
-                allowedTabs={['artists', 'events', 'venues']}
-                showMap={false}
-                layout="compact"
-                mode="embedded"
-                headerTitle=""
-                headerDescription=""
-                headerAccessory={
-                  <PageActions
-                    currentUserId={currentUserId}
-                    onNavigateToNotifications={onNavigateToNotifications}
-                    onNavigateToChat={onNavigateToChat}
-                    className="flex-shrink-0"
-                  />
-                }
-                showHelperText={false}
-                onSearchStateChange={({ debouncedQuery }) => {
-                  setIsSearchActive(debouncedQuery.trim().length >= 2);
-                }}
+            <div className="bg-white/85 rounded-3xl border border-white/60 shadow-inner pt-0 pb-4 px-4 md:px-6">
+              <UnifiedFeed
+                currentUserId={currentUserId}
+                onBack={onBack}
+                onViewChange={onViewChange}
+                onNavigateToNotifications={onNavigateToNotifications}
                 onNavigateToProfile={onNavigateToProfile}
                 onNavigateToChat={onNavigateToChat}
-                onEventClick={handleEventClick}
+                headerTitle=""
+                headerSubtitle=""
+                visibleSections={['events']}
+                enableMap={false}
+                showSectionTabs={false}
+                embedded
               />
-
-              {!isSearchActive && (
-                <div>
-                  <UnifiedFeed
-                    currentUserId={currentUserId}
-                    onBack={onBack}
-                    onViewChange={onViewChange}
-                    onNavigateToNotifications={onNavigateToNotifications}
-                    onNavigateToProfile={onNavigateToProfile}
-                    onNavigateToChat={onNavigateToChat}
-                    headerTitle=""
-                    headerSubtitle=""
-                    visibleSections={['events']}
-                    enableMap={false}
-                    showSectionTabs={false}
-                    embedded
-                  />
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>

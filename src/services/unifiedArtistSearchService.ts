@@ -54,68 +54,23 @@ export class UnifiedArtistSearchService {
         return fuzzyResults;
       }
 
-      // STEP 3: Only if explicit search (useApi=true), fetch NEW results from API
-      console.log(`🌐 Explicit search triggered - calling API for new results...`);
-      
-      let ticketmasterArtists: any[] = [];
-      try {
-        ticketmasterArtists = await this.searchTicketmasterAttractions(query, limit);
-        console.log(`🎫 Found ${ticketmasterArtists.length} NEW artists from Ticketmaster`);
-      } catch (tmError) {
-        console.warn('⚠️ Ticketmaster search failed:', tmError);
-      }
-
-      // Use only Ticketmaster results (no JamBase)
-      const allArtists = [...ticketmasterArtists];
-      console.log(`✅ Total NEW artists from Ticketmaster: ${allArtists.length}`);
-
-      // STEP 4: Populate database with NEW artists only
-      let populatedArtists: any[] = [];
-      if (allArtists.length > 0) {
-        try {
-          populatedArtists = await this.populateArtistProfiles(allArtists);
-          console.log(`💾 Stored ${populatedArtists.length} new artists in database`);
-        } catch (populateError) {
-          console.warn('⚠️  Could not populate database:', populateError);
-        }
-      }
-
-      // STEP 5: Re-query database to get comprehensive results (includes new + existing)
+      // STEP 3: Re-query database to get comprehensive results
+      // Note: Ticketmaster API has been removed - we only use database results
       let finalResults: ArtistSearchResult[] = [];
       try {
         finalResults = await this.getFuzzyMatchedResults(query, limit);
-        console.log(`🎯 Final database results (including new): ${finalResults.length}`);
+        console.log(`🎯 Final database results: ${finalResults.length}`);
       } catch (finalError) {
         console.warn('⚠️  Could not get final results from database:', finalError);
       }
 
-      // If we have database results, return them
+      // Return database results
       if (finalResults.length > 0) {
         return finalResults;
       }
 
-      // Fallback: If API returned results but DB query failed, return API results directly
-      if (allArtists.length > 0) {
-        console.log(`🔄 Using API results as fallback (DB query failed)`);
-        return allArtists
-          .map(artist => ({
-            id: artist.id,
-            name: artist.name,
-            identifier: artist.identifier,
-            image_url: artist.image_url || artist.image,
-            genres: artist.genres,
-            band_or_musician: artist.band_or_musician || artist['x-bandOrMusician'] || 'musician',
-            num_upcoming_events: artist.upcomingEvents?._total || artist['x-numUpcomingEvents'] || 0,
-            match_score: this.calculateFuzzyMatchScore(query, artist.name),
-            is_from_database: false,
-          }))
-          .filter(artist => artist.match_score > 15)
-          .sort((a, b) => b.match_score - a.match_score)
-          .slice(0, limit);
-      }
-
-      // No results from any source
-      console.log('📭 No results found from any source');
+      // No results found
+      console.log('📭 No results found in database');
       return [];
     } catch (error) {
       console.error('❌ Error in unified artist search:', error);
@@ -124,7 +79,7 @@ export class UnifiedArtistSearchService {
   }
 
   /**
-   * Search Ticketmaster attractions API for artists
+   * @deprecated Ticketmaster API is no longer used - this method is kept for reference but never called
    */
   private static async searchTicketmasterAttractions(query: string, limit: number): Promise<any[]> {
     console.log(`🎫 START: searchTicketmasterAttractions for "${query}"`);

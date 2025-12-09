@@ -317,7 +317,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
 
   const outerClassName = isEmbedded ? 'w-full' : `${isCompact ? '' : 'min-h-screen'} bg-background`;
   const innerClassName = isEmbedded
-    ? `w-full ${isCompact ? 'space-y-4' : 'space-y-6'}`
+    ? `w-full ${isCompact ? 'space-y-2' : 'space-y-4'}`
     : `max-w-5xl mx-auto px-4 ${isCompact ? 'py-4 space-y-6' : 'py-8 space-y-8'}`;
   const resolvedTitle = headerTitle ?? 'Search';
   const normalizedTitle = resolvedTitle.trim();
@@ -330,7 +330,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
   return (
     <div className={outerClassName}>
       <div className={innerClassName}>
-        <div className={`${isCompact ? 'space-y-2' : 'space-y-4'}`}>
+        <div className={isEmbedded && isCompact ? 'space-y-1' : `${isCompact ? 'space-y-2' : 'space-y-4'}`}>
           {shouldShowTitle && (
             <h1 className={`${isCompact ? 'text-2xl font-semibold' : 'text-3xl font-bold'} text-foreground`}>
               {normalizedTitle}
@@ -341,7 +341,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
               {normalizedDescription}
             </p>
           )}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -444,7 +444,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
 
                   {!isTabLoading && activeResults.length > 0 && (
                     <div className="space-y-4">
-                      {key === 'users' && <UserResults results={results.users} />}
+                      {key === 'users' && <UserResults results={results.users} onNavigateToProfile={_onNavigateToProfile} />}
                       {key === 'artists' && <ArtistResults results={results.artists} />}
                       {key === 'events' && <EventResults results={results.events} onEventClick={onEventClick} />}
                       {key === 'venues' && <VenueResults results={results.venues} />}
@@ -523,10 +523,17 @@ const fetchEvents = async (query: string): Promise<EventSearchResult[]> => {
   }
 };
 
-const UserResults: React.FC<{ results: UserSearchResult[] }> = ({ results }) => (
+const UserResults: React.FC<{ 
+  results: UserSearchResult[];
+  onNavigateToProfile?: (userId: string) => void;
+}> = ({ results, onNavigateToProfile }) => (
   <>
     {results.map((user) => (
-      <Card key={user.id} className="hover:shadow-sm transition-shadow">
+      <Card 
+        key={user.id} 
+        className="hover:shadow-sm transition-shadow cursor-pointer"
+        onClick={() => onNavigateToProfile?.(user.id)}
+      >
         <CardContent className="p-4 flex items-center gap-4">
           <Avatar className="h-12 w-12">
             {user.avatar_url ? (
@@ -539,16 +546,16 @@ const UserResults: React.FC<{ results: UserSearchResult[] }> = ({ results }) => 
             <div className="flex items-center gap-2">
               <span className="font-semibold truncate">{user.name}</span>
               {user.verified && <Badge variant="outline">Verified</Badge>}
-                          </div>
+            </div>
             {user.username && (
               <p className="text-sm text-muted-foreground truncate">@{user.username}</p>
             )}
             {user.bio && (
               <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{user.bio}</p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     ))}
   </>
 );

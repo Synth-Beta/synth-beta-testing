@@ -8,15 +8,17 @@ import { ReviewCard } from '@/components/reviews/ReviewCard';
 import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Loader2, Users, MessageCircle, Sparkles, Calendar, MapPin, Bell, UserPlus, Star, Heart, Share2, Bookmark, Images, Play, X, UserCheck, Search } from 'lucide-react';
+import { Loader2, Users, MessageCircle, Sparkles, Calendar, MapPin, Bell, UserPlus, Star, Heart, Share2, Bookmark, Images, Play, X, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { PageActions } from '@/components/PageActions';
 import { fetchUserChats } from '@/services/chatService';
+import { RedesignedSearchPage } from '@/components/search/RedesignedSearchPage';
+import type { EventSearchResult } from '@/components/search/RedesignedSearchPage';
+import { cacheService, CacheKeys, CacheTTL } from '@/services/cacheService';
 
 type ConnectionProfile = {
   connected_user_id: string;
@@ -180,16 +182,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     color: string;
   } | null>(null);
   const [sendingFriendRequest, setSendingFriendRequest] = useState(false);
-  const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [userSearchResults, setUserSearchResults] = useState<Array<{
-    user_id: string;
-    name: string | null;
-    avatar_url: string | null;
-  }>>([]);
-  const [userSearchLoading, setUserSearchLoading] = useState(false);
-  const [userSearchOpen, setUserSearchOpen] = useState(false);
   const [reviewShareModalOpen, setReviewShareModalOpen] = useState(false);
   const [selectedReviewForShare, setSelectedReviewForShare] = useState<ReviewWithEngagement | null>(null);
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const [reviewDetailData, setReviewDetailData] = useState<{
     photos: string[];
     videos: string[];
@@ -246,12 +241,41 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     const loadConnectionsAndInterests = async () => {
       setInterestsLoading(true);
       try {
-        // Try to fetch connections, but handle missing RPC functions gracefully
-        const [firstRes, secondRes, thirdRes] = await Promise.allSettled([
-          supabase.rpc('get_first_degree_connections', { target_user_id: currentUserId }),
-          supabase.rpc('get_second_degree_connections', { target_user_id: currentUserId }),
-          supabase.rpc('get_third_degree_connections', { target_user_id: currentUserId }),
-        ]);
+        // Check cache for connection data
+        const firstCacheKey = CacheKeys.connectionDegree(currentUserId, 1);
+        const secondCacheKey = CacheKeys.connectionDegree(currentUserId, 2);
+        const thirdCacheKey = CacheKeys.connectionDegree(currentUserId, 3);
+        
+        const cachedFirst = cacheService.get<ConnectionProfile[]>(firstCacheKey);
+        const cachedSecond = cacheService.get<ConnectionProfile[]>(secondCacheKey);
+        const cachedThird = cacheService.get<ConnectionProfile[]>(thirdCacheKey);
+        
+        let firstRes, secondRes, thirdRes;
+        
+        if (cachedFirst && cachedSecond && cachedThird) {
+          // Use cached data
+          firstRes = { status: 'fulfilled' as const, value: { data: cachedFirst, error: null } };
+          secondRes = { status: 'fulfilled' as const, value: { data: cachedSecond, error: null } };
+          thirdRes = { status: 'fulfilled' as const, value: { data: cachedThird, error: null } };
+        } else {
+          // Fetch from database
+          [firstRes, secondRes, thirdRes] = await Promise.allSettled([
+            supabase.rpc('get_first_degree_connections', { target_user_id: currentUserId }),
+            supabase.rpc('get_second_degree_connections', { target_user_id: currentUserId }),
+            supabase.rpc('get_third_degree_connections', { target_user_id: currentUserId }),
+          ]);
+          
+          // Cache the results
+          if (firstRes.status === 'fulfilled' && !firstRes.value.error && firstRes.value.data) {
+            cacheService.set(firstCacheKey, firstRes.value.data, CacheTTL.CONNECTION_DATA);
+          }
+          if (secondRes.status === 'fulfilled' && !secondRes.value.error && secondRes.value.data) {
+            cacheService.set(secondCacheKey, secondRes.value.data, CacheTTL.CONNECTION_DATA);
+          }
+          if (thirdRes.status === 'fulfilled' && !thirdRes.value.error && thirdRes.value.data) {
+            cacheService.set(thirdCacheKey, thirdRes.value.data, CacheTTL.CONNECTION_DATA);
+          }
+        }
 
         if (!active) return;
 
@@ -302,38 +326,37 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
         if (!active) return;
 
-        // Fetch user details separately
+        // Batch fetch user and event details in parallel
         const userIds = [...new Set((data || []).map((row: any) => row.user_id).filter(Boolean))];
-        const userMap = new Map<string, any>();
+        const eventIds = [...new Set((data || []).map((row: any) => row.related_entity_id).filter(Boolean))];
         
-        if (userIds.length > 0) {
-          const { data: usersData } = await supabase
-            .from('users')
-            .select('user_id, name, avatar_url')
-            .in('user_id', userIds);
-          
-          if (usersData) {
-            usersData.forEach((user: any) => {
-              userMap.set(user.user_id, user);
-            });
-          }
+        const [usersResult, eventsResult] = await Promise.all([
+          userIds.length > 0
+            ? supabase
+                .from('users')
+                .select('user_id, name, avatar_url')
+                .in('user_id', userIds)
+            : Promise.resolve({ data: [], error: null }),
+          eventIds.length > 0
+            ? supabase
+                .from('events')
+                .select('id, title, artist_name, venue_name, event_date, poster_image_url, images')
+                .in('id', eventIds)
+            : Promise.resolve({ data: [], error: null })
+        ]);
+
+        const userMap = new Map<string, any>();
+        if (usersResult.data) {
+          usersResult.data.forEach((user: any) => {
+            userMap.set(user.user_id, user);
+          });
         }
 
-        // Fetch event details separately since relationships table doesn't have direct FK join
-        const eventIds = [...new Set((data || []).map((row: any) => row.related_entity_id).filter(Boolean))];
         const eventMap = new Map<string, any>();
-        
-        if (eventIds.length > 0) {
-          const { data: eventsData } = await supabase
-            .from('events')
-            .select('id, title, artist_name, venue_name, event_date, poster_image_url, images')
-            .in('id', eventIds);
-          
-          if (eventsData) {
-            eventsData.forEach((event: any) => {
-              eventMap.set(event.id, event);
-            });
-          }
+        if (eventsResult.data) {
+          eventsResult.data.forEach((event: any) => {
+            eventMap.set(event.id, event);
+          });
         }
 
         const interests = (data || []).map((row: any) => {
@@ -398,55 +421,67 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         if (error) throw error;
         if (!active) return;
 
-        // Fetch unread counts for each chat
-        // Only count chats that haven't been marked as read
+        // Batch fetch unread counts for all chats efficiently
         const readChats = JSON.parse(localStorage.getItem('read_chats') || '[]');
-        const chatsWithUnread = await Promise.all((data || []).map(async (chat: any) => {
-          try {
-            // If chat has been read, no unread messages
-            if (readChats.includes(chat.id)) {
-              return {
-                ...chat,
-                unread_count: 0
-              } as ChatPreview;
-            }
-
-            // Get latest message to check if it's from current user
-            const { data: latestMessage } = await supabase
-              .from('messages')
-              .select('sender_id')
-              .eq('chat_id', chat.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
-
-            // If latest message is from current user, no unread
-            if (!latestMessage || latestMessage.sender_id === currentUserId) {
-              return {
-                ...chat,
-                unread_count: 0
-              } as ChatPreview;
-            }
-
-            // Count messages not sent by current user
-            const { count } = await supabase
-              .from('messages')
-              .select('*', { count: 'exact', head: true })
-              .eq('chat_id', chat.id)
-              .neq('sender_id', currentUserId);
-            
-            return {
-              ...chat,
-              unread_count: count || 0
-            } as ChatPreview;
-          } catch (error) {
-            console.error('Error fetching unread count for chat:', chat.id, error);
-            return {
-              ...chat,
-              unread_count: 0
-            } as ChatPreview;
+        const chatIds = (data || []).map(chat => chat.id);
+        const unreadChatIds = chatIds.filter(id => !readChats.includes(id));
+        
+        // Batch fetch latest messages for all unread chats
+        const latestMessagesPromises = unreadChatIds.map(chatId =>
+          supabase
+            .from('messages')
+            .select('sender_id, chat_id')
+            .eq('chat_id', chatId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        );
+        
+        const latestMessagesResults = await Promise.all(latestMessagesPromises);
+        const latestMessagesMap = new Map<string, any>();
+        latestMessagesResults.forEach((result, index) => {
+          if (result.data) {
+            latestMessagesMap.set(unreadChatIds[index], result.data);
           }
-        }));
+        });
+        
+        // Filter chats where latest message is from current user (no unread)
+        const chatsNeedingCount = unreadChatIds.filter(chatId => {
+          const latestMessage = latestMessagesMap.get(chatId);
+          return latestMessage && latestMessage.sender_id !== currentUserId;
+        });
+        
+        // Batch fetch unread counts for chats that need them
+        const unreadCountPromises = chatsNeedingCount.map(chatId =>
+          supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('chat_id', chatId)
+            .neq('sender_id', currentUserId)
+        );
+        
+        const unreadCountResults = await Promise.all(unreadCountPromises);
+        const unreadCountMap = new Map<string, number>();
+        unreadCountResults.forEach((result, index) => {
+          unreadCountMap.set(chatsNeedingCount[index], result.count || 0);
+        });
+        
+        // Build final chat list with unread counts
+        const chatsWithUnread = (data || []).map((chat: any) => {
+          if (readChats.includes(chat.id)) {
+            return { ...chat, unread_count: 0 } as ChatPreview;
+          }
+          
+          const latestMessage = latestMessagesMap.get(chat.id);
+          if (!latestMessage || latestMessage.sender_id === currentUserId) {
+            return { ...chat, unread_count: 0 } as ChatPreview;
+          }
+          
+          return {
+            ...chat,
+            unread_count: unreadCountMap.get(chat.id) || 0
+          } as ChatPreview;
+        });
 
         // Sort: unread messages first, then by latest message time
         const sortedChats = chatsWithUnread.sort((a, b) => {
@@ -608,11 +643,20 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatsLoading, interestsLoading, chatPreviews, firstConnections.length]);
 
-  // Load user recommendations
+  // Load user recommendations (progressive loading - load after critical data)
   useEffect(() => {
     let active = true;
 
     const loadRecommendations = async () => {
+      // Wait for critical data to load first (reviews and connections)
+      // This ensures the page shows content immediately
+      if (reviewsLoading || interestsLoading) {
+        // Wait a bit for critical data to finish
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      if (!active) return;
+
       setRecommendationsLoading(true);
       try {
         console.log('Loading recommendations for user:', currentUserId);
@@ -639,50 +683,28 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     return () => {
       active = false;
     };
-  }, [currentUserId]);
+  }, [currentUserId, reviewsLoading, interestsLoading]);
 
-  // User search functionality
-  const searchUsers = async (query: string) => {
-    if (!query.trim()) {
-      setUserSearchResults([]);
-      setUserSearchOpen(false);
-      return;
-    }
-
+  // Event click handler for search results
+  const handleEventClick = async (event: EventSearchResult) => {
     try {
-      setUserSearchLoading(true);
-      const { data: profiles, error } = await supabase
-        .from('users')
-        .select('user_id, name, avatar_url')
-        .ilike('name', `%${query}%`)
-        .neq('user_id', currentUserId) // Exclude current user
-        .limit(10);
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', event.id)
+        .single();
 
-      if (error) {
-        console.error('Error searching users:', error);
+      if (error || !data) {
+        console.error('Error fetching event details:', error);
         return;
       }
 
-      setUserSearchResults(profiles || []);
-      setUserSearchOpen(true);
+      // Navigate to event or show details
+      // For now, we'll just log it - can be enhanced later
+      console.log('Event clicked:', event);
     } catch (error) {
-      console.error('Error searching users:', error);
-    } finally {
-      setUserSearchLoading(false);
+      console.error('Error handling event click:', error);
     }
-  };
-
-  const handleUserSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setUserSearchQuery(query);
-    searchUsers(query);
-  };
-
-  const handleUserSelect = (userId: string) => {
-    setUserSearchQuery('');
-    setUserSearchResults([]);
-    setUserSearchOpen(false);
-    onNavigateToProfile?.(userId);
   };
 
   const renderPeopleYouMightKnowCard = () => {
@@ -814,87 +836,6 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     );
   };
 
-  const renderUserSearchBar = () => {
-    return (
-      <div className="relative w-full max-w-xl">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            type="text"
-            placeholder="Search users..."
-            value={userSearchQuery}
-            onChange={handleUserSearchChange}
-            onFocus={() => {
-              if (userSearchResults.length > 0) {
-                setUserSearchOpen(true);
-              }
-            }}
-            onBlur={() => {
-              setTimeout(() => {
-                setUserSearchOpen(false);
-              }, 150);
-            }}
-            className="pl-10 pr-10 h-12 rounded-full bg-white/85 shadow-sm"
-            autoComplete="off"
-          />
-          {userSearchQuery && !userSearchLoading && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setUserSearchQuery('');
-                setUserSearchResults([]);
-                setUserSearchOpen(false);
-              }}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
-            >
-              <X className="w-3 h-3" />
-            </Button>
-          )}
-          {userSearchLoading && (
-            <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
-          )}
-        </div>
-        {userSearchOpen && userSearchResults.length > 0 && (
-          <Card className="absolute top-full left-0 right-0 z-50 mt-2 max-h-80 overflow-y-auto shadow-lg border bg-white">
-            <CardContent className="p-0">
-              <div className="py-2">
-                {userSearchResults.map((user) => (
-                  <div
-                    key={user.user_id}
-                    className="px-3 py-2 hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => handleUserSelect(user.user_id)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src={user.avatar_url || undefined} />
-                        <AvatarFallback>
-                          {user.name
-                            ? user.name
-                                .split(' ')
-                                .map((part) => part[0])
-                                .join('')
-                                .slice(0, 2)
-                                .toUpperCase()
-                            : 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-gray-900 truncate">
-                          {user.name || 'User'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    );
-  };
 
   const renderReviewsSection = () => {
     if (reviewsLoading) {
@@ -1577,42 +1518,63 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Connection discovery */}
-        <section className="glass-card inner-glow rounded-3xl border border-white/60 bg-white/70 p-6 shadow-xl">
-          <div className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              {renderUserSearchBar()}
-              <PageActions
-                currentUserId={currentUserId}
-                onNavigateToNotifications={onNavigateToNotifications}
-                onNavigateToChat={onNavigateToChat}
-                className="flex-shrink-0"
-              />
-            </div>
-
-            {connectionInterests.length > 0 && (
-              <div className="mb-2">
-                <div className="mb-4">
-                  <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-2">
-                    <Sparkles className="w-6 h-6 text-green-500" />
-                    Friends Interested in Same Events
-                  </h2>
-                  <p className="text-muted-foreground text-sm">
-                    Start a conversation with friends going to the same events
-                  </p>
-                </div>
-                {renderInterestsSection()}
-              </div>
-            )}
-
-            <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
-              <div className="space-y-6">
-                {renderReviewsSection()}
-              </div>
-            </div>
+      <div className="max-w-6xl mx-auto px-4 pt-4 pb-4">
+        {/* Top bar with search and actions - no gap, fills top */}
+        <div className="flex items-start gap-3 mb-4">
+          <div className="flex-1 min-w-0">
+            <RedesignedSearchPage
+              userId={currentUserId}
+              allowedTabs={['users', 'artists', 'events', 'venues']}
+              showMap={false}
+              layout="compact"
+              mode="embedded"
+              headerTitle=""
+              headerDescription=""
+              showHelperText={false}
+              onSearchStateChange={({ debouncedQuery }) => {
+                setIsSearchActive(debouncedQuery.trim().length >= 2);
+              }}
+              onNavigateToProfile={onNavigateToProfile}
+              onNavigateToChat={onNavigateToChat}
+              onEventClick={handleEventClick}
+            />
           </div>
-        </section>
+          <div className="flex-shrink-0 pt-1">
+            <PageActions
+              currentUserId={currentUserId}
+              onNavigateToNotifications={onNavigateToNotifications}
+              onNavigateToChat={onNavigateToChat}
+            />
+          </div>
+        </div>
+
+        {/* Connection discovery - only show when NOT searching */}
+        {!isSearchActive && (
+          <section className="glass-card inner-glow rounded-3xl border border-white/60 bg-white/70 p-6 shadow-xl">
+            <div className="space-y-6">
+              {connectionInterests.length > 0 && (
+                <div className="mb-2">
+                  <div className="mb-4">
+                    <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-2">
+                      <Sparkles className="w-6 h-6 text-green-500" />
+                      Friends Interested in Same Events
+                    </h2>
+                    <p className="text-muted-foreground text-sm">
+                      Start a conversation with friends going to the same events
+                    </p>
+                  </div>
+                  {renderInterestsSection()}
+                </div>
+              )}
+
+              <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
+                <div className="space-y-6">
+                  {renderReviewsSection()}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Review Detail Modal - Enhanced with all review information */}

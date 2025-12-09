@@ -195,43 +195,36 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       setLoading(true);
       console.log('🔍 ProfileView: Loading state set to TRUE');
       
-      // Ensure we wait for both minimum time AND data fetching
+      // Parallelize all independent data fetching for faster loading
       const fetchData = async () => {
         try {
-          console.log('🔍 ProfileView: fetchData function called');
-          console.log('🔍 ProfileView: About to fetch profile...');
-          await fetchProfile();
-          console.log('🔍 ProfileView: About to fetch user events...');
-          await fetchUserEvents();
-          console.log('🔍 ProfileView: About to fetch reviews...');
-          await fetchReviews();
-          console.log('🔍 ProfileView: About to fetch reviews count...');
-          await fetchReviewsCount();
-          console.log('🔍 ProfileView: About to fetch friends...');
-          await fetchFriends();
-          console.log('🔍 ProfileView: About to fetch attended events...');
-          await fetchAttendedEvents();
-          console.log('🔍 ProfileView: About to fetch draft reviews...');
-          await fetchDraftReviews();
-          console.log('🔍 ProfileView: About to fetch followed artists count...');
-          await fetchFollowedArtistsCount();
-          console.log('🔍 ProfileView: About to fetch achievements...');
-          await loadAchievements();
-          if (!isViewingOwnProfile) {
-            await checkFriendStatus();
-          }
+          console.log('🔍 ProfileView: fetchData function called - parallelizing queries');
+          
+          // Parallelize all independent queries
+          await Promise.all([
+            fetchProfile(),
+            fetchUserEvents(),
+            fetchReviews(),
+            fetchReviewsCount(),
+            fetchFriends(),
+            fetchAttendedEvents(),
+            fetchDraftReviews(),
+            fetchFollowedArtistsCount(),
+            loadAchievements(),
+            // Only check friend status if viewing someone else's profile
+            !isViewingOwnProfile ? checkFriendStatus() : Promise.resolve()
+          ]);
+          
           console.log('🔍 ProfileView: All data fetched successfully');
         } catch (error) {
           console.error('🔍 ProfileView: Error fetching data:', error);
+        } finally {
+          setLoading(false);
+          console.log('🔍 ProfileView: Loading state set to FALSE');
         }
       };
-
-      const minTime = new Promise(resolve => setTimeout(resolve, 800));
       
-      Promise.all([fetchData(), minTime]).finally(() => {
-        setLoading(false);
-        console.log('🔍 ProfileView: Loading state set to FALSE');
-      });
+      fetchData();
     }, 300); // Debounce by 300ms
     
     return () => clearTimeout(fetchTimeout);

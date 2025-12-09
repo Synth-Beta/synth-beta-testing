@@ -53,12 +53,13 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
         return;
       }
 
-      // Use NotificationService to fetch notifications with details
-      const result = await NotificationService.getNotifications({ limit: 50 });
-      setNotifications(result.notifications);
+      // Parallelize notification and unread count queries
+      const [result, count] = await Promise.all([
+        NotificationService.getNotifications({ limit: 50 }),
+        NotificationService.getUnreadCount()
+      ]);
       
-      // Get unread count
-      const count = await NotificationService.getUnreadCount();
+      setNotifications(result.notifications);
       setUnreadCount(count);
     } catch (error) {
       console.error('Error fetching notifications:', error);

@@ -6,6 +6,7 @@ import type {
   NotificationStats,
   NotificationType 
 } from '@/types/notifications';
+import { cacheService, CacheKeys, CacheTTL } from './cacheService';
 
 export class NotificationService {
   /**
@@ -19,6 +20,18 @@ export class NotificationService {
       // Get current user ID for filtering (consistent with fallback method)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
+
+      // Prepare cache key (only for first page, no filters)
+      const shouldCache = !filters.offset && !filters.type && filters.is_read === undefined;
+      const cacheKey = shouldCache ? `notifications_${user.id}_${filters.limit || 50}` : null;
+
+      // Check cache
+      if (shouldCache && cacheKey) {
+        const cached = cacheService.get<{ notifications: NotificationWithDetails[]; total: number }>(cacheKey);
+        if (cached) {
+          return cached;
+        }
+      }
 
       // Try to use the view first
       let query = supabase
@@ -108,10 +121,17 @@ export class NotificationService {
       // Note: This count includes processed friend requests that are filtered out client-side.
       // The returned array may contain fewer items than the total due to client-side filtering,
       // but the total count allows pagination UI to work correctly.
-      return {
+      const result = {
         notifications: paginatedNotifications,
         total: count || 0
       };
+
+      // Cache the result (only for first page, no filters)
+      if (shouldCache && cacheKey) {
+        cacheService.set(cacheKey, result, CacheTTL.NOTIFICATIONS);
+      }
+
+      return result;
     } catch (error) {
       console.error('Error fetching notifications:', error);
       throw new Error(`Failed to get notifications: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -453,6 +473,13 @@ export class NotificationService {
         return 0;
       }
 
+      // Check cache
+      const unreadCacheKey = `unread_count_${user.id}`;
+      const cached = cacheService.get<number>(unreadCacheKey);
+      if (cached !== null) {
+        return cached;
+      }
+
       // Fetch all unread notifications to filter out processed friend requests
       // This ensures the count matches what getNotifications returns
       const { data: notifications, error: fetchError } = await supabase
@@ -506,7 +533,12 @@ export class NotificationService {
         return true; // Include all non-friend-request notifications
       });
 
-      return validNotifications.length;
+      const count = validNotifications.length;
+      
+      // Cache the result
+      cacheService.set(unreadCacheKey, count, CacheTTL.NOTIFICATIONS);
+      
+      return count;
     } catch (error) {
       console.error('Error fetching unread count:', error);
       return 0;
