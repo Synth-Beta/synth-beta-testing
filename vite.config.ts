@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   const ticketmasterProxyTarget = env.VITE_TICKETMASTER_PROXY_TARGET || 'http://localhost:3001';
 
   return {
+    base: './', // Use relative paths for Capacitor
     server: {
       host: "localhost",
       port: 5174,
@@ -52,6 +53,18 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+      },
+    },
+    build: {
+      // Optimize for mobile
+      target: 'es2015',
+      cssCodeSplit: true,
+      sourcemap: false,
+      minify: 'esbuild',
+      rollupOptions: {
+        output: {
+          manualChunks: undefined, // Let Vite handle chunking
+        },
       },
     },
   };

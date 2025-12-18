@@ -56,6 +56,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { Navigation } from '@/components/Navigation';
 import { SynthSLogo } from '@/components/SynthSLogo';
+import { PageActions } from '@/components/PageActions';
 import { getEventStatus, isEventPast, getPastEvents, getUpcomingEvents } from '@/utils/eventStatusUtils';
 import { ReviewService, PublicReviewWithProfile, ReviewWithEngagement } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
@@ -191,8 +192,8 @@ export const UnifiedFeed = ({
     'grid-cols-3';
   const isEmbedded = embedded;
   const outerClassName = isEmbedded ? 'w-full' : 'min-h-screen bg-gray-50';
-  const innerClassName = isEmbedded ? 'w-full space-y-8' : 'max-w-4xl mx-auto p-6 space-y-8';
-  const headerSpacingClass = isEmbedded ? 'mb-4' : 'mb-8';
+  const innerClassName = isEmbedded ? 'w-full space-y-0' : 'max-w-4xl mx-auto p-6 space-y-8';
+  const headerSpacingClass = isEmbedded ? 'mb-0' : 'mb-8';
   const resolvedHeaderTitle = headerTitle ?? 'Feed';
   const resolvedHeaderSubtitle =
     headerSubtitle ?? 'Discover reviews and events from friends and the community';
@@ -586,22 +587,19 @@ export const UnifiedFeed = ({
           setHasMore(true);
           
           try {
-            const [rawItems] = await Promise.all([
-              UnifiedFeedService.getFeedItems({
-                userId: currentUserId,
-                limit: 20,
-                offset: 0,
-                includePrivateReviews: true,
-                filters: {
-                  genres: [],
-                  selectedCities: deduplicatedCities, // Already deduplicated above
-                  dateRange: undefined,
-                  daysOfWeek: [],
-                  filterByFollowing: undefined
-                }
-              }),
-              new Promise(resolve => setTimeout(resolve, 800)) // Min loading time
-            ]);
+            const rawItems = await UnifiedFeedService.getFeedItems({
+              userId: currentUserId,
+              limit: 20,
+              offset: 0,
+              includePrivateReviews: true,
+              filters: {
+                genres: [],
+                selectedCities: deduplicatedCities, // Already deduplicated above
+                dateRange: undefined,
+                daysOfWeek: [],
+                filterByFollowing: undefined
+              }
+            });
             
             const items = rawItems.filter(item => {
               if (item.type === 'review') {
@@ -623,21 +621,25 @@ export const UnifiedFeed = ({
             setLoading(false);
           }
           
-          // Load other data immediately
-          loadUpcomingEvents();
-          loadFollowedData();
-          loadCities();
+          // Load other data in parallel (non-blocking)
+          Promise.all([
+            loadUpcomingEvents(),
+            loadFollowedData(),
+            loadCities()
+          ]).catch(err => console.warn('Error loading parallel data:', err));
           return; // Exit early
         }
       } catch (error) {
         console.warn('⚠️ Error loading user city from profile:', error);
       }
       
-      // If no city found, load data normally using the same path as "Load more"
-      loadFeedData(0, false);
-      loadUpcomingEvents();
-      loadFollowedData();
-      loadCities();
+      // If no city found, load data normally - parallelize independent operations
+      Promise.all([
+        Promise.resolve(loadFeedData(0, false)),
+        loadUpcomingEvents(),
+        loadFollowedData(),
+        loadCities()
+      ]).catch(err => console.warn('Error loading parallel data:', err));
     };
     
     loadUserCityAndApply();
@@ -1100,9 +1102,7 @@ export const UnifiedFeed = ({
         setLoadingMore(true);
       }
 
-      // Add minimum loading time for better UX demonstration
-      // Skip minimum loading time for filter updates to make them feel instant
-      const minLoadingTime = (offset === 0 || isRefresh) && !isFilterUpdate ? new Promise(resolve => setTimeout(resolve, 800)) : Promise.resolve();
+      // Removed artificial delay for faster loading
 
       // Build filter object for personalized feed using ACTUAL filters (not pending)
       // Deduplicate cities to prevent duplicates
@@ -1134,16 +1134,13 @@ export const UnifiedFeed = ({
         feedFilters.filterByFollowing
       ) ? feedFilters : undefined;
       
-      const [rawItems] = await Promise.all([
-        UnifiedFeedService.getFeedItems({
-          userId: currentUserId,
-          limit: 20,
-          offset: actualOffset,
-          includePrivateReviews: true,
-          filters: activeFilters
-        }),
-        minLoadingTime
-      ]);
+      const rawItems = await UnifiedFeedService.getFeedItems({
+        userId: currentUserId,
+        limit: 20,
+        offset: actualOffset,
+        includePrivateReviews: true,
+        filters: activeFilters
+      });
 
         // Filter out deleted reviews and reviews without content
         const items = rawItems.filter(item => {
@@ -1929,7 +1926,7 @@ export const UnifiedFeed = ({
         // UnifiedFeed render
 
   const renderEventFiltersBlock = () => (
-    <div className="mb-6 lg:sticky lg:top-6 lg:z-20">
+    <div className={`${isEmbedded ? 'mb-2' : 'mb-6'} lg:sticky lg:top-6 lg:z-20`}>
       <div className="rounded-2xl border border-white/60 bg-white/90 shadow-sm backdrop-blur">
         <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
           <div className="md:flex-1">
@@ -2393,7 +2390,7 @@ export const UnifiedFeed = ({
         {/* Feed type tabs */}
         <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as FeedSectionKey)}>
           {showSectionTabs !== false && (
-            <TabsList className={`grid w-full mb-6 bg-white/60 backdrop-blur-sm border border-white/20 rounded-2xl p-1 ${sectionGridClass}`}>
+            <TabsList className={`grid w-full ${isEmbedded ? 'mb-1 mt-0' : 'mb-6'} bg-white/60 backdrop-blur-sm border border-white/20 rounded-2xl p-1 ${sectionGridClass}`}>
               {resolvedSections.map((section) => {
                 const { label, icon: Icon } = SECTION_META[section];
                 return (
@@ -2412,8 +2409,8 @@ export const UnifiedFeed = ({
 
           {/* Filters and Refresh Button - Only show on Events tab */}
           {activeTab === 'events' && resolvedSections.includes('events') && (
-            <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="md:flex-1">
+            <div className={`${isEmbedded ? 'mb-1 pt-0' : 'mb-6'} flex flex-col gap-2 md:flex-row md:items-center md:justify-between`}>
+              <div className={`${isEmbedded ? 'flex-1' : 'md:flex-1'}`}>
                 <EventFilters
                   filters={pendingFilters}
                   onFiltersChange={(newFilters) => {
@@ -2439,19 +2436,30 @@ export const UnifiedFeed = ({
                   availableGenres={availableGenres}
                   availableCities={availableCities}
                   onOverlayChange={(open) => setPendingFilters(prev => ({ ...prev, showFilters: open }))}
+                  className={isEmbedded ? 'space-y-0' : ''}
                 />
               </div>
-              {mapEnabled && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="md:self-start"
-                onClick={() => setIsMapDialogOpen(true)}
-                disabled={mapEvents.length === 0}
-              >
-                <MapIcon className="h-4 w-4 mr-2" />
-                Map View
-              </Button>
+              {isEmbedded && onNavigateToNotifications && onNavigateToChat && (
+                <div className="flex items-center gap-2 flex-shrink-0 -mt-1">
+                  <PageActions
+                    currentUserId={currentUserId}
+                    onNavigateToNotifications={onNavigateToNotifications}
+                    onNavigateToChat={onNavigateToChat}
+                    className="flex-shrink-0"
+                  />
+                </div>
+              )}
+              {!isEmbedded && mapEnabled && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="md:self-start"
+                  onClick={() => setIsMapDialogOpen(true)}
+                  disabled={mapEvents.length === 0}
+                >
+                  <MapIcon className="h-4 w-4 mr-2" />
+                  Map View
+                </Button>
               )}
             </div>
           )}

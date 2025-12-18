@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Search, Filter, SlidersHorizontal } from 'lucide-react';
 import { RedesignedSearchPage } from '@/components/search/RedesignedSearchPage';
-import { UnifiedFeed } from '@/components/UnifiedFeed';
-import { Card, CardContent } from '@/components/ui/card';
+import { RecommendedEventsSection } from './RecommendedEventsSection';
+import { BrowseAllEventsSection } from './BrowseAllEventsSection';
 import { PageActions } from '@/components/PageActions';
-import { EventDetailsModal } from '@/components/events/EventDetailsModal';
-import { UserEventService } from '@/services/userEventService';
-import { supabase } from '@/integrations/supabase/client';
-import type { EventSearchResult } from '@/components/search/RedesignedSearchPage';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface DiscoverViewProps {
   currentUserId: string;
@@ -18,6 +22,8 @@ interface DiscoverViewProps {
   onViewChange?: (view: 'feed' | 'search' | 'profile') => void;
 }
 
+type SortOption = 'date' | 'popularity' | 'distance' | 'price';
+
 export const DiscoverView: React.FC<DiscoverViewProps> = ({
   currentUserId,
   onBack,
@@ -26,149 +32,118 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   onNavigateToChat,
   onViewChange,
 }) => {
-  const navigate = useNavigate();
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
-  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
-  const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [sortOption, setSortOption] = useState<SortOption>('date');
   const [isSearchActive, setIsSearchActive] = useState(false);
 
-  const handleEventClick = async (event: EventSearchResult) => {
-    // Convert EventSearchResult to event format expected by EventDetailsModal
-    // We need to fetch the full event data from the database
-    try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', event.id)
-        .single();
+  // Debounce search query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      const trimmed = searchQuery.trim();
+      setDebouncedQuery(trimmed);
+      setIsSearchActive(trimmed.length >= 2);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
-      if (error || !data) {
-        // If not found in jambase_events, try to construct a basic event object
-        const basicEvent = {
-          id: event.id,
-          event_name: event.title || event.artistName || 'Event',
-          artist_name: event.artistName || '',
-          venue_name: event.venueName || '',
-          event_date: event.eventDate || new Date().toISOString(),
-          image_url: event.imageUrl || null,
-        };
-        setSelectedEvent(basicEvent);
-        setSelectedEventInterested(false);
-        setEventDetailsOpen(true);
-        return;
-      }
-
-      setSelectedEvent(data);
-      try {
-        const interested = await UserEventService.isUserInterested(currentUserId, data.id);
-        setSelectedEventInterested(interested);
-      } catch {
-        setSelectedEventInterested(false);
-      }
-      setEventDetailsOpen(true);
-    } catch (error) {
-      console.error('Error fetching event details:', error);
-      // Fallback: create a basic event object
-      const basicEvent = {
-        id: event.id,
-        event_name: event.title || event.artistName || 'Event',
-        artist_name: event.artistName || '',
-        venue_name: event.venueName || '',
-        event_date: event.eventDate || new Date().toISOString(),
-        image_url: event.imageUrl || null,
-      };
-      setSelectedEvent(basicEvent);
-      setSelectedEventInterested(false);
-      setEventDetailsOpen(true);
+  // Sync search query to RedesignedSearchPage when it changes
+  useEffect(() => {
+    if (isSearchActive && debouncedQuery) {
+      // The search will be handled by RedesignedSearchPage with initialSearchQuery prop
     }
-  };
+  }, [debouncedQuery, isSearchActive]);
+
+  const sortOptions: Array<{ value: SortOption; label: string }> = [
+    { value: 'date', label: 'Date' },
+    { value: 'popularity', label: 'Popularity' },
+    { value: 'distance', label: 'Distance' },
+    { value: 'price', label: 'Price' },
+  ];
+
+  const currentSortLabel = sortOptions.find(opt => opt.value === sortOption)?.label || 'Date';
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        <Card className="border-none bg-gradient-to-br from-rose-50 via-white to-amber-50 shadow-sm">
-          <CardContent className="p-0">
-            <div
-              className={`bg-white/85 rounded-3xl border border-white/60 shadow-inner p-4 md:p-6 ${
-                isSearchActive ? 'space-y-4' : 'space-y-0'
-              }`}
-            >
-              <RedesignedSearchPage
-                userId={currentUserId}
-                allowedTabs={['artists', 'events', 'venues']}
-                showMap={false}
-                layout="compact"
-                mode="embedded"
-                headerTitle=""
-                headerDescription=""
-                headerAccessory={
-                  <PageActions
-                    currentUserId={currentUserId}
-                    onNavigateToNotifications={onNavigateToNotifications}
-                    onNavigateToChat={onNavigateToChat}
-                    className="flex-shrink-0"
-                  />
-                }
-                showHelperText={false}
-                onSearchStateChange={({ debouncedQuery }) => {
-                  setIsSearchActive(debouncedQuery.trim().length >= 2);
-                }}
-                onNavigateToProfile={onNavigateToProfile}
-                onNavigateToChat={onNavigateToChat}
-                onEventClick={handleEventClick}
-              />
+      <div className="max-w-6xl mx-auto px-4 pt-4 pb-4">
+        {/* Search Bar with Sort Filter */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search events, artists, venues, or people..."
+              className="pl-9 h-10"
+              autoComplete="off"
+            />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="default" className="h-10 gap-2">
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="hidden sm:inline">{currentSortLabel}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {sortOptions.map((option) => (
+                <DropdownMenuItem
+                  key={option.value}
+                  onClick={() => setSortOption(option.value)}
+                  className={sortOption === option.value ? 'bg-accent' : ''}
+                >
+                  {option.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <div className="flex-shrink-0">
+            <PageActions
+              currentUserId={currentUserId}
+              onNavigateToNotifications={onNavigateToNotifications}
+              onNavigateToChat={onNavigateToChat}
+            />
+          </div>
+        </div>
 
-              {!isSearchActive && (
-                <div>
-                  <UnifiedFeed
-                    currentUserId={currentUserId}
-                    onBack={onBack}
-                    onViewChange={onViewChange}
-                    onNavigateToNotifications={onNavigateToNotifications}
-                    onNavigateToProfile={onNavigateToProfile}
-                    onNavigateToChat={onNavigateToChat}
-                    headerTitle=""
-                    headerSubtitle=""
-                    visibleSections={['events']}
-                    enableMap={false}
-                    showSectionTabs={false}
-                    embedded
-                  />
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Search Results or Browse View */}
+        {isSearchActive ? (
+          <RedesignedSearchPage
+            userId={currentUserId}
+            allowedTabs={['all', 'users', 'artists', 'events', 'venues']}
+            showMap={false}
+            layout="compact"
+            mode="embedded"
+            headerTitle=""
+            headerDescription=""
+            showHelperText={false}
+            initialSearchQuery={searchQuery}
+            hideSearchInput={true}
+            onSearchStateChange={({ debouncedQuery: query }) => {
+              // Search state is already managed by parent
+            }}
+            onNavigateToProfile={onNavigateToProfile}
+            onNavigateToChat={onNavigateToChat}
+          />
+        ) : (
+          <div className="space-y-6">
+            {/* Recommended Events Section */}
+            <RecommendedEventsSection
+              currentUserId={currentUserId}
+              onNavigateToProfile={onNavigateToProfile}
+              onNavigateToChat={onNavigateToChat}
+            />
+
+            {/* Browse All Events Section */}
+            <BrowseAllEventsSection
+              currentUserId={currentUserId}
+              sortOption={sortOption}
+              onNavigateToProfile={onNavigateToProfile}
+              onNavigateToChat={onNavigateToChat}
+            />
+          </div>
+        )}
       </div>
-
-      {eventDetailsOpen && selectedEvent && (
-        <EventDetailsModal
-          isOpen={eventDetailsOpen}
-          onClose={() => {
-            setEventDetailsOpen(false);
-            setSelectedEvent(null);
-          }}
-          event={selectedEvent}
-          currentUserId={currentUserId}
-          isInterested={selectedEventInterested}
-          onInterestToggle={async (eventId, interested) => {
-            try {
-              await UserEventService.setEventInterest(currentUserId, eventId, interested);
-              setSelectedEventInterested(interested);
-              // The UnifiedFeed component will handle refreshing the feed state automatically
-            } catch (error) {
-              console.error('Error toggling interest:', error);
-            }
-          }}
-          onReview={() => {
-            // Handle review action if needed
-            console.log('Review event:', selectedEvent.id);
-          }}
-          onNavigateToProfile={onNavigateToProfile}
-          onNavigateToChat={onNavigateToChat}
-        />
-      )}
     </div>
   );
 };
-

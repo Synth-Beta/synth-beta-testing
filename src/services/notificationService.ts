@@ -6,6 +6,7 @@ import type {
   NotificationStats,
   NotificationType 
 } from '@/types/notifications';
+import { cacheService, CacheKeys, CacheTTL } from './cacheService';
 
 export class NotificationService {
   /**
@@ -20,98 +21,166 @@ export class NotificationService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Try to use the view first
-      let query = supabase
-        .from('notifications_with_details')
-        .select('*', { count: 'exact' })
-        .eq('user_id', user.id) // Explicitly filter by user_id for consistency and safety
-        .order('created_at', { ascending: false });
+      // Prepare cache key (only for first page, no filters)
+      const shouldCache = !filters.offset && !filters.type && filters.is_read === undefined;
+      const cacheKey = shouldCache ? `notifications_${user.id}_${filters.limit || 50}` : null;
 
-      // Apply filters
-      if (filters.type) {
-        query = query.eq('type', filters.type);
-      }
-      
-      if (filters.is_read !== undefined) {
-        query = query.eq('is_read', filters.is_read);
+      // Check cache
+      if (shouldCache && cacheKey) {
+        const cached = cacheService.get<{ notifications: NotificationWithDetails[]; total: number }>(cacheKey);
+        if (cached) {
+          return cached;
+        }
       }
 
-      // Apply pagination with buffer to account for client-side filtering
-      // The offset should apply to the database query, not the filtered results
-      // This ensures pagination is based on database position, not filtered position
-      const requestedLimit = filters.limit || 20;
-      const offset = filters.offset || 0;
-      // Fetch 50% more than requested to account for processed friend requests that will be filtered out
-      const fetchLimit = Math.ceil(requestedLimit * 1.5);
-      // Apply offset to database query - this ensures we get the correct database items for this page
-      query = query.range(offset, offset + fetchLimit - 1);
+      // Try to use the view first, but catch any errors (including 404) and fallback
+      try {
+        let query = supabase
+          .from('notifications_with_details')
+          .select('*', { count: 'exact' })
+          .eq('user_id', user.id) // Explicitly filter by user_id for consistency and safety
+          .order('created_at', { ascending: false });
 
-      const { data, error, count } = await query;
+        // Apply filters
+        if (filters.type) {
+          query = query.eq('type', filters.type);
+        }
+        
+        if (filters.is_read !== undefined) {
+          query = query.eq('is_read', filters.is_read);
+        }
 
-      // If view doesn't exist, fallback to notifications table with manual joins
-      if (error && (error.code === 'PGRST205' || error.message?.includes('notifications_with_details'))) {
-        // Silently fallback - no need to log this expected error
-        return await this.getNotificationsWithManualJoin(filters);
-      }
+        // Apply pagination with buffer to account for client-side filtering
+        // The offset should apply to the database query, not the filtered results
+        // This ensures pagination is based on database position, not filtered position
+        const requestedLimit = filters.limit || 20;
+        const offset = filters.offset || 0;
+        // Fetch 50% more than requested to account for processed friend requests that will be filtered out
+        const fetchLimit = Math.ceil(requestedLimit * 1.5);
+        // Apply offset to database query - this ensures we get the correct database items for this page
+        query = query.range(offset, offset + fetchLimit - 1);
 
-      if (error) throw error;
+        const { data, error, count } = await query;
 
-      // Filter out processed friend request notifications
-      // Batch check friend request statuses to reduce queries
-      const friendRequestNotifications = ((data as NotificationWithDetails[]) || []).filter(n => n.type === 'friend_request' && n.data?.request_id);
-      
-      // If we have friend request notifications, try to check their status in batch
-      let processedRequestIds: Set<string> = new Set();
-      if (friendRequestNotifications.length > 0) {
-        try {
-          const requestIds = friendRequestNotifications.map(n => n.data.request_id).filter(Boolean);
-          if (requestIds.length > 0) {
-            // Try to get all non-pending requests in one query
-            const { data: processedRequests } = await supabase
-              .from('user_relationships')
-              .select('id')
-              .in('id', requestIds)
-              .eq('relationship_type', 'friend')
-              .neq('status', 'pending');
-            
-            if (processedRequests) {
-              processedRequestIds = new Set(processedRequests.map(r => r.id));
+        // If view doesn't exist (404, PGRST205, or any error mentioning the view), fallback to notifications table
+        if (error) {
+          const errorCode = error.code || (error as any)?.statusCode || (error as any)?.status;
+          const errorMessage = error.message || String(error) || '';
+          const errorDetails = (error as any)?.details || '';
+          const errorHint = (error as any)?.hint || '';
+          
+          // Check for various error codes that indicate the view doesn't exist
+          const isViewNotFound = 
+            errorCode === 'PGRST205' || 
+            errorCode === '42P01' ||
+            errorCode === 404 ||
+            errorMessage?.includes('notifications_with_details') ||
+            errorMessage?.includes('does not exist') ||
+            errorMessage?.includes('relation') ||
+            errorMessage?.includes('Not Found') ||
+            errorMessage?.includes('404') ||
+            errorDetails?.includes('notifications_with_details') ||
+            errorHint?.includes('notifications_with_details');
+          
+          if (isViewNotFound) {
+            // Silently fallback - no need to log this expected error
+            return await this.getNotificationsWithManualJoin(filters);
+          }
+          
+          // If it's a different error, throw it
+          throw error;
+        }
+        
+        // If no error and we have data, process it
+        if (data !== null && data !== undefined) {
+          // Filter out processed friend request notifications
+          // Batch check friend request statuses to reduce queries
+          const friendRequestNotifications = ((data as NotificationWithDetails[]) || []).filter(n => n.type === 'friend_request' && n.data?.request_id);
+          
+          // If we have friend request notifications, try to check their status in batch
+          let processedRequestIds: Set<string> = new Set();
+          if (friendRequestNotifications.length > 0) {
+            try {
+              const requestIds = friendRequestNotifications.map(n => n.data.request_id).filter(Boolean);
+              if (requestIds.length > 0) {
+                // Try to get all non-pending requests in one query
+                const { data: processedRequests } = await supabase
+                  .from('user_relationships')
+                  .select('id')
+                  .in('id', requestIds)
+                  .eq('relationship_type', 'friend')
+                  .neq('status', 'pending');
+                
+                if (processedRequests) {
+                  processedRequestIds = new Set(processedRequests.map(r => r.id));
+                }
+              }
+            } catch (error: any) {
+              // If batch query fails (RLS), skip filtering - include all notifications
+              // This is expected with RLS restrictions, so don't log
             }
           }
-        } catch (error: any) {
-          // If batch query fails (RLS), skip filtering - include all notifications
-          // This is expected with RLS restrictions, so don't log
-        }
-      }
 
-      // Filter notifications
-      const filteredNotifications = ((data as NotificationWithDetails[]) || []).map((notif) => {
-        // Check if this is a processed friend request
-        if (notif.type === 'friend_request' && notif.data?.request_id) {
-          const requestId = notif.data.request_id;
-          if (processedRequestIds.has(requestId)) {
-            return null; // Filter out processed requests
+          // Filter notifications
+          const filteredNotifications = ((data as NotificationWithDetails[]) || []).map((notif) => {
+            // Check if this is a processed friend request
+            if (notif.type === 'friend_request' && notif.data?.request_id) {
+              const requestId = notif.data.request_id;
+              if (processedRequestIds.has(requestId)) {
+                return null; // Filter out processed requests
+              }
+            }
+            return notif;
+          });
+
+          // Filter out null values (processed friend requests)
+          const validNotifications = filteredNotifications.filter(n => n !== null) as NotificationWithDetails[];
+
+          // Return only the requested amount to maintain pagination contract
+          // The offset was already applied to the database query, so we just need to limit the results
+          // After filtering, we may have fewer than requested, so we slice to the requested limit
+          const paginatedNotifications = validNotifications.slice(0, requestedLimit);
+
+          // Return the original database count to enable proper pagination
+          // Note: This count includes processed friend requests that are filtered out client-side.
+          // The returned array may contain fewer items than the total due to client-side filtering,
+          // but the total count allows pagination UI to work correctly.
+          const result = {
+            notifications: paginatedNotifications,
+            total: count || 0
+          };
+
+          // Cache the result (only for first page, no filters)
+          if (shouldCache && cacheKey) {
+            cacheService.set(cacheKey, result, CacheTTL.NOTIFICATIONS);
           }
+
+          return result;
+        } else {
+          // No data returned, fallback
+          return await this.getNotificationsWithManualJoin(filters);
         }
-        return notif;
-      });
-
-      // Filter out null values (processed friend requests)
-      const validNotifications = filteredNotifications.filter(n => n !== null) as NotificationWithDetails[];
-
-      // Return only the requested amount to maintain pagination contract
-      // The offset was already applied to the database query, so we just need to limit the results
-      // After filtering, we may have fewer than requested, so we slice to the requested limit
-      const paginatedNotifications = validNotifications.slice(0, requestedLimit);
-
-      // Return the original database count to enable proper pagination
-      // Note: This count includes processed friend requests that are filtered out client-side.
-      // The returned array may contain fewer items than the total due to client-side filtering,
-      // but the total count allows pagination UI to work correctly.
-      return {
-        notifications: paginatedNotifications,
-        total: count || 0
-      };
+      } catch (viewError: any) {
+        // Catch any exceptions (including network errors, 404s, etc.) and fallback
+        const errorMessage = viewError?.message || String(viewError) || '';
+        const errorCode = viewError?.code || viewError?.statusCode || viewError?.status;
+        
+        // If it's clearly a "view doesn't exist" error, fallback silently
+        if (
+          errorCode === 'PGRST205' || 
+          errorCode === '42P01' ||
+          errorCode === 404 ||
+          errorMessage?.includes('notifications_with_details') ||
+          errorMessage?.includes('does not exist') ||
+          errorMessage?.includes('Not Found') ||
+          errorMessage?.includes('404')
+        ) {
+          return await this.getNotificationsWithManualJoin(filters);
+        }
+        
+        // If it's a different error, re-throw it
+        throw viewError;
+      }
     } catch (error) {
       console.error('Error fetching notifications:', error);
       throw new Error(`Failed to get notifications: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -453,6 +522,13 @@ export class NotificationService {
         return 0;
       }
 
+      // Check cache
+      const unreadCacheKey = `unread_count_${user.id}`;
+      const cached = cacheService.get<number>(unreadCacheKey);
+      if (cached !== null) {
+        return cached;
+      }
+
       // Fetch all unread notifications to filter out processed friend requests
       // This ensures the count matches what getNotifications returns
       const { data: notifications, error: fetchError } = await supabase
@@ -506,7 +582,12 @@ export class NotificationService {
         return true; // Include all non-friend-request notifications
       });
 
-      return validNotifications.length;
+      const count = validNotifications.length;
+      
+      // Cache the result
+      cacheService.set(unreadCacheKey, count, CacheTTL.NOTIFICATIONS);
+      
+      return count;
     } catch (error) {
       console.error('Error fetching unread count:', error);
       return 0;
@@ -609,10 +690,34 @@ export class NotificationService {
               .eq('id', payload.new.id)
               .single();
 
-            if (!viewError && viewData) {
+            // Check if view exists and data is available
+            if (viewError) {
+              // There's an error - check if it's a "view doesn't exist" error
+              const viewErrorCode = viewError.code || (viewError as any)?.statusCode || (viewError as any)?.status;
+              const viewErrorMessage = viewError.message || String(viewError) || '';
+              
+              // If it's a "view doesn't exist" error, we'll fallback below
+              // Otherwise, it's a different error and we should still try fallback
+              const isViewNotFound = 
+                viewErrorCode === 'PGRST205' || 
+                viewErrorCode === '42P01' ||
+                viewErrorCode === 404 ||
+                viewErrorMessage?.includes('notifications_with_details') ||
+                viewErrorMessage?.includes('does not exist') ||
+                viewErrorMessage?.includes('Not Found');
+              
+              // If it's not a "view doesn't exist" error, log it but still fallback
+              if (!isViewNotFound) {
+                console.warn('Unexpected error fetching from notifications_with_details view:', viewError);
+              }
+              // Fall through to fallback
+            } else if (viewData) {
+              // No error and we have data - use it
               data = viewData as NotificationWithDetails;
-            } else {
-              // Fallback: fetch from notifications table and enrich
+            }
+            
+            // Fallback: fetch from notifications table and enrich if view data not available
+            if (!data) {
               const { data: notifData } = await supabase
                 .from('notifications')
                 .select('*')
@@ -652,10 +757,34 @@ export class NotificationService {
               .eq('id', payload.new.id)
               .single();
 
-            if (!viewError && viewData) {
+            // Check if view exists and data is available
+            if (viewError) {
+              // There's an error - check if it's a "view doesn't exist" error
+              const viewErrorCode = viewError.code || (viewError as any)?.statusCode || (viewError as any)?.status;
+              const viewErrorMessage = viewError.message || String(viewError) || '';
+              
+              // If it's a "view doesn't exist" error, we'll fallback below
+              // Otherwise, it's a different error and we should still try fallback
+              const isViewNotFound = 
+                viewErrorCode === 'PGRST205' || 
+                viewErrorCode === '42P01' ||
+                viewErrorCode === 404 ||
+                viewErrorMessage?.includes('notifications_with_details') ||
+                viewErrorMessage?.includes('does not exist') ||
+                viewErrorMessage?.includes('Not Found');
+              
+              // If it's not a "view doesn't exist" error, log it but still fallback
+              if (!isViewNotFound) {
+                console.warn('Unexpected error fetching from notifications_with_details view:', viewError);
+              }
+              // Fall through to fallback
+            } else if (viewData) {
+              // No error and we have data - use it
               data = viewData as NotificationWithDetails;
-            } else {
-              // Fallback: fetch from notifications table and enrich
+            }
+            
+            // Fallback: fetch from notifications table and enrich if view data not available
+            if (!data) {
               const { data: notifData } = await supabase
                 .from('notifications')
                 .select('*')

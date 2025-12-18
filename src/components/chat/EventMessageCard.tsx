@@ -82,21 +82,28 @@ export function EventMessageCard({
     if (!event || !currentUserId) return;
     
     try {
-      // Check attendance using the same logic as the working inside button
+      // Check attendance - use maybeSingle to handle RLS properly
+      // RLS policy allows users to view their own reviews (auth.uid() = user_id)
       const { data, error } = await supabase
         .from('reviews')
         .select('was_there')
         .eq('user_id', currentUserId)
         .eq('event_id', event.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to avoid 406 when no row exists
       
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
+        // Log but don't fail - 406 can happen with RLS if no matching row
+        if (error.code === 'PGRST116' || error.code === '406') {
+          // No row found or RLS blocked - user hasn't attended
+          setIsAttended(false);
+          return;
+        }
         console.error('Error checking attendance:', error);
         setIsAttended(false);
         return;
       }
       
-      // If there's a review record, they attended (even if was_there is null/false)
+      // If there's a review record, check was_there status
       if (data) {
         setIsAttended(Boolean(data.was_there));
       } else {

@@ -6,7 +6,7 @@ import { FriendsReviewService } from './friendsReviewService';
 
 export interface UnifiedFeedItem {
   id: string;
-  type: 'review' | 'event' | 'friend_activity' | 'system_news';
+  type: 'review' | 'event' | 'friend_activity' | 'system_news' | 'group_chat';
   title: string;
   content?: string;
   // For reviews, the underlying review id for comment actions
@@ -35,7 +35,19 @@ export interface UnifiedFeedItem {
   };
   
   // Event-specific fields
-  event_data?: JamBaseEventResponse;
+  event_data?: JamBaseEventResponse & {
+    friend_interest_count?: number;
+    has_friends_going?: boolean;
+  };
+  
+  // Group chat-specific fields
+  group_chat_data?: {
+    chat_id: string;
+    chat_name: string;
+    member_count?: number;
+    friends_in_chat_count?: number;
+    created_at: string;
+  };
   
   // Engagement fields
   likes_count?: number;

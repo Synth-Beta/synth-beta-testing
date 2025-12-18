@@ -12,7 +12,7 @@ import { ManualVenueForm } from '@/components/search/ManualVenueForm';
 interface VenueSearchBoxProps {
   onVenueSelect: (venue: VenueSearchResult) => void;
   placeholder?: string;
-  className?: string;
+  className?: string;wadaaa
   hideClearButton?: boolean;
 }
 

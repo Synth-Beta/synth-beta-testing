@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SkeletonChatMessage } from '@/components/skeleton/SkeletonChatMessage';
 import { SkeletonNotificationCard } from '@/components/skeleton/SkeletonNotificationCard';
 import { Button } from '@/components/ui/button';
@@ -144,6 +144,9 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   const [chatParticipants, setChatParticipants] = useState<any[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const [linkedEvent, setLinkedEvent] = useState<any>(null);
+  
+  // Auto-scroll ref for messages
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchChats();
@@ -170,6 +173,93 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       markChatAsRead(selectedChat.id);
     }
   }, [selectedChat]);
+
+  // Real-time subscription for messages in selected chat
+  useEffect(() => {
+    if (!selectedChat) return;
+
+    const channel = supabase
+      .channel(`chat-messages-${selectedChat.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+          filter: `chat_id=eq.${selectedChat.id}`
+        },
+        (payload) => {
+          console.log('📨 Real-time message update:', payload);
+          // Refresh messages when new ones arrive
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
+            fetchMessages(selectedChat.id);
+            // Refresh chat list to update latest message
+            fetchChats();
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Subscribed to messages for chat:', selectedChat.id);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Error subscribing to messages');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedChat?.id]);
+
+  // Real-time subscription for chat list updates
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel('chat-list-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chats'
+        },
+        (payload) => {
+          console.log('💬 Real-time chat update:', payload);
+          // Check if this chat involves the current user
+          const chatUsers = payload.new?.users || payload.old?.users || [];
+          if (Array.isArray(chatUsers) && chatUsers.includes(currentUserId)) {
+            // Refresh chat list when user's chats change
+            fetchChats();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          console.log('📨 New message in any chat:', payload);
+          // Refresh chat list to update latest message timestamps
+          // This will be handled by the get_user_chats function which updates latest_message fields
+          fetchChats();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Subscribed to chat list updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Error subscribing to chat list');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId]);
 
   // Fetch users when user search modal opens
   useEffect(() => {
@@ -425,6 +515,41 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
 
       setChats(sortedChats);
       
+      // Fetch user profiles for direct chat participants (to improve getChatDisplayName)
+      const directChatUserIds = new Set<string>();
+      sortedChats.forEach(chat => {
+        if (!chat.is_group_chat) {
+          chat.users.forEach(userId => {
+            if (userId !== currentUserId) {
+              directChatUserIds.add(userId);
+            }
+          });
+        }
+      });
+      
+      // Fetch profiles for direct chat users if not already in users state
+      if (directChatUserIds.size > 0) {
+        const userIdsToFetch = Array.from(directChatUserIds).filter(
+          userId => !users.some(u => u.user_id === userId)
+        );
+        
+        if (userIdsToFetch.length > 0) {
+          const { data: profiles } = await supabase
+            .from('users')
+            .select('user_id, name, avatar_url, bio')
+            .in('user_id', userIdsToFetch);
+          
+          if (profiles && profiles.length > 0) {
+            // Add to users state if not already present
+            setUsers(prev => {
+              const existingIds = new Set(prev.map(u => u.user_id));
+              const newUsers = profiles.filter(p => !existingIds.has(p.user_id));
+              return [...prev, ...newUsers];
+            });
+          }
+        }
+      }
+      
       // Identify event-created group chats
       const eventCreatedChatIds = new Set<string>();
       for (const chat of sortedChats) {
@@ -523,10 +648,24 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
               : 'text'
         }))
       );
+      
+      // Auto-scroll to bottom after messages load
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
   };
+  
+  // Auto-scroll when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [messages.length]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedChat) return;
@@ -548,6 +687,8 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
 
       if (error) {
         console.error('Error sending message:', error);
+        // Restore message text on error
+        setNewMessage(messageText);
         toast({
           title: "Error",
           description: "Failed to send message. Please try again.",
@@ -556,8 +697,8 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         return;
       }
 
-      // Refresh messages to get the new message with proper sender info
-      // The database trigger will automatically update the chat's latest_message_id
+      // Real-time subscription will automatically update messages
+      // But we can also manually refresh to ensure immediate update
       fetchMessages(selectedChat.id);
       
       toast({
@@ -1346,7 +1487,8 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                   <p className="text-sm text-synth-black/60">Start the conversation!</p>
                 </div>
               ) : (
-                messages.map((message) => (
+                <>
+                {messages.map((message) => (
                   <div
                     key={message.id}
                     className={`flex ${
@@ -1420,7 +1562,9 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                       </div>
                     )}
                   </div>
-                ))
+                ))}
+                <div ref={messagesEndRef} />
+                </>
               )}
             </div>
 

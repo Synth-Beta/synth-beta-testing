@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { cacheService, CacheKeys, CacheTTL } from '@/services/cacheService';
+import { logger } from '@/utils/logger';
 
 export type AccountType = 'user' | 'creator' | 'business' | 'admin';
 
@@ -34,7 +36,15 @@ export function useAccountType() {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔍 useAccountType: Fetching account info for user:', user.id);
+      
+      // Check cache first
+      const cacheKey = CacheKeys.userProfile(user.id);
+      const cached = cacheService.get<AccountInfo>(cacheKey);
+      if (cached) {
+        setAccountInfo(cached);
+        setLoading(false);
+        return;
+      }
 
       const { data, error: fetchError } = await supabase
         .from('users')
@@ -42,11 +52,8 @@ export function useAccountType() {
         .eq('user_id', user.id)
         .single();
 
-      console.log('🔍 useAccountType: Raw data from database:', data);
-      console.log('🔍 useAccountType: Fetch error:', fetchError);
-
       if (fetchError) {
-        console.error('❌ useAccountType: Error fetching account info:', fetchError);
+        logger.error('❌ useAccountType: Error fetching account info:', fetchError);
         setError(fetchError.message);
         // Default to 'user' if there's an error
         const defaultAccountInfo = {
@@ -55,7 +62,6 @@ export function useAccountType() {
           verified: false,
           verification_level: 'none',
         };
-        console.log('🔍 useAccountType: Setting default account info:', defaultAccountInfo);
         setAccountInfo(defaultAccountInfo);
       } else {
         const processedAccountInfo = {
@@ -65,11 +71,13 @@ export function useAccountType() {
           verification_level: data.verification_level || 'none',
           business_info: data.business_info,
         };
-        console.log('🔍 useAccountType: Setting processed account info:', processedAccountInfo);
         setAccountInfo(processedAccountInfo);
+        
+        // Cache the result
+        cacheService.set(cacheKey, processedAccountInfo, CacheTTL.USER_PROFILE);
       }
     } catch (err) {
-      console.error('❌ useAccountType: Error in fetchAccountInfo:', err);
+      logger.error('❌ useAccountType: Error in fetchAccountInfo:', err);
       setError('Failed to fetch account information');
       // Default to 'user' if there's an error
       const defaultAccountInfo = {
@@ -78,11 +86,9 @@ export function useAccountType() {
         verified: false,
         verification_level: 'none',
       };
-      console.log('🔍 useAccountType: Setting default account info (catch):', defaultAccountInfo);
       setAccountInfo(defaultAccountInfo);
     } finally {
       setLoading(false);
-      console.log('🔍 useAccountType: Loading completed');
     }
   };
 

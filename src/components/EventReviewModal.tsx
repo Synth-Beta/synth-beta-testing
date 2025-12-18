@@ -21,7 +21,8 @@ export function EventReviewModal({
   onClose,
   onReviewSubmitted
 }: EventReviewModalProps) {
-  if (!event) return null;
+  // Allow null or placeholder events for creating new reviews
+  if (!event && !isOpen) return null;
 
   const handleClose = () => {
     onClose();

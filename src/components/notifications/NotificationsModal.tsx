@@ -71,11 +71,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     }
   };
 
-  // Load data when modal opens or filters change
+  // Load data when modal opens or filters change - parallelize queries
   useEffect(() => {
     if (isOpen) {
-      loadNotifications();
-      loadUnreadCount();
+      // Parallelize notification and unread count loading
+      Promise.all([
+        loadNotifications(),
+        loadUnreadCount()
+      ]).catch(err => console.error('Error loading notifications:', err));
     }
   }, [isOpen, activeTab, filterType]);
 

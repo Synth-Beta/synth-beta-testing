@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { UnifiedFeedItem } from './unifiedFeedService';
+import { cacheService, CacheKeys, CacheTTL } from './cacheService';
 
 export class FriendsReviewService {
   /**
@@ -359,6 +360,15 @@ export class FriendsReviewService {
     offset: number = 0
   ): Promise<UnifiedFeedItem[]> {
     try {
+      // Check cache first (only for first page to avoid stale pagination)
+      if (offset === 0) {
+        const cacheKey = CacheKeys.reviews(userId, limit, offset);
+        const cached = cacheService.get<UnifiedFeedItem[]>(cacheKey);
+        if (cached) {
+          return cached;
+        }
+      }
+
       // Use the RPC function or query the view directly
       const { data, error } = await supabase
         .rpc('get_connection_degree_reviews', {
@@ -400,7 +410,15 @@ export class FriendsReviewService {
         }
       }
 
-      return (data || []).map((review: any) => this.transformConnectionReview(review));
+      const reviews = (data || []).map((review: any) => this.transformConnectionReview(review));
+      
+      // Cache the results (only for first page)
+      if (offset === 0) {
+        const cacheKey = CacheKeys.reviews(userId, limit, offset);
+        cacheService.set(cacheKey, reviews, CacheTTL.REVIEWS);
+      }
+      
+      return reviews;
     } catch (error) {
       console.error('Error fetching connection degree reviews:', error);
       return this.getFriendsPlusOneReviews(userId, limit, offset);

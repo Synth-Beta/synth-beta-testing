@@ -337,6 +337,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
 
   const fetchMessages = async (chatId: string) => {
     try {
+      // Fetch messages first
       const { data, error } = await supabase
         .from('messages')
         .select(`
@@ -359,14 +360,18 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         return;
       }
 
-      // Get unique sender IDs
+      // Get unique sender IDs and fetch profiles in parallel
       const senderIds = [...new Set(data.map(msg => msg.sender_id))];
-
-      // Fetch sender profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('users')
-        .select('id, user_id, name, avatar_url')
-        .in('user_id', senderIds);
+      
+      // Fetch profiles while processing messages (parallel operation)
+      const profilesPromise = senderIds.length > 0
+        ? supabase
+            .from('users')
+            .select('id, user_id, name, avatar_url')
+            .in('user_id', senderIds)
+        : Promise.resolve({ data: [], error: null });
+      
+      const { data: profiles, error: profilesError } = await profilesPromise;
 
       if (profilesError) {
         console.error('Error fetching sender profiles:', profilesError);
