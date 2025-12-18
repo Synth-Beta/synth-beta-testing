@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { X, UserPlus, Verified, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface FriendSuggestion {
   user_id: string;
@@ -28,8 +29,69 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
   onDismiss,
   onAddFriend,
 }) => {
-  // Track which users have had friend requests sent
+  // Track which users have had friend requests sent (persist across reloads)
   const [requestedUserIds, setRequestedUserIds] = useState<Set<string>>(new Set());
+
+  // Check for existing friend requests on mount and when suggestions change
+  useEffect(() => {
+    const checkExistingRequests = async () => {
+      if (suggestions.length === 0) return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const userIds = suggestions.map(s => s.user_id);
+        
+        // Check for pending friend requests in relationships table
+        // Check both directions: where current user sent (user_id = current user) 
+        // and where current user received (related_entity_id = current user, user_id = suggested user)
+        const { data: sentRequests, error: sentError } = await supabase
+          .from('relationships')
+          .select('related_entity_id')
+          .eq('user_id', user.id)
+          .eq('related_entity_type', 'user')
+          .eq('relationship_type', 'friend')
+          .eq('status', 'pending')
+          .in('related_entity_id', userIds);
+
+        if (sentError) {
+          console.error('Error checking sent friend requests:', sentError);
+        }
+
+        // Also check if any of these users sent requests to current user
+        const { data: receivedRequests, error: receivedError } = await supabase
+          .from('relationships')
+          .select('user_id')
+          .eq('related_entity_id', user.id)
+          .eq('related_entity_type', 'user')
+          .eq('relationship_type', 'friend')
+          .eq('status', 'pending')
+          .in('user_id', userIds);
+
+        if (receivedError) {
+          console.error('Error checking received friend requests:', receivedError);
+        }
+
+        // Combine both sets - we want to show "Requested" if we sent it OR if they sent it to us
+        const requestedSet = new Set<string>();
+        if (sentRequests) {
+          sentRequests.forEach(r => requestedSet.add(r.related_entity_id));
+        }
+        if (receivedRequests) {
+          receivedRequests.forEach(r => requestedSet.add(r.user_id));
+        }
+
+        if (requestedSet.size > 0) {
+          setRequestedUserIds(requestedSet);
+        }
+      } catch (error) {
+        console.error('Error checking friend requests:', error);
+      }
+    };
+
+    checkExistingRequests();
+  }, [suggestions]);
 
   const handleAddFriend = async (userId: string) => {
     if (requestedUserIds.has(userId)) {
@@ -42,9 +104,13 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
         // Mark as requested on success
         setRequestedUserIds(prev => new Set(prev).add(userId));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending friend request:', error);
-      // Don't mark as requested if there was an error
+      // If error is "Friend request already sent", mark as requested anyway
+      if (error?.message?.includes('already sent') || error?.message?.includes('Friend request already sent')) {
+        setRequestedUserIds(prev => new Set(prev).add(userId));
+      }
+      // Don't mark as requested for other errors
     }
   };
 
@@ -94,7 +160,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
 
       {/* Horizontal Scrollable Rail */}
       <ScrollArea className="w-full">
-        <div className="flex space-x-4 pb-4">
+        <div className="flex space-x-4 pb-4 pt-1">
           {suggestions.map((suggestion) => (
             <div
               key={suggestion.user_id}
@@ -102,7 +168,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
               onClick={() => onUserClick?.(suggestion.user_id)}
             >
               {/* Avatar */}
-              <div className="relative mb-2">
+              <div className="relative mb-2 mt-1">
                 <Avatar className="h-16 w-16 ring-2 ring-synth-pink/20 group-hover:ring-synth-pink/40 transition-all">
                   <AvatarImage src={suggestion.avatar_url || undefined} alt={suggestion.name} />
                   <AvatarFallback className="bg-synth-pink/10 text-synth-pink">
@@ -126,7 +192,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
                 {suggestion.mutual_friends_count > 0 && (
                   <p>{suggestion.mutual_friends_count} mutual friend{suggestion.mutual_friends_count !== 1 ? 's' : ''}</p>
                 )}
-                {suggestion.shared_genres_count && suggestion.shared_genres_count > 0 && (
+                {(suggestion.shared_genres_count ?? 0) > 0 && (
                   <p>{suggestion.shared_genres_count} shared genre{suggestion.shared_genres_count !== 1 ? 's' : ''}</p>
                 )}
               </div>

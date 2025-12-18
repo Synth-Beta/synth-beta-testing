@@ -66,7 +66,7 @@ export const FigmaReviewCard: React.FC<FigmaReviewCardProps> = ({
   return (
     <div
       className={cn(
-        'bg-[#fcfcfc] border-2 border-[#5d646f] rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] cursor-pointer overflow-hidden relative p-4',
+        'bg-[#fcfcfc] border-2 border-[#5d646f] rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] cursor-pointer overflow-hidden relative p-4 w-full',
         className
       )}
       onClick={onClick}

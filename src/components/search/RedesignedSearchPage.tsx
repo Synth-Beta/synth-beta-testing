@@ -5,8 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Music, Users, Calendar, MapPin, Search } from 'lucide-react';
+import { Loader2, Music, Users, Calendar, MapPin, Search, Grid3x3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { UnifiedArtistSearchService, ArtistSearchResult } from '@/services/unifiedArtistSearchService';
 import { UnifiedVenueSearchService, VenueSearchResult } from '@/services/unifiedVenueSearchService';
@@ -24,14 +25,16 @@ interface RedesignedSearchPageProps {
   headerDescription?: string;
   headerAccessory?: React.ReactNode;
   showHelperText?: boolean;
+  initialSearchQuery?: string;
+  hideSearchInput?: boolean;
   onSearchStateChange?: (state: { query: string; debouncedQuery: string }) => void;
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
   onEventClick?: (event: EventSearchResult) => void;
 }
 
-type TabKey = 'users' | 'artists' | 'events' | 'venues';
-const ALL_TAB_KEYS: TabKey[] = ['users', 'artists', 'events', 'venues'];
+type TabKey = 'all' | 'users' | 'artists' | 'events' | 'venues';
+const ALL_TAB_KEYS: TabKey[] = ['all', 'users', 'artists', 'events', 'venues'];
 
 type UserSearchResult = {
   id: string;
@@ -78,6 +81,12 @@ const TAB_CONFIG: Array<{
   emptyMessage: string;
 }> = [
   {
+    key: 'all',
+    label: 'All',
+    icon: Grid3x3,
+    emptyMessage: 'No results found.',
+  },
+  {
     key: 'users',
     label: 'Users',
     icon: Users,
@@ -114,6 +123,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
   headerDescription,
   headerAccessory,
   showHelperText = true,
+  initialSearchQuery = '',
+  hideSearchInput = false,
   onSearchStateChange,
   onNavigateToProfile: _onNavigateToProfile,
   onNavigateToChat: _onNavigateToChat,
@@ -130,11 +141,12 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
     return filtered.length > 0 ? filtered : ALL_TAB_KEYS;
   }, [allowedTabs]);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<TabKey>(() => sanitizedTabs[0] ?? 'users');
+  const [activeTab, setActiveTab] = useState<TabKey>(() => sanitizedTabs[0] ?? 'all');
   const [results, setResults] = useState(createEmptyResults);
   const [loading, setLoading] = useState<Record<TabKey, boolean>>({
+    all: false,
     users: false,
     artists: false,
     events: false,
@@ -161,6 +173,13 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
     }
   }, [sanitizedTabs, activeTab]);
 
+  // Sync with initialSearchQuery prop
+  useEffect(() => {
+    if (initialSearchQuery !== searchQuery) {
+      setSearchQuery(initialSearchQuery);
+    }
+  }, [initialSearchQuery]);
+
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 300);
     return () => clearTimeout(handler);
@@ -171,6 +190,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
       setResults(createEmptyResults());
       setErrors({});
       setLoading({
+        all: false,
         users: false,
         artists: false,
         events: false,
@@ -183,6 +203,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
 
     const fetchAllResults = async () => {
       setLoading({
+        all: true,
         users: true,
         artists: true,
         events: true,
@@ -205,6 +226,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
           venues,
         });
         setLoading({
+          all: false,
           users: false,
           artists: false,
           events: false,
@@ -218,6 +240,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
         setResults(createEmptyResults());
         setErrors({ [activeTab]: 'Something went wrong. Please try again.' });
         setLoading({
+          all: false,
           users: false,
           artists: false,
           events: false,
@@ -291,7 +314,9 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
     }
   };
 
-  const activeResults = results[activeTab];
+  const activeResults = activeTab === 'all' 
+    ? [...results.users.slice(0, 3), ...results.artists.slice(0, 3), ...results.events.slice(0, 3), ...results.venues.slice(0, 3)]
+    : results[activeTab];
   const isTabLoading = loading[activeTab];
   const activeError = errors[activeTab];
 
@@ -341,20 +366,22 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
               {normalizedDescription}
             </p>
           )}
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Try “Radiohead”"
-                className={`pl-9 ${isCompact ? 'h-10 text-sm' : ''}`}
-                id="global-search"
-                autoComplete="off"
-              />
+          {!hideSearchInput && (
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder='Try "Radiohead"'
+                  className={`pl-9 ${isCompact ? 'h-10 text-sm' : ''}`}
+                  id="global-search"
+                  autoComplete="off"
+                />
+              </div>
+              {headerAccessory && <div className="flex-shrink-0">{headerAccessory}</div>}
             </div>
-            {headerAccessory && <div className="flex-shrink-0">{headerAccessory}</div>}
-          </div>
+          )}
           {helperText && (
             <p className={`${isCompact ? 'text-xs' : 'text-sm'} text-muted-foreground`} aria-live="polite">
               {helperText}
@@ -436,14 +463,20 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                     </Alert>
                   )}
 
-                  {!isTabLoading && !activeError && debouncedQuery.length >= MIN_QUERY_LENGTH && activeResults.length === 0 && (
+                  {!isTabLoading && !activeError && debouncedQuery.length >= MIN_QUERY_LENGTH && 
+                   (activeTab === 'all' 
+                     ? results.users.length === 0 && results.artists.length === 0 && results.events.length === 0 && results.venues.length === 0
+                     : activeResults.length === 0) && (
                     <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 p-12 text-center">
                       <p className="text-muted-foreground">{emptyMessage}</p>
                     </div>
                   )}
 
-                  {!isTabLoading && activeResults.length > 0 && (
+                  {!isTabLoading && (activeTab === 'all' 
+                    ? (results.users.length > 0 || results.artists.length > 0 || results.events.length > 0 || results.venues.length > 0)
+                    : activeResults.length > 0) && (
                     <div className="space-y-4">
+                      {key === 'all' && <AllResults results={results} onNavigateToProfile={_onNavigateToProfile} onEventClick={onEventClick} onTabChange={setActiveTab} />}
                       {key === 'users' && <UserResults results={results.users} onNavigateToProfile={_onNavigateToProfile} />}
                       {key === 'artists' && <ArtistResults results={results.artists} />}
                       {key === 'events' && <EventResults results={results.events} onEventClick={onEventClick} />}
@@ -714,5 +747,232 @@ const VenueResults: React.FC<{ results: VenueSearchResult[] }> = ({ results }) =
       </Card>
     ))}
   </>
+  );
+};
+
+const AllResults: React.FC<{ 
+  results: ReturnType<typeof createEmptyResults>;
+  onNavigateToProfile?: (userId: string) => void;
+  onEventClick?: (event: EventSearchResult) => void;
+  onTabChange: (tab: TabKey) => void;
+}> = ({ results, onNavigateToProfile, onEventClick, onTabChange }) => {
+  const totalCount = results.users.length + results.artists.length + results.events.length + results.venues.length;
+  
+  return (
+    <div className="space-y-6">
+      {/* Summary Section */}
+      <Card>
+        <CardContent className="p-4">
+          <h3 className="font-semibold mb-4">Search Results</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div 
+              className="cursor-pointer hover:bg-muted/50 p-3 rounded-lg transition-colors"
+              onClick={() => onTabChange('users')}
+            >
+              <div className="text-2xl font-bold">{results.users.length}</div>
+              <div className="text-sm text-muted-foreground">Users</div>
+            </div>
+            <div 
+              className="cursor-pointer hover:bg-muted/50 p-3 rounded-lg transition-colors"
+              onClick={() => onTabChange('artists')}
+            >
+              <div className="text-2xl font-bold">{results.artists.length}</div>
+              <div className="text-sm text-muted-foreground">Artists</div>
+            </div>
+            <div 
+              className="cursor-pointer hover:bg-muted/50 p-3 rounded-lg transition-colors"
+              onClick={() => onTabChange('events')}
+            >
+              <div className="text-2xl font-bold">{results.events.length}</div>
+              <div className="text-sm text-muted-foreground">Events</div>
+            </div>
+            <div 
+              className="cursor-pointer hover:bg-muted/50 p-3 rounded-lg transition-colors"
+              onClick={() => onTabChange('venues')}
+            >
+              <div className="text-2xl font-bold">{results.venues.length}</div>
+              <div className="text-sm text-muted-foreground">Venues</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Preview Cards */}
+      {results.users.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold">Users</h4>
+            <Button variant="ghost" size="sm" onClick={() => onTabChange('users')}>
+              View all ({results.users.length})
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {results.users.slice(0, 3).map((user) => (
+              <Card 
+                key={user.id} 
+                className="hover:shadow-sm transition-shadow cursor-pointer"
+                onClick={() => onNavigateToProfile?.(user.id)}
+              >
+                <CardContent className="p-3 flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    {user.avatar_url ? (
+                      <AvatarImage src={user.avatar_url} alt={user.name} />
+                    ) : (
+                      <AvatarFallback>{user.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm truncate">{user.name}</span>
+                      {user.verified && <Badge variant="outline" className="text-xs">Verified</Badge>}
+                    </div>
+                    {user.bio && (
+                      <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{user.bio}</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {results.artists.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold">Artists</h4>
+            <Button variant="ghost" size="sm" onClick={() => onTabChange('artists')}>
+              View all ({results.artists.length})
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {results.artists.slice(0, 3).map((artist) => (
+              <Card 
+                key={artist.id} 
+                className="hover:shadow-sm transition-shadow cursor-pointer"
+                onClick={() => onTabChange('artists')}
+              >
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div className="flex-shrink-0">
+                    {artist.image_url ? (
+                      <img
+                        src={artist.image_url}
+                        alt={artist.name}
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                        <Music className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h5 className="font-semibold text-sm truncate">{artist.name}</h5>
+                    {artist.genres && artist.genres.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {artist.genres.slice(0, 2).map((genre) => (
+                          <Badge key={genre} variant="secondary" className="text-xs">
+                            {genre}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {results.events.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold">Events</h4>
+            <Button variant="ghost" size="sm" onClick={() => onTabChange('events')}>
+              View all ({results.events.length})
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {results.events.slice(0, 3).map((event) => {
+              const formattedDate = (() => {
+                if (!event.eventDate) return null;
+                try {
+                  return format(parseISO(event.eventDate), 'MMM d, yyyy');
+                } catch {
+                  return event.eventDate;
+                }
+              })();
+
+              return (
+                <Card 
+                  key={event.id} 
+                  className="hover:shadow-sm transition-shadow cursor-pointer"
+                  onClick={() => onEventClick?.(event)}
+                >
+                  <CardContent className="p-3 flex items-center gap-3">
+                    <div className="flex-shrink-0">
+                      {event.imageUrl ? (
+                        <img
+                          src={event.imageUrl}
+                          alt={event.title ?? event.artistName ?? 'Event'}
+                          className="h-12 w-12 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                          <Calendar className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h5 className="font-semibold text-sm truncate">{event.title ?? event.artistName ?? 'Untitled Event'}</h5>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {event.artistName && <p className="truncate">{event.artistName}</p>}
+                        {formattedDate && <p>{formattedDate}</p>}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {results.venues.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold">Venues</h4>
+            <Button variant="ghost" size="sm" onClick={() => onTabChange('venues')}>
+              View all ({results.venues.length})
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {results.venues.slice(0, 3).map((venue) => (
+              <Card 
+                key={venue.id} 
+                className="hover:shadow-sm transition-shadow cursor-pointer"
+                onClick={() => onTabChange('venues')}
+              >
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div className="flex-shrink-0 h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                    <MapPin className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h5 className="font-semibold text-sm truncate">{venue.name}</h5>
+                    {venue.address?.addressLocality && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {venue.address.addressLocality}
+                        {venue.address.addressRegion ? `, ${venue.address.addressRegion}` : ''}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

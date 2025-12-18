@@ -28,6 +28,7 @@ import AdminAnalyticsDashboard from '@/pages/Analytics/AdminAnalyticsDashboard';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
 import { DiscoverView } from './discover/DiscoverView';
 import { ConnectView } from './connect/ConnectView';
+import { HomeFeed } from './home/HomeFeed';
 import { streamingSyncService } from '@/services/streamingSyncService';
 import { ToastAction } from '@/components/ui/toast';
 import { EventReviewModal } from './EventReviewModal';
@@ -442,22 +443,23 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         return <OnboardingFlow onComplete={handleOnboardingComplete} />;
       case 'feed':
         return (
-          <DiscoverView
+          <HomeFeed
             currentUserId={user.id}
-            onBack={handleBack}
-            onViewChange={handleViewChange}
             onNavigateToNotifications={handleNavigateToNotifications}
             onNavigateToProfile={handleNavigateToProfile}
             onNavigateToChat={handleNavigateToChat}
+            onViewChange={handleViewChange}
           />
         );
       case 'search':
         return (
-          <ConnectView
+          <DiscoverView
             currentUserId={user.id}
+            onBack={handleBack}
             onNavigateToProfile={handleNavigateToProfile}
             onNavigateToChat={handleNavigateToChat}
             onNavigateToNotifications={handleNavigateToNotifications}
+            onViewChange={handleViewChange}
           />
         );
       case 'profile':

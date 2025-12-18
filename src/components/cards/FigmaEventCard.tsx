@@ -34,64 +34,80 @@ export const FigmaEventCard: React.FC<FigmaEventCardProps> = ({
   className,
 }) => {
   const formatPrice = (priceRange?: string) => {
-    if (!priceRange) return null;
-    // Extract price from price range string like "$24.65-$36.00"
+    if (!priceRange) return 'Price TBD';
     return priceRange;
   };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return null;
+    if (!dateString) return 'Date TBD';
     try {
-      return format(new Date(dateString), 'EEEE, MMMM d, yyyy');
+      // Use shorter format to prevent wrapping issues
+      return format(new Date(dateString), 'EEE, MMM d, yyyy');
     } catch {
       return dateString;
     }
   };
 
+  const formatVenueLocation = () => {
+    if (!event.venue_name && !event.venue_city) return 'Venue TBD';
+    if (event.venue_name && event.venue_city) {
+      return (
+        <>
+          {event.venue_name} · <span className="text-[#5d646f]">{event.venue_city}</span>
+        </>
+      );
+    }
+    return event.venue_name || event.venue_city || 'Venue TBD';
+  };
+
   return (
     <div
       className={cn(
-        'bg-[#fcfcfc] border-2 border-[#5d646f] rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] cursor-pointer overflow-hidden relative p-4',
+        'bg-[#fcfcfc] border-2 border-[#5d646f] rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] cursor-pointer overflow-hidden relative w-full h-[247px]',
         className
       )}
       onClick={onClick}
-      style={{ boxShadow: 'inset 0px 4px 4px 0px rgba(0,0,0,0.25)' }}
     >
-      {/* Event Title */}
-      <p className="font-['Inter',sans-serif] font-bold leading-normal not-italic text-[#0e0e0e] text-[16px] mb-4">
-        {event.title}
+      {/* Inner shadow overlay */}
+      <div className="absolute inset-[-1px] pointer-events-none shadow-[inset_0px_4px_4px_0px_rgba(0,0,0,0.25)] rounded-[10px]" />
+
+      {/* Event Title - positioned at top-left with width constraint and line clamping */}
+      <p className="absolute left-[10px] top-[16px] right-[10px] font-['Inter',sans-serif] font-bold leading-tight not-italic text-[#0e0e0e] text-[16px] line-clamp-2">
+        {event.title || event.artist_name || 'Event'}
       </p>
 
-      {/* Information Section */}
-      <div className="flex gap-3 mb-4">
-        {/* Icons Column */}
-        <div className="flex flex-col gap-[11px] items-center justify-start pt-1">
-          <MapPin className="size-[24px] text-[#b00056]" strokeWidth={2} />
-          <Calendar className="size-[24px] text-[#b00056]" strokeWidth={2} />
-          <Ticket className="size-[24px] text-[#b00056]" strokeWidth={2} />
-        </div>
-
-        {/* Text Column */}
-        <div className="flex flex-col font-['Inter',sans-serif] font-normal gap-4 items-start justify-start leading-normal not-italic text-[16px] text-[#0e0e0e] flex-1">
-          <p>
-            {event.venue_name || 'Venue'}
-            {event.venue_city && (
-              <>
-                {' · '}
-                <span className="text-[#5d646f]">{event.venue_city}</span>
-              </>
-            )}
+      {/* Information Section - positioned below title with more spacing */}
+      <div className="absolute left-[7.5px] top-[60px] w-[252.5px]">
+        {/* Location Row - icon centered with multi-line text block */}
+        <div className="flex items-center gap-[3.5px] mb-[11px]">
+          <MapPin className="size-[24px] text-[#b00056] flex-shrink-0" strokeWidth={2} />
+          <p className="flex-1 font-['Inter',sans-serif] font-normal leading-[24px] not-italic text-[16px] text-[#0e0e0e] break-words line-clamp-2">
+            {formatVenueLocation()}
           </p>
-          <p>{formatDate(event.event_date) || 'Date TBD'}</p>
-          <p>{formatPrice(event.price_range) || 'Price TBD'}</p>
+        </div>
+        
+        {/* Date Row - icon centered with text */}
+        <div className="flex items-center gap-[3.5px] mb-[11px]">
+          <Calendar className="size-[24px] text-[#b00056] flex-shrink-0" strokeWidth={2} />
+          <p className="flex-1 font-['Inter',sans-serif] font-normal leading-[24px] not-italic text-[16px] text-[#0e0e0e] break-words line-clamp-1">
+            {formatDate(event.event_date)}
+          </p>
+        </div>
+        
+        {/* Price Row - icon centered with text */}
+        <div className="flex items-center gap-[3.5px] mb-0">
+          <Ticket className="size-[24px] text-[#b00056] flex-shrink-0" strokeWidth={2} />
+          <p className="flex-1 font-['Inter',sans-serif] font-normal leading-[24px] not-italic text-[16px] text-[#0e0e0e] break-words line-clamp-1">
+            {formatPrice(event.price_range)}
+          </p>
         </div>
       </div>
 
-      {/* Divider */}
-      <div className="bg-[#5d646f] h-px w-full mb-4" />
+      {/* Divider - positioned after info section with proper spacing (60px top + max 118px content + 13px spacing = 191px) */}
+      <div className="absolute left-0 top-[191px] right-0 bg-[#5d646f] h-px" />
 
-      {/* Buttons Section */}
-      <div className="flex gap-6 items-center justify-center">
+      {/* Buttons Section - positioned after divider with tighter spacing, centered */}
+      <div className="absolute left-0 right-0 top-[192px] flex gap-6 items-center justify-center h-[53px] w-full">
         {/* Interested Button */}
         <Button
           onClick={(e) => {

@@ -4,15 +4,14 @@ const config: CapacitorConfig = {
   appId: 'com.synth.app',
   appName: 'Synth',
   webDir: 'dist',
-  // Server config only for live-reload development
-  // Comment out server config for production builds (bundled assets)
-  // Uncomment below for live-reload development:
-  // server: {
-  //   androidScheme: 'https',
-  //   iosScheme: 'https',
-  //   hostname: 'localhost',
-  //   url: 'http://localhost:5174',
-  // },
+  server: {
+    androidScheme: 'https',
+    iosScheme: 'https',
+    // Allow localhost for development
+    hostname: 'localhost',
+    // For production, you may want to set this to your backend URL
+    // hostname: 'your-backend-domain.com',
+  },
   plugins: {
     SplashScreen: {
       launchShowDuration: 3000,

@@ -67,6 +67,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
@@ -107,17 +108,34 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
       observerRef.current.disconnect();
     }
 
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !loadingMore) {
-          loadMoreFeed();
-        }
-      },
-      { threshold: 0.1 }
-    );
+    // Only set up observer if we have more items to load and we're not currently loading
+    if (hasMore && !loadingMore) {
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting && !loadingMore && hasMore) {
+            loadMoreFeed();
+          }
+        },
+        { threshold: 0.1, rootMargin: '100px' } // Start loading 100px before the trigger
+      );
 
-    if (loadMoreRef.current) {
-      observerRef.current.observe(loadMoreRef.current);
+      // Attach observer to the ref element if it exists (use setTimeout to ensure DOM is ready)
+      const attachObserver = () => {
+        if (loadMoreRef.current && observerRef.current) {
+          observerRef.current.observe(loadMoreRef.current);
+        }
+      };
+      
+      // Try immediately and also after a short delay to catch DOM updates
+      attachObserver();
+      const timeoutId = setTimeout(attachObserver, 100);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        if (observerRef.current) {
+          observerRef.current.disconnect();
+        }
+      };
     }
 
     return () => {
@@ -125,7 +143,8 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
         observerRef.current.disconnect();
       }
     };
-  }, [loadingMore, hasFriends]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingMore, hasMore, feedItems.length]);
 
   const loadSuggestedUsers = async () => {
     try {
@@ -187,6 +206,8 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 
   const loadFeed = async () => {
     setLoading(true);
+    setHasMore(true);
+    setOffset(0);
     try {
       // Use v3 unified feed
       const feedResponse = await PersonalizedFeedService.getPersonalizedFeedV3(
@@ -203,20 +224,25 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
       // Filter out duplicates by ID to prevent React key warnings
       setFeedItems(transformedItems);
       setOffset(20);
+      
+      // If we got fewer items than requested, we've reached the end
+      setHasMore(feedResponse.items.length >= 20);
     } catch (error) {
       console.error('Error loading feed:', error);
       // Fallback to old feed if v3 fails
-      try {
-        const items = await UnifiedFeedService.getFeedItems({
-          userId: currentUserId,
-          feedType: hasFriends ? 'friends' : 'public_only',
-          limit: 20,
-          offset: 0,
-        });
+    try {
+      const items = await UnifiedFeedService.getFeedItems({
+        userId: currentUserId,
+        feedType: hasFriends ? 'friends' : 'public_only',
+        limit: 20,
+        offset: 0,
+      });
         setFeedItems(items);
+        setHasMore(items.length >= 20);
       } catch (fallbackError) {
         console.error('Error loading fallback feed:', fallbackError);
-        setFeedItems([]);
+      setFeedItems([]);
+      setHasMore(false);
       }
     } finally {
       setLoading(false);
@@ -224,7 +250,8 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   };
 
   const loadMoreFeed = async () => {
-    if (loadingMore) return;
+    if (loadingMore || !hasMore) return;
+    
     setLoadingMore(true);
     try {
       // Use v3 unified feed
@@ -254,9 +281,17 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
           return [...prev, ...newItems];
         });
         setOffset(prev => prev + 20);
+        
+        // If we got fewer items than requested, we've reached the end
+        setHasMore(feedResponse.items.length >= 20);
+      } else {
+        // No more items
+        setHasMore(false);
       }
     } catch (error) {
       console.error('Error loading more feed:', error);
+      // On error, stop trying to load more to prevent infinite error loops
+      setHasMore(false);
     } finally {
       setLoadingMore(false);
     }
@@ -556,8 +591,9 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 
     if (item.type === 'review') {
       return (
-        <div key={`review-${item.id}-${index}`} className="mb-4" style={{ minHeight: '300px' }}>
-          <FigmaReviewCard
+        <div key={`review-${item.id}-${index}`} className="w-full flex justify-center">
+          <div className="w-full max-w-[353px]">
+            <FigmaReviewCard
             review={{
               id: item.id,
               user_id: item.author.id || '',
@@ -591,6 +627,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
               // TODO: Open review detail
             }}
           />
+          </div>
         </div>
       );
     }
@@ -603,16 +640,17 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
       const friendInterestCount = event?.friend_interest_count || 0;
       
       return (
-        <div key={`event-${item.id}-${index}`} className="mb-4" style={{ minHeight: '224px' }}>
-          {hasFriendsGoing && friendInterestCount >= 2 && (
-            <div className="mb-2 px-4 py-2 bg-synth-pink/10 border border-synth-pink/20 rounded-lg">
-              <div className="flex items-center gap-2 text-sm text-synth-pink font-medium">
-                <Users className="h-4 w-4" />
-                <span>{friendInterestCount} friend{friendInterestCount !== 1 ? 's' : ''} {friendInterestCount > 1 ? 'are' : 'is'} going</span>
+        <div key={`event-${item.id}-${index}`} className="w-full flex flex-col items-center">
+          <div className="w-full max-w-[353px]">
+            {hasFriendsGoing && friendInterestCount >= 2 && (
+              <div className="mb-2 px-4 py-2 bg-synth-pink/10 border border-synth-pink/20 rounded-lg w-full">
+                <div className="flex items-center gap-2 text-sm text-synth-pink font-medium">
+                  <Users className="h-4 w-4" />
+                  <span>{friendInterestCount} friend{friendInterestCount !== 1 ? 's' : ''} {friendInterestCount > 1 ? 'are' : 'is'} going</span>
+                </div>
               </div>
-            </div>
-          )}
-          <FigmaEventCard
+            )}
+            <FigmaEventCard
             event={{
               id: event?.id || item.id,
               title: event?.title || event?.artist_name || 'Event',
@@ -643,6 +681,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
             }}
             onClick={() => handleEventClick(event)}
           />
+          </div>
         </div>
       );
     }
@@ -834,15 +873,19 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
                   scrollableItems.map((item, index) => renderFeedItem(item, index))
                 )}
 
-                {/* Loading more indicator */}
-                {loadingMore && (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                {/* Load more trigger - only show if we have more items to load */}
+                {hasMore && (
+                  <div ref={loadMoreRef} className="h-10 flex items-center justify-center py-4">
+                    {loadingMore && (
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    )}
                   </div>
                 )}
-
-                {/* Load more trigger */}
-                <div ref={loadMoreRef} className="h-10" />
+                {!hasMore && feedItems.length > 0 && (
+                  <div className="h-10 flex items-center justify-center text-sm text-muted-foreground py-4">
+                    You've reached the end of the feed
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
