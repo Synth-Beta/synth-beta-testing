@@ -75,6 +75,28 @@ export interface PersonalizedFeedFilters {
   city?: string;
 }
 
+// V3 Feed Types
+export type FeedItemType = 'event' | 'review' | 'friend_suggestion' | 'group_chat';
+
+export interface FeedItem {
+  id: string;
+  type: FeedItemType;
+  score: number;
+  payload: Record<string, any>;
+  context: {
+    because?: string[];
+    author?: string;
+    event?: string;
+    [key: string]: any;
+  };
+  created_at: string;
+}
+
+export interface UnifiedFeedResponse {
+  items: FeedItem[];
+  has_more: boolean;
+}
+
 const DEFAULT_RADIUS_MILES = 50;
 const EARLIEST_DATE = new Date(0).toISOString();
 
@@ -103,8 +125,82 @@ type NormalizedFilters = {
 
 export class PersonalizedFeedService {
   /**
+   * Fetch unified personalized feed v3 (events, reviews, friend suggestions, group chats)
+   * Uses the new unified feed structure with multiple content types
+   */
+  static async getPersonalizedFeedV3(
+    userId: string,
+    limit: number = 50,
+    offset: number = 0,
+    filters?: PersonalizedFeedFilters
+  ): Promise<UnifiedFeedResponse> {
+    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const normalizedFilters = await this.normalizeFilters(filters);
+
+    const rpcPayload = {
+      p_user_id: userId,
+      p_limit: limit,
+      p_offset: offset,
+      p_city_lat: normalizedFilters.cityCoordinates?.lat ?? null,
+      p_city_lng: normalizedFilters.cityCoordinates?.lng ?? null,
+      p_radius_miles: normalizedFilters.radiusMiles,
+    };
+
+    try {
+      console.log('📡 Calling get_personalized_feed_v3 with payload:', rpcPayload);
+      const { data, error } = await supabase.rpc('get_personalized_feed_v3', rpcPayload);
+      
+      if (error) {
+        if (error.code === '42P01' || error.code === 'PGRST204' || error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+          console.warn('⚠️ get_personalized_feed_v3 RPC function not found');
+          throw error;
+        }
+        console.error('❌ get_personalized_feed_v3 error:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          error,
+        });
+        throw error;
+      }
+
+      const items: FeedItem[] = (data ?? []).map((row: any) => ({
+        id: String(row.id),
+        type: row.type as FeedItemType,
+        score: Number(row.score) || 0,
+        payload: row.payload || {},
+        context: row.context || {},
+        created_at: row.created_at || new Date().toISOString(),
+      }));
+
+      const finishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      const duration = finishedAt - startedAt;
+
+      console.log('✅ Unified feed v3 (RPC):', {
+        userId,
+        itemCount: items.length,
+        types: items.reduce((acc, item) => {
+          acc[item.type] = (acc[item.type] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
+        loadTimeMs: Math.round(duration),
+      });
+
+      return {
+        items,
+        has_more: items.length === limit, // Simple heuristic - could be improved
+      };
+    } catch (rpcException) {
+      console.error('❌ get_personalized_feed_v3 exception:', rpcException);
+      throw rpcException;
+    }
+  }
+
+  /**
    * Fetch personalized events using the new Supabase RPC.
    * Falls back to a basic query if the RPC fails.
+   * This is the v2 method - kept for backwards compatibility.
    */
   static async getPersonalizedFeed(
     userId: string,

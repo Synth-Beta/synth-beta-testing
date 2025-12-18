@@ -30,6 +30,8 @@ import { DiscoverView } from './discover/DiscoverView';
 import { ConnectView } from './connect/ConnectView';
 import { streamingSyncService } from '@/services/streamingSyncService';
 import { ToastAction } from '@/components/ui/toast';
+import { EventReviewModal } from './EventReviewModal';
+import { PermanentHeader } from './PermanentHeader';
 
 type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events' | 'onboarding';
 
@@ -218,6 +220,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   const [showAuth, setShowAuth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showEventReviewModal, setShowEventReviewModal] = useState(false);
 
   const handleForceLogin = () => {
     setShowAuth(true);
@@ -559,6 +562,12 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Permanent Header - shown on all pages */}
+      <PermanentHeader
+        currentUserId={user?.id || ''}
+        onNavigateToNotifications={handleNavigateToNotifications}
+      />
+
       {/* Onboarding Reminder Banner */}
       {showOnboardingReminder && (
         <OnboardingReminderBanner onComplete={() => setCurrentView('onboarding')} />
@@ -566,7 +575,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
       {/* API Key Error Banner - Only show if there's actually an API key issue */}
       {showApiKeyError && (
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" style={{ marginTop: '59px' }}>
           <div className="flex items-center justify-between">
             <div>
               <p className="font-bold">API Key Error Detected</p>
@@ -582,21 +591,23 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         </div>
       )}
       
-      <div className={showMainNav ? '' : 'pb-16'}>
+      <div className={showMainNav ? 'pt-[59px]' : 'pt-[59px] pb-16'}>
         {renderCurrentView()}
       </div>
       {/* Show bottom navigation for main pages (Discover, Connect, Share) */}
       {showMainNav && (
         <Navigation 
-          currentView={currentView as 'feed' | 'search' | 'profile' | 'analytics' | 'events'} 
+          currentView={currentView as 'feed' | 'search' | 'profile' | 'analytics' | 'events' | 'chat'} 
           onViewChange={handleViewChange}
+          onOpenEventReview={() => setShowEventReviewModal(true)}
         />
       )}
       {/* Show bottom navigation for other pages (analytics, events, etc.) */}
       {!showMainNav && currentView !== 'profile-edit' && (
         <Navigation 
-          currentView={currentView as 'search' | 'profile' | 'analytics' | 'events'} 
+          currentView={currentView as 'search' | 'profile' | 'analytics' | 'events' | 'chat'} 
           onViewChange={handleViewChange}
+          onOpenEventReview={() => setShowEventReviewModal(true)}
         />
       )}
 
@@ -607,6 +618,20 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         onSignOut={handleSignOut}
         userEmail={user?.email}
       />
+
+      {/* Event Review Modal */}
+      {user?.id && (
+        <EventReviewModal
+          isOpen={showEventReviewModal}
+          onClose={() => setShowEventReviewModal(false)}
+          event={{ id: 'new-review' } as any} // Placeholder event for creating a new review
+          userId={user.id}
+          onReviewSubmitted={() => {
+            setShowEventReviewModal(false);
+            // Optionally refresh the current view
+          }}
+        />
+      )}
 
       {/* Onboarding Tour */}
       <OnboardingTour run={runTour} onFinish={handleTourFinish} />
