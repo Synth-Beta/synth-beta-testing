@@ -18,7 +18,7 @@ import {
   Globe
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { JamBaseEvent, JamBaseEventResponse } from '@/services/jambaseEventsService';
+import type { JamBaseEvent, JamBaseEventResponse } from '@/types/eventTypes';
 import { EventMap } from '@/components/EventMap';
 import { formatPrice } from '@/utils/currencyUtils';
 import { supabase } from '@/integrations/supabase/client';

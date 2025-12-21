@@ -1,10 +1,8 @@
--- ============================================================
--- Unified Personalized Feed v3
--- Multiple content types (events, reviews, friend suggestions, group chats)
--- in a single unified feed with smart blending
--- ============================================================
+-- Ensure get_personalized_feed_v3 function exists
+-- This migration ensures the function is created even if the original migration wasn't applied
+-- or if the function was dropped for some reason
 
--- Ensure calculate_distance function exists (used for location filtering)
+-- Step 1: Ensure calculate_distance function exists (dependency)
 CREATE OR REPLACE FUNCTION public.calculate_distance(
     lat1 FLOAT, 
     lon1 FLOAT, 
@@ -24,9 +22,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Drop existing v3 if it exists
-DROP FUNCTION IF EXISTS public.get_personalized_feed_v3(UUID, INT, INT, NUMERIC, NUMERIC, NUMERIC);
+GRANT EXECUTE ON FUNCTION public.calculate_distance(FLOAT, FLOAT, FLOAT, FLOAT) TO authenticated;
 
+COMMENT ON FUNCTION public.calculate_distance IS 'Calculates distance between two lat/lng coordinates in miles using Haversine formula';
+
+-- Step 2: Drop any existing version of get_personalized_feed_v3 (any signature)
+-- This allows us to recreate it with the correct signature
+DROP FUNCTION IF EXISTS public.get_personalized_feed_v3 CASCADE;
+
+-- Step 3: Create the function
+-- Note: The full function definition is identical to 20250325000000_create_personalized_feed_v3.sql
+-- This ensures the function exists even if that migration wasn't applied
 CREATE OR REPLACE FUNCTION public.get_personalized_feed_v3(
   p_user_id        UUID,
   p_limit          INT DEFAULT 50,
@@ -92,31 +98,26 @@ BEGIN
     WHERE NOT EXISTS (SELECT 1 FROM user_preferences WHERE user_id = p_user_id)
   ),
   
-  -- Artist follows
+  -- Artist follows (3NF compliant - uses artist_follows table)
   artist_follows AS (
     SELECT
-      CASE
-        WHEN related_entity_id ~* '^[0-9a-f-]{36}$' THEN related_entity_id::UUID
-        ELSE NULL
-      END AS artist_uuid,
-      lower(trim(related_entity_id)) AS artist_id_text
-    FROM relationships
-    WHERE user_id = p_user_id
-      AND related_entity_type = 'artist'
-      AND relationship_type = 'follow'
-      AND status = 'accepted'
+      af.artist_id AS artist_uuid,
+      lower(trim(a.jambase_artist_id)) AS artist_id_text
+    FROM artist_follows af
+    JOIN artists a ON a.id = af.artist_id
+    WHERE af.user_id = p_user_id
   ),
   
-  -- Friend event interests
+  -- Friend event interests (3NF compliant - uses user_event_relationships + social_graph)
+  -- social_graph already validates 1st-degree connections, so no need for redundant user_relationships join
   friend_event_interest AS (
     SELECT
-      r.related_entity_id::UUID AS event_id,
+      uer.event_id,
       COUNT(*) AS friend_count
-    FROM relationships r
-    JOIN social_graph sg ON sg.connected_user_id = r.user_id AND sg.connection_depth = 1
-    WHERE r.related_entity_type = 'event'
-      AND r.relationship_type IN ('going','maybe')
-    GROUP BY r.related_entity_id
+    FROM user_event_relationships uer
+    JOIN social_graph sg ON sg.connected_user_id = uer.user_id AND sg.connection_depth = 1
+    WHERE uer.relationship_type IN ('going','maybe')
+    GROUP BY uer.event_id
   ),
   
   -- Step 2A: Event Candidates (enhanced v2 logic)
@@ -145,7 +146,7 @@ BEGIN
       e.price_range,
       e.price_min AS ticket_price_min,
       e.price_max AS ticket_price_max,
-      e.promoted AS is_promoted,
+      e.is_promoted,
       e.promotion_tier,
       CASE
         WHEN e.media_urls IS NOT NULL AND array_length(e.media_urls, 1) > 0 THEN e.media_urls[1]
@@ -158,17 +159,15 @@ BEGIN
       END AS distance_miles,
       COALESCE(fei.friend_count, 0) AS friend_interest_count,
       COALESCE((
-        SELECT COUNT(*) FROM relationships r2
-        WHERE r2.related_entity_type = 'event'
-          AND r2.relationship_type IN ('going','maybe')
-          AND r2.related_entity_id::UUID = e.id
+        SELECT COUNT(*) FROM user_event_relationships uer2
+        WHERE uer2.relationship_type IN ('going','maybe')
+          AND uer2.event_id = e.id
       ), 0) AS total_interest_count,
       CASE WHEN EXISTS (
-        SELECT 1 FROM relationships r3
-        WHERE r3.user_id = p_user_id
-          AND r3.related_entity_type = 'event'
-          AND r3.relationship_type IN ('going','maybe')
-          AND r3.related_entity_id::UUID = e.id
+        SELECT 1 FROM user_event_relationships uer3
+        WHERE uer3.user_id = p_user_id
+          AND uer3.relationship_type IN ('going','maybe')
+          AND uer3.event_id = e.id
       ) THEN TRUE ELSE FALSE END AS user_is_interested
     FROM events e
     LEFT JOIN friend_event_interest fei ON fei.event_id = e.id
@@ -180,7 +179,7 @@ BEGIN
         OR calculate_distance(p_city_lat::FLOAT, p_city_lng::FLOAT, e.latitude::FLOAT, e.longitude::FLOAT)::NUMERIC <= (p_radius_miles * 2.0)::NUMERIC  -- Wider radius
       )
       AND e.event_date <= NOW() + INTERVAL '365 days'  -- Full year of events
-    ORDER BY e.event_date ASC, e.promoted DESC  -- Prioritize upcoming and promoted events
+    ORDER BY e.event_date ASC, e.is_promoted DESC  -- Prioritize upcoming and promoted events
     LIMIT (p_limit * 5)::INTEGER  -- Much larger limit for better selection
   ),
   
@@ -738,11 +737,11 @@ BEGIN
       rfi.payload,
       rfi.context,
       rfi.created_at,
-      -- Create a blending score
+      -- Create a blending score (events get priority boost)
       (
         CASE rfi.type
-          WHEN 'event' THEN rfi.score::NUMERIC * 1.0::NUMERIC
-          WHEN 'review' THEN rfi.score::NUMERIC * 0.9::NUMERIC
+          WHEN 'event' THEN rfi.score::NUMERIC * 1.2::NUMERIC  -- Boost events by 20%
+          WHEN 'review' THEN rfi.score::NUMERIC * 0.8::NUMERIC  -- Reduce reviews by 20%
           WHEN 'group_chat' THEN rfi.score::NUMERIC * 0.7::NUMERIC
           ELSE rfi.score::NUMERIC
         END
@@ -752,8 +751,8 @@ BEGIN
       rfi.type != 'friend_suggestion'  -- Exclude friend suggestion rails
       AND (rfi.type != 'group_chat' OR rfi.type_rank > 1)  -- Exclude first group chat (rail)
       AND (
-        (rfi.type = 'event' AND rfi.type_rank <= CAST(p_limit * 4 AS INTEGER))  -- More events (was 1.5)
-        OR (rfi.type = 'review' AND rfi.type_rank <= CAST(p_limit * 2 AS INTEGER))  -- More reviews (was 0.5)
+        (rfi.type = 'event' AND rfi.type_rank <= CAST(p_limit * 5 AS INTEGER))  -- Even more events (5x limit)
+        OR (rfi.type = 'review' AND rfi.type_rank <= CAST(p_limit * 1.5 AS INTEGER))  -- Fewer reviews (1.5x limit)
         OR (rfi.type = 'group_chat' AND rfi.type_rank <= 20)  -- More group chats (was 10)
       )
   ),

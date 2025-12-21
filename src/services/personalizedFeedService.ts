@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeCityName } from '@/utils/cityNormalization';
-import type { JamBaseEvent } from './jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 import { cacheService, CacheTTL } from './cacheService';
 import { logger } from '@/utils/logger';
 
@@ -227,58 +227,205 @@ export class PersonalizedFeedService {
         }
       }
 
-    const rpcPayload = {
-        p_user_id: userId,
-        p_limit: limit,
-        p_offset: offset,
-      p_include_past: includePast,
+    // get_personalized_feed_v3 signature: (p_user_id UUID, p_limit INT, p_offset INT, p_city_lat NUMERIC, p_city_lng NUMERIC, p_radius_miles NUMERIC)
+    // Note: v3 doesn't support p_include_past, p_genres, or p_following_only - these are handled client-side if needed
+    // Convert numbers to strings for NUMERIC types to avoid type mismatches
+    const rpcPayload: {
+      p_user_id: string;
+      p_limit: number;
+      p_offset: number;
+      p_city_lat: number | null;
+      p_city_lng: number | null;
+      p_radius_miles: number;
+    } = {
+      p_user_id: userId,
+      p_limit: limit,
+      p_offset: offset,
       p_city_lat: normalizedFilters.cityCoordinates?.lat ?? null,
       p_city_lng: normalizedFilters.cityCoordinates?.lng ?? null,
-      p_radius_miles: normalizedFilters.radiusMiles,
-      p_genres: normalizedFilters.genres ?? null,
-      p_following_only: normalizedFilters.followingOnly,
+      p_radius_miles: normalizedFilters.radiusMiles ?? 50,
     };
 
     try {
-      const { data, error } = await supabase.rpc('get_personalized_feed_v2', rpcPayload);
+      // Use feed v3 (3NF compliant) - remove review logic as requested
+      logger.debug('📡 Calling get_personalized_feed_v3 with payload:', rpcPayload);
+      const { data, error } = await supabase.rpc('get_personalized_feed_v3', rpcPayload);
       
       if (error) {
-        if (error.code === '42P01' || error.code === 'PGRST204' || error.code === 'PGRST116' || error.message?.includes('does not exist')) {
-          logger.warn('⚠️ get_personalized_feed_v2 RPC function not found, using fallback feed');
+        // Handle different error types
+        if (error.code === '42P01' || error.code === 'PGRST204' || error.code === 'PGRST116' || error.message?.includes('does not exist') || error.message?.includes('Could not find the function')) {
+          logger.warn('⚠️ get_personalized_feed_v3 RPC function not found, using fallback feed');
           return this.getFallbackFeed(userId, limit, offset, includePast, normalizedFilters);
         }
-        logger.error('❌ get_personalized_feed_v2 error:', error);
+        // 400 Bad Request usually means parameter mismatch or function signature issue
+        if (error.code === '400' || error.code === 'PGRST202') {
+          logger.error('❌ get_personalized_feed_v3 parameter/signature mismatch:', {
+            code: error.code,
+            message: error.message,
+            hint: error.hint,
+            payload: rpcPayload,
+          });
+          logger.warn('⚠️ Falling back to basic feed due to function signature mismatch');
+          return this.getFallbackFeed(userId, limit, offset, includePast, normalizedFilters);
+        }
+        logger.error('❌ get_personalized_feed_v3 error:', error);
         return this.getFallbackFeed(userId, limit, offset, includePast, normalizedFilters);
       }
 
-      const rows = (data ?? []).map((row: any) => this.mapRpcRowToFeedRow(row));
+      // v3 returns FeedItem format: { id, type, score, payload (JSONB), context (JSONB), created_at }
+      // Extract event data from payload when type is 'event', filter out reviews as requested
+      const eventItems = (data ?? [])
+        .filter((row: any) => row.type === 'event') // Remove review logic - only events
+        .map((row: any) => {
+          // Extract event data from payload JSONB
+          const payload = row.payload || {};
+          return {
+            event_id: payload.event_id || row.id || '',
+            title: payload.title ?? null,
+            artist_name: payload.artist_name ?? null,
+            artist_id: payload.artist_id ?? null,
+            artist_uuid: payload.artist_uuid ?? null,
+            venue_name: payload.venue_name ?? null,
+            venue_id: payload.venue_id ?? null,
+            venue_uuid: payload.venue_uuid ?? null,
+            venue_city: payload.venue_city ?? null,
+            venue_state: payload.venue_state ?? null,
+            venue_address: payload.venue_address ?? null,
+            venue_zip: payload.venue_zip ?? null,
+            event_date: payload.event_date,
+            doors_time: payload.doors_time ?? null,
+            description: payload.description ?? null,
+            genres: Array.isArray(payload.genres) ? payload.genres : [],
+            latitude: payload.latitude ?? null,
+            longitude: payload.longitude ?? null,
+            ticket_urls: Array.isArray(payload.ticket_urls) ? payload.ticket_urls : [],
+            ticket_available: payload.ticket_available ?? null,
+            price_range: payload.price_range ?? null,
+            ticket_price_min: payload.ticket_price_min ?? null,
+            ticket_price_max: payload.ticket_price_max ?? null,
+            relevance_score: row.score ?? null,
+            friend_interest_count: payload.friend_interest_count ?? null,
+            total_interest_count: payload.interested_count ?? null,
+            is_promoted: payload.is_promoted ?? null,
+            promotion_tier: payload.promotion_tier ?? null,
+            distance_miles: payload.distance_miles ?? null,
+            poster_image_url: payload.poster_image_url ?? null,
+            created_at: row.created_at ?? null,
+            updated_at: payload.updated_at ?? null,
+          } as PersonalizedFeedRow;
+        });
       
-      logger.debug('📊 RPC response before client-side filtering:', {
+      logger.debug('📊 RPC v3 response (events only):', {
         rawDataCount: data?.length ?? 0,
-        mappedRowsCount: rows.length,
-        sampleRow: rows[0] ? {
-          title: rows[0].title,
-          venue_city: rows[0].venue_city,
-          event_date: rows[0].event_date,
+        eventCount: eventItems.length,
+        sampleEvent: eventItems[0] ? {
+          title: eventItems[0].title,
+          venue_city: eventItems[0].venue_city,
+          event_date: eventItems[0].event_date,
+          genres: eventItems[0].genres,
+          event_date_parsed: eventItems[0].event_date ? new Date(eventItems[0].event_date).toISOString() : null,
+          isPast: eventItems[0].event_date ? new Date(eventItems[0].event_date).getTime() < Date.now() : null,
         } : null,
         filters: normalizedFilters.debugSummary,
+        allEventTypes: data?.map((r: any) => r.type) || [],
+        cityCoordinates: normalizedFilters.cityCoordinates,
+        cleanedCities: normalizedFilters.cleanedCities,
+        originalCities: normalizedFilters.originalCities,
       });
       
-      const filteredRows = this.applyClientSideFilters(rows, normalizedFilters, includePast);
+      // Apply minimal client-side filtering since RPC already handles location and basic filtering
+      // Only apply filters that RPC doesn't support (genres, date range, days of week)
+      const filteredRows = this.applyClientSideFilters(eventItems, normalizedFilters, includePast);
       
       logger.debug('📊 After client-side filtering:', {
         filteredCount: filteredRows.length,
-        removedCount: rows.length - filteredRows.length,
+        removedCount: eventItems.length - filteredRows.length,
+        sampleRemoved: eventItems.length > filteredRows.length && eventItems[0] ? {
+          title: eventItems[0].title,
+          event_date: eventItems[0].event_date,
+          venue_city: eventItems[0].venue_city,
+          genres: eventItems[0].genres,
+        } : null,
       });
       
       const events = filteredRows.map((row) => this.mapRowToEvent(row));
 
       if (filteredRows.length === 0 && offset === 0) {
+        // Log detailed information about why events were filtered
+        const sampleEvents = eventItems.slice(0, 3).map(e => {
+          const eventDate = e.event_date ? new Date(e.event_date) : null;
+          const dateStart = normalizedFilters.dateStart;
+          const dateEnd = normalizedFilters.dateEnd;
+          
+          // Calculate date range check using same logic as filter
+          let dateRangeCheck: any = null;
+          if (dateStart || dateEnd) {
+            if (eventDate) {
+              const eventYear = eventDate.getUTCFullYear();
+              const eventMonth = eventDate.getUTCMonth();
+              const eventDay = eventDate.getUTCDate();
+              
+              if (dateStart) {
+                const startDate = new Date(dateStart);
+                const startYear = startDate.getUTCFullYear();
+                const startMonth = startDate.getUTCMonth();
+                const startDay = startDate.getUTCDate();
+                dateRangeCheck = {
+                  ...dateRangeCheck,
+                  beforeStart: eventYear < startYear || 
+                    (eventYear === startYear && eventMonth < startMonth) ||
+                    (eventYear === startYear && eventMonth === startMonth && eventDay < startDay),
+                  startDate: `${startYear}-${String(startMonth + 1).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`,
+                };
+              }
+              
+              if (dateEnd) {
+                const endDate = new Date(dateEnd);
+                const endYear = endDate.getUTCFullYear();
+                const endMonth = endDate.getUTCMonth();
+                const endDay = endDate.getUTCDate();
+                dateRangeCheck = {
+                  ...dateRangeCheck,
+                  afterEnd: eventYear > endYear || 
+                    (eventYear === endYear && eventMonth > endMonth) ||
+                    (eventYear === endYear && eventMonth === endMonth && eventDay > endDay),
+                  endDate: `${endYear}-${String(endMonth + 1).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`,
+                  eventDate: `${eventYear}-${String(eventMonth + 1).padStart(2, '0')}-${String(eventDay).padStart(2, '0')}`,
+                };
+              }
+            }
+          }
+          
+          return {
+            title: e.title,
+            event_date: e.event_date,
+            event_date_parsed: eventDate?.toISOString(),
+            venue_city: e.venue_city,
+            genres: e.genres,
+            isPast: eventDate ? eventDate.getTime() < Date.now() : null,
+            dateRangeCheck,
+          };
+        });
+        
         logger.warn('⚠️ RPC returned no events at offset 0 – falling back to basic feed.', {
           rawDataCount: data?.length ?? 0,
-          mappedRowsCount: rows.length,
+          mappedRowsCount: eventItems.length,
           filteredCount: filteredRows.length,
+          sampleEvents,
+          activeFilters: {
+            includePast,
+            hasCityFilter: !normalizedFilters.cityCoordinates && !!(normalizedFilters.cleanedCities?.length || normalizedFilters.originalCities?.length),
+            hasCityCoordinates: !!normalizedFilters.cityCoordinates,
+            hasGenreFilter: !!(normalizedFilters.genres?.length),
+            hasDateRange: !!(normalizedFilters.dateStart || normalizedFilters.dateEnd),
+            dateRange: normalizedFilters.dateStart || normalizedFilters.dateEnd ? {
+              start: normalizedFilters.dateStart?.toISOString(),
+              end: normalizedFilters.dateEnd?.toISOString(),
+            } : null,
+            hasDaysOfWeek: !!(normalizedFilters.daysOfWeek?.length),
+          },
         });
+        
         return this.getFallbackFeed(userId, limit, offset, includePast, normalizedFilters);
       }
 
@@ -751,59 +898,124 @@ export class PersonalizedFeedService {
     includePast: boolean
   ): PersonalizedFeedRow[] {
     let result = rows;
+    const initialCount = rows.length;
 
-    if (!includePast) {
+    // Date filtering: Only filter out past events if includePast is false
+    // Note: RPC already filters events to be within a reasonable date range
+    // Only apply this filter if RPC didn't already filter by date range (i.e., no coordinates were used)
+    if (!includePast && !filters.cityCoordinates) {
       const now = Date.now();
+      const beforeDateFilter = result.length;
       result = result.filter((row) => {
+        if (!row.event_date) return true; // Keep events without dates
         const eventTime = Date.parse(row.event_date);
-        return Number.isNaN(eventTime) ? true : eventTime >= now;
+        if (Number.isNaN(eventTime)) return true;
+        return eventTime >= now;
       });
+      if (result.length < beforeDateFilter) {
+        logger.debug(`📅 Date filter removed ${beforeDateFilter - result.length} past events`);
+      }
     }
 
     // Skip city name filtering if coordinates were used (RPC already filtered by location)
     // Only apply city name filter if no coordinates were provided
     if (!filters.cityCoordinates) {
-    const citySource = (filters.cleanedCities && filters.cleanedCities.length > 0)
-      ? filters.cleanedCities
-      : (filters.originalCities && filters.originalCities.length > 0 ? filters.originalCities : undefined);
+      const citySource = (filters.cleanedCities && filters.cleanedCities.length > 0)
+        ? filters.cleanedCities
+        : (filters.originalCities && filters.originalCities.length > 0 ? filters.originalCities : undefined);
 
-    if (citySource && citySource.length > 0) {
-      const normalizeCity = (city: string) =>
-        normalizeCityName(city || '').replace(/\s+/g, ' ').trim();
-      const allowed = new Set(citySource.map(normalizeCity));
-      result = result.filter((row) => {
-        const city = row.venue_city ? normalizeCity(row.venue_city) : '';
-        return allowed.has(city);
-      });
+      if (citySource && citySource.length > 0) {
+        const normalizeCity = (city: string) =>
+          normalizeCityName(city || '').replace(/\s+/g, ' ').trim();
+        const allowed = new Set(citySource.map(normalizeCity));
+        const beforeCityFilter = result.length;
+        result = result.filter((row) => {
+          const city = row.venue_city ? normalizeCity(row.venue_city) : '';
+          const isAllowed = allowed.has(city);
+          if (!isAllowed && beforeCityFilter > 0) {
+            logger.debug(`🏙️ City filter removing event: "${row.title}" (city: "${row.venue_city}" -> normalized: "${city}", allowed: ${Array.from(allowed).join(', ')})`);
+          }
+          return isAllowed;
+        });
+        if (result.length < beforeCityFilter) {
+          logger.debug(`🏙️ City filter removed ${beforeCityFilter - result.length} events (allowed cities: ${Array.from(allowed).join(', ')})`);
+        }
       }
     }
 
+    // Genre filtering: Only apply if genres are explicitly specified
     if (filters.genres && filters.genres.length > 0) {
       const genreSet = new Set(filters.genres.map((genre) => genre.toLowerCase()));
+      const beforeGenreFilter = result.length;
       result = result.filter((row) => {
         if (!row.genres || row.genres.length === 0) return false;
         return row.genres.some((genre) => genreSet.has(genre.toLowerCase()));
       });
+      if (result.length < beforeGenreFilter) {
+        logger.debug(`🎵 Genre filter removed ${beforeGenreFilter - result.length} events`);
+      }
     }
 
-    if (filters.dateStart || filters.dateEnd) {
-      const startTime = filters.dateStart ? filters.dateStart.getTime() : null;
-      const endTime = filters.dateEnd ? filters.dateEnd.getTime() : null;
+    // Date range filtering: Only apply if explicit date range is provided
+    // NOTE: If RPC was called with coordinates, it already filtered by date range
+    // Only apply client-side date filtering if coordinates were NOT used
+    if ((filters.dateStart || filters.dateEnd) && !filters.cityCoordinates) {
+      const beforeDateRangeFilter = result.length;
+      
+      // Normalize filter dates to start of day in local timezone
+      const startDate = filters.dateStart ? new Date(filters.dateStart) : null;
+      if (startDate) {
+        startDate.setHours(0, 0, 0, 0);
+      }
+      
+      const endDate = filters.dateEnd ? new Date(filters.dateEnd) : null;
+      if (endDate) {
+        endDate.setHours(23, 59, 59, 999); // End of day to include entire day
+      }
+      
       result = result.filter((row) => {
+        if (!row.event_date) return true; // Keep events without dates
+        
+        // Parse event date (always a string per type definition)
         const eventTime = Date.parse(row.event_date);
+        
         if (Number.isNaN(eventTime)) return true;
-        if (startTime !== null && eventTime < startTime) return false;
-        if (endTime !== null && eventTime > endTime) return false;
+        
+        const eventDate = new Date(eventTime);
+        
+        // Check start date - event must be on or after start date
+        if (startDate && eventDate.getTime() < startDate.getTime()) {
+          return false;
+        }
+        
+        // Check end date - event must be on or before end date (inclusive)
+        if (endDate && eventDate.getTime() > endDate.getTime()) {
+          return false;
+        }
+        
         return true;
       });
+      if (result.length < beforeDateRangeFilter) {
+        logger.debug(`📆 Date range filter removed ${beforeDateRangeFilter - result.length} events`);
+      }
     }
 
+    // Days of week filtering
     if (filters.daysOfWeek?.length) {
       const days = new Set(filters.daysOfWeek);
+      const beforeDaysFilter = result.length;
       result = result.filter((row) => {
+        if (!row.event_date) return true; // Keep events without dates
         const date = new Date(row.event_date);
         return Number.isNaN(date.getTime()) ? true : days.has(date.getDay());
       });
+      if (result.length < beforeDaysFilter) {
+        logger.debug(`📅 Days of week filter removed ${beforeDaysFilter - result.length} events`);
+      }
+    }
+
+    if (result.length < initialCount) {
+      logger.debug(`🔍 Client-side filters: ${initialCount} → ${result.length} events (removed ${initialCount - result.length})`);
     }
 
     return result;

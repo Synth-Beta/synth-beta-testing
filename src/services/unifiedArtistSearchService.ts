@@ -15,10 +15,6 @@ export interface ArtistSearchResult {
 }
 
 export class UnifiedArtistSearchService {
-  private static readonly BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-  private static readonly JAMBASE_ARTISTS_URL = `${UnifiedArtistSearchService.BACKEND_URL}/api/jambase/artists`;
-  private static readonly JAMBASE_ARTIST_URL = `${UnifiedArtistSearchService.BACKEND_URL}/api/jambase/artists/id`;
-  private static readonly API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
 
   /**
    * Main search function - PROTECTED API USAGE:
@@ -79,9 +75,10 @@ export class UnifiedArtistSearchService {
   }
 
   /**
-   * @deprecated Ticketmaster API is no longer used - this method is kept for reference but never called
+   * @deprecated Removed - Ticketmaster API no longer used
    */
   private static async searchTicketmasterAttractions(query: string, limit: number): Promise<any[]> {
+    return [];
     console.log(`🎫 START: searchTicketmasterAttractions for "${query}"`);
     const isProduction =
       typeof window !== 'undefined' &&
@@ -171,78 +168,10 @@ export class UnifiedArtistSearchService {
   }
 
   /**
-   * Search JamBase API for artists using the correct artists endpoint
+   * @deprecated Removed - JamBase API no longer used
    */
   private static async searchJamBaseAPI(query: string, limit: number): Promise<any[]> {
-    if (!this.API_KEY) {
-      console.error('❌ JamBase API key not configured. Environment variable VITE_JAMBASE_API_KEY is missing.');
-      console.warn('Returning empty results due to missing API key');
-      return [];
-    }
-    
-    console.log(`🔑 Using JamBase API key: ${this.API_KEY.substring(0, 8)}...`);
-
-    try {
-      // Use the correct JamBase artists endpoint
-      const params = new URLSearchParams({
-        artistName: query,
-        perPage: Math.min(limit, 100).toString(), // Max 100 per page
-        apikey: this.API_KEY,
-      });
-
-      const response = await fetch(`${this.JAMBASE_ARTISTS_URL}?${params}`, {
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-
-      console.log(`📡 JamBase API response status: ${response.status} ${response.statusText}`);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.warn(`JamBase API error: ${response.status} ${response.statusText}`, errorText);
-
-        if (response.status === 403 && errorText.includes('api_key_expired')) {
-          console.warn('JamBase API key appears to be expired. Falling back to offline artist list.');
-          return this.getFallbackArtists(query, limit);
-        }
-
-        console.warn('Returning empty results due to API error');
-        return this.getFallbackArtists(query, limit);
-      }
-
-      const data = await response.json();
-      console.log(`📊 JamBase API response data:`, { success: data.success, artistCount: data.artists?.length });
-      
-      if (!data.success || !data.artists || !Array.isArray(data.artists)) {
-        console.warn('Invalid JamBase API response format, returning empty results', data);
-        return [];
-      }
-
-      // Transform JamBase artists to our format
-      return data.artists.map((artist: any) => ({
-        id: artist.identifier?.replace('jambase:', '') || artist.name.toLowerCase().replace(/\s+/g, '-'),
-        name: artist.name,
-        identifier: artist.identifier,
-        image: artist.image,
-        genres: artist.genre || [],
-        'x-bandOrMusician': artist['x-bandOrMusician'] || 'band',
-        'x-numUpcomingEvents': artist['x-numUpcomingEvents'] || 0,
-        foundingLocation: artist.foundingLocation?.name,
-        foundingDate: artist.foundingDate,
-        url: artist.url,
-        sameAs: artist.sameAs,
-        datePublished: artist.datePublished,
-        dateModified: artist.dateModified,
-        member: artist.member,
-        memberOf: artist.memberOf,
-        'x-externalIdentifiers': artist['x-externalIdentifiers']
-      }));
-    } catch (error) {
-      console.error('❌ JamBase API search error:', error);
-      console.warn('Returning empty results due to API error');
-      return [];
-    }
+    return [];
   }
 
   /**
@@ -368,7 +297,7 @@ export class UnifiedArtistSearchService {
   }
 
   /**
-   * Populate Supabase artist_profile table with JamBase results
+   * @deprecated Removed - API population no longer used
    */
   private static async populateArtistProfiles(jamBaseArtists: any[]): Promise<ArtistProfile[]> {
     const populatedArtists: ArtistProfile[] = [];
@@ -534,22 +463,10 @@ export class UnifiedArtistSearchService {
   }
 
   /**
-   * Fetch full artist details from JamBase API
+   * @deprecated Removed - JamBase API no longer used
    */
   private static async fetchFullArtistDetails(artistId: string): Promise<JamBaseArtistResponse> {
-    const url = `${this.JAMBASE_ARTIST_URL}/jambase:${artistId}?expandUpcomingEvents=true&expandExternalIdentifiers=true&apikey=${this.API_KEY}`;
-    
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`JamBase API error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
+    throw new Error('JamBase API removed - use database queries instead');
   }
 
   /**
@@ -877,50 +794,15 @@ export class UnifiedArtistSearchService {
   }
 
   /**
-   * Test JamBase API connection
+   * @deprecated Removed - JamBase API no longer used
+   */
+  /**
+   * @deprecated Removed - JamBase API no longer used
    */
   static async testJamBaseAPI(): Promise<{ success: boolean; message: string; data?: any }> {
-    console.log(`🔍 Testing JamBase API with key: ${this.API_KEY ? this.API_KEY.substring(0, 8) + '...' : 'NOT SET'}`);
-    
-    if (!this.API_KEY) {
-      return {
-        success: false,
-        message: 'JamBase API key not configured. Please set VITE_JAMBASE_API_KEY environment variable.'
-      };
-    }
-
-    try {
-      const params = new URLSearchParams({
-        artistName: 'test',
-        perPage: '1',
-        apikey: this.API_KEY,
-      });
-
-      const response = await fetch(`${this.JAMBASE_ARTISTS_URL}?${params}`, {
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        return {
-          success: false,
-          message: `JamBase API error: ${response.status} ${response.statusText}`
-        };
-      }
-
-      const data = await response.json();
-      
-      return {
-        success: true,
-        message: 'JamBase API connection successful',
-        data: data
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: `Connection error: ${error instanceof Error ? error.message : 'Unknown error'}`
-      };
-    }
+    return {
+      success: false,
+      message: 'JamBase API has been removed. Use database queries instead.'
+    };
   }
 }

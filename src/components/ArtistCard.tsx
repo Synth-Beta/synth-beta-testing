@@ -14,7 +14,7 @@ import {
   Ticket
 } from 'lucide-react';
 import type { Artist } from '@/types/concertSearch';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 import { cn } from '@/lib/utils';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { supabase } from '@/integrations/supabase/client';

@@ -5,7 +5,7 @@ import { ReviewList } from './ReviewList';
 import { PublicReviewList } from './PublicReviewList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Star, MessageSquare } from 'lucide-react';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 import { EventReviewForm } from './EventReviewForm.tsx';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,7 +14,7 @@ import { ArtistCard } from '@/components/ArtistCard';
 import type { Artist } from '@/types/concertSearch';
 import { SimpleArtistVenueService } from '@/services/simpleArtistVenueService';
 import { UnifiedEventSearchService } from '@/services/unifiedEventSearchService';
-import { JamBaseEventsService } from '@/services/jambaseEventsService';
+// JamBaseEventsService removed - using database queries directly
 import { Loader2 } from 'lucide-react';
 import { ReviewMobileShell } from './ReviewMobileShell';
 

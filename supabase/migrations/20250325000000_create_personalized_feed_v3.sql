@@ -140,7 +140,7 @@ BEGIN
       e.price_range,
       e.price_min AS ticket_price_min,
       e.price_max AS ticket_price_max,
-      e.promoted AS is_promoted,
+      e.is_promoted,
       e.promotion_tier,
       CASE
         WHEN e.media_urls IS NOT NULL AND array_length(e.media_urls, 1) > 0 THEN e.media_urls[1]
@@ -173,7 +173,7 @@ BEGIN
         OR calculate_distance(p_city_lat::FLOAT, p_city_lng::FLOAT, e.latitude::FLOAT, e.longitude::FLOAT)::NUMERIC <= (p_radius_miles * 2.0)::NUMERIC  -- Wider radius
       )
       AND e.event_date <= NOW() + INTERVAL '365 days'  -- Full year of events
-    ORDER BY e.event_date ASC, e.promoted DESC  -- Prioritize upcoming and promoted events
+    ORDER BY e.event_date ASC, e.is_promoted DESC  -- Prioritize upcoming and promoted events
     LIMIT (p_limit * 5)::INTEGER  -- Much larger limit for better selection
   ),
   
@@ -731,11 +731,11 @@ BEGIN
       rfi.payload,
       rfi.context,
       rfi.created_at,
-      -- Create a blending score
+      -- Create a blending score (events get priority boost)
       (
         CASE rfi.type
-          WHEN 'event' THEN rfi.score::NUMERIC * 1.0::NUMERIC
-          WHEN 'review' THEN rfi.score::NUMERIC * 0.9::NUMERIC
+          WHEN 'event' THEN rfi.score::NUMERIC * 1.2::NUMERIC  -- Boost events by 20%
+          WHEN 'review' THEN rfi.score::NUMERIC * 0.8::NUMERIC  -- Reduce reviews by 20%
           WHEN 'group_chat' THEN rfi.score::NUMERIC * 0.7::NUMERIC
           ELSE rfi.score::NUMERIC
         END
@@ -745,8 +745,8 @@ BEGIN
       rfi.type != 'friend_suggestion'  -- Exclude friend suggestion rails
       AND (rfi.type != 'group_chat' OR rfi.type_rank > 1)  -- Exclude first group chat (rail)
       AND (
-        (rfi.type = 'event' AND rfi.type_rank <= CAST(p_limit * 4 AS INTEGER))  -- More events (was 1.5)
-        OR (rfi.type = 'review' AND rfi.type_rank <= CAST(p_limit * 2 AS INTEGER))  -- More reviews (was 0.5)
+        (rfi.type = 'event' AND rfi.type_rank <= CAST(p_limit * 5 AS INTEGER))  -- Even more events (5x limit)
+        OR (rfi.type = 'review' AND rfi.type_rank <= CAST(p_limit * 1.5 AS INTEGER))  -- Fewer reviews (1.5x limit)
         OR (rfi.type = 'group_chat' AND rfi.type_rank <= 20)  -- More group chats (was 10)
       )
   ),

@@ -29,8 +29,32 @@ export const BrowseAllEventsSection: React.FC<BrowseAllEventsSectionProps> = ({
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // Load user location for distance sorting
+  useEffect(() => {
+    const loadUserLocation = async () => {
+      try {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('latitude, longitude')
+          .eq('user_id', currentUserId)
+          .single();
+
+        if (profile?.latitude && profile?.longitude) {
+          setUserLocation({ 
+            lat: profile.latitude, 
+            lng: profile.longitude
+          });
+        }
+      } catch (error) {
+        console.warn('Could not get user location:', error);
+      }
+    };
+    loadUserLocation();
+  }, [currentUserId]);
 
   useEffect(() => {
     loadInterestedEvents();
@@ -106,25 +130,6 @@ export const BrowseAllEventsSection: React.FC<BrowseAllEventsSectionProps> = ({
       const perPage = 20;
       const currentPage = reset ? 1 : page;
 
-      // Get user's location for distance sorting
-      let userLat: number | undefined;
-      let userLng: number | undefined;
-      
-      try {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('latitude, longitude')
-          .eq('user_id', currentUserId)
-          .single();
-
-        if (profile?.latitude && profile?.longitude) {
-          userLat = profile.latitude;
-          userLng = profile.longitude;
-        }
-      } catch (error) {
-        console.warn('Could not get user location:', error);
-      }
-
       // Build search params based on sort option
       const searchParams: any = {
         page: currentPage,
@@ -133,12 +138,13 @@ export const BrowseAllEventsSection: React.FC<BrowseAllEventsSectionProps> = ({
       };
 
       // Add location for distance sorting
-      if (sortOption === 'distance' && userLat && userLng) {
-        searchParams.latitude = userLat;
-        searchParams.longitude = userLng;
+      if (sortOption === 'distance' && userLocation) {
+        searchParams.latitude = userLocation.lat;
+        searchParams.longitude = userLocation.lng;
         searchParams.radius = 100; // 100 mile radius
       }
 
+      // Use UnifiedEventSearchService for general event browsing (not personalized)
       const result = await UnifiedEventSearchService.searchEvents(searchParams);
 
       // Sort events based on sort option
@@ -151,18 +157,17 @@ export const BrowseAllEventsSection: React.FC<BrowseAllEventsSectionProps> = ({
           return dateA - dateB;
         });
       } else if (sortOption === 'popularity') {
-        // Sort by friend interest count or event date as fallback
+        // Sort by event date as fallback (popularity metric not available in general search)
         sortedEvents.sort((a, b) => {
-          // TODO: Add popularity metric when available
           const dateA = new Date(a.event_date || 0).getTime();
           const dateB = new Date(b.event_date || 0).getTime();
           return dateA - dateB;
         });
-      } else if (sortOption === 'distance' && userLat && userLng) {
+      } else if (sortOption === 'distance' && userLocation) {
         // Calculate distance and sort
         sortedEvents.sort((a, b) => {
-          const distA = calculateDistance(userLat!, userLng!, a.latitude || 0, a.longitude || 0);
-          const distB = calculateDistance(userLat!, userLng!, b.latitude || 0, b.longitude || 0);
+          const distA = calculateDistance(userLocation.lat, userLocation.lng, a.latitude || 0, a.longitude || 0);
+          const distB = calculateDistance(userLocation.lat, userLocation.lng, b.latitude || 0, b.longitude || 0);
           return distA - distB;
         });
       } else if (sortOption === 'price') {
@@ -217,6 +222,7 @@ export const BrowseAllEventsSection: React.FC<BrowseAllEventsSectionProps> = ({
 
   const handleEventClick = async (event: UnifiedEvent) => {
     try {
+      // Try to fetch full event details from database
       const { data } = await supabase
         .from('events')
         .select('*')
@@ -229,12 +235,14 @@ export const BrowseAllEventsSection: React.FC<BrowseAllEventsSectionProps> = ({
         setSelectedEventInterested(interested);
         setEventDetailsOpen(true);
       } else {
+        // Use the event data we already have
         setSelectedEvent(event);
         setSelectedEventInterested(interestedEvents.has(event.id || ''));
         setEventDetailsOpen(true);
       }
     } catch (error) {
       console.error('Error fetching event details:', error);
+      // Use the event data we already have
       setSelectedEvent(event);
       setSelectedEventInterested(interestedEvents.has(event.id || ''));
       setEventDetailsOpen(true);

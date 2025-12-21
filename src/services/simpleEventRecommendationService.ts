@@ -1,4 +1,4 @@
-import { JamBaseService } from './jambaseService';
+import { supabase } from '@/integrations/supabase/client';
 import { LocationService, LocationSearchParams } from './locationService';
 import { spotifyService } from './spotifyService';
 import { UserStreamingStatsService, UserTopArtist } from './userStreamingStatsService';
@@ -238,8 +238,15 @@ export class SimpleEventRecommendationService {
         try {
           console.log(`🔍 Searching events for artist: ${artist.name}`);
           
-          // Search for events by artist name
-          const artistEvents = await JamBaseService.searchEventsByArtist(artist.name, 10);
+          // Search for events by artist name from database
+          const { data: artistEventsData } = await supabase
+            .from('events')
+            .select('*')
+            .ilike('artist_name', `%${artist.name}%`)
+            .gte('event_date', new Date().toISOString())
+            .order('event_date', { ascending: true })
+            .limit(10);
+          const artistEvents = artistEventsData || [];
           
           // Filter to upcoming events only
           const upcomingEvents = artistEvents.filter(event => {

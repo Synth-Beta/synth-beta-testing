@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { JamBaseService } from '@/services/jambaseService';
+// JamBaseService removed - using database queries directly
 import { EventReviewModal } from '../reviews/EventReviewModal';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ProfileReviewCard } from '../reviews/ProfileReviewCard';
@@ -79,7 +79,7 @@ interface UserProfile {
 }
 
 // Use JamBaseEvent type directly instead of custom UserEvent interface
-import type { JamBaseEvent } from '@/services/jambaseService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 
 interface ConcertReview {
   id: string;
@@ -409,9 +409,27 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
-      console.log('🔍 ProfileView: Calling JamBaseService.getUserEvents...');
-      const data = await JamBaseService.getUserEvents(targetUserId);
-      console.log('🔍 ProfileView: JamBaseService.getUserEvents returned:', data?.length, 'events');
+      console.log('🔍 ProfileView: Fetching user events from database...');
+      // Get user's interested events from relationships table
+      const { data: relationships } = await supabase
+        .from('relationships')
+        .select('related_entity_id')
+        .eq('user_id', targetUserId)
+        .eq('related_entity_type', 'event')
+        .eq('relationship_type', 'interest');
+      
+      const eventIds = relationships?.map(r => r.related_entity_id) || [];
+      
+      let data: JamBaseEvent[] = [];
+      if (eventIds.length > 0) {
+        const { data: events } = await supabase
+          .from('events')
+          .select('*')
+          .in('id', eventIds)
+          .order('event_date', { ascending: true });
+        data = (events || []) as JamBaseEvent[];
+      }
+      console.log('🔍 ProfileView: Database query returned:', data?.length, 'events');
       
       // Get events that user has attended to exclude them from interested events
       const { data: attendanceData } = await (supabase as any)

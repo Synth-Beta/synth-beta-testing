@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { JamBaseEventResponse } from './jambaseEventsService';
+import { JamBaseEventResponse } from '@/types/eventTypes';
 
 export interface LocationSearchParams {
   latitude: number;

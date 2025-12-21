@@ -41,7 +41,7 @@ import { format, parseISO } from 'date-fns';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { EventMessageCard } from '@/components/chat/EventMessageCard';
 import { ReviewMessageCard } from '@/components/chat/ReviewMessageCard';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
 import { fetchUserChats } from '@/services/chatService';

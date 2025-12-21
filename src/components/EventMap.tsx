@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, Circle } from 'react-leaflet';
 import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { JamBaseEventResponse } from '@/services/jambaseEventsService';
+import { JamBaseEventResponse } from '@/types/eventTypes';
 import { useEffect } from 'react';
 
 // Venue grouping interface

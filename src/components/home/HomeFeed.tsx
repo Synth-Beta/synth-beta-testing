@@ -1,25 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { UnifiedFeedService, UnifiedFeedItem } from '@/services/unifiedFeedService';
-import { PersonalizedFeedService, FeedItem, UnifiedFeedResponse } from '@/services/personalizedFeedService';
-import { FriendsService } from '@/services/friendsService';
-import { UserVisibilityService } from '@/services/userVisibilityService';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { PageActions } from '@/components/PageActions';
-import { UserPlus, Users, MessageCircle, Calendar, Music, Loader2, Compass } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { EventDetailsModal } from '@/components/events/EventDetailsModal';
+import React, { useState, useEffect } from 'react';
+import { PersonalizedFeedService, type PersonalizedEvent, type FeedItem } from '@/services/personalizedFeedService';
+import { HomeFeedService, type NetworkEvent, type EventList, type TrendingEvent } from '@/services/homeFeedService';
+import { UnifiedFeedService, type UnifiedFeedItem } from '@/services/unifiedFeedService';
 import { UserEventService } from '@/services/userEventService';
 import { SimpleEventRecommendationService } from '@/services/simpleEventRecommendationService';
+import { UserVisibilityService } from '@/services/userVisibilityService';
+import { supabase } from '@/integrations/supabase/client';
+import { HomeFeedHeader, type DateWindow } from './HomeFeedHeader';
+import { NetworkEventsSection } from './NetworkEventsSection';
+import { EventListsCarousel } from './EventListsCarousel';
+import { CompactEventCard } from './CompactEventCard';
 import { FigmaEventCard } from '@/components/cards/FigmaEventCard';
-import { FigmaReviewCard } from '@/components/cards/FigmaReviewCard';
-import { GroupChatCard } from '@/components/cards/GroupChatCard';
-import { FriendSuggestionsRail, FriendSuggestion } from '@/components/feed/FriendSuggestionsRail';
-import { GroupChatsRail, GroupChatSuggestion } from '@/components/feed/GroupChatsRail';
+import { NetworkReviewCard } from './NetworkReviewCard';
+import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { EventDetailsModal } from '@/components/events/EventDetailsModal';
+import { Loader2, Users, Sparkles, TrendingUp, Search, UserPlus, UserCheck } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface HomeFeedProps {
   currentUserId: string;
@@ -29,21 +28,58 @@ interface HomeFeedProps {
   onViewChange?: (view: 'feed' | 'search' | 'profile') => void;
 }
 
-interface SuggestedUser {
-  user_id: string;
-  name: string;
-  username?: string | null;
-  avatar_url?: string | null;
-  bio?: string | null;
-  mutual_friends?: number;
-  common_artists?: string[];
-}
+export const HomeFeed: React.FC<HomeFeedProps> = ({
+  currentUserId,
+  onNavigateToProfile,
+  onNavigateToChat,
+  onNavigateToNotifications,
+  onViewChange,
+}) => {
+  // Header state
+  const [activeCity, setActiveCity] = useState<string | null>(null);
+  const [dateWindow, setDateWindow] = useState<DateWindow>('next_30_days');
+  const [cityCoordinates, setCityCoordinates] = useState<{ lat: number; lng: number } | null>(null);
 
+  // Feed sections state
+  const [recommendedEvents, setRecommendedEvents] = useState<PersonalizedEvent[]>([]);
+  const [firstDegreeEvents, setFirstDegreeEvents] = useState<NetworkEvent[]>([]);
+  const [secondDegreeEvents, setSecondDegreeEvents] = useState<NetworkEvent[]>([]);
+  const [reviews, setReviews] = useState<UnifiedFeedItem[]>([]);
+  const [eventLists, setEventLists] = useState<EventList[]>([]);
+  const [trendingEvents, setTrendingEvents] = useState<TrendingEvent[]>([]);
+  const [recommendedFriends, setRecommendedFriends] = useState<Array<{
+    connected_user_id: string;
+  name: string;
+    avatar_url?: string;
+    mutual_friends_count?: number;
+    connection_degree: 2 | 3;
+  }>>([]);
+  const [sendingFriendRequests, setSendingFriendRequests] = useState<Set<string>>(new Set());
+  const [sentFriendRequests, setSentFriendRequests] = useState<Set<string>>(new Set());
+
+  // Loading states
+  const [loadingRecommended, setLoadingRecommended] = useState(true);
+  const [loadingNetwork, setLoadingNetwork] = useState(true);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [loadingLists, setLoadingLists] = useState(true);
+  const [loadingTrending, setLoadingTrending] = useState(true);
+  const [loadingRecommendedFriends, setLoadingRecommendedFriends] = useState(false);
+
+  // Event details modal
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
+
+  // Review detail modal
+  const [selectedReview, setSelectedReview] = useState<UnifiedFeedItem | null>(null);
+  const [reviewDetailOpen, setReviewDetailOpen] = useState(false);
+
+  // Friend event interests
 interface FriendEventInterest {
   id: string;
   friend_id: string;
   friend_name: string;
-  friend_avatar?: string | null;
+    friend_avatar?: string;
   event_id: string;
   event_title: string;
   artist_name?: string;
@@ -51,249 +87,242 @@ interface FriendEventInterest {
   event_date?: string;
   created_at: string;
 }
-
-export const HomeFeed: React.FC<HomeFeedProps> = ({
-  currentUserId,
-  onNavigateToNotifications,
-  onNavigateToProfile,
-  onNavigateToChat,
-  onViewChange,
-}) => {
-  const [feedItems, setFeedItems] = useState<(UnifiedFeedItem | { type: 'friend_suggestion', payload: any })[]>([]);
-  const [dismissedFriendRail, setDismissedFriendRail] = useState(false);
-  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
   const [friendEventInterests, setFriendEventInterests] = useState<FriendEventInterest[]>([]);
-  const [hasFriends, setHasFriends] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
-  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
-  const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  // Check if user has friends
+  // Load user's active city
   useEffect(() => {
-    const checkFriends = async () => {
-      try {
-        const friendIds = await UserVisibilityService.getFriendIds(currentUserId);
-        setHasFriends(friendIds.length > 0);
-        
-        // If no friends, load suggested users
-        if (friendIds.length === 0) {
-          await loadSuggestedUsers();
-        }
-      } catch (error) {
-        console.error('Error checking friends:', error);
-        setHasFriends(false);
-      }
-    };
-    
-    checkFriends();
+    loadUserCity();
   }, [currentUserId]);
 
-  // Load initial feed
+  // Load all feed sections when filters change
   useEffect(() => {
-    if (hasFriends !== null) {
-      loadFeed();
-      loadFriendEventInterests();
+    if (activeCity !== undefined) {
+      loadAllFeedSections();
     }
-  }, [currentUserId, hasFriends]);
+  }, [currentUserId, activeCity, dateWindow, cityCoordinates]);
 
-  // Set up intersection observer for infinite scroll
-  useEffect(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
-
-    // Only set up observer if we have more items to load and we're not currently loading
-    if (hasMore && !loadingMore) {
-      observerRef.current = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting && !loadingMore && hasMore) {
-            loadMoreFeed();
-          }
-        },
-        { threshold: 0.1, rootMargin: '100px' } // Start loading 100px before the trigger
-      );
-
-      // Attach observer to the ref element if it exists (use setTimeout to ensure DOM is ready)
-      const attachObserver = () => {
-        if (loadMoreRef.current && observerRef.current) {
-          observerRef.current.observe(loadMoreRef.current);
-        }
-      };
-      
-      // Try immediately and also after a short delay to catch DOM updates
-      attachObserver();
-      const timeoutId = setTimeout(attachObserver, 100);
-      
-      return () => {
-        clearTimeout(timeoutId);
-        if (observerRef.current) {
-          observerRef.current.disconnect();
-        }
-      };
-    }
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingMore, hasMore, feedItems.length]);
-
-  const loadSuggestedUsers = async () => {
+  const loadUserCity = async () => {
     try {
-      // Get users with similar music taste or mutual connections
-      const { data: userProfile } = await supabase
+      const { data, error } = await supabase
         .from('users')
-        .select('user_id, name, avatar_url, bio, username')
+        .select('location_city')
         .eq('user_id', currentUserId)
         .single();
 
-      // Get users who are not already friends
-      const friendIds = await UserVisibilityService.getFriendIds(currentUserId);
-      const excludeIds = [currentUserId, ...friendIds];
-
-      // Get suggested users (users with public profiles and profile pictures)
-      let query = supabase
-        .from('users')
-        .select('user_id, name, username, avatar_url, bio')
-        .not('avatar_url', 'is', null)
-        .eq('is_public', true)
-        .limit(20);
-
-      // Filter out current user and friends using multiple .neq() calls
-      excludeIds.forEach(id => {
-        query = query.neq('user_id', id);
-      });
-
-      const { data: suggested, error } = await query;
-
       if (error) throw error;
-
-      // Calculate mutual friends for each suggested user
-      const suggestedWithMutuals = await Promise.all(
-        (suggested || []).map(async (user) => {
-          const mutualCount = await getMutualFriendsCount(currentUserId, user.user_id);
-          return {
-            ...user,
-            mutual_friends: mutualCount,
-          };
-        })
-      );
-
-      setSuggestedUsers(suggestedWithMutuals.sort((a, b) => (b.mutual_friends || 0) - (a.mutual_friends || 0)));
-    } catch (error) {
-      console.error('Error loading suggested users:', error);
+      if (data?.location_city) {
+        setActiveCity(data.location_city);
+        // Get city coordinates
+        try {
+          const { RadiusSearchService } = await import('@/services/radiusSearchService');
+          const coords = await RadiusSearchService.getCityCoordinates(data.location_city);
+          if (coords) setCityCoordinates(coords);
+        } catch (err) {
+          console.error('Error getting city coordinates:', err);
+        }
+        }
+      } catch (error) {
+      console.error('Error loading user city:', error);
     }
   };
 
-  const getMutualFriendsCount = async (userId1: string, userId2: string): Promise<number> => {
-    try {
-      const friends1 = await UserVisibilityService.getFriendIds(userId1);
-      const friends2 = await UserVisibilityService.getFriendIds(userId2);
-      const mutual = friends1.filter(id => friends2.includes(id));
-      return mutual.length;
-    } catch {
-      return 0;
+  const getDateRange = (): { from?: Date; to?: Date } => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    switch (dateWindow) {
+      case 'today':
+        return { from: today, to: today };
+      case 'this_week':
+        const weekEnd = new Date(today);
+        weekEnd.setDate(today.getDate() + 7);
+        return { from: today, to: weekEnd };
+      case 'weekend':
+        const saturday = new Date(today);
+        saturday.setDate(today.getDate() + ((6 - today.getDay()) % 7));
+        const sunday = new Date(saturday);
+        sunday.setDate(saturday.getDate() + 1);
+        return { from: saturday, to: sunday };
+      case 'next_30_days':
+        const thirtyDays = new Date(today);
+        thirtyDays.setDate(today.getDate() + 30);
+        return { from: today, to: thirtyDays };
+      default:
+        return {};
     }
   };
 
-  const loadFeed = async () => {
-    setLoading(true);
-    setHasMore(true);
-    setOffset(0);
+  const loadAllFeedSections = async () => {
+    const dateRange = getDateRange();
+    const filters = {
+      selectedCities: activeCity ? [activeCity] : undefined,
+      dateRange,
+    };
+
+    // Load all sections in parallel
+    Promise.all([
+      loadRecommendedEvents(filters),
+      loadNetworkEvents(),
+      loadReviews(),
+      loadEventLists(),
+      loadTrendingEvents(),
+      loadRecommendedFriends(),
+    ]);
+  };
+
+  const loadRecommendedEvents = async (filters: any) => {
+    setLoadingRecommended(true);
     try {
-      // Use v3 unified feed
-      const feedResponse = await PersonalizedFeedService.getPersonalizedFeedV3(
+      const events = await PersonalizedFeedService.getPersonalizedFeed(
         currentUserId,
         20,
-        0
+        0,
+        false,
+        filters
       );
-
-      // Transform v3 feed items - keep all types, separate rails from scrollable items
-      const transformedItems = feedResponse.items.map(item => transformV3FeedItem(item));
-      
-      // Note: Recommendations are already included in v3 feed as events, 
-      // so we don't need to insert additional recommendations - all items are already in one continuous feed
-      // Filter out duplicates by ID to prevent React key warnings
-      setFeedItems(transformedItems);
-      setOffset(20);
-      
-      // If we got fewer items than requested, we've reached the end
-      setHasMore(feedResponse.items.length >= 20);
+      setRecommendedEvents(events);
     } catch (error) {
-      console.error('Error loading feed:', error);
-      // Fallback to old feed if v3 fails
+      console.error('Error loading recommended events:', error);
+      setRecommendedEvents([]);
+    } finally {
+      setLoadingRecommended(false);
+    }
+  };
+
+  const loadNetworkEvents = async () => {
+    setLoadingNetwork(true);
     try {
-      const items = await UnifiedFeedService.getFeedItems({
+      const [firstDegree, secondDegree] = await Promise.all([
+        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, 10),
+        HomeFeedService.getSecondDegreeNetworkEvents(currentUserId, 8),
+      ]);
+      setFirstDegreeEvents(firstDegree);
+      setSecondDegreeEvents(secondDegree);
+    } catch (error) {
+      console.error('Error loading network events:', error);
+      setFirstDegreeEvents([]);
+      setSecondDegreeEvents([]);
+    } finally {
+      setLoadingNetwork(false);
+    }
+  };
+
+  const loadReviews = async () => {
+    setLoadingReviews(true);
+    try {
+      const feedItems = await UnifiedFeedService.getFeedItems({
         userId: currentUserId,
-        feedType: hasFriends ? 'friends' : 'public_only',
+        feedType: 'friends_plus_one',
         limit: 20,
         offset: 0,
       });
-        setFeedItems(items);
-        setHasMore(items.length >= 20);
-      } catch (fallbackError) {
-        console.error('Error loading fallback feed:', fallbackError);
-      setFeedItems([]);
-      setHasMore(false);
-      }
+      // Filter to only reviews
+      const reviewItems = feedItems.filter((item) => item.type === 'review');
+      setReviews(reviewItems);
+    } catch (error) {
+      console.error('Error loading reviews:', error);
+      setReviews([]);
     } finally {
-      setLoading(false);
+      setLoadingReviews(false);
     }
   };
 
-  const loadMoreFeed = async () => {
-    if (loadingMore || !hasMore) return;
-    
-    setLoadingMore(true);
+  const loadEventLists = async () => {
+    setLoadingLists(true);
     try {
-      // Use v3 unified feed
-      const feedResponse = await PersonalizedFeedService.getPersonalizedFeedV3(
-        currentUserId,
-        20,
-        offset
-      );
+      const lists = await HomeFeedService.getEventLists(currentUserId, 3);
+      setEventLists(lists);
+    } catch (error) {
+      console.error('Error loading event lists:', error);
+      setEventLists([]);
+    } finally {
+      setLoadingLists(false);
+    }
+  };
 
-      if (feedResponse.items.length > 0) {
-        // Transform v3 feed items - keep all types
-        const transformedItems = feedResponse.items.map(item => transformV3FeedItem(item));
-        
-        // Filter out duplicates by ID before appending
-        setFeedItems(prev => {
-          const existingIds = new Set(
-            prev.map(item => 'id' in item ? item.id : (item as any).payload?.users ? 'friend_suggestion_rail' : 'unknown')
-          );
-          const newItems = transformedItems.filter(item => {
-            if ('id' in item) {
-              return !existingIds.has(item.id);
-            } else if ((item as any).type === 'friend_suggestion') {
-              return !existingIds.has('friend_suggestion_rail');
-            }
-            return true;
-          });
-          return [...prev, ...newItems];
-        });
-        setOffset(prev => prev + 20);
-        
-        // If we got fewer items than requested, we've reached the end
-        setHasMore(feedResponse.items.length >= 20);
+  const loadTrendingEvents = async () => {
+    setLoadingTrending(true);
+    try {
+      const events = await HomeFeedService.getTrendingEvents(
+        currentUserId,
+        cityCoordinates?.lat,
+        cityCoordinates?.lng,
+        50,
+        12
+      );
+      setTrendingEvents(events);
+    } catch (error) {
+      console.error('Error loading trending events:', error);
+      setTrendingEvents([]);
+    } finally {
+      setLoadingTrending(false);
+    }
+  };
+
+  const loadRecommendedFriends = async () => {
+    setLoadingRecommendedFriends(true);
+    try {
+      const [secondDegreeRes, thirdDegreeRes] = await Promise.allSettled([
+        supabase.rpc('get_second_degree_connections', { target_user_id: currentUserId }),
+        supabase.rpc('get_third_degree_connections', { target_user_id: currentUserId }),
+      ]);
+
+      const secondDegree = secondDegreeRes.status === 'fulfilled' && !secondDegreeRes.value.error && secondDegreeRes.value.data
+        ? secondDegreeRes.value.data.map((f: any) => ({ ...f, connection_degree: 2 as const }))
+        : [];
+
+      const thirdDegree = thirdDegreeRes.status === 'fulfilled' && !thirdDegreeRes.value.error && thirdDegreeRes.value.data
+        ? thirdDegreeRes.value.data.map((f: any) => ({ ...f, connection_degree: 3 as const }))
+        : [];
+
+      // Combine and sort by mutual friends count (if available) or connection degree
+      const allFriends = [...secondDegree, ...thirdDegree]
+        .sort((a, b) => {
+          // Prioritize by mutual friends count, then by connection degree (2nd before 3rd)
+          const aMutual = a.mutual_friends_count || 0;
+          const bMutual = b.mutual_friends_count || 0;
+          if (aMutual !== bMutual) return bMutual - aMutual;
+          return a.connection_degree - b.connection_degree;
+        })
+        .slice(0, 20); // Limit to 20 recommended friends
+
+      setRecommendedFriends(allFriends);
+    } catch (error) {
+      console.error('Error loading recommended friends:', error);
+      setRecommendedFriends([]);
+    } finally {
+      setLoadingRecommendedFriends(false);
+    }
+  };
+
+  const handleAddFriend = async (friendUserId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click from triggering
+    setSendingFriendRequests(prev => new Set(prev).add(friendUserId));
+    
+    try {
+      const { error } = await supabase.rpc('create_friend_request', {
+        receiver_user_id: friendUserId,
+      });
+
+      if (error) {
+        if (error.message?.includes('already sent') || error.message?.includes('already friends')) {
+          // Request already sent or already friends
+          setSentFriendRequests(prev => new Set(prev).add(friendUserId));
       } else {
-        // No more items
-        setHasMore(false);
+          throw error;
+        }
+      } else {
+        setSentFriendRequests(prev => new Set(prev).add(friendUserId));
       }
     } catch (error) {
-      console.error('Error loading more feed:', error);
-      // On error, stop trying to load more to prevent infinite error loops
-      setHasMore(false);
+      console.error('Error sending friend request:', error);
+      // You could add a toast notification here if needed
     } finally {
-      setLoadingMore(false);
+      setSendingFriendRequests(prev => {
+        const next = new Set(prev);
+        next.delete(friendUserId);
+        return next;
+      });
     }
   };
 
@@ -545,12 +574,12 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
     }
   };
 
-  const handleEventClick = async (event: any) => {
+  const handleEventClick = async (eventId: string) => {
     try {
       const { data } = await supabase
         .from('events')
         .select('*')
-        .eq('id', event.id || event.event_id)
+        .eq('id', eventId)
         .single();
 
       if (data) {
@@ -564,331 +593,334 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
     }
   };
 
-  const renderFeedItem = (item: UnifiedFeedItem, index: number) => {
-    if (item.type === 'group_chat' && item.group_chat_data) {
-      return (
-        <GroupChatCard
-          key={`group-chat-${item.id}-${index}`}
-          chat={{
-            chat_id: item.group_chat_data?.chat_id || '',
-            chat_name: item.group_chat_data?.chat_name || 'Group Chat',
-            member_count: item.group_chat_data?.member_count,
-            friends_in_chat_count: item.group_chat_data?.friends_in_chat_count,
-            created_at: item.group_chat_data?.created_at || item.created_at,
-          }}
-          onChatClick={(chatId) => {
-            // TODO: Navigate to chat
-            console.log('Open chat:', chatId);
-          }}
-          onJoinChat={async (chatId) => {
-            // TODO: Implement join chat
-            console.log('Join chat:', chatId);
-          }}
-        />
-      );
-    }
 
-    if (item.type === 'review') {
-      return (
-        <div key={`review-${item.id}-${index}`} className="w-full flex justify-center">
-          <div className="w-full max-w-[353px]">
-            <FigmaReviewCard
-            review={{
-              id: item.id,
-              user_id: item.author.id || '',
-              user_name: item.author.name || 'User',
-              user_avatar: item.author.avatar_url,
-              created_at: item.created_at || new Date().toISOString(),
-              artist_name: item.event_info?.artist_name,
-              venue_name: item.event_info?.venue_name,
-              rating: item.rating || 0,
-              review_text: item.content || '',
-              likes_count: item.likes_count || 0,
-              comments_count: item.comments_count || 0,
-            }}
-            isLiked={item.is_liked || false}
-            onLike={() => {
-              // TODO: Implement like functionality
-            }}
-            onComment={() => {
-              // TODO: Implement comment functionality
-            }}
-            onShare={() => {
-              // TODO: Implement share functionality
-            }}
-            onOpenArtist={(artistName) => {
-              // TODO: Navigate to artist profile
-            }}
-            onOpenVenue={(venueName) => {
-              // TODO: Navigate to venue profile
-            }}
-            onClick={() => {
-              // TODO: Open review detail
-            }}
-          />
-          </div>
-        </div>
-      );
+  const getSocialProof = (event: PersonalizedEvent): string | null => {
+    if (event.friends_interested_count && event.friends_interested_count > 0) {
+      return `${event.friends_interested_count} friend${event.friends_interested_count !== 1 ? 's' : ''} going`;
     }
-
-    if (item.type === 'event') {
-      const event = item.event_data;
-      const isInterested = (event as any)?.is_interested || false;
-      const commentsCount = (event as any)?.comments_count || 0;
-      const hasFriendsGoing = event?.has_friends_going || false;
-      const friendInterestCount = event?.friend_interest_count || 0;
-      
-      return (
-        <div key={`event-${item.id}-${index}`} className="w-full flex flex-col items-center">
-          <div className="w-full max-w-[353px]">
-            {hasFriendsGoing && friendInterestCount >= 2 && (
-              <div className="mb-2 px-4 py-2 bg-synth-pink/10 border border-synth-pink/20 rounded-lg w-full">
-                <div className="flex items-center gap-2 text-sm text-synth-pink font-medium">
-                  <Users className="h-4 w-4" />
-                  <span>{friendInterestCount} friend{friendInterestCount !== 1 ? 's' : ''} {friendInterestCount > 1 ? 'are' : 'is'} going</span>
-                </div>
-              </div>
-            )}
-            <FigmaEventCard
-            event={{
-              id: event?.id || item.id,
-              title: event?.title || event?.artist_name || 'Event',
-              artist_name: event?.artist_name,
-              venue_name: event?.venue_name,
-              venue_city: event?.venue_city,
-              event_date: event?.event_date,
-              price_range: event?.price_range,
-            }}
-            isInterested={isInterested}
-            commentsCount={commentsCount}
-            onInterestToggle={async () => {
-              if (event?.id) {
-                try {
-                  const interested = await UserEventService.isUserInterested(currentUserId, event.id);
-                  await UserEventService.setEventInterest(currentUserId, event.id, !interested);
-                  // Refresh feed or update state
-                } catch (error) {
-                  console.error('Error toggling interest:', error);
-                }
-              }
-            }}
-            onComment={() => {
-              // TODO: Open comments
-            }}
-            onShare={() => {
-              // TODO: Open share modal
-            }}
-            onClick={() => handleEventClick(event)}
-          />
-          </div>
-        </div>
-      );
+    if (event.interested_count && event.interested_count > 0) {
+      return `${event.interested_count} people interested`;
     }
-
     return null;
   };
 
-  // Separate rails from scrollable feed items (must be before return statement)
-  const { friendRail, groupChatRail, scrollableItems } = React.useMemo(() => {
-    let friendRailItem: { type: 'friend_suggestion', payload: any } | null = null;
-    let groupChatRailItem: UnifiedFeedItem | null = null;
-    const scrollable: UnifiedFeedItem[] = [];
-    const seenIds = new Set<string>();
-    let groupChatCount = 0;
-
-    for (const item of feedItems) {
-      // Generate a unique identifier for this item to prevent duplicates
-      const itemId = 'id' in item && item.id ? item.id : `${(item as any).type}-${JSON.stringify((item as any).payload)}`;
-      
-      // Skip duplicates
-      if (seenIds.has(itemId)) {
-        continue;
-      }
-      seenIds.add(itemId);
-
-      if ('type' in item && (item as any).type === 'friend_suggestion') {
-        friendRailItem = item as any;
-      } else if ('type' in item && (item as UnifiedFeedItem).type === 'group_chat') {
-        groupChatCount++;
-        // First group_chat is the rail
-        if (groupChatCount === 1 && !groupChatRailItem) {
-          groupChatRailItem = item as UnifiedFeedItem;
-        } else {
-          scrollable.push(item as UnifiedFeedItem);
-        }
-      } else {
-        scrollable.push(item as UnifiedFeedItem);
-      }
+  const getRecommendationReason = (event: PersonalizedEvent): string => {
+    // Simple heuristic - could be enhanced with actual relevance data
+    if (event.friends_interested_count && event.friends_interested_count > 0) {
+      return 'Because your friends are going';
     }
-
-    return {
-      friendRail: friendRailItem,
-      groupChatRail: groupChatRailItem,
-      scrollableItems: scrollable,
-    };
-  }, [feedItems]);
+    if (event.relevance_score && event.relevance_score > 0.7) {
+      return 'Because you rated similar shows highly';
+    }
+    return 'Based on your preferences';
+  };
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc]">
-      <div className="w-full max-w-full sm:max-w-2xl lg:max-w-5xl mx-auto px-0 sm:px-4 pt-8 sm:pt-10 pb-24 sm:pb-28">
-        <Card className="border-none bg-gradient-to-br from-rose-50 via-white to-amber-50 shadow-sm w-full rounded-none sm:rounded-lg">
-          <CardContent className="p-0">
-            <div className="bg-white/85 rounded-none sm:rounded-3xl border-0 sm:border border-white/60 shadow-inner p-2 sm:p-4 md:p-6">
-              {/* Buffer space after header */}
-              <div className="h-12 sm:h-16"></div>
+    <div className="min-h-screen bg-[#fcfcfc] pb-[max(2rem,env(safe-area-inset-bottom))]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-6 space-y-2">
+        {/* Search Bar - Integrated Design with Pink Accent */}
+        <div className="mb-2">
+          <button
+            onClick={() => onViewChange?.('search')}
+            className="w-full flex items-center gap-2 px-3 py-2 bg-synth-pink/5 border border-synth-pink/30 rounded-lg hover:border-synth-pink/60 hover:bg-synth-pink/10 transition-all text-left"
+          >
+            <Search className="h-4 w-4 text-synth-pink" />
+            <span className="text-gray-600 text-xs">Search events, artists, venues</span>
+          </button>
+        </div>
 
-              {/* Suggested Users (shown when no friends) */}
-              {!hasFriends && suggestedUsers.length > 0 && (
-                <div className="mb-6">
-                  <h2 className="text-lg font-semibold mb-3">Suggested Users</h2>
-                  <div className="flex gap-3 overflow-x-auto pb-2">
-                    {suggestedUsers.map((user) => (
-                      <div
-                        key={user.user_id}
-                        className="flex-shrink-0 w-24 text-center cursor-pointer"
-                        onClick={() => onNavigateToProfile?.(user.user_id)}
-                      >
-                        <Avatar className="w-20 h-20 mx-auto mb-2">
-                          <AvatarImage src={user.avatar_url || undefined} />
-                          <AvatarFallback>{user.name[0]}</AvatarFallback>
-                        </Avatar>
-                        <p className="text-xs font-medium truncate">{user.name}</p>
-                        {user.mutual_friends && user.mutual_friends > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            {user.mutual_friends} mutual
-                          </p>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="mt-2 w-full"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // TODO: Implement follow functionality
-                          }}
-                        >
-                          <UserPlus className="w-3 h-3 mr-1" />
-                          Follow
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Friend Event Interests */}
-              {hasFriends && friendEventInterests.length > 0 && (
-                <div className="mb-6">
-                  <h2 className="text-lg font-semibold mb-3">Friends' Events</h2>
-                  <div className="space-y-2">
-                    {friendEventInterests.slice(0, 5).map((interest) => (
-                      <Card
-                        key={interest.id}
-                        className="cursor-pointer hover:shadow-md transition-shadow"
-                        onClick={() => handleEventClick({ id: interest.event_id })}
-                      >
-                        <CardContent className="p-3">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="w-10 h-10">
-                              <AvatarImage src={interest.friend_avatar || undefined} />
-                              <AvatarFallback>{interest.friend_name[0]}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">
-                                {interest.friend_name} is interested
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {interest.event_title}
-                              </p>
-                            </div>
-                            <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Friend Suggestions Rail */}
-              {friendRail && !dismissedFriendRail && (
-                <FriendSuggestionsRail
-                  suggestions={(friendRail.payload?.users || []) as FriendSuggestion[]}
-                  onUserClick={(userId) => onNavigateToProfile?.(userId)}
-                  onDismiss={() => setDismissedFriendRail(true)}
-                  onAddFriend={async (userId) => {
-                    try {
-                      const { data, error } = await supabase.rpc('create_friend_request', {
-                        receiver_user_id: userId
-                      });
-                      
-                      if (error) {
-                        console.error('Error sending friend request:', error);
-                        throw error;
-                      }
-                      
-                      console.log('Friend request sent successfully:', data);
-                    } catch (error: any) {
-                      console.error('Error sending friend request:', error);
-                      // Error is already logged, the component will handle the state update
-                      throw error;
-                    }
-                  }}
-                />
-              )}
-
-              {/* Group Chats Rail */}
-              {groupChatRail && groupChatRail.type === 'group_chat' && groupChatRail.group_chat_data && (
-                <GroupChatsRail
-                  chats={[{
-                    chat_id: groupChatRail.group_chat_data.chat_id,
-                    chat_name: groupChatRail.group_chat_data.chat_name,
-                    member_count: groupChatRail.group_chat_data.member_count,
-                    friends_in_chat_count: groupChatRail.group_chat_data.friends_in_chat_count,
-                    created_at: groupChatRail.group_chat_data.created_at,
-                  }] as GroupChatSuggestion[]}
-                  onChatClick={(chatId) => {
-                    // TODO: Navigate to chat
-                    console.log('Open chat:', chatId);
-                  }}
-                  onJoinChat={async (chatId) => {
-                    // TODO: Implement join chat
-                    console.log('Join chat:', chatId);
-                  }}
-                />
-              )}
-
-              {/* Main Feed */}
-              <div className="space-y-4">
-                {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : scrollableItems.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p>No posts yet. Start following people to see their reviews!</p>
-                  </div>
-                ) : (
-                  scrollableItems.map((item, index) => renderFeedItem(item, index))
-                )}
-
-                {/* Load more trigger - only show if we have more items to load */}
-                {hasMore && (
-                  <div ref={loadMoreRef} className="h-10 flex items-center justify-center py-4">
-                    {loadingMore && (
-                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
-                )}
-                {!hasMore && feedItems.length > 0 && (
-                  <div className="h-10 flex items-center justify-center text-sm text-muted-foreground py-4">
-                    You've reached the end of the feed
-                  </div>
+        {/* Recommended Friends Accordion - Open by default */}
+        <Accordion type="single" collapsible defaultValue="recommended-friends" className="w-full mb-2">
+          <AccordionItem value="recommended-friends" className="border border-gray-200 rounded-xl px-3 py-2 bg-white">
+            <AccordionTrigger className="hover:no-underline py-2">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-4 w-4 text-synth-pink" />
+                <h2 className="text-base font-bold">Recommended Friends</h2>
+                {recommendedFriends.length > 0 && (
+                  <span className="text-xs text-muted-foreground">({recommendedFriends.length})</span>
                 )}
               </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2">
+              {loadingRecommendedFriends ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : recommendedFriends.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No recommended friends at this time.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto pb-2 scrollbar-hide">
+                  <div className="flex gap-3" style={{ width: 'max-content' }}>
+                    {recommendedFriends.map((friend) => {
+                      const isSending = sendingFriendRequests.has(friend.connected_user_id);
+                      const isSent = sentFriendRequests.has(friend.connected_user_id);
+                      
+                      return (
+                        <div
+                          key={friend.connected_user_id}
+                          className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden cursor-pointer group relative bg-gray-100 hover:shadow-lg transition-all duration-200"
+                          onClick={() => onNavigateToProfile?.(friend.connected_user_id)}
+                        >
+                          {/* Avatar fills entire card */}
+                          <Avatar className="w-full h-full rounded-lg">
+                            <AvatarImage src={friend.avatar_url || undefined} className="object-cover" />
+                            <AvatarFallback className="bg-gradient-to-br from-synth-pink/20 to-synth-pink/40 text-synth-pink text-base font-semibold rounded-lg">
+                              {friend.name ? friend.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+                            </AvatarFallback>
+                        </Avatar>
+                          
+                          {/* Overlay with info on hover */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                            <div className="absolute bottom-0 left-0 right-0 p-1.5 text-white">
+                              <p className="text-[10px] font-semibold line-clamp-1 mb-0.5">{friend.name}</p>
+                              {friend.mutual_friends_count && friend.mutual_friends_count > 0 && (
+                                <p className="text-[9px] opacity-90">{friend.mutual_friends_count} mutual</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Bottom info bar (always visible) */}
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1">
+                            <p className="text-[10px] font-medium text-white line-clamp-1 truncate">
+                              {friend.name}
+                            </p>
+                          </div>
+
+                          {/* Add Friend Button - positioned absolutely */}
+                          <div
+                            className="absolute top-1 right-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAddFriend(friend.connected_user_id, e);
+                            }}
+                          >
+                        <Button
+                          size="sm"
+                              variant={isSent ? "outline" : "default"}
+                              className={`h-5 w-5 p-0 ${
+                                isSent 
+                                  ? "bg-white/90 text-gray-600 border-gray-300" 
+                                  : "bg-synth-pink hover:bg-synth-pink/90 text-white border-0"
+                              }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                                handleAddFriend(friend.connected_user_id, e);
+                              }}
+                              disabled={isSending || isSent}
+                            >
+                              {isSending ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : isSent ? (
+                                <UserCheck className="w-3 h-3" />
+                              ) : (
+                                <UserPlus className="w-3 h-3" />
+                              )}
+                        </Button>
+                      </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
+        {/* Collapsible Event Sections */}
+        <Accordion type="multiple" className="w-full space-y-2">
+          {/* 1. Recommended for You */}
+          <AccordionItem value="recommended" className="border border-gray-200 rounded-xl px-3 py-2 bg-white">
+            <AccordionTrigger className="hover:no-underline py-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-synth-pink" />
+                <h2 className="text-base font-bold">Recommended</h2>
+                {recommendedEvents.length > 0 && (
+                  <span className="text-xs text-muted-foreground">({recommendedEvents.length})</span>
+                )}
+                            </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2">
+              {loadingRecommended ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                          </div>
+              ) : recommendedEvents.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  <p>No recommendations yet.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto pb-2 scrollbar-hide">
+                  <div className="flex gap-3" style={{ width: 'max-content' }}>
+                    {recommendedEvents.map((event) => (
+                      <CompactEventCard
+                        key={event.id}
+                        event={{
+                          id: event.id || '',
+                          title: event.title || event.artist_name || 'Event',
+                          artist_name: event.artist_name,
+                          venue_name: event.venue_name,
+                          event_date: event.event_date,
+                          venue_city: event.venue_city || undefined,
+                          image_url: event.images?.[0]?.url || undefined,
+                          poster_image_url: event.poster_image_url || undefined,
+                        }}
+                        onClick={() => handleEventClick(event.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* 2. Trending */}
+          <AccordionItem value="trending" className="border border-gray-200 rounded-xl px-3 py-2 bg-white">
+            <AccordionTrigger className="hover:no-underline py-2">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-synth-pink" />
+                <h2 className="text-base font-bold">Trending</h2>
+                {trendingEvents.length > 0 && (
+                  <span className="text-xs text-muted-foreground">({trendingEvents.length})</span>
+                )}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2">
+              {loadingTrending ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : trendingEvents.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  <p>No trending events right now.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto pb-2 scrollbar-hide">
+                  <div className="flex gap-3" style={{ width: 'max-content' }}>
+                    {trendingEvents.map((event) => (
+                      <CompactEventCard
+                        key={event.event_id}
+                        event={{
+                          id: event.event_id,
+                          title: event.title,
+                          artist_name: event.artist_name,
+                          venue_name: event.venue_name,
+                          event_date: event.event_date,
+                          venue_city: event.venue_city,
+                          image_url: event.images?.[0]?.url || undefined,
+                          poster_image_url: event.images?.[0]?.url || undefined,
+                        }}
+                        onClick={() => handleEventClick(event.event_id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* 3. Friends Interested */}
+          <AccordionItem value="friends" className="border border-gray-200 rounded-xl px-3 py-2 bg-white">
+            <AccordionTrigger className="hover:no-underline py-2">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-synth-pink" />
+                <h2 className="text-base font-bold">Friends Interested</h2>
+                {(() => {
+                  const totalInterested = [...firstDegreeEvents, ...secondDegreeEvents].reduce((sum, event) => {
+                    return sum + (event.interested_count || 1);
+                  }, 0);
+                  return totalInterested > 0 ? (
+                    <span className="text-xs text-muted-foreground">({totalInterested})</span>
+                  ) : null;
+                })()}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2">
+              {loadingNetwork ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  <p>No friends interested in events yet.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto pb-2 scrollbar-hide">
+                  <div className="flex gap-3" style={{ width: 'max-content' }}>
+                    {[...firstDegreeEvents, ...secondDegreeEvents].map((event) => (
+                      <CompactEventCard
+                        key={`${event.event_id}-${event.friend_id}`}
+                        event={{
+                          id: event.event_id,
+                          title: event.title,
+                          artist_name: event.artist_name,
+                          venue_name: event.venue_name,
+                          event_date: event.event_date,
+                          venue_city: event.venue_city,
+                          image_url: event.images?.[0]?.url || undefined,
+                          poster_image_url: event.images?.[0]?.url || undefined,
+                        }}
+                        onClick={() => handleEventClick(event.event_id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
+        {/* 3. Reviews Feed */}
+        <section className="mt-2">
+          <h2 className="text-lg font-bold mb-2">Reviews Feed</h2>
+          {loadingReviews ? (
+            <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  </div>
+          ) : reviews.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>No reviews yet. Be the first to review an event!</p>
+                  </div>
+                ) : (
+            <div className="space-y-2">
+              {reviews.map((review) => (
+                <NetworkReviewCard
+                  key={review.id}
+                  review={{
+                    id: review.id,
+                    author: {
+                      id: review.author.id,
+                      name: review.author.name,
+                      avatar_url: review.author.avatar_url,
+                    },
+                    created_at: review.created_at,
+                    rating: review.rating,
+                    content: review.content,
+                    photos: review.photos,
+                    event_info: review.event_info,
+                  }}
+                  onClick={() => {
+                    setSelectedReview(review);
+                    setReviewDetailOpen(true);
+                  }}
+                />
+              ))}
             </div>
-          </CardContent>
-        </Card>
+              )}
+        </section>
+
+        {/* 4. Lists & Collections */}
+        <section>
+          {loadingLists ? (
+            <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  </div>
+          ) : (
+            <EventListsCarousel lists={eventLists} onEventClick={handleEventClick} />
+          )}
+        </section>
       </div>
 
       {/* Event Details Modal */}
@@ -917,7 +949,56 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
           onNavigateToChat={onNavigateToChat}
         />
       )}
+
+      {/* Review Detail Modal */}
+      {reviewDetailOpen && selectedReview && (
+        <Dialog open={reviewDetailOpen} onOpenChange={setReviewDetailOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <BelliStyleReviewCard
+              review={{
+                id: selectedReview.review_id || selectedReview.id,
+                user_id: selectedReview.author.id,
+                event_id: (selectedReview.event_info as any)?.event_id || '',
+                rating: selectedReview.rating || 0,
+                review_text: selectedReview.content || '',
+                is_public: selectedReview.is_public ?? true,
+                created_at: selectedReview.created_at,
+                updated_at: selectedReview.updated_at || selectedReview.created_at,
+                likes_count: selectedReview.likes_count || 0,
+                comments_count: selectedReview.comments_count || 0,
+                shares_count: selectedReview.shares_count || 0,
+                is_liked_by_user: selectedReview.is_liked || false,
+                reaction_emoji: '',
+                photos: selectedReview.photos || [],
+                videos: [],
+                mood_tags: [],
+                genre_tags: [],
+                context_tags: [],
+                artist_name: selectedReview.event_info?.artist_name,
+                artist_id: selectedReview.event_info?.artist_id,
+                venue_name: selectedReview.event_info?.venue_name,
+                venue_id: (selectedReview.event_info as any)?.venue_id,
+              }}
+              currentUserId={currentUserId}
+              onLike={async () => {
+                // TODO: Implement like functionality
+              }}
+              onComment={() => {
+                // TODO: Implement comment functionality
+              }}
+              onShare={() => {
+                // TODO: Implement share functionality
+              }}
+              userProfile={{
+                name: selectedReview.author.name,
+                avatar_url: selectedReview.author.avatar_url,
+                verified: selectedReview.author.verified,
+                account_type: selectedReview.author.account_type,
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
-

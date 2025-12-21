@@ -37,7 +37,7 @@ import { formatPrice } from '@/utils/currencyUtils';
 import { EventReviewsSection } from '@/components/reviews/EventReviewsSection';
 import { ArtistVenueReviews } from '@/components/reviews/ArtistVenueReviews';
 import { EventMap } from '@/components/EventMap';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { PromotionTrackingService } from '@/services/promotionTrackingService';

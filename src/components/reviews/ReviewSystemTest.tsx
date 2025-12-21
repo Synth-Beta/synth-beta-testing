@@ -5,7 +5,7 @@ import { ReviewService } from '@/services/reviewService';
 import { EventReviewsSection } from './EventReviewsSection';
 import { PublicReviewList } from './PublicReviewList';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 
 interface ReviewSystemTestProps {
   userId?: string;

@@ -49,7 +49,6 @@ import {
   Loader2,
   Ticket
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { CityService } from '@/services/cityService';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -102,10 +101,9 @@ import { parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { normalizeCityName } from '@/utils/cityNormalization';
 import { RadiusSearchService } from '@/services/radiusSearchService';
 import { useNavigate } from 'react-router-dom';
-import type { JamBaseEventResponse } from '@/services/jambaseEventsService';
+import type { JamBaseEventResponse, JamBaseEvent } from '@/types/eventTypes';
 import { UnifiedEventSearchService, type UnifiedEvent } from '@/services/unifiedEventSearchService';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
-import { JamBaseEventsService } from '@/services/jambaseEventsService';
+import { supabase } from '@/integrations/supabase/client';
 
 const DEFAULT_MAP_CENTER: [number, number] = [39.8283, -98.5795];
 
@@ -320,61 +318,25 @@ export const UnifiedFeed = ({
         const artistName = artistDialog.artist.name;
         console.log('🎫 Fetching Ticketmaster events for artist dialog:', artistName);
 
-        // Fetch from database first
-        const dbEventsResult = await JamBaseEventsService.getEventsFromDatabase(artistName, {
-          page: 1,
-          perPage: 50,
-          eventType: 'all'
-        });
+        // Fetch from database only
+        const { data: dbEventsData, error } = await supabase
+          .from('events')
+          .select('*')
+          .ilike('artist_name', `%${artistName}%`)
+          .order('event_date', { ascending: true })
+          .limit(200);
 
-        // Call Ticketmaster API
-        let ticketmasterEvents: JamBaseEvent[] = [];
-        try {
-          const tmEvents = await UnifiedEventSearchService.searchByArtist({
-            artistName,
-            includePastEvents: true,
-            pastEventsMonths: 3,
-            limit: 200
-          });
-
-          ticketmasterEvents = tmEvents.map(event => ({
-            id: event.id,
-            jambase_event_id: event.jambase_event_id || event.ticketmaster_event_id,
-            ticketmaster_event_id: event.ticketmaster_event_id,
-            title: event.title,
-            artist_name: event.artist_name,
-            artist_id: event.artist_id,
-            venue_name: event.venue_name,
-            venue_id: event.venue_id,
-            event_date: event.event_date,
-            doors_time: event.doors_time,
-            description: event.description,
-            genres: event.genres,
-            venue_address: event.venue_address,
-            venue_city: event.venue_city,
-            venue_state: event.venue_state,
-            venue_zip: event.venue_zip,
-            latitude: event.latitude,
-            longitude: event.longitude,
-            ticket_available: event.ticket_available,
-            price_range: event.price_range,
-            ticket_urls: event.ticket_urls,
-            external_url: event.external_url,
-            setlist: event.setlist,
-            tour_name: event.tour_name,
-            source: event.source || 'ticketmaster'
-          } as JamBaseEvent));
-        } catch (tmError) {
-          console.warn('⚠️ Ticketmaster API call failed:', tmError);
+        if (error) {
+          console.error('Error fetching events:', error);
+          return;
         }
 
-        // Merge and deduplicate
-        const dbEvents: JamBaseEvent[] = (dbEventsResult.events || []).map(event => ({
+        const dbEvents: JamBaseEvent[] = (dbEventsData || []).map(event => ({
           ...event,
-          source: event.source || 'jambase'
+          source: 'manual'
         }));
 
-        const allEvents = [...dbEvents, ...ticketmasterEvents];
+        const allEvents = [...dbEvents];
         const deduplicatedEvents = deduplicateEvents(allEvents);
         deduplicatedEvents.sort((a, b) => 
           new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
@@ -412,7 +374,7 @@ export const UnifiedFeed = ({
       
       if (seen.has(key)) {
         const existing = seen.get(key)!;
-        if (event.source === 'ticketmaster' && existing.source !== 'ticketmaster') {
+        if (false) { // Removed Ticketmaster preference logic
           seen.set(key, event);
           return true;
         }

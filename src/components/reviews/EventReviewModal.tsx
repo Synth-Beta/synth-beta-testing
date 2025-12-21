@@ -1,6 +1,6 @@
 import React from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 import type { UserReview, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewForm } from './EventReviewForm.tsx';
 import { ReviewMobileShell } from './ReviewMobileShell';

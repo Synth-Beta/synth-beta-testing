@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { ReviewService } from './reviewService';
-import { JamBaseEventResponse } from './jambaseEventsService';
+import { JamBaseEventResponse } from '@/types/eventTypes';
 import { PersonalizedFeedService, PersonalizedEvent } from './personalizedFeedService';
 import { FriendsReviewService } from './friendsReviewService';
 

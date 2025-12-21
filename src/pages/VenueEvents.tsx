@@ -27,7 +27,7 @@ import {
   Navigation
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -393,58 +393,13 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
         setVenueLocation(locationParts.length > 0 ? locationParts.join(', ') : 'Location TBD');
       }
 
-      // Call Ticketmaster API to fetch upcoming and past events
-      let ticketmasterEvents: UnifiedEvent[] = [];
-      try {
-        console.log('🎫 Fetching Ticketmaster events for venue:', venueNameToSearch);
-        ticketmasterEvents = await UnifiedEventSearchService.searchByVenue({
-          venueName: venueNameToSearch || decodedVenueId,
-          includePastEvents: true, // Include past events (last 3 months)
-          pastEventsMonths: 3,
-          limit: 200
-        });
-        console.log(`✅ Fetched ${ticketmasterEvents.length} events from Ticketmaster`);
-      } catch (tmError) {
-        console.warn('⚠️ Ticketmaster API call failed, using database events only:', tmError);
-        // Continue with database events only if Ticketmaster fails
-      }
-
-      // Convert UnifiedEvent to JamBaseEvent format and merge with database events
+      // Use database events only (API calls removed)
       const dbEvents: JamBaseEvent[] = (eventsData || []).map(event => ({
         ...event,
-        source: event.source || 'jambase'
+        source: 'manual'
       }));
 
-      const tmEventsAsJamBase: JamBaseEvent[] = ticketmasterEvents.map(event => ({
-        id: event.id,
-        jambase_event_id: event.jambase_event_id || event.ticketmaster_event_id,
-        ticketmaster_event_id: event.ticketmaster_event_id,
-        title: event.title,
-        artist_name: event.artist_name,
-        artist_id: event.artist_id,
-        venue_name: event.venue_name,
-        venue_id: event.venue_id,
-        event_date: event.event_date,
-        doors_time: event.doors_time,
-        description: event.description,
-        genres: event.genres,
-        venue_address: event.venue_address,
-        venue_city: event.venue_city,
-        venue_state: event.venue_state,
-        venue_zip: event.venue_zip,
-        latitude: event.latitude,
-        longitude: event.longitude,
-        ticket_available: event.ticket_available,
-        price_range: event.price_range,
-        ticket_urls: event.ticket_urls,
-        external_url: event.external_url,
-        setlist: event.setlist,
-        tour_name: event.tour_name,
-        source: event.source || 'ticketmaster'
-      }));
-
-      // Merge database and Ticketmaster events
-      const allEvents = [...dbEvents, ...tmEventsAsJamBase];
+      const allEvents = [...dbEvents];
 
       // Deduplicate events by artist_name + venue_name + event_date (normalized)
       const deduplicatedEvents = deduplicateEvents(allEvents);
@@ -489,9 +444,9 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
       const key = `${normalizeArtist}|${normalizeVenue}|${dateKey}`;
       
       if (seen.has(key)) {
-        // Prefer Ticketmaster if duplicate (newer data source)
+        // Removed Ticketmaster preference logic
         const existing = seen.get(key)!;
-        if (event.source === 'ticketmaster' && existing.source !== 'ticketmaster') {
+        if (false) { // Removed API preference
           seen.set(key, event);
           return true;
         }

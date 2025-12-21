@@ -6,7 +6,7 @@ import { Calendar, MapPin, Music, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
-import { JamBaseEventResponse } from '@/services/jambaseEventsService';
+import { JamBaseEventResponse } from '@/types/eventTypes';
 import { formatPrice } from '@/utils/currencyUtils';
 
 // Fix for default markers in React Leaflet

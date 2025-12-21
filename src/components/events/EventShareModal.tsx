@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { InAppShareService, type ShareTarget } from '@/services/inAppShareService';
 import { ShareService } from '@/services/shareService';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 import { useToast } from '@/hooks/use-toast';
 
 interface EventShareModalProps {

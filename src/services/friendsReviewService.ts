@@ -373,34 +373,104 @@ export class FriendsReviewService {
         });
 
       if (error) {
-        // Fallback: query the view directly (if it exists)
-        console.error('❌ RPC function get_connection_degree_reviews failed:', {
-          error,
+        // Fallback: Query reviews directly using connection degree functions
+        console.warn('⚠️ RPC function get_connection_degree_reviews failed, using direct query with connection functions');
+        console.warn('Error details:', {
           code: error.code,
           message: error.message,
           details: error.details,
-          hint: error.hint,
-          userId,
-          limit,
-          offset
         });
-        console.warn('RPC function failed, trying direct view query:', error);
+        
         try {
-          const { data: viewData, error: viewError } = await supabase
-            .from('reviews_with_connection_degree')
-            .select('*')
-            .order('connection_degree', { ascending: true })
-            .order('created_at', { ascending: false })
-            .range(offset, offset + limit - 1);
+          // Get 1st and 2nd degree connections using RPC functions
+          const [firstDegreeResult, secondDegreeResult] = await Promise.all([
+            supabase.rpc('get_first_degree_connections', { target_user_id: userId }),
+            supabase.rpc('get_second_degree_connections', { target_user_id: userId }),
+          ]);
 
-          if (viewError) {
-            console.warn('View query also failed, returning empty array:', viewError);
+          const firstDegreeIds = (firstDegreeResult.data || []).map((c: any) => c.connected_user_id);
+          const secondDegreeIds = (secondDegreeResult.data || []).map((c: any) => c.connected_user_id);
+          const allConnectionIds = [...firstDegreeIds, ...secondDegreeIds];
+
+          if (allConnectionIds.length === 0) {
             return [];
           }
 
-          return (viewData || []).map((review: any) => this.transformConnectionReview(review));
-        } catch (viewErr) {
-          console.warn('Error querying view, returning empty array:', viewErr);
+          // Query reviews from connections
+          const { data: reviewsData, error: reviewsError } = await supabase
+            .from('reviews')
+            .select(`
+              *,
+              users:user_id (
+                user_id,
+                name,
+                avatar_url,
+                verified,
+                account_type
+              ),
+              events (
+                id,
+                title,
+                venue_name,
+                event_date,
+                artist_name,
+                artist_id
+              )
+            `)
+            .in('user_id', allConnectionIds)
+            .eq('is_public', true)
+            .eq('is_draft', false)
+            .not('review_text', 'is', null)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+          if (reviewsError) {
+            console.warn('Direct reviews query failed, returning empty array:', reviewsError);
+            return [];
+          }
+
+          // Transform to UnifiedFeedItem format with connection degree
+          return (reviewsData || []).map((review: any) => {
+            const connectionDegree = firstDegreeIds.includes(review.user_id) ? 1 : 2;
+            const user = review.users || {};
+            const event = review.events || {};
+            
+            return {
+              id: `review-${review.id}`,
+              type: 'review' as const,
+              review_id: review.id,
+              title: `${user.name || 'User'}'s Review`,
+              content: review.review_text || '',
+              author: {
+                id: review.user_id,
+                name: user.name || 'Anonymous',
+                avatar_url: user.avatar_url,
+                verified: user.verified,
+                account_type: user.account_type,
+              },
+              created_at: review.created_at,
+              updated_at: review.updated_at,
+              rating: review.rating,
+              is_public: review.is_public,
+              photos: review.photos || undefined,
+              setlist: review.setlist || undefined,
+              likes_count: review.likes_count || 0,
+              comments_count: review.comments_count || 0,
+              shares_count: review.shares_count || 0,
+              event_info: {
+                event_name: event.title || 'Concert Review',
+                venue_name: event.venue_name || 'Unknown Venue',
+                event_date: event.event_date || review.created_at,
+                artist_name: event.artist_name,
+                artist_id: event.artist_id,
+              },
+              connection_degree: connectionDegree,
+              connection_type_label: connectionDegree === 1 ? 'Friend' : 'Mutual Friend',
+              relevance_score: this.calculateFriendReviewRelevance(review, connectionDegree),
+            } as UnifiedFeedItem;
+          });
+        } catch (fallbackErr) {
+          console.warn('Error in fallback query, returning empty array:', fallbackErr);
           return [];
         }
       }

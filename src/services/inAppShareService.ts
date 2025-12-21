@@ -4,7 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import type { JamBaseEvent } from './jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 import { fetchUserChats } from './chatService';
 
 export interface ShareTarget {

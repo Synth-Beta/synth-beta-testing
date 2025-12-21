@@ -23,8 +23,6 @@ export interface VenueSearchResult {
 }
 
 export class UnifiedVenueSearchService {
-  private static readonly JAMBASE_VENUES_URL = '/api/jambase/venues';
-  private static readonly API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
 
   /**
    * Main search function - PROTECTED API USAGE:
@@ -88,73 +86,14 @@ export class UnifiedVenueSearchService {
   }
 
   /**
-   * Search JamBase API for venues using the correct venues endpoint
+   * @deprecated Removed - JamBase API no longer used
    */
   private static async searchJamBaseAPI(query: string, limit: number): Promise<any[]> {
-    if (!this.API_KEY) {
-      console.error('❌ JamBase API key not configured. Environment variable VITE_JAMBASE_API_KEY is missing.');
-      console.warn('Using fallback data due to missing API key');
-      return this.getFallbackVenues(query, limit);
-    }
-    
-    console.log(`🔑 Using JamBase API key: ${this.API_KEY.substring(0, 8)}...`);
-
-    try {
-      // Use the correct JamBase venues endpoint
-      const params = new URLSearchParams({
-        venueName: query,
-        perPage: Math.min(limit, 100).toString(), // Max 100 per page
-        apikey: this.API_KEY,
-      });
-
-      const response = await fetch(`${this.JAMBASE_VENUES_URL}?${params}`, {
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-
-      console.log(`📡 JamBase API response status: ${response.status} ${response.statusText}`);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.warn(`JamBase API error: ${response.status} ${response.statusText}`, errorText);
-        console.warn('Using fallback data due to API error');
-        return this.getFallbackVenues(query, limit);
-      }
-
-      const data = await response.json();
-      console.log(`📊 JamBase API response data:`, { success: data.success, venueCount: data.venues?.length });
-      
-      if (!data.success || !data.venues || !Array.isArray(data.venues)) {
-        console.warn('Invalid JamBase API response format, using fallback data', data);
-        return this.getFallbackVenues(query, limit);
-      }
-
-      // Transform JamBase venues to our format
-      return data.venues.map((venue: any) => ({
-        id: venue.identifier?.replace('jambase:', '') || venue.name.toLowerCase().replace(/\s+/g, '-'),
-        name: venue.name,
-        identifier: venue.identifier,
-        image: venue.image,
-        address: venue.address,
-        geo: venue.geo,
-        maximumAttendeeCapacity: venue.maximumAttendeeCapacity,
-        'x-numUpcomingEvents': venue['x-numUpcomingEvents'] || 0,
-        url: venue.url,
-        sameAs: venue.sameAs,
-        datePublished: venue.datePublished,
-        dateModified: venue.dateModified,
-        'x-externalIdentifiers': venue['x-externalIdentifiers']
-      }));
-    } catch (error) {
-      console.error('❌ JamBase API search error:', error);
-      console.warn('Using fallback data due to API error');
-      return this.getFallbackVenues(query, limit);
-    }
+    return [];
   }
 
   /**
-   * Get fallback venues when JamBase API is not available
+   * @deprecated Removed - API fallback no longer used
    */
   private static getFallbackVenues(query: string, limit: number): any[] {
     const fallbackVenues = [
@@ -347,7 +286,7 @@ export class UnifiedVenueSearchService {
   }
 
   /**
-   * Populate Supabase venue_profile table with JamBase results
+   * @deprecated Removed - API population no longer used
    */
   private static async populateVenueProfiles(jamBaseVenues: any[]): Promise<any[]> {
     const populatedVenues: any[] = [];

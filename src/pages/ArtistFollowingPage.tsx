@@ -10,11 +10,10 @@ import { ArrowLeft, Music, Calendar, MapPin, ExternalLink, Loader2, User, Filter
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArtistFollowService } from '@/services/artistFollowService';
 import { VenueFollowService } from '@/services/venueFollowService';
-import { JamBaseService } from '@/services/jambaseService';
 import { UnifiedEventSearchService } from '@/services/unifiedEventSearchService';
 import type { ArtistFollowWithDetails } from '@/types/artistFollow';
 import type { VenueFollowWithDetails } from '@/types/venueFollow';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 import type { UnifiedEvent } from '@/services/unifiedEventSearchService';
 import { format } from 'date-fns';
 import { ArtistCard } from '@/components/ArtistCard';
@@ -89,10 +88,17 @@ export function ArtistFollowingPage() {
               });
               console.log(`✅ Found ${ticketmasterEvents.length} Ticketmaster events for "${artist.artist_name}"`);
             } catch (tmError) {
-              console.warn(`⚠️ Ticketmaster API search failed for "${artist.artist_name}":`, tmError);
-              // Fallback to JamBase if Ticketmaster fails
-              const jamBaseEvents = await JamBaseService.searchEventsByArtist(artist.artist_name, 20);
-              ticketmasterEvents = jamBaseEvents.map(event => ({
+              console.warn(`⚠️ Event search failed for "${artist.artist_name}":`, tmError);
+              // Fallback to direct database query
+              const { data: dbEvents } = await supabase
+                .from('events')
+                .select('*')
+                .ilike('artist_name', `%${artist.artist_name}%`)
+                .gte('event_date', new Date().toISOString())
+                .order('event_date', { ascending: true })
+                .limit(50);
+              
+              ticketmasterEvents = (dbEvents || []).map(event => ({
                 id: event.id,
                 title: event.title,
                 artist_name: event.artist_name,
@@ -104,13 +110,13 @@ export function ArtistFollowingPage() {
                 description: event.description,
                 ticket_urls: event.ticket_urls,
                 price_range: event.price_range,
-                source: 'jambase' as const
+                source: 'manual' as const
               }));
             }
 
             // Convert UnifiedEvent to JamBaseEvent format
             const events: JamBaseEvent[] = ticketmasterEvents.map((event: UnifiedEvent) => ({
-              id: event.id || `tm-${event.ticketmaster_event_id || Date.now()}`,
+              id: event.id || `event-${Date.now()}`,
               title: event.title,
               artist_name: event.artist_name || artist.artist_name,
               venue_name: event.venue_name,
@@ -126,8 +132,6 @@ export function ArtistFollowingPage() {
               price_range: event.price_range,
               ticket_available: event.ticket_available,
               genres: event.genres,
-              jambase_event_id: event.jambase_event_id,
-              ticketmaster_event_id: event.ticketmaster_event_id,
               source: event.source || 'ticketmaster'
             }));
 
@@ -235,7 +239,7 @@ export function ArtistFollowingPage() {
 
             // Convert UnifiedEvent to JamBaseEvent format
             const events: JamBaseEvent[] = ticketmasterEvents.map((event: UnifiedEvent) => ({
-              id: event.id || `tm-${event.ticketmaster_event_id || Date.now()}`,
+              id: event.id || `event-${Date.now()}`,
               title: event.title,
               artist_name: event.artist_name || 'Unknown Artist',
               venue_name: event.venue_name,
@@ -251,8 +255,6 @@ export function ArtistFollowingPage() {
               price_range: event.price_range,
               ticket_available: event.ticket_available,
               genres: event.genres,
-              jambase_event_id: event.jambase_event_id,
-              ticketmaster_event_id: event.ticketmaster_event_id,
               source: event.source || 'ticketmaster'
             }));
 

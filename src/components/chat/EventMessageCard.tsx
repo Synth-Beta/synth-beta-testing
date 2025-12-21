@@ -12,7 +12,7 @@ import {
   Ticket
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 import { UserEventService } from '@/services/userEventService';
 import { format, parseISO } from 'date-fns';
 

@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { JamBaseEventResponse } from './jambaseEventsService';
+import { JamBaseEventResponse } from '@/types/eventTypes';
 import { calculateDistance, filterEventsByRadius, calculateCenter, calculateBounds, calculateZoomLevel } from '@/utils/distanceUtils';
 import { normalizeCityName } from '@/utils/cityNormalization';
 

@@ -1,6 +1,8 @@
+/* stylelint-disable */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* stylelint-enable */
 
 @layer components {
   /* Fixed z-index hierarchy to prevent navigation covering modals */
@@ -917,6 +919,16 @@
   
   .synth-scrollbar::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(135deg, rgba(255, 51, 153, 0.7), rgba(255, 102, 179, 0.7));
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
   }
 
   /* Safe area support for iOS notch and home indicator */

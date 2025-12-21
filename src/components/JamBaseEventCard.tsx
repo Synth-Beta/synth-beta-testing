@@ -16,7 +16,7 @@ import {
   Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { JamBaseEvent } from '@/services/jambaseEventsService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 
 interface JamBaseEventCardProps {
   event: JamBaseEvent;
