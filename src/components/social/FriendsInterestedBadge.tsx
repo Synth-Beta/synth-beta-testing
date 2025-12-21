@@ -48,10 +48,9 @@ export function FriendsInterestedBadge({ eventId, onClick }: FriendsInterestedBa
 
       // Get how many friends are interested in this event
       const { data: interestedFriends, error } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select('user_id')
-        .eq('related_entity_type', 'event')
-        .eq('related_entity_id', eventId)
+        .eq('event_id', eventId)
         .eq('relationship_type', 'interest')
         .in('user_id', friendIds);
 

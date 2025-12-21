@@ -468,26 +468,25 @@ class HybridSearchService {
   // Link event to user
   private async linkEventToUser(eventId: string, userId: string): Promise<void> {
     try {
-      // Check if link already exists in relationships table
+      // Check if link already exists in user_event_relationships table (3NF compliant)
       const { data: existing } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select('*')
-        .eq('related_entity_type', 'event')
-        .eq('related_entity_id', eventId)
+        .eq('event_id', eventId)
         .eq('user_id', userId)
-        .single();
+        .eq('relationship_type', 'interest')
+        .maybeSingle();
 
       if (existing) {
         console.log('User-event link already exists');
         return;
       }
 
-      // Create new link in relationships table
+      // Create new link in user_event_relationships table
       const { error } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .insert({ 
-          related_entity_type: 'event',
-          related_entity_id: eventId,
+          event_id: eventId,
           relationship_type: 'interest',
           user_id: userId 
         });

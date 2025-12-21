@@ -80,14 +80,13 @@ export class InAppShareService {
     avatar_url: string | null;
   }>> {
     try {
-      // Query friends from the relationships table
+      // Query friends from the user_relationships table (3NF compliant)
       const { data: friendships, error: friendsError } = await supabase
-        .from('relationships')
-        .select('id, user_id, related_entity_id, created_at')
-        .eq('related_entity_type', 'user')
+        .from('user_relationships')
+        .select('id, user_id, related_user_id, created_at')
         .eq('relationship_type', 'friend')
         .eq('status', 'accepted')
-        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`)
+        .or(`user_id.eq.${userId},related_user_id.eq.${userId}`)
         .order('created_at', { ascending: false });
 
       if (friendsError) {
@@ -101,7 +100,7 @@ export class InAppShareService {
 
       // Get all the user IDs we need to fetch
       const userIds = friendships.map(f => 
-        f.user_id === userId ? f.related_entity_id : f.user_id
+        f.user_id === userId ? f.related_user_id : f.user_id
       );
 
       // Fetch the profiles for those users

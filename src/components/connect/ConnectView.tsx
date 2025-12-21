@@ -312,10 +312,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         }
 
         const { data, error } = await supabase
-          .from('relationships')
-          .select('id, user_id, related_entity_id, created_at')
+          .from('user_event_relationships')
+          .select('id, user_id, event_id, created_at')
           .in('user_id', interestIds)
-          .eq('related_entity_type', 'event')
           .in('relationship_type', ['interest', 'going', 'maybe'])
           .order('created_at', { ascending: false })
           .limit(12);
@@ -328,7 +327,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
         // Batch fetch user and event details in parallel
         const userIds = [...new Set((data || []).map((row: any) => row.user_id).filter(Boolean))];
-        const eventIds = [...new Set((data || []).map((row: any) => row.related_entity_id).filter(Boolean))];
+        const eventIds = [...new Set((data || []).map((row: any) => row.event_id).filter(Boolean))];
         
         const [usersResult, eventsResult] = await Promise.all([
           userIds.length > 0
@@ -367,20 +366,20 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
             thirdIds as Set<string>
           );
 
-          const eventData = eventMap.get(row.related_entity_id) || {};
+          const eventData = eventMap.get(row.event_id) || {};
           const images = Array.isArray(eventData.images) ? eventData.images : [];
           const fallbackImage =
             eventData.poster_image_url ||
             (images.length > 0 ? images.find((img: any) => img?.url)?.url : undefined);
 
           return {
-            id: row.id || `${row.user_id}-${row.related_entity_id}`,
+            id: row.id || `${row.user_id}-${row.event_id}`,
             userId: row.user_id,
             connectionDegree: connectionMeta.degree,
             connectionLabel: connectionMeta.label,
             userName: userMap.get(row.user_id)?.name || 'Connection',
             userAvatar: userMap.get(row.user_id)?.avatar_url || undefined,
-            eventId: eventData.id || row.related_entity_id,
+            eventId: eventData.id || row.event_id,
             eventTitle: eventData.title,
             eventArtist: eventData.artist_name,
             eventVenue: eventData.venue_name,
@@ -1067,16 +1066,15 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       try {
         // Get user's interested events
         const { data: userEvents } = await supabase
-          .from('relationships')
-          .select('related_entity_id')
+          .from('user_event_relationships')
+          .select('event_id')
           .eq('user_id', currentUserId)
-          .eq('related_entity_type', 'event')
           .in('relationship_type', ['interest', 'going', 'maybe'])
           .limit(50);
 
         if (userEvents) {
           userEvents.forEach(event => {
-            userInterestedEvents.add(event.related_entity_id);
+            userInterestedEvents.add(event.event_id);
           });
         }
       } catch (error) {
@@ -1212,10 +1210,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     try {
       // First, get user's interested events
       const { data: userEvents } = await supabase
-        .from('relationships')
-        .select('related_entity_id')
+        .from('user_event_relationships')
+        .select('event_id')
         .eq('user_id', currentUserId)
-        .eq('related_entity_type', 'event')
         .in('relationship_type', ['interest', 'going', 'maybe'])
         .limit(50);
 
@@ -1225,7 +1222,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         return;
       }
 
-      const userEventIds = userEvents.map(e => e.related_entity_id);
+      const userEventIds = userEvents.map(e => e.event_id);
 
       // Get friends who are also interested in these events
       const { data: friendsData } = await supabase
@@ -1245,16 +1242,15 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
       // Get friends' interested events that match user's events
       const { data: friendInterests } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select(`
           user_id,
-          related_entity_id,
+          event_id,
           created_at
         `)
         .in('user_id', friendIds)
-        .eq('related_entity_type', 'event')
         .in('relationship_type', ['interest', 'going', 'maybe'])
-        .in('related_entity_id', userEventIds)
+        .in('event_id', userEventIds)
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -1265,7 +1261,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       }
 
       // Fetch event details separately
-      const sharedEventIds = [...new Set(friendInterests.map((i: any) => i.related_entity_id).filter(Boolean))];
+      const sharedEventIds = [...new Set(friendInterests.map((i: any) => i.event_id).filter(Boolean))];
       const sharedEventMap = new Map<string, any>();
       
       if (sharedEventIds.length > 0) {
@@ -1285,10 +1281,10 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       const friendMap = new Map<string, any>();
       friendInterests.forEach((interest: any) => {
         if (!friendMap.has(interest.user_id)) {
-          const eventData = sharedEventMap.get(interest.related_entity_id) || {};
+          const eventData = sharedEventMap.get(interest.event_id) || {};
           friendMap.set(interest.user_id, {
             user_id: interest.user_id,
-            shared_event_id: interest.related_entity_id,
+            shared_event_id: interest.event_id,
             shared_event_title: eventData.title,
             shared_event_artist: eventData.artist_name,
             shared_event_date: eventData.event_date,

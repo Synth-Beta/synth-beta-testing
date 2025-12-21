@@ -97,11 +97,11 @@ export class UserAnalyticsService {
         friends_count: 0
       };
 
-      // Get counts from other tables
+      // Get counts from other tables (3NF compliant)
       const [interested, completedReviews, friends] = await Promise.all([
-        supabase.from('relationships').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('related_entity_type', 'event').in('relationship_type', ['interest', 'going', 'maybe']),
+        supabase.from('user_event_relationships').select('*', { count: 'exact', head: true }).eq('user_id', userId).in('relationship_type', ['interest', 'going', 'maybe']),
         supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_draft', false).neq('review_text', 'ATTENDANCE_ONLY'),
-        supabase.from('relationships').select('*', { count: 'exact', head: true }).eq('related_entity_type', 'user').eq('relationship_type', 'friend').eq('user_id', userId)
+        supabase.from('user_relationships').select('*', { count: 'exact', head: true }).eq('relationship_type', 'friend').or(`user_id.eq.${userId},related_user_id.eq.${userId}`)
       ]);
 
       stats.events_interested = interested.count || 0;
@@ -447,10 +447,9 @@ export class UserAnalyticsService {
   static async getActualInterestedEventsCount(userId: string): Promise<number> {
     try {
       const { count } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('related_entity_type', 'event')
         .in('relationship_type', ['interest', 'going', 'maybe']);
 
       const interestedCount = count || 0;
@@ -681,34 +680,23 @@ export class UserAnalyticsService {
     try {
       console.log(`🔍 Getting artist follows count for user: ${userId}`);
       
-      // Query relationships table for artist follows ONLY
-      // Explicitly exclude users/friends by filtering related_entity_type = 'artist'
+      // Query artist_follows table (3NF compliant)
       const { count, data, error } = await supabase
-        .from('relationships')
+        .from('artist_follows')
         .select('*', { count: 'exact' })
-        .eq('user_id', userId)
-        .eq('related_entity_type', 'artist') // ONLY artists, NOT users
-        .eq('relationship_type', 'follow'); // ONLY follows, NOT friends
+        .eq('user_id', userId);
 
       if (error) {
         console.error('🚨 Artist follows query error:', error);
         return 0;
       }
 
-      // Verify no user relationships slipped through (safety check)
-      if (data && data.length > 0) {
-        const hasUserRelationships = data.some((rel: any) => rel.related_entity_type !== 'artist');
-        if (hasUserRelationships) {
-          console.warn('⚠️ WARNING: Found non-artist relationships in artist follows query!', data);
-        }
-      }
-
       const countResult = count || data?.length || 0;
-      console.log(`🎯 Artist follows count from relationships table: ${countResult} (from count: ${count}, from data.length: ${data?.length})`);
+      console.log(`🎯 Artist follows count from artist_follows table: ${countResult} (from count: ${count}, from data.length: ${data?.length})`);
 
       // If we have follows, get the artist names for debugging
       if (countResult > 0 && data && data.length > 0) {
-        const artistIds = data.map((rel: any) => rel.related_entity_id).filter(Boolean);
+        const artistIds = data.map((follow: any) => follow.artist_id).filter(Boolean);
         if (artistIds.length > 0) {
           const { data: artistsData, error: artistsError } = await supabase
             .from('artists')
@@ -733,34 +721,23 @@ export class UserAnalyticsService {
     try {
       console.log(`🔍 Getting venue follows count for user: ${userId}`);
       
-      // Query relationships table for venue follows ONLY
-      // Explicitly exclude users/friends by filtering related_entity_type = 'venue'
+      // Query user_venue_relationships table (3NF compliant)
       const { count, data, error } = await supabase
-        .from('relationships')
+        .from('user_venue_relationships')
         .select('*', { count: 'exact' })
-        .eq('user_id', userId)
-        .eq('related_entity_type', 'venue') // ONLY venues, NOT users
-        .eq('relationship_type', 'follow'); // ONLY follows, NOT friends
+        .eq('user_id', userId);
 
       if (error) {
         console.error('🚨 Venue follows query error:', error);
         return 0;
       }
 
-      // Verify no user relationships slipped through (safety check)
-      if (data && data.length > 0) {
-        const hasUserRelationships = data.some((rel: any) => rel.related_entity_type !== 'venue');
-        if (hasUserRelationships) {
-          console.warn('⚠️ WARNING: Found non-venue relationships in venue follows query!', data);
-        }
-      }
-
       const countResult = count || data?.length || 0;
-      console.log(`🎯 Venue follows count from relationships table: ${countResult} (from count: ${count}, from data.length: ${data?.length})`);
+      console.log(`🎯 Venue follows count from user_venue_relationships table: ${countResult} (from count: ${count}, from data.length: ${data?.length})`);
       
       // If we have follows, get the venue names for debugging
       if (countResult > 0 && data && data.length > 0) {
-        const venueIds = data.map((rel: any) => rel.related_entity_id).filter(Boolean);
+        const venueIds = data.map((follow: any) => follow.venue_id).filter(Boolean);
         if (venueIds.length > 0) {
           // Filter for valid UUIDs only (related_entity_id might be TEXT with venue names)
           const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

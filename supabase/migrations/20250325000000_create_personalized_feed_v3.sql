@@ -92,31 +92,26 @@ BEGIN
     WHERE NOT EXISTS (SELECT 1 FROM user_preferences WHERE user_id = p_user_id)
   ),
   
-  -- Artist follows
+  -- Artist follows (3NF compliant - uses artist_follows table)
   artist_follows AS (
     SELECT
-      CASE
-        WHEN related_entity_id ~* '^[0-9a-f-]{36}$' THEN related_entity_id::UUID
-        ELSE NULL
-      END AS artist_uuid,
-      lower(trim(related_entity_id)) AS artist_id_text
-    FROM relationships
-    WHERE user_id = p_user_id
-      AND related_entity_type = 'artist'
-      AND relationship_type = 'follow'
-      AND status = 'accepted'
+      af.artist_id AS artist_uuid,
+      lower(trim(a.jambase_artist_id)) AS artist_id_text
+    FROM artist_follows af
+    JOIN artists a ON a.id = af.artist_id
+    WHERE af.user_id = p_user_id
   ),
   
-  -- Friend event interests
+  -- Friend event interests (3NF compliant - uses user_event_relationships + social_graph)
+  -- social_graph already validates 1st-degree connections, so no need for redundant user_relationships join
   friend_event_interest AS (
     SELECT
-      r.related_entity_id::UUID AS event_id,
+      uer.event_id,
       COUNT(*) AS friend_count
-    FROM relationships r
-    JOIN social_graph sg ON sg.connected_user_id = r.user_id AND sg.connection_depth = 1
-    WHERE r.related_entity_type = 'event'
-      AND r.relationship_type IN ('going','maybe')
-    GROUP BY r.related_entity_id
+    FROM user_event_relationships uer
+    JOIN social_graph sg ON sg.connected_user_id = uer.user_id AND sg.connection_depth = 1
+    WHERE uer.relationship_type IN ('going','maybe')
+    GROUP BY uer.event_id
   ),
   
   -- Step 2A: Event Candidates (enhanced v2 logic)
@@ -158,17 +153,15 @@ BEGIN
       END AS distance_miles,
       COALESCE(fei.friend_count, 0) AS friend_interest_count,
       COALESCE((
-        SELECT COUNT(*) FROM relationships r2
-        WHERE r2.related_entity_type = 'event'
-          AND r2.relationship_type IN ('going','maybe')
-          AND r2.related_entity_id::UUID = e.id
+        SELECT COUNT(*) FROM user_event_relationships uer2
+        WHERE uer2.relationship_type IN ('going','maybe')
+          AND uer2.event_id = e.id
       ), 0) AS total_interest_count,
       CASE WHEN EXISTS (
-        SELECT 1 FROM relationships r3
-        WHERE r3.user_id = p_user_id
-          AND r3.related_entity_type = 'event'
-          AND r3.relationship_type IN ('going','maybe')
-          AND r3.related_entity_id::UUID = e.id
+        SELECT 1 FROM user_event_relationships uer3
+        WHERE uer3.user_id = p_user_id
+          AND uer3.relationship_type IN ('going','maybe')
+          AND uer3.event_id = e.id
       ) THEN TRUE ELSE FALSE END AS user_is_interested
     FROM events e
     LEFT JOIN friend_event_interest fei ON fei.event_id = e.id

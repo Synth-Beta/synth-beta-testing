@@ -217,7 +217,7 @@ export class BusinessAnalyticsService {
       const eventPerformance: EventPerformance[] = events.map((event: any) => {
         const eventInteractions = interactions?.filter((i: any) => i.entity_id === event.id) || [];
         const eventReviews = reviews?.filter((r: any) => r.event_id === event.id) || [];
-        const eventInterested = interestedUsers?.filter((u: any) => u.related_entity_id === event.id) || [];
+        const eventInterested = interestedUsers?.filter((u: any) => u.event_id === event.id) || [];
 
         const totalViews = eventInteractions.filter((i: any) => i.event_type === 'view').length;
         const ticketClicks = eventInteractions.filter((i: any) => i.event_type === 'click_ticket').length;
@@ -283,11 +283,10 @@ export class BusinessAnalyticsService {
 
       // Get interested users
       const { data: interestedUsers } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select('*')
-        .eq('related_entity_type', 'event')
         .in('relationship_type', ['interest', 'going', 'maybe'])
-        .in('related_entity_id', eventIds);
+        .in('event_id', eventIds);
 
       // Get reviews to determine satisfaction
       const { data: reviews } = await (supabase as any)
@@ -474,7 +473,7 @@ export class BusinessAnalyticsService {
       const [interactionsResult, reviewsResult, interestedUsersResult] = await Promise.all([
         supabase.from('interactions').select('*').in('entity_id', eventIds).eq('entity_type', 'event'),
         supabase.from('reviews').select('*').in('event_id', eventIds),
-        supabase.from('relationships').select('*').eq('related_entity_type', 'event').in('relationship_type', ['interest', 'going', 'maybe']).in('related_entity_id', eventIds),
+        supabase.from('user_event_relationships').select('*').in('relationship_type', ['interest', 'going', 'maybe']).in('event_id', eventIds),
       ]);
       
       const interactions = interactionsResult.data || [];
@@ -517,7 +516,7 @@ export class BusinessAnalyticsService {
       });
 
       interestedUsers.forEach((user: any) => {
-        const event = events.find((e: any) => e.id === user.related_entity_id);
+        const event = events.find((e: any) => e.id === user.event_id);
         if (event) {
           artistStats.get(event.artist_name)?.interested.push(user);
         }

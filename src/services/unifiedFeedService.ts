@@ -641,15 +641,13 @@ export class UnifiedFeedService {
    */
   private static async getFriendActivity(userId: string, limit: number): Promise<UnifiedFeedItem[]> {
     try {
-      // Get recent friend relationships
-      // First get the friendship records from relationships table
+      // Get recent friend relationships from user_relationships table (3NF compliant)
       const { data: friendships, error } = await supabase
-        .from('relationships')
-        .select('id, user_id, related_entity_id, created_at')
-        .eq('related_entity_type', 'user')
+        .from('user_relationships')
+        .select('id, user_id, related_user_id, created_at')
         .eq('relationship_type', 'friend')
         .eq('status', 'accepted')
-        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`)
+        .or(`user_id.eq.${userId},related_user_id.eq.${userId}`)
         .order('created_at', { ascending: false })
         .limit(limit);
       
@@ -662,7 +660,7 @@ export class UnifiedFeedService {
 
       // Get profile information for all friend user IDs
       const allFriendIds = friendships.map(friendship => 
-        friendship.user_id === userId ? friendship.related_entity_id : friendship.user_id
+        friendship.user_id === userId ? friendship.related_user_id : friendship.user_id
       );
       
       const { data: profiles, error: profileError } = await supabase
@@ -679,7 +677,7 @@ export class UnifiedFeedService {
       const profileMap = new Map(profiles?.map(profile => [profile.user_id, profile]) || []);
 
       return friendships.map(friendship => {
-        const otherUserId = friendship.user_id === userId ? friendship.related_entity_id : friendship.user_id;
+        const otherUserId = friendship.user_id === userId ? friendship.related_user_id : friendship.user_id;
         const otherUser = profileMap.get(otherUserId);
         
         return {

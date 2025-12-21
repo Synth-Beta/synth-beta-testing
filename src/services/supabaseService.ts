@@ -110,16 +110,15 @@ export class SupabaseService {
     return data;
   }
 
-  // ===== EVENT INTERESTS (migrated to relationships) =====
+  // ===== EVENT INTERESTS (3NF compliant - user_event_relationships) =====
   static async getUserEventInterests(userId: string) {
     const { data, error } = await supabase
-      .from('relationships')
+      .from('user_event_relationships')
       .select(`
         id,
         created_at,
         relationship_type,
-        metadata,
-        events:events!relationships_related_entity_id_fkey(
+        events:events!user_event_relationships_event_id_fkey(
           id,
           title,
           artist_name,
@@ -131,7 +130,6 @@ export class SupabaseService {
         )
       `)
       .eq('user_id', userId)
-      .eq('related_entity_type', 'event')
       .in('relationship_type', ['interest', 'going', 'maybe'])
       .order('created_at', { ascending: false });
 
@@ -141,14 +139,11 @@ export class SupabaseService {
 
   static async addEventInterest(userId: string, eventId: string) {
     const { data, error } = await supabase
-      .from('relationships')
+      .from('user_event_relationships')
       .insert({
         user_id: userId,
-        related_entity_type: 'event',
-        related_entity_id: eventId,
-        relationship_type: 'interest',
-        status: 'accepted',
-        metadata: { event_id: eventId }
+        event_id: eventId,
+        relationship_type: 'interest'
       })
       .select()
       .single();
@@ -159,51 +154,39 @@ export class SupabaseService {
 
   static async removeEventInterest(userId: string, eventId: string) {
     const { error } = await supabase
-      .from('relationships')
+      .from('user_event_relationships')
       .delete()
       .eq('user_id', userId)
-      .eq('related_entity_type', 'event')
-      .eq('related_entity_id', eventId)
+      .eq('event_id', eventId)
       .in('relationship_type', ['interest', 'going', 'maybe']);
 
     if (error) throw error;
   }
 
-  // ===== MATCHES (migrated to relationships) =====
+  // ===== MATCHES (3NF compliant - user_relationships) =====
   static async getMatches(userId: string) {
     const { data, error } = await supabase
-      .from('relationships')
+      .from('user_relationships')
       .select(`
         id,
-        related_entity_id,
+        related_user_id,
         metadata,
         created_at,
-        events:events!relationships_related_entity_id_fkey(
-          id,
-          title,
-          artist_name,
-          venue_name,
-          venue_city,
-          venue_state,
-          event_date,
-          doors_time
-        ),
-        user1:users!relationships_user_id_fkey(
+        user1:users!user_id(
           user_id,
           name,
           avatar_url,
           bio
         ),
-        user2:users!relationships_related_entity_id_fkey(
+        user2:users!related_user_id(
           user_id,
           name,
           avatar_url,
           bio
         )
       `)
-      .eq('related_entity_type', 'user')
       .eq('relationship_type', 'match')
-      .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`)
+      .or(`user_id.eq.${userId},related_user_id.eq.${userId}`)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -211,13 +194,12 @@ export class SupabaseService {
   }
 
   static async createMatch(user1Id: string, user2Id: string, eventId: string) {
-    // Create bidirectional match relationships
+    // Create bidirectional match relationships (3NF compliant)
     const { data: data1, error: error1 } = await supabase
-      .from('relationships')
+      .from('user_relationships')
       .insert({
         user_id: user1Id,
-        related_entity_type: 'user',
-        related_entity_id: user2Id,
+        related_user_id: user2Id,
         relationship_type: 'match',
         status: 'accepted',
         metadata: { event_id: eventId, matched_user_id: user2Id }
@@ -228,11 +210,10 @@ export class SupabaseService {
     if (error1) throw error1;
 
     const { data: data2, error: error2 } = await supabase
-      .from('relationships')
+      .from('user_relationships')
       .insert({
         user_id: user2Id,
-        related_entity_type: 'user',
-        related_entity_id: user1Id,
+        related_user_id: user1Id,
         relationship_type: 'match',
         status: 'accepted',
         metadata: { event_id: eventId, matched_user_id: user1Id }
@@ -306,27 +287,18 @@ export class SupabaseService {
   // ===== CHATS =====
   static async getChats(userId: string) {
     const { data, error } = await supabase
-      .from('relationships')
+      .from('user_relationships')
       .select(`
         id,
-        related_entity_id,
+        related_user_id,
         metadata,
         created_at,
-        events:events!relationships_metadata_fkey(
-          id,
-          title,
-          artist_name,
-          venue_name,
-          venue_city,
-          venue_state,
-          event_date
-        ),
-        user1:users!relationships_user_id_fkey(
+        user1:users!user_id(
           user_id,
           name,
           avatar_url
         ),
-        user2:users!relationships_related_entity_id_fkey(
+        user2:users!related_user_id(
           user_id,
           name,
           avatar_url
@@ -337,9 +309,8 @@ export class SupabaseService {
           updated_at
         )
       `)
-      .eq('related_entity_type', 'user')
       .eq('relationship_type', 'match')
-      .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`)
+      .or(`user_id.eq.${userId},related_user_id.eq.${userId}`)
       .not('chat', 'is', null)
       .order('created_at', { ascending: false });
 
@@ -407,13 +378,12 @@ export class SupabaseService {
   // ===== UTILITY METHODS =====
   static async isUserInterestedInEvent(userId: string, eventId: string) {
     const { data, error } = await supabase
-      .from('relationships')
+      .from('user_event_relationships')
       .select('id')
       .eq('user_id', userId)
-      .eq('related_entity_type', 'event')
-      .eq('related_entity_id', eventId)
+      .eq('event_id', eventId)
       .in('relationship_type', ['interest', 'going', 'maybe'])
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') throw error;
     return !!data;
@@ -436,11 +406,11 @@ export class SupabaseService {
 
   static async getUsersForEvent(eventId: string, excludeUserId?: string) {
     let query = supabase
-      .from('relationships')
+      .from('user_event_relationships')
       .select(`
         user_id,
         created_at,
-        users:users!relationships_user_id_fkey(
+        users:users!user_event_relationships_user_id_fkey(
           user_id,
           name,
           avatar_url,
@@ -448,8 +418,7 @@ export class SupabaseService {
           instagram_handle
         )
       `)
-      .eq('related_entity_type', 'event')
-      .eq('related_entity_id', eventId)
+      .eq('event_id', eventId)
       .in('relationship_type', ['interest', 'going', 'maybe'])
       .order('created_at', { ascending: false });
 

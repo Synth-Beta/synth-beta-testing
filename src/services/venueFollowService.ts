@@ -55,19 +55,18 @@ export class VenueFollowService {
         venueId = venues[0].id;
       }
       
-      // Use venue UUID if found, otherwise use venue name as identifier
-      const relatedEntityId = venueId || normalizedName;
+      // Must have venue UUID to follow (3NF requires FK)
+      if (!venueId) {
+        throw new Error(`Venue not found: ${normalizedName}. Cannot follow venue that doesn't exist in database.`);
+      }
       
       if (following) {
-        // Insert follow relationship - use insert with error handling to avoid upsert conflicts
+        // Insert follow relationship in user_venue_relationships (3NF compliant)
         const { error: insertError } = await supabase
-          .from('relationships')
+          .from('user_venue_relationships')
           .insert({
             user_id: userId,
-            related_entity_type: 'venue',
-            relationship_type: 'follow',
-            related_entity_id: relatedEntityId,
-            status: 'accepted'
+            venue_id: venueId
           });
         
         // If duplicate, that's fine - relationship already exists
@@ -77,12 +76,10 @@ export class VenueFollowService {
       } else {
         // Delete follow relationship
         const { error } = await supabase
-          .from('relationships')
+          .from('user_venue_relationships')
           .delete()
           .eq('user_id', userId)
-          .eq('related_entity_type', 'venue')
-          .eq('relationship_type', 'follow')
-          .eq('related_entity_id', relatedEntityId);
+          .eq('venue_id', venueId);
         
         if (error) throw error;
       }
@@ -132,28 +129,18 @@ export class VenueFollowService {
 
       const { data: venues } = await venueQuery;
       if (!venues || venues.length === 0) {
-        // Also try matching by name directly in relationships (for name-based follows)
-        const { count } = await supabase
-          .from('relationships')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('related_entity_type', 'venue')
-          .eq('relationship_type', 'follow')
-          .eq('related_entity_id', normalizedName);
-        
-        return (count || 0) > 0;
+        // Venue doesn't exist in database, so user can't be following it
+        return false;
       }
 
       const venueIds = venues.map((v: any) => v.id);
 
-      // Check relationships table for follows
+      // Check user_venue_relationships table for follows (3NF compliant)
       const { count } = await supabase
-        .from('relationships')
+        .from('user_venue_relationships')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('related_entity_type', 'venue')
-        .eq('relationship_type', 'follow')
-        .in('related_entity_id', venueIds);
+        .in('venue_id', venueIds);
 
       return (count || 0) > 0;
     } catch (error) {
@@ -195,28 +182,16 @@ export class VenueFollowService {
       
       let totalCount = 0;
 
-      // Count follows by venue ID
+      // Count follows by venue ID (3NF compliant)
       if (venues && venues.length > 0) {
         const venueIds = venues.map((v: any) => v.id);
         const { count } = await supabase
-          .from('relationships')
+          .from('user_venue_relationships')
           .select('*', { count: 'exact', head: true })
-          .eq('related_entity_type', 'venue')
-          .eq('relationship_type', 'follow')
-          .in('related_entity_id', venueIds);
+          .in('venue_id', venueIds);
         
         totalCount += (count || 0);
       }
-
-      // Also count follows by name (for name-based follows)
-      const { count: nameCount } = await supabase
-        .from('relationships')
-        .select('*', { count: 'exact', head: true })
-        .eq('related_entity_type', 'venue')
-        .eq('relationship_type', 'follow')
-        .eq('related_entity_id', normalizedName);
-      
-      totalCount += (nameCount || 0);
 
       return totalCount;
     } catch (error) {
@@ -263,48 +238,33 @@ export class VenueFollowService {
    */
   static async getUserFollowedVenues(userId: string): Promise<VenueFollowWithDetails[]> {
     try {
-      // Use relationships table directly (venue_follows_with_details view doesn't exist)
-      const { data: relationships, error: relationshipsError } = await supabase
-        .from('relationships')
-        .select('id, user_id, related_entity_id, created_at')
+      // Query user_venue_relationships table (3NF compliant)
+      const { data: follows, error: followsError } = await supabase
+        .from('user_venue_relationships')
+        .select('id, user_id, venue_id, created_at')
         .eq('user_id', userId)
-        .eq('related_entity_type', 'venue')
-        .eq('relationship_type', 'follow')
         .order('created_at', { ascending: false });
           
-      if (relationshipsError) throw relationshipsError;
+      if (followsError) throw followsError;
       
-      if (!relationships || relationships.length === 0) {
+      if (!follows || follows.length === 0) {
         return [];
       }
 
-      // Fetch venue details separately
-      // Note: related_entity_id might be venue name (TEXT) or venue ID (UUID)
-      const venueIdentifiers = [...new Set(relationships.map((r: any) => r.related_entity_id).filter(Boolean))];
+      // Extract venue IDs (all are UUIDs now)
+      const venueIds = [...new Set(follows.map((f: any) => f.venue_id).filter(Boolean))];
       const venueMap = new Map<string, any>();
       
-      if (venueIdentifiers.length > 0) {
-        // Check if identifiers are UUIDs or names
-        const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-        const uuidIds = venueIdentifiers.filter(id => isUUID(id));
+      if (venueIds.length > 0) {
+        const { data: venues } = await supabase
+          .from('venues')
+          .select('id, name, image_url, address, city, state')
+          .in('id', venueIds);
         
-        // Only query by UUID if we have valid UUIDs
-        // Venue follows use name-based matching, so related_entity_id is often a name
-        if (uuidIds.length > 0) {
-          const { data: venuesById } = await supabase
-            .from('venues')
-            .select('id, name, image_url, city, state, address')
-            .in('id', uuidIds);
-          
-          if (venuesById) {
-            venuesById.forEach((venue: any) => {
-              venueMap.set(venue.id, venue);
-              // Also map by name for lookup
-              if (venue.name) {
-                venueMap.set(venue.name, venue);
-              }
-            });
-          }
+        if (venues) {
+          venues.forEach((venue: any) => {
+            venueMap.set(venue.id, venue);
+          });
         }
       }
 
@@ -316,24 +276,20 @@ export class VenueFollowService {
         .maybeSingle();
 
       // Transform to match expected format
-      return relationships.map((item: any) => {
-        const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-        const identifier = item.related_entity_id;
-        const venue = isUUID(identifier) ? venueMap.get(identifier) : null;
+      return follows.map((follow: any) => {
+        const venue = venueMap.get(follow.venue_id);
         
-        // If identifier is a UUID and we found a venue, use venue data
-        // If identifier is a name (not UUID), use it directly as venue_name
         return {
-          id: item.id,
-          user_id: item.user_id,
-          venue_id: venue?.id || (isUUID(identifier) ? identifier : null),
-          venue_name: venue?.name || (isUUID(identifier) ? null : identifier),
+          id: follow.id,
+          user_id: follow.user_id,
+          venue_id: follow.venue_id,
+          venue_name: venue?.name || null,
           venue_city: venue?.city || null,
           venue_state: venue?.state || null,
           venue_address: venue?.address || null,
           venue_image_url: venue?.image_url || null,
           num_upcoming_events: null, // Could be calculated separately if needed
-          created_at: item.created_at,
+          created_at: follow.created_at,
           user_name: userData?.name || null,
           user_avatar_url: userData?.avatar_url || null
         } as VenueFollowWithDetails;
@@ -383,23 +339,21 @@ export class VenueFollowService {
 
       const venueIds = venues.map((v: any) => v.id);
 
-      // Get relationships for these venues
-      const { data: relationships, error: relationshipsError } = await supabase
-        .from('relationships')
-        .select('id, user_id, related_entity_id, created_at')
-        .in('related_entity_id', venueIds)
-        .eq('related_entity_type', 'venue')
-        .eq('relationship_type', 'follow')
+      // Get follows for these venues from user_venue_relationships (3NF compliant)
+      const { data: follows, error: followsError } = await supabase
+        .from('user_venue_relationships')
+        .select('id, user_id, venue_id, created_at')
+        .in('venue_id', venueIds)
         .order('created_at', { ascending: false });
 
-      if (relationshipsError) throw relationshipsError;
+      if (followsError) throw followsError;
 
-      if (!relationships || relationships.length === 0) {
+      if (!follows || follows.length === 0) {
         return [];
       }
 
       // Fetch user details separately
-      const userIds = [...new Set(relationships.map((r: any) => r.user_id).filter(Boolean))];
+      const userIds = [...new Set(follows.map((f: any) => f.user_id).filter(Boolean))];
       const userMap = new Map<string, any>();
       
       if (userIds.length > 0) {
@@ -422,19 +376,19 @@ export class VenueFollowService {
       });
 
       // Transform to match expected format
-      return relationships.map((item: any) => {
-        const venue = venueMap.get(item.related_entity_id) || {};
-        const user = userMap.get(item.user_id) || {};
+      return follows.map((follow: any) => {
+        const venue = venueMap.get(follow.venue_id) || {};
+        const user = userMap.get(follow.user_id) || {};
         return {
-          id: item.id,
-          user_id: item.user_id,
-          venue_id: item.related_entity_id,
+          id: follow.id,
+          user_id: follow.user_id,
+          venue_id: follow.venue_id,
           venue_name: venue.name || null,
           venue_city: venue.city || null,
           venue_state: venue.state || null,
-          venue_image_url: null,
+          venue_image_url: venue.image_url || null,
           num_upcoming_events: null,
-          created_at: item.created_at,
+          created_at: follow.created_at,
           user_name: user.name || null,
           user_avatar_url: user.avatar_url || null
         } as VenueFollowWithDetails;
@@ -447,15 +401,26 @@ export class VenueFollowService {
 
   /**
    * Subscribe to venue follow changes for real-time updates
+   * 
+   * IMPORTANT: Due to Supabase realtime architecture limitations, callbacks must execute synchronously.
+   * Venue details are fetched asynchronously, so `onFollowChange` will be called asynchronously
+   * after the database change occurs. This means:
+   * - There may be a slight delay between the database change and the UI update
+   * - Multiple rapid changes may be processed out of order
+   * - If venue fetch fails, `onFollowChange` is still called with minimal data (null venue fields)
+   * - Errors during async operations are logged but not propagated (no caller to propagate to)
+   * 
+   * If synchronous behavior is required, consider fetching venue details separately or
+   * denormalizing venue data into the relationship table.
+   * 
    * @param userId - The user UUID
-   * @param onFollowChange - Callback when follow status changes
+   * @param onFollowChange - Callback when follow status changes (called asynchronously for INSERT events)
    */
   static subscribeToVenueFollows(
     userId: string,
     onFollowChange: (follow: VenueFollow, event: 'INSERT' | 'DELETE') => void
   ) {
-    // Use relationships table instead of venue_follows (3NF schema)
-    // Note: Real-time subscriptions with multiple filters need to be handled in the callback
+    // Use user_venue_relationships table (3NF compliant)
     const channel = supabase
       .channel(`venue-follows-${userId}`)
       .on(
@@ -463,24 +428,51 @@ export class VenueFollowService {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'relationships',
+          table: 'user_venue_relationships',
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          // Filter for venue follows only
-          if (payload.new.related_entity_type === 'venue' && payload.new.relationship_type === 'follow') {
-            // Transform relationships table data to VenueFollow format
-            const follow: VenueFollow = {
-              id: payload.new.id,
-              user_id: payload.new.user_id,
-              venue_name: payload.new.related_entity_id, // May be venue name or UUID
-              venue_city: null,
-              venue_state: null,
-              created_at: payload.new.created_at,
-              updated_at: payload.new.updated_at || payload.new.created_at
-            };
-            onFollowChange(follow, 'INSERT');
-          }
+          // NOTE: Realtime callbacks must execute synchronously and return quickly.
+          // Async operations (like fetching venue details) are handled via .then()/.catch()
+          // which means onFollowChange will be called asynchronously after the callback returns.
+          // This is the correct pattern for Supabase realtime, but means there may be a slight
+          // delay between the database change and the UI update with complete venue details.
+          const fetchVenueDetails = () => {
+            supabase
+              .from('venues')
+              .select('name, address, city, state')
+              .eq('id', payload.new.venue_id)
+              .maybeSingle()
+              .then(({ data: venue }) => {
+                const follow: VenueFollow = {
+                  id: payload.new.id,
+                  user_id: payload.new.user_id,
+                  venue_name: venue?.name || null,
+                  venue_city: venue?.city || null,
+                  venue_state: venue?.state || null,
+                  created_at: payload.new.created_at,
+                  updated_at: payload.new.updated_at || payload.new.created_at
+                };
+                onFollowChange(follow, 'INSERT');
+              })
+              .catch((error) => {
+                console.error('Error fetching venue details in realtime callback:', error);
+                // Still create follow object with minimal data when venue fetch fails
+                const follow: VenueFollow = {
+                  id: payload.new.id,
+                  user_id: payload.new.user_id,
+                  venue_name: null,
+                  venue_city: null,
+                  venue_state: null,
+                  created_at: payload.new.created_at,
+                  updated_at: payload.new.updated_at || payload.new.created_at
+                };
+                onFollowChange(follow, 'INSERT');
+              });
+          };
+          
+          // Execute async operation (callback returns immediately)
+          fetchVenueDetails();
         }
       )
       .on(
@@ -488,24 +480,21 @@ export class VenueFollowService {
         {
           event: 'DELETE',
           schema: 'public',
-          table: 'relationships',
+          table: 'user_venue_relationships',
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          // Filter for venue follows only
-          if (payload.old.related_entity_type === 'venue' && payload.old.relationship_type === 'follow') {
-            // Transform relationships table data to VenueFollow format
-            const follow: VenueFollow = {
-              id: payload.old.id,
-              user_id: payload.old.user_id,
-              venue_name: payload.old.related_entity_id, // May be venue name or UUID
-              venue_city: null,
-              venue_state: null,
-              created_at: payload.old.created_at,
-              updated_at: payload.old.updated_at || payload.old.created_at
-            };
-            onFollowChange(follow, 'DELETE');
-          }
+          // For DELETE, we only have the old payload, so venue details may not be available
+          const follow: VenueFollow = {
+            id: payload.old.id,
+            user_id: payload.old.user_id,
+            venue_name: null, // Can't fetch from deleted record
+            venue_city: null,
+            venue_state: null,
+            created_at: payload.old.created_at,
+            updated_at: payload.old.updated_at || payload.old.created_at
+          };
+          onFollowChange(follow, 'DELETE');
         }
       )
       .subscribe();

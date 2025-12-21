@@ -1232,15 +1232,14 @@ export class AdminAnalyticsService {
 
       // Get users with friends
       const { data: friends } = await (supabase as any)
-        .from('relationships')
-          .eq('related_entity_type', 'user')
+        .from('user_relationships')
           .eq('relationship_type', 'friend')
           .eq('status', 'accepted')
-        .select('user_id, related_entity_id');
+        .select('user_id, related_user_id');
       
       const usersWithFriends = new Set([
         ...(friends?.map((f: any) => f.user_id) || []),
-        ...(friends?.map((f: any) => f.related_entity_id) || []),
+        ...(friends?.map((f: any) => f.related_user_id) || []),
       ]).size;
 
       return {
@@ -1388,23 +1387,20 @@ export class AdminAnalyticsService {
         .in('event_type', ['interest', 'share', 'attendance'])
         .eq('entity_type', 'event');
 
-      // Also get event interest from user_jambase_events table (RSVPs)
+      // Also get event RSVPs from user_event_relationships table (3NF compliant)
+      // Only include 'going' and 'maybe' - 'interest' is not an RSVP, just a bookmark
       const { data: currentMonthRSVPs } = await (supabase as any)
-        .from('relationships')
-          .eq('related_entity_type', 'event')
-          .in('relationship_type', ['interest', 'going', 'maybe'])
-        .select('user_id, jambase_event_id, rsvp_status')
-        .gte('created_at', startOfMonth.toISOString())
-        .in('rsvp_status', ['going', 'interested']);
+        .from('user_event_relationships')
+          .in('relationship_type', ['going', 'maybe'])
+        .select('user_id, event_id, relationship_type')
+        .gte('created_at', startOfMonth.toISOString());
 
       const { data: lastMonthRSVPs } = await (supabase as any)
-        .from('relationships')
-          .eq('related_entity_type', 'event')
-          .in('relationship_type', ['interest', 'going', 'maybe'])
-        .select('user_id, jambase_event_id, rsvp_status')
+        .from('user_event_relationships')
+          .in('relationship_type', ['going', 'maybe'])
+        .select('user_id, event_id, relationship_type')
         .gte('created_at', startOfLastMonth.toISOString())
-        .lt('created_at', endOfLastMonth.toISOString())
-        .in('rsvp_status', ['going', 'interested']);
+        .lt('created_at', endOfLastMonth.toISOString());
 
       const normalizeEventId = (interaction: any): string | null => {
         return (
@@ -1466,7 +1462,7 @@ export class AdminAnalyticsService {
         });
 
         rsvps?.forEach((rsvp: any) => {
-          registerIntent(rsvp.user_id, 'rsvp', rsvp.jambase_event_id || rsvp.event_id);
+          registerIntent(rsvp.user_id, 'rsvp', rsvp.event_id);
         });
 
         return {
@@ -1753,13 +1749,12 @@ export class AdminAnalyticsService {
    */
   static async getSocialGraphMetrics(): Promise<SocialGraphMetrics> {
     try {
-      // Get all friendships (from friends table - accepted friendships)
+      // Get all friendships from user_relationships table (3NF compliant)
       const { data: friendships } = await (supabase as any)
-        .from('relationships')
-          .eq('related_entity_type', 'user')
+        .from('user_relationships')
           .eq('relationship_type', 'friend')
           .eq('status', 'accepted')
-        .select('user_id, related_entity_id, created_at');
+        .select('user_id, related_user_id, created_at');
 
       // Get total users
       const { count: totalUsers } = await (supabase as any)
@@ -1772,9 +1767,9 @@ export class AdminAnalyticsService {
 
       friendships?.forEach((friendship: any) => {
         userConnections.set(friendship.user_id, (userConnections.get(friendship.user_id) || 0) + 1);
-        userConnections.set(friendship.related_entity_id, (userConnections.get(friendship.related_entity_id) || 0) + 1);
+        userConnections.set(friendship.related_user_id, (userConnections.get(friendship.related_user_id) || 0) + 1);
         usersWithConnections.add(friendship.user_id);
-        usersWithConnections.add(friendship.related_entity_id);
+        usersWithConnections.add(friendship.related_user_id);
       });
 
       const totalConnections = friendships?.length || 0;

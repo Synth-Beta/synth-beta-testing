@@ -80,14 +80,13 @@ export const BrowseAllEventsSection: React.FC<BrowseAllEventsSectionProps> = ({
   const loadInterestedEvents = async () => {
     try {
       const { data } = await supabase
-        .from('relationships')
-        .select('related_entity_id')
+        .from('user_event_relationships')
+        .select('event_id')
         .eq('user_id', currentUserId)
-        .eq('related_entity_type', 'event')
         .eq('relationship_type', 'interest');
 
       if (data) {
-        setInterestedEvents(new Set(data.map(r => r.related_entity_id)));
+        setInterestedEvents(new Set(data.map(r => r.event_id)));
       }
     } catch (error) {
       console.error('Error loading interested events:', error);

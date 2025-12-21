@@ -65,22 +65,28 @@ export class NotificationService {
         // If view doesn't exist (404, PGRST205, or any error mentioning the view), fallback to notifications table
         if (error) {
           const errorCode = error.code || (error as any)?.statusCode || (error as any)?.status;
-          const errorMessage = error.message || String(error) || '';
-          const errorDetails = (error as any)?.details || '';
-          const errorHint = (error as any)?.hint || '';
+          const errorMessage = (error.message || String(error) || '').toLowerCase();
+          const errorDetails = ((error as any)?.details || '').toLowerCase();
+          const errorHint = ((error as any)?.hint || '').toLowerCase();
           
           // Check for various error codes that indicate the view doesn't exist
+          // Also check HTTP status codes (404 can come through as number or string)
           const isViewNotFound = 
             errorCode === 'PGRST205' || 
             errorCode === '42P01' ||
             errorCode === 404 ||
+            errorCode === '404' ||
+            String(errorCode) === '404' ||
             errorMessage?.includes('notifications_with_details') ||
             errorMessage?.includes('does not exist') ||
             errorMessage?.includes('relation') ||
-            errorMessage?.includes('Not Found') ||
+            errorMessage?.includes('not found') ||
             errorMessage?.includes('404') ||
             errorDetails?.includes('notifications_with_details') ||
-            errorHint?.includes('notifications_with_details');
+            errorHint?.includes('notifications_with_details') ||
+            // Check if the error is a 404 HTTP error (common in Supabase REST API)
+            (error as any)?.status === 404 ||
+            (error as any)?.statusCode === 404;
           
           if (isViewNotFound) {
             // Silently fallback - no need to log this expected error
@@ -690,11 +696,11 @@ export class NotificationService {
               .eq('id', payload.new.id)
               .single();
 
-            // Check if view exists and data is available
+              // Check if view exists and data is available
             if (viewError) {
               // There's an error - check if it's a "view doesn't exist" error
               const viewErrorCode = viewError.code || (viewError as any)?.statusCode || (viewError as any)?.status;
-              const viewErrorMessage = viewError.message || String(viewError) || '';
+              const viewErrorMessage = (viewError.message || String(viewError) || '').toLowerCase();
               
               // If it's a "view doesn't exist" error, we'll fallback below
               // Otherwise, it's a different error and we should still try fallback
@@ -702,9 +708,14 @@ export class NotificationService {
                 viewErrorCode === 'PGRST205' || 
                 viewErrorCode === '42P01' ||
                 viewErrorCode === 404 ||
+                viewErrorCode === '404' ||
+                String(viewErrorCode) === '404' ||
+                (viewError as any)?.status === 404 ||
+                (viewError as any)?.statusCode === 404 ||
                 viewErrorMessage?.includes('notifications_with_details') ||
                 viewErrorMessage?.includes('does not exist') ||
-                viewErrorMessage?.includes('Not Found');
+                viewErrorMessage?.includes('not found') ||
+                viewErrorMessage?.includes('404');
               
               // If it's not a "view doesn't exist" error, log it but still fallback
               if (!isViewNotFound) {
@@ -757,11 +768,11 @@ export class NotificationService {
               .eq('id', payload.new.id)
               .single();
 
-            // Check if view exists and data is available
+              // Check if view exists and data is available
             if (viewError) {
               // There's an error - check if it's a "view doesn't exist" error
               const viewErrorCode = viewError.code || (viewError as any)?.statusCode || (viewError as any)?.status;
-              const viewErrorMessage = viewError.message || String(viewError) || '';
+              const viewErrorMessage = (viewError.message || String(viewError) || '').toLowerCase();
               
               // If it's a "view doesn't exist" error, we'll fallback below
               // Otherwise, it's a different error and we should still try fallback
@@ -769,9 +780,14 @@ export class NotificationService {
                 viewErrorCode === 'PGRST205' || 
                 viewErrorCode === '42P01' ||
                 viewErrorCode === 404 ||
+                viewErrorCode === '404' ||
+                String(viewErrorCode) === '404' ||
+                (viewError as any)?.status === 404 ||
+                (viewError as any)?.statusCode === 404 ||
                 viewErrorMessage?.includes('notifications_with_details') ||
                 viewErrorMessage?.includes('does not exist') ||
-                viewErrorMessage?.includes('Not Found');
+                viewErrorMessage?.includes('not found') ||
+                viewErrorMessage?.includes('404');
               
               // If it's not a "view doesn't exist" error, log it but still fallback
               if (!isViewNotFound) {

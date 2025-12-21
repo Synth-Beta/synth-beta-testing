@@ -33,42 +33,42 @@ DECLARE
   v_follows_artist BOOLEAN := false;
   v_follows_venue BOOLEAN := false;
 BEGIN
-  -- Check if user follows the artist of this event
-  -- Note: artist_id in events is TEXT, need to match with relationships table
+  -- Check if user follows the artist of this event (3NF compliant - uses artist_follows table)
+  -- Supports both JamBase ID (text) and database UUID matching
   IF p_event_artist_id IS NOT NULL THEN
     SELECT EXISTS (
       SELECT 1
-      FROM public.relationships r
-      WHERE r.user_id = p_user_id
-        AND r.related_entity_type = 'artist'
-        AND r.relationship_type = 'follow'
-        AND r.status = 'accepted'
-        AND LOWER(TRIM(r.related_entity_id)) = LOWER(TRIM(p_event_artist_id))
+      FROM artist_follows af
+      JOIN artists a ON a.id = af.artist_id
+      WHERE af.user_id = p_user_id
+        AND (
+          LOWER(TRIM(a.jambase_artist_id)) = LOWER(TRIM(p_event_artist_id))
+          OR a.id::TEXT = p_event_artist_id
+        )
       LIMIT 1
     ) INTO v_follows_artist;
   END IF;
   
-  -- Check if user follows the venue (prefer venue_id, fall back to name)
+  -- Check if user follows the venue (3NF compliant - uses user_venue_relationships)
   IF p_event_venue_id IS NOT NULL THEN
     SELECT EXISTS (
       SELECT 1
-      FROM public.relationships r
-      WHERE r.user_id = p_user_id
-        AND r.related_entity_type = 'venue'
-        AND r.relationship_type = 'follow'
-        AND r.status = 'accepted'
-        AND LOWER(TRIM(r.related_entity_id)) = LOWER(TRIM(p_event_venue_id))
+      FROM user_venue_relationships uvr
+      JOIN venues v ON v.id = uvr.venue_id
+      WHERE uvr.user_id = p_user_id
+        AND (
+          LOWER(TRIM(v.jambase_venue_id)) = LOWER(TRIM(p_event_venue_id))
+          OR v.id::TEXT = p_event_venue_id
+        )
       LIMIT 1
     ) INTO v_follows_venue;
   ELSIF p_event_venue_name IS NOT NULL THEN
     SELECT EXISTS (
       SELECT 1
-      FROM public.relationships r
-      WHERE r.user_id = p_user_id
-        AND r.related_entity_type = 'venue'
-        AND r.relationship_type = 'follow'
-        AND r.status = 'accepted'
-        AND LOWER(TRIM(r.related_entity_id)) = LOWER(TRIM(p_event_venue_name))
+      FROM user_venue_relationships uvr
+      JOIN venues v ON v.id = uvr.venue_id
+      WHERE uvr.user_id = p_user_id
+        AND LOWER(TRIM(v.name)) = LOWER(TRIM(p_event_venue_name))
       LIMIT 1
     ) INTO v_follows_venue;
   END IF;

@@ -96,7 +96,7 @@ export interface RedFlag {
  */
 interface BatchData {
   profiles: Array<{ user_id: string; location_city: string | null; created_at: string }>;
-  friendships: Array<{ user_id: string; related_entity_id: string; created_at: string }>;
+  friendships: Array<{ user_id: string; related_user_id: string; created_at: string }>;
   interactions: Array<{ user_id: string; occurred_at: string }>;
   reviews: Array<{ event_id: string; user_id: string }>;
   events: Array<{ id: string; venue_city: string | null }>;
@@ -126,7 +126,7 @@ export class NetworkAnalyticsService {
     // Load all data in parallel
     const [profilesResult, friendshipsResult, interactionsResult, reviewsResult, eventsResult] = await Promise.all([
       supabase.from('users').select('user_id, location_city, created_at').not('location_city', 'is', null),
-      supabase.from('relationships').select('user_id, related_entity_id, created_at').eq('related_entity_type', 'user').eq('relationship_type', 'friend').eq('status', 'accepted'),
+      supabase.from('user_relationships').select('user_id, related_user_id, created_at').eq('relationship_type', 'friend').eq('status', 'accepted'),
       supabase.from('interactions').select('user_id, occurred_at').gte('occurred_at', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()),
       supabase.from('reviews').select('event_id, user_id').eq('is_draft', false),
       supabase.from('events').select('id, venue_city').not('venue_city', 'is', null)
@@ -415,8 +415,8 @@ export class NetworkAnalyticsService {
         if (cityUserSet.has(friendship.user_id)) {
           friendCounts.set(friendship.user_id, (friendCounts.get(friendship.user_id) || 0) + 1);
         }
-        if (cityUserSet.has(friendship.related_entity_id)) {
-          friendCounts.set(friendship.related_entity_id, (friendCounts.get(friendship.related_entity_id) || 0) + 1);
+        if (cityUserSet.has(friendship.related_user_id)) {
+          friendCounts.set(friendship.related_user_id, (friendCounts.get(friendship.related_user_id) || 0) + 1);
         }
       }
 
@@ -540,10 +540,10 @@ export class NetworkAnalyticsService {
       
       for (const friendship of batchData.friendships) {
         if (userIdSet.has(friendship.user_id)) {
-          userFriendConnections.get(friendship.user_id)?.push(friendship.related_entity_id);
+          userFriendConnections.get(friendship.user_id)?.push(friendship.related_user_id);
         }
-        if (userIdSet.has(friendship.related_entity_id)) {
-          userFriendConnections.get(friendship.related_entity_id)?.push(friendship.user_id);
+        if (userIdSet.has(friendship.related_user_id)) {
+          userFriendConnections.get(friendship.related_user_id)?.push(friendship.user_id);
         }
       }
 

@@ -39,19 +39,17 @@ export class VerificationService {
 
       // Get friend count
       const { count: friendCount } = await supabase
-        .from('relationships')
+        .from('user_relationships')
         .select('*', { count: 'exact', head: true })
-        .eq('related_entity_type', 'user')
         .eq('relationship_type', 'friend')
         .eq('status', 'accepted')
-        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`);
+        .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
 
       // Get event interest count
       const { count: eventCount } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('related_entity_type', 'event')
         .in('relationship_type', ['interest', 'going', 'maybe']);
 
       // Get attended event count (events with reviews)
@@ -120,19 +118,17 @@ export class VerificationService {
 
       // Get friend count
       const { count: friendCount } = await supabase
-        .from('relationships')
+        .from('user_relationships')
         .select('*', { count: 'exact', head: true })
-        .eq('related_entity_type', 'user')
         .eq('relationship_type', 'friend')
         .eq('status', 'accepted')
-        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`);
+        .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
 
       // Get event interest count
       const { count: eventCount } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('related_entity_type', 'event')
         .in('relationship_type', ['interest', 'going', 'maybe']);
 
       // Get attended event count

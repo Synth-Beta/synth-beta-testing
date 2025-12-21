@@ -91,17 +91,16 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
     if (!currentUserId) return;
 
     try {
-      // Use relationships table for 3NF schema
+      // Use user_event_relationships table (3NF compliant)
       const { data, error } = await supabase
-        .from('relationships')
-        .select('related_entity_id')
-        .eq('related_entity_type', 'event')
+        .from('user_event_relationships')
+        .select('event_id')
         .eq('relationship_type', 'interest')
         .eq('user_id', currentUserId);
 
       if (error) throw error;
 
-      const interestedSet = new Set(data?.map(item => item.related_entity_id).filter(Boolean) || []);
+      const interestedSet = new Set(data?.map(item => item.event_id).filter(Boolean) || []);
       setInterestedEvents(interestedSet);
     } catch (error) {
       console.error('Error loading interested events:', error);

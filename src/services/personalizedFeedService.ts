@@ -482,11 +482,9 @@ export class PersonalizedFeedService {
 
     try {
       const { data: followRows, error: followError } = await supabase
-        .from('relationships')
-        .select('related_entity_id')
-        .eq('user_id', userId)
-        .eq('related_entity_type', 'artist')
-        .eq('relationship_type', 'follow');
+        .from('artist_follows')
+        .select('artist_id')
+        .eq('user_id', userId);
 
       if (followError) {
         logger.warn('⚠️ Unable to load artist_follows for fallback filter:', followError);
@@ -494,7 +492,7 @@ export class PersonalizedFeedService {
       }
 
       const artistIds = (followRows ?? [])
-        .map((row: any) => (row.related_entity_id ? String(row.related_entity_id) : null))
+        .map((row: any) => (row.artist_id ? String(row.artist_id) : null))
         .filter((id): id is string => !!id);
 
       artistIds.forEach((id) => followedUuidSet.add(id.toLowerCase()));

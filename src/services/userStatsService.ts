@@ -44,10 +44,9 @@ export class UserStatsService {
 
   private static async getInterestedEventCounts(userId: string): Promise<{ total: number; upcoming: number }> {
     const totalRes = await supabase
-      .from('relationships')
+      .from('user_event_relationships')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .eq('related_entity_type', 'event')
       .in('relationship_type', ['interest', 'going', 'maybe']);
     const total = totalRes.count ?? 0;
 
@@ -55,10 +54,9 @@ export class UserStatsService {
     today.setHours(0, 0, 0, 0);
     const dateStr = today.toISOString();
     const upcomingRes = await supabase
-      .from('relationships')
+      .from('user_event_relationships')
       .select('*, events!inner(event_date)', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .eq('related_entity_type', 'event')
       .in('relationship_type', ['interest', 'going', 'maybe'])
       .gte('events.event_date', dateStr);
     const upcoming = upcomingRes.count ?? 0;
@@ -91,12 +89,11 @@ export class UserStatsService {
 
   private static async countFriends(userId: string): Promise<number> {
     const { count } = await supabase
-      .from('relationships')
+      .from('user_relationships')
       .select('*', { count: 'exact', head: true })
-      .eq('related_entity_type', 'user')
       .eq('relationship_type', 'friend')
       .eq('status', 'accepted')
-      .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`);
+      .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
     return count ?? 0;
   }
 }

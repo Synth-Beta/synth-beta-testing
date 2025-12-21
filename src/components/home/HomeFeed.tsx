@@ -473,14 +473,13 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 
       // First, get relationships for friends' event interests
       const { data: relationships, error: relError } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select(`
           id,
           user_id,
-          related_entity_id,
+          event_id,
           created_at
         `)
-        .eq('related_entity_type', 'event')
         .in('relationship_type', ['going', 'maybe'])
         .in('user_id', friendIds)
         .order('created_at', { ascending: false })
@@ -493,7 +492,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
       }
 
       // Get event IDs and user IDs
-      const eventIds = relationships.map(r => r.related_entity_id).filter(Boolean) as string[];
+      const eventIds = relationships.map(r => r.event_id).filter(Boolean) as string[];
       const userIds = [...new Set(relationships.map(r => r.user_id))];
 
       // Fetch events and users in parallel
@@ -518,7 +517,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
       // Combine data
       const interests: FriendEventInterest[] = relationships
         .map((rel: any) => {
-          const event = eventsMap.get(rel.related_entity_id);
+          const event = eventsMap.get(rel.event_id);
           const user = usersMap.get(rel.user_id);
           
           if (!event) return null; // Skip if event not found

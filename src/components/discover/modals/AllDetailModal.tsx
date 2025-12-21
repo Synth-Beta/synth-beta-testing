@@ -43,11 +43,10 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
     try {
       if (result.type === 'event') {
         const interested = await supabase
-          .from('relationships')
+          .from('user_event_relationships')
           .select('id')
           .eq('user_id', currentUserId)
-          .eq('related_entity_id', result.id)
-          .eq('related_entity_type', 'event')
+          .eq('event_id', result.id)
           .eq('relationship_type', 'interest')
           .maybeSingle();
         
@@ -69,24 +68,20 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
       } else if (result.type === 'artist') {
         // Check if following artist
         const { data: following } = await supabase
-          .from('relationships')
+          .from('artist_follows')
           .select('id')
           .eq('user_id', currentUserId)
-          .eq('related_entity_id', result.id)
-          .eq('related_entity_type', 'artist')
-          .eq('relationship_type', 'follow')
+          .eq('artist_id', result.id)
           .maybeSingle();
         
         setIsFollowing(!!following?.data);
       } else if (result.type === 'venue') {
         // Check if following venue
         const { data: following } = await supabase
-          .from('relationships')
+          .from('user_venue_relationships')
           .select('id')
           .eq('user_id', currentUserId)
-          .eq('related_entity_id', result.id)
-          .eq('related_entity_type', 'venue')
-          .eq('relationship_type', 'follow')
+          .eq('venue_id', result.id)
           .maybeSingle();
         
         setIsFollowing(!!following?.data);
@@ -104,20 +99,18 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
         
         if (newState) {
           await supabase
-            .from('relationships')
+            .from('user_event_relationships')
             .insert({
               user_id: currentUserId,
-              related_entity_id: result.id,
-              related_entity_type: 'event',
+              event_id: result.id,
               relationship_type: 'interest',
             });
         } else {
           await supabase
-            .from('relationships')
+            .from('user_event_relationships')
             .delete()
             .eq('user_id', currentUserId)
-            .eq('related_entity_id', result.id)
-            .eq('related_entity_type', 'event')
+            .eq('event_id', result.id)
             .eq('relationship_type', 'interest');
         }
       } else {
@@ -125,25 +118,36 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
         const newState = !isFollowing;
         setIsFollowing(newState);
         
-        const entityType = result.type === 'artist' ? 'artist' : 'venue';
-        
-        if (newState) {
-          await supabase
-            .from('relationships')
-            .insert({
-              user_id: currentUserId,
-              related_entity_id: result.id,
-              related_entity_type: entityType,
-              relationship_type: 'follow',
-            });
-        } else {
-          await supabase
-            .from('relationships')
-            .delete()
-            .eq('user_id', currentUserId)
-            .eq('related_entity_id', result.id)
-            .eq('related_entity_type', entityType)
-            .eq('relationship_type', 'follow');
+        if (result.type === 'artist') {
+          if (newState) {
+            await supabase
+              .from('artist_follows')
+              .insert({
+                user_id: currentUserId,
+                artist_id: result.id,
+              });
+          } else {
+            await supabase
+              .from('artist_follows')
+              .delete()
+              .eq('user_id', currentUserId)
+              .eq('artist_id', result.id);
+          }
+        } else if (result.type === 'venue') {
+          if (newState) {
+            await supabase
+              .from('user_venue_relationships')
+              .insert({
+                user_id: currentUserId,
+                venue_id: result.id,
+              });
+          } else {
+            await supabase
+              .from('user_venue_relationships')
+              .delete()
+              .eq('user_id', currentUserId)
+              .eq('venue_id', result.id);
+          }
         }
       }
     } catch (error) {

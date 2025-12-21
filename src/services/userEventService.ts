@@ -39,46 +39,43 @@ export class UserEventService {
         throw error;
       }
 
-      // Return fresh state - convert event ID to string for consistent comparison
-      const eventIdStr = String(jambaseEventId);
-      console.log('🔍 Checking if relationship was saved:', { userId, eventIdStr, interested });
+      // Get event UUID from jambase_event_id if needed
+      let eventUuid = jambaseEventId;
+      // Check if jambaseEventId is already a UUID, otherwise look it up
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId);
+      if (!isUUID) {
+        const { data: event } = await supabase
+          .from('events')
+          .select('id')
+          .eq('jambase_event_id', jambaseEventId)
+          .maybeSingle();
+        if (event) {
+          eventUuid = event.id;
+        } else {
+          // Event not found - throw error to match removeEventInterest behavior
+          throw new Error(`Event not found: ${jambaseEventId}`);
+        }
+      }
+      
+      console.log('🔍 Checking if relationship was saved:', { userId, eventUuid, interested });
       
       // Wait a moment for the database write to complete
       await new Promise(resolve => setTimeout(resolve, 100));
       
       const { data, error: fetchError } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select('*')
-        .eq('related_entity_type', 'event')
         .eq('relationship_type', 'interest')
-        .eq('status', 'accepted') // Only get accepted interests
         .eq('user_id', userId)
-        .eq('related_entity_id', eventIdStr)
+        .eq('event_id', eventUuid)
         .maybeSingle();
       
       console.log('🔍 Fresh state check result:', { 
         found: !!data, 
         error: fetchError,
-        eventIdStr,
+        eventUuid,
         interested
       });
-      
-      // If interested=true but no data found, try without status filter (in case status wasn't set)
-      if (interested && !data && !fetchError) {
-        console.log('🔍 Retrying without status filter...');
-        const { data: retryData } = await supabase
-          .from('relationships')
-          .select('*')
-          .eq('related_entity_type', 'event')
-          .eq('relationship_type', 'interest')
-          .eq('user_id', userId)
-          .eq('related_entity_id', eventIdStr)
-          .maybeSingle();
-        
-        if (retryData) {
-          console.log('🔍 Found relationship without status filter:', retryData);
-        }
-      }
       
       if (fetchError) throw fetchError;
       try {
@@ -99,12 +96,28 @@ export class UserEventService {
    */
   static async removeEventInterest(userId: string, jambaseEventId: string): Promise<void> {
     try {
+      // Get event UUID from jambase_event_id if needed
+      let eventUuid = jambaseEventId;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId);
+      if (!isUUID) {
+        const { data: event } = await supabase
+          .from('events')
+          .select('id')
+          .eq('jambase_event_id', jambaseEventId)
+          .maybeSingle();
+        if (event) {
+          eventUuid = event.id;
+        } else {
+          throw new Error(`Event not found: ${jambaseEventId}`);
+        }
+      }
+      
       const { error } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .delete()
-        .eq('related_entity_type', 'event')
         .eq('user_id', userId)
-        .eq('related_entity_id', jambaseEventId);
+        .eq('event_id', eventUuid)
+        .eq('relationship_type', 'interest');
 
       if (error) throw error;
       try {
@@ -121,41 +134,31 @@ export class UserEventService {
    */
   static async isUserInterested(userId: string, jambaseEventId: string): Promise<boolean> {
     try {
-      // Convert event ID to string for consistent comparison (relationships stores as TEXT)
-      const eventIdStr = String(jambaseEventId);
+      // Get event UUID from jambase_event_id if needed
+      let eventUuid = jambaseEventId;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId);
+      if (!isUUID) {
+        const { data: event } = await supabase
+          .from('events')
+          .select('id')
+          .eq('jambase_event_id', jambaseEventId)
+          .maybeSingle();
+        if (event) {
+          eventUuid = event.id;
+        } else {
+          return false; // Event doesn't exist
+        }
+      }
       
-      // First try with status filter
       const { data, error } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select('id')
-        .eq('related_entity_type', 'event')
         .eq('relationship_type', 'interest')
-        .eq('status', 'accepted') // Only check accepted interests
         .eq('user_id', userId)
-        .eq('related_entity_id', eventIdStr)
+        .eq('event_id', eventUuid)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
-      
-      // If not found with status filter, try without it (in case status wasn't set)
-      if (!data) {
-        // Retrying without status filter
-        const { data: retryData, error: retryError } = await supabase
-          .from('relationships')
-          .select('id')
-          .eq('related_entity_type', 'event')
-          .eq('relationship_type', 'interest')
-          .eq('user_id', userId)
-          .eq('related_entity_id', eventIdStr)
-          .maybeSingle();
-        
-        if (retryError && retryError.code !== 'PGRST116') throw retryError;
-        
-        if (retryData) {
-          // Found relationship without status filter
-          return true;
-        }
-      }
       
       return Boolean(data);
     } catch (error) {
@@ -175,11 +178,10 @@ export class UserEventService {
     total: number;
   }> {
     try {
-      // First get all relationships for events user is interested in
+      // Get all event interests from user_event_relationships (3NF compliant)
       const { data: relationships, error: relationshipsError } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select('*')
-        .eq('related_entity_type', 'event')
         .eq('relationship_type', 'interest')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
@@ -190,42 +192,36 @@ export class UserEventService {
         return { events: [], total: 0 };
       }
 
-      // Extract event IDs and query events separately (no foreign key join available)
-      const eventIds = relationships.map((r: any) => r.related_entity_id).filter(Boolean);
+      // Extract event UUIDs (all are UUIDs now)
+      const eventIds = relationships.map((r: any) => r.event_id).filter(Boolean);
       
       if (eventIds.length === 0) {
         return { events: [], total: 0 };
       }
 
-      // Query events using UUIDs (convert TEXT IDs to UUIDs)
+      // Query events using UUIDs
       const { data: eventsData, error: eventsError } = await supabase
         .from('events')
         .select('*')
         .in('id', eventIds);
 
-      // If UUID query fails, try as TEXT (some might be stored as TEXT)
-      let events = eventsData || [];
-      if (eventsError && events.length === 0) {
-        // Try querying by jambase_event_id if available
-        const { data: eventsByJambaseId } = await supabase
-          .from('events')
-          .select('*')
-          .in('jambase_event_id', eventIds);
-        if (eventsByJambaseId) events = eventsByJambaseId;
-      }
+      if (eventsError) throw eventsError;
+
+      const events = eventsData || [];
 
       // Create a map of event ID to event data for efficient lookup
-      const eventMap = new Map(events.map((e: any) => [e.id || e.jambase_event_id, e]));
+      const eventMap = new Map(events.map((e: any) => [e.id, e]));
 
       // Combine relationships with events
       const combinedEvents = relationships
         .map((row: any) => {
-          const event = eventMap.get(row.related_entity_id) || null;
+          const event = eventMap.get(row.event_id) || null;
           return {
             interest: {
               id: row.id,
               user_id: row.user_id,
-              jambase_event_id: row.related_entity_id,
+              // Only use jambase_event_id from the event, never fallback to database UUID
+              jambase_event_id: event?.jambase_event_id || null,
               created_at: row.created_at,
             } as UserJamBaseEvent,
             event: event,
@@ -480,15 +476,16 @@ export class UserEventService {
       now.setHours(0, 0, 0, 0); // Set to start of today for more reliable date comparison
       const nowISOString = now.toISOString().split('T')[0]; // Get YYYY-MM-DD for date comparison
 
-      // Use explicit typing to avoid deep type instantiation
-      const { data, error } = await (supabase
-        .from('relationships')
+      // Query user_event_relationships with join to events (3NF compliant)
+      // Use events!inner(*) to enable filtering on nested columns
+      const { data, error } = await supabase
+        .from('user_event_relationships')
         .select(`
           *,
-          events(*)
+          events:events!user_event_relationships_event_id_fkey!inner(*)
         `)
-        .eq('related_entity_type', 'event') as any)
         .eq('user_id', userId)
+        .in('relationship_type', ['interest', 'going', 'maybe'])
         .gte('events.event_date', nowISOString)
         .order('events.event_date', { ascending: true });
 
@@ -497,16 +494,19 @@ export class UserEventService {
       }
 
       return {
-        events: (data || []).map((row: any) => ({
-          interest: {
-            id: row.id,
-            user_id: row.user_id,
-            related_entity_id: row.related_entity_id,
-            created_at: row.created_at,
-            // add other relationship fields if needed
-          },
-          event: row.event
-        })),
+        events: (data || []).map((row: any) => {
+          // The alias is 'events', so access via row.events
+          const eventData = row.events;
+          return {
+            interest: {
+              id: row.id,
+              user_id: row.user_id,
+              jambase_event_id: eventData?.jambase_event_id || null, // Only use jambase_event_id, not database UUID
+              created_at: row.created_at,
+            },
+            event: eventData
+          };
+        }),
         total: data?.length || 0
       };
     } catch (error) {

@@ -130,13 +130,12 @@ export class AnalyticsDataService {
   static async getAllInterestedUsers(eventIds?: string[]): Promise<any[]> {
     try {
       let query = supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select('*')
-        .eq('related_entity_type', 'event')
         .in('relationship_type', ['interest', 'going', 'maybe']);
 
       if (eventIds && eventIds.length > 0) {
-        query = query.in('related_entity_id', eventIds);
+        query = query.in('event_id', eventIds);
       }
 
       const { data, error } = await query;

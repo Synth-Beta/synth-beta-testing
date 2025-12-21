@@ -43,17 +43,16 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
 
         const userIds = suggestions.map(s => s.user_id);
         
-        // Check for pending friend requests in relationships table
+        // Check for pending friend requests in user_relationships table (3NF compliant)
         // Check both directions: where current user sent (user_id = current user) 
-        // and where current user received (related_entity_id = current user, user_id = suggested user)
+        // and where current user received (related_user_id = current user, user_id = suggested user)
         const { data: sentRequests, error: sentError } = await supabase
-          .from('relationships')
-          .select('related_entity_id')
+          .from('user_relationships')
+          .select('related_user_id')
           .eq('user_id', user.id)
-          .eq('related_entity_type', 'user')
           .eq('relationship_type', 'friend')
           .eq('status', 'pending')
-          .in('related_entity_id', userIds);
+          .in('related_user_id', userIds);
 
         if (sentError) {
           console.error('Error checking sent friend requests:', sentError);
@@ -61,10 +60,9 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
 
         // Also check if any of these users sent requests to current user
         const { data: receivedRequests, error: receivedError } = await supabase
-          .from('relationships')
+          .from('user_relationships')
           .select('user_id')
-          .eq('related_entity_id', user.id)
-          .eq('related_entity_type', 'user')
+          .eq('related_user_id', user.id)
           .eq('relationship_type', 'friend')
           .eq('status', 'pending')
           .in('user_id', userIds);
@@ -76,7 +74,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
         // Combine both sets - we want to show "Requested" if we sent it OR if they sent it to us
         const requestedSet = new Set<string>();
         if (sentRequests) {
-          sentRequests.forEach(r => requestedSet.add(r.related_entity_id));
+          sentRequests.forEach(r => requestedSet.add(r.related_user_id));
         }
         if (receivedRequests) {
           receivedRequests.forEach(r => requestedSet.add(r.user_id));

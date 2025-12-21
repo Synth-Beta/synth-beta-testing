@@ -261,6 +261,40 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
       if (error) {
         console.error('Error accepting friend request:', error);
         
+        // Handle duplicate key error (23505) - friendship already exists, treat as success
+        if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+          console.log('✅ Friendship already exists, treating as success');
+          // No need to update - the RPC function already handled it or the friendship already exists
+          // The duplicate key error means the bidirectional friendship constraint was violated,
+          // which indicates the friendship is already in the database
+          
+          // Remove from UI and refresh
+          setNotifications(prev => prev.filter(n => {
+            const notifRequestId = (n.data as any)?.request_id;
+            // Use same matching logic as deleteFriendRequestNotification (lines 205-208)
+            // Return true to KEEP notifications that DON'T match, false to REMOVE those that DO match
+            if (notifRequestId == null || requestId == null) {
+              return notifRequestId === requestId ? false : true; // If they match (both null), remove (return false)
+            }
+            return String(notifRequestId) !== String(requestId);
+          }));
+          
+          try {
+            await deleteFriendRequestNotification(requestId);
+          } catch (deleteError) {
+            console.error('Failed to delete notification, but continuing:', deleteError);
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await fetchNotifications();
+          
+          toast({
+            title: "Already Friends! ✅",
+            description: "You're already friends with this person.",
+          });
+          return;
+        }
+        
         // Handle specific error cases - if already processed, just refresh and show success
         if (error.message?.includes('not found') || error.message?.includes('already processed')) {
           // Check if they're already friends (request was already accepted)

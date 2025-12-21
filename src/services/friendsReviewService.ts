@@ -12,14 +12,13 @@ export class FriendsReviewService {
     offset: number = 0
   ): Promise<UnifiedFeedItem[]> {
     try {
-      // First get the user's friends from relationships table
+      // First get the user's friends from user_relationships table (3NF compliant)
       const { data: friends, error: friendsError } = await supabase
-        .from('relationships')
-        .select('user_id, related_entity_id')
-        .eq('related_entity_type', 'user')
+        .from('user_relationships')
+        .select('user_id, related_user_id')
         .eq('relationship_type', 'friend')
         .eq('status', 'accepted')
-        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`);
+        .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
 
       if (friendsError) throw friendsError;
 
@@ -29,7 +28,7 @@ export class FriendsReviewService {
 
       // Extract friend user IDs
       const friendIds = friends.map(f => 
-        f.user_id === userId ? f.related_entity_id : f.user_id
+        f.user_id === userId ? f.related_user_id : f.user_id
       );
 
       // Get reviews from friends with automatic joins via foreign keys
@@ -109,14 +108,13 @@ export class FriendsReviewService {
     offset: number = 0
   ): Promise<UnifiedFeedItem[]> {
     try {
-      // Get user's friends from relationships table
+      // Get user's friends from user_relationships table (3NF compliant)
       const { data: friends, error: friendsError } = await supabase
-        .from('relationships')
-        .select('user_id, related_entity_id')
-        .eq('related_entity_type', 'user')
+        .from('user_relationships')
+        .select('user_id, related_user_id')
         .eq('relationship_type', 'friend')
         .eq('status', 'accepted')
-        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`);
+        .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
 
       if (friendsError) throw friendsError;
 
@@ -126,14 +124,13 @@ export class FriendsReviewService {
 
       // Extract direct friend IDs
       const directFriendIds = friends.map(f => 
-        f.user_id === userId ? f.related_entity_id : f.user_id
+        f.user_id === userId ? f.related_user_id : f.user_id
       );
 
       // Get friends of friends
       const { data: friendsOfFriends, error: fofError } = await supabase
-        .from('relationships')
-        .select('user_id, related_entity_id')
-        .eq('related_entity_type', 'user')
+        .from('user_relationships')
+        .select('user_id, related_user_id')
         .eq('relationship_type', 'friend')
         .eq('status', 'accepted')
         .in('user_id', directFriendIds);
@@ -142,7 +139,7 @@ export class FriendsReviewService {
 
       // Extract friends of friends IDs (excluding direct friends)
       const friendsOfFriendsIds = (friendsOfFriends || [])
-        .map(f => f.user_id === userId ? f.related_entity_id : f.user_id)
+        .map(f => f.user_id === userId ? f.related_user_id : f.user_id)
         .filter(id => !directFriendIds.includes(id) && id !== userId);
 
       // Combine all friend IDs (direct friends + friends of friends)
@@ -313,12 +310,11 @@ export class FriendsReviewService {
   static async getFriendCount(userId: string): Promise<number> {
     try {
       const { count, error } = await supabase
-        .from('relationships')
+        .from('user_relationships')
         .select('*', { count: 'exact', head: true })
-        .eq('related_entity_type', 'user')
         .eq('relationship_type', 'friend')
         .eq('status', 'accepted')
-        .or(`user_id.eq.${userId},related_entity_id.eq.${userId}`);
+        .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
 
       if (error) throw error;
       return count || 0;
@@ -334,12 +330,11 @@ export class FriendsReviewService {
   static async areFriends(userId1: string, userId2: string): Promise<boolean> {
     try {
       const { data, error } = await supabase
-        .from('relationships')
+        .from('user_relationships')
         .select('id')
-        .eq('related_entity_type', 'user')
         .eq('relationship_type', 'friend')
         .eq('status', 'accepted')
-        .or(`and(user_id.eq.${userId1},related_entity_id.eq.${userId2}),and(user_id.eq.${userId2},related_entity_id.eq.${userId1})`)
+        .or(`and(user_id.eq.${userId1},related_user_id.eq.${userId2}),and(user_id.eq.${userId2},related_user_id.eq.${userId1})`)
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;

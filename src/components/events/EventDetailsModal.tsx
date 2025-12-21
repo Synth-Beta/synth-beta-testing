@@ -467,24 +467,22 @@ export function EventDetailsModal({
         // Using UUID for count query
         
         // Use the UUID id to get the count, excluding current user
-        // Use relationships table for 3NF - event interest is stored in relationships
+        // Use user_event_relationships table (3NF compliant)
         const { count, error } = await supabase
-          .from('relationships')
+          .from('user_event_relationships')
           .select('*', { count: 'exact', head: true })
-          .eq('related_entity_type', 'event')
-          .eq('related_entity_id', uuidId)
+          .eq('event_id', uuidId)
           .eq('relationship_type', 'interest')
           .neq('user_id', currentUserId);
           
         // Count query completed
-        // Querying relationships table
+        // Querying user_event_relationships table
         
         // Also check what users are actually in the database for this event
         const { data: allUsersCheck, error: allUsersCheckError } = await supabase
-          .from('relationships')
+          .from('user_event_relationships')
           .select('user_id')
-          .eq('related_entity_type', 'event')
-          .eq('related_entity_id', uuidId)
+          .eq('event_id', uuidId)
           .eq('relationship_type', 'interest');
         // Checking all users
         
@@ -492,10 +490,9 @@ export function EventDetailsModal({
           // Count query failed, trying alternative approach
           // Try alternative approach - get all users and count manually
           const { data: allUsers, error: allUsersError } = await supabase
-            .from('relationships')
+            .from('user_event_relationships')
             .select('user_id')
-            .eq('related_entity_type', 'event')
-            .eq('related_entity_id', uuidId)
+            .eq('event_id', uuidId)
             .eq('relationship_type', 'interest');
             
           if (allUsersError) {
@@ -775,12 +772,11 @@ export function EventDetailsModal({
         }
       }
       
-      // Now query relationships table with the correct UUID (3NF schema)
+      // Now query user_event_relationships table with the correct UUID (3NF compliant)
       const { data: interestedUserIds, error: interestsError } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select('user_id')
-        .eq('related_entity_type', 'event')
-        .eq('related_entity_id', uuidId)
+        .eq('event_id', uuidId)
         .eq('relationship_type', 'interest')
         .neq('user_id', currentUserId)
         .range(from, to);

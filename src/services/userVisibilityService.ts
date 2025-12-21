@@ -250,12 +250,11 @@ export class UserVisibilityService {
   static async getFriendIds(currentUserId: string): Promise<string[]> {
     try {
       const { data, error } = await supabase
-        .from('relationships')
-        .select('user_id, related_entity_id')
-        .eq('related_entity_type', 'user')
+        .from('user_relationships')
+        .select('user_id, related_user_id')
         .eq('relationship_type', 'friend')
         .eq('status', 'accepted')
-        .or(`user_id.eq.${currentUserId},related_entity_id.eq.${currentUserId}`);
+        .or(`user_id.eq.${currentUserId},related_user_id.eq.${currentUserId}`);
 
       if (error) {
         console.error('Error fetching friends:', error);
@@ -265,7 +264,7 @@ export class UserVisibilityService {
       // Extract the friend IDs (the other user in each friendship)
       return (data || []).map(friendship => 
         friendship.user_id === currentUserId 
-          ? friendship.related_entity_id 
+          ? friendship.related_user_id 
           : friendship.user_id
       );
     } catch (error) {

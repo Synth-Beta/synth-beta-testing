@@ -78,11 +78,10 @@ export class VIPAnalyticsService {
 
       // Get users who are interested in these events
       const { data: interestedUsers, error: interestedError } = await supabase
-        .from('relationships')
-        .select('user_id, related_entity_id')
-        .eq('related_entity_type', 'event')
+        .from('user_event_relationships')
+        .select('user_id, event_id')
         .in('relationship_type', ['interest', 'going', 'maybe'])
-        .in('related_entity_id', eventIds);
+        .in('event_id', eventIds);
 
       if (interestedError) {
         console.error('Error fetching interested users for VIP analysis:', interestedError);
@@ -122,7 +121,7 @@ export class VIPAnalyticsService {
 
       for (const profile of profiles || []) {
         const userInteractions = interactions?.filter(i => i.user_id === profile.user_id) || [];
-        const userInterested = interestedUsers?.filter(i => i.user_id === profile.user_id || i.related_entity_id === profile.user_id) || [];
+        const userInterested = interestedUsers?.filter(i => i.user_id === profile.user_id) || [];
         const userReviews = reviews?.filter(r => r.user_id === profile.user_id) || [];
 
         // Calculate engagement metrics

@@ -94,20 +94,18 @@ export class MatchingService {
         .single();
 
       if (reciprocalSwipe) {
-        // Create match in relationships table (bidirectional - create 2 rows)
-        await supabase.from('relationships').insert([
+        // Create match in user_relationships table (3NF compliant - bidirectional)
+        await supabase.from('user_relationships').insert([
           {
             user_id: user1_id,
-            related_entity_type: 'user',
-            related_entity_id: user2_id,
+            related_user_id: user2_id,
             relationship_type: 'match',
             status: 'accepted',
             metadata: { event_id, matched_user_id: user2_id }
           },
           {
             user_id: user2_id,
-            related_entity_type: 'user',
-            related_entity_id: user1_id,
+            related_user_id: user1_id,
             relationship_type: 'match',
             status: 'accepted',
             metadata: { event_id, matched_user_id: user1_id }
@@ -188,10 +186,9 @@ export class MatchingService {
       // - Blocked users
       // First get the user IDs interested in this event
       const { data: eventUsers, error: eventUsersError } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select('user_id')
-        .eq('related_entity_type', 'event')
-        .eq('related_entity_id', eventId)
+        .eq('event_id', eventId)
         .in('relationship_type', ['interest', 'going', 'maybe'])
         .neq('user_id', user.id);
 
@@ -466,11 +463,10 @@ export class MatchingService {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('User not authenticated');
 
-      // Get matches from relationships table
+      // Get matches from user_relationships table (3NF compliant)
       const { data, error } = await supabase
-        .from('relationships')
+        .from('user_relationships')
         .select('*')
-        .eq('related_entity_type', 'user')
         .eq('relationship_type', 'match')
         .eq('user_id', user.id)
         .eq('metadata->>event_id', eventId);
@@ -480,8 +476,8 @@ export class MatchingService {
       // Get matched user profiles and event data
       const matchesWithProfiles = await Promise.all(
         (data || []).map(async (match: any) => {
-          // In relationships table, related_entity_id is the matched user
-          const matchedUserId = match.related_entity_id;
+          // In user_relationships table, related_user_id is the matched user
+          const matchedUserId = match.related_user_id;
           const eventIdFromMetadata = match.metadata?.event_id;
 
           const [profile, eventData] = await Promise.all([
@@ -502,7 +498,7 @@ export class MatchingService {
           return {
             ...match,
             user1_id: match.user_id,
-            user2_id: match.related_entity_id,
+            user2_id: match.related_user_id,
             event_id: eventIdFromMetadata || eventId,
             matched_user: profile.data,
             event: eventData.data,
@@ -526,9 +522,8 @@ export class MatchingService {
       if (userError || !user) throw new Error('User not authenticated');
 
       const { data, error } = await supabase
-        .from('relationships')
+        .from('user_relationships')
         .select('*')
-        .eq('related_entity_type', 'user')
         .eq('relationship_type', 'match')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -538,8 +533,8 @@ export class MatchingService {
       // Get matched user profiles and event data
       const matchesWithProfiles = await Promise.all(
         (data || []).map(async (match: any) => {
-          // In relationships table, related_entity_id is the matched user
-          const matchedUserId = match.related_entity_id;
+          // In user_relationships table, related_user_id is the matched user
+          const matchedUserId = match.related_user_id;
           const eventIdFromMetadata = match.metadata?.event_id;
 
           const [profile, eventData] = await Promise.all([
@@ -560,7 +555,7 @@ export class MatchingService {
           return {
             ...match,
             user1_id: match.user_id,
-            user2_id: match.related_entity_id,
+            user2_id: match.related_user_id,
             event_id: eventIdFromMetadata || '',
             matched_user: profile.data,
             event: eventData.data,
@@ -608,9 +603,8 @@ export class MatchingService {
       if (userError || !user) return 0;
 
       const { count, error } = await supabase
-        .from('relationships')
+        .from('user_relationships')
         .select('*', { count: 'exact', head: true })
-        .eq('related_entity_type', 'user')
         .eq('relationship_type', 'match')
         .eq('user_id', user.id);
 

@@ -40,14 +40,12 @@ export class ArtistFollowService {
         console.warn('⚠️ RPC function set_artist_follow not available, using direct table operations');
         
         if (following) {
-          // Insert follow record in relationships table
+          // Insert follow record in artist_follows table (3NF compliant)
           const { error: insertError } = await supabase
-            .from('relationships')
+            .from('artist_follows')
             .insert({
               user_id: userId,
-              related_entity_type: 'artist',
-              related_entity_id: artistId,
-              relationship_type: 'follow'
+              artist_id: artistId
             });
 
           // Ignore unique constraint errors (already following)
@@ -55,14 +53,12 @@ export class ArtistFollowService {
             throw insertError;
           }
         } else {
-          // Delete follow record from relationships table
+          // Delete follow record from artist_follows table
           const { error: deleteError } = await supabase
-            .from('relationships')
+            .from('artist_follows')
             .delete()
             .eq('user_id', userId)
-            .eq('related_entity_type', 'artist')
-            .eq('related_entity_id', artistId)
-            .eq('relationship_type', 'follow');
+            .eq('artist_id', artistId);
 
           if (deleteError) throw deleteError;
         }
@@ -147,14 +143,12 @@ export class ArtistFollowService {
    */
   static async isFollowingArtist(artistId: string, userId: string): Promise<boolean> {
     try {
-      // Query relationships table directly
+      // Query artist_follows table directly (3NF compliant)
       const { data, error } = await supabase
-        .from('relationships')
+        .from('artist_follows')
         .select('id')
         .eq('user_id', userId)
-        .eq('related_entity_type', 'artist')
-        .eq('related_entity_id', artistId)
-        .eq('relationship_type', 'follow')
+        .eq('artist_id', artistId)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
@@ -175,13 +169,11 @@ export class ArtistFollowService {
    */
   static async getFollowerCount(artistId: string): Promise<number> {
     try {
-      // Query relationships table directly
+      // Query artist_follows table directly (3NF compliant)
       const { count, error } = await supabase
-        .from('relationships')
+        .from('artist_follows')
         .select('*', { count: 'exact', head: true })
-        .eq('related_entity_type', 'artist')
-        .eq('related_entity_id', artistId)
-        .eq('relationship_type', 'follow');
+        .eq('artist_id', artistId);
 
       if (error) {
         console.error('Error getting follower count:', error);
@@ -271,27 +263,25 @@ export class ArtistFollowService {
     try {
       console.log('🔍 Getting followed artists for user:', userId);
       
-      // Query relationships table for artist follows
-      const { data: relationships, error: relationshipsError } = await supabase
-        .from('relationships')
-        .select('id, related_entity_id, created_at, updated_at')
+      // Query artist_follows table (3NF compliant)
+      const { data: follows, error: followsError } = await supabase
+        .from('artist_follows')
+        .select('id, artist_id, created_at, updated_at')
         .eq('user_id', userId)
-        .eq('related_entity_type', 'artist')
-        .eq('relationship_type', 'follow')
         .order('created_at', { ascending: false });
 
-      if (relationshipsError) {
-        console.error('Error fetching artist relationships:', relationshipsError);
+      if (followsError) {
+        console.error('Error fetching artist follows:', followsError);
         return [];
       }
 
-      if (!relationships || relationships.length === 0) {
+      if (!follows || follows.length === 0) {
         console.log('No artist follows found');
         return [];
       }
 
       // Extract artist IDs
-      const artistIds = relationships.map((rel: any) => rel.related_entity_id).filter(Boolean);
+      const artistIds = follows.map((follow: any) => follow.artist_id).filter(Boolean);
       console.log('Artist IDs to fetch:', artistIds.length);
 
       if (artistIds.length === 0) {
@@ -313,13 +303,13 @@ export class ArtistFollowService {
       const artistsMap = new Map((artists || []).map((a: any) => [a.id, a]));
 
       // Transform to match expected format
-      const result = relationships.map((rel: any) => {
-        const artist = artistsMap.get(rel.related_entity_id);
+      const result = follows.map((follow: any) => {
+        const artist = artistsMap.get(follow.artist_id);
         return {
-          id: rel.id,
+          id: follow.id,
           user_id: userId,
-          artist_id: rel.related_entity_id,
-          created_at: rel.created_at,
+          artist_id: follow.artist_id,
+          created_at: follow.created_at,
           artist_name: artist?.name || null,
           artist_image_url: artist?.image_url || null,
           jambase_artist_id: artist?.jambase_artist_id || null,
