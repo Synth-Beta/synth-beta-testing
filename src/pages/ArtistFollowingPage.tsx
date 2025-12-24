@@ -72,24 +72,11 @@ export function ArtistFollowingPage() {
       // Get followed artists
       const artists = await ArtistFollowService.getUserFollowedArtists(targetUserId);
       
-      // Get upcoming events for each artist using Ticketmaster API
+      // Get upcoming events for each artist from database
       const artistsWithEvents = await Promise.all(
         artists.map(async (artist) => {
           try {
-            console.log(`🎫 Searching Ticketmaster API for artist: "${artist.artist_name}"`);
-            
-            // Search Ticketmaster API for this artist (upcoming events only)
-            let ticketmasterEvents: UnifiedEvent[] = [];
-            try {
-              ticketmasterEvents = await UnifiedEventSearchService.searchByArtist({
-                artistName: artist.artist_name,
-                includePastEvents: false, // Only upcoming events
-                limit: 50
-              });
-              console.log(`✅ Found ${ticketmasterEvents.length} Ticketmaster events for "${artist.artist_name}"`);
-            } catch (tmError) {
-              console.warn(`⚠️ Event search failed for "${artist.artist_name}":`, tmError);
-              // Fallback to direct database query
+            // Query database for upcoming events
               const { data: dbEvents } = await supabase
                 .from('events')
                 .select('*')
@@ -98,25 +85,9 @@ export function ArtistFollowingPage() {
                 .order('event_date', { ascending: true })
                 .limit(50);
               
-              ticketmasterEvents = (dbEvents || []).map(event => ({
+            // Convert to JamBaseEvent format
+            const events: JamBaseEvent[] = (dbEvents || []).map(event => ({
                 id: event.id,
-                title: event.title,
-                artist_name: event.artist_name,
-                venue_name: event.venue_name,
-                venue_city: event.venue_city,
-                venue_state: event.venue_state,
-                venue_address: event.venue_address,
-                event_date: event.event_date,
-                description: event.description,
-                ticket_urls: event.ticket_urls,
-                price_range: event.price_range,
-                source: 'manual' as const
-              }));
-            }
-
-            // Convert UnifiedEvent to JamBaseEvent format
-            const events: JamBaseEvent[] = ticketmasterEvents.map((event: UnifiedEvent) => ({
-              id: event.id || `event-${Date.now()}`,
               title: event.title,
               artist_name: event.artist_name || artist.artist_name,
               venue_name: event.venue_name,
@@ -132,12 +103,11 @@ export function ArtistFollowingPage() {
               price_range: event.price_range,
               ticket_available: event.ticket_available,
               genres: event.genres,
-              source: event.source || 'ticketmaster'
+              source: event.source || 'jambase'
             }));
 
             console.log(`🔍 Checking events for "${artist.artist_name}":`, {
               totalEvents: events.length,
-              ticketmasterEvents: ticketmasterEvents.length,
               events: events.map(e => ({ title: e.title, artist: e.artist_name, date: e.event_date, source: e.source }))
             });
 
@@ -200,46 +170,22 @@ export function ArtistFollowingPage() {
       // Get followed venues
       const venues = await VenueFollowService.getUserFollowedVenues(targetUserId);
       
-      // Get upcoming events for each venue using Ticketmaster API
+      // Get upcoming events for each venue from database
       const venuesWithEvents = await Promise.all(
         venues.map(async (venue) => {
           try {
-            console.log(`🏢 Searching Ticketmaster API for venue: "${venue.venue_name}"`);
-            
-            // Search Ticketmaster API for this venue (upcoming events only)
-            let ticketmasterEvents: UnifiedEvent[] = [];
-            try {
-              ticketmasterEvents = await UnifiedEventSearchService.searchByVenue({
-                venueName: venue.venue_name,
-                venueCity: venue.venue_city || undefined,
-                venueState: venue.venue_state || undefined,
-                includePastEvents: false, // Only upcoming events
-                limit: 50
-              });
-              console.log(`✅ Found ${ticketmasterEvents.length} Ticketmaster events for "${venue.venue_name}"`);
-            } catch (tmError) {
-              console.warn(`⚠️ Ticketmaster API search failed for "${venue.venue_name}":`, tmError);
-              // Fallback to JamBase if Ticketmaster fails
-              const jamBaseEvents = await JamBaseService.searchEventsByVenue(venue.venue_name, 20);
-              ticketmasterEvents = jamBaseEvents.map(event => ({
-                id: event.id,
-                title: event.title,
-                artist_name: event.artist_name,
-                venue_name: event.venue_name,
-                venue_city: event.venue_city,
-                venue_state: event.venue_state,
-                venue_address: event.venue_address,
-                event_date: event.event_date,
-                description: event.description,
-                ticket_urls: event.ticket_urls,
-                price_range: event.price_range,
-                source: 'jambase' as const
-              }));
-            }
+            // Query database for upcoming events at this venue
+            const { data: dbEvents } = await supabase
+              .from('events')
+              .select('*')
+              .ilike('venue_name', `%${venue.venue_name}%`)
+              .gte('event_date', new Date().toISOString())
+              .order('event_date', { ascending: true })
+              .limit(50);
 
-            // Convert UnifiedEvent to JamBaseEvent format
-            const events: JamBaseEvent[] = ticketmasterEvents.map((event: UnifiedEvent) => ({
-              id: event.id || `event-${Date.now()}`,
+            // Convert to JamBaseEvent format
+            const events: JamBaseEvent[] = (dbEvents || []).map(event => ({
+                id: event.id,
               title: event.title,
               artist_name: event.artist_name || 'Unknown Artist',
               venue_name: event.venue_name,
@@ -255,7 +201,7 @@ export function ArtistFollowingPage() {
               price_range: event.price_range,
               ticket_available: event.ticket_available,
               genres: event.genres,
-              source: event.source || 'ticketmaster'
+              source: event.source || 'jambase'
             }));
 
             // Filter to only upcoming events

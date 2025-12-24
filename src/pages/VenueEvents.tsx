@@ -22,8 +22,6 @@ import {
   ChevronUp,
   ChevronDown,
   User,
-  Phone,
-  Globe,
   Navigation
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -787,39 +785,6 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
               </CardContent>
             </Card>
           </div>
-
-          {/* Contact Information */}
-          {(venuePhone || venueWebsite) && (
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-3">Contact Information</h3>
-                <div className="space-y-3">
-                  {venuePhone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-gray-500" />
-                      <a href={`tel:${venuePhone}`} className="text-blue-600 hover:underline">
-                        {venuePhone}
-                      </a>
-                    </div>
-                  )}
-                  {venueWebsite && (
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-gray-500" />
-                      <a 
-                        href={venueWebsite.startsWith('http') ? venueWebsite : `https://${venueWebsite}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {venueWebsite}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
 
           {/* Reviews Section */}
           {venueStats.totalReviews > 0 && (

@@ -3,52 +3,12 @@ import { ArtistProfile, ArtistProfileSummary, JamBaseArtistResponse, transformJa
 
 export class ArtistProfileService {
   /**
-   * Fetch artist data from JamBase API
+   * REMOVED: Fetch artist data from JamBase API
+   * Frontend no longer has direct API access - use database queries instead
+   * Artists are synced via backend sync service
    */
-  static async fetchArtistFromJamBase(
-    artistId: string, 
-    artistDataSource: string = 'jambase',
-    options: {
-      excludeEventPerformers?: boolean;
-      expandExternalIdentifiers?: boolean;
-      expandPastEvents?: boolean;
-      expandUpcomingEvents?: boolean;
-      expandUpcomingStreams?: boolean;
-    } = {}
-  ): Promise<JamBaseArtistResponse> {
-    const params = new URLSearchParams();
-    
-    if (options.excludeEventPerformers !== undefined) {
-      params.append('excludeEventPerformers', options.excludeEventPerformers.toString());
-    }
-    if (options.expandExternalIdentifiers !== undefined) {
-      params.append('expandExternalIdentifiers', options.expandExternalIdentifiers.toString());
-    }
-    if (options.expandPastEvents !== undefined) {
-      params.append('expandPastEvents', options.expandPastEvents.toString());
-    }
-    if (options.expandUpcomingEvents !== undefined) {
-      params.append('expandUpcomingEvents', options.expandUpcomingEvents.toString());
-    }
-    if (options.expandUpcomingStreams !== undefined) {
-      params.append('expandUpcomingStreams', options.expandUpcomingStreams.toString());
-    }
-
-    const queryString = params.toString();
-    const url = `https://www.jambase.com/jb-api/v1/artists/id/${artistDataSource}:${artistId}${queryString ? `?${queryString}` : ''}`;
-    
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-        'apikey': import.meta.env.VITE_JAMBASE_API_KEY || '',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`JamBase API error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
+  static async fetchArtistFromJamBase(): Promise<never> {
+    throw new Error('Jambase API access removed from frontend. Use database queries instead.');
   }
 
   /**
@@ -234,24 +194,11 @@ export class ArtistProfileService {
   }
 
   /**
-   * Sync artist data from JamBase API and save to database
+   * REMOVED: Sync artist data from JamBase API
+   * Frontend no longer has direct API access - sync happens via backend
    */
-  static async syncArtistFromJamBase(
-    artistId: string,
-    artistDataSource: string = 'jambase',
-    options: {
-      excludeEventPerformers?: boolean;
-      expandExternalIdentifiers?: boolean;
-      expandPastEvents?: boolean;
-      expandUpcomingEvents?: boolean;
-      expandUpcomingStreams?: boolean;
-    } = {}
-  ): Promise<ArtistProfile> {
-    // Fetch from JamBase API
-    const jambaseResponse = await this.fetchArtistFromJamBase(artistId, artistDataSource, options);
-    
-    // Save to database
-    return this.upsertArtistProfile(jambaseResponse, artistDataSource);
+  static async syncArtistFromJamBase(): Promise<never> {
+    throw new Error('Jambase API sync removed from frontend. Use backend sync service instead.');
   }
 
   /**

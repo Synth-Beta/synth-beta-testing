@@ -32,6 +32,8 @@ export interface JamBaseEventResponse {
   images?: any[];
   tour_name?: string;
   setlist?: any;
+  setlist_song_count?: number | null;
+  setlist_fm_url?: string | null;
   source?: 'manual' | string;
   created_at?: string;
   updated_at?: string;
@@ -43,6 +45,7 @@ export interface JamBaseEventResponse {
   // Promotion fields
   is_promoted?: boolean;
   promotion_tier?: 'basic' | 'premium' | 'featured';
+  active_promotion_id?: string;
 }
 
 export type JamBaseEvent = JamBaseEventResponse;

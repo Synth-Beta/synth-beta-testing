@@ -32,6 +32,7 @@ export interface UnifiedFeedItem {
     event_date?: string;
     artist_name?: string;
     artist_id?: string;
+    venue_id?: string;
   };
   
   // Event-specific fields

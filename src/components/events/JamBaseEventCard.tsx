@@ -37,6 +37,7 @@ import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 import { PromotedEventBadge } from '@/components/events/PromotedEventBadge';
 import { usePromotionImpression } from '@/hooks/usePromotionImpression';
 import { formatVenueName, formatVenueLocation, formatVenueAddress } from '@/utils/venueUtils';
+import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
 
 interface JamBaseEventCardProps {
   event: JamBaseEvent | (JamBaseEventResponse & { images?: any[] });
@@ -416,6 +417,22 @@ export function JamBaseEventCard({
           <div className="text-sm">
             <span className="text-muted-foreground">Price: </span>
             <span className="font-medium">{formatPrice(event.price_range)}</span>
+          </div>
+        )}
+
+        {/* Verified Chat Badge */}
+        {currentUserId && (
+          <div className="flex items-center justify-start pt-2 pb-2 border-t border-gray-100">
+            <VerifiedChatBadge
+              entityType="event"
+              entityId={event.id}
+              entityName={event.title}
+              currentUserId={currentUserId}
+              onChatOpen={(chatId) => {
+                // Navigate to chat view - you may need to adjust this based on your routing
+                window.location.href = `/chats?chatId=${chatId}`;
+              }}
+            />
           </div>
         )}
 

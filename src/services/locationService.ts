@@ -99,7 +99,8 @@ export class LocationService {
         .gte('latitude', minLat)
         .lte('latitude', maxLat)
         .gte('longitude', minLng)
-        .lte('longitude', maxLng);
+        .lte('longitude', maxLng)
+        .gte('event_date', new Date().toISOString()); // Only upcoming events
 
       // Apply date filters if provided
       if (startDate) {

@@ -51,11 +51,11 @@ export interface Event {
   ticketmaster_event_id: string | null;
   title: string;
   artist_name: string;
-  artist_id: string | null;
-  artist_uuid: string | null; // UUID - references artists(id)
+  artist_id: string | null; // JamBase artist ID (preferred for queries/matching)
+  artist_uuid: string | null; // UUID - references artists(id) - for foreign keys only
   venue_name: string;
-  venue_id: string | null;
-  venue_uuid: string | null; // UUID - references venues(id)
+  venue_id: string | null; // JamBase venue ID (preferred for queries/matching)
+  venue_uuid: string | null; // UUID - references venues(id) - for foreign keys only
   event_date: string; // TIMESTAMPTZ
   doors_time: string | null; // TIMESTAMPTZ
   description: string | null;
@@ -353,6 +353,12 @@ export interface Chat {
   users?: string[]; // UUID[]
   created_at: string;
   updated_at: string;
+  // Verified chat fields
+  entity_type?: 'event' | 'artist' | 'venue' | null;
+  entity_id?: string | null;
+  is_verified?: boolean;
+  member_count?: number;
+  last_activity_at?: string | null;
 }
 
 export interface Message {

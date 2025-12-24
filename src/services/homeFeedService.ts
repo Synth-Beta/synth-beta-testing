@@ -272,8 +272,7 @@ export class HomeFeedService {
         .select(`
           event_id,
           events:event_id (
-            artist_name,
-            artist_id
+            artist_name
           )
         `)
         .eq('is_public', true);

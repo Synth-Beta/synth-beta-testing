@@ -93,24 +93,67 @@ export function ArtistVenueReviews({
       try {
         
         // Query reviews where the event's artist_name matches
-        // First get event IDs for this artist
-        const { data: eventIds, error: eventIdsError } = await supabase
-          .from('events')
-          .select('id')
-          .ilike('artist_name', `%${artistName}%`);
-
-        if (eventIdsError) {
-          console.error('Error fetching event IDs for artist:', eventIdsError);
-          setArtistStats({
-            totalReviews: 0,
-            averageRating: 0,
-            loading: false,
-            error: 'Failed to load artist reviews'
-          });
-          return;
+        // First try to find the artist in the artists table to get UUID/jambase_id
+        let eventIds: { id: string }[] = [];
+        
+        // Try to find artist by exact name match first (much faster)
+        const { data: artistData } = await supabase
+          .from('artists')
+          .select('id, jambase_artist_id, name')
+          .ilike('name', artistName)
+          .maybeSingle();
+        
+        if (artistData) {
+          // If we found the artist, query events by UUID or jambase_id (indexed, fast)
+          const { data: eventIdsByArtist, error: eventIdsError } = await supabase
+            .from('events')
+            .select('id')
+            .or(`artist_jambase_id.eq.${artistData.id},artist_jambase_id_text.eq.${artistData.jambase_artist_id || ''}`)
+            .limit(1000);
+          
+          if (!eventIdsError && eventIdsByArtist) {
+            eventIds = eventIdsByArtist;
+          }
+        }
+        
+        // Fallback: if no artist found or no events found, try prefix match (faster than %...%)
+        if (eventIds.length === 0) {
+          const { data: eventIdsByPrefix, error: eventIdsError } = await supabase
+            .from('events')
+            .select('id')
+            .ilike('artist_name', `${artistName}%`) // Prefix match is faster than %...%
+            .limit(500); // Reduced limit for fallback
+          
+          if (!eventIdsError && eventIdsByPrefix) {
+            eventIds = eventIdsByPrefix;
+          }
+        }
+        
+        // Last resort: full wildcard match (slowest, but only if needed)
+        if (eventIds.length === 0) {
+          const { data: eventIdsByWildcard, error: eventIdsError } = await supabase
+            .from('events')
+            .select('id')
+            .ilike('artist_name', `%${artistName}%`)
+            .limit(500); // Reduced limit for last resort
+          
+          if (eventIdsError) {
+            console.error('Error fetching event IDs for artist:', eventIdsError);
+            setArtistStats({
+              totalReviews: 0,
+              averageRating: 0,
+              loading: false,
+              error: 'Failed to load artist reviews'
+            });
+            return;
+          }
+          
+          if (eventIdsByWildcard) {
+            eventIds = eventIdsByWildcard;
+          }
         }
 
-        const eventIdList = eventIds?.map(e => e.id) || [];
+        const eventIdList = eventIds.map(e => e.id);
         
         if (eventIdList.length === 0) {
           setArtistStats({

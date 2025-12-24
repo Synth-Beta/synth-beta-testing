@@ -9,7 +9,6 @@ import { JamBaseEventsService, JamBaseEventResponse } from '@/services/jambaseEv
 import { JamBaseLocationService } from '@/services/jambaseLocationService';
 import { RadiusSearchService, EventWithDistance } from '@/services/radiusSearchService';
 import { calculateDistance } from '@/utils/distanceUtils';
-import { TicketmasterPopulationService } from '@/services/ticketmasterPopulationService';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   MapPin,
@@ -49,19 +48,6 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
         setMapCenter(mapCenterCoords);
         setInitialMapCenter(mapCenterCoords); // Store initial center for comparison
         setMapZoom(10);
-        
-        // First, populate new events from Ticketmaster
-        try {
-          console.log('🎫 Populating new events from Ticketmaster...');
-          await TicketmasterPopulationService.populateEventsNearLocation({
-            latitude: location.latitude,
-            longitude: location.longitude,
-            radius: 50,
-            limit: 100
-          });
-        } catch (error) {
-          console.error('❌ Failed to populate Ticketmaster events:', error);
-        }
         
         // Load upcoming events near user's location (50 mile radius)
         try {
@@ -342,17 +328,6 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
       
       // First, populate events from Ticketmaster API
       try {
-        await TicketmasterPopulationService.populateEventsNearLocation({
-          latitude: lat,
-          longitude: lng,
-          radius: radiusMiles,
-          limit: 200
-        });
-        // Wait a moment for database to commit
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error) {
-        console.error('⚠️ Failed to populate Ticketmaster events:', error);
-      }
       
       // Then fetch events from database near this location
       const events = await LocationService.searchEventsByLocation({

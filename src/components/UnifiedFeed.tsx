@@ -316,7 +316,6 @@ export const UnifiedFeed = ({
       setArtistDialogLoading(true);
       try {
         const artistName = artistDialog.artist.name;
-        console.log('🎫 Fetching Ticketmaster events for artist dialog:', artistName);
 
         // Fetch from database only
         const { data: dbEventsData, error } = await supabase

@@ -1,5 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-import { JamBaseService } from './jambaseService';
 import type { Event, EventSearchParams } from '@/types/concertSearch';
 
 export interface SearchSuggestion {
@@ -7,7 +6,7 @@ export interface SearchSuggestion {
   title: string;
   subtitle?: string;
   data: Event;
-  source: 'supabase' | 'jambase';
+  source: 'supabase'; // REMOVED: 'jambase' - frontend no longer has API access
   confidence: number;
   isExisting: boolean;
 }
@@ -21,7 +20,7 @@ export interface HybridSearchResult {
 export interface EventSelectionResult {
   event: Event;
   isNewEvent: boolean;
-  source: 'supabase' | 'jambase';
+  source: 'supabase'; // REMOVED: 'jambase' - frontend no longer has API access
 }
 
 class HybridSearchService {
@@ -79,205 +78,8 @@ class HybridSearchService {
     }
   }
 
-  // Search Jambase API for events
-  private async searchJambaseEvents(query: string, date?: string): Promise<Event[]> {
-    try {
-      const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
-      if (!JAMBASE_API_KEY) {
-        console.warn('⚠️  VITE_JAMBASE_API_KEY is not set. Skipping JamBase API search.');
-        return [];
-      }
-      const JAMBASE_BASE_URL = 'https://api.jambase.com';
-
-      const url = new URL(`${JAMBASE_BASE_URL}/events`);
-      url.searchParams.append('api_key', JAMBASE_API_KEY);
-      
-      // Try different search parameters
-      if (query.includes(' at ')) {
-        // If query contains " at ", split into artist and venue
-        const [artist, venue] = query.split(' at ');
-        url.searchParams.append('artistName', artist.trim());
-        url.searchParams.append('venueName', venue.trim());
-      } else {
-        // Default to artist search
-        url.searchParams.append('artistName', query);
-      }
-      
-      if (date) {
-        url.searchParams.append('eventDateFrom', date);
-        url.searchParams.append('eventDateTo', date);
-      }
-      url.searchParams.append('limit', '20');
-
-      const response = await fetch(url.toString());
-      if (!response.ok) {
-        throw new Error(`JamBase API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const events = data.events || [];
-
-      return this.convertJamBaseEvents(events);
-    } catch (error) {
-      console.error('JamBase search error:', error);
-      return [];
-    }
-  }
-
-  // Broader JamBase search with multiple strategies
-  private async searchJambaseEventsWithBroaderQuery(query: string, date?: string): Promise<Event[]> {
-    try {
-      const JAMBASE_API_KEY = import.meta.env.VITE_JAMBASE_API_KEY;
-      if (!JAMBASE_API_KEY) {
-        console.warn('⚠️  VITE_JAMBASE_API_KEY is not set. Skipping JamBase API search.');
-        return [];
-      }
-      const JAMBASE_BASE_URL = 'https://api.jambase.com';
-
-      // Try multiple search strategies
-      const searchStrategies = [
-        // Strategy 1: Search by artist name only
-        { artistName: query },
-        // Strategy 2: Search by venue name only
-        { venueName: query },
-        // Strategy 3: Search without date restriction if date was provided
-        date ? { artistName: query, skipDate: true } : null,
-        // Strategy 4: Search for partial matches
-        { artistName: query.split(' ')[0] } // First word only
-      ].filter(Boolean);
-
-      for (const strategy of searchStrategies) {
-        const url = new URL(`${JAMBASE_BASE_URL}/events`);
-        url.searchParams.append('api_key', JAMBASE_API_KEY);
-        
-        if (strategy.artistName) {
-          url.searchParams.append('artistName', strategy.artistName);
-        }
-        if (strategy.venueName) {
-          url.searchParams.append('venueName', strategy.venueName);
-        }
-        
-        // Only add date if not skipping and date is provided
-        if (date && !strategy.skipDate) {
-          url.searchParams.append('eventDateFrom', date);
-          url.searchParams.append('eventDateTo', date);
-        }
-        
-        url.searchParams.append('limit', '10');
-
-        console.log('Trying JamBase search strategy:', strategy, url.toString());
-
-        const response = await fetch(url.toString());
-        if (response.ok) {
-          const data = await response.json();
-          const events = data.events || [];
-          
-          if (events.length > 0) {
-            console.log(`Found ${events.length} events with strategy:`, strategy);
-            return this.convertJamBaseEvents(events);
-          }
-        }
-      }
-
-      console.log('No events found with any JamBase search strategy');
-      return [];
-    } catch (error) {
-      console.error('Broader JamBase search error:', error);
-      return [];
-    }
-  }
-
-  // Convert JamBase events to our Event format
-  private convertJamBaseEvents(jambaseEvents: any[]): Event[] {
-    return jambaseEvents.map((jambaseEvent: any) => ({
-      id: '', // Will be generated when saved to Supabase
-      jambase_event_id: jambaseEvent.id,
-      title: jambaseEvent.title || `${jambaseEvent.artist?.name || 'Unknown Artist'} Live`,
-      artist_name: jambaseEvent.artist?.name || 'Unknown Artist',
-      artist_id: jambaseEvent.artist?.id,
-      venue_name: jambaseEvent.venue?.name || 'Unknown Venue',
-      venue_id: jambaseEvent.venue?.id,
-      event_date: jambaseEvent.dateTime || new Date().toISOString(),
-      doors_time: jambaseEvent.doors,
-      description: jambaseEvent.description || `Live performance by ${jambaseEvent.artist?.name || 'Unknown Artist'}`,
-      genres: jambaseEvent.artist?.genres || [],
-      venue_address: jambaseEvent.venue?.address,
-      venue_city: jambaseEvent.venue?.city,
-      venue_state: jambaseEvent.venue?.state,
-      venue_zip: jambaseEvent.venue?.zipCode,
-      latitude: jambaseEvent.venue?.latitude,
-      longitude: jambaseEvent.venue?.longitude,
-      ticket_available: jambaseEvent.ticketing?.available || false,
-      price_range: jambaseEvent.ticketing?.priceRange,
-      ticket_urls: jambaseEvent.ticketing?.urls || [],
-      setlist: jambaseEvent.setlist,
-      tour_name: jambaseEvent.tour,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      // Legacy fields
-      location: jambaseEvent.venue?.city && jambaseEvent.venue?.state
-        ? `${jambaseEvent.venue.city}, ${jambaseEvent.venue.state}`
-        : jambaseEvent.venue?.city || '',
-      event_name: jambaseEvent.title || `${jambaseEvent.artist?.name || 'Unknown Artist'} Live`,
-      event_time: jambaseEvent.dateTime ? jambaseEvent.dateTime.split('T')[1] : null,
-      url: jambaseEvent.url || '',
-    }));
-  }
-
-  // Store JamBase events in the database
-  private async storeJambaseEvents(jambaseEvents: Event[]): Promise<Event[]> {
-    if (!jambaseEvents || jambaseEvents.length === 0) {
-      return [];
-    }
-
-    const storedEvents: Event[] = [];
-
-    for (const event of jambaseEvents) {
-      try {
-        // Check if event already exists by jambase_event_id
-        if (event.jambase_event_id) {
-          const { data: existing } = await supabase
-            .from('events')
-            .select('*')
-            .eq('metadata->>jambase_event_id', event.jambase_event_id)
-            .single();
-
-          if (existing) {
-            console.log('Event already exists, skipping:', event.title);
-            storedEvents.push(existing);
-            continue;
-          }
-        }
-
-        // Create new event - need to transform to events table structure
-        const eventData = {
-          ...event,
-          metadata: {
-            ...((event as any).metadata || {}),
-            jambase_event_id: event.jambase_event_id
-          }
-        };
-        const { data, error } = await supabase
-          .from('events')
-          .insert([eventData])
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Error storing event:', error);
-          continue;
-        }
-
-        console.log('Successfully stored event:', data.title);
-        storedEvents.push(data);
-      } catch (error) {
-        console.error('Error processing event:', event.title, error);
-        continue;
-      }
-    }
-
-    return storedEvents;
-  }
+  // REMOVED: Jambase API calls - all data now comes from database sync
+  // Frontend no longer has direct API access to Jambase
 
   // Create search suggestions with fuzzy matching
   private createSuggestions(
@@ -308,26 +110,7 @@ class HybridSearchService {
       }
     });
 
-    // Add Jambase events (potential new events)
-    jambaseEvents.forEach(event => {
-      const titleScore = this.fuzzyMatch(query, event.title || event.artist_name || '');
-      const venueScore = this.fuzzyMatch(query, event.venue_name || '');
-      const artistScore = this.fuzzyMatch(query, event.artist_name || '');
-      
-      const maxScore = Math.max(titleScore, venueScore, artistScore);
-      
-      if (maxScore > 0.3) { // Only include if score is above threshold
-        suggestions.push({
-          id: `jambase-${event.jambase_event_id}`,
-          title: event.title || event.artist_name || 'Unknown Event',
-          subtitle: `${event.venue_name} • ${new Date(event.event_date).toLocaleDateString()}`,
-          data: event,
-          source: 'jambase',
-          confidence: maxScore,
-          isExisting: false
-        });
-      }
-    });
+    // REMOVED: Jambase events handling - all events now come from database
 
     // Sort by confidence score (highest first)
     return suggestions.sort((a, b) => b.confidence - a.confidence);
@@ -350,43 +133,13 @@ class HybridSearchService {
           // First search existing Supabase events
           const supabaseEvents = await this.searchSupabaseEvents(query, date);
           
-          // If we have good results from Supabase, return them
-          if (supabaseEvents.length >= 5) {
+          // Only search Supabase database - no direct API access
             const suggestions = this.createSuggestions(supabaseEvents, [], query);
-            resolve({ 
-              suggestions: suggestions.slice(0, 15),
-              isLoading: false 
-            });
-            return;
-          }
-
-          // Otherwise, search JamBase and store results
-          console.log('Searching JamBase and storing results...');
-          const jambaseEvents = await this.searchJambaseEvents(query, date);
           
-          // Store JamBase events in database
-          const storedEvents = await this.storeJambaseEvents(jambaseEvents);
-          
-          // Create suggestions from stored events
-          const suggestions = this.createSuggestions(supabaseEvents, storedEvents, query);
-
-          // If still no results, try broader JamBase search
-          if (suggestions.length === 0) {
-            console.log('No results found, trying broader JamBase search...');
-            const broaderJambaseEvents = await this.searchJambaseEventsWithBroaderQuery(query, date);
-            const broaderStoredEvents = await this.storeJambaseEvents(broaderJambaseEvents);
-            const broaderSuggestions = this.createSuggestions([], broaderStoredEvents, query);
-            
-            resolve({ 
-              suggestions: broaderSuggestions.slice(0, 15),
-              isLoading: false 
-            });
-          } else {
             resolve({ 
               suggestions: suggestions.slice(0, 15), // Limit to 15 results
               isLoading: false 
             });
-          }
         } catch (error) {
           console.error('Hybrid search error:', error);
           resolve({ 
@@ -410,60 +163,13 @@ class HybridSearchService {
         source: 'supabase'
       };
     } else {
-      // Event from Jambase, create in Supabase and link to user
-      const createdEvent = await this.createEventFromJambase(suggestion.data);
-      await this.linkEventToUser(createdEvent.id, userId);
-      return {
-        event: createdEvent,
-        isNewEvent: true,
-        source: 'jambase'
-      };
-    }
-  }
-
-  // Create event in Supabase from Jambase data
-  private async createEventFromJambase(jambaseEvent: Event): Promise<Event> {
-    try {
-      // First check if event already exists by jambase_event_id (stored in metadata)
-      if (jambaseEvent.jambase_event_id) {
-        const { data: existing } = await supabase
-          .from('events')
-          .select('*')
-          .eq('metadata->>jambase_event_id', jambaseEvent.jambase_event_id)
-          .single();
-
-        if (existing) {
-          console.log('Event already exists, returning existing event');
-          return existing;
+      // Event should already exist in database from sync
+      // If it doesn't, it means sync hasn't run yet
+      throw new Error('Event not found in database. Please ensure Jambase sync has been run.');
         }
       }
 
-      // Create new event - need to transform to events table structure
-      const eventData = {
-        ...jambaseEvent,
-        metadata: {
-          ...((jambaseEvent as any).metadata || {}),
-          jambase_event_id: jambaseEvent.jambase_event_id
-        }
-      };
-      const { data, error } = await supabase
-        .from('events')
-        .insert([eventData])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating event:', error);
-        throw new Error(`Failed to create event: ${error.message}`);
-      }
-
-      console.log('Successfully created new event:', data.id);
-      return data!;
-    } catch (error) {
-      console.error('Error in createEventFromJambase:', error);
-      throw error;
-    }
-  }
+  // REMOVED: createEventFromJambase - events are now created via backend sync only
 
   // Link event to user
   private async linkEventToUser(eventId: string, userId: string): Promise<void> {

@@ -13,22 +13,8 @@ export default defineConfig(({ mode }) => {
       host: "localhost",
       port: 5174,
       proxy: {
-        '/api/jambase': {
-          target: 'https://www.jambase.com',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/jambase/, '/jb-api/v1'),
-          configure: (proxy, _options) => {
-            proxy.on('error', (err, _req, _res) => {
-              console.log('proxy error', err);
-            });
-            proxy.on('proxyReq', (proxyReq, req, _res) => {
-              console.log('Sending Request to the Target:', req.method, req.url);
-            });
-            proxy.on('proxyRes', (proxyRes, req, _res) => {
-              console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
-            });
-          },
-        },
+        // REMOVED: /api/jambase proxy - frontend no longer has direct Jambase API access
+        // All Jambase data now comes from backend sync service
         '/api/ticketmaster': {
           target: ticketmasterProxyTarget,
           changeOrigin: true,
