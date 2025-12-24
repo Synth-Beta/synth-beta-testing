@@ -195,32 +195,22 @@ export function JamBaseEventCard({
         }
 
         // 3) Try artist image via any review that carries artist image url
-        if (event.artist_name) {
-          // Query events first, then find reviews for those events
-          const { data: matchingEvents } = await supabase
-            .from('events')
-            .select('id')
-            .ilike('artist_name', `%${event.artist_name}%`)
-            .limit(20);
+        if (event.artist_name && event.id) {
+          // Use the current event's ID directly instead of querying events table
+          // This avoids 406 errors from RLS policies
+          const artist = await supabase
+            .from('reviews')
+            .select('photos')
+            .not('photos', 'is', null)
+            .eq('event_id', event.id)
+            .order('likes_count', { ascending: false })
+            .limit(1);
           
-          if (matchingEvents && matchingEvents.length > 0) {
-            const eventIds = matchingEvents.map(e => e.id);
-            const artist = await supabase
-              .from('reviews')
-              .select('photos')
-              .not('photos', 'is', null)
-              .in('event_id', eventIds)
-              .order('likes_count', { ascending: false })
-              .limit(1);
-            
-            const artistImg = Array.isArray(artist.data) && artist.data[0]?.photos?.[0];
-            if (artistImg) { 
-              setHeroImageUrl(artistImg); 
-              return; 
-            }
+          const artistImg = Array.isArray(artist.data) && artist.data[0]?.photos?.[0];
+          if (artistImg) { 
+            setHeroImageUrl(artistImg); 
+            return; 
           }
-
-          // 4) Try most-liked review photo for same artist across events (already handled above)
         }
       } catch (error) {
         console.error('Error resolving event image:', error);

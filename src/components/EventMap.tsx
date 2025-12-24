@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import Map, { Marker, Popup, NavigationControl, FullscreenControl, Source, Layer } from 'react-map-gl';
+import MapGL, { Marker, Popup, NavigationControl, FullscreenControl, Source, Layer } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MapPin } from 'lucide-react';
 import { JamBaseEventResponse } from '@/types/eventTypes';
@@ -19,8 +19,9 @@ interface VenueWithEvents {
 }
 
 // Utility function to group events by venue
+// Using plain object instead of Map to avoid constructor conflicts
 const groupEventsByVenue = (events: (JamBaseEventResponse & { distance_miles?: number })[]): VenueWithEvents[] => {
-  const venueMap = new Map<string, VenueWithEvents>();
+  const venueMap: Record<string, VenueWithEvents> = {};
 
   events.forEach(event => {
     // Skip events without coordinates
@@ -33,12 +34,12 @@ const groupEventsByVenue = (events: (JamBaseEventResponse & { distance_miles?: n
     // Create a unique key for the venue (using coordinates as fallback if venue_id is missing)
     const venueKey = event.venue_id || `${event.venue_name}-${lat}-${lng}`;
     
-    if (venueMap.has(venueKey)) {
+    if (venueMap[venueKey]) {
       // Add event to existing venue
-      venueMap.get(venueKey)!.events.push(event);
+      venueMap[venueKey].events.push(event);
     } else {
       // Create new venue entry
-      venueMap.set(venueKey, {
+      venueMap[venueKey] = {
         venueId: event.venue_id || venueKey,
         venueName: event.venue_name || 'Unknown Venue',
         venueAddress: event.venue_address || '',
@@ -47,12 +48,12 @@ const groupEventsByVenue = (events: (JamBaseEventResponse & { distance_miles?: n
         latitude: lat,
         longitude: lng,
         events: [event]
-      });
+      };
     }
   });
 
   // Sort events within each venue by date
-  venueMap.forEach(venue => {
+  Object.values(venueMap).forEach(venue => {
     venue.events.sort((a, b) => {
       const dateA = new Date(a.event_date);
       const dateB = new Date(b.event_date);
@@ -60,7 +61,7 @@ const groupEventsByVenue = (events: (JamBaseEventResponse & { distance_miles?: n
     });
   });
 
-  return Array.from(venueMap.values());
+  return Object.values(venueMap);
 };
 
 interface EventMapProps {
@@ -149,7 +150,7 @@ export const EventMap: React.FC<EventMapProps> = ({
 
   return (
     <div className="w-full h-full">
-      <Map
+      <MapGL
         {...viewState}
         onMove={handleMove}
         ref={mapRef}
@@ -210,20 +211,46 @@ export const EventMap: React.FC<EventMapProps> = ({
             closeButton={true}
             closeOnClick={false}
           >
-            <div className="p-2 max-w-xs">
+            <div className="p-3 max-w-xs max-h-96 overflow-y-auto">
               <h3 className="font-semibold text-sm mb-2">{selectedVenue.venueName}</h3>
-              <p className="text-xs text-gray-600 mb-2">
+              <p className="text-xs text-gray-600 mb-3">
                 {selectedVenue.venueAddress}
                 {selectedVenue.venueCity && `, ${selectedVenue.venueCity}`}
                 {selectedVenue.venueState && `, ${selectedVenue.venueState}`}
               </p>
-              <p className="text-xs text-gray-500">
-                {selectedVenue.events.length} event{selectedVenue.events.length !== 1 ? 's' : ''}
-              </p>
+              
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-gray-700 mb-2">
+                  {selectedVenue.events.length} event{selectedVenue.events.length !== 1 ? 's' : ''}:
+                </p>
+                {selectedVenue.events.map((event, index) => (
+                  <div
+                    key={event.id || index}
+                    onClick={() => {
+                      onEventClick(event);
+                      setSelectedVenue(null);
+                    }}
+                    className="p-2 rounded border border-gray-200 hover:border-pink-500 hover:bg-pink-50 cursor-pointer transition-colors"
+                  >
+                    <p className="font-medium text-sm text-gray-900 mb-1">
+                      {event.title || event.artist_name}
+                    </p>
+                    {event.event_date && (
+                      <p className="text-xs text-gray-600">
+                        {new Date(event.event_date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </Popup>
         )}
-      </Map>
+      </MapGL>
     </div>
   );
 };

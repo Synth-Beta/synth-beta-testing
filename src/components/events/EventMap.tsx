@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import Map, { Marker, Popup, NavigationControl, FullscreenControl } from 'react-map-gl';
+import MapGL, { Marker, Popup, NavigationControl, FullscreenControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Calendar, MapPin, Music, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -85,7 +85,7 @@ export const EventMap: React.FC<EventMapProps> = ({
 
   return (
     <div className="w-full h-full rounded-lg overflow-hidden">
-      <Map
+      <MapGL
         {...viewState}
         onMove={handleMove}
         style={{ width: '100%', height: '100%' }}
@@ -228,7 +228,7 @@ export const EventMap: React.FC<EventMapProps> = ({
             </div>
           </Popup>
         )}
-      </Map>
+      </MapGL>
     </div>
   );
 };

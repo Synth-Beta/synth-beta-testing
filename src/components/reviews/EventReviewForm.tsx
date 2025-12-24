@@ -151,7 +151,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         const prevReview = await ReviewService.getPreviousVenueReview(userId, venueId, eventId);
         setPreviousVenueReview(prevReview);
         if (prevReview) {
-          console.log('✅ Found previous venue review:', prevReview.id);
         }
       } catch (error) {
         console.error('Error checking for previous venue review:', error);
@@ -257,40 +256,25 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   // Create event in database when artist and venue are selected (for new reviews)
   useEffect(() => {
     const createEventForDraft = async () => {
-      console.log('🎯 Event creation check:', {
-        eventId: event?.id,
-        isNewReview: event?.id?.startsWith('new-review'),
-        hasArtist: !!formData.selectedArtist,
-        hasVenue: !!formData.selectedVenue,
-        hasDate: !!formData.eventDate,
-        currentActualEventId: actualEventId
-      });
-      
       // Only create event if it's a new review (starts with 'new-review')
       if (!event?.id?.startsWith('new-review')) {
-        console.log('🚫 Not creating event: Not a new review');
         return;
       }
       
       // Only create if we have both artist and venue selected
       if (!formData.selectedArtist || !formData.selectedVenue || !formData.eventDate) {
-        console.log('🚫 Not creating event: Missing required data');
         return;
       }
       
       // Validate eventDate format
       if (formData.eventDate.trim() === '') {
-        console.log('🚫 Not creating event: Empty event date');
         return;
       }
       
       // Don't create if we already have a valid event ID
       if (isValidUUID(actualEventId)) {
-        console.log('🚫 Not creating event: Already have valid event ID');
         return;
       }
-      
-      console.log('🎯 Creating event for draft save...');
       
       try {
         const eventDateTime = new Date(formData.eventDate + 'T20:00:00Z');
@@ -408,28 +392,23 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         if (review) {
           setExistingReview(review);
           
-          // Fetch event details from events to get artist_name, venue_name, and event_date
+          // Use event data from props instead of querying database
+          // This avoids 406 errors from RLS policies
+          // The event prop already has all the data we need
           let eventDetails = null;
-          if (review.event_id) {
-            if (isValidUUID(review.event_id)) {
-              const { data: eventData } = await (supabase as any)
-                .from('events')
-                .select('artist_name, artist_id, venue_name, venue_id, event_date')
-                .eq('id', review.event_id)
-                .single();
-              
-              if (eventData) {
-                eventDetails = eventData;
-                console.log('🎯 Fetched event details for review:', eventDetails);
-              }
-            } else {
-              console.warn('⚠️ review.event_id is not a valid UUID, skipping events lookup', review.event_id);
-            }
+          if (event) {
+            eventDetails = {
+              artist_name: event.artist_name,
+              artist_id: event.artist_id,
+              venue_name: event.venue_name,
+              venue_id: event.venue_id,
+              event_date: event.event_date
+            };
           }
           
           const eventDateFromReview = eventDetails?.event_date
             ? String(eventDetails.event_date).split('T')[0]
-            : (review.created_at || '').split('T')[0];
+            : (event?.event_date ? String(event.event_date).split('T')[0] : (review.created_at || '').split('T')[0]);
 
           setFormData({
             selectedArtist: null,
