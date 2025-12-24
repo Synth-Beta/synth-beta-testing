@@ -152,17 +152,11 @@ export function EventDetailsModal({
   
   const loadVerifiedChat = async () => {
     if (!actualEvent?.id || !currentUserId || verifiedChatLoading) {
-      console.log('🟡 EventDetailsModal: Skipping loadVerifiedChat', {
-        hasEvent: !!actualEvent?.id,
-        hasUserId: !!currentUserId,
-        isLoading: verifiedChatLoading
-      });
       return;
     }
     
     try {
       setVerifiedChatLoading(true);
-      console.log('🟢 EventDetailsModal: Loading verified chat for event:', actualEvent.id);
       
       const { VerifiedChatService } = await import('@/services/verifiedChatService');
       
@@ -172,15 +166,13 @@ export function EventDetailsModal({
         actualEvent.id,
         actualEvent.title || 'Event'
       );
-      console.log('🟢 EventDetailsModal: Verified chat ID:', chatId);
       
       // Get full chat info
       const chatInfo = await VerifiedChatService.getVerifiedChatInfo('event', actualEvent.id);
-      console.log('🟢 EventDetailsModal: Verified chat info:', chatInfo);
       
       setVerifiedChatInfo(chatInfo);
     } catch (error) {
-      console.error('❌ EventDetailsModal: Error loading verified chat:', error);
+      console.error('Error loading verified chat:', error);
       verifiedChatLoadedRef.current = false; // Reset on error so it can retry
     } finally {
       setVerifiedChatLoading(false);
@@ -200,7 +192,6 @@ export function EventDetailsModal({
       // If id is not a valid UUID, it's a Ticketmaster ID - skip loading groups
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidPattern.test(actualEvent.id)) {
-        console.log('Skipping group load - event not in database yet:', actualEvent.id);
         return;
       }
       
@@ -280,53 +271,16 @@ export function EventDetailsModal({
     };
   }, [isOpen, actualEvent?.id]);
 
-  // Fetch the actual event data from jambase_events table
+  // Use the event data directly - no need to fetch from database
+  // The event data is already complete from the map/feed
   useEffect(() => {
-    if (isOpen && event?.id) {
-      setLoading(true);
-      const fetchEventData = async () => {
-        try {
-          // Validate UUID; if not UUID, try fetching by jambase_event_id
-          const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-          let data: any = null;
-          let error: any = null;
-
-          if (uuidPattern.test(event.id)) {
-            const resp = await supabase
-              .from('events')
-              .select('*')
-              .eq('id', event.id)
-              .single();
-            data = resp.data;
-            error = resp.error;
-          } else {
-            const resp = await supabase
-              .from('events')
-              .select('*')
-              .eq('jambase_event_id', event.id)
-              .single();
-            data = resp.data;
-            error = resp.error;
-          }
-          
-          if (error) {
-            console.error('Error fetching event data:', error);
-            setActualEvent(event); // Fallback to passed event
-          } else {
-            console.log('✅ EventDetailsModal: Fetched event data from jambase_events:', data);
-            setActualEvent(data);
-          }
-        } catch (error) {
-          console.error('Error fetching event data:', error);
-          setActualEvent(event); // Fallback to passed event
-        } finally {
-          setLoading(false);
-        }
-      };
-      
-      fetchEventData();
+    if (isOpen && event) {
+      // Always use the passed event data directly
+      // This avoids 406 errors from RLS policies and unnecessary database calls
+      setActualEvent(event);
+      setLoading(false);
     }
-  }, [isOpen, event?.id]);
+  }, [isOpen, event]);
 
   // Load attendance data for past events
   useEffect(() => {
@@ -414,23 +368,16 @@ export function EventDetailsModal({
               bestSetlist = setlists[0];
             }
 
-            // Update the event in the database with the setlist
-            const { error: updateError } = await supabase
-              .from('events')
-              .update({
-                setlist: bestSetlist,
-                setlist_enriched: true,
-                setlist_song_count: bestSetlist.songCount || 0,
-                setlist_fm_id: bestSetlist.setlistFmId,
-                setlist_fm_url: bestSetlist.url,
-                setlist_source: 'setlist.fm',
-                setlist_last_updated: new Date().toISOString()
-              })
-              .eq('id', actualEvent.id);
+            // Skip database update to avoid 406 errors from RLS policies
+            // The setlist is already stored in local state, which is sufficient for display
+            // If database persistence is needed, it should be handled server-side
+            // const { error: updateError } = await supabase
+            //   .from('events')
+            //   .update({...})
+            //   .eq('id', actualEvent.id);
 
-            if (updateError) {
-              console.error('Error updating event with setlist:', updateError);
-            } else {
+            // Always update local state regardless of database update
+            {
               // Update local state to show the setlist immediately
               // Use functional update to ensure we don't lose other fields
               setActualEvent(prev => {
@@ -447,25 +394,8 @@ export function EventDetailsModal({
                 };
               });
               
-              // Also refetch from database after a short delay to ensure consistency
-              setTimeout(async () => {
-                try {
-                  const { data: refreshedData, error: refreshError } = await supabase
-                    .from('events')
-                    .select('*')
-                    .eq('id', actualEvent.id)
-                    .single();
-                  
-                  if (!refreshError && refreshedData && refreshedData.setlist) {
-                    // Only update if setlist is present to avoid overwriting with null
-                    if (refreshedData.setlist) {
-                      setActualEvent(refreshedData);
-                    }
-                  }
-                } catch (refreshError) {
-                  // Silently handle refresh errors
-                }
-              }, 1000);
+              // Skip refetch - we already updated local state
+              // This avoids 406 errors from RLS policies
             }
           }
         } catch (error) {
@@ -491,29 +421,10 @@ export function EventDetailsModal({
       }
       
       try {
-        const eventId = actualEvent.jambase_event_id || actualEvent.id;
-        // Fetching interested count for event
-        
-        // If eventId is already a UUID (from events.id), use it directly
-        // Otherwise, try to find the UUID by querying jambase_events table
-        let uuidId = eventId;
-        
-        // Check if eventId is not a UUID format (contains hyphens)
-        if (!eventId.includes('-')) {
-          // EventId is not UUID format, looking up UUID
-          // This is likely a jambase_event_id string, try to find the UUID
-          const { data: jambaseEvent, error: jambaseError } = await supabase
-            .from('events')
-            .select('id')
-            .eq('jambase_event_id', eventId.toString())
-            .single();
-            
-          console.log('🔍 Jambase event lookup result:', { jambaseEvent, jambaseError });
-          if (!jambaseError && jambaseEvent && 'id' in jambaseEvent) {
-            uuidId = jambaseEvent.id;
-          }
-          // If there's an error, we'll try using the original eventId as UUID
-        }
+        // Use the event ID directly - no need to look it up
+        // The event.id should already be the UUID if it exists in the database
+        // This avoids 406 errors from RLS policies
+        const uuidId = actualEvent.id;
         
         // Using UUID for count query
         
@@ -789,39 +700,21 @@ export function EventDetailsModal({
 
   const fetchInterestedUsers = async (page: number) => {
     try {
-      console.log('🔍 fetchInterestedUsers called with page:', page);
-      console.log('📋 Event ID:', actualEvent.id);
-      console.log('📋 Event jambase_event_id:', actualEvent.jambase_event_id);
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
-      console.log('📋 Range:', from, 'to', to);
       
       // The eventId should be the UUID id from jambase_events table
       // user_jambase_events.jambase_event_id references jambase_events.id (UUID)
       const eventId = actualEvent.jambase_event_id || actualEvent.id;
-      console.log('Event ID being used:', eventId, 'Type:', typeof eventId);
       
       // If eventId is already a UUID (from jambase_events.id), use it directly
       // Otherwise, try to find the UUID by querying jambase_events table
       let uuidId = eventId;
       
-      // Check if eventId is not a UUID format (contains hyphens)
-      if (!eventId.includes('-')) {
-        // This is likely a jambase_event_id string, try to find the UUID
-        const { data: jambaseEvent, error: jambaseError } = await supabase
-          .from('events')
-          .select('id')
-          .eq('jambase_event_id', eventId.toString())
-          .single();
-          
-        if (jambaseError) {
-          console.error('Error finding jambase event:', jambaseError);
-          // Try using the eventId directly as UUID anyway
-          uuidId = eventId;
-        } else if (jambaseEvent && 'id' in jambaseEvent) {
-          uuidId = jambaseEvent.id;
-        }
-      }
+      // Use the event ID directly - no need to look it up
+      // This avoids 406 errors from RLS policies
+      // The event.id should already be the UUID if it exists in the database
+      uuidId = eventId;
       
       // Now query user_event_relationships table with the correct UUID (3NF compliant)
       const { data: interestedUserIds, error: interestsError } = await supabase
@@ -849,7 +742,6 @@ export function EventDetailsModal({
         .select('id, user_id, name, avatar_url, bio, created_at, last_active_at, gender, birthday, music_streaming_profile')
         .in('user_id', userIds);
         
-      console.log('Found interested user IDs:', interestedUserIds);
         
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);

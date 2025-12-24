@@ -1,9 +1,10 @@
-import React, { useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMap, Circle } from 'react-leaflet';
-import { Icon } from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import MapGL, { Marker, Popup, NavigationControl, FullscreenControl, Source, Layer } from 'react-map-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { MapPin } from 'lucide-react';
 import { JamBaseEventResponse } from '@/types/eventTypes';
-import { useEffect } from 'react';
+
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
 // Venue grouping interface
 interface VenueWithEvents {
@@ -18,8 +19,9 @@ interface VenueWithEvents {
 }
 
 // Utility function to group events by venue
+// Using plain object instead of Map to avoid constructor conflicts
 const groupEventsByVenue = (events: (JamBaseEventResponse & { distance_miles?: number })[]): VenueWithEvents[] => {
-  const venueMap = new Map<string, VenueWithEvents>();
+  const venueMap: Record<string, VenueWithEvents> = {};
 
   events.forEach(event => {
     // Skip events without coordinates
@@ -32,12 +34,12 @@ const groupEventsByVenue = (events: (JamBaseEventResponse & { distance_miles?: n
     // Create a unique key for the venue (using coordinates as fallback if venue_id is missing)
     const venueKey = event.venue_id || `${event.venue_name}-${lat}-${lng}`;
     
-    if (venueMap.has(venueKey)) {
+    if (venueMap[venueKey]) {
       // Add event to existing venue
-      venueMap.get(venueKey)!.events.push(event);
+      venueMap[venueKey].events.push(event);
     } else {
       // Create new venue entry
-      venueMap.set(venueKey, {
+      venueMap[venueKey] = {
         venueId: event.venue_id || venueKey,
         venueName: event.venue_name || 'Unknown Venue',
         venueAddress: event.venue_address || '',
@@ -46,12 +48,12 @@ const groupEventsByVenue = (events: (JamBaseEventResponse & { distance_miles?: n
         latitude: lat,
         longitude: lng,
         events: [event]
-      });
+      };
     }
   });
 
   // Sort events within each venue by date
-  venueMap.forEach(venue => {
+  Object.values(venueMap).forEach(venue => {
     venue.events.sort((a, b) => {
       const dateA = new Date(a.event_date);
       const dateB = new Date(b.event_date);
@@ -59,24 +61,8 @@ const groupEventsByVenue = (events: (JamBaseEventResponse & { distance_miles?: n
     });
   });
 
-  return Array.from(venueMap.values());
+  return Object.values(venueMap);
 };
-
-// Fix for default markers in React Leaflet
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-// Custom marker icon for events
-const eventIcon = new Icon({
-  iconUrl: markerIcon,
-  iconRetinaUrl: markerIcon2x,
-  shadowUrl: markerShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
 
 interface EventMapProps {
   center: [number, number];
@@ -89,50 +75,6 @@ interface EventMapProps {
   onVenueClick?: (venueId: string, venueName: string, latitude: number, longitude: number) => void;
 }
 
-// Component to update map view when center/zoom changes
-const MapUpdater = ({ center, zoom }: { center: [number, number]; zoom: number }) => {
-  const map = useMap();
-  
-  useEffect(() => {
-    map.setView(center, zoom);
-  }, [map, center, zoom]);
-  
-  return null;
-};
-
-// Component to handle map move events and notify parent
-const MapMoveHandler = ({ onMapMove }: { onMapMove?: (bounds: { north: number; south: number; east: number; west: number }) => void }) => {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (!onMapMove) return;
-    
-    const handleMoveEnd = () => {
-      const bounds = map.getBounds();
-      onMapMove({
-        north: bounds.getNorth(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        west: bounds.getWest()
-      });
-    };
-    
-    // Initial call
-    handleMoveEnd();
-    
-    // Add event listeners
-    map.on('moveend', handleMoveEnd);
-    map.on('zoomend', handleMoveEnd);
-    
-    return () => {
-      map.off('moveend', handleMoveEnd);
-      map.off('zoomend', handleMoveEnd);
-    };
-  }, [map, onMapMove]);
-  
-  return null;
-};
-
 export const EventMap: React.FC<EventMapProps> = ({ 
   center, 
   zoom, 
@@ -143,13 +85,40 @@ export const EventMap: React.FC<EventMapProps> = ({
   radiusMiles = 30,
   onVenueClick
 }) => {
+  const [viewState, setViewState] = useState({
+    longitude: center[1],
+    latitude: center[0],
+    zoom: zoom,
+  });
+  const [selectedVenue, setSelectedVenue] = useState<VenueWithEvents | null>(null);
   const mapRef = useRef<any>(null);
+
+  // Update view state when center/zoom props change
+  useEffect(() => {
+    setViewState({
+      longitude: center[1],
+      latitude: center[0],
+      zoom: zoom,
+    });
+  }, [center, zoom]);
+
+  const handleMove = useCallback((evt: any) => {
+    setViewState(evt.viewState);
+    
+    if (onMapMove && mapRef.current) {
+      const bounds = mapRef.current.getBounds();
+      onMapMove({
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest()
+      });
+    }
+  }, [onMapMove]);
 
   // Filter events that have valid numeric coordinates
   const validEvents = events.filter(event => {
-    // Check if event exists first
     if (!event) return false;
-    
     const lat = Number(event.latitude);
     const lon = Number(event.longitude);
     return event.latitude != null && event.longitude != null && !Number.isNaN(lat) && !Number.isNaN(lon);
@@ -158,79 +127,130 @@ export const EventMap: React.FC<EventMapProps> = ({
   // Group events by venue
   const venuesWithEvents = groupEventsByVenue(validEvents);
 
+  // Create circle data for radius display
+  const circleData = showRadius ? {
+    type: 'Feature' as const,
+    geometry: {
+      type: 'Point' as const,
+      coordinates: [center[1], center[0]]
+    },
+    properties: {}
+  } : null;
+
+  if (!MAPBOX_TOKEN) {
+    return (
+      <div className="flex items-center justify-center h-full bg-gray-100 rounded-lg">
+        <div className="text-center p-4">
+          <p className="text-gray-500 mb-2">Mapbox token not configured</p>
+          <p className="text-xs text-gray-400">Add VITE_MAPBOX_ACCESS_TOKEN to .env file</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full">
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e2e8f0;
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #cbd5e1;
-        }
-        .venue-popup .leaflet-popup-content {
-          margin: 0;
-          padding: 0;
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-      `}</style>
-      <MapContainer
-        center={center}
-        zoom={zoom}
-        style={{ height: '100%', width: '100%' }}
+      <MapGL
+        {...viewState}
+        onMove={handleMove}
         ref={mapRef}
+        style={{ width: '100%', height: '100%' }}
+        mapStyle="mapbox://styles/mapbox/streets-v12"
+        mapboxAccessToken={MAPBOX_TOKEN}
+        scrollZoom={true}
+        doubleClickZoom={true}
+        dragRotate={false}
+        touchZoomRotate={true}
       >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
-        
-        <MapUpdater center={center} zoom={zoom} />
-        <MapMoveHandler onMapMove={onMapMove} />
-        
+        <NavigationControl position="top-right" />
+        <FullscreenControl position="top-right" />
+
         {/* Show radius circle when location filter is active */}
-        {showRadius && (
-          <Circle
-            center={center}
-            radius={radiusMiles * 1609.34} // Convert miles to meters
-            pathOptions={{
-              color: '#ec4899',
-              fillColor: '#ec4899',
-              fillOpacity: 0.1,
-              weight: 2,
-              opacity: 0.6
-            }}
-          />
+        {showRadius && circleData && (
+          <Source id="radius-circle" type="geojson" data={circleData}>
+            <Layer
+              id="radius-circle-layer"
+              type="circle"
+              paint={{
+                'circle-radius': radiusMiles * 1609.34, // Convert miles to meters
+                'circle-color': '#ec4899',
+                'circle-opacity': 0.1,
+                'circle-stroke-color': '#ec4899',
+                'circle-stroke-width': 2,
+                'circle-stroke-opacity': 0.6
+              }}
+            />
+          </Source>
         )}
         
         {venuesWithEvents.map((venue) => (
           <Marker
             key={venue.venueId}
-            position={[venue.latitude, venue.longitude]}
-            icon={eventIcon}
-            eventHandlers={{
-              click: () => {
-                if (onVenueClick) {
-                  // Venue clicked
-                  onVenueClick(venue.venueId, venue.venueName, venue.latitude, venue.longitude);
-                }
+            longitude={venue.longitude}
+            latitude={venue.latitude}
+            anchor="bottom"
+            onClick={() => {
+              if (onVenueClick) {
+                onVenueClick(venue.venueId, venue.venueName, venue.latitude, venue.longitude);
               }
+              setSelectedVenue(venue);
             }}
-          />
+          >
+            <div className="cursor-pointer transform transition-transform hover:scale-110">
+              <MapPin className="w-6 h-6 text-pink-500 fill-white drop-shadow-lg" />
+            </div>
+          </Marker>
         ))}
-      </MapContainer>
-      
-      {/* Venue count indicator removed - user wants nothing to show on map */}
+
+        {selectedVenue && (
+          <Popup
+            longitude={selectedVenue.longitude}
+            latitude={selectedVenue.latitude}
+            anchor="bottom"
+            onClose={() => setSelectedVenue(null)}
+            closeButton={true}
+            closeOnClick={false}
+          >
+            <div className="p-3 max-w-xs max-h-96 overflow-y-auto">
+              <h3 className="font-semibold text-sm mb-2">{selectedVenue.venueName}</h3>
+              <p className="text-xs text-gray-600 mb-3">
+                {selectedVenue.venueAddress}
+                {selectedVenue.venueCity && `, ${selectedVenue.venueCity}`}
+                {selectedVenue.venueState && `, ${selectedVenue.venueState}`}
+              </p>
+              
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-gray-700 mb-2">
+                  {selectedVenue.events.length} event{selectedVenue.events.length !== 1 ? 's' : ''}:
+                </p>
+                {selectedVenue.events.map((event, index) => (
+                  <div
+                    key={event.id || index}
+                    onClick={() => {
+                      onEventClick(event);
+                      setSelectedVenue(null);
+                    }}
+                    className="p-2 rounded border border-gray-200 hover:border-pink-500 hover:bg-pink-50 cursor-pointer transition-colors"
+                  >
+                    <p className="font-medium text-sm text-gray-900 mb-1">
+                      {event.title || event.artist_name}
+                    </p>
+                    {event.event_date && (
+                      <p className="text-xs text-gray-600">
+                        {new Date(event.event_date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Popup>
+        )}
+      </MapGL>
     </div>
   );
 };
-

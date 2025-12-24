@@ -39,6 +39,13 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        'react-map-gl': path.resolve(__dirname, './node_modules/react-map-gl/dist/esm/index.js'),
+      },
+    },
+    optimizeDeps: {
+      include: ['react-map-gl', 'mapbox-gl'],
+      esbuildOptions: {
+        target: 'es2020',
       },
     },
     build: {

@@ -14,8 +14,6 @@ import { ArtistFollowingPage } from "./pages/ArtistFollowingPage";
 const queryClient = new QueryClient();
 
 const App = () => {
-  console.log('🎨 App component is rendering...');
-  
   return (
     <div className="synth-app">
       <QueryClientProvider client={queryClient}>
