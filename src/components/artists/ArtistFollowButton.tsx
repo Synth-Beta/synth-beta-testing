@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { UserPlus, UserCheck, Loader2 } from 'lucide-react';
 import { ArtistFollowService } from '@/services/artistFollowService';
+import { VerifiedChatService } from '@/services/verifiedChatService';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -167,6 +168,35 @@ export function ArtistFollowButton({
 
       setIsFollowing(newIsFollowing);
       setFollowerCount(prev => newIsFollowing ? prev + 1 : Math.max(0, prev - 1));
+
+      // If following, automatically join the artist's verified chat
+      if (newIsFollowing) {
+        try {
+          console.log('🟢 ArtistFollowButton: User followed artist, joining verified chat...', {
+            artistId: resolvedArtistId,
+            artistName,
+            jambaseArtistId,
+            userId
+          });
+          
+          // Use resolvedArtistId if available, otherwise try jambaseArtistId or artistName
+          const entityId = resolvedArtistId || jambaseArtistId || artistName || '';
+          if (entityId) {
+            await VerifiedChatService.joinOrOpenVerifiedChat(
+              'artist',
+              entityId,
+              artistName || 'Artist',
+              userId
+            );
+            console.log('🟢 ArtistFollowButton: Successfully joined artist verified chat');
+          } else {
+            console.warn('⚠️ ArtistFollowButton: Could not determine entityId for chat join');
+          }
+        } catch (error) {
+          // Don't fail the follow action if chat join fails
+          console.error('⚠️ ArtistFollowButton: Error joining artist verified chat (non-fatal):', error);
+        }
+      }
 
       toast({
         title: newIsFollowing ? 'Following!' : 'Unfollowed',

@@ -61,7 +61,7 @@ export class DraftReviewService {
     try {
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .select('id, artist_uuid, artist_id, artist_name')
+        .select('id, artist_id, artist_name')
         .eq('id', eventId)
         .maybeSingle();
 
@@ -69,8 +69,25 @@ export class DraftReviewService {
         console.warn('⚠️ DraftReviewService: Failed to fetch event for artist resolution', eventError);
       }
 
-      if (eventData && isValidUuid(eventData.artist_uuid)) {
-        return eventData.artist_uuid;
+      // Prioritize JamBase artist_id for matching
+      if (eventData?.artist_id) {
+        // If artist_id is a JamBase ID (not UUID), use it directly
+        const artistId = eventData.artist_id.trim();
+        if (!isValidUuid(artistId)) {
+          // It's a JamBase ID, resolve to UUID for foreign key if needed
+          const { data: artist } = await supabase
+            .from('artists')
+            .select('id')
+            .eq('jambase_artist_id', artistId)
+            .single();
+          
+          if (artist?.id) {
+            return artist.id;
+          }
+        } else {
+          // It's already a UUID
+          return artistId;
+        }
       }
 
       const selectedArtist = draftData.selectedArtist || null;

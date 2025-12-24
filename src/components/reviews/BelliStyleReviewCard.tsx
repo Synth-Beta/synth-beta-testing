@@ -779,7 +779,7 @@ const overallRating =
                   )}
                   onClick={(e) => {
                     e.preventDefault(); e.stopPropagation();
-                    const artistId = (review as any).artist_uuid || review.artist_id;
+                    const artistId = review.artist_id || (review as any).artist_uuid; // Prioritize JamBase ID
                     const ev = new CustomEvent('open-artist-card', { detail: { artistId, artistName: review.artist_name } });
                     document.dispatchEvent(ev);
                   }}
@@ -819,7 +819,7 @@ const overallRating =
                   )}
                   onClick={(e) => {
                     e.preventDefault(); e.stopPropagation();
-                    const venueId = (review as any).venue_uuid || review.venue_id;
+                    const venueId = review.venue_id || (review as any).venue_uuid; // Prioritize JamBase ID
                     const ev = new CustomEvent('open-venue-card', { detail: { venueId, venueName: review.venue_name } });
                     document.dispatchEvent(ev);
                   }}

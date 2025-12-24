@@ -47,6 +47,8 @@ import { UserEventService } from '@/services/userEventService';
 import { fetchUserChats } from '@/services/chatService';
 import type { ReviewWithEngagement } from '@/services/reviewService';
 import type { UnifiedFeedItem } from '@/services/unifiedFeedService';
+import { VerifiedChatService } from '@/services/verifiedChatService';
+import { Badge as VerifiedBadge } from '@/components/ui/badge';
 
 interface Chat {
   id: string;
@@ -61,6 +63,12 @@ interface Chat {
   created_at: string;
   updated_at: string;
   unread_count?: number;
+  // Verified chat fields
+  entity_type?: 'event' | 'artist' | 'venue' | null;
+  entity_id?: string | null;
+  is_verified?: boolean;
+  member_count?: number;
+  last_activity_at?: string | null;
 }
 
 interface Message {
@@ -227,7 +235,9 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         (payload) => {
           console.log('💬 Real-time chat update:', payload);
           // Check if this chat involves the current user
-          const chatUsers = payload.new?.users || payload.old?.users || [];
+          const newChat = payload.new as any;
+          const oldChat = payload.old as any;
+          const chatUsers = (newChat?.users || oldChat?.users || []) as string[];
           if (Array.isArray(chatUsers) && chatUsers.includes(currentUserId)) {
             // Refresh chat list when user's chats change
             fetchChats();
@@ -513,7 +523,19 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         return bTime - aTime; // Descending order
       });
 
-      setChats(sortedChats);
+      // Ensure all required fields are present
+      const normalizedChats: Chat[] = sortedChats.map(chat => ({
+        ...chat,
+        latest_message_id: chat.latest_message_id ?? null,
+        latest_message: chat.latest_message ?? null,
+        latest_message_created_at: chat.latest_message_created_at ?? null,
+        latest_message_sender_name: chat.latest_message_sender_name ?? null,
+        group_admin_id: chat.group_admin_id ?? null,
+        created_at: chat.created_at ?? new Date().toISOString(),
+        updated_at: chat.updated_at ?? new Date().toISOString(),
+      }));
+      
+      setChats(normalizedChats);
       
       // Fetch user profiles for direct chat participants (to improve getChatDisplayName)
       const directChatUserIds = new Set<string>();
@@ -1312,9 +1334,19 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                             )}
                           </p>
                           {chat.is_group_chat && (
+                            <div className="flex items-center gap-1 mt-1">
+                              {chat.is_verified ? (
+                                <Badge 
+                                  variant="default" 
+                                  className="text-xs bg-green-100 text-green-800 border-green-300"
+                                >
+                                  <Shield className="w-3 h-3 mr-1" />
+                                  Verified {chat.entity_type ? chat.entity_type.charAt(0).toUpperCase() + chat.entity_type.slice(1) : 'Chat'}
+                                </Badge>
+                              ) : (
                             <Badge 
                               variant={eventCreatedChats.has(chat.id) ? "default" : "secondary"} 
-                              className={`text-xs mt-1 ${
+                                  className={`text-xs ${
                                 eventCreatedChats.has(chat.id) 
                                   ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' 
                                   : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
@@ -1322,6 +1354,8 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                             >
                               {eventCreatedChats.has(chat.id) ? 'Event Group' : 'User Group'}
                             </Badge>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1395,25 +1429,55 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                         </div>
                       ) : (
                         <>
+                          <div className="flex items-center gap-2 mb-1">
                           <h2 
                             className="font-bold text-lg text-synth-black cursor-pointer hover:text-synth-pink transition-colors"
                             onClick={() => {
+                                if (!selectedChat.is_verified) {
                               setEditedGroupName(getChatDisplayName(selectedChat));
                               setIsEditingGroupName(true);
+                                }
                             }}
-                            title="Click to edit group name"
+                              title={selectedChat.is_verified ? "Verified chat" : "Click to edit group name"}
                           >
                             {getChatDisplayName(selectedChat)}
                           </h2>
+                            {selectedChat.is_verified && (
+                              <VerifiedBadge variant="default" className="bg-green-100 text-green-800 border-green-300">
+                                <Shield className="w-3 h-3 mr-1" />
+                                Verified
+                              </VerifiedBadge>
+                            )}
+                          </div>
                           <p className="text-sm text-synth-black/60">
-                            {selectedChat.users.length} members
+                            {selectedChat.member_count || selectedChat.users.length} {selectedChat.member_count === 1 || selectedChat.users.length === 1 ? 'member' : 'members'}
+                            {selectedChat.entity_type && (
+                              <span className="ml-2 text-synth-black/40">
+                                • {selectedChat.entity_type.charAt(0).toUpperCase() + selectedChat.entity_type.slice(1)} Chat
+                              </span>
+                            )}
                           </p>
                         </>
                       )
                     ) : (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
                       <h2 className="font-bold text-lg text-synth-black">
                         {getChatDisplayName(selectedChat)}
                       </h2>
+                          {selectedChat.is_verified && (
+                            <VerifiedBadge variant="default" className="bg-green-100 text-green-800 border-green-300">
+                              <Shield className="w-3 h-3 mr-1" />
+                              Verified
+                            </VerifiedBadge>
+                          )}
+                        </div>
+                        {selectedChat.entity_type && (
+                          <p className="text-sm text-synth-black/60">
+                            {selectedChat.entity_type.charAt(0).toUpperCase() + selectedChat.entity_type.slice(1)} Chat
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

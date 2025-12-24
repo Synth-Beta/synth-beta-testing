@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { MapPin, Calendar, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ReviewService } from '@/services/reviewService';
+import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
 
 interface VenueCardProps {
   venueId?: string | null;
@@ -15,6 +16,14 @@ export function VenueCard({ venueId, venueName, onClose }: VenueCardProps) {
   const [geo, setGeo] = useState<{ lat?: number; lng?: number } | null>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Get current user
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id || null);
+    });
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -55,7 +64,7 @@ export function VenueCard({ venueId, venueName, onClose }: VenueCardProps) {
     <Card className="border-gray-200">
       <CardContent className="p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <div className="space-y-1">
+          <div className="space-y-1 flex-1">
             <h3 className="text-base font-semibold">{venueName}</h3>
             {geo && ( 
               <div className="text-xs text-gray-600 flex items-center gap-1">
@@ -64,9 +73,23 @@ export function VenueCard({ venueId, venueName, onClose }: VenueCardProps) {
               </div>
             )}
           </div>
+          <div className="flex items-center gap-2">
+            {currentUserId && venueId && (
+              <VerifiedChatBadge
+                entityType="venue"
+                entityId={venueId}
+                entityName={venueName}
+                currentUserId={currentUserId}
+                onChatOpen={(chatId) => {
+                  window.location.href = `/chats?chatId=${chatId}`;
+                }}
+                variant="compact"
+              />
+            )}
           {onClose && (
             <Button variant="ghost" size="sm" onClick={onClose}>×</Button>
           )}
+          </div>
         </div>
 
         {/* Map placeholder (replace with your existing map if desired) */}

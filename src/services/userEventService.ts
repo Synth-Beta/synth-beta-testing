@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { trackInteraction } from '@/services/interactionTrackingService';
+import { VerifiedChatService } from '@/services/verifiedChatService';
 import type { UserJamBaseEvent } from '@/types/database';
 
 export interface EventReview {
@@ -78,6 +79,38 @@ export class UserEventService {
       });
       
       if (fetchError) throw fetchError;
+      
+      // If interested, automatically join the event's verified chat
+      if (interested) {
+        try {
+          console.log('🟢 UserEventService: User expressed interest, joining verified chat...', {
+            eventUuid,
+            jambaseEventId,
+            userId
+          });
+          
+          // Get event title for chat name
+          const { data: eventData } = await supabase
+            .from('events')
+            .select('title, id')
+            .eq('id', eventUuid)
+            .maybeSingle();
+          
+          const eventTitle = eventData?.title || 'Event';
+          
+          await VerifiedChatService.joinOrOpenVerifiedChat(
+            'event',
+            eventUuid,
+            eventTitle,
+            userId
+          );
+          console.log('🟢 UserEventService: Successfully joined event verified chat');
+        } catch (error) {
+          // Don't fail the interest action if chat join fails
+          console.error('⚠️ UserEventService: Error joining event verified chat (non-fatal):', error);
+        }
+      }
+      
       try {
         trackInteraction.interest('event', jambaseEventId, interested);
         console.log('🎯 Tracked interest interaction:', { jambaseEventId, interested });

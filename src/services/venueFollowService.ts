@@ -60,6 +60,9 @@ export class VenueFollowService {
         throw new Error(`Venue not found: ${normalizedName}. Cannot follow venue that doesn't exist in database.`);
       }
       
+      // Return venueId so caller can use it for chat joining
+      // Store it in a way that can be accessed after the function completes
+      
       if (following) {
         // Insert follow relationship in user_venue_relationships (3NF compliant)
         const { error: insertError } = await supabase
@@ -93,6 +96,47 @@ export class VenueFollowService {
     } catch (error) {
       console.error('Error setting venue follow:', error);
       throw new Error(`Failed to ${following ? 'follow' : 'unfollow'} venue: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get venue ID by name (helper for chat joining)
+   * @param venueName - The venue name
+   * @param venueCity - The venue city (optional)
+   * @param venueState - The venue state (optional)
+   * @returns Venue UUID or null if not found
+   */
+  static async getVenueIdByName(
+    venueName: string,
+    venueCity?: string,
+    venueState?: string
+  ): Promise<string | null> {
+    try {
+      const normalizedName = this.normalizeVenueName(venueName);
+      
+      let venueQuery = supabase
+        .from('venues')
+        .select('id')
+        .ilike('name', normalizedName)
+        .limit(1);
+      
+      if (venueCity) {
+        venueQuery = venueQuery.ilike('city', venueCity);
+      }
+      
+      if (venueState) {
+        venueQuery = venueQuery.ilike('state', venueState);
+      }
+      
+      const { data: venues } = await venueQuery;
+      if (venues && venues.length > 0) {
+        return venues[0].id;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting venue ID by name:', error);
+      return null;
     }
   }
 

@@ -13,81 +13,11 @@ export class DCEventSeeder {
   }
   private static readonly JAMBASE_BASE_URL = 'https://api.jambase.com';
 
-  // Fetch upcoming events in Washington, DC from JamBase
+  // DISABLED: Frontend no longer has direct Jambase API access
+  // Use backend sync service instead
   static async fetchDCEvents(): Promise<Event[]> {
-    try {
-      // Validate API key before making any requests
-      if (!this.validateApiKey()) {
-        console.error('❌ Cannot fetch DC events: JAMBASE_API_KEY is not set');
+    console.warn('⚠️  Jambase API access removed from frontend. Use backend sync service instead.');
         return [];
-      }
-
-      console.log('🎵 Starting to fetch DC events from JamBase...');
-      
-      const events: Event[] = [];
-      let page = 1;
-      const eventsPerPage = 50; // JamBase API limit
-      
-      // Get today's date in YYYY-MM-DD format
-      const today = new Date();
-      const todayString = today.toISOString().split('T')[0];
-      
-      // Get date 6 months from now for upper limit
-      const sixMonthsFromNow = new Date();
-      sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
-      const endDateString = sixMonthsFromNow.toISOString().split('T')[0];
-
-      while (events.length < 100 && page <= 3) { // Max 3 pages to avoid rate limiting
-        const url = new URL(`${this.JAMBASE_BASE_URL}/events`);
-        url.searchParams.append('api_key', this.JAMBASE_API_KEY!);
-        url.searchParams.append('geoCity', 'Washington');
-        url.searchParams.append('geoState', 'DC');
-        url.searchParams.append('eventDateFrom', todayString);
-        url.searchParams.append('eventDateTo', endDateString);
-        url.searchParams.append('limit', eventsPerPage.toString());
-        url.searchParams.append('page', page.toString());
-
-        console.log(`📡 Fetching page ${page} from JamBase...`);
-        console.log(`🔗 URL: ${url.toString()}`);
-
-        const response = await fetch(url.toString());
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`❌ JamBase API error (page ${page}):`, response.status, errorText);
-          break;
-        }
-
-        const data = await response.json();
-        const pageEvents = data.events || [];
-        
-        console.log(`✅ Found ${pageEvents.length} events on page ${page}`);
-
-        if (pageEvents.length === 0) {
-          console.log('📭 No more events found, stopping pagination');
-          break;
-        }
-
-        // Convert JamBase events to our format
-        const convertedEvents = pageEvents.map((jambaseEvent: any) => this.convertJamBaseEvent(jambaseEvent));
-        events.push(...convertedEvents);
-
-        page++;
-        
-        // Add delay to avoid rate limiting
-        if (page <= 3) {
-          console.log('⏳ Waiting 1 second to avoid rate limiting...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-
-      console.log(`🎉 Total events fetched: ${events.length}`);
-      return events.slice(0, 100); // Ensure we only return 100 events max
-      
-    } catch (error) {
-      console.error('💥 Error fetching DC events:', error);
-      throw error;
-    }
   }
 
   // Convert JamBase event to our Event format

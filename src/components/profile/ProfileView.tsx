@@ -46,6 +46,9 @@ import { PageActions } from '@/components/PageActions';
 import { FriendsService } from '@/services/friendsService';
 import { ProfileDraftsSummary } from './ProfileDraftsSummary';
 import { ProfileStarBuckets } from './ProfileStarBuckets';
+import { PassportModal } from '@/components/discover/PassportModal';
+import { PassportService } from '@/services/passportService';
+import { Sparkles } from 'lucide-react';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -160,6 +163,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [friendStatus, setFriendStatus] = useState<'none' | 'friends' | 'pending_sent' | 'pending_received'>('none');
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const [followedArtistsCount, setFollowedArtistsCount] = useState(0);
+  const [passportModalOpen, setPassportModalOpen] = useState(false);
+  const [passportProgress, setPassportProgress] = useState({
+    cities: 0,
+    venues: 0,
+    artists: 0,
+    scenes: 0,
+  });
   const { toast } = useToast();
   const { user, sessionExpired } = useAuth();
   const navigate = useNavigate();
@@ -211,6 +221,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             fetchDraftReviews(),
             fetchFollowedArtistsCount(),
             loadAchievements(),
+            loadPassportSummary(),
             // Only check friend status if viewing someone else's profile
             !isViewingOwnProfile ? checkFriendStatus() : Promise.resolve()
           ]);
@@ -441,8 +452,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       const attendedEventIds = new Set(attendanceData?.map((a: any) => a.event_id) || []);
       
       const events = data?.map(item => {
-        // Updated structure: item.event instead of item.jambase_event (3NF schema)
-        const jambaseEvent = item?.event as any; // Type assertion to include setlist fields
+        // Item is already the event object (3NF schema)
+        const jambaseEvent = item as JamBaseEvent;
         
         // Debug all events to see what we're getting
         console.log('ProfileView: Processing event in getUserEvents:', {
@@ -1168,6 +1179,23 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     }
   };
 
+  const loadPassportSummary = async () => {
+    try {
+      if (sessionExpired || !user || !isViewingOwnProfile) {
+        return;
+      }
+      const progress = await PassportService.getPassportProgress(targetUserId);
+      setPassportProgress({
+        cities: progress.cities.length,
+        venues: progress.venues.length,
+        artists: progress.artists.length,
+        scenes: progress.scenes.length,
+      });
+    } catch (error) {
+      console.error('Error loading passport summary:', error);
+    }
+  };
+
   const checkFriendStatus = async () => {
     try {
       if (sessionExpired || !user || isViewingOwnProfile) {
@@ -1635,6 +1663,15 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     <Button onClick={onEdit} variant="default" size="sm" className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-md">
                       <Edit className="w-4 h-4 mr-2" />
                       Edit Profile
+                    </Button>
+                    <Button 
+                      onClick={() => setPassportModalOpen(true)} 
+                      variant="outline" 
+                      size="sm" 
+                      className="border-pink-200 hover:border-pink-300 text-pink-600 hover:text-pink-700"
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Live Music Passport
                     </Button>
                     <Button onClick={onSettings} variant="outline" size="sm" className="border-gray-200 hover:border-gray-300">
                       <Settings className="w-4 h-4" />
@@ -2400,8 +2437,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                             venue_city: ev.venue_city || null,
                             venue_state: ev.venue_state || null,
                             setlist: ev.setlist || null,
-                            setlist_song_count: ev.setlist_song_count || null,
-                            setlist_fm_url: ev.setlist_fm_url || null
+                            setlist_song_count: (ev as any).setlist_song_count || null,
+                            setlist_fm_url: (ev as any).setlist_fm_url || null
                           };
                           
                           console.log('ProfileView: Complete event data for modal from interested events:', {
@@ -2778,6 +2815,14 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         />
       )}
 
+      {/* Passport Modal */}
+      {isViewingOwnProfile && (
+        <PassportModal
+          isOpen={passportModalOpen}
+          onClose={() => setPassportModalOpen(false)}
+          userId={targetUserId}
+        />
+      )}
     </div>
   );
 };

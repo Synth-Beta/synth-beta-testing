@@ -98,8 +98,8 @@ SELECT
   je.event_date,
   je.venue_city::TEXT as venue_city,
   je.venue_state::TEXT as venue_state,
-  je.artist_id::TEXT as artist_id,
-  je.venue_id::TEXT as venue_id,
+  je.artist_jambase_id_text::TEXT as artist_id,
+  je.venue_jambase_id_text::TEXT as venue_id,
   -- Connection degree (using existing function)
   COALESCE(
     public.get_connection_degree(auth.uid(), ur.user_id),
@@ -126,8 +126,8 @@ WHERE ur.is_public = true
       -- Only include 3rd if relevant: current user follows the artist OR venue of THIS event
       AND public.is_event_relevant_to_user(
         auth.uid(), 
-        je.artist_id,
-        je.venue_id,
+        je.artist_jambase_id_text,
+        je.venue_jambase_id_text,
         je.venue_name,
         je.venue_city,
         je.venue_state

@@ -15,7 +15,7 @@ import { NetworkReviewCard } from './NetworkReviewCard';
 import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
-import { Loader2, Users, Sparkles, TrendingUp, Search, UserPlus, UserCheck } from 'lucide-react';
+import { Loader2, Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -56,6 +56,12 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   }>>([]);
   const [sendingFriendRequests, setSendingFriendRequests] = useState<Set<string>>(new Set());
   const [sentFriendRequests, setSentFriendRequests] = useState<Set<string>>(new Set());
+  const [recommendedGroupChats, setRecommendedGroupChats] = useState<Array<{
+    id: string;
+    chat_name: string;
+    member_count: number;
+    friends_in_chat_count?: number;
+  }>>([]);
 
   // Loading states
   const [loadingRecommended, setLoadingRecommended] = useState(true);
@@ -64,6 +70,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [loadingLists, setLoadingLists] = useState(true);
   const [loadingTrending, setLoadingTrending] = useState(true);
   const [loadingRecommendedFriends, setLoadingRecommendedFriends] = useState(false);
+  const [loadingRecommendedGroupChats, setLoadingRecommendedGroupChats] = useState(false);
 
   // Event details modal
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
@@ -167,6 +174,7 @@ interface FriendEventInterest {
       loadEventLists(),
       loadTrendingEvents(),
       loadRecommendedFriends(),
+      loadRecommendedGroupChats(),
     ]);
   };
 
@@ -295,6 +303,69 @@ interface FriendEventInterest {
     }
   };
 
+  const loadRecommendedGroupChats = async () => {
+    setLoadingRecommendedGroupChats(true);
+    try {
+      // Get user's friends to find group chats with friends
+      const { data: friendsData } = await supabase
+        .from('friends')
+        .select('user1_id, user2_id')
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
+
+      const friendIds = friendsData?.map(f => 
+        f.user1_id === currentUserId ? f.user2_id : f.user1_id
+      ) || [];
+
+      // Find group chats that:
+      // 1. Are group chats
+      // 2. User is not a member of (users array doesn't contain currentUserId)
+      // 3. Have at least one friend as a member
+      // 4. Are recent (created in last 30 days)
+      const { data: allGroupChats, error } = await supabase
+        .from('chats')
+        .select('id, chat_name, users, created_at')
+        .eq('is_group_chat', true)
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      // Filter out chats where user is already a member
+      const groupChats = (allGroupChats || []).filter(chat => 
+        !chat.users.includes(currentUserId)
+      );
+
+      // Filter to only chats with friends and calculate friend count
+      const chatsWithFriends = (groupChats || [])
+        .map(chat => {
+          const chatFriendIds = chat.users.filter((id: string) => friendIds.includes(id));
+          return {
+            id: chat.id,
+            chat_name: chat.chat_name || 'Unnamed Group',
+            member_count: chat.users.length,
+            friends_in_chat_count: chatFriendIds.length,
+          };
+        })
+        .filter(chat => chat.friends_in_chat_count > 0)
+        .sort((a, b) => {
+          // Sort by number of friends in chat, then by member count
+          if (a.friends_in_chat_count !== b.friends_in_chat_count) {
+            return b.friends_in_chat_count - a.friends_in_chat_count;
+          }
+          return b.member_count - a.member_count;
+        })
+        .slice(0, 10); // Limit to top 10
+
+      setRecommendedGroupChats(chatsWithFriends);
+    } catch (error) {
+      console.error('Error loading recommended group chats:', error);
+      setRecommendedGroupChats([]);
+    } finally {
+      setLoadingRecommendedGroupChats(false);
+    }
+  };
+
   const handleAddFriend = async (friendUserId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click from triggering
     setSendingFriendRequests(prev => new Set(prev).add(friendUserId));
@@ -343,9 +414,9 @@ interface FriendEventInterest {
           jambase_event_id: eventData.event_id,
           title: eventData.title || 'Event',
           artist_name: eventData.artist_name || 'Unknown Artist',
-          artist_id: eventData.artist_id || eventData.artist_uuid || '',
+          artist_id: eventData.artist_id || '', // Use JamBase ID first
           venue_name: eventData.venue_name || 'Unknown Venue',
-          venue_id: eventData.venue_id || eventData.venue_uuid || '',
+          venue_id: eventData.venue_id || '', // Use JamBase ID first
           event_date: eventData.event_date,
           doors_time: eventData.doors_time,
           description: eventData.description,
@@ -618,17 +689,6 @@ interface FriendEventInterest {
   return (
     <div className="min-h-screen bg-[#fcfcfc] pb-[max(2rem,env(safe-area-inset-bottom))]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-6 space-y-2">
-        {/* Search Bar - Integrated Design with Pink Accent */}
-        <div className="mb-2">
-          <button
-            onClick={() => onViewChange?.('search')}
-            className="w-full flex items-center gap-2 px-3 py-2 bg-synth-pink/5 border border-synth-pink/30 rounded-lg hover:border-synth-pink/60 hover:bg-synth-pink/10 transition-all text-left"
-          >
-            <Search className="h-4 w-4 text-synth-pink" />
-            <span className="text-gray-600 text-xs">Search events, artists, venues</span>
-          </button>
-        </div>
-
         {/* Recommended Friends Accordion - Open by default */}
         <Accordion type="single" collapsible defaultValue="recommended-friends" className="w-full mb-2">
           <AccordionItem value="recommended-friends" className="border border-gray-200 rounded-xl px-3 py-2 bg-white">
@@ -729,6 +789,72 @@ interface FriendEventInterest {
           </AccordionItem>
         </Accordion>
 
+        {/* Recommended Chats Accordion */}
+        <Accordion type="single" collapsible className="w-full mb-2">
+          <AccordionItem value="recommended-chats" className="border border-gray-200 rounded-xl px-3 py-2 bg-white">
+            <AccordionTrigger className="hover:no-underline py-2">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-synth-pink" />
+                <h2 className="text-base font-bold">Recommended Chats</h2>
+                {recommendedGroupChats.length > 0 && (
+                  <span className="text-xs text-muted-foreground">({recommendedGroupChats.length})</span>
+                )}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2">
+              {loadingRecommendedGroupChats ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : recommendedGroupChats.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No recommended chats at this time.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto pb-2 scrollbar-hide">
+                  <div className="flex gap-3" style={{ width: 'max-content' }}>
+                    {recommendedGroupChats.map((chat) => (
+                      <div
+                        key={chat.id}
+                        className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden cursor-pointer group relative bg-gradient-to-br from-synth-pink/20 to-synth-pink/40 hover:shadow-lg transition-all duration-200"
+                        onClick={() => onNavigateToChat?.(chat.id)}
+                      >
+                        {/* Chat icon/avatar */}
+                        <div className="w-full h-full flex flex-col items-center justify-center p-2">
+                          <MessageSquare className="w-8 h-8 text-synth-pink mb-1" />
+                          <p className="text-[10px] font-semibold text-synth-pink text-center line-clamp-2">
+                            {chat.chat_name}
+                          </p>
+                        </div>
+                        
+                        {/* Overlay with info on hover */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                          <div className="absolute bottom-0 left-0 right-0 p-1.5 text-white">
+                            <p className="text-[10px] font-semibold line-clamp-1 mb-0.5">{chat.chat_name}</p>
+                            <p className="text-[9px] opacity-90">
+                              {chat.member_count} member{chat.member_count !== 1 ? 's' : ''}
+                              {chat.friends_in_chat_count && chat.friends_in_chat_count > 0 && (
+                                <> • {chat.friends_in_chat_count} friend{chat.friends_in_chat_count !== 1 ? 's' : ''}</>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Bottom info bar (always visible) */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1">
+                          <p className="text-[10px] font-medium text-white line-clamp-1 truncate">
+                            {chat.chat_name}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
         {/* Collapsible Event Sections */}
         <Accordion type="multiple" className="w-full space-y-2">
           {/* 1. Recommended for You */}
@@ -754,7 +880,24 @@ interface FriendEventInterest {
               ) : (
                 <div className="overflow-x-auto pb-2 scrollbar-hide">
                   <div className="flex gap-3" style={{ width: 'max-content' }}>
-                    {recommendedEvents.map((event) => (
+                    {recommendedEvents.map((event) => {
+                      // Resolve image URL with priority:
+                      // 1. poster_image_url (from SQL function - already resolved with all sources)
+                      // 2. images JSONB (first image URL, prefer 16:9 or large images)
+                      // 3. event_media_url (if available in event object)
+                      let imageUrl: string | undefined = undefined;
+                      
+                      if (event.poster_image_url) {
+                        imageUrl = event.poster_image_url;
+                      } else if (event.images && Array.isArray(event.images) && event.images.length > 0) {
+                        // Prefer 16:9 ratio or large images
+                        const bestImage = event.images.find((img: any) => 
+                          img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
+                        ) || event.images.find((img: any) => img?.url);
+                        imageUrl = bestImage?.url;
+                      }
+                      
+                      return (
                       <CompactEventCard
                         key={event.id}
                         event={{
@@ -764,12 +907,13 @@ interface FriendEventInterest {
                           venue_name: event.venue_name,
                           event_date: event.event_date,
                           venue_city: event.venue_city || undefined,
-                          image_url: event.images?.[0]?.url || undefined,
+                            image_url: imageUrl,
                           poster_image_url: event.poster_image_url || undefined,
                         }}
                         onClick={() => handleEventClick(event.id)}
                       />
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -799,7 +943,21 @@ interface FriendEventInterest {
               ) : (
                 <div className="overflow-x-auto pb-2 scrollbar-hide">
                   <div className="flex gap-3" style={{ width: 'max-content' }}>
-                    {trendingEvents.map((event) => (
+                    {trendingEvents.map((event) => {
+                      // Resolve image URL with priority:
+                      // 1. poster_image_url (if available)
+                      // 2. images JSONB (first image URL, prefer 16:9 or large images)
+                      let imageUrl: string | undefined = undefined;
+                      
+                      if (event.images && Array.isArray(event.images) && event.images.length > 0) {
+                        // Prefer 16:9 ratio or large images
+                        const bestImage = event.images.find((img: any) => 
+                          img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
+                        ) || event.images.find((img: any) => img?.url);
+                        imageUrl = bestImage?.url;
+                      }
+                      
+                      return (
                       <CompactEventCard
                         key={event.event_id}
                         event={{
@@ -809,12 +967,13 @@ interface FriendEventInterest {
                           venue_name: event.venue_name,
                           event_date: event.event_date,
                           venue_city: event.venue_city,
-                          image_url: event.images?.[0]?.url || undefined,
-                          poster_image_url: event.images?.[0]?.url || undefined,
+                            image_url: imageUrl,
+                            poster_image_url: imageUrl,
                         }}
                         onClick={() => handleEventClick(event.event_id)}
                       />
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -849,7 +1008,21 @@ interface FriendEventInterest {
               ) : (
                 <div className="overflow-x-auto pb-2 scrollbar-hide">
                   <div className="flex gap-3" style={{ width: 'max-content' }}>
-                    {[...firstDegreeEvents, ...secondDegreeEvents].map((event) => (
+                    {[...firstDegreeEvents, ...secondDegreeEvents].map((event) => {
+                      // Resolve image URL with priority:
+                      // 1. poster_image_url (if available)
+                      // 2. images JSONB (first image URL, prefer 16:9 or large images)
+                      let imageUrl: string | undefined = undefined;
+                      
+                      if (event.images && Array.isArray(event.images) && event.images.length > 0) {
+                        // Prefer 16:9 ratio or large images
+                        const bestImage = event.images.find((img: any) => 
+                          img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
+                        ) || event.images.find((img: any) => img?.url);
+                        imageUrl = bestImage?.url;
+                      }
+                      
+                      return (
                       <CompactEventCard
                         key={`${event.event_id}-${event.friend_id}`}
                         event={{
@@ -859,12 +1032,13 @@ interface FriendEventInterest {
                           venue_name: event.venue_name,
                           event_date: event.event_date,
                           venue_city: event.venue_city,
-                          image_url: event.images?.[0]?.url || undefined,
-                          poster_image_url: event.images?.[0]?.url || undefined,
+                            image_url: imageUrl,
+                            poster_image_url: imageUrl,
                         }}
                         onClick={() => handleEventClick(event.event_id)}
                       />
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

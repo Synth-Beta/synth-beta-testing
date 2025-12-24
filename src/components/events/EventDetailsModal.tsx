@@ -19,7 +19,8 @@ import {
   Music,
   Award,
   Flag,
-  MoreVertical
+  MoreVertical,
+  Loader2
 } from 'lucide-react';
 import { EventCommentsModal } from './EventCommentsModal';
 import { ReportContentModal } from '../moderation/ReportContentModal';
@@ -46,6 +47,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAccountType } from '@/hooks/useAccountType';
 import { addUTMToURL, extractTicketProvider, getDaysUntilEvent, extractEventMetadata } from '@/utils/trackingHelpers';
 import { SetlistService } from '@/services/setlistService';
+import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
 
 interface EventDetailsModalProps {
   event: JamBaseEvent | null;
@@ -110,6 +112,9 @@ export function EventDetailsModal({
   const [showPhotos, setShowPhotos] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [eventGroups, setEventGroups] = useState<any[]>([]);
+  const [verifiedChatInfo, setVerifiedChatInfo] = useState<any>(null);
+  const [verifiedChatLoading, setVerifiedChatLoading] = useState(false);
+  const verifiedChatLoadedRef = useRef(false);
   const [userWasThere, setUserWasThere] = useState<boolean | null>(null);
   const [attendanceCount, setAttendanceCount] = useState<number | null>(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
@@ -123,6 +128,7 @@ export function EventDetailsModal({
   // Update actualEvent when event prop changes
   useEffect(() => {
     setActualEvent(event);
+    verifiedChatLoadedRef.current = false; // Reset when event changes
     
     // Load event groups when modal opens
     // NOTE: event_groups table does not exist in 3NF schema - feature is disabled
@@ -131,10 +137,55 @@ export function EventDetailsModal({
     // }
   }, [event, isCreator, isAdmin]);
 
+  // Load verified chat when modal opens and event is available
+  useEffect(() => {
+    if (isOpen && actualEvent?.id && currentUserId && !verifiedChatLoadedRef.current) {
+      verifiedChatLoadedRef.current = true;
+      loadVerifiedChat();
+    }
+  }, [isOpen, actualEvent?.id, currentUserId]);
+
   // Sync local interest state with prop
   useEffect(() => {
     setLocalIsInterested(isInterested);
   }, [isInterested]);
+  
+  const loadVerifiedChat = async () => {
+    if (!actualEvent?.id || !currentUserId || verifiedChatLoading) {
+      console.log('🟡 EventDetailsModal: Skipping loadVerifiedChat', {
+        hasEvent: !!actualEvent?.id,
+        hasUserId: !!currentUserId,
+        isLoading: verifiedChatLoading
+      });
+      return;
+    }
+    
+    try {
+      setVerifiedChatLoading(true);
+      console.log('🟢 EventDetailsModal: Loading verified chat for event:', actualEvent.id);
+      
+      const { VerifiedChatService } = await import('@/services/verifiedChatService');
+      
+      // Get or create verified chat
+      const chatId = await VerifiedChatService.getOrCreateVerifiedChat(
+        'event',
+        actualEvent.id,
+        actualEvent.title || 'Event'
+      );
+      console.log('🟢 EventDetailsModal: Verified chat ID:', chatId);
+      
+      // Get full chat info
+      const chatInfo = await VerifiedChatService.getVerifiedChatInfo('event', actualEvent.id);
+      console.log('🟢 EventDetailsModal: Verified chat info:', chatInfo);
+      
+      setVerifiedChatInfo(chatInfo);
+    } catch (error) {
+      console.error('❌ EventDetailsModal: Error loading verified chat:', error);
+      verifiedChatLoadedRef.current = false; // Reset on error so it can retry
+    } finally {
+      setVerifiedChatLoading(false);
+    }
+  };
   
   const loadEventGroups = async () => {
     if (!actualEvent?.id) return;
@@ -1037,7 +1088,7 @@ export function EventDetailsModal({
                 }}
               >
                 <Users className="h-4 w-4 mr-1" />
-                Groups ({eventGroups.length})
+                Groups ({eventGroups.length + (verifiedChatInfo?.chat_id ? 1 : 0)})
               </Button>
               {isUpcomingEvent && (
                 <Button
@@ -1073,12 +1124,119 @@ export function EventDetailsModal({
                     Create Group
                   </Button>
                 </div>
+                
+                {/* Verified Chat - Always visible */}
+                {verifiedChatLoading ? (
+                  <Card>
+                    <CardContent className="py-6 text-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-synth-pink mx-auto" />
+                      <p className="text-sm text-gray-500 mt-2">Loading verified chat...</p>
+                    </CardContent>
+                  </Card>
+                ) : verifiedChatInfo?.chat_id ? (
+                  <Card className="border-2 border-synth-pink/30 bg-gradient-to-br from-pink-50/50 to-purple-50/50">
+                    <CardContent className="p-4">
+                      <div className="flex gap-4">
+                        {/* Verified Chat Icon */}
+                        <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-synth-pink to-purple-600 flex items-center justify-center">
+                          <MessageSquare className="h-8 w-8 text-white" />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          {/* Chat Header */}
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-lg truncate">{verifiedChatInfo.chat_name || `${actualEvent.title} Chat`}</h3>
+                              <p className="text-sm text-gray-600">
+                                Official verified chat for this event
+                              </p>
+                            </div>
+                            <Badge className="bg-synth-pink text-white flex-shrink-0">
+                              <Award className="h-3 w-3 mr-1" />
+                              Verified
+                            </Badge>
+                          </div>
+
+                          {/* Chat Info */}
+                          <div className="flex items-center gap-3 text-sm text-gray-600 mb-3">
+                            <div className="flex items-center gap-1">
+                              <Users className="h-4 w-4" />
+                              <span>
+                                {verifiedChatInfo.member_count || 0} member{(verifiedChatInfo.member_count || 0) !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            {verifiedChatInfo.last_activity_at && (
+                              <Badge variant="secondary" className="text-xs">
+                                <MessageSquare className="h-3 w-3 mr-1" />
+                                Active
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex gap-2">
+                            {verifiedChatInfo.is_user_member ? (
+                              <Button
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onNavigateToChat) {
+                                    onClose();
+                                    onNavigateToChat(verifiedChatInfo.chat_id);
+                                  } else {
+                                    window.location.href = `/chats?chatId=${verifiedChatInfo.chat_id}`;
+                                  }
+                                }}
+                                className="flex-1 bg-synth-pink hover:bg-synth-pink-dark"
+                              >
+                                <MessageSquare className="h-4 w-4 mr-1" />
+                                Open Chat
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    const { VerifiedChatService } = await import('@/services/verifiedChatService');
+                                    await VerifiedChatService.joinVerifiedChat(
+                                      verifiedChatInfo.chat_id,
+                                      currentUserId
+                                    );
+                                    await loadVerifiedChat(); // Reload to update membership status
+                                    toast({
+                                      title: 'Joined Chat! 🎉',
+                                      description: 'You can now participate in the verified chat',
+                                    });
+                                  } catch (error) {
+                                    console.error('Error joining verified chat:', error);
+                                    toast({
+                                      title: 'Error',
+                                      description: 'Failed to join chat',
+                                      variant: 'destructive',
+                                    });
+                                  }
+                                }}
+                                className="flex-1 bg-synth-pink hover:bg-synth-pink-dark"
+                              >
+                                <Users className="h-4 w-4 mr-1" />
+                                Join Chat
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null}
+
+                {/* User-Created Event Groups */}
                 {eventGroups.length === 0 ? (
                   <Card>
                     <CardContent className="py-8 text-center">
                       <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-600 text-sm">No groups yet</p>
-                      <p className="text-xs text-gray-500 mt-1">Create the first group for this event!</p>
+                      <p className="text-gray-600 text-sm">No additional groups yet</p>
+                      <p className="text-xs text-gray-500 mt-1">Create a custom group for this event!</p>
                     </CardContent>
                   </Card>
                 ) : (
@@ -1440,6 +1598,26 @@ export function EventDetailsModal({
                     }
                     return null;
                   })()}
+
+                  {/* Verified Chat Badge */}
+                  {currentUserId && actualEvent?.id && (
+                    <div className="flex items-center">
+                      <VerifiedChatBadge
+                        entityType="event"
+                        entityId={actualEvent.id}
+                        entityName={actualEvent.title || 'Event'}
+                        currentUserId={currentUserId}
+                        onChatOpen={(chatId) => {
+                          console.log('🟢 EventDetailsModal: Chat opened, navigating to chat:', chatId);
+                          if (onNavigateToChat) {
+                            onNavigateToChat(chatId);
+                          } else {
+                            window.location.href = `/chats?chatId=${chatId}`;
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* External Links for Upcoming Events */}

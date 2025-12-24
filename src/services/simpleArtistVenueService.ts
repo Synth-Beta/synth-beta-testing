@@ -163,26 +163,33 @@ export class SimpleArtistVenueService {
   }
 
   /**
-   * Get events for an artist by artist UUID
+   * Get events for an artist by artist ID (JamBase ID or UUID)
    */
   private static async getEventsForArtist(artistId: string): Promise<Array<any>> {
     try {
-      // Try the enhanced function first if it exists
-      const { data: events, error } = await supabase
-        .rpc('get_artist_events', {
-          artist_uuid: artistId,
-          limit_count: 10
-        });
-
-      if (events && !error) {
-        return events;
+      // First, try to get JamBase ID if artistId is a UUID
+      let jambaseArtistId = artistId;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(artistId);
+      
+      if (isUUID) {
+        // Look up JamBase ID from artists table
+        const { data: artist } = await supabase
+          .from('artists')
+          .select('jambase_artist_id')
+          .eq('id', artistId)
+          .single();
+        
+        if (artist?.jambase_artist_id) {
+          jambaseArtistId = artist.jambase_artist_id;
+        }
       }
 
-      // Fallback: query jambase_events directly
+      // Query events by JamBase artist_id
       const { data: fallbackEvents, error: fallbackError } = await supabase
         .from('events')
         .select('id, title, venue_name, event_date, venue_city, venue_state')
-        .eq('artist_uuid', artistId)
+        .eq('artist_id', jambaseArtistId)
+        .not('artist_id', 'is', null)
         .order('event_date', { ascending: false })
         .limit(10);
 
@@ -205,26 +212,33 @@ export class SimpleArtistVenueService {
   }
 
   /**
-   * Get events for a venue by venue UUID
+   * Get events for a venue by venue ID (JamBase ID or UUID)
    */
   private static async getEventsForVenue(venueId: string): Promise<Array<any>> {
     try {
-      // Try the enhanced function first if it exists
-      const { data: events, error } = await supabase
-        .rpc('get_venue_events', {
-          venue_uuid: venueId,
-          limit_count: 10
-        });
-
-      if (events && !error) {
-        return events;
+      // First, try to get JamBase ID if venueId is a UUID
+      let jambaseVenueId = venueId;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(venueId);
+      
+      if (isUUID) {
+        // Look up JamBase ID from venues table
+        const { data: venue } = await supabase
+          .from('venues')
+          .select('jambase_venue_id')
+          .eq('id', venueId)
+          .single();
+        
+        if (venue?.jambase_venue_id) {
+          jambaseVenueId = venue.jambase_venue_id;
+        }
       }
 
-      // Fallback: query jambase_events directly
+      // Query events by JamBase venue_id
       const { data: fallbackEvents, error: fallbackError } = await supabase
         .from('events')
         .select('id, title, artist_name, event_date, venue_city, venue_state')
-        .eq('venue_uuid', venueId)
+        .eq('venue_id', jambaseVenueId)
+        .not('venue_id', 'is', null)
         .order('event_date', { ascending: false })
         .limit(10);
 

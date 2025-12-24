@@ -18,6 +18,7 @@ import type { JamBaseEvent } from '@/types/eventTypes';
 import { cn } from '@/lib/utils';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { supabase } from '@/integrations/supabase/client';
+import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
 
 interface ArtistCardProps {
   artist: Artist;
@@ -125,7 +126,19 @@ export function ArtistCard({
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-4 mb-2">
                 <CardTitle className="text-3xl">{artist.name}</CardTitle>
+                <div className="flex items-center gap-2">
                 {currentUserId && (
+                    <>
+                      <VerifiedChatBadge
+                        entityType="artist"
+                        entityId={artist.id || artist.jambase_artist_id}
+                        entityName={artist.name}
+                        currentUserId={currentUserId}
+                        onChatOpen={(chatId) => {
+                          window.location.href = `/chats?chatId=${chatId}`;
+                        }}
+                        variant="compact"
+                      />
                   <ArtistFollowButton
                     artistName={artist.name}
                     jambaseArtistId={artist.jambase_artist_id}
@@ -134,7 +147,9 @@ export function ArtistCard({
                     size="default"
                     showFollowerCount={true}
                   />
+                    </>
                 )}
+                </div>
               </div>
               
               <div className="flex items-center gap-2 mb-3">

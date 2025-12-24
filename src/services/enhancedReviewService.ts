@@ -245,12 +245,29 @@ export class EnhancedReviewService {
 
   /**
    * Get artist events for the artist card
+   * Uses JamBase artist_id instead of UUID
    */
   static async getArtistEvents(artistId: string, limit: number = 10): Promise<any[]> {
     try {
+      // Resolve JamBase ID if artistId is a UUID
+      let jambaseArtistId = artistId;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(artistId);
+      
+      if (isUUID) {
+        const { data: artist } = await supabase
+          .from('artists')
+          .select('jambase_artist_id')
+          .eq('id', artistId)
+          .single();
+        
+        if (artist?.jambase_artist_id) {
+          jambaseArtistId = artist.jambase_artist_id;
+        }
+      }
+      
       const { data, error } = await supabase
         .rpc('get_artist_events', {
-          artist_uuid: artistId,
+          artist_jambase_id: jambaseArtistId,
           limit_count: limit
         });
 
@@ -264,12 +281,29 @@ export class EnhancedReviewService {
 
   /**
    * Get venue events for the venue card
+   * Uses JamBase venue_id instead of UUID
    */
   static async getVenueEvents(venueId: string, limit: number = 10): Promise<any[]> {
     try {
+      // Resolve JamBase ID if venueId is a UUID
+      let jambaseVenueId = venueId;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(venueId);
+      
+      if (isUUID) {
+        const { data: venue } = await supabase
+          .from('venues')
+          .select('jambase_venue_id')
+          .eq('id', venueId)
+          .single();
+        
+        if (venue?.jambase_venue_id) {
+          jambaseVenueId = venue.jambase_venue_id;
+        }
+      }
+      
       const { data, error } = await supabase
         .rpc('get_venue_events', {
-          venue_uuid: venueId,
+          venue_jambase_id: jambaseVenueId,
           limit_count: limit
         });
 

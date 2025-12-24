@@ -649,11 +649,11 @@ export class ReviewService {
         value_feedback: insertPayload.value_feedback,
       });
 
-      // Debug: Check if the event has artist_uuid populated
-      console.log('🔍 ReviewService: Checking event artist_uuid for eventId:', eventId);
+      // Use JamBase IDs directly for event matching
+      console.log('🔍 ReviewService: Checking event JamBase IDs for eventId:', eventId);
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .select('id, artist_uuid, artist_id, artist_name, venue_id')
+        .select('id, artist_id, artist_name, venue_id, venue_name')
         .eq('id', eventId)
         .single();
       
@@ -662,70 +662,16 @@ export class ReviewService {
       } else {
         console.log('🔍 ReviewService: Event data:', eventData);
         
-        // If artist_uuid is available, use it directly instead of relying on trigger
-        const eventArtistUuid = eventData?.artist_uuid;
-        let resolvedArtistUuid: string | undefined;
-        if (isValidUuid(eventArtistUuid)) {
-          resolvedArtistUuid = eventArtistUuid;
+        // Use JamBase artist_id directly (not UUID)
+        const eventArtistId = eventData?.artist_id;
+        if (eventArtistId) {
+          console.log('🔍 ReviewService: Using JamBase artist_id:', eventArtistId);
+          (insertPayload as any).artist_id = eventArtistId;
         } else {
-          const candidateArtistId = (eventData?.artist_id || '').trim();
-          if (isValidUuid(candidateArtistId)) {
-            resolvedArtistUuid = candidateArtistId;
-          } else if (candidateArtistId) {
-            console.log(
-              '🔍 ReviewService: Attempting to resolve artist_uuid from JamBase artist_id:',
-              candidateArtistId
-            );
-            const { data: artistLookup, error: artistLookupError } = await supabase
-              .from('artists')
-              .select('id')
-              .eq('jambase_artist_id', candidateArtistId)
-              .maybeSingle();
-            if (artistLookupError) {
-              console.warn(
-                '⚠️ ReviewService: Error looking up artist by JamBase ID:',
-                artistLookupError
-              );
-            }
-            if (artistLookup?.id && isValidUuid(artistLookup.id)) {
-              resolvedArtistUuid = artistLookup.id;
-            } else {
-              console.warn(
-                '⚠️ ReviewService: Unable to resolve artist UUID from JamBase ID',
-                candidateArtistId
-              );
-            }
-          }
-        }
-        if (resolvedArtistUuid) {
-          console.log('🔍 ReviewService: Using resolved artist UUID:', resolvedArtistUuid);
-          (insertPayload as any).artist_id = resolvedArtistUuid;
-
-          // Backfill jambase_events.artist_uuid for future calls
-          if (!isValidUuid(eventArtistUuid)) {
-            try {
-              const updateResult = await supabase
-                .from('events')
-                .update({ artist_uuid: resolvedArtistUuid })
-                .eq('id', eventId);
-              if (updateResult.error) {
-                console.warn(
-                  '⚠️ ReviewService: Failed to backfill artist_uuid on event:',
-                  updateResult.error
-                );
-              }
-            } catch (updateErr) {
-              console.warn(
-                '⚠️ ReviewService: Exception while backfilling artist_uuid:',
-                updateErr
-              );
-            }
-          }
-        } else {
-          console.log('⚠️ ReviewService: No artist UUID could be resolved for event');
+          console.log('⚠️ ReviewService: No JamBase artist_id found for event');
         }
         
-        // Note: venue_uuid column doesn't exist in jambase_events, so we use the venueId parameter
+        // Use JamBase venue_id directly (not UUID)
         if (normalizedVenueId) {
           console.log('🔍 ReviewService: Using venueId parameter:', normalizedVenueId);
           (insertPayload as any).venue_id = normalizedVenueId;
@@ -1028,7 +974,7 @@ export class ReviewService {
         .from('reviews')
         .select(`
           *,
-          jambase_events: jambase_events (id, title, artist_name, artist_id, venue_name, venue_id, event_date),
+          events:event_id (id, title, artist_name, venue_name, event_date),
           review_likes!left(id, user_id)
         `)
         .eq('event_id', eventId)
@@ -1069,10 +1015,10 @@ export class ReviewService {
       const processedReviews: ReviewWithEngagement[] = (reviews || []).map((review: any) => ({
         ...review,
         // Project event info onto the review for UI access
-        artist_name: review.jambase_events?.artist_name,
-        artist_id: review.jambase_events?.artist_id,
-        venue_name: review.jambase_events?.venue_name,
-        venue_id: review.jambase_events?.venue_id || review.venue_id,
+        artist_name: review.events?.artist_name,
+        artist_id: review.artist_id || null, // Use review's artist_id if available
+        venue_name: review.events?.venue_name,
+        venue_id: review.venue_id || null, // Use review's venue_id if available
         is_liked_by_user: userLikes.includes(review.id),
         user_like_id: userLikes.includes(review.id) 
           ? review.review_likes?.find(l => l.user_id === userId)?.id 
@@ -1900,8 +1846,26 @@ export class ReviewService {
    */
   static async getVenueStats(venueId: string): Promise<VenueStats> {
     try {
+      // Use JamBase venue_id instead of UUID
+      // First try to resolve JamBase ID if venueId is a UUID
+      let jambaseVenueId = venueId;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(venueId);
+      
+      if (isUUID) {
+        // Look up JamBase ID from venues table
+        const { data: venue } = await supabase
+          .from('venues')
+          .select('jambase_venue_id')
+          .eq('id', venueId)
+          .single();
+        
+        if (venue?.jambase_venue_id) {
+          jambaseVenueId = venue.jambase_venue_id;
+        }
+      }
+      
       const { data, error } = await (supabase as any)
-        .rpc('get_venue_stats', { venue_uuid: venueId });
+        .rpc('get_venue_stats', { venue_jambase_id: jambaseVenueId });
 
       if (error) throw error;
 
@@ -1929,8 +1893,26 @@ export class ReviewService {
    */
   static async getPopularVenueTags(venueId?: string): Promise<TagCount[]> {
     try {
+      // Use JamBase venue_id instead of UUID
+      let jambaseVenueId = venueId;
+      if (venueId) {
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(venueId);
+        
+        if (isUUID) {
+          const { data: venue } = await supabase
+            .from('venues')
+            .select('jambase_venue_id')
+            .eq('id', venueId)
+            .single();
+          
+          if (venue?.jambase_venue_id) {
+            jambaseVenueId = venue.jambase_venue_id;
+          }
+        }
+      }
+      
       const { data, error } = await (supabase as any)
-        .rpc('get_popular_venue_tags', venueId ? { venue_uuid: venueId } : {});
+        .rpc('get_popular_venue_tags', jambaseVenueId ? { venue_jambase_id: jambaseVenueId } : {});
 
       if (error) throw error;
 
@@ -2088,8 +2070,26 @@ export class ReviewService {
     };
   }> {
     try {
+      // Use JamBase artist_id instead of UUID
+      // First try to resolve JamBase ID if artistId is a UUID
+      let jambaseArtistId = artistId;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(artistId);
+      
+      if (isUUID) {
+        // Look up JamBase ID from artists table
+        const { data: artist } = await supabase
+          .from('artists')
+          .select('jambase_artist_id')
+          .eq('id', artistId)
+          .single();
+        
+        if (artist?.jambase_artist_id) {
+          jambaseArtistId = artist.jambase_artist_id;
+        }
+      }
+      
       const { data, error } = await (supabase as any)
-        .rpc('get_artist_stats', { artist_uuid: artistId });
+        .rpc('get_artist_stats', { artist_jambase_id: jambaseArtistId });
 
       if (error) throw error;
 

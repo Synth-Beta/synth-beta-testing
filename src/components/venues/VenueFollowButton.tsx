@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { MapPin, MapPinned, Loader2 } from 'lucide-react';
 import { VenueFollowService } from '@/services/venueFollowService';
+import { VerifiedChatService } from '@/services/verifiedChatService';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -114,6 +115,12 @@ export function VenueFollowButton({
     try {
       const newIsFollowing = !isFollowing;
       
+      // Get venue ID before following (needed for chat joining)
+      let venueId: string | null = null;
+      if (newIsFollowing) {
+        venueId = await VenueFollowService.getVenueIdByName(venueName, venueCity, venueState);
+      }
+      
       await VenueFollowService.setVenueFollowByName(
         userId,
         venueName,
@@ -124,6 +131,44 @@ export function VenueFollowButton({
 
       setIsFollowing(newIsFollowing);
       setFollowerCount(prev => newIsFollowing ? prev + 1 : Math.max(0, prev - 1));
+
+      // If following, automatically join the venue's verified chat
+      if (newIsFollowing && venueId) {
+        try {
+          console.log('🟢 VenueFollowButton: User followed venue, joining verified chat...', {
+            venueId,
+            venueName,
+            venueCity,
+            venueState,
+            userId
+          });
+          
+          await VerifiedChatService.joinOrOpenVerifiedChat(
+            'venue',
+            venueId,
+            venueName,
+            userId
+          );
+          console.log('🟢 VenueFollowButton: Successfully joined venue verified chat');
+        } catch (error) {
+          // Don't fail the follow action if chat join fails
+          console.error('⚠️ VenueFollowButton: Error joining venue verified chat (non-fatal):', error);
+        }
+      } else if (newIsFollowing && !venueId) {
+        // Fallback: try using venue name as entity_id
+        try {
+          console.log('🟡 VenueFollowButton: No venueId found, using venue name as entity_id');
+          await VerifiedChatService.joinOrOpenVerifiedChat(
+            'venue',
+            venueName,
+            venueName,
+            userId
+          );
+          console.log('🟢 VenueFollowButton: Successfully joined venue verified chat (using name)');
+        } catch (error) {
+          console.error('⚠️ VenueFollowButton: Error joining venue verified chat with name (non-fatal):', error);
+        }
+      }
 
       const locationStr = venueCity && venueState 
         ? ` in ${venueCity}, ${venueState}` 

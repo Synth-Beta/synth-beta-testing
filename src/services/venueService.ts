@@ -109,8 +109,24 @@ export class VenueService {
    */
   static async getVenueWithEvents(venueId: string): Promise<VenueWithEvents | null> {
     try {
+      // Resolve JamBase ID if venueId is a UUID
+      let jambaseVenueId = venueId;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(venueId);
+      
+      if (isUUID) {
+        const { data: venue } = await supabase
+          .from('venues')
+          .select('jambase_venue_id')
+          .eq('id', venueId)
+          .single();
+        
+        if (venue?.jambase_venue_id) {
+          jambaseVenueId = venue.jambase_venue_id;
+        }
+      }
+      
       const { data, error } = await supabase.rpc('get_venue_with_events', {
-        venue_uuid: venueId
+        venue_jambase_id: jambaseVenueId
       });
 
       if (error) {

@@ -1,8 +1,7 @@
-import { JamBaseEventsService, JamBaseEvent } from './jambaseEventsService';
 import { supabase } from '@/integrations/supabase/client';
 import type { ArtistSearchResult } from './unifiedArtistSearchService';
 import type { Artist } from '@/types/concertSearch';
-import { UnifiedEventSearchService } from './unifiedEventSearchService';
+import type { JamBaseEvent } from '@/types/eventTypes';
 
 export interface ArtistSelectionResult {
   artist: Artist;
@@ -33,69 +32,27 @@ export class ArtistSelectionService {
         source: artistSearchResult.is_from_database ? 'database' : 'jambase'
       };
 
-      // Fetch events from database first
+      // Fetch events from database
       console.log('🌐 Fetching events for artist:', artist.name);
-      const dbEventsResult = await JamBaseEventsService.getEventsFromDatabase(artist.name, {
-        page: 1,
-        perPage: 50,
-        eventType: 'all'
-      });
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .ilike('artist_name', `%${artist.name}%`)
+        .order('event_date', { ascending: true })
+        .limit(50);
 
-      // Call Ticketmaster API to fetch upcoming and past events
-      let ticketmasterEvents: JamBaseEvent[] = [];
-      try {
-        console.log('🎫 Fetching Ticketmaster events for artist:', artist.name);
-        const tmEvents = await UnifiedEventSearchService.searchByArtist({
-          artistName: artist.name,
-          includePastEvents: true, // Include past events (last 3 months)
-          pastEventsMonths: 3,
-          limit: 200
-        });
-        
-        // Convert UnifiedEvent to JamBaseEvent format
-        ticketmasterEvents = tmEvents.map(event => ({
-          id: event.id,
-          jambase_event_id: event.jambase_event_id || event.ticketmaster_event_id,
-          ticketmaster_event_id: event.ticketmaster_event_id,
-          title: event.title,
-          artist_name: event.artist_name,
-          artist_id: event.artist_id,
-          venue_name: event.venue_name,
-          venue_id: event.venue_id,
-          event_date: event.event_date,
-          doors_time: event.doors_time,
-          description: event.description,
-          genres: event.genres,
-          venue_address: event.venue_address,
-          venue_city: event.venue_city,
-          venue_state: event.venue_state,
-          venue_zip: event.venue_zip,
-          latitude: event.latitude,
-          longitude: event.longitude,
-          ticket_available: event.ticket_available,
-          price_range: event.price_range,
-          ticket_urls: event.ticket_urls,
-          external_url: event.external_url,
-          setlist: event.setlist,
-          tour_name: event.tour_name,
-          source: event.source || 'ticketmaster'
-        } as JamBaseEvent));
-        
-        console.log(`✅ Fetched ${ticketmasterEvents.length} events from Ticketmaster`);
-      } catch (tmError) {
-        console.warn('⚠️ Ticketmaster API call failed, using database events only:', tmError);
-      }
+      if (eventsError) throw eventsError;
 
-      // Merge database and Ticketmaster events
-      const dbEvents: JamBaseEvent[] = (dbEventsResult.events || []).map(event => ({
+      // Use only database events
+      const dbEvents: JamBaseEvent[] = (eventsData || []).map(event => ({
         ...event,
         source: event.source || 'jambase'
       }));
 
-      const allEvents = [...dbEvents, ...ticketmasterEvents];
+      const allEvents = [...dbEvents];
 
       // Deduplicate events by artist_name + venue_name + event_date (normalized)
-      const deduplicatedEvents = deduplicateEvents(allEvents);
+      const deduplicatedEvents = this.deduplicateEvents(allEvents);
 
       // Sort by date
       deduplicatedEvents.sort((a, b) => 
@@ -113,7 +70,7 @@ export class ArtistSelectionService {
         artist,
         events: deduplicatedEvents,
         totalEvents: deduplicatedEvents.length,
-        source: ticketmasterEvents.length > 0 ? 'api' : (dbEventsResult.events.length > 0 ? 'database' : 'api')
+        source: dbEvents.length > 0 ? 'database' : 'api'
       };
 
     } catch (error) {
@@ -137,7 +94,7 @@ export class ArtistSelectionService {
   }
 
   // Helper function to deduplicate events
-  function deduplicateEvents(events: JamBaseEvent[]): JamBaseEvent[] {
+  private static deduplicateEvents(events: JamBaseEvent[]): JamBaseEvent[] {
     const seen = new Map<string, JamBaseEvent>();
     
     return events.filter(event => {
@@ -154,13 +111,7 @@ export class ArtistSelectionService {
       const key = `${normalizeArtist}|${normalizeVenue}|${dateKey}`;
       
       if (seen.has(key)) {
-        // Prefer Ticketmaster if duplicate (newer data source)
-        const existing = seen.get(key)!;
-        if (event.source === 'ticketmaster' && existing.source !== 'ticketmaster') {
-          seen.set(key, event);
-          return true;
-        }
-        // If both are Ticketmaster or both database, prefer the first one
+        // Keep first occurrence
         return false;
       }
       
@@ -177,15 +128,23 @@ export class ArtistSelectionService {
     total: number;
   }> {
     try {
-      const result = await JamBaseEventsService.getEventsFromDatabase(artistName, {
-        page: 1,
-        perPage: 50,
-        eventType: 'all'
-      });
+      const { data: eventsData, error } = await supabase
+        .from('events')
+        .select('*', { count: 'exact' })
+        .ilike('artist_name', `%${artistName}%`)
+        .order('event_date', { ascending: true })
+        .limit(50);
+
+      if (error) throw error;
+
+      const events: JamBaseEvent[] = (eventsData || []).map(event => ({
+        ...event,
+        source: event.source || 'jambase'
+      }));
 
       return {
-        events: result.events,
-        total: result.total
+        events,
+        total: events.length
       };
     } catch (error) {
       console.error('❌ Error getting artist events from database:', error);

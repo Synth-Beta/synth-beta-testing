@@ -413,8 +413,7 @@ export class FriendsReviewService {
                 title,
                 venue_name,
                 event_date,
-                artist_name,
-                artist_id
+                artist_name
               )
             `)
             .in('user_id', allConnectionIds)
