@@ -68,11 +68,13 @@ export class ArtistProfileService {
    * Get artist profile by JamBase ID
    */
   static async getArtistProfileByJamBaseId(jambaseArtistId: string): Promise<ArtistProfile | null> {
+    // Note: artist_profile table is separate from artists table
+    // This service may need refactoring to use normalized schema
     const { data, error } = await supabase
       .from('artist_profile')
       .select('*')
       .eq('jambase_artist_id', jambaseArtistId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       if (error.code === 'PGRST116') {

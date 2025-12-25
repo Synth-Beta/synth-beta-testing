@@ -357,9 +357,21 @@ export class ArtistFollowService {
    */
   static async getArtistUuidByJambaseId(jambaseArtistId: string): Promise<string | null> {
     try {
-      // Try artists table first (more reliable, always available)
-      let { data, error } = await supabase
-        .from('artists')
+      // Use helper function to get UUID from external ID (normalized schema)
+      const { data: uuidResult, error: uuidError } = await supabase
+        .rpc('get_entity_uuid_by_external_id', {
+          p_external_id: jambaseArtistId,
+          p_source: 'jambase',
+          p_entity_type: 'artist'
+        });
+
+      if (!uuidError && uuidResult) {
+        return uuidResult;
+      }
+
+      // Fallback: try helper view for backward compatibility
+      const { data, error } = await supabase
+        .from('artists_with_external_ids')
         .select('id')
         .eq('jambase_artist_id', jambaseArtistId)
         .maybeSingle();
@@ -369,8 +381,6 @@ export class ArtistFollowService {
       } else if (data) {
         return data.id;
       }
-
-      // Do not query artist_profile in this environment; table may not exist
 
       return null;
     } catch (error) {

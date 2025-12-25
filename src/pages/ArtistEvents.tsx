@@ -82,11 +82,11 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
         .maybeSingle();
       
       if (artistDataForEvents) {
-        // If we found the artist, query events by UUID or jambase_id (indexed, fast)
+        // If we found the artist, query events by UUID (artist_id is the FK to artists table after normalization)
         const { data: eventIdsByArtist, error: eventIdsError } = await supabase
           .from('events')
           .select('id')
-          .or(`artist_jambase_id.eq.${artistDataForEvents.id},artist_jambase_id_text.eq.${artistDataForEvents.jambase_artist_id || ''}`)
+          .eq('artist_id', artistDataForEvents.id)
           .limit(1000);
         
         if (!eventIdsError && eventIdsByArtist) {

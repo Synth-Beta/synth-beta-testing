@@ -92,6 +92,17 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
 
       if (profileError) throw profileError;
 
+      // Insert into external_entity_ids for normalization
+      await supabase
+        .from('external_entity_ids')
+        .insert({
+          entity_type: 'artist',
+          entity_uuid: artistProfile.id,
+          source: 'manual',
+          external_id: jambaseArtistId
+        })
+        .catch(() => {}); // Ignore duplicate errors
+
       toast({
         title: "Artist Created! 🎵",
         description: `${formData.name} has been added to your database.`,

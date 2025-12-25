@@ -45,8 +45,9 @@ export function ManualVenueForm({ open, onClose, onVenueCreated, initialQuery = 
 
     try {
       // Create venue in database - only name is required
+      const jambaseVenueId = `user-created-${Date.now()}`;
       const venueData = {
-        jambase_venue_id: `user-created-${Date.now()}`,
+        jambase_venue_id: jambaseVenueId, // Keep for backward compatibility during migration
         name: name.trim(),
         identifier: `user-created-${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
         date_published: new Date().toISOString(),
@@ -63,6 +64,17 @@ export function ManualVenueForm({ open, onClose, onVenueCreated, initialQuery = 
         console.error('🏗️ ManualVenueForm: Database error:', insertError);
         throw insertError;
       }
+
+      // Insert into external_entity_ids for normalization
+      await supabase
+        .from('external_entity_ids')
+        .insert({
+          entity_type: 'venue',
+          entity_uuid: venue.id,
+          source: 'manual',
+          external_id: jambaseVenueId
+        })
+        .catch(() => {}); // Ignore duplicate errors
 
       toast({
         title: "Venue Created! 📍",

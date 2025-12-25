@@ -300,12 +300,12 @@ export class UnifiedVenueSearchService {
       try {
         const venueId = jamBaseVenue.identifier?.split(':')[1] || jamBaseVenue.identifier;
         
-        // Check if venue already exists
+        // Check if venue already exists (using helper view for normalized schema)
         const { data: existingVenueData, error: checkError } = await supabase
-          .from('venues' as any)
+          .from('venues_with_external_ids' as any)
           .select('*')
           .eq('jambase_venue_id', venueId)
-          .single();
+          .maybeSingle();
 
         if (existingVenueData && !checkError) {
           console.log(`♻️  Venue ${jamBaseVenue.name} already exists in database`);
@@ -365,9 +365,8 @@ export class UnifiedVenueSearchService {
           continue;
         }
 
-        // Transform JSONB format to flat columns for the venues table
+        // Transform JSONB format to flat columns for the venues table (jambase_venue_id column removed)
         const venueData = {
-          jambase_venue_id: venueId,
           name: jamBaseVenue.name,
           identifier: jamBaseVenue.identifier,
           address: jamBaseVenue.address?.streetAddress || null,
@@ -383,12 +382,12 @@ export class UnifiedVenueSearchService {
           date_modified: new Date().toISOString()
         };
         
-        // Check if venue already exists
+        // Check if venue already exists (using helper view for normalized schema)
         const { data: existingVenueRecord } = await supabase
-          .from('venues')
+          .from('venues_with_external_ids')
           .select('id')
           .eq('jambase_venue_id', jamBaseVenue.id)
-          .single();
+          .maybeSingle();
         
         let savedVenue;
         if (existingVenueRecord) {
@@ -405,6 +404,16 @@ export class UnifiedVenueSearchService {
             savedVenue = existingVenueRecord;
           } else {
             savedVenue = data;
+            // Ensure external_entity_ids is updated
+            await supabase
+              .from('external_entity_ids')
+              .upsert({
+                entity_type: 'venue',
+                entity_uuid: savedVenue.id,
+                source: 'jambase',
+                external_id: venueId
+              }, { onConflict: 'entity_uuid,source,entity_type' })
+              .catch(() => {}); // Ignore errors
           }
         } else {
           // Insert new venue
@@ -419,6 +428,16 @@ export class UnifiedVenueSearchService {
             savedVenue = null;
           } else {
             savedVenue = data;
+            // Insert into external_entity_ids for normalization
+            await supabase
+              .from('external_entity_ids')
+              .insert({
+                entity_type: 'venue',
+                entity_uuid: savedVenue.id,
+                source: 'jambase',
+                external_id: venueId
+              })
+              .catch(() => {}); // Ignore duplicate errors
           }
         }
 

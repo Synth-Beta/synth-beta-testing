@@ -843,8 +843,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       
       if (eventIds.length > 0) {
         const { data: eventsData } = await supabase
-          .from('events')
-          .select('id, title, artist_name, venue_name, event_date, venue_city, venue_state, setlist')
+          .from('events_with_artist_venue')
+          .select('id, title, artist_name_normalized, venue_name_normalized, event_date, venue_city, venue_state, setlist')
           .in('id', eventIds);
         
         if (eventsData) {
@@ -948,14 +948,15 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       
       // CRITICAL: Filter out drafts that have published reviews
       // Get all published reviews with event data to match by artist/venue/date too
+      // Use helper view to get normalized names for deduplication matching
       const { data: publishedReviews } = await supabase
         .from('reviews')
         .select(`
           event_id,
           event:events!inner(
             id,
-            artist_name,
-            venue_name,
+            artist_id,
+            venue_id,
             event_date
           )
         `)
@@ -970,11 +971,35 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           .filter(Boolean)
       );
       
+      // Get event names from helper view for deduplication (match by name, not ID, to handle duplicates)
+      const publishedEventIdsList = Array.from(publishedEventIds);
+      let publishedEventNames: Map<string, { artist_name: string; venue_name: string }> = new Map();
+      if (publishedEventIdsList.length > 0) {
+        const { data: eventNamesData } = await supabase
+          .from('events_with_artist_venue')
+          .select('id, artist_name_normalized, venue_name_normalized')
+          .in('id', publishedEventIdsList);
+        
+        if (eventNamesData) {
+          eventNamesData.forEach((event: any) => {
+            publishedEventNames.set(event.id, {
+              artist_name: event.artist_name_normalized || '',
+              venue_name: event.venue_name_normalized || ''
+            });
+          });
+        }
+      }
+      
       // Build a map of published reviews by artist/venue/date for matching
+      // Use names for matching to handle duplicate artist/venue records correctly
       const publishedByConcert = new Map<string, any>();
       (publishedReviews || []).forEach((review: any) => {
         if (review.event) {
-          const key = `${review.event.artist_name}|${review.event.venue_name}|${review.event.event_date}`;
+          const eventNames = publishedEventNames.get(review.event.id);
+          const artistName = eventNames?.artist_name || '';
+          const venueName = eventNames?.venue_name || '';
+          // Use names for matching (normalized to lowercase for comparison)
+          const key = `${artistName.toLowerCase().trim()}|${venueName.toLowerCase().trim()}|${review.event.event_date}`;
           publishedByConcert.set(key, review);
         }
       });
@@ -1013,20 +1038,24 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           deleteReason = `published review exists for event ${draft.event_id}`;
         } else {
           // Also check by artist/venue/date (handles case where event_id changed)
+          // Use names for matching to handle duplicate artist/venue records correctly
           const draftArtist = draft.artist_name || (draft.draft_data as any)?.selectedArtist?.name;
           const draftVenue = draft.venue_name || (draft.draft_data as any)?.selectedVenue?.name;
           const draftDate = draft.event_date || (draft.draft_data as any)?.eventDate;
           
           if (draftArtist && draftVenue && draftDate) {
             const normalizedDraftDate = normalizeDate(draftDate);
+            // Normalize names to lowercase for comparison (same as publishedByConcert keys)
+            const normalizedDraftArtist = draftArtist.toLowerCase().trim();
+            const normalizedDraftVenue = draftVenue.toLowerCase().trim();
             
             // Check if any published review matches this concert
             for (const [key] of publishedByConcert.entries()) {
               const [pubArtist, pubVenue, pubDate] = key.split('|');
               const normalizedPubDate = normalizeDate(pubDate);
               
-              if (pubArtist === draftArtist && 
-                  pubVenue === draftVenue && 
+              if (pubArtist === normalizedDraftArtist && 
+                  pubVenue === normalizedDraftVenue && 
                   normalizedPubDate === normalizedDraftDate) {
                 shouldDelete = true;
                 deleteReason = `published review exists for same concert (${draftArtist} at ${draftVenue})`;

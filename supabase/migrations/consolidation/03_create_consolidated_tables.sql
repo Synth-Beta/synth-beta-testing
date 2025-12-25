@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS public.events_new (
   images JSONB,
   is_user_created BOOLEAN DEFAULT false,
   -- Promotion fields
-  promoted BOOLEAN DEFAULT false,
+  is_promoted BOOLEAN DEFAULT false,
   promotion_tier TEXT CHECK (promotion_tier IN ('basic', 'premium', 'featured')),
   promotion_start_date TIMESTAMPTZ,
   promotion_end_date TIMESTAMPTZ,
@@ -123,7 +123,7 @@ CREATE INDEX IF NOT EXISTS idx_events_new_event_date ON public.events_new(event_
 CREATE INDEX IF NOT EXISTS idx_events_new_artist_uuid ON public.events_new(artist_uuid);
 CREATE INDEX IF NOT EXISTS idx_events_new_venue_uuid ON public.events_new(venue_uuid);
 CREATE INDEX IF NOT EXISTS idx_events_new_genres ON public.events_new USING GIN(genres);
-CREATE INDEX IF NOT EXISTS idx_events_new_promoted ON public.events_new(promoted) WHERE promoted = true;
+CREATE INDEX IF NOT EXISTS idx_events_new_is_promoted ON public.events_new(is_promoted) WHERE is_promoted = true;
 CREATE INDEX IF NOT EXISTS idx_events_new_promotion_dates ON public.events_new(promotion_start_date, promotion_end_date);
 CREATE INDEX IF NOT EXISTS idx_events_new_created_by ON public.events_new(created_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_events_new_source ON public.events_new(source);

@@ -56,11 +56,12 @@ export class InAppShareService {
       }
 
       // Transform to ShareTarget format
+      // Note: users array is kept for backward compatibility but is populated from chat_participants by RPC
       const targets: ShareTarget[] = (chats || []).map((chat: any) => ({
         id: chat.id,
         name: chat.chat_name,
         type: chat.is_group_chat ? 'group' : 'direct',
-        users: chat.users || [],
+        users: chat.users || [], // Populated by get_user_chats RPC from chat_participants
         avatar_url: null // Can be enhanced to show user avatars for direct chats
       }));
 

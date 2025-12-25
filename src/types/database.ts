@@ -350,15 +350,16 @@ export interface Chat {
   match_id?: string | null; // UUID - may reference relationships(id) for matches
   chat_name?: string | null;
   is_group_chat: boolean;
-  users?: string[]; // UUID[]
+  users?: string[]; // UUID[] - Populated from chat_participants table by RPC functions (backward compatibility)
   created_at: string;
   updated_at: string;
   // Verified chat fields
   entity_type?: 'event' | 'artist' | 'venue' | null;
   entity_id?: string | null;
   is_verified?: boolean;
-  member_count?: number;
+  member_count?: number; // Cached count from chat_participants (maintained by trigger)
   last_activity_at?: string | null;
+  // Note: For 3NF compliance, prefer querying chat_participants table directly instead of using users array
 }
 
 export interface Message {

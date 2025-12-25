@@ -74,12 +74,12 @@ export class DraftReviewService {
         // If artist_id is a JamBase ID (not UUID), use it directly
         const artistId = eventData.artist_id.trim();
         if (!isValidUuid(artistId)) {
-          // It's a JamBase ID, resolve to UUID for foreign key if needed
+          // It's a JamBase ID, resolve to UUID for foreign key if needed (using helper view)
           const { data: artist } = await supabase
-            .from('artists')
+            .from('artists_with_external_ids')
             .select('id')
             .eq('jambase_artist_id', artistId)
-            .single();
+            .maybeSingle();
           
           if (artist?.id) {
             return artist.id;
@@ -119,8 +119,9 @@ export class DraftReviewService {
       }
 
       if (!artistProfileId && jambaseArtistId) {
+        // Use helper view for normalized schema
         let lookup = await (supabase as any)
-          .from('artists')
+          .from('artists_with_external_ids')
           .select('id')
           .eq('jambase_artist_id', jambaseArtistId)
           .limit(1);
@@ -137,7 +138,7 @@ export class DraftReviewService {
             );
 
             lookup = await (supabase as any)
-              .from('artists')
+              .from('artists_with_external_ids')
               .select('id')
               .eq('jambase_artist_id', jambaseArtistId)
               .limit(1);

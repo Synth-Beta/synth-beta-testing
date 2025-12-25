@@ -652,7 +652,7 @@ export class PersonalizedFeedService {
 
       if (artistIds.length > 0) {
         const { data: artistRows, error: artistError } = await supabase
-          .from('artists')
+          .from('artists_with_external_ids')
           .select('id, jambase_artist_id, name')
           .in('id', artistIds);
 

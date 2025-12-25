@@ -33,10 +33,11 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
         setEventLoading(true);
         // Search by artist, title, or venue with OR conditions
         // Prioritize past events for reviews by ordering past events first
+        // Use helper view for normalized schema (artist_name and venue_name columns removed)
         const { data, error } = await supabase
-          .from('events')
-          .select('id, title, artist_name, venue_name, event_date, artist_id, venue_id')
-          .or(`artist_name.ilike.%${q}%,title.ilike.%${q}%,venue_name.ilike.%${q}%`)
+          .from('events_with_artist_venue')
+          .select('id, title, artist_name_normalized, venue_name_normalized, event_date, artist_id, venue_id')
+          .or(`artist_name_normalized.ilike.%${q}%,title.ilike.%${q}%,venue_name_normalized.ilike.%${q}%`)
           .order('event_date', { ascending: false })
           .limit(50); // Increased limit to get more results
         
@@ -64,11 +65,14 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
 
   const applyEventSelection = async (ev: any) => {
     const eventDate = ev?.event_date ? String(ev.event_date).split('T')[0] : '';
-    const selectedArtist = ev?.artist_name ? ({ id: ev.artist_id || `manual-${ev.artist_name}`, name: ev.artist_name, is_from_database: !!ev.artist_id } as any) : null;
+    // Support both normalized and legacy column names
+    const artistName = ev?.artist_name_normalized || ev?.artist_name;
+    const selectedArtist = artistName ? ({ id: ev.artist_id || `manual-${artistName}`, name: artistName, is_from_database: !!ev.artist_id } as any) : null;
     
     // For venue, we need to find the actual venue record to get the correct ID
     let selectedVenue = null;
-    if (ev?.venue_name) {
+    const venueName = ev?.venue_name_normalized || ev?.venue_name;
+    if (venueName) {
       try {
         // First try to find by venue_id from the event
         if (ev.venue_id) {
@@ -91,17 +95,18 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
         // Fallback: if no venue found, create a manual venue entry
         if (!selectedVenue) {
           selectedVenue = {
-            id: ev.venue_id || `manual-${ev.venue_name}`,
-            name: ev.venue_name,
+            id: ev.venue_id || `manual-${venueName}`,
+            name: venueName,
             is_from_database: !!ev.venue_id
           } as any;
         }
       } catch (error) {
         console.error('Error looking up venue:', error);
-        // Fallback to manual venue
+        // Fallback to manual venue (use normalized column name)
+        const fallbackVenueName = (ev as any)?.venue_name_normalized || ev?.venue_name || 'Unknown Venue';
         selectedVenue = {
-          id: ev.venue_id || `manual-${ev.venue_name}`,
-          name: ev.venue_name,
+          id: ev.venue_id || `manual-${fallbackVenueName}`,
+          name: fallbackVenueName,
           is_from_database: false
         } as any;
       }
@@ -212,9 +217,9 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
                     className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-l-4 border-l-green-500 bg-green-50/30"
                     onClick={() => applyEventSelection(ev)}
                   >
-                    <div className="font-medium text-gray-900">{ev.title || `${ev.artist_name} @ ${ev.venue_name}`}</div>
+                    <div className="font-medium text-gray-900">{ev.title || `${(ev as any).artist_name_normalized || ev.artist_name || 'Artist'} @ ${(ev as any).venue_name_normalized || ev.venue_name || 'Venue'}`}</div>
                     <div className="text-xs text-gray-500 flex items-center justify-between">
-                      <span>{ev.artist_name} • {ev.venue_name} • {new Date(ev.event_date).toLocaleDateString()}</span>
+                      <span>{(ev as any).artist_name_normalized || ev.artist_name || 'Artist'} • {(ev as any).venue_name_normalized || ev.venue_name || 'Venue'} • {new Date(ev.event_date).toLocaleDateString()}</span>
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         Past Event
                       </span>

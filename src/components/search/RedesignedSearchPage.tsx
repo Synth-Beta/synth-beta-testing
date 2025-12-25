@@ -528,10 +528,11 @@ const fetchUsers = async (query: string, currentUserId: string): Promise<UserSea
 const fetchEvents = async (query: string): Promise<EventSearchResult[]> => {
   try {
     const likeQuery = `%${query}%`;
+    // Use helper view for normalized schema (artist_name and venue_name columns removed)
     const { data, error } = await supabase
-      .from('events')
-      .select('id, title, artist_name, venue_name, event_date, images')
-      .or(`title.ilike.${likeQuery},artist_name.ilike.${likeQuery},venue_name.ilike.${likeQuery}`)
+      .from('events_with_artist_venue')
+      .select('id, title, artist_name_normalized, venue_name_normalized, event_date, images')
+      .or(`title.ilike.${likeQuery},artist_name_normalized.ilike.${likeQuery},venue_name_normalized.ilike.${likeQuery}`)
       .order('event_date', { ascending: true })
       .limit(25);
 
@@ -540,11 +541,11 @@ const fetchEvents = async (query: string): Promise<EventSearchResult[]> => {
       return [];
     }
 
-    return (data || []).map((event) => ({
+    return (data || []).map((event: any) => ({
       id: event.id,
       title: event.title,
-      artistName: event.artist_name,
-      venueName: event.venue_name,
+      artistName: event.artist_name_normalized || null,
+      venueName: event.venue_name_normalized || null,
       eventDate: event.event_date,
       imageUrl: Array.isArray(event.images)
         ? event.images.find((img: any) => img?.url)?.url ?? null

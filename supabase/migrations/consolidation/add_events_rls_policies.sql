@@ -88,7 +88,7 @@ USING (
 CREATE POLICY "Business accounts can manage promoted events"
 ON public.events FOR UPDATE
 USING (
-  promoted = true
+  is_promoted = true
   AND EXISTS (
     SELECT 1 FROM public.users u
     WHERE u.user_id = auth.uid()
@@ -96,7 +96,7 @@ USING (
   )
 )
 WITH CHECK (
-  promoted = true
+  is_promoted = true
   AND EXISTS (
     SELECT 1 FROM public.users u
     WHERE u.user_id = auth.uid()

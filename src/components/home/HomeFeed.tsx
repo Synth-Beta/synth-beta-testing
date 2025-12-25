@@ -318,12 +318,12 @@ interface FriendEventInterest {
 
       // Find group chats that:
       // 1. Are group chats
-      // 2. User is not a member of (users array doesn't contain currentUserId)
+      // 2. User is not a member of (check via chat_participants)
       // 3. Have at least one friend as a member
       // 4. Are recent (created in last 30 days)
       const { data: allGroupChats, error } = await supabase
         .from('chats')
-        .select('id, chat_name, users, created_at')
+        .select('id, chat_name, created_at, member_count')
         .eq('is_group_chat', true)
         .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
@@ -331,19 +331,49 @@ interface FriendEventInterest {
 
       if (error) throw error;
 
+      // Get all chat IDs where user is a participant
+      const { data: userParticipations } = await supabase
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('user_id', currentUserId);
+
+      const userChatIds = new Set(userParticipations?.map(p => p.chat_id) || []);
+
       // Filter out chats where user is already a member
       const groupChats = (allGroupChats || []).filter(chat => 
-        !chat.users.includes(currentUserId)
+        !userChatIds.has(chat.id)
       );
+
+      // Get participants for all group chats to find friends
+      const groupChatIds = groupChats.map(chat => chat.id);
+      
+      // Bug 1 fix: Guard against empty array in .in() query
+      let allParticipants: any[] | null = null;
+      if (groupChatIds.length > 0) {
+        const { data } = await supabase
+          .from('chat_participants')
+          .select('chat_id, user_id')
+          .in('chat_id', groupChatIds);
+        allParticipants = data;
+      }
+
+      // Build map of chat_id -> participant user_ids
+      const chatParticipantsMap = new Map<string, string[]>();
+      allParticipants?.forEach(p => {
+        const existing = chatParticipantsMap.get(p.chat_id) || [];
+        existing.push(p.user_id);
+        chatParticipantsMap.set(p.chat_id, existing);
+      });
 
       // Filter to only chats with friends and calculate friend count
       const chatsWithFriends = (groupChats || [])
         .map(chat => {
-          const chatFriendIds = chat.users.filter((id: string) => friendIds.includes(id));
+          const participantIds = chatParticipantsMap.get(chat.id) || [];
+          const chatFriendIds = participantIds.filter((id: string) => friendIds.includes(id));
           return {
             id: chat.id,
             chat_name: chat.chat_name || 'Unnamed Group',
-            member_count: chat.users.length,
+            member_count: chat.member_count ?? participantIds.length, // Use ?? to handle 0 as valid value
             friends_in_chat_count: chatFriendIds.length,
           };
         })
@@ -523,7 +553,7 @@ interface FriendEventInterest {
             result.push({
               id: `recommendation-${event.id}`,
               type: 'event',
-              title: event.title || event.artist_name || 'Event',
+              title: event.title || (event as any).artist_name_normalized || 'Event',
               author: {
                 id: currentUserId,
                 name: 'System',
@@ -531,10 +561,10 @@ interface FriendEventInterest {
               event_data: {
                 id: event.id,
                 jambase_event_id: event.jambase_event_id,
-                title: event.title || event.artist_name || 'Event',
-                artist_name: event.artist_name || 'Unknown Artist',
+                title: event.title || (event as any).artist_name_normalized || 'Event',
+                artist_name: (event as any).artist_name_normalized || 'Unknown Artist',
                 artist_id: event.artist_id || event.id || '',
-                venue_name: event.venue_name || 'Unknown Venue',
+                venue_name: (event as any).venue_name_normalized || 'Unknown Venue',
                 venue_id: event.venue_id || '',
                 event_date: event.event_date,
                 doors_time: event.doors_time,
@@ -598,8 +628,8 @@ interface FriendEventInterest {
       // Fetch events and users in parallel
       const [eventsResult, usersResult] = await Promise.all([
         supabase
-          .from('events')
-          .select('id, title, artist_name, venue_name, event_date')
+          .from('events_with_artist_venue')
+          .select('id, title, artist_name_normalized, venue_name_normalized, event_date')
           .in('id', eventIds),
         supabase
           .from('users')
@@ -629,8 +659,8 @@ interface FriendEventInterest {
             friend_avatar: user?.avatar_url ?? undefined,
             event_id: event.id,
             event_title: event.title || 'Event',
-            artist_name: event.artist_name ?? undefined,
-            venue_name: event.venue_name ?? undefined,
+            artist_name: (event as any).artist_name_normalized ?? undefined,
+            venue_name: (event as any).venue_name_normalized ?? undefined,
             event_date: event.event_date ?? undefined,
             created_at: rel.created_at,
           };
@@ -902,9 +932,9 @@ interface FriendEventInterest {
                         key={event.id}
                         event={{
                           id: event.id || '',
-                          title: event.title || event.artist_name || 'Event',
-                          artist_name: event.artist_name,
-                          venue_name: event.venue_name,
+                          title: event.title || (event as any).artist_name_normalized || 'Event',
+                          artist_name: (event as any).artist_name_normalized,
+                          venue_name: (event as any).venue_name_normalized,
                           event_date: event.event_date,
                           venue_city: event.venue_city || undefined,
                             image_url: imageUrl,
@@ -963,8 +993,8 @@ interface FriendEventInterest {
                         event={{
                           id: event.event_id,
                           title: event.title,
-                          artist_name: event.artist_name,
-                          venue_name: event.venue_name,
+                          artist_name: (event as any).artist_name_normalized,
+                          venue_name: (event as any).venue_name_normalized,
                           event_date: event.event_date,
                           venue_city: event.venue_city,
                             image_url: imageUrl,
@@ -1028,8 +1058,8 @@ interface FriendEventInterest {
                         event={{
                           id: event.event_id,
                           title: event.title,
-                          artist_name: event.artist_name,
-                          venue_name: event.venue_name,
+                          artist_name: (event as any).artist_name_normalized,
+                          venue_name: (event as any).venue_name_normalized,
                           event_date: event.event_date,
                           venue_city: event.venue_city,
                             image_url: imageUrl,

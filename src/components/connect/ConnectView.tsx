@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { FriendsReviewService } from '@/services/friendsReviewService';
@@ -146,6 +146,8 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  // Bug 2 fix: Track which chats are currently being opened to prevent concurrent requests
+  const openingChatsRef = useRef<Set<string>>(new Set());
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [reviewItems, setReviewItems] = useState<UnifiedFeedItem[]>([]);
 
@@ -338,8 +340,8 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
             : Promise.resolve({ data: [], error: null }),
           eventIds.length > 0
             ? supabase
-                .from('events')
-                .select('id, title, artist_name, venue_name, event_date, poster_image_url, images')
+                .from('events_with_artist_venue')
+                .select('id, title, artist_name_normalized, venue_name_normalized, event_date, poster_image_url, images')
                 .in('id', eventIds)
             : Promise.resolve({ data: [], error: null })
         ]);
@@ -381,8 +383,8 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
             userAvatar: userMap.get(row.user_id)?.avatar_url || undefined,
             eventId: eventData.id || row.event_id,
             eventTitle: eventData.title,
-            eventArtist: eventData.artist_name,
-            eventVenue: eventData.venue_name,
+            eventArtist: (eventData as any).artist_name_normalized,
+            eventVenue: (eventData as any).venue_name_normalized,
             eventDate: eventData.event_date,
             eventImage: fallbackImage,
             createdAt: row.created_at,
@@ -497,15 +499,26 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         setChatPreviews(sortedChats);
 
         // Fetch user names for direct chats
+        // Query chat_participants for direct chats to get other user IDs
+        const directChatIds = sortedChats
+          .filter(chat => !chat.is_group_chat)
+          .map(chat => chat.id);
+        
+        // Build map of chat_id -> other_user_id for direct chats
+        const chatToOtherUserIdMap = new Map<string, string>();
         const userIdsToFetch = new Set<string>();
-        sortedChats.forEach(chat => {
-          if (!chat.is_group_chat) {
-            const otherUserId = chat.users.find(id => id !== currentUserId);
-            if (otherUserId) {
-              userIdsToFetch.add(otherUserId);
-            }
-          }
-        });
+        if (directChatIds.length > 0) {
+          const { data: participants } = await supabase
+            .from('chat_participants')
+            .select('chat_id, user_id')
+            .in('chat_id', directChatIds)
+            .neq('user_id', currentUserId);
+          
+          participants?.forEach(p => {
+            chatToOtherUserIdMap.set(p.chat_id, p.user_id);
+            userIdsToFetch.add(p.user_id);
+          });
+        }
 
         if (userIdsToFetch.size > 0) {
           const { data: profiles } = await supabase
@@ -513,10 +526,16 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
             .select('user_id, name')
             .in('user_id', Array.from(userIdsToFetch));
 
+          // Build map of chat_id -> other_user_name (Bug 1 fix: use chat_id as key)
           const nameMap = new Map<string, string>();
           profiles?.forEach(profile => {
             if (profile.name) {
-              nameMap.set(profile.user_id, profile.name);
+              // Find all chats where this user is the other participant
+              chatToOtherUserIdMap.forEach((userId, chatId) => {
+                if (userId === profile.user_id) {
+                  nameMap.set(chatId, profile.name);
+                }
+              });
             }
           });
           setChatUserNames(nameMap);
@@ -1265,9 +1284,10 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       const sharedEventMap = new Map<string, any>();
       
       if (sharedEventIds.length > 0) {
+        // Use helper view to get normalized names (artist_name column removed)
         const { data: sharedEvents } = await supabase
-          .from('events')
-          .select('id, title, artist_name, event_date')
+          .from('events_with_artist_venue')
+          .select('id, title, artist_name_normalized, event_date')
           .in('id', sharedEventIds);
         
         if (sharedEvents) {
@@ -1286,7 +1306,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
             user_id: interest.user_id,
             shared_event_id: interest.event_id,
             shared_event_title: eventData.title,
-            shared_event_artist: eventData.artist_name,
+            shared_event_artist: (eventData as any).artist_name_normalized,
             shared_event_date: eventData.event_date,
           });
         }
@@ -1302,16 +1322,21 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       // Check which friends already have chats
       const { data: existingChats } = await fetchUserChats(currentUserId);
 
+      // Query chat_participants for direct chats to get existing chat user IDs
+      const directChatIds = existingChats
+        ?.filter((chat: any) => !chat.is_group_chat)
+        .map((chat: any) => chat.id) || [];
+      
       const existingChatUserIds = new Set<string>();
-      existingChats?.forEach((chat: any) => {
-        if (!chat.is_group_chat) {
-          chat.users.forEach((userId: string) => {
-            if (userId !== currentUserId) {
-              existingChatUserIds.add(userId);
-            }
-          });
-        }
-      });
+      if (directChatIds.length > 0) {
+        const { data: participants } = await supabase
+          .from('chat_participants')
+          .select('chat_id, user_id')
+          .in('chat_id', directChatIds)
+          .neq('user_id', currentUserId);
+        
+        participants?.forEach(p => existingChatUserIds.add(p.user_id));
+      }
 
       // Build recommendations (exclude friends who already have chats)
       const recommendations = profiles
@@ -1373,14 +1398,56 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
             const latestMessageTime = safeFormatDate(chat.latest_message_created_at, 'h:mm a');
             const hasUnread = (chat.unread_count || 0) > 0;
 
-            const openChat = () => {
+            // Bug 2 fix: Prevent concurrent requests using ref
+            const openChat = async () => {
               if (!onNavigateToChat) return;
-              if (chat.is_group_chat) {
-                onNavigateToChat(chat.id);
-              } else {
-                const otherUserId =
-                  chat.users.find((id) => id !== currentUserId) || chat.users[0];
-                onNavigateToChat(otherUserId);
+              
+              // Check if this chat is already being opened
+              if (openingChatsRef.current.has(chat.id)) {
+                return; // Already processing, ignore duplicate clicks
+              }
+              
+              // Mark chat as being opened
+              openingChatsRef.current.add(chat.id);
+              
+              try {
+                if (chat.is_group_chat) {
+                  onNavigateToChat(chat.id);
+                  return; // Early return is fine here - finally will still execute
+                }
+                
+                // Query chat_participants to get the other user ID
+                const { data: participants, error } = await supabase
+                  .from('chat_participants')
+                  .select('user_id')
+                  .eq('chat_id', chat.id)
+                  .neq('user_id', currentUserId)
+                  .limit(1);
+                
+                if (error) {
+                  console.error('Error fetching chat participants:', error);
+                  toast({
+                    title: "Error",
+                    description: "Unable to open chat. Please try again.",
+                    variant: "destructive"
+                  });
+                  return; // Early return is fine here - finally will still execute
+                }
+                
+                const otherUserId = participants?.[0]?.user_id || null;
+                if (otherUserId) {
+                  onNavigateToChat(otherUserId);
+                } else {
+                  console.warn('No other participant found for direct chat:', chat.id);
+                  toast({
+                    title: "Chat unavailable",
+                    description: "Unable to find the other participant in this chat.",
+                    variant: "destructive"
+                  });
+                }
+              } finally {
+                // Remove from set after operation completes (always executes, even on early returns)
+                openingChatsRef.current.delete(chat.id);
               }
             };
 
@@ -1396,7 +1463,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                         <p className={`font-semibold text-xs truncate ${hasUnread ? 'text-gray-900' : 'text-gray-900'}`}>
                           {chat.is_group_chat 
                             ? (chat.chat_name || 'Group Chat')
-                            : (chatUserNames.get(chat.users.find(id => id !== currentUserId) || '') || chat.chat_name || 'Chat')
+                            : (chatUserNames.get(chat.id) || chat.chat_name || 'Chat')
                           }
                         </p>
                       </div>

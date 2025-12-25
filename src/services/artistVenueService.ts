@@ -56,10 +56,11 @@ export class ArtistVenueService {
   static async storeArtist(jamBaseArtist: JamBaseArtist): Promise<StoredArtist> {
     try {
       // Check if artist already exists (handle 406 errors gracefully)
+      // Use helper view for backward compatibility during migration
       let existingArtist = null;
       try {
         const { data, error: checkError } = await supabase
-        .from('artists')
+        .from('artists_with_external_ids')
         .select('*')
         .eq('jambase_artist_id', jamBaseArtist.identifier)
           .maybeSingle(); // Use maybeSingle() instead of single() to handle 0 results gracefully
@@ -100,11 +101,10 @@ export class ArtistVenueService {
         if (error) throw error;
         return data!;
       } else {
-        // Create new artist
+        // Create new artist (jambase_artist_id column removed - use external_entity_ids instead)
         const { data, error } = await supabase
           .from('artists')
           .insert({
-            jambase_artist_id: jamBaseArtist.identifier,
             name: jamBaseArtist.name,
             identifier: jamBaseArtist.identifier,
             url: jamBaseArtist.url,
@@ -119,6 +119,22 @@ export class ArtistVenueService {
         if (!data) {
           throw new Error('Failed to insert artist: no data returned');
         }
+
+        // Also insert into external_entity_ids for normalization
+        // This ensures the new artist is available via the normalized schema
+        await supabase
+          .from('external_entity_ids')
+          .insert({
+            entity_type: 'artist',
+            entity_uuid: data.id,
+            source: 'jambase',
+            external_id: jamBaseArtist.identifier
+          })
+          .catch(err => {
+            // Log but don't fail - external_entity_ids insert may fail if duplicate
+            console.warn('Failed to insert external_entity_ids for artist (may already exist):', err);
+          });
+
         return data;
       }
     } catch (error) {
@@ -133,8 +149,9 @@ export class ArtistVenueService {
   static async storeVenue(jamBaseVenue: JamBaseVenue): Promise<StoredVenue> {
     try {
       // Check if venue already exists
+      // Use helper view for backward compatibility during migration
       const { data: existingVenue } = await supabase
-        .from('venues')
+        .from('venues_with_external_ids')
         .select('*')
         .eq('jambase_venue_id', jamBaseVenue.identifier)
         .single();
@@ -170,7 +187,7 @@ export class ArtistVenueService {
         const { data, error } = await supabase
           .from('venues')
           .insert({
-            jambase_venue_id: jamBaseVenue.identifier,
+            jambase_venue_id: jamBaseVenue.identifier, // Keep for backward compatibility during migration
             name: jamBaseVenue.name,
             identifier: jamBaseVenue.identifier,
             url: jamBaseVenue.url,
@@ -189,6 +206,22 @@ export class ArtistVenueService {
           .single();
 
         if (error) throw error;
+
+        // Also insert into external_entity_ids for normalization
+        // This ensures the new venue is available via the normalized schema
+        await supabase
+          .from('external_entity_ids')
+          .insert({
+            entity_type: 'venue',
+            entity_uuid: data.id,
+            source: 'jambase',
+            external_id: jamBaseVenue.identifier
+          })
+          .catch(err => {
+            // Log but don't fail - external_entity_ids insert may fail if duplicate
+            console.warn('Failed to insert external_entity_ids for venue (may already exist):', err);
+          });
+
         return data;
       }
     } catch (error) {
@@ -306,13 +339,38 @@ export class ArtistVenueService {
 
   /**
    * Get artist by JamBase ID
+   * Uses normalized external_entity_ids table via helper function
    */
   static async getArtistByJamBaseId(jamBaseId: string): Promise<StoredArtist | null> {
     try {
+      // Get UUID from external ID using helper function
+      const { data: uuidResult, error: uuidError } = await supabase
+        .rpc('get_entity_uuid_by_external_id', {
+          p_external_id: jamBaseId,
+          p_source: 'jambase',
+          p_entity_type: 'artist'
+        });
+
+      if (uuidError || !uuidResult) {
+        // Fallback: try helper view for backward compatibility
+        const { data: viewData, error: viewError } = await supabase
+          .from('artists_with_external_ids')
+          .select('*')
+          .eq('jambase_artist_id', jamBaseId)
+          .maybeSingle();
+
+        if (viewError && viewError.code !== 'PGRST116') {
+          console.warn('Error getting artist by JamBase ID (view fallback):', viewError);
+        }
+
+        return viewData || null;
+      }
+
+      // Query by UUID
       const { data, error } = await supabase
         .from('artists')
         .select('*')
-        .eq('jambase_artist_id', jamBaseId)
+        .eq('id', uuidResult)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -328,13 +386,38 @@ export class ArtistVenueService {
 
   /**
    * Get venue by JamBase ID
+   * Uses normalized external_entity_ids table via helper function
    */
   static async getVenueByJamBaseId(jamBaseId: string): Promise<StoredVenue | null> {
     try {
+      // Get UUID from external ID using helper function
+      const { data: uuidResult, error: uuidError } = await supabase
+        .rpc('get_entity_uuid_by_external_id', {
+          p_external_id: jamBaseId,
+          p_source: 'jambase',
+          p_entity_type: 'venue'
+        });
+
+      if (uuidError || !uuidResult) {
+        // Fallback: try helper view for backward compatibility
+        const { data: viewData, error: viewError } = await supabase
+          .from('venues_with_external_ids')
+          .select('*')
+          .eq('jambase_venue_id', jamBaseId)
+          .maybeSingle();
+
+        if (viewError && viewError.code !== 'PGRST116') {
+          console.warn('Error getting venue by JamBase ID (view fallback):', viewError);
+        }
+
+        return viewData || null;
+      }
+
+      // Query by UUID
       const { data, error } = await supabase
         .from('venues')
         .select('*')
-        .eq('jambase_venue_id', jamBaseId)
+        .eq('id', uuidResult)
         .single();
 
       if (error && error.code !== 'PGRST116') {

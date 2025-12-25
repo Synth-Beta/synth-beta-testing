@@ -99,16 +99,17 @@ export function ArtistVenueReviews({
         // Try to find artist by exact name match first (much faster)
         const { data: artistData } = await supabase
           .from('artists')
-          .select('id, jambase_artist_id, name')
+          .select('id, name') // jambase_artist_id available via helper view if needed
           .ilike('name', artistName)
           .maybeSingle();
         
         if (artistData) {
-          // If we found the artist, query events by UUID or jambase_id (indexed, fast)
+          // If we found the artist, query events using helper view (artist_id is UUID FK after normalization)
+          // Use helper view to ensure proper schema compatibility
           const { data: eventIdsByArtist, error: eventIdsError } = await supabase
-            .from('events')
+            .from('events_with_artist_venue')
             .select('id')
-            .or(`artist_jambase_id.eq.${artistData.id},artist_jambase_id_text.eq.${artistData.jambase_artist_id || ''}`)
+            .eq('artist_id', artistData.id)
             .limit(1000);
           
           if (!eventIdsError && eventIdsByArtist) {
@@ -116,12 +117,13 @@ export function ArtistVenueReviews({
           }
         }
         
-        // Fallback: if no artist found or no events found, try prefix match (faster than %...%)
+        // Fallback: if no artist found or no events found, search via helper view
+        // artist_name column removed - use events_with_artist_venue view
         if (eventIds.length === 0) {
           const { data: eventIdsByPrefix, error: eventIdsError } = await supabase
-            .from('events')
+            .from('events_with_artist_venue')
             .select('id')
-            .ilike('artist_name', `${artistName}%`) // Prefix match is faster than %...%
+            .ilike('artist_name_normalized', `${artistName}%`) // Prefix match is faster than %...%
             .limit(500); // Reduced limit for fallback
           
           if (!eventIdsError && eventIdsByPrefix) {
@@ -132,9 +134,9 @@ export function ArtistVenueReviews({
         // Last resort: full wildcard match (slowest, but only if needed)
         if (eventIds.length === 0) {
           const { data: eventIdsByWildcard, error: eventIdsError } = await supabase
-            .from('events')
+            .from('events_with_artist_venue')
             .select('id')
-            .ilike('artist_name', `%${artistName}%`)
+            .ilike('artist_name_normalized', `%${artistName}%`)
             .limit(500); // Reduced limit for last resort
           
           if (eventIdsError) {
@@ -245,11 +247,11 @@ export function ArtistVenueReviews({
               .select('user_id, name, avatar_url')
               .in('user_id', userIds);
 
-            // Get event data
+            // Get event data with normalized names from helper view
             const eventIds = filteredReviews.map(r => r.event_id).filter(Boolean);
             const { data: events } = await (supabase as any)
-              .from('events')
-              .select('id, artist_name, venue_name, event_date, title')
+              .from('events_with_artist_venue')
+              .select('id, artist_id, venue_id, event_date, title, artist_name_normalized, venue_name_normalized')
               .in('id', eventIds);
 
             // Combine the data and filter by artist name
@@ -282,8 +284,8 @@ export function ArtistVenueReviews({
                   mood_tags: review.mood_tags || [],
                   genre_tags: review.genre_tags || [],
                   reaction_emoji: review.reaction_emoji || null,
-                  artist_name: event?.artist_name || '',
-                  venue_name: event?.venue_name || '',
+                  artist_name: (event as any)?.artist_name_normalized || '',
+                  venue_name: (event as any)?.venue_name_normalized || '',
                   photos: Array.isArray(review.photos) ? review.photos : [],
                   category_average: computeCategoryAverage(review)
                 };
@@ -319,11 +321,11 @@ export function ArtistVenueReviews({
       try {
         // Fetching venue reviews
         
-        // First get event IDs for this venue
+        // First get event IDs for this venue (venue_name column removed - use helper view)
         const { data: venueEventIds, error: venueEventIdsError } = await supabase
-          .from('events')
+          .from('events_with_artist_venue')
           .select('id')
-          .ilike('venue_name', `%${venueName}%`);
+          .ilike('venue_name_normalized', `%${venueName}%`);
 
         if (venueEventIdsError) {
           console.error('Error fetching event IDs for venue:', venueEventIdsError);
@@ -446,11 +448,11 @@ export function ArtistVenueReviews({
               .select('user_id, name, avatar_url')
               .in('user_id', userIds);
 
-            // Get event data for venue reviews
+            // Get event data for venue reviews with normalized names from helper view
             const eventIds = venueReviews.map(r => r.event_id).filter(Boolean);
             const { data: events } = await (supabase as any)
-              .from('events')
-              .select('id, artist_name, venue_name, event_date, title')
+              .from('events_with_artist_venue')
+              .select('id, artist_id, venue_id, event_date, title, artist_name_normalized, venue_name_normalized')
               .in('id', eventIds);
 
             // Combine the data and filter by venue name

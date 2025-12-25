@@ -115,10 +115,10 @@ export class VenueService {
       
       if (isUUID) {
         const { data: venue } = await supabase
-          .from('venues')
+          .from('venues_with_external_ids')
           .select('jambase_venue_id')
           .eq('id', venueId)
-          .single();
+          .maybeSingle();
         
         if (venue?.jambase_venue_id) {
           jambaseVenueId = venue.jambase_venue_id;

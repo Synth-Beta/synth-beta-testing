@@ -114,8 +114,8 @@ export class MatchingService {
 
         // Send match notifications to both users
         const { data: eventData } = await supabase
-          .from('events')
-          .select('title, artist_name')
+          .from('events_with_artist_venue')
+          .select('title, artist_name_normalized')
           .eq('id', event_id)
           .single();
 
@@ -140,7 +140,7 @@ export class MatchingService {
               match_user_name: user2Name,
               event_id: event_id, 
               event_title: eventTitle,
-              event_artist: eventData?.artist_name 
+              event_artist: (eventData as any)?.artist_name_normalized 
             },
             actor_user_id: user2_id,
           },
@@ -154,7 +154,7 @@ export class MatchingService {
               match_user_name: user1Name,
               event_id: event_id, 
               event_title: eventTitle,
-              event_artist: eventData?.artist_name 
+              event_artist: (eventData as any)?.artist_name_normalized 
             },
             actor_user_id: user1_id,
           },
@@ -412,43 +412,111 @@ export class MatchingService {
     eventId: string
   ): Promise<void> {
     try {
-      // Check if chat already exists
-      const { data: existingChat } = await supabase
-        .from('chats')
-        .select('id')
-        .contains('users', [user1Id, user2Id])
-        .eq('is_group_chat', false)
-        .single();
+      // Check if there's a direct chat with both users (Bug 1 fix: check for query errors)
+      const { data: user1Chats, error: user1ChatsError } = await supabase
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('user_id', user1Id);
 
-      if (existingChat) return; // Chat already exists
+      if (user1ChatsError) {
+        throw new Error(`Failed to check existing chats for user1: ${user1ChatsError.message}`);
+      }
+
+      const { data: user2Chats, error: user2ChatsError } = await supabase
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('user_id', user2Id);
+
+      if (user2ChatsError) {
+        throw new Error(`Failed to check existing chats for user2: ${user2ChatsError.message}`);
+      }
+
+      const user1ChatIds = new Set(user1Chats?.map(p => p.chat_id) || []);
+      const user2ChatIds = new Set(user2Chats?.map(p => p.chat_id) || []);
+      const commonChatIds = [...user1ChatIds].filter(id => user2ChatIds.has(id));
+
+      if (commonChatIds.length > 0) {
+        // Check if any of these are direct chats (non-group)
+        const { data: existingChats, error: existingChatsError } = await supabase
+          .from('chats')
+          .select('id')
+          .in('id', commonChatIds)
+          .eq('is_group_chat', false)
+          .limit(1);
+
+        if (existingChatsError) {
+          console.error('Error checking for existing direct chat:', existingChatsError);
+          // Continue to create new chat if check fails (fail open)
+        } else if (existingChats && existingChats.length > 0) {
+          return; // Chat already exists
+        }
+      }
 
       // Get event details for chat name
       const { data: eventData } = await supabase
-        .from('events')
-        .select('title, artist_name')
+        .from('events_with_artist_venue')
+        .select('title, artist_name_normalized')
         .eq('id', eventId)
         .single();
 
       const chatName = eventData?.title || 'Concert Chat';
 
-      // Create new chat
-      const { data: chat } = await supabase
+      // Create new chat (without users array - will add participants separately)
+      const { data: chat, error: chatError } = await supabase
         .from('chats')
         .insert({
           chat_name: chatName,
           is_group_chat: false,
-          users: [user1Id, user2Id],
         })
         .select()
         .single();
 
-      if (chat) {
-        // Send welcome message
-        await supabase.from('messages').insert({
-          chat_id: chat.id,
-          sender_id: user1Id, // System message
-          content: `🎉 You matched! Start chatting about ${eventData?.title || 'the event'}!`,
-        });
+      if (chatError || !chat) {
+        throw new Error(`Failed to create chat: ${chatError?.message || 'Unknown error'}`);
+      }
+
+      // Add both users as participants (Bug 1 fix: check for errors and cleanup on failure)
+      const { error: participantsError } = await supabase
+        .from('chat_participants')
+        .insert([
+          { chat_id: chat.id, user_id: user1Id },
+          { chat_id: chat.id, user_id: user2Id }
+        ]);
+
+      if (participantsError) {
+        // Cleanup: delete the orphaned chat if participant insert failed
+        // Critical: If cleanup fails, log it as a critical error to prevent orphaned chats
+        const { error: deleteError } = await supabase
+          .from('chats')
+          .delete()
+          .eq('id', chat.id);
+        
+        if (deleteError) {
+          // Critical: Cleanup failed - orphaned chat may exist
+          console.error(
+            `CRITICAL: Failed to cleanup orphaned chat ${chat.id} after participant insert failure. ` +
+            `Original error: ${participantsError.message}. Cleanup error: ${deleteError.message}`
+          );
+          // Still throw the original error, but include cleanup failure info
+          throw new Error(
+            `Failed to add participants to chat: ${participantsError.message}. ` +
+            `CRITICAL: Cleanup also failed - orphaned chat ${chat.id} may exist: ${deleteError.message}`
+          );
+        }
+        
+        // Cleanup succeeded, throw original error
+        throw new Error(`Failed to add participants to chat: ${participantsError.message}`);
+      }
+
+      // Send welcome message (non-critical, log error but don't fail)
+      const { error: messageError } = await supabase.from('messages').insert({
+        chat_id: chat.id,
+        sender_id: user1Id, // System message
+        content: `🎉 You matched! Start chatting about ${eventData?.title || 'the event'}!`,
+      });
+
+      if (messageError) {
+        console.warn('Failed to send welcome message, but chat was created successfully:', messageError);
       }
     } catch (error) {
       console.error('Error creating match chat:', error);
@@ -488,8 +556,8 @@ export class MatchingService {
               .single(),
             eventIdFromMetadata
               ? supabase
-                  .from('events')
-                  .select('id, title, artist_name, venue_name, event_date')
+                  .from('events_with_artist_venue')
+                  .select('id, title, artist_name_normalized, venue_name_normalized, event_date')
                   .eq('id', eventIdFromMetadata)
                   .single()
               : Promise.resolve({ data: null })
@@ -545,8 +613,8 @@ export class MatchingService {
               .single(),
             eventIdFromMetadata
               ? supabase
-                  .from('events')
-                  .select('id, title, artist_name, venue_name, event_date, poster_image_url')
+                  .from('events_with_artist_venue')
+                  .select('id, title, artist_name_normalized, venue_name_normalized, event_date, images')
                   .eq('id', eventIdFromMetadata)
                   .single()
               : Promise.resolve({ data: null })
@@ -692,7 +760,18 @@ export class MatchingService {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('User not authenticated');
 
-      const { data, error } = await supabase
+      // Query chats via chat_participants instead of users array
+      const { data: participantChats, error: participantError } = await supabase
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('user_id', user.id);
+
+      if (participantError) throw participantError;
+
+      const chatIds = participantChats?.map(p => p.chat_id) || [];
+      if (chatIds.length === 0) return [];
+
+      const { data: chatsData, error } = await supabase
         .from('chats')
         .select(`
           *,
@@ -703,11 +782,35 @@ export class MatchingService {
             created_at
           )
         `)
-        .contains('users', [user.id])
+        .in('id', chatIds)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+
+      // Bug 3 fix: Populate users array from chat_participants for each chat
+      if (chatsData && chatsData.length > 0) {
+        const allChatIds = chatsData.map(c => c.id);
+        const { data: allParticipants } = await supabase
+          .from('chat_participants')
+          .select('chat_id, user_id')
+          .in('chat_id', allChatIds);
+
+        // Build map of chat_id -> user_ids[]
+        const participantsMap = new Map<string, string[]>();
+        allParticipants?.forEach(p => {
+          const existing = participantsMap.get(p.chat_id) || [];
+          existing.push(p.user_id);
+          participantsMap.set(p.chat_id, existing);
+        });
+
+        // Add users array to each chat
+        return chatsData.map(chat => ({
+          ...chat,
+          users: participantsMap.get(chat.id) || []
+        }));
+      }
+
+      return [];
     } catch (error) {
       console.error('Error getting chats:', error);
       throw error;

@@ -344,13 +344,13 @@ export class MusicTagsService {
                 artistUuids.push(existingArtist.id);
               }
             } else {
-              // Artist doesn't exist, create it
+              // Artist doesn't exist, create it (jambase_artist_id column removed - use external_entity_ids instead)
               const normalizedIdentifier = artistName.toLowerCase().replace(/\s+/g, '-');
+              const jambaseArtistId = `manual:${normalizedIdentifier}-${Date.now()}`;
               const { data: newArtist, error: createError } = await supabase
                 .from('artists')
                 .insert({
                   name: artistName,
-                  jambase_artist_id: `manual:${normalizedIdentifier}-${Date.now()}`,
                   identifier: normalizedIdentifier,
                   created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString()
@@ -364,6 +364,17 @@ export class MusicTagsService {
               }
               
               if (newArtist) {
+                // Insert into external_entity_ids for normalization
+                await supabase
+                  .from('external_entity_ids')
+                  .insert({
+                    entity_type: 'artist',
+                    entity_uuid: newArtist.id,
+                    source: 'manual',
+                    external_id: jambaseArtistId
+                  })
+                  .catch(() => {}); // Ignore duplicate errors
+                
                 artistUuids.push(newArtist.id);
                 console.log(`✅ Created new artist: "${artistName}" (${newArtist.id})`);
               }

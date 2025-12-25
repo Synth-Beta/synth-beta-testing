@@ -126,18 +126,19 @@ export class VerifiedChatService {
    */
   static async isUserMember(chatId: string, userId: string): Promise<boolean> {
     try {
-      const { data, error } = await supabase
-        .from('chats')
-        .select('users')
-        .eq('id', chatId)
-        .single();
+      const { data: participant, error } = await supabase
+        .from('chat_participants')
+        .select('user_id')
+        .eq('chat_id', chatId)
+        .eq('user_id', userId)
+        .maybeSingle();
 
       if (error) {
         console.error('Error checking user membership:', error);
         return false;
       }
 
-      return data?.users?.includes(userId) || false;
+      return !!participant;
     } catch (error) {
       console.error('Error in isUserMember:', error);
       return false;

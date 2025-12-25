@@ -61,10 +61,11 @@ export function MatchesList() {
     // Load chat messages for this match
     try {
       const chats = await MatchingService.getChats();
-      const matchChat = chats.find(chat => 
-        chat.users.includes(match.user1_id) && 
-        chat.users.includes(match.user2_id)
-      );
+      // Find chat where both users are participants
+      const matchChat = chats.find(chat => {
+        const userIds = chat.users || []; // Populated by RPC from chat_participants
+        return userIds.includes(match.user1_id) && userIds.includes(match.user2_id);
+      });
       
       if (matchChat) {
         setChatMessages(matchChat.messages || []);
@@ -82,10 +83,11 @@ export function MatchesList() {
       
       // Get chat for this match
       const chats = await MatchingService.getChats();
-      const matchChat = chats.find(chat => 
-        chat.users.includes(selectedMatch.user1_id) && 
-        chat.users.includes(selectedMatch.user2_id)
-      );
+      // Find chat where both users are participants
+      const matchChat = chats.find(chat => {
+        const userIds = chat.users || []; // Populated by RPC from chat_participants
+        return userIds.includes(selectedMatch.user1_id) && userIds.includes(selectedMatch.user2_id);
+      });
 
       if (matchChat) {
         await MatchingService.sendMessage(matchChat.id, newMessage);

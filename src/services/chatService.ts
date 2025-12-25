@@ -9,7 +9,7 @@ export interface UserChat {
   id: string;
   chat_name: string;
   is_group_chat: boolean;
-  users: string[];
+  users: string[]; // Populated from chat_participants by get_user_chats RPC (backward compatibility)
   latest_message_id?: string | null;
   latest_message?: string | null;
   latest_message_created_at?: string | null;

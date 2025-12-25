@@ -229,14 +229,17 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         let displayName = chat.chat_name;
 
         if (!chat.is_group_chat) {
-          // For direct chats, get the other user's profile
-          const otherUserId = chat.users.find((id: string) => id !== currentUserId);
-          if (otherUserId) {
-            const { data: otherUserProfile } = await supabase
-              .from('users')
-              .select('name, avatar_url')
-              .eq('user_id', otherUserId)
-              .single();
+          // For direct chats, get the other user's profile from chat_participants
+          const { data: chatParticipants } = await supabase
+            .from('chat_participants')
+            .select('user_id, users!user_id(name, avatar_url)')
+            .eq('chat_id', chat.id)
+            .neq('user_id', currentUserId);
+          
+          const otherParticipant = chatParticipants?.[0];
+          if (otherParticipant) {
+            const otherUserId = otherParticipant.user_id;
+            const otherUserProfile = otherParticipant.users as any;
             
             participants = [{
               user_id: otherUserId,
@@ -576,41 +579,34 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
   // Fetch chat participants for group chats
   const fetchChatParticipants = async (chatId: string) => {
     try {
-      // Get the chat with users array
-      const { data: chatData, error: chatError } = await supabase
-        .from('chats')
-        .select('users')
-        .eq('id', chatId)
-        .single();
+      // Get participants from chat_participants table
+      const { data: participantData, error: participantsError } = await supabase
+        .from('chat_participants')
+        .select('user_id, users!user_id(user_id, name, avatar_url)')
+        .eq('chat_id', chatId);
 
-      if (chatError) {
-        console.error('Error fetching chat:', chatError);
+      if (participantsError) {
+        console.error('Error fetching chat participants:', participantsError);
         return;
       }
 
-      if (!chatData?.users || chatData.users.length === 0) {
+      if (!participantData || participantData.length === 0) {
         setChatParticipants([]);
         return;
       }
 
-      // Get profiles for all users in the chat
-      const { data: profiles, error: profilesError } = await supabase
-        .from('users')
-        .select('user_id, name, avatar_url')
-        .in('user_id', chatData.users);
+      // Extract user profiles from the joined data
+      const profiles = participantData
+        .map(p => p.users as any)
+        .filter(Boolean);
 
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-        return;
-      }
-
-      const participants = profiles?.map(p => ({
+      const participantList = profiles?.map(p => ({
         user_id: p.user_id,
         name: p.name || 'Unknown User',
         avatar_url: p.avatar_url || null
       })) || [];
 
-      setChatParticipants(participants);
+      setChatParticipants(participantList);
     } catch (error) {
       console.error('Error fetching chat participants:', error);
     }

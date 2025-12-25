@@ -101,14 +101,15 @@ export function ReviewMessageCard({
       
       if (reviewData.event_id) {
         const { data: eventData } = await supabase
-          .from('events')
-          .select('id, title, artist_name, venue_name, event_date')
+          .from('events_with_artist_venue')
+          .select('id, title, artist_name_normalized, venue_name_normalized, event_date')
           .eq('id', reviewData.event_id)
           .single();
         
         if (eventData) {
-          artistName = eventData.artist_name || '';
-          venueName = eventData.venue_name || '';
+          // Use normalized column names (artist_name and venue_name columns removed)
+          artistName = (eventData as any).artist_name_normalized || '';
+          venueName = (eventData as any).venue_name_normalized || '';
           eventTitle = eventData.title || '';
         }
       }

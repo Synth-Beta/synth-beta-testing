@@ -55,22 +55,23 @@ export class SimpleArtistVenueService {
         };
       }
 
-      // If not found by exact name, try to find by jambase_artist_id from jambase_events
+      // If not found by exact name, try to find by artist name from helper view
+      // artist_name column removed - use events_with_artist_venue view
       const { data: eventData, error: eventError } = await supabase
-        .from('events')
-        .select('artist_id, artist_name')
-        .eq('artist_name', artistName)
+        .from('events_with_artist_venue')
+        .select('artist_id, artist_name_normalized')
+        .eq('artist_name_normalized', artistName)
         .not('artist_id', 'is', null)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (eventData && !eventError && eventData.artist_id) {
-        // Try to find artist by jambase_artist_id
+        // eventData.artist_id is a UUID FK after normalization, query by id (primary key)
         const { data: artistByJambaseId, error: artistByJambaseError } = await supabase
-          .from('artists')
+          .from('artists_with_external_ids')
           .select('*')
-          .eq('jambase_artist_id', eventData.artist_id)
-          .single();
+          .eq('id', eventData.artist_id) // Use UUID primary key, not jambase_artist_id
+          .maybeSingle();
 
         if (artistByJambaseId && !artistByJambaseError) {
           const events = await this.getEventsForArtist(artistByJambaseId.id);
@@ -120,22 +121,43 @@ export class SimpleArtistVenueService {
         };
       }
 
-      // If not found by exact name, try to find by jambase_venue_id from jambase_events
+      // If not found by exact name, try to find by venue name from helper view
+      // venue_name column removed - use events_with_artist_venue view
       const { data: eventData, error: eventError } = await supabase
-        .from('events')
-        .select('venue_id, venue_name')
-        .eq('venue_name', venueName)
+        .from('events_with_artist_venue')
+        .select('venue_id, venue_name_normalized')
+        .eq('venue_name_normalized', venueName)
         .not('venue_id', 'is', null)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (eventData && !eventError && eventData.venue_id) {
-        // Try to find venue by jambase_venue_id
-        const { data: venueByJambaseId, error: venueByJambaseError } = await supabase
+        // Try to find venue by jambase_venue_id using helper view
+        // eventData.venue_id is now a UUID, so we need to check if it's a UUID or external ID
+        let venueByJambaseId = null;
+        let venueByJambaseError = null;
+
+        // First, try to use venue_id as UUID (new normalized schema)
+        const { data: venueByUuid, error: uuidError } = await supabase
           .from('venues')
           .select('*')
-          .eq('jambase_venue_id', eventData.venue_id)
-          .single();
+          .eq('id', eventData.venue_id)
+          .maybeSingle();
+
+        if (venueByUuid && !uuidError) {
+          venueByJambaseId = venueByUuid;
+        } else {
+          // Fallback: try helper view (eventData.venue_id is UUID after normalization, so use id)
+          // Note: This fallback is unlikely to succeed if the direct query failed, but kept for safety
+          const { data: viewData, error: viewError } = await supabase
+            .from('venues_with_external_ids')
+            .select('*')
+            .eq('id', eventData.venue_id) // Use UUID primary key, not jambase_venue_id
+            .maybeSingle();
+          
+          venueByJambaseId = viewData;
+          venueByJambaseError = viewError;
+        }
 
         if (venueByJambaseId && !venueByJambaseError) {
           const events = await this.getEventsForVenue(venueByJambaseId.id);
@@ -167,28 +189,43 @@ export class SimpleArtistVenueService {
    */
   private static async getEventsForArtist(artistId: string): Promise<Array<any>> {
     try {
-      // First, try to get JamBase ID if artistId is a UUID
-      let jambaseArtistId = artistId;
+      // Resolve artistId to UUID if it's a JamBase ID (artist_id is now a UUID FK)
+      let resolvedArtistUuid = artistId;
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(artistId);
       
-      if (isUUID) {
-        // Look up JamBase ID from artists table
-        const { data: artist } = await supabase
-          .from('artists')
-          .select('jambase_artist_id')
-          .eq('id', artistId)
-          .single();
-        
-        if (artist?.jambase_artist_id) {
-          jambaseArtistId = artist.jambase_artist_id;
+      if (!isUUID) {
+        // It's a JamBase ID, resolve to UUID using helper function
+        const { data: uuidResult, error: uuidError } = await supabase
+          .rpc('get_entity_uuid_by_external_id', {
+            p_external_id: artistId,
+            p_source: 'jambase',
+            p_entity_type: 'artist'
+          });
+
+        if (!uuidError && uuidResult) {
+          resolvedArtistUuid = uuidResult;
+        } else {
+          // Fallback: try helper view
+          const { data: artist } = await supabase
+            .from('artists_with_external_ids')
+            .select('id')
+            .eq('jambase_artist_id', artistId)
+            .maybeSingle();
+          
+          if (artist?.id) {
+            resolvedArtistUuid = artist.id;
+          } else {
+            // Can't resolve, return empty
+            return [];
+          }
         }
       }
 
-      // Query events by JamBase artist_id
+      // Query events using helper view to get venue_name from normalized tables
       const { data: fallbackEvents, error: fallbackError } = await supabase
-        .from('events')
-        .select('id, title, venue_name, event_date, venue_city, venue_state')
-        .eq('artist_id', jambaseArtistId)
+        .from('events_with_artist_venue')
+        .select('id, title, venue_name_normalized, event_date, venue_city, venue_state')
+        .eq('artist_id', resolvedArtistUuid) // Use resolved UUID (artist_id is now the FK)
         .not('artist_id', 'is', null)
         .order('event_date', { ascending: false })
         .limit(10);
@@ -197,7 +234,7 @@ export class SimpleArtistVenueService {
         return fallbackEvents.map(event => ({
           event_id: event.id,
           event_title: event.title,
-          venue_name: event.venue_name,
+          venue_name: event.venue_name_normalized || null,
           event_date: event.event_date,
           venue_city: event.venue_city,
           venue_state: event.venue_state
@@ -216,28 +253,43 @@ export class SimpleArtistVenueService {
    */
   private static async getEventsForVenue(venueId: string): Promise<Array<any>> {
     try {
-      // First, try to get JamBase ID if venueId is a UUID
-      let jambaseVenueId = venueId;
+      // Resolve venueId to UUID if it's a JamBase ID (venue_id is now a UUID FK)
+      let resolvedVenueUuid = venueId;
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(venueId);
       
-      if (isUUID) {
-        // Look up JamBase ID from venues table
-        const { data: venue } = await supabase
-          .from('venues')
-          .select('jambase_venue_id')
-          .eq('id', venueId)
-          .single();
-        
-        if (venue?.jambase_venue_id) {
-          jambaseVenueId = venue.jambase_venue_id;
+      if (!isUUID) {
+        // It's a JamBase ID, resolve to UUID using helper function
+        const { data: uuidResult, error: uuidError } = await supabase
+          .rpc('get_entity_uuid_by_external_id', {
+            p_external_id: venueId,
+            p_source: 'jambase',
+            p_entity_type: 'venue'
+          });
+
+        if (!uuidError && uuidResult) {
+          resolvedVenueUuid = uuidResult;
+        } else {
+          // Fallback: try helper view
+          const { data: venue } = await supabase
+            .from('venues_with_external_ids')
+            .select('id')
+            .eq('jambase_venue_id', venueId)
+            .maybeSingle();
+          
+          if (venue?.id) {
+            resolvedVenueUuid = venue.id;
+          } else {
+            // Can't resolve, return empty
+            return [];
+          }
         }
       }
 
-      // Query events by JamBase venue_id
+      // Query events using helper view to get artist_name from normalized tables
       const { data: fallbackEvents, error: fallbackError } = await supabase
-        .from('events')
-        .select('id, title, artist_name, event_date, venue_city, venue_state')
-        .eq('venue_id', jambaseVenueId)
+        .from('events_with_artist_venue')
+        .select('id, title, artist_name_normalized, event_date, venue_city, venue_state')
+        .eq('venue_id', resolvedVenueUuid) // Use resolved UUID (venue_id is now the FK)
         .not('venue_id', 'is', null)
         .order('event_date', { ascending: false })
         .limit(10);
@@ -246,7 +298,7 @@ export class SimpleArtistVenueService {
         return fallbackEvents.map(event => ({
           event_id: event.id,
           event_title: event.title,
-          artist_name: event.artist_name,
+          artist_name: event.artist_name_normalized || null,
           event_date: event.event_date,
           venue_city: event.venue_city,
           venue_state: event.venue_state
@@ -265,10 +317,11 @@ export class SimpleArtistVenueService {
    */
   private static async getEventsForArtistByName(artistName: string): Promise<Array<any>> {
     try {
+      // Use helper view and join with artists table to match by name
       const { data: events, error } = await supabase
-        .from('events')
-        .select('id, title, venue_name, event_date, venue_city, venue_state')
-        .eq('artist_name', artistName)
+        .from('events_with_artist_venue')
+        .select('id, title, venue_name_normalized, event_date, venue_city, venue_state, artist_name_normalized')
+        .eq('artist_name_normalized', artistName)
         .order('event_date', { ascending: false })
         .limit(10);
 
@@ -276,7 +329,7 @@ export class SimpleArtistVenueService {
         return events.map(event => ({
           event_id: event.id,
           event_title: event.title,
-          venue_name: event.venue_name,
+          venue_name: event.venue_name_normalized || null,
           event_date: event.event_date,
           venue_city: event.venue_city,
           venue_state: event.venue_state
@@ -295,10 +348,11 @@ export class SimpleArtistVenueService {
    */
   private static async getEventsForVenueByName(venueName: string): Promise<Array<any>> {
     try {
+      // Use helper view to match by venue name from normalized tables
       const { data: events, error } = await supabase
-        .from('events')
-        .select('id, title, artist_name, event_date, venue_city, venue_state')
-        .eq('venue_name', venueName)
+        .from('events_with_artist_venue')
+        .select('id, title, artist_name_normalized, event_date, venue_city, venue_state, venue_name_normalized')
+        .eq('venue_name_normalized', venueName)
         .order('event_date', { ascending: false })
         .limit(10);
 
@@ -306,7 +360,7 @@ export class SimpleArtistVenueService {
         return events.map(event => ({
           event_id: event.id,
           event_title: event.title,
-          artist_name: event.artist_name,
+          artist_name: event.artist_name_normalized || null,
           event_date: event.event_date,
           venue_city: event.venue_city,
           venue_state: event.venue_state

@@ -414,7 +414,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             if (isValidUUID(review.event_id)) {
               const { data: eventData } = await (supabase as any)
                 .from('events')
-                .select('artist_name, artist_id, venue_name, venue_id, event_date')
+                .select('artist_id, venue_id, event_date') // artist_name and venue_name removed - use JOINs or helper views
                 .eq('id', review.event_id)
                 .single();
               
@@ -667,8 +667,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       if (jambaseArtistId) {
         console.log('🔍 EventReviewForm: Looking up artist with jambaseArtistId:', jambaseArtistId);
         // Try DB first
+        // Use helper view for normalized schema
         const byId = await (supabase as any)
-          .from('artists')
+          .from('artists_with_external_ids')
           .select('id')
           .eq('jambase_artist_id', jambaseArtistId)
           .limit(1);
@@ -682,7 +683,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             const { UnifiedArtistSearchService } = await import('@/services/unifiedArtistSearchService');
             await UnifiedArtistSearchService.searchArtists(artistCandidate?.name || '', 20, false);
             const reSel = await (supabase as any)
-              .from('artists')
+              .from('artists_with_external_ids')
               .select('id')
               .eq('jambase_artist_id', jambaseArtistId)
               .limit(1);
@@ -802,13 +803,15 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             ? formData.selectedVenue.id
             : null;
 
-        // Attempt insert; if it fails due to schema, degrade to minimal payload
+        // Attempt insert using normalized schema (artist_id and venue_id are UUID FKs, not names)
+        const resolvedArtistId = artistProfileId || (formData.selectedArtist?.is_from_database && isValidUUID(formData.selectedArtist.id) ? formData.selectedArtist.id : null);
+        
         let insertPayload: any = {
           title: `${formData.selectedArtist?.name || 'Concert'} at ${formData.selectedVenue?.name || 'Venue'}`,
-          artist_name: formData.selectedArtist?.name || '',
-          venue_name: formData.selectedVenue?.name || '',
-          // Use venue_uuid for UUID foreign key to venues.id (not venue_id which is TEXT for JamBase IDs)
-          ...(resolvedVenueId ? { venue_uuid: resolvedVenueId } : {}),
+          // Use artist_id (UUID FK) instead of artist_name (column removed)
+          ...(resolvedArtistId ? { artist_id: resolvedArtistId } : {}),
+          // Use venue_id (UUID FK) instead of venue_name (column removed)
+          ...(resolvedVenueId ? { venue_id: resolvedVenueId } : {}),
           venue_city: formData.selectedVenue?.address?.addressLocality || 'Unknown',
           venue_state: formData.selectedVenue?.address?.addressRegion || 'Unknown',
           event_date: eventDateTime.toISOString(),
@@ -820,32 +823,18 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           .select()
           .single();
         if (ins.error) {
+          // Fallback: minimal payload with just required fields
           insertPayload = {
             title: insertPayload.title,
-            artist_name: insertPayload.artist_name,
-            venue_name: insertPayload.venue_name,
             event_date: insertPayload.event_date,
+            ...(resolvedArtistId ? { artist_id: resolvedArtistId } : {}),
+            ...(resolvedVenueId ? { venue_id: resolvedVenueId } : {}),
           };
           ins = await (supabase as any)
             .from('events')
             .insert(insertPayload)
             .select()
             .single();
-        }
-        // If we resolved artist_profile, update event row with artist_uuid for future accuracy
-        if (!ins.error && artistProfileId) {
-          try {
-            console.log('🔍 EventReviewForm: Updating events with artist_uuid:', artistProfileId);
-            const updateResult = await (supabase as any)
-              .from('events')
-              .update({ artist_uuid: artistProfileId })
-              .eq('id', ins.data.id);
-            console.log('🔍 EventReviewForm: Artist UUID update result:', updateResult);
-          } catch (error) {
-            console.error('❌ EventReviewForm: Error updating artist_uuid:', error);
-          }
-        } else {
-          console.log('⚠️ EventReviewForm: No artistProfileId to update:', { artistProfileId, hasError: !!ins.error });
         }
         
         // Note: venue_uuid column exists in events table
@@ -1020,10 +1009,11 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               venueId = nameId;
             } else {
               // Insert minimal row; handle unique race by selecting on conflict
+              const jambaseVenueId = `user-created-${Date.now()}`;
               const ins = await (supabase as any)
                 .from('venues')
                 .insert({
-                  jambase_venue_id: `user-created-${Date.now()}`,
+                  jambase_venue_id: jambaseVenueId, // Keep for backward compatibility during migration
                   name: formData.selectedVenue.name,
                   identifier: idLooksLikeUuid ? candidateIdentifier : `user-created-${formData.selectedVenue.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
                   address: typeof formData.selectedVenue.address === 'string' ? formData.selectedVenue.address : (formData.selectedVenue.address?.streetAddress || null),

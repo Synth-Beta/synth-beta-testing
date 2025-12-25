@@ -104,6 +104,8 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   const [newMessage, setNewMessage] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [showUserSearch, setShowUserSearch] = useState(false);
+  // Map of chat_id -> other_user_id for direct chats (to fix Bug 1)
+  const [chatToOtherUserMap, setChatToOtherUserMap] = useState<Map<string, string>>(new Map());
   const [showGroupCreate, setShowGroupCreate] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
@@ -538,36 +540,47 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       setChats(normalizedChats);
       
       // Fetch user profiles for direct chat participants (to improve getChatDisplayName)
-      const directChatUserIds = new Set<string>();
-      sortedChats.forEach(chat => {
-        if (!chat.is_group_chat) {
-          chat.users.forEach(userId => {
-            if (userId !== currentUserId) {
-              directChatUserIds.add(userId);
-            }
-          });
-        }
-      });
+      // Query chat_participants for direct chats instead of using users array
+      const directChatIds = sortedChats
+        .filter(chat => !chat.is_group_chat)
+        .map(chat => chat.id);
       
-      // Fetch profiles for direct chat users if not already in users state
-      if (directChatUserIds.size > 0) {
-        const userIdsToFetch = Array.from(directChatUserIds).filter(
-          userId => !users.some(u => u.user_id === userId)
-        );
+      if (directChatIds.length > 0) {
+        const { data: participants } = await supabase
+          .from('chat_participants')
+          .select('chat_id, user_id')
+          .in('chat_id', directChatIds)
+          .neq('user_id', currentUserId);
         
-        if (userIdsToFetch.length > 0) {
-          const { data: profiles } = await supabase
-            .from('users')
-            .select('user_id, name, avatar_url, bio')
-            .in('user_id', userIdsToFetch);
+        // Build map of chat_id -> other_user_id for direct chats (Bug 1 fix)
+        const chatToUserMap = new Map<string, string>();
+        const directChatUserIds = new Set<string>();
+        participants?.forEach(p => {
+          chatToUserMap.set(p.chat_id, p.user_id);
+          directChatUserIds.add(p.user_id);
+        });
+        setChatToOtherUserMap(chatToUserMap);
+        
+        // Fetch profiles for direct chat users if not already in users state
+        if (directChatUserIds.size > 0) {
+          const userIdsToFetch = Array.from(directChatUserIds).filter(
+            userId => !users.some(u => u.user_id === userId)
+          );
           
-          if (profiles && profiles.length > 0) {
-            // Add to users state if not already present
-            setUsers(prev => {
-              const existingIds = new Set(prev.map(u => u.user_id));
-              const newUsers = profiles.filter(p => !existingIds.has(p.user_id));
-              return [...prev, ...newUsers];
-            });
+          if (userIdsToFetch.length > 0) {
+            const { data: profiles } = await supabase
+              .from('users')
+              .select('user_id, name, avatar_url, bio')
+              .in('user_id', userIdsToFetch);
+            
+            if (profiles && profiles.length > 0) {
+              // Add to users state if not already present
+              setUsers(prev => {
+                const existingIds = new Set(prev.map(u => u.user_id));
+                const newUsers = profiles.filter(p => !existingIds.has(p.user_id));
+                return [...prev, ...newUsers];
+              });
+            }
           }
         }
       }
@@ -910,11 +923,13 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       return chat.chat_name.replace(/\s+Group\s+Chat\s*$/, '');
     }
     
-    // For direct chats, find the other user's name
-    const otherUserId = chat.users.find(id => id !== currentUserId);
-    console.log('🔍 getChatDisplayName:', { chat, otherUserId, users: users.length, currentUserId });
+    // For direct chats, find the specific other user for this chat (Bug 1 fix)
+    const otherUserId = chatToOtherUserMap.get(chat.id);
+    if (!otherUserId) {
+      return chat.chat_name || 'Unknown User';
+    }
+    
     const otherUser = users.find(u => u.user_id === otherUserId);
-    console.log('🔍 Found other user:', otherUser);
     return otherUser?.name || 'Unknown User';
   };
 
@@ -956,8 +971,12 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       return null; // Group chat - could add group avatar logic
     }
     
-    // For direct chats, find the other user's avatar
-    const otherUserId = chat.users.find(id => id !== currentUserId);
+    // For direct chats, find the specific other user for this chat (Bug 1 fix)
+    const otherUserId = chatToOtherUserMap.get(chat.id);
+    if (!otherUserId) {
+      return null;
+    }
+    
     const otherUser = users.find(u => u.user_id === otherUserId);
     return otherUser?.avatar_url || null;
   };
@@ -1034,19 +1053,33 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
     // NOTE: event_groups table does not exist in 3NF schema - feature not available
     // Check if chat has a shared_event_id in messages instead
     try {
-      // Try to get event from messages table (for event shares)
+      // Try to get event ID from messages table (for event shares)
       const { data: messageData, error: messageError } = await supabase
         .from('messages')
-        .select('shared_event_id, events:shared_event_id(id, title, artist_name, venue_name, event_date, images)')
+        .select('shared_event_id')
         .eq('chat_id', chatId)
         .not('shared_event_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (!messageError && messageData?.events) {
-        setLinkedEvent(messageData.events);
-        return;
+      if (!messageError && messageData?.shared_event_id) {
+        // Fetch full event data from helper view to get normalized artist/venue names
+        const { data: eventData, error: eventError } = await supabase
+          .from('events_with_artist_venue')
+          .select('id, title, event_date, images, artist_name_normalized, venue_name_normalized')
+          .eq('id', messageData.shared_event_id)
+          .maybeSingle();
+
+        if (!eventError && eventData) {
+          // Map normalized column names for backward compatibility
+          setLinkedEvent({
+            ...eventData,
+            artist_name: (eventData as any).artist_name_normalized,
+            venue_name: (eventData as any).venue_name_normalized
+          });
+          return;
+        }
       }
     } catch (error) {
       // Silently handle - event groups feature not available in 3NF schema

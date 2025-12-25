@@ -652,8 +652,8 @@ export class ReviewService {
       // Use JamBase IDs directly for event matching
       console.log('🔍 ReviewService: Checking event JamBase IDs for eventId:', eventId);
       const { data: eventData, error: eventError } = await supabase
-        .from('events')
-        .select('id, artist_id, artist_name, venue_id, venue_name')
+        .from('events_with_artist_venue')
+        .select('id, artist_id, artist_name_normalized, venue_id, venue_name_normalized')
         .eq('id', eventId)
         .single();
       
@@ -970,11 +970,12 @@ export class ReviewService {
   }> {
     try {
       // Get reviews with user engagement data
+      // Note: Using events_with_artist_venue view for normalized columns
       const { data: reviews, error } = await supabase
         .from('reviews')
         .select(`
           *,
-          events:event_id (id, title, artist_name, venue_name, event_date),
+          events_with_artist_venue:event_id (id, title, artist_name_normalized, venue_name_normalized, event_date),
           review_likes!left(id, user_id)
         `)
         .eq('event_id', eventId)
@@ -1014,10 +1015,10 @@ export class ReviewService {
       // Process reviews with engagement data
       const processedReviews: ReviewWithEngagement[] = (reviews || []).map((review: any) => ({
         ...review,
-        // Project event info onto the review for UI access
-        artist_name: review.events?.artist_name,
+        // Project event info onto the review for UI access (using normalized column names)
+        artist_name: (review.events_with_artist_venue as any)?.artist_name_normalized || review.events?.artist_name,
         artist_id: review.artist_id || null, // Use review's artist_id if available
-        venue_name: review.events?.venue_name,
+        venue_name: (review.events_with_artist_venue as any)?.venue_name_normalized || review.events?.venue_name,
         venue_id: review.venue_id || null, // Use review's venue_id if available
         is_liked_by_user: userLikes.includes(review.id),
         user_like_id: userLikes.includes(review.id) 
@@ -1136,8 +1137,8 @@ export class ReviewService {
       
       if (eventIds.length > 0) {
         const { data: eventsData, error: eventsError } = await supabase
-          .from('events')
-          .select('id, title, artist_name, venue_name, venue_id, event_date, doors_time, venue_city, venue_state, venue_zip')
+          .from('events_with_artist_venue')
+          .select('id, title, artist_name_normalized, venue_name_normalized, venue_id, event_date, doors_time, venue_city, venue_state, venue_zip')
           .in('id', eventIds);
         
         console.log('🔍 ReviewService: Events query result:', {
@@ -1608,11 +1609,11 @@ export class ReviewService {
             verified,
             account_type
           ),
-          events:events (
+          events_with_artist_venue:event_id (
             id,
             title,
-            artist_name,
-            venue_name,
+            artist_name_normalized,
+            venue_name_normalized,
             event_date
           )
         `, { count: 'exact' })
@@ -1640,10 +1641,10 @@ export class ReviewService {
         reviewer_avatar: review.users?.avatar_url,
         reviewer_verified: review.users?.verified,
         reviewer_account_type: review.users?.account_type,
-        event_title: review.events?.title,
-        artist_name: review.events?.artist_name,
-        venue_name: review.events?.venue_name,
-        event_date: review.events?.event_date,
+        event_title: review.events_with_artist_venue?.title || review.events?.title,
+        artist_name: (review.events_with_artist_venue as any)?.artist_name_normalized || review.events?.artist_name,
+        venue_name: (review.events_with_artist_venue as any)?.venue_name_normalized || review.events?.venue_name,
+        event_date: review.events_with_artist_venue?.event_date || review.events?.event_date,
       }));
 
       return {
@@ -1852,12 +1853,12 @@ export class ReviewService {
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(venueId);
       
       if (isUUID) {
-        // Look up JamBase ID from venues table
+        // Look up JamBase ID from venues table (using helper view for normalized schema)
         const { data: venue } = await supabase
-          .from('venues')
+          .from('venues_with_external_ids')
           .select('jambase_venue_id')
           .eq('id', venueId)
-          .single();
+          .maybeSingle();
         
         if (venue?.jambase_venue_id) {
           jambaseVenueId = venue.jambase_venue_id;
@@ -1900,10 +1901,10 @@ export class ReviewService {
         
         if (isUUID) {
           const { data: venue } = await supabase
-            .from('venues')
+            .from('venues_with_external_ids')
             .select('jambase_venue_id')
             .eq('id', venueId)
-            .single();
+            .maybeSingle();
           
           if (venue?.jambase_venue_id) {
             jambaseVenueId = venue.jambase_venue_id;

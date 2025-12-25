@@ -320,7 +320,7 @@ export class UnifiedArtistSearchService {
         let existingArtist = null;
         try {
           const { data, error: checkError } = await supabase
-          .from('artists')
+          .from('artists_with_external_ids')
           .select('*')
           .eq('jambase_artist_id', artistId)
             .maybeSingle(); // Use maybeSingle() instead of single() to handle 0 results gracefully
@@ -352,9 +352,8 @@ export class UnifiedArtistSearchService {
           continue;
         }
 
-        // Save to database using the actual 'artists' table schema
+        // Save to database using the actual 'artists' table schema (jambase_artist_id column removed)
         const artistData = {
-          jambase_artist_id: artistId,
           name: jamBaseArtist.name,
           identifier: jamBaseArtist.identifier,
           url: jamBaseArtist.url || null,
@@ -367,7 +366,7 @@ export class UnifiedArtistSearchService {
         let existingArtistRecord = null;
         try {
           const { data, error: checkError } = await supabase
-          .from('artists')
+          .from('artists_with_external_ids')
           .select('id')
           .eq('jambase_artist_id', artistId)
             .maybeSingle(); // Use maybeSingle() instead of single() to handle 0 results gracefully
@@ -409,6 +408,16 @@ export class UnifiedArtistSearchService {
             savedArtist = existingArtistRecord;
           } else {
             savedArtist = data;
+            // Ensure external_entity_ids is updated
+            await supabase
+              .from('external_entity_ids')
+              .upsert({
+                entity_type: 'artist',
+                entity_uuid: savedArtist.id,
+                source: 'jambase',
+                external_id: artistId
+              }, { onConflict: 'entity_uuid,source,entity_type' })
+              .catch(() => {}); // Ignore errors
           }
         } else {
           // Insert new artist
@@ -423,6 +432,16 @@ export class UnifiedArtistSearchService {
             savedArtist = null;
           } else {
             savedArtist = data;
+            // Insert into external_entity_ids for normalization
+            await supabase
+              .from('external_entity_ids')
+              .insert({
+                entity_type: 'artist',
+                entity_uuid: savedArtist.id,
+                source: 'jambase',
+                external_id: artistId
+              })
+              .catch(() => {}); // Ignore duplicate errors
           }
         }
 
@@ -746,11 +765,12 @@ export class UnifiedArtistSearchService {
    * Get artist by ID from database
    */
   static async getArtistById(artistId: string): Promise<ArtistProfile | null> {
+    // Use helper view for normalized schema
     const { data, error } = await supabase
-      .from('artists')
+      .from('artists_with_external_ids')
       .select('*')
       .eq('jambase_artist_id', artistId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       if (error.code === 'PGRST116') {
