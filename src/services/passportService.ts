@@ -4,7 +4,8 @@ export interface PassportEntry {
   id: string;
   user_id: string;
   type: 'city' | 'venue' | 'artist' | 'scene';
-  entity_id: string | null;
+  entity_id: string | null; // Legacy external ID (for cities/scenes, or metadata)
+  entity_uuid: string | null; // UUID foreign key (for venues/artists, primary identity)
   entity_name: string;
   unlocked_at: string;
   metadata: Record<string, any>;
@@ -69,6 +70,7 @@ export class PassportService {
     type: 'city' | 'venue' | 'artist' | 'scene',
     entityId: string | null,
     entityName: string,
+    entityUuid?: string | null,
     metadata?: Record<string, any>
   ): Promise<PassportEntry | null> {
     try {
@@ -78,6 +80,7 @@ export class PassportService {
           user_id: userId,
           type,
           entity_id: entityId,
+          entity_uuid: entityUuid || null,
           entity_name: entityName,
           metadata: metadata || {},
         })
@@ -86,14 +89,35 @@ export class PassportService {
 
       if (error) {
         // If entry already exists, fetch it
+        // Try matching by entity_uuid first (for venues/artists), then entity_id
         if (error.code === '23505') {
-          const { data: existing } = await supabase
+          // Build query with proper filtering to avoid .single() errors
+          let query = supabase
             .from('passport_entries')
             .select('*')
             .eq('user_id', userId)
-            .eq('type', type)
-            .eq('entity_id', entityId)
-            .single();
+            .eq('type', type);
+          
+          // Must have at least one identifier to avoid matching multiple rows
+          if (entityUuid) {
+            query = query.eq('entity_uuid', entityUuid);
+          } else if (entityId) {
+            query = query.eq('entity_id', entityId);
+          } else {
+            // If both are null/falsy, we can't uniquely identify the entry
+            // This shouldn't happen for venues/artists, but handle gracefully
+            console.warn('PassportService: Cannot fetch duplicate entry - both entityUuid and entityId are null');
+            return null;
+          }
+          
+          const { data: existing, error: fetchError } = await query.single();
+          
+          if (fetchError) {
+            // If .single() fails (multiple matches or not found), log and return null
+            console.warn('PassportService: Error fetching duplicate entry:', fetchError);
+            return null;
+          }
+          
           return existing as PassportEntry;
         }
         throw error;

@@ -224,21 +224,16 @@ BEGIN
   
   -- Count artists experienced
   -- Match by artist UUID from artists table
-  -- Events table has artist_id (TEXT JamBase ID) and artist_uuid (UUID FK)
+  -- After normalization: events.artist_id is UUID FK (renamed from artist_jambase_id)
   IF v_artist_ids IS NOT NULL AND array_length(v_artist_ids, 1) > 0 THEN
     SELECT COUNT(DISTINCT a.id) INTO v_artists_count
     FROM (
-      -- From reviews - match via artist_uuid or artist_id
+      -- From reviews - match via artist_id (UUID FK after normalization)
       SELECT DISTINCT a.id
       FROM public.reviews r
       JOIN public.events e ON r.event_id = e.id
       JOIN public.artists a ON (
-        e.artist_uuid = a.id OR
-        (e.artist_id IS NOT NULL AND (
-          e.artist_id = a.identifier OR
-          e.artist_id = REPLACE(a.identifier, 'jambase:', '') OR
-          a.identifier = 'jambase:' || e.artist_id
-        ))
+        e.artist_id = a.id
       )
       WHERE r.user_id = p_user_id 
         AND r.is_draft = false
@@ -246,14 +241,17 @@ BEGIN
       
       UNION
       
-      -- From passport entries
+      -- From passport entries - use entity_uuid if available (after normalization)
       SELECT DISTINCT a.id
       FROM public.passport_entries pe
       JOIN public.artists a ON (
-        pe.entity_id = a.identifier
-        OR pe.entity_id = REPLACE(a.identifier, 'jambase:', '')
-        OR a.identifier = 'jambase:' || pe.entity_id
-        OR pe.entity_id = 'jambase:' || REPLACE(a.identifier, 'jambase:', '')
+        pe.entity_uuid = a.id
+        OR (pe.entity_uuid IS NULL AND (
+          pe.entity_id = a.identifier
+          OR pe.entity_id = REPLACE(a.identifier, 'jambase:', '')
+          OR a.identifier = 'jambase:' || pe.entity_id
+          OR pe.entity_id = 'jambase:' || REPLACE(a.identifier, 'jambase:', '')
+        ))
       )
       WHERE pe.user_id = p_user_id 
         AND pe.type = 'artist'
@@ -263,20 +261,16 @@ BEGIN
   
   -- Count venues experienced
   -- Match by venue UUID from venues table
-  -- Events table has venue_id (TEXT JamBase ID) and venue_uuid (UUID FK)
+  -- After normalization: events.venue_id is UUID FK (renamed from venue_jambase_id)
   IF v_venue_ids IS NOT NULL AND array_length(v_venue_ids, 1) > 0 THEN
     SELECT COUNT(DISTINCT v.id) INTO v_venues_count
     FROM (
-      -- From reviews - match via venue_id (TEXT JamBase ID)
+      -- From reviews - match via venue_id (UUID FK after normalization)
       SELECT DISTINCT v.id
       FROM public.reviews r
       JOIN public.events e ON r.event_id = e.id
       JOIN public.venues v ON (
-        (e.venue_id IS NOT NULL AND (
-          e.venue_id = v.identifier OR
-          e.venue_id = REPLACE(v.identifier, 'jambase:', '') OR
-          v.identifier = 'jambase:' || e.venue_id
-        ))
+        e.venue_id = v.id
       )
       WHERE r.user_id = p_user_id 
         AND r.is_draft = false
@@ -284,14 +278,17 @@ BEGIN
       
       UNION
       
-      -- From passport entries
+      -- From passport entries - use entity_uuid if available (after normalization)
       SELECT DISTINCT v.id
       FROM public.passport_entries pe
       JOIN public.venues v ON (
-        pe.entity_id = v.identifier
-        OR pe.entity_id = REPLACE(v.identifier, 'jambase:', '')
-        OR v.identifier = 'jambase:' || pe.entity_id
-        OR pe.entity_id = 'jambase:' || REPLACE(v.identifier, 'jambase:', '')
+        pe.entity_uuid = v.id
+        OR (pe.entity_uuid IS NULL AND (
+          pe.entity_id = v.identifier
+          OR pe.entity_id = REPLACE(v.identifier, 'jambase:', '')
+          OR v.identifier = 'jambase:' || pe.entity_id
+          OR pe.entity_id = 'jambase:' || REPLACE(v.identifier, 'jambase:', '')
+        ))
       )
       WHERE pe.user_id = p_user_id 
         AND pe.type = 'venue'

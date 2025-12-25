@@ -92,27 +92,163 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
       const experienced = new Set<string>();
 
       // Check passport entries for artists
+      // Match by entity_uuid (normalized) OR entity_id (legacy) to handle incomplete backfill
+      // artistIds are UUIDs from scene_participants, but legacy entries might only have entity_id
       if (artistIds.length > 0) {
-        const { data: artistPassports } = await supabase
+        const artistUuidsSet = new Set(artistIds);
+        
+        // Query passport entries matching entity_uuid (normalized entries)
+        const { data: artistPassportsByUuid } = await supabase
           .from('passport_entries')
-          .select('entity_id')
+          .select('entity_id, entity_uuid')
           .eq('user_id', userId)
           .eq('type', 'artist')
-          .in('entity_id', artistIds);
+          .in('entity_uuid', artistIds);
 
-        artistPassports?.forEach(p => experienced.add(`artist:${p.entity_id}`));
+        // For legacy entries: resolve UUIDs to external IDs, then match against entity_id
+        // Batch resolve external IDs (get_external_id only accepts single UUID)
+        const externalIdMap = new Map<string, string>(); // UUID -> external_id (without prefix)
+        await Promise.all(
+          artistIds.map(async (uuid) => {
+            const { data } = await supabase.rpc('get_external_id', {
+              p_entity_uuid: uuid,
+              p_source: 'jambase',
+              p_entity_type: 'artist'
+            });
+            if (data) externalIdMap.set(uuid, data);
+          })
+        );
+        const externalIds = Array.from(externalIdMap.values());
+        
+        // Create normalized ID sets to handle prefix variants (legacy entries may have "jambase:" prefix)
+        // Similar to SQL migration logic: handle both prefixed and non-prefixed formats
+        const normalizedExternalIds = new Set<string>();
+        externalIds.forEach(id => {
+          normalizedExternalIds.add(id); // Without prefix (from get_external_id)
+          normalizedExternalIds.add(`jambase:${id}`); // With prefix (legacy format)
+        });
+
+        // Query all legacy entries (without entity_uuid) and filter in JavaScript
+        // This handles prefix variants that .in() query cannot match
+        let artistPassportsByEntityId: any[] = [];
+        if (externalIds.length > 0) {
+          const { data } = await supabase
+            .from('passport_entries')
+            .select('entity_id, entity_uuid')
+            .eq('user_id', userId)
+            .eq('type', 'artist')
+            .is('entity_uuid', null); // Only get entries without entity_uuid (legacy)
+          
+          // Filter to match normalized external IDs (handles prefix variants)
+          artistPassportsByEntityId = (data || []).filter(p => {
+            if (!p.entity_id) return false;
+            // Normalize entity_id: remove prefix if present, then check both formats
+            const normalizedId = p.entity_id.replace(/^jambase:/, '');
+            return normalizedExternalIds.has(p.entity_id) || normalizedExternalIds.has(normalizedId);
+          });
+        }
+
+        // Combine and process results
+        const allArtistPassports = [
+          ...(artistPassportsByUuid || []),
+          ...artistPassportsByEntityId
+        ];
+
+        allArtistPassports.forEach(p => {
+          // Match by entity_uuid (normalized) or entity_id (legacy external ID)
+          if (p.entity_uuid && artistUuidsSet.has(p.entity_uuid)) {
+            experienced.add(`artist:${p.entity_uuid}`);
+          } else if (p.entity_id) {
+            // Match legacy entry by normalized external ID (handle prefix variants)
+            // Try to find matching UUID by comparing normalized entity_id with external IDs
+            const normalizedEntityId = p.entity_id.replace(/^jambase:/, '');
+            const matchingUuid = Array.from(externalIdMap.entries())
+              .find(([_, extId]) => extId === normalizedEntityId || `jambase:${extId}` === p.entity_id)?.[0];
+            if (matchingUuid) {
+              experienced.add(`artist:${matchingUuid}`);
+            }
+          }
+        });
       }
 
       // Check passport entries for venues
+      // Match by entity_uuid (normalized) OR entity_id (legacy) to handle incomplete backfill
+      // venueIds are UUIDs from scene_participants, but legacy entries might only have entity_id
       if (venueIds.length > 0) {
-        const { data: venuePassports } = await supabase
+        const venueUuidsSet = new Set(venueIds);
+        
+        // Query passport entries matching entity_uuid (normalized entries)
+        const { data: venuePassportsByUuid } = await supabase
           .from('passport_entries')
-          .select('entity_id')
+          .select('entity_id, entity_uuid')
           .eq('user_id', userId)
           .eq('type', 'venue')
-          .in('entity_id', venueIds);
+          .in('entity_uuid', venueIds);
 
-        venuePassports?.forEach(p => experienced.add(`venue:${p.entity_id}`));
+        // For legacy entries: resolve UUIDs to external IDs, then match against entity_id
+        // Batch resolve external IDs (get_external_id only accepts single UUID)
+        const externalIdMap = new Map<string, string>(); // UUID -> external_id (without prefix)
+        await Promise.all(
+          venueIds.map(async (uuid) => {
+            const { data } = await supabase.rpc('get_external_id', {
+              p_entity_uuid: uuid,
+              p_source: 'jambase',
+              p_entity_type: 'venue'
+            });
+            if (data) externalIdMap.set(uuid, data);
+          })
+        );
+        const externalIds = Array.from(externalIdMap.values());
+        
+        // Create normalized ID sets to handle prefix variants (legacy entries may have "jambase:" prefix)
+        // Similar to SQL migration logic: handle both prefixed and non-prefixed formats
+        const normalizedExternalIds = new Set<string>();
+        externalIds.forEach(id => {
+          normalizedExternalIds.add(id); // Without prefix (from get_external_id)
+          normalizedExternalIds.add(`jambase:${id}`); // With prefix (legacy format)
+        });
+
+        // Query all legacy entries (without entity_uuid) and filter in JavaScript
+        // This handles prefix variants that .in() query cannot match
+        let venuePassportsByEntityId: any[] = [];
+        if (externalIds.length > 0) {
+          const { data } = await supabase
+            .from('passport_entries')
+            .select('entity_id, entity_uuid')
+            .eq('user_id', userId)
+            .eq('type', 'venue')
+            .is('entity_uuid', null); // Only get entries without entity_uuid (legacy)
+          
+          // Filter to match normalized external IDs (handles prefix variants)
+          venuePassportsByEntityId = (data || []).filter(p => {
+            if (!p.entity_id) return false;
+            // Normalize entity_id: remove prefix if present, then check both formats
+            const normalizedId = p.entity_id.replace(/^jambase:/, '');
+            return normalizedExternalIds.has(p.entity_id) || normalizedExternalIds.has(normalizedId);
+          });
+        }
+
+        // Combine and process results
+        const allVenuePassports = [
+          ...(venuePassportsByUuid || []),
+          ...venuePassportsByEntityId
+        ];
+
+        allVenuePassports.forEach(p => {
+          // Match by entity_uuid (normalized) or entity_id (legacy external ID)
+          if (p.entity_uuid && venueUuidsSet.has(p.entity_uuid)) {
+            experienced.add(`venue:${p.entity_uuid}`);
+          } else if (p.entity_id) {
+            // Match legacy entry by normalized external ID (handle prefix variants)
+            // Try to find matching UUID by comparing normalized entity_id with external IDs
+            const normalizedEntityId = p.entity_id.replace(/^jambase:/, '');
+            const matchingUuid = Array.from(externalIdMap.entries())
+              .find(([_, extId]) => extId === normalizedEntityId || `jambase:${extId}` === p.entity_id)?.[0];
+            if (matchingUuid) {
+              experienced.add(`venue:${matchingUuid}`);
+            }
+          }
+        });
       }
 
       // Check cities from passport entries

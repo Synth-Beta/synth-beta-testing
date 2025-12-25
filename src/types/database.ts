@@ -302,7 +302,8 @@ export interface Interaction {
   session_id: string | null; // UUID
   event_type: string;
   entity_type: string;
-  entity_id: string;
+  entity_id: string | null; // Legacy external ID (kept as metadata)
+  entity_uuid: string | null; // UUID foreign key (primary identity for UUID-based entities)
   occurred_at: string; // TIMESTAMPTZ
   metadata: Record<string, any>; // JSONB
   created_at: string; // TIMESTAMPTZ
@@ -314,7 +315,8 @@ export interface Interaction {
 export interface AnalyticsDaily {
   id: string; // UUID
   entity_type: 'user' | 'event' | 'artist' | 'venue' | 'campaign';
-  entity_id: string; // UUID for users/events/campaigns, TEXT for artists/venues
+  entity_id: string | null; // Legacy external ID (kept as metadata)
+  entity_uuid: string; // UUID foreign key (primary identity)
   date: string; // DATE
   metrics: Record<string, any>; // JSONB
   created_at: string; // TIMESTAMPTZ

@@ -14,7 +14,8 @@ export interface InteractionEvent {
   sessionId?: string;
   eventType: string;
   entityType: string;
-  entityId: string;
+  entityId?: string | null; // Legacy external ID (optional, kept as metadata)
+  entityUuid?: string | null; // UUID foreign key (preferred for UUID-based entities)
   metadata?: Record<string, any>;
 }
 
@@ -45,7 +46,7 @@ const VALID_EVENT_TYPES = [
 
 const VALID_ENTITY_TYPES = [
   'event', 'artist', 'venue', 'review', 'user', 'profile', 'view', 'form',
-  'ticket_link', 'song', 'album', 'playlist'
+  'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene', 'search'
 ] as const;
 
 class InteractionTrackingService {
@@ -87,8 +88,24 @@ class InteractionTrackingService {
       errors.push(`Invalid entityType: ${event.entityType}. Must be one of: ${VALID_ENTITY_TYPES.join(', ')}`);
     }
 
-    if (!event.entityId) {
-      errors.push('entityId is required');
+    // Entity identifier validation
+    // After normalization: entityUuid is preferred for UUID-based entities (artists, venues, events)
+    // entityId is optional metadata. Some entity types don't require UUIDs (search, view, form, scene, etc.)
+    // Note: 'scene' can optionally have an identifier but doesn't require one (matches DB constraint)
+    const entityTypesWithoutUuid = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene'];
+    const requiresUuid = !entityTypesWithoutUuid.includes(event.entityType);
+    
+    if (requiresUuid) {
+      // For UUID-based entities, require at least entityUuid (preferred) or entityId (legacy)
+      if (!event.entityUuid && !event.entityId) {
+        errors.push(`entityUuid or entityId is required for entityType: ${event.entityType}`);
+      }
+    } else {
+      // For non-UUID entities, entityId is optional but recommended
+      // Note: entityUuid doesn't make sense for these types, so we only check entityId
+      if (!event.entityId) {
+        warnings.push(`No entity identifier provided for entityType: ${event.entityType}. Consider providing entityId for better tracking.`);
+      }
     }
 
     // Metadata validation
@@ -274,6 +291,8 @@ class InteractionTrackingService {
       }
 
       // Use insert instead of rpc due to lint error and to match table structure
+      // Note: entity_uuid is preferred for UUID-based entities (artists, venues, events)
+      // entity_id is kept as metadata for legacy support
       const { error } = await supabase
         .from('interactions')
         .insert([{
@@ -281,7 +300,8 @@ class InteractionTrackingService {
           session_id: event.sessionId || this.sessionId,
           event_type: event.eventType,
           entity_type: event.entityType,
-          entity_id: event.entityId,
+          entity_id: event.entityId || null,
+          entity_uuid: event.entityUuid || null,
           metadata: event.metadata || {}
         }]);
 
@@ -334,6 +354,9 @@ class InteractionTrackingService {
       this.batchTimeout = null;
     }
 
+    // Declare validEvents outside try block so it's accessible in catch block
+    const validEvents: BatchedInteractionEvent[] = [];
+
     try {
       // Get current user ID
       const { data: { user } } = await supabase.auth.getUser();
@@ -342,13 +365,45 @@ class InteractionTrackingService {
         return;
       }
 
+      // Validate all interactions in the batch before inserting
+      // Filter out invalid interactions and log warnings/errors
+      const invalidEvents: { event: BatchedInteractionEvent; errors: string[] }[] = [];
+
+      for (const event of batch) {
+        const validation = this.validateInteractionData(event);
+        if (!validation.isValid) {
+          invalidEvents.push({ event, errors: validation.errors });
+          // Log validation errors
+          await this.logError('interaction_validation_error', new Error(validation.errors.join(', ')), event);
+          console.warn('Invalid interaction in batch:', validation.errors, event);
+        } else {
+          // Log warnings if any
+          if (validation.warnings.length > 0) {
+            console.warn('Interaction validation warnings:', validation.warnings, event);
+          }
+          validEvents.push(event);
+        }
+      }
+
+      // Only insert valid interactions
+      if (validEvents.length === 0) {
+        console.warn('No valid interactions in batch to insert');
+        if (invalidEvents.length > 0) {
+          console.warn(`Skipped ${invalidEvents.length} invalid interactions`);
+        }
+        return;
+      }
+
       // Map camelCase to snake_case for database
-      const dbBatch = batch.map(event => ({
+      // Note: entity_uuid is preferred for UUID-based entities (artists, venues, events)
+      // entity_id is kept as metadata for legacy support
+      const dbBatch = validEvents.map(event => ({
         user_id: user.id,
         session_id: event.sessionId || this.sessionId,
         event_type: event.eventType,
         entity_type: event.entityType,
-        entity_id: event.entityId,
+        entity_id: event.entityId || null,
+        entity_uuid: event.entityUuid || null,
         metadata: event.metadata || {}
       }));
 
@@ -359,11 +414,23 @@ class InteractionTrackingService {
 
       if (error) {
         console.error('Failed to log interaction batch:', error);
+        // Log error for each failed event
+        for (const event of validEvents) {
+          await this.logError('interaction_logging_error', error, event);
+        }
       } else {
         console.log(`✅ Logged ${dbBatch.length} interactions`);
+        if (invalidEvents.length > 0) {
+          console.warn(`⚠️ Skipped ${invalidEvents.length} invalid interactions`);
+        }
       }
     } catch (error) {
       console.error('Error logging interaction batch:', error);
+      // Log error only for events that were actually attempted to be persisted
+      // Invalid events were already logged as 'interaction_validation_error' during validation
+      for (const event of validEvents) {
+        await this.logError('interaction_logging_exception', error, event);
+      }
     }
   }
 
