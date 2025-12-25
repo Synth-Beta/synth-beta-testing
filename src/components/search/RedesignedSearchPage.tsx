@@ -693,32 +693,7 @@ const fetchEvents = async (query: string, limit: number = 25, offset: number = 0
       return [];
     }
 
-    return (data || []).map((event: any) => ({
-        .limit(limit + offset + 10)
-    ]);
-
-    // Check for errors
-    if (artistResults.error || venueResults.error || titleResults.error) {
-      console.error('Error searching events:', artistResults.error || venueResults.error || titleResults.error);
-      return [];
-    }
-
-    // Combine and deduplicate results (use Map to ensure uniqueness by id)
-    const eventsMap = new Map();
-    [...(artistResults.data || []), ...(venueResults.data || []), ...(titleResults.data || [])].forEach(event => {
-      if (!eventsMap.has(event.id)) {
-        eventsMap.set(event.id, event);
-      }
-    });
-
-    // Convert to array, sort by date, and apply pagination
-    const uniqueEvents = Array.from(eventsMap.values());
-    uniqueEvents.sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
-    const paginatedEvents = uniqueEvents.slice(offset, offset + limit);
-
-    console.log(`🔍 Found ${paginatedEvents.length} events for query "${searchTerm}" (total: ${uniqueEvents.length})`);
-
-    return paginatedEvents.map((event) => {
+    return (data || []).map((event: any) => {
       // Use event's own image columns (populated by trigger from artist images)
       // Priority: event_media_url -> media_urls[0] -> images array
       let imageUrl: string | null = null;
@@ -733,12 +708,11 @@ const fetchEvents = async (query: string, limit: number = 25, offset: number = 0
       }
 
       return {
->>>>>>> 327eaa3 (Fix scene cards: redesign with progress bar, fix venue/artist queries to use UUIDs, update participant navigation)
-      id: event.id,
-      title: event.title,
-      artistName: event.artist_name_normalized || null,
-      venueName: event.venue_name_normalized || null,
-      eventDate: event.event_date,
+        id: event.id,
+        title: event.title,
+        artistName: event.artist_name_normalized || null,
+        venueName: event.venue_name_normalized || null,
+        eventDate: event.event_date,
         imageUrl,
       };
     });
