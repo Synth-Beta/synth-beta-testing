@@ -153,7 +153,7 @@ export class LocationService {
       const eventsWithDistance = transformedEvents
         .map(event => ({
           ...event,
-          distance: this.calculateDistance(
+          distance: LocationService.calculateDistance(
             latitude,
             longitude,
             event.latitude || 0,
@@ -173,13 +173,14 @@ export class LocationService {
   /**
    * Calculate distance between two points using Haversine formula
    */
-  private static calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  static calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
     const R = 3959; // Earth's radius in miles
-    const dLat = this.toRadians(lat2 - lat1);
-    const dLng = this.toRadians(lng2 - lng1);
+    const toRad = (deg: number) => deg * (Math.PI / 180);
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
       Math.sin(dLng / 2) * Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
@@ -219,6 +220,79 @@ export class LocationService {
         }
       );
     });
+  }
+
+  /**
+   * Reverse geocode coordinates to get city name
+   * Uses OpenStreetMap Nominatim API (free, no API key required)
+   */
+  static async reverseGeocode(latitude: number, longitude: number): Promise<string | null> {
+    try {
+      // First, try to find the nearest city from our known cities list
+      let nearestCity: { name: string; distance: number } | null = null;
+      const cities = Object.values(this.CITY_COORDINATES);
+      
+      for (const city of cities) {
+        const distance = LocationService.calculateDistance(latitude, longitude, city.lat, city.lng);
+        if (!nearestCity || distance < nearestCity.distance) {
+          nearestCity = {
+            name: city.state ? `${city.name}, ${city.state}` : city.name,
+            distance
+          };
+        }
+      }
+
+      // If we found a city within 25 miles, use it
+      if (nearestCity && nearestCity.distance <= 25) {
+        return nearestCity.name;
+      }
+
+      // Otherwise, try OpenStreetMap Nominatim API
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'Synth-App/1.0' // Required by Nominatim
+          }
+        }
+      );
+
+      if (!response.ok) {
+        console.warn('Reverse geocoding API failed, using nearest city fallback');
+        return nearestCity?.name || null;
+      }
+
+      const data = await response.json();
+      
+      if (data && data.address) {
+        const city = data.address.city || data.address.town || data.address.village || data.address.municipality;
+        const state = data.address.state;
+        
+        if (city) {
+          return state ? `${city}, ${state}` : city;
+        }
+      }
+
+      // Fallback to nearest city if API doesn't return city
+      return nearestCity?.name || null;
+    } catch (error) {
+      console.error('Error in reverse geocoding:', error);
+      // Try to return nearest known city as fallback
+      let nearestCity: { name: string; distance: number } | null = null;
+      const cities = Object.values(this.CITY_COORDINATES);
+      
+      for (const city of cities) {
+        const distance = LocationService.calculateDistance(latitude, longitude, city.lat, city.lng);
+        if (!nearestCity || distance < nearestCity.distance) {
+          nearestCity = {
+            name: city.state ? `${city.name}, ${city.state}` : city.name,
+            distance
+          };
+        }
+      }
+      
+      return nearestCity?.name || null;
+    }
   }
 
   /**

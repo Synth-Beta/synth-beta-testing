@@ -41,6 +41,12 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
   const [artistName, setArtistName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Helper to check if a string is a valid UUID
+  const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  };
   const [selectedEvent, setSelectedEvent] = useState<JamBaseEvent | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   
@@ -69,42 +75,71 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
     return typeof review.rating === 'number' ? review.rating : 0;
   };
 
-  const fetchArtistProfile = async (artistName: string) => {
+  const fetchArtistProfile = async (artistIdOrName: string) => {
     try {
-      // First try to find the artist in the artists table to get UUID/jambase_id
+      let artistUuid: string | null = null;
+      let decodedArtistId = artistIdOrName ? decodeURIComponent(artistIdOrName) : '';
+      
+      // Step 1: Determine if it's a UUID or a name
+      if (artistIdOrName && isValidUUID(artistIdOrName)) {
+        // It's a UUID, use it directly
+        artistUuid = artistIdOrName;
+        
+        // Get artist details
+        const { data: artistData } = await supabase
+          .from('artists')
+          .select('id, name, image_url')
+          .eq('id', artistUuid)
+          .maybeSingle();
+        
+        if (artistData) {
+          setArtistName(artistData.name);
+          if (artistData.image_url) {
+            setArtistImage(artistData.image_url);
+          }
+        }
+      } else {
+        // It's a name, find the artist UUID by name
+        const { data: artistData } = await supabase
+          .from('artists')
+          .select('id, name, image_url')
+          .ilike('name', `%${decodedArtistId}%`)
+          .limit(1)
+          .maybeSingle();
+        
+        if (artistData) {
+          artistUuid = artistData.id;
+          setArtistName(artistData.name);
+          if (artistData.image_url) {
+            setArtistImage(artistData.image_url);
+          }
+        } else {
+          setArtistName(decodedArtistId);
+        }
+      }
+      
+      // Step 2: Query events by artist_id (UUID) if we have one
       let eventIds: { id: string }[] = [];
       
-      // Try to find artist by exact name match first (much faster)
-      const { data: artistDataForEvents } = await supabase
-        .from('artists')
-        .select('id, jambase_artist_id, name, image_url')
-        .ilike('name', artistName)
-        .maybeSingle();
-      
-      if (artistDataForEvents) {
-        // If we found the artist, query events by UUID (artist_id is the FK to artists table after normalization)
+      if (artistUuid) {
+        // Query events by artist_id (UUID join)
         const { data: eventIdsByArtist, error: eventIdsError } = await supabase
           .from('events')
           .select('id')
-          .eq('artist_id', artistDataForEvents.id)
+          .eq('artist_id', artistUuid)
           .limit(1000);
         
         if (!eventIdsError && eventIdsByArtist) {
           eventIds = eventIdsByArtist;
         }
-        
-        // Set artist image if available
-        if (artistDataForEvents.image_url) {
-          setArtistImage(artistDataForEvents.image_url);
-        }
       }
       
-      // Fallback: if no artist found or no events found, try prefix match (faster than %...%)
-      if (eventIds.length === 0) {
+      // Fallback: if no artist UUID found, try name-based search
+      if (eventIds.length === 0 && decodedArtistId) {
         const { data: eventIdsByPrefix, error: eventIdsError } = await supabase
           .from('events')
           .select('id')
-          .ilike('artist_name', `${artistName}%`) // Prefix match is faster than %...%
+          .ilike('artist_name', `${decodedArtistId}%`) // Prefix match is faster than %...%
           .limit(500);
         
         if (!eventIdsError && eventIdsByPrefix) {
@@ -113,11 +148,11 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       }
       
       // Last resort: full wildcard match (slowest, but only if needed)
-      if (eventIds.length === 0) {
+      if (eventIds.length === 0 && decodedArtistId) {
         const { data: eventIdsByWildcard, error: eventIdsError } = await supabase
           .from('events')
           .select('id')
-          .ilike('artist_name', `%${artistName}%`)
+          .ilike('artist_name', `%${decodedArtistId}%`)
           .limit(500);
 
         if (eventIdsError) {
@@ -297,12 +332,12 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
     fetchArtistEvents();
   }, [artistId]);
 
-  // Fetch artist profile when artist name is available
+  // Fetch artist profile when artistId is available
   useEffect(() => {
-    if (artistName) {
-      fetchArtistProfile(artistName);
+    if (artistId) {
+      fetchArtistProfile(artistId);
     }
-  }, [artistName]);
+  }, [artistId]);
 
   // Decode the artist ID (which might be a URL-encoded name)
   const decodedArtistId = artistId ? decodeURIComponent(artistId) : '';
@@ -345,24 +380,22 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       }
       
       // Fetch events from database
-      // If we have a UUID and resolved JamBase ID, try by artist_id first
-      // Otherwise, query by artist_name
+      // Use artist_id (UUID) if we have a UUID, otherwise fall back to name search
       let eventsData: any[] | null = null;
       let eventsError: any = null;
       
-      if (isUUID && jambaseArtistId && jambaseArtistId !== decodedArtistId) {
-        // Try by JamBase artist_id if we have a valid ID (not a name)
+      if (isUUID) {
+        // Query events by artist_id (UUID) - this is the correct column
         const result = await supabase
-        .from('events')
-        .select('*')
-        .eq('artist_id', jambaseArtistId)
-        .not('artist_id', 'is', null)
-        .order('event_date', { ascending: true });
+          .from('events')
+          .select('*')
+          .eq('artist_id', decodedArtistId) // Use UUID directly
+          .order('event_date', { ascending: true });
         eventsData = result.data;
         eventsError = result.error;
       }
 
-      // If no events found by artist_id, or if we don't have a valid ID, try by artist_name
+      // If no events found by UUID, or if we don't have a UUID, try by artist_name
       if (!eventsData || eventsData.length === 0) {
         // Use exact match instead of fuzzy match to avoid showing similar artists
         const { data: nameSearchData, error: nameSearchError } = await supabase

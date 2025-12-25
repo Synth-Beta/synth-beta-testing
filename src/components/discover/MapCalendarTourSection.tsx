@@ -1,40 +1,47 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, Calendar as CalendarIcon, Route, Loader2, Search, X } from 'lucide-react';
-import { EventMap } from '@/components/EventMap';
-import { VenueCard } from '@/components/reviews/VenueCard';
-import { LocationService } from '@/services/locationService';
+import { Calendar as CalendarIcon, Route, Loader2, Trophy, Music, MapPin, X } from 'lucide-react';
 import { TourTrackerService, type TourEvent, type ArtistGroupChat } from '@/services/tourTrackerService';
 import { ArtistSearchBox } from '@/components/ArtistSearchBox';
 import type { Artist } from '@/types/concertSearch';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
-import { Icon } from 'leaflet';
+import { Icon, divIcon, latLngBounds } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, getDaysInMonth } from 'date-fns';
+import { format } from 'date-fns';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { supabase } from '@/integrations/supabase/client';
 import type { VibeFilters } from '@/services/discoverVibeService';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
+import { LocationService } from '@/services/locationService';
 
-// Fix for default markers
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-const eventIcon = new Icon({
-  iconUrl: markerIcon,
-  iconRetinaUrl: markerIcon2x,
-  shadowUrl: markerShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+// Create numbered marker icon factory
+const createNumberedIcon = (number: number) => {
+  return divIcon({
+    className: 'numbered-marker',
+    html: `<div style="
+      background-color: #ec4899;
+      color: white;
+      border: 2px solid white;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    ">${number}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+};
 
 interface MapCalendarTourSectionProps {
   currentUserId: string;
@@ -43,12 +50,30 @@ interface MapCalendarTourSectionProps {
   onNavigateToChat?: (userId: string) => void;
 }
 
-// Map Updater component
+// Map Updater component for center/zoom
 const MapUpdater = ({ center, zoom }: { center: [number, number]; zoom: number }) => {
   const map = useMap();
   useEffect(() => {
     map.setView(center, zoom);
   }, [map, center, zoom]);
+  return null;
+};
+
+// Map Bounds Fitter component
+const MapBoundsFitter = ({ events }: { events: TourEvent[] }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (events.length === 0) return;
+    
+    const bounds = latLngBounds(
+      events.map(event => [event.latitude, event.longitude] as [number, number])
+    );
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [map, events]);
+  
   return null;
 };
 
@@ -58,21 +83,13 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
   onNavigateToProfile,
   onNavigateToChat,
 }) => {
-  const [activeTab, setActiveTab] = useState<'map' | 'calendar' | 'tour'>('map');
-  
-  // Map view state
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [mapEvents, setMapEvents] = useState<JamBaseEvent[]>([]);
-  const [selectedVenue, setSelectedVenue] = useState<{ id: string; name: string; lat: number; lng: number } | null>(null);
-  const [mapLoading, setMapLoading] = useState(false);
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'calendar' | 'leaderboards' | 'tour'>('calendar');
   
   // Calendar view state
-  const [calendarDate, setCalendarDate] = useState<Date>(() => {
-    // Initialize to filtered date range start if available, otherwise current date
-    return filters?.dateRange?.from || new Date();
-  });
+  const [calendarDate, setCalendarDate] = useState<Date>(new Date());
   const [calendarEvents, setCalendarEvents] = useState<Map<string, JamBaseEvent[]>>(new Map());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDateRange, setSelectedDateRange] = useState<{ from?: Date; to?: Date } | null>(null);
   const [selectedDateEvents, setSelectedDateEvents] = useState<JamBaseEvent[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
   
@@ -84,108 +101,31 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
   const [tourLoading, setTourLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<JamBaseEvent | null>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
-  const mapLoadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isLoadingMapRef = useRef(false);
-
-  // Load user location and update when filters change
-  useEffect(() => {
-    const loadLocation = async () => {
-      try {
-        if (filters?.latitude && filters?.longitude) {
-          setUserLocation({ latitude: filters.latitude, longitude: filters.longitude });
-        } else if (!userLocation) {
-          const location = await LocationService.getCurrentLocation();
-          setUserLocation(location);
-        }
-      } catch (error) {
-        console.error('Error loading location:', error);
-      }
-    };
-    loadLocation();
-  }, [filters?.latitude, filters?.longitude]);
-
-  const loadMapEvents = useCallback(async () => {
-    if (isLoadingMapRef.current) return; // Prevent concurrent calls
-    
-    const location = userLocation || (filters?.latitude && filters?.longitude ? { latitude: filters.latitude, longitude: filters.longitude } : null);
-    if (!location) return;
-    
-    isLoadingMapRef.current = true;
-    setMapLoading(true);
-    try {
-      const events = await LocationService.searchEventsByLocation({
-        latitude: location.latitude,
-        longitude: location.longitude,
-        radius: filters?.radiusMiles || 30,
-        limit: 100,
-        startDate: filters?.dateRange?.from?.toISOString(),
-        endDate: filters?.dateRange?.to?.toISOString(),
-      });
-      setMapEvents(events as JamBaseEvent[]);
-    } catch (error) {
-      console.error('Error loading map events:', error);
-    } finally {
-      setMapLoading(false);
-      isLoadingMapRef.current = false;
-    }
-  }, [userLocation, filters?.latitude, filters?.longitude, filters?.radiusMiles, filters?.dateRange?.from, filters?.dateRange?.to]);
-
-  // Load map events with debouncing when location filter changes
-  useEffect(() => {
-    if (activeTab !== 'map') return;
-    
-    // Clear any pending timeout
-    if (mapLoadTimeoutRef.current) {
-      clearTimeout(mapLoadTimeoutRef.current);
-    }
-    
-    // Debounce the map loading
-    mapLoadTimeoutRef.current = setTimeout(() => {
-      if (userLocation || (filters?.latitude && filters?.longitude)) {
-        loadMapEvents();
-      }
-    }, 300); // 300ms debounce
-    
-    return () => {
-      if (mapLoadTimeoutRef.current) {
-        clearTimeout(mapLoadTimeoutRef.current);
-      }
-    };
-  }, [activeTab, userLocation?.latitude, userLocation?.longitude, filters?.latitude, filters?.longitude, filters?.radiusMiles, filters?.dateRange?.from?.getTime(), filters?.dateRange?.to?.getTime(), loadMapEvents]);
 
   // Load calendar events
   useEffect(() => {
     if (activeTab === 'calendar') {
       loadCalendarEvents();
     }
-  }, [activeTab, calendarDate, filters]);
+  }, [activeTab, filters?.latitude, filters?.longitude, filters?.radiusMiles, filters?.cities]);
 
   const loadCalendarEvents = async () => {
     setCalendarLoading(true);
     try {
-      const start = startOfMonth(calendarDate);
-      const end = endOfMonth(calendarDate);
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Start of today
       
+      console.log('📅 [CALENDAR] Loading all upcoming events');
+      
+      // Start with upcoming events only
       let query = supabase
         .from('events')
         .select('*')
-        .gte('event_date', start.toISOString())
-        .lte('event_date', end.toISOString());
+        .gte('event_date', now.toISOString());
 
-      // Apply filters
-      if (filters?.dateRange?.from) {
-        query = query.gte('event_date', filters.dateRange.from.toISOString());
-      }
-      if (filters?.dateRange?.to) {
-        query = query.lte('event_date', filters.dateRange.to.toISOString());
-      }
-      if (filters?.genres && filters.genres.length > 0) {
-        query = query.overlaps('genres', filters.genres);
-      }
-      if (filters?.cities && filters.cities.length > 0) {
-        query = query.in('venue_city', filters.cities);
-      }
+      // Apply location filters - prioritize coordinate-based radius over city names
       if (filters?.latitude && filters?.longitude && filters?.radiusMiles) {
+        // Use bounding box for efficient pre-filtering
         const latDelta = filters.radiusMiles / 69;
         const lngDelta = filters.radiusMiles / (69 * Math.cos(filters.latitude * Math.PI / 180));
         query = query
@@ -195,15 +135,48 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
           .lte('latitude', filters.latitude + latDelta)
           .gte('longitude', filters.longitude - lngDelta)
           .lte('longitude', filters.longitude + lngDelta);
+        console.log(`📅 [CALENDAR] Applied location filter: (${filters.latitude}, ${filters.longitude}) within ${filters.radiusMiles} miles`);
+      } else if (filters?.cities && filters.cities.length > 0) {
+        // Fallback to city name filtering if no coordinates
+        query = query.in('venue_city', filters.cities);
+        console.log('📅 [CALENDAR] Applied city filters:', filters.cities);
       }
 
-      const { data, error } = await query.order('event_date', { ascending: true });
+      // Apply genre filters if present
+      if (filters?.genres && filters.genres.length > 0) {
+        query = query.overlaps('genres', filters.genres);
+        console.log('📅 [CALENDAR] Applied genre filters:', filters.genres);
+      }
+
+      // Add limit to prevent timeouts - 10000 events should be enough for most use cases
+      const { data, error } = await query
+        .order('event_date', { ascending: true })
+        .limit(10000);
 
       if (error) throw error;
 
+      // Filter by exact distance if location filter was applied (bounding box is approximate)
+      let filteredEvents = (data || []) as JamBaseEvent[];
+      if (filters?.latitude && filters?.longitude && filters?.radiusMiles) {
+        const beforeDistanceFilter = filteredEvents.length;
+        filteredEvents = filteredEvents.filter((event: any) => {
+          if (!event.latitude || !event.longitude) return false;
+          const distance = LocationService.calculateDistance(
+            filters.latitude!,
+            filters.longitude!,
+            Number(event.latitude),
+            Number(event.longitude)
+          );
+          return distance <= filters.radiusMiles!;
+        });
+        console.log(`📅 [CALENDAR] Applied exact distance filter: ${beforeDistanceFilter} -> ${filteredEvents.length} events`);
+      }
+
+      console.log(`📅 [CALENDAR] Final count: ${filteredEvents.length} events`);
+
       // Group events by date
       const eventsByDate = new Map<string, JamBaseEvent[]>();
-      (data || []).forEach((event: any) => {
+      filteredEvents.forEach((event: any) => {
         const eventDate = new Date(event.event_date);
         const dateKey = format(eventDate, 'yyyy-MM-dd');
         if (!eventsByDate.has(dateKey)) {
@@ -212,6 +185,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         eventsByDate.get(dateKey)!.push(event as JamBaseEvent);
       });
 
+      console.log(`📅 [CALENDAR] Grouped events into ${eventsByDate.size} unique dates`);
       setCalendarEvents(eventsByDate);
     } catch (error) {
       console.error('Error loading calendar events:', error);
@@ -228,16 +202,17 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
   }, [activeTab, selectedArtist]);
 
   const loadTourData = async () => {
-    if (!selectedArtist) return;
+    if (!selectedArtist || !selectedArtist.id) return;
     setTourLoading(true);
     try {
-      const events = await TourTrackerService.getArtistTourEvents(selectedArtist.name);
+      // Use artist UUID (id) instead of name for precise filtering
+      const events = await TourTrackerService.getArtistTourEvents(selectedArtist.id);
       setTourEvents(events);
       
       const route = TourTrackerService.calculateTourRoute(events);
       setTourRoute(route.route);
       
-      const chats = await TourTrackerService.getArtistGroupChats(selectedArtist.name, currentUserId);
+      const chats = await TourTrackerService.getArtistGroupChats(selectedArtist.id, currentUserId);
       setGroupChats(chats);
     } catch (error) {
       console.error('Error loading tour data:', error);
@@ -246,17 +221,46 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
     }
   };
 
-  const handleVenueClick = (venueId: string, venueName: string, latitude: number, longitude: number) => {
-    setSelectedVenue({ id: venueId, name: venueName, lat: latitude, lng: longitude });
+  const handleDateRangeSelect = (range: { from?: Date; to?: Date } | undefined) => {
+    if (!range) {
+      setSelectedDateRange(null);
+      setSelectedDateEvents([]);
+      return;
+    }
+    setSelectedDateRange(range);
   };
 
-  const handleDateSelect = (date: Date | undefined) => {
-    if (!date) return;
-    setSelectedDate(date);
-    const dateKey = format(date, 'yyyy-MM-dd');
-    const events = calendarEvents.get(dateKey) || [];
+  // Update selected date events when calendar events or date range changes
+  useEffect(() => {
+    if (!selectedDateRange?.from && !selectedDateRange?.to) {
+      setSelectedDateEvents([]);
+      return;
+    }
+
+    const events: JamBaseEvent[] = [];
+    calendarEvents.forEach((dateEvents, dateKey) => {
+      const date = new Date(dateKey);
+      date.setHours(0, 0, 0, 0);
+      
+      if (selectedDateRange.from) {
+        const fromDate = new Date(selectedDateRange.from);
+        fromDate.setHours(0, 0, 0, 0);
+        if (date < fromDate) return;
+      }
+      
+      if (selectedDateRange.to) {
+        const toDate = new Date(selectedDateRange.to);
+        toDate.setHours(23, 59, 59, 999);
+        if (date > toDate) return;
+      }
+      
+      events.push(...dateEvents);
+    });
+    
+    // Sort by date
+    events.sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
     setSelectedDateEvents(events);
-  };
+  }, [calendarEvents, selectedDateRange]);
 
   const getEventsForDate = (date: Date): JamBaseEvent[] => {
     const dateKey = format(date, 'yyyy-MM-dd');
@@ -268,7 +272,126 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
     setEventDetailsOpen(true);
   };
 
-  // Calculate map center and bounds for tour
+  // Get sorted events for display (sorted by date)
+  const sortedTourEvents = tourEvents.length > 0 
+    ? [...tourEvents].sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
+    : [];
+
+  // Group events by venue and assign sequential numbers
+  // Each unique venue (by name + city) gets a number when it first appears
+  // If the same venue appears again later, it gets a new number (different stop on tour)
+  interface VenueGroup {
+    venueKey: string; // venue_name + venue_city for grouping
+    venueName: string;
+    venueCity: string;
+    venueState?: string;
+    latitude: number;
+    longitude: number;
+    number: number; // Sequential number for this venue stop
+    events: TourEvent[]; // All events at this venue in this grouping
+    firstEventDate: Date; // Date of first event at this venue
+  }
+
+  const getVenueKey = (event: TourEvent): string => {
+    // Use venue name + city to identify unique venues
+    return `${event.venue_name || ''}|${event.venue_city || ''}|${event.venue_state || ''}`.toLowerCase();
+  };
+
+  const groupedVenues = React.useMemo(() => {
+    if (sortedTourEvents.length === 0) return [];
+
+    const venueGroups: VenueGroup[] = [];
+    const seenVenueKeys = new Set<string>();
+    let currentNumber = 1;
+
+    // Process events in chronological order
+    for (const event of sortedTourEvents) {
+      const venueKey = getVenueKey(event);
+      
+      // Check if this is a new venue (not seen before)
+      // OR if it's a venue we've seen before but after visiting other venues
+      const lastSeenIndex = venueGroups.findIndex(g => g.venueKey === venueKey);
+      
+      if (lastSeenIndex === -1) {
+        // New venue - create new group
+        venueGroups.push({
+          venueKey,
+          venueName: event.venue_name || 'Unknown Venue',
+          venueCity: event.venue_city || '',
+          venueState: event.venue_state,
+          latitude: event.latitude,
+          longitude: event.longitude,
+          number: currentNumber++,
+          events: [event],
+          firstEventDate: new Date(event.event_date),
+        });
+        seenVenueKeys.add(venueKey);
+      } else {
+        // Venue we've seen before - check if it's the last venue in the list
+        // (meaning consecutive events at same venue) or a return visit
+        const lastGroup = venueGroups[venueGroups.length - 1];
+        if (lastGroup.venueKey === venueKey) {
+          // Consecutive events at same venue - add to existing group
+          lastGroup.events.push(event);
+        } else {
+          // Return visit to a previous venue - create new group with new number
+          venueGroups.push({
+            venueKey,
+            venueName: event.venue_name || 'Unknown Venue',
+            venueCity: event.venue_city || '',
+            venueState: event.venue_state,
+            latitude: event.latitude,
+            longitude: event.longitude,
+            number: currentNumber++,
+            events: [event],
+            firstEventDate: new Date(event.event_date),
+          });
+        }
+      }
+    }
+
+    return venueGroups;
+  }, [sortedTourEvents]);
+
+  // Create a map from event ID to venue group number for display
+  const eventToVenueNumber = React.useMemo(() => {
+    const map = new Map<string, number>();
+    groupedVenues.forEach(group => {
+      group.events.forEach(event => {
+        map.set(event.id, group.number);
+      });
+    });
+    return map;
+  }, [groupedVenues]);
+
+  // Calculate route based on grouped venues instead of individual events
+  const groupedVenueRoute = React.useMemo(() => {
+    if (groupedVenues.length < 2) return [];
+    
+    const route: Array<{ from: { lat: number; lng: number; city: string }; to: { lat: number; lng: number; city: string } }> = [];
+    
+    for (let i = 0; i < groupedVenues.length - 1; i++) {
+      const from = groupedVenues[i];
+      const to = groupedVenues[i + 1];
+      
+      route.push({
+        from: {
+          lat: from.latitude,
+          lng: from.longitude,
+          city: `${from.venueCity}${from.venueState ? `, ${from.venueState}` : ''}`,
+        },
+        to: {
+          lat: to.latitude,
+          lng: to.longitude,
+          city: `${to.venueCity}${to.venueState ? `, ${to.venueState}` : ''}`,
+        },
+      });
+    }
+    
+    return route;
+  }, [groupedVenues]);
+
+  // Calculate map center for initial load (will be overridden by fitBounds)
   const getTourMapCenter = (): [number, number] => {
     if (tourEvents.length === 0) return [39.8283, -98.5795]; // Default center
     const avgLat = tourEvents.reduce((sum, e) => sum + e.latitude, 0) / tourEvents.length;
@@ -282,65 +405,26 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         <div>
           <h2 className="text-xl font-bold">Discover Events</h2>
           <p className="text-sm text-muted-foreground">
-            Discover events by location, date, or artist tour
+            Discover events by date, leaderboards, or artist tour
           </p>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="map" className="flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
-            Map
-          </TabsTrigger>
           <TabsTrigger value="calendar" className="flex items-center gap-2">
             <CalendarIcon className="w-4 h-4" />
             Calendar
+          </TabsTrigger>
+          <TabsTrigger value="leaderboards" className="flex items-center gap-2">
+            <Trophy className="w-4 h-4" />
+            Leaderboards
           </TabsTrigger>
           <TabsTrigger value="tour" className="flex items-center gap-2">
             <Route className="w-4 h-4" />
             Tour Tracker
           </TabsTrigger>
         </TabsList>
-
-        {/* Map View */}
-        <TabsContent value="map" className="mt-4">
-          {mapLoading ? (
-            <div className="flex items-center justify-center h-96">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (userLocation || (filters?.latitude && filters?.longitude)) ? (
-            <div className="space-y-4">
-              <div className="h-96 rounded-lg overflow-hidden border">
-                <EventMap
-                  center={[
-                    filters?.latitude || userLocation?.latitude || 39.8283,
-                    filters?.longitude || userLocation?.longitude || -98.5795
-                  ]}
-                  zoom={filters?.radiusMiles ? Math.max(9, 13 - Math.floor(filters.radiusMiles / 10)) : 11}
-                  events={mapEvents as any}
-                  onEventClick={handleEventClick}
-                  showRadius={true}
-                  radiusMiles={filters?.radiusMiles || 30}
-                  onVenueClick={handleVenueClick}
-                />
-              </div>
-              {selectedVenue && (
-                <div className="mt-4">
-                  <VenueCard
-                    venueId={selectedVenue.id}
-                    venueName={selectedVenue.name}
-                    onClose={() => setSelectedVenue(null)}
-                  />
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>Loading location...</p>
-            </div>
-          )}
-        </TabsContent>
 
         {/* Calendar View */}
         <TabsContent value="calendar" className="mt-4">
@@ -350,24 +434,44 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
             </div>
           ) : (
             <div className="space-y-4 flex flex-col items-center">
-              <div className="w-full max-w-sm">
+              <div className="w-full max-w-2xl">
                 <Calendar
-                  mode="single"
-                  selected={selectedDate || undefined}
-                  onSelect={handleDateSelect}
+                  mode="range"
+                  selected={
+                    selectedDateRange?.from 
+                      ? { 
+                          from: selectedDateRange.from, 
+                          to: selectedDateRange.to || selectedDateRange.from 
+                        } 
+                      : undefined
+                  }
+                  onSelect={(range) => {
+                    if (range?.from) {
+                      // If selecting the same date twice, treat as single day
+                      if (range.to && range.from.getTime() === range.to.getTime()) {
+                        const sameDay = new Date(range.from);
+                        sameDay.setHours(0, 0, 0, 0);
+                        const endOfDay = new Date(range.from);
+                        endOfDay.setHours(23, 59, 59, 999);
+                        handleDateRangeSelect({ from: sameDay, to: endOfDay });
+                      } else {
+                        handleDateRangeSelect(range);
+                      }
+                    } else if (range === null || range === undefined) {
+                      handleDateRangeSelect(null);
+                    }
+                  }}
                   month={calendarDate}
                   onMonthChange={setCalendarDate}
                   className="rounded-md border mx-auto"
-                  numberOfMonths={1}
+                  numberOfMonths={2}
                   disabled={(date) => {
-                    // If date filter is applied, disable dates outside the range
-                    if (filters?.dateRange?.from && date < filters.dateRange.from) {
-                      return true;
-                    }
-                    if (filters?.dateRange?.to && date > filters.dateRange.to) {
-                      return true;
-                    }
-                    return false;
+                    // Disable dates before today
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const dateToCheck = new Date(date);
+                    dateToCheck.setHours(0, 0, 0, 0);
+                    return dateToCheck < today;
                   }}
                   modifiers={{
                     hasEvents: (date) => getEventsForDate(date).length > 0,
@@ -377,12 +481,22 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                   }}
                 />
               </div>
-              {selectedDate && selectedDateEvents.length > 0 && (
-                <div className="mt-4 space-y-2">
+              {selectedDateRange && selectedDateEvents.length > 0 && (
+                <div className="mt-4 space-y-2 w-full max-w-2xl">
                   <h3 className="font-semibold">
-                    Events on {format(selectedDate, 'MMMM d, yyyy')}
+                    {selectedDateRange.from && selectedDateRange.to && 
+                     selectedDateRange.from.getTime() === selectedDateRange.to.getTime() ? (
+                      <>Events on {format(selectedDateRange.from, 'MMMM d, yyyy')}</>
+                    ) : (
+                      <>
+                        Events from {format(selectedDateRange.from || new Date(), 'MMMM d, yyyy')}
+                        {selectedDateRange.to && selectedDateRange.to.getTime() !== selectedDateRange.from?.getTime() && (
+                          <> to {format(selectedDateRange.to, 'MMMM d, yyyy')}</>
+                        )}
+                      </>
+                    )}
                   </h3>
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
                     {selectedDateEvents.map((event) => (
                       <Card key={event.id} className="cursor-pointer hover:shadow-md" onClick={() => handleEventClick(event)}>
                         <CardContent className="p-4">
@@ -391,7 +505,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                               <h4 className="font-semibold">{event.title}</h4>
                               <p className="text-sm text-muted-foreground">{event.venue_name}</p>
                               <p className="text-xs text-muted-foreground mt-1">
-                                {format(new Date(event.event_date), 'h:mm a')}
+                                {format(new Date(event.event_date), 'MMMM d, yyyy • h:mm a')}
                               </p>
                             </div>
                           </div>
@@ -401,8 +515,26 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                   </div>
                 </div>
               )}
+              {selectedDateRange && selectedDateEvents.length === 0 && !calendarLoading && (
+                <div className="mt-4 text-center text-muted-foreground">
+                  <p>No events found for the selected date range.</p>
+                </div>
+              )}
             </div>
           )}
+        </TabsContent>
+
+        {/* Leaderboards View */}
+        <TabsContent value="leaderboards" className="mt-4">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center space-y-2">
+              <Trophy className="w-12 h-12 mx-auto text-muted-foreground" />
+              <h3 className="text-lg font-semibold">Coming Soon</h3>
+              <p className="text-sm text-muted-foreground">
+                Leaderboards are still in development
+              </p>
+            </div>
+          </div>
         </TabsContent>
 
         {/* Tour Tracker View */}
@@ -416,52 +548,243 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
               />
             </div>
 
+            {/* Artist Banner */}
+            {selectedArtist && (
+              <Card 
+                className="overflow-hidden border-2 border-synth-pink/20 shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
+                onClick={() => {
+                  // Navigate to artist profile page using UUID or encoded name
+                  const artistId = selectedArtist.id || encodeURIComponent(selectedArtist.name);
+                  navigate(`/artist/${artistId}`);
+                }}
+              >
+                <div 
+                  className="relative p-6"
+                  style={{
+                    background: `linear-gradient(135deg, rgba(255, 51, 153, 0.1) 0%, rgba(255, 51, 153, 0.05) 100%)`,
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    {/* Artist Image */}
+                    <div className="flex-shrink-0">
+                      {selectedArtist.image_url ? (
+                        <img
+                          src={selectedArtist.image_url}
+                          alt={selectedArtist.name}
+                          className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            target.nextElementSibling?.classList.remove('hidden');
+                          }}
+                        />
+                      ) : null}
+                      {!selectedArtist.image_url && (
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-synth-pink to-purple-500 flex items-center justify-center border-4 border-white shadow-lg">
+                          <Music className="w-12 h-12 text-white" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Artist Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <h2 className="text-2xl font-bold text-foreground mb-2 truncate">
+                            {selectedArtist.name}
+                          </h2>
+                          
+                          {/* Stats */}
+                          <div className="flex items-center gap-4 flex-wrap">
+                            {tourEvents.length > 0 && (
+                              <div className="flex items-center gap-2">
+                                <CalendarIcon className="w-4 h-4 text-synth-pink" />
+                                <span className="text-sm font-medium text-foreground">
+                                  {tourEvents.length} {tourEvents.length === 1 ? 'Tour Date' : 'Tour Dates'}
+                                </span>
+                              </div>
+                            )}
+                            {selectedArtist.genres && selectedArtist.genres.length > 0 && (
+                              <div className="flex items-center gap-2">
+                                <Music className="w-4 h-4 text-synth-pink" />
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {selectedArtist.genres.slice(0, 3).map((genre, idx) => (
+                                    <Badge 
+                                      key={idx} 
+                                      variant="secondary" 
+                                      className="text-xs bg-white/80 text-foreground border-synth-pink/20"
+                                    >
+                                      {genre}
+                                    </Badge>
+                                  ))}
+                                  {selectedArtist.genres.length > 3 && (
+                                    <span className="text-xs text-muted-foreground">
+                                      +{selectedArtist.genres.length - 3} more
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Clear Button */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent navigation when clicking clear button
+                            setSelectedArtist(null);
+                            setTourEvents([]);
+                            setTourRoute([]);
+                            setGroupChats([]);
+                          }}
+                          className="flex-shrink-0 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             {tourLoading ? (
               <div className="flex items-center justify-center h-96">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
             ) : selectedArtist && tourEvents.length > 0 ? (
               <>
-                <div className="h-96 rounded-lg overflow-hidden border">
+                <div className="h-96 rounded-lg overflow-hidden border relative z-0">
                   <MapContainer
                     center={getTourMapCenter()}
                     zoom={5}
-                    style={{ height: '100%', width: '100%' }}
+                    style={{ height: '100%', width: '100%', zIndex: 0 }}
+                    boundsOptions={{ padding: [50, 50] }}
                   >
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
-                    <MapUpdater center={getTourMapCenter()} zoom={5} />
+                    <MapBoundsFitter events={sortedTourEvents} />
                     
-                    {/* Draw route lines */}
-                    {tourRoute.map((segment, idx) => (
-                      <Polyline
-                        key={idx}
-                        positions={[
-                          [segment.from.lat, segment.from.lng],
-                          [segment.to.lat, segment.to.lng],
-                        ]}
-                        pathOptions={{
-                          color: '#ec4899',
-                          weight: 3,
-                          opacity: 0.7,
-                        }}
-                      />
-                    ))}
+                    {/* Draw route lines with arrowheads (based on grouped venues) */}
+                    {groupedVenueRoute.map((segment, idx) => {
+                      const lat1 = segment.from.lat;
+                      const lng1 = segment.from.lng;
+                      const lat2 = segment.to.lat;
+                      const lng2 = segment.to.lng;
+                      
+                      // Direction vector
+                      const dLat = lat2 - lat1;
+                      const dLng = lng2 - lng1;
+                      
+                      // Arrowhead position (85% along the line)
+                      const arrowLat = lat1 + dLat * 0.85;
+                      const arrowLng = lng1 + dLng * 0.85;
+                      
+                      // Calculate angle in radians and convert to degrees
+                      const angleRad = Math.atan2(dLat, dLng);
+                      const angleDeg = angleRad * 180 / Math.PI;
+                      
+                      // Create SVG arrowhead with proper rotation
+                      const arrowSvg = `
+                        <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+                          <g transform="translate(10,10) rotate(${angleDeg}) translate(-10,-10)">
+                            <polygon points="10,2 4,16 16,16" fill="#ec4899" stroke="white" stroke-width="1.5"/>
+                          </g>
+                        </svg>
+                      `;
+                      
+                      return (
+                        <React.Fragment key={idx}>
+                          <Polyline
+                            positions={[
+                              [lat1, lng1],
+                              [lat2, lng2],
+                            ]}
+                            pathOptions={{
+                              color: '#ec4899',
+                              weight: 3,
+                              opacity: 0.7,
+                            }}
+                          />
+                          {/* Arrowhead marker */}
+                          <Marker
+                            position={[arrowLat, arrowLng]}
+                            icon={divIcon({
+                              className: 'arrowhead-marker',
+                              html: arrowSvg,
+                              iconSize: [20, 20],
+                              iconAnchor: [10, 10],
+                            })}
+                          />
+                        </React.Fragment>
+                      );
+                    })}
                     
-                    {/* Event markers */}
-                    {tourEvents.map((event) => (
+                    {/* Numbered venue markers (one per unique venue group) */}
+                    {groupedVenues.map((venueGroup) => (
                       <Marker
-                        key={event.id}
-                        position={[event.latitude, event.longitude]}
-                        icon={eventIcon}
+                        key={`${venueGroup.venueKey}-${venueGroup.number}`}
+                        position={[venueGroup.latitude, venueGroup.longitude]}
+                        icon={createNumberedIcon(venueGroup.number)}
                         eventHandlers={{
-                          click: () => handleEventClick(event),
+                          click: () => {
+                            // Click first event in this venue group
+                            if (venueGroup.events.length > 0) {
+                              handleEventClick(venueGroup.events[0]);
+                            }
+                          },
                         }}
                       />
                     ))}
                   </MapContainer>
+                </div>
+
+                {/* Events Feed */}
+                <div className="mt-4">
+                  <h3 className="font-semibold mb-3">Tour Dates ({sortedTourEvents.length})</h3>
+                  <div className="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto">
+                    {sortedTourEvents.map((event) => {
+                      const venueNumber = eventToVenueNumber.get(event.id) || 0;
+                      const venueGroup = groupedVenues.find(g => g.events.some(e => e.id === event.id));
+                      const isFirstEventAtVenue = venueGroup?.events[0]?.id === event.id;
+                      
+                      return (
+                        <Card key={event.id} className="cursor-pointer hover:shadow-md" onClick={() => handleEventClick(event)}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                              {isFirstEventAtVenue && (
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-synth-pink text-white flex items-center justify-center font-bold text-sm">
+                                  {venueNumber}
+                                </div>
+                              )}
+                              {!isFirstEventAtVenue && (
+                                <div className="flex-shrink-0 w-8 h-8" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold">{event.title}</h4>
+                                <p className="text-sm text-muted-foreground">{event.venue_name}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {event.venue_city}{event.venue_state ? `, ${event.venue_state}` : ''}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {format(new Date(event.event_date), 'MMMM d, yyyy • h:mm a')}
+                                </p>
+                                {venueGroup && venueGroup.events.length > 1 && isFirstEventAtVenue && (
+                                  <p className="text-xs text-muted-foreground mt-1 italic">
+                                    {venueGroup.events.length} {venueGroup.events.length === 1 ? 'show' : 'shows'} at this venue
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Group Chats */}

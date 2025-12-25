@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Sparkles, X, Calendar as CalendarIcon, MapPin, Music } from 'lucide-react';
-import { Calendar } from '@/components/ui/calendar';
+import { Sparkles, MapPin, X, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
-import { format } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import { RedesignedSearchPage } from '@/components/search/RedesignedSearchPage';
 import { VibeSelectorModal } from './VibeSelectorModal';
 import { DiscoverResultsView } from './DiscoverResultsView';
@@ -16,12 +15,6 @@ import { LocationService } from '@/services/locationService';
 import { supabase } from '@/integrations/supabase/client';
 import type { VibeType } from '@/services/discoverVibeService';
 import type { VibeFilters } from '@/services/discoverVibeService';
-
-const COMMON_GENRES = [
-  'Rock', 'Pop', 'Hip-Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 
-  'R&B', 'Reggae', 'Folk', 'Blues', 'Alternative', 'Indie', 'Punk',
-  'Metal', 'Funk', 'Soul', 'Gospel', 'Latin', 'World'
-];
 
 interface DiscoverViewProps {
   currentUserId: string;
@@ -40,24 +33,20 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   onNavigateToChat,
   onViewChange,
 }) => {
+  const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [vibeModalOpen, setVibeModalOpen] = useState(false);
   const [selectedVibe, setSelectedVibe] = useState<VibeType | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   
-  // Filter state
+  // Filter state - only location with coordinates
   const [filters, setFilters] = useState<VibeFilters>({
-    dateRange: undefined,
-    genres: [],
-    cities: [],
-    radiusMiles: 25,
+    radiusMiles: 30,
   });
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [genresOpen, setGenresOpen] = useState(false);
-  const [locationsOpen, setLocationsOpen] = useState(false);
-  const [tempSelectedCities, setTempSelectedCities] = useState<string[]>([]);
-  const [citiesData, setCitiesData] = useState<Array<{ city: string; state: string; eventCount: number }>>([]);
-  const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const [locationPopoverOpen, setLocationPopoverOpen] = useState(false);
+  const [customCityInput, setCustomCityInput] = useState('');
+  const [selectedLocationName, setSelectedLocationName] = useState<string>('');
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Detect mobile
@@ -97,6 +86,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           longitude: location.longitude,
           radiusMiles: 30,
         }));
+        setSelectedLocationName(userProfile.location_city || 'Current Location');
       } else {
         // Fallback to browser geolocation
         try {
@@ -108,6 +98,18 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             longitude: currentLocation.longitude,
             radiusMiles: 30,
           }));
+          
+          // Get city name from coordinates
+          try {
+            const cityName = await LocationService.reverseGeocode(
+              currentLocation.latitude,
+              currentLocation.longitude
+            );
+            setSelectedLocationName(cityName || 'Current Location');
+          } catch (geoError) {
+            console.error('Error reverse geocoding:', geoError);
+            setSelectedLocationName('Current Location');
+          }
         } catch (geoError) {
           console.error('Error getting current location:', geoError);
         }
@@ -124,58 +126,23 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           longitude: currentLocation.longitude,
           radiusMiles: 30,
         }));
+        
+        // Get city name from coordinates
+        try {
+          const cityName = await LocationService.reverseGeocode(
+            currentLocation.latitude,
+            currentLocation.longitude
+          );
+          setSelectedLocationName(cityName || 'Current Location');
+        } catch (geoError) {
+          console.error('Error reverse geocoding:', geoError);
+          setSelectedLocationName('Current Location');
+        }
       } catch (geoError) {
         console.error('Error getting current location:', geoError);
       }
     }
   };
-
-  // Load cities data
-  useEffect(() => {
-    if (locationsOpen) {
-      loadCities();
-    }
-  }, [locationsOpen]);
-
-  const loadCities = async () => {
-    setIsLoadingCities(true);
-    try {
-      const { data } = await supabase
-        .from('events')
-        .select('venue_city, venue_state')
-        .gte('event_date', new Date().toISOString())
-        .not('venue_city', 'is', null)
-        .limit(1000);
-
-      const cityMap = new Map<string, { city: string; state: string; eventCount: number }>();
-      (data || []).forEach((event: any) => {
-        if (event.venue_city) {
-          const key = `${event.venue_city}, ${event.venue_state || ''}`.trim();
-          const existing = cityMap.get(key);
-          if (existing) {
-            existing.eventCount += 1;
-          } else {
-            cityMap.set(key, {
-              city: event.venue_city,
-              state: event.venue_state || '',
-              eventCount: 1,
-            });
-          }
-        }
-      });
-
-      setCitiesData(
-        Array.from(cityMap.values())
-          .sort((a, b) => b.eventCount - a.eventCount)
-          .slice(0, 50)
-      );
-    } catch (error) {
-      console.error('Error loading cities:', error);
-    } finally {
-      setIsLoadingCities(false);
-    }
-  };
-
 
   const handleSelectVibe = (vibeType: VibeType) => {
     setSelectedVibe(vibeType);
@@ -185,55 +152,77 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     setSelectedVibe(null);
   };
 
-  const handleGenreToggle = (genre: string) => {
-    const newGenres = filters.genres?.includes(genre)
-      ? filters.genres.filter(g => g !== genre)
-      : [...(filters.genres || []), genre];
-    
-    setFilters({
-      ...filters,
-      genres: newGenres,
-    });
-  };
-
-  const handleCitiesApply = () => {
-    setFilters({
-      ...filters,
-      cities: tempSelectedCities,
-    });
-    setLocationsOpen(false);
-  };
-
-  const handleCityToggle = (cityKey: string) => {
-    setTempSelectedCities(prev =>
-      prev.includes(cityKey)
-        ? prev.filter(c => c !== cityKey)
-        : [...prev, cityKey]
-    );
-  };
-
-  const clearFilters = () => {
-    const newFilters: VibeFilters = {
-      dateRange: undefined,
-      genres: [],
-      cities: [],
-      radiusMiles: 30,
-    };
-    // Keep location if available
-    if (userLocation) {
-      newFilters.latitude = userLocation.latitude;
-      newFilters.longitude = userLocation.longitude;
+  const handleUseCurrentLocation = async () => {
+    setIsLoadingLocation(true);
+    try {
+      const currentLocation = await LocationService.getCurrentLocation();
+      setUserLocation(currentLocation);
+      setFilters({
+        ...filters,
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        radiusMiles: filters.radiusMiles || 30,
+      });
+      
+      // Get city name from coordinates
+      try {
+        const cityName = await LocationService.reverseGeocode(
+          currentLocation.latitude,
+          currentLocation.longitude
+        );
+        setSelectedLocationName(cityName || 'Current Location');
+      } catch (geoError) {
+        console.error('Error reverse geocoding:', geoError);
+        setSelectedLocationName('Current Location');
+      }
+      
+      setLocationPopoverOpen(false);
+    } catch (error) {
+      console.error('Error getting current location:', error);
+      alert('Failed to get your current location. Please try again or enter a city name.');
+    } finally {
+      setIsLoadingLocation(false);
     }
-    setFilters(newFilters);
-    setTempSelectedCities([]);
   };
 
-  const hasActiveFilters = Boolean(
-    filters.dateRange?.from ||
-    filters.dateRange?.to ||
-    (filters.genres && filters.genres.length > 0) ||
-    (filters.cities && filters.cities.length > 0)
-  );
+  const handleCitySearch = () => {
+    const cityName = customCityInput.trim();
+    if (!cityName) return;
+
+    const city = LocationService.searchCity(cityName);
+    if (city) {
+      setFilters({
+        ...filters,
+        latitude: city.lat,
+        longitude: city.lng,
+        radiusMiles: filters.radiusMiles || 30,
+      });
+      setSelectedLocationName(city.state ? `${city.name}, ${city.state}` : city.name);
+      setCustomCityInput('');
+      setLocationPopoverOpen(false);
+    } else {
+      alert(`City "${cityName}" not found. Please try a major city name.`);
+    }
+  };
+
+  const handleRadiusChange = (value: number[]) => {
+    setFilters({
+      ...filters,
+      radiusMiles: value[0],
+    });
+  };
+
+  const handleClearLocation = () => {
+    setFilters({
+      ...filters,
+      latitude: undefined,
+      longitude: undefined,
+      radiusMiles: 30,
+    });
+    setSelectedLocationName('');
+  };
+
+  const hasActiveLocation = Boolean(filters.latitude && filters.longitude);
 
   // If a vibe is selected, show results view
   if (selectedVibe) {
@@ -252,20 +241,32 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   return (
     <div className="min-h-screen bg-[#fcfcfc] pb-[max(2rem,env(safe-area-inset-bottom))]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-6 space-y-2">
-        {/* Search Bar - Integrated Design with Pink Accent */}
+        {/* Search Bar - Always Visible */}
         <div className="mb-2">
-          <button
-            onClick={() => setIsSearchActive(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 bg-synth-pink/5 border border-synth-pink/30 rounded-lg hover:border-synth-pink/60 hover:bg-synth-pink/10 transition-all text-left"
-          >
-            <Search className="h-4 w-4 text-synth-pink" />
-            <span className="text-gray-600 text-xs">Search events, artists, venues</span>
-          </button>
+          <RedesignedSearchPage
+            userId={currentUserId}
+            allowedTabs={['artists', 'venues', 'users', 'events']}
+            showMap={false}
+            layout="compact"
+            mode="embedded"
+            headerTitle=""
+            headerDescription=""
+            showHelperText={false}
+            initialSearchQuery={searchQuery}
+            hideSearchInput={false}
+            showResults={false}
+            onSearchStateChange={({ query, debouncedQuery }) => {
+              setSearchQuery(query);
+              setIsSearchActive(debouncedQuery.trim().length >= 2);
+            }}
+            onNavigateToProfile={onNavigateToProfile}
+            onNavigateToChat={onNavigateToChat}
+          />
         </div>
 
-        {/* Browse Vibes and Filters - One Line */}
+        {/* Browse Vibes and Location Filter - Always Visible (Above Search Results) */}
         <div className="mb-2 flex items-center gap-2 flex-wrap overflow-x-auto">
-          {/* Browse Vibes Button - First */}
+          {/* Browse Vibes Button */}
           <Button
             onClick={() => setVibeModalOpen(true)}
             className="bg-synth-pink hover:bg-synth-pink/90 text-white gap-2 flex-shrink-0"
@@ -275,220 +276,136 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             Browse Vibes
           </Button>
 
-          {/* Date Filter - Icon Only */}
-          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+          {/* Location Filter */}
+          <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="p-2 flex-shrink-0">
-                <CalendarIcon className="h-4 w-4 text-black" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-white" align="start">
-              <Calendar
-                mode="range"
-                selected={{
-                  from: filters.dateRange?.from,
-                  to: filters.dateRange?.to,
-                }}
-                onSelect={(range) => {
-                  setFilters({
-                    ...filters,
-                    dateRange: range,
-                  });
-                  if (range?.from && range?.to) {
-                    setDatePickerOpen(false);
-                  }
-                }}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
-
-          {/* Genre Filter - Icon Only */}
-          <Popover open={genresOpen} onOpenChange={setGenresOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="p-2 relative flex-shrink-0">
-                <Music className="h-4 w-4 text-black" />
-                {filters.genres && filters.genres.length > 0 && (
-                  <Badge variant="secondary" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-xs flex items-center justify-center">
-                    {filters.genres.length}
-                  </Badge>
-                )}
+              <Button variant="outline" size="sm" className="gap-2 flex-shrink-0">
+                <MapPin className="h-4 w-4" />
+                Location
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80 bg-white" align="start">
+              <div className="space-y-4">
+                <div className="font-semibold text-sm">Set Location</div>
+                
+                {/* Current Location Button */}
+                <Button
+                  onClick={handleUseCurrentLocation}
+                  disabled={isLoadingLocation}
+                  variant="outline"
+                  className="w-full"
+                  size="sm"
+                >
+                  {isLoadingLocation ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Getting location...
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="h-4 w-4 mr-2" />
+                      Use Current Location
+                    </>
+                  )}
+                </Button>
+
+                <div className="text-sm text-muted-foreground text-center">or</div>
+
+                {/* City Input */}
               <div className="space-y-2">
-                <div className="font-semibold text-sm mb-2">Select Genres</div>
-                <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-                  {COMMON_GENRES.map((genre) => (
-                    <label
-                      key={genre}
-                      className="flex items-center gap-2 text-sm cursor-pointer p-2 rounded hover:bg-accent"
-                    >
-                      <Checkbox
-                        checked={filters.genres?.includes(genre) || false}
-                        onCheckedChange={() => handleGenreToggle(genre)}
+                  <Input
+                    placeholder="Enter city name (e.g., New York, Los Angeles)"
+                    value={customCityInput}
+                    onChange={(e) => setCustomCityInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleCitySearch();
+                      }
+                    }}
                       />
-                      <span>{genre}</span>
-                    </label>
-                  ))}
+                  <Button
+                    onClick={handleCitySearch}
+                    disabled={!customCityInput.trim()}
+                    className="w-full"
+                    size="sm"
+                  >
+                    Search City
+                  </Button>
                 </div>
-              </div>
-            </PopoverContent>
-          </Popover>
 
-          {/* Location Filter - Icon Only */}
-          <Popover open={locationsOpen} onOpenChange={setLocationsOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="p-2 relative flex-shrink-0">
-                <MapPin className="h-4 w-4 text-black" />
-                {filters.cities && filters.cities.length > 0 && (
-                  <Badge variant="secondary" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-xs flex items-center justify-center">
-                    {filters.cities.length}
-                  </Badge>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 bg-white" align="start">
-              <div className="space-y-2">
-                <div className="font-semibold text-sm mb-2">Select Cities</div>
-                {isLoadingCities ? (
-                  <div className="text-sm text-muted-foreground">Loading cities...</div>
-                ) : (
-                  <div className="max-h-64 overflow-y-auto space-y-1">
-                    {citiesData.map((cityData, index) => {
-                      const cityKey = cityData.state
-                        ? `${cityData.city}, ${cityData.state}`
-                        : cityData.city;
-                      const isChecked = tempSelectedCities.includes(cityKey);
-                      return (
-                        <label
-                          key={`${cityKey}-${index}`}
-                          className="flex items-center gap-2 text-sm cursor-pointer p-2 rounded hover:bg-accent"
-                        >
-                          <Checkbox
-                            checked={isChecked}
-                            onCheckedChange={() => handleCityToggle(cityKey)}
-                          />
-                          <div className="flex-1">
-                            <div className="font-medium">{cityData.city}</div>
-                            {cityData.state && (
-                              <div className="text-xs text-muted-foreground">{cityData.state}</div>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground">{cityData.eventCount}</div>
-                        </label>
-                      );
-                    })}
+                {/* Radius Slider */}
+                {hasActiveLocation && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Radius: {filters.radiusMiles || 30} miles</span>
+                      <span className="text-muted-foreground">Max: 50</span>
+              </div>
+                    <Slider
+                      value={[filters.radiusMiles || 30]}
+                      onValueChange={handleRadiusChange}
+                      min={1}
+                      max={50}
+                      step={1}
+                      className="w-full"
+                    />
                   </div>
                 )}
-                <div className="flex gap-2 pt-2 border-t">
-                  <Button size="sm" onClick={handleCitiesApply} className="flex-1">
-                    Apply
-                  </Button>
+
+                {/* Clear Location */}
+                {hasActiveLocation && (
                   <Button
+                    onClick={handleClearLocation}
+                    variant="ghost"
                     size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setTempSelectedCities([]);
-                      setFilters({ ...filters, cities: [] });
-                    }}
+                    className="w-full"
                   >
-                    Clear
+                    Clear Location
                   </Button>
-                </div>
+                )}
             </div>
             </PopoverContent>
           </Popover>
-
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="p-2 text-muted-foreground hover:text-foreground flex-shrink-0"
-            >
-              <X className="h-4 w-4 text-black" />
-            </Button>
-          )}
             </div>
 
-        {/* Location Filter Indicator */}
-        {filters.latitude && filters.longitude && (
+        {/* Location Indicator Badge */}
+        {hasActiveLocation && (
           <div className="mb-2">
             <Badge variant="secondary" className="gap-1 bg-synth-pink/10 text-synth-pink border-synth-pink/30">
               <MapPin className="h-3 w-3" />
-              Current Location ({filters.radiusMiles || 30} mi radius)
-            </Badge>
-          </div>
-        )}
-
-        {/* Active Filter Badges */}
-        {hasActiveFilters && (
-          <div className="flex items-center gap-2 flex-wrap mb-2">
-            {filters.dateRange?.from && (
-              <Badge variant="secondary" className="gap-1">
-                Date: {format(filters.dateRange.from, 'MMM d')}
-                {filters.dateRange.to && ` - ${format(filters.dateRange.to, 'MMM d')}`}
+              {selectedLocationName || 'Location'} ({filters.radiusMiles || 30} mi radius)
                 <button
-                  onClick={() => setFilters({ ...filters, dateRange: undefined })}
-                  className="ml-1 hover:text-destructive"
+                onClick={handleClearLocation}
+                className="ml-2 hover:text-destructive"
                 >
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
-            )}
-            {filters.genres?.map((genre) => (
-              <Badge key={genre} variant="secondary" className="gap-1">
-                {genre}
-                <button
-                  onClick={() => handleGenreToggle(genre)}
-                  className="ml-1 hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-            {filters.cities?.map((city) => (
-              <Badge key={city} variant="secondary" className="gap-1">
-                {city}
-                <button
-                  onClick={() => {
-                    setFilters({
-                      ...filters,
-                      cities: filters.cities?.filter(c => c !== city),
-                    });
-                  }}
-                  className="ml-1 hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
         </div>
         )}
 
-      {/* Main Content */}
-      {isSearchActive ? (
-          <div className="mb-2">
+        {/* Search Results - Below Filters when searching */}
+        {isSearchActive && (
+          <div className="mt-4">
           <RedesignedSearchPage
             userId={currentUserId}
-            allowedTabs={['all', 'users', 'artists', 'events', 'venues']}
+              allowedTabs={['artists', 'venues', 'users', 'events']}
             showMap={false}
             layout="compact"
             mode="embedded"
             headerTitle=""
             headerDescription=""
             showHelperText={false}
-              initialSearchQuery=""
+              initialSearchQuery={searchQuery}
             hideSearchInput={true}
-            onSearchStateChange={({ debouncedQuery: query }) => {
-              // Search state is already managed by parent
-            }}
+              showResults={true}
             onNavigateToProfile={onNavigateToProfile}
             onNavigateToChat={onNavigateToChat}
           />
         </div>
-      ) : (
+        )}
+
+      {/* Main Content */}
+      {!isSearchActive && (
           <>
             {/* Section 1: Because You Like ___ */}
             <BecauseYouLikeSection
@@ -506,11 +423,13 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           />
 
             {/* Section 3: Scenes & Signals */}
-          <ScenesSection
-            currentUserId={currentUserId}
-            onNavigateToProfile={onNavigateToProfile}
-            onNavigateToChat={onNavigateToChat}
-          />
+            <div className="mt-8">
+              <ScenesSection
+                currentUserId={currentUserId}
+                onNavigateToProfile={onNavigateToProfile}
+                onNavigateToChat={onNavigateToChat}
+              />
+            </div>
           </>
         )}
         </div>

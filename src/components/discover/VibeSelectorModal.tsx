@@ -100,13 +100,6 @@ const VIBES: Vibe[] = [
     icon: Sparkles,
     category: 'discovery',
   },
-  {
-    id: 'first-time-city',
-    title: 'First Time in Your City',
-    description: 'Artists playing your city for the first time',
-    icon: MapPin,
-    category: 'discovery',
-  },
   // By Opinion
   {
     id: 'highest-rated-month',

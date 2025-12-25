@@ -525,8 +525,7 @@ export class UnifiedVenueSearchService {
           name: string;
           identifier: string | null;
           image_url: string | null;
-          address: string | null;
-          city: string | null;
+          street_address: string | null;
           state: string | null;
           zip: string | null;
           country: string | null;
@@ -540,15 +539,15 @@ export class UnifiedVenueSearchService {
       );
 
       // Calculate fuzzy match scores for all venues
-      // Transform flat columns back to JSONB format for consistency
+      // Transform flat columns to JSONB format for consistency with interface
       const scoredVenues = venues.map(venue => ({
         id: venue.jambase_venue_id || venue.id,
         name: venue.name,
         identifier: venue.identifier || '',
         image_url: venue.image_url || undefined,
         address: {
-          streetAddress: venue.address,
-          addressLocality: venue.city,
+          streetAddress: venue.street_address,
+          addressLocality: null, // Not in schema - would need city column if available
           addressRegion: venue.state,
           postalCode: venue.zip,
           addressCountry: venue.country

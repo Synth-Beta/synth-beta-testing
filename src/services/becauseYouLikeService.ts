@@ -172,19 +172,47 @@ export class BecauseYouLikeService {
       }
 
       // Get venues user rated highly (4+ stars) - venue_rating_decimal is in reviews table
-      const { data: venueReviews } = await supabase
+      // Query without join first, then fetch venue names separately to avoid query syntax issues
+      const { data: venueReviews, error: venueReviewsError } = await supabase
         .from('reviews')
-        .select('venue_rating_decimal, events:event_id(venue_name)')
+        .select('venue_rating_decimal, event_id')
         .eq('user_id', userId)
         .eq('is_draft', false)
         .gte('venue_rating_decimal', 4)
         .not('venue_rating_decimal', 'is', null)
         .limit(10);
+      
+      if (venueReviewsError) {
+        console.warn('Error fetching venue reviews:', venueReviewsError);
+        return carousels;
+      }
+      
+      if (!venueReviews || venueReviews.length === 0) {
+        return carousels;
+      }
+      
+      // Fetch venue names for the events
+      const eventIds = venueReviews.map((r: any) => r.event_id).filter(Boolean);
+      const eventMap = new Map<string, string>();
+      
+      if (eventIds.length > 0) {
+        const { data: events } = await supabase
+          .from('events')
+          .select('id, venue_name')
+          .in('id', eventIds);
+        
+        (events || []).forEach((e: any) => {
+          if (e.venue_name) {
+            eventMap.set(e.id, e.venue_name);
+          }
+        });
+      }
 
       const uniqueVenues = new Set<string>();
-      (venueReviews || []).forEach((r: any) => {
-        if (r.events?.venue_name) {
-          uniqueVenues.add(r.events.venue_name);
+      venueReviews.forEach((r: any) => {
+        const venueName = eventMap.get(r.event_id);
+        if (venueName) {
+          uniqueVenues.add(venueName);
         }
       });
 

@@ -153,6 +153,14 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
     venues: false,
   });
   const [errors, setErrors] = useState<Partial<Record<TabKey, string>>>({});
+  const [pagination, setPagination] = useState<Record<TabKey, { page: number; hasMore: boolean }>>({
+    all: { page: 1, hasMore: false },
+    users: { page: 1, hasMore: false },
+    artists: { page: 1, hasMore: false },
+    events: { page: 1, hasMore: false },
+    venues: { page: 1, hasMore: false },
+  });
+  const ITEMS_PER_PAGE = 20;
   const [mapVenues, setMapVenues] = useState<MapVenue[]>([]);
   const [mapCenter, setMapCenter] = useState<[number, number]>([39.8283, -98.5795]);
   const [mapLoading, setMapLoading] = useState(false);
@@ -185,6 +193,20 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
+  // Reset pagination when query changes
+  useEffect(() => {
+    if (debouncedQuery.length >= MIN_QUERY_LENGTH) {
+      setPagination({
+        all: { page: 1, hasMore: false },
+        users: { page: 1, hasMore: false },
+        artists: { page: 1, hasMore: false },
+        events: { page: 1, hasMore: false },
+        venues: { page: 1, hasMore: false },
+      });
+      setResults(createEmptyResults());
+    }
+  }, [debouncedQuery]);
+
   useEffect(() => {
     if (debouncedQuery.length < MIN_QUERY_LENGTH) {
       setResults(createEmptyResults());
@@ -211,20 +233,50 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
       });
       setErrors({});
 
+      const currentPage = pagination[activeTab]?.page || 1;
+      const limit = ITEMS_PER_PAGE;
+      const offset = (currentPage - 1) * limit;
+      
+      // For artists and venues, fetch more results than needed to check if there are more
+      const artistsLimit = limit * currentPage;
+      const venuesLimit = limit * currentPage;
+
       const [users, artists, events, venues] = await Promise.all([
-        fetchUsers(debouncedQuery, userId),
-        UnifiedArtistSearchService.searchArtists(debouncedQuery, 25, true),
-        fetchEvents(debouncedQuery),
-        UnifiedVenueSearchService.searchVenues(debouncedQuery, 25, true),
+        fetchUsers(debouncedQuery, userId, limit, offset),
+        UnifiedArtistSearchService.searchArtists(debouncedQuery, artistsLimit + 1, false), // Database only - no external APIs
+        fetchEvents(debouncedQuery, limit, offset),
+        UnifiedVenueSearchService.searchVenues(debouncedQuery, venuesLimit + 1, false), // Database only - no external APIs
       ]);
 
       if (!cancelled) {
-        setResults({
-          users,
-          artists,
-          events,
-          venues,
-        });
+        // Check if there are more results
+        const hasMoreUsers = users.length === limit;
+        const hasMoreArtists = artists.length > artistsLimit;
+        const hasMoreEvents = events.length === limit;
+        const hasMoreVenues = venues.length > venuesLimit;
+
+        // For artists and venues, take the current page's worth (slice from previous length)
+        const prevArtistsLength = currentPage === 1 ? 0 : results.artists.length;
+        const prevVenuesLength = currentPage === 1 ? 0 : results.venues.length;
+        const artistsForPage = artists.slice(prevArtistsLength, prevArtistsLength + limit);
+        const venuesForPage = venues.slice(prevVenuesLength, prevVenuesLength + limit);
+
+        setResults(prev => ({
+          users: currentPage === 1 ? users : [...prev.users, ...users],
+          artists: currentPage === 1 ? artists.slice(0, limit) : [...prev.artists, ...artistsForPage],
+          events: currentPage === 1 ? events : [...prev.events, ...events],
+          venues: currentPage === 1 ? venues.slice(0, limit) : [...prev.venues, ...venuesForPage],
+        }));
+        
+        setPagination(prev => ({
+          ...prev,
+          all: { page: currentPage, hasMore: hasMoreUsers || hasMoreArtists || hasMoreEvents || hasMoreVenues },
+          users: { page: currentPage, hasMore: hasMoreUsers },
+          artists: { page: currentPage, hasMore: hasMoreArtists },
+          events: { page: currentPage, hasMore: hasMoreEvents },
+          venues: { page: currentPage, hasMore: hasMoreVenues },
+        }));
+        
         setLoading({
           all: false,
           users: false,
@@ -252,7 +304,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery, userId, activeTab]);
+  }, [debouncedQuery, userId, activeTab, pagination[activeTab]?.page]);
 
   useEffect(() => {
     if (showMap) {
@@ -477,10 +529,110 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                     : activeResults.length > 0) && (
                     <div className="space-y-4">
                       {key === 'all' && <AllResults results={results} onNavigateToProfile={_onNavigateToProfile} onEventClick={onEventClick} onTabChange={setActiveTab} />}
-                      {key === 'users' && <UserResults results={results.users} onNavigateToProfile={_onNavigateToProfile} />}
-                      {key === 'artists' && <ArtistResults results={results.artists} />}
-                      {key === 'events' && <EventResults results={results.events} onEventClick={onEventClick} />}
-                      {key === 'venues' && <VenueResults results={results.venues} />}
+                      {key === 'users' && (
+                        <>
+                          <UserResults results={results.users} onNavigateToProfile={_onNavigateToProfile} />
+                          {pagination.users.hasMore && (
+                            <div className="flex justify-center pt-4">
+                              <Button
+                                variant="outline"
+                                onClick={() => setPagination(prev => ({
+                                  ...prev,
+                                  users: { ...prev.users, page: prev.users.page + 1 }
+                                }))}
+                                disabled={loading.users}
+                              >
+                                {loading.users ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  'Load More'
+                                )}
+                              </Button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {key === 'artists' && (
+                        <>
+                          <ArtistResults results={results.artists} />
+                          {pagination.artists.hasMore && (
+                            <div className="flex justify-center pt-4">
+                              <Button
+                                variant="outline"
+                                onClick={() => setPagination(prev => ({
+                                  ...prev,
+                                  artists: { ...prev.artists, page: prev.artists.page + 1 }
+                                }))}
+                                disabled={loading.artists}
+                              >
+                                {loading.artists ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  'Load More'
+                                )}
+                              </Button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {key === 'events' && (
+                        <>
+                          <EventResults results={results.events} onEventClick={onEventClick} />
+                          {pagination.events.hasMore && (
+                            <div className="flex justify-center pt-4">
+                              <Button
+                                variant="outline"
+                                onClick={() => setPagination(prev => ({
+                                  ...prev,
+                                  events: { ...prev.events, page: prev.events.page + 1 }
+                                }))}
+                                disabled={loading.events}
+                              >
+                                {loading.events ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  'Load More'
+                                )}
+                              </Button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {key === 'venues' && (
+                        <>
+                          <VenueResults results={results.venues} />
+                          {pagination.venues.hasMore && (
+                            <div className="flex justify-center pt-4">
+                              <Button
+                                variant="outline"
+                                onClick={() => setPagination(prev => ({
+                                  ...prev,
+                                  venues: { ...prev.venues, page: prev.venues.page + 1 }
+                                }))}
+                                disabled={loading.venues}
+                              >
+                                {loading.venues ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Loading...
+                                  </>
+                                ) : (
+                                  'Load More'
+                                )}
+                              </Button>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                 </>
@@ -494,7 +646,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
   );
 };
 
-const fetchUsers = async (query: string, currentUserId: string): Promise<UserSearchResult[]> => {
+const fetchUsers = async (query: string, currentUserId: string, limit: number = 25, offset: number = 0): Promise<UserSearchResult[]> => {
   try {
     const likeQuery = `%${query}%`;
     const { data, error } = await supabase
@@ -503,7 +655,7 @@ const fetchUsers = async (query: string, currentUserId: string): Promise<UserSea
       .ilike('name', likeQuery)
       .neq('user_id', currentUserId)
       .order('name', { ascending: true })
-      .limit(25);
+      .range(offset, offset + limit - 1);
 
     if (error) {
       console.error('Error searching users:', error);
@@ -525,7 +677,7 @@ const fetchUsers = async (query: string, currentUserId: string): Promise<UserSea
   }
 };
 
-const fetchEvents = async (query: string): Promise<EventSearchResult[]> => {
+const fetchEvents = async (query: string, limit: number = 25, offset: number = 0): Promise<EventSearchResult[]> => {
   try {
     const likeQuery = `%${query}%`;
     // Use helper view for normalized schema (artist_name and venue_name columns removed)
@@ -542,15 +694,54 @@ const fetchEvents = async (query: string): Promise<EventSearchResult[]> => {
     }
 
     return (data || []).map((event: any) => ({
+        .limit(limit + offset + 10)
+    ]);
+
+    // Check for errors
+    if (artistResults.error || venueResults.error || titleResults.error) {
+      console.error('Error searching events:', artistResults.error || venueResults.error || titleResults.error);
+      return [];
+    }
+
+    // Combine and deduplicate results (use Map to ensure uniqueness by id)
+    const eventsMap = new Map();
+    [...(artistResults.data || []), ...(venueResults.data || []), ...(titleResults.data || [])].forEach(event => {
+      if (!eventsMap.has(event.id)) {
+        eventsMap.set(event.id, event);
+      }
+    });
+
+    // Convert to array, sort by date, and apply pagination
+    const uniqueEvents = Array.from(eventsMap.values());
+    uniqueEvents.sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
+    const paginatedEvents = uniqueEvents.slice(offset, offset + limit);
+
+    console.log(`🔍 Found ${paginatedEvents.length} events for query "${searchTerm}" (total: ${uniqueEvents.length})`);
+
+    return paginatedEvents.map((event) => {
+      // Use event's own image columns (populated by trigger from artist images)
+      // Priority: event_media_url -> media_urls[0] -> images array
+      let imageUrl: string | null = null;
+      
+      if (event.event_media_url) {
+        imageUrl = event.event_media_url;
+      } else if (Array.isArray(event.media_urls) && event.media_urls.length > 0) {
+        imageUrl = event.media_urls[0];
+      } else if (Array.isArray(event.images) && event.images.length > 0) {
+        const firstImage = event.images.find((img: any) => img?.url);
+        imageUrl = firstImage?.url ?? null;
+      }
+
+      return {
+>>>>>>> 327eaa3 (Fix scene cards: redesign with progress bar, fix venue/artist queries to use UUIDs, update participant navigation)
       id: event.id,
       title: event.title,
       artistName: event.artist_name_normalized || null,
       venueName: event.venue_name_normalized || null,
       eventDate: event.event_date,
-      imageUrl: Array.isArray(event.images)
-        ? event.images.find((img: any) => img?.url)?.url ?? null
-        : null,
-    }));
+        imageUrl,
+      };
+    });
   } catch (error) {
     console.error('Error searching events:', error);
     return [];
@@ -595,30 +786,56 @@ const UserResults: React.FC<{
 );
 const ArtistResults: React.FC<{ results: ArtistSearchResult[] }> = ({ results }) => {
   const navigate = useNavigate();
+  
+  // Debug: Log image URLs
+  console.log('🎨 ArtistResults - Artists with images:', results.map(a => ({
+    name: a.name,
+    hasImage: !!a.image_url,
+    imageUrl: a.image_url
+  })));
+  
   return (
     <>
-      {results.map((artist) => (
+      {results.map((artist) => {
+        const hasImage = artist.image_url && artist.image_url.trim().length > 0;
+        
+        return (
         <Card 
           key={artist.id} 
           className="hover:shadow-sm transition-shadow cursor-pointer"
           onClick={() => navigate(`/artist/${encodeURIComponent(artist.name)}`)}
         >
           <CardContent className="p-4 flex items-center gap-4">
-          <div className="flex-shrink-0">
-            {artist.image_url ? (
+            <div className="flex-shrink-0 relative">
+              {hasImage ? (
+                <>
               <img
                 src={artist.image_url}
                 alt={artist.name}
                 className="h-12 w-12 rounded-full object-cover"
                 onError={(event) => {
-                  event.currentTarget.style.display = 'none';
-                  event.currentTarget.nextElementSibling?.classList.remove('hidden');
-                }}
-              />
-            ) : null}
-            <div className={`h-12 w-12 rounded-full bg-muted flex items-center justify-center ${artist.image_url ? 'hidden' : ''}`}>
+                      console.warn(`❌ Failed to load image for artist "${artist.name}": ${artist.image_url}`);
+                      const target = event.currentTarget;
+                      target.style.display = 'none';
+                      // Show fallback
+                      const fallback = target.nextElementSibling as HTMLElement;
+                      if (fallback) {
+                        fallback.classList.remove('hidden');
+                      }
+                    }}
+                    onLoad={() => {
+                      console.log(`✅ Loaded image for "${artist.name}": ${artist.image_url}`);
+                    }}
+                  />
+                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center hidden">
               <Music className="h-5 w-5 text-muted-foreground" />
                               </div>
+                </>
+              ) : (
+                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                  <Music className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )}
                                   </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold truncate">{artist.name}</h3>
@@ -639,7 +856,8 @@ const ArtistResults: React.FC<{ results: ArtistSearchResult[] }> = ({ results })
           </div>
         </CardContent>
       </Card>
-    ))}
+        );
+      })}
   </>
   );
 };
@@ -727,15 +945,29 @@ const VenueResults: React.FC<{ results: VenueSearchResult[] }> = ({ results }) =
           onClick={() => navigate(`/venue/${encodeURIComponent(venue.name)}`)}
         >
           <CardContent className="p-4 flex items-start gap-4">
-          <div className="flex-shrink-0 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+          <div className="flex-shrink-0">
+            {venue.image_url ? (
+              <img
+                src={venue.image_url}
+                alt={venue.name}
+                className="h-12 w-12 rounded-lg object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+            ) : null}
+            <div className={`h-12 w-12 rounded-lg bg-muted flex items-center justify-center ${venue.image_url ? 'hidden' : ''}`}>
             <MapPin className="h-5 w-5 text-muted-foreground" />
+            </div>
                           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold truncate">{venue.name}</h3>
-            {venue.address?.addressLocality && (
+            {(venue.address?.addressRegion || venue.address?.addressCountry) && (
               <p className="text-sm text-muted-foreground">
-                {venue.address.addressLocality}
-                {venue.address.addressRegion ? `, ${venue.address.addressRegion}` : ''}
+                {venue.address.addressRegion || ''}
+                {venue.address.addressRegion && venue.address.addressCountry ? ', ' : ''}
+                {venue.address.addressCountry || ''}
               </p>
             )}
             {typeof venue.num_upcoming_events === 'number' && (
@@ -956,15 +1188,29 @@ const AllResults: React.FC<{
                 onClick={() => onTabChange('venues')}
               >
                 <CardContent className="p-3 flex items-center gap-3">
-                  <div className="flex-shrink-0 h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                    <MapPin className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-shrink-0">
+                    {venue.image_url ? (
+                      <img
+                        src={venue.image_url}
+                        alt={venue.name}
+                        className="h-10 w-10 rounded-lg object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`h-10 w-10 rounded-lg bg-muted flex items-center justify-center ${venue.image_url ? 'hidden' : ''}`}>
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                    </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <h5 className="font-semibold text-sm truncate">{venue.name}</h5>
-                    {venue.address?.addressLocality && (
+                    {(venue.address?.addressRegion || venue.address?.addressCountry) && (
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {venue.address.addressLocality}
-                        {venue.address.addressRegion ? `, ${venue.address.addressRegion}` : ''}
+                        {venue.address.addressRegion || ''}
+                        {venue.address.addressRegion && venue.address.addressCountry ? ', ' : ''}
+                        {venue.address.addressCountry || ''}
                       </p>
                     )}
                   </div>

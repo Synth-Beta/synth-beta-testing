@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Star, Music, Calendar, MapPin, MessageSquare } from 'lucide-react';
@@ -42,11 +42,22 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
     try {
       setLoading(true);
       
-      // Get events for this artist
+      // Get artist image from artists table
+      const { data: artistData } = await supabase
+        .from('artists')
+        .select('id, name, image_url')
+        .eq('id', artistId)
+        .maybeSingle();
+
+      if (artistData?.image_url) {
+        setArtistImage(artistData.image_url);
+      }
+
+      // Get events for this artist using artist_id (UUID join)
       const { data: events } = await supabase
         .from('events')
         .select('id, event_date, images')
-        .ilike('artist_name', `%${artistName}%`);
+        .eq('artist_id', artistId);
 
       if (events) {
         setTotalEvents(events.length);
@@ -55,11 +66,13 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
         setUpcomingEvents(upcoming);
         setPastEvents(events.length - upcoming);
 
-        // Get first event image as artist image
-        const firstEvent = events.find(e => e.images && Array.isArray(e.images) && e.images.length > 0);
-        if (firstEvent?.images) {
-          const imageUrl = firstEvent.images.find((img: any) => img?.url)?.url;
-          if (imageUrl) setArtistImage(imageUrl);
+        // Get first event image as artist image if artist table doesn't have one
+        if (!artistImage) {
+          const firstEvent = events.find(e => e.images && Array.isArray(e.images) && e.images.length > 0);
+          if (firstEvent?.images) {
+            const imageUrl = firstEvent.images.find((img: any) => img?.url)?.url;
+            if (imageUrl) setArtistImage(imageUrl);
+          }
         }
       }
 
@@ -96,6 +109,9 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
             </Button>
             <DialogTitle className="flex-1">{artistName}</DialogTitle>
           </div>
+          <DialogDescription>
+            Artist details and upcoming events
+          </DialogDescription>
         </DialogHeader>
 
         {loading ? (

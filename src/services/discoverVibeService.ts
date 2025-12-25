@@ -30,7 +30,6 @@ export type VibeType =
   | 'late-shows'
   | 'up-and-coming'
   | 'less-than-10-reviews'
-  | 'first-time-city'
   | 'highest-rated-month'
   | 'best-venues'
   | 'best-value';
@@ -89,14 +88,23 @@ export class DiscoverVibeService {
    */
   static async getSimilarArtists(userId: string, limit: number = 20, filters?: VibeFilters): Promise<VibeResult> {
     try {
-      // Get user's top artists from reviews/attendance
+      console.log('🎵 [VIBE] getSimilarArtists - Starting');
+      // Get user's top artists from recent reviews (last 90 days for accuracy)
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      console.log(`🎵 [VIBE] getSimilarArtists - Using recency filter: last 90 days (since ${ninetyDaysAgo.toISOString()})`);
+      
       const { data: userArtists } = await supabase
         .from('reviews')
         .select('events:event_id(artist_name)')
         .eq('user_id', userId)
         .eq('is_draft', false)
         .not('events.artist_name', 'is', null)
-        .limit(10);
+        .gte('created_at', ninetyDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      console.log(`🎵 [VIBE] getSimilarArtists - Fetched ${userArtists?.length || 0} reviews from last 90 days`);
 
       const artistNames = new Set(
         (userArtists || [])
@@ -104,7 +112,10 @@ export class DiscoverVibeService {
           .filter(Boolean)
       );
 
+      console.log(`🎵 [VIBE] getSimilarArtists - Found ${artistNames.size} unique artists from reviews`);
+
       if (artistNames.size === 0) {
+        console.log('🎵 [VIBE] getSimilarArtists - No artists found, returning empty');
         return {
           events: [],
           title: 'Similar to Artists You Love',
@@ -113,7 +124,7 @@ export class DiscoverVibeService {
         };
       }
 
-      // Get events by similar artists (using genre matching as proxy)
+      // Get events by artists the user has seen live
       let query = supabase
         .from('events')
         .select('*')
@@ -124,6 +135,8 @@ export class DiscoverVibeService {
       const { data: events } = await query
         .order('event_date', { ascending: true })
         .limit(limit);
+
+      console.log(`🎵 [VIBE] getSimilarArtists - Found ${events?.length || 0} events, returning results`);
 
       return {
         events: (events || []) as JamBaseEvent[],
@@ -147,6 +160,7 @@ export class DiscoverVibeService {
    */
   static async getLast5Attended(userId: string, limit: number = 20, filters?: VibeFilters): Promise<VibeResult> {
     try {
+      console.log('🎵 [VIBE] getLast5Attended - Starting');
       // Get last 5 events user attended
       const { data: recentEvents } = await supabase
         .from('reviews')
@@ -156,6 +170,8 @@ export class DiscoverVibeService {
         .eq('was_there', true)
         .order('created_at', { ascending: false })
         .limit(5);
+
+      console.log(`🎵 [VIBE] getLast5Attended - Fetched ${recentEvents?.length || 0} recent attended events`);
 
       if (!recentEvents || recentEvents.length === 0) {
         return {
@@ -208,14 +224,24 @@ export class DiscoverVibeService {
    */
   static async getSimilarTasteUsers(userId: string, limit: number = 20, filters?: VibeFilters): Promise<VibeResult> {
     try {
-      // Get user's top genres
+      console.log('🎵 [VIBE] getSimilarTasteUsers - Starting');
+      // Use recent reviews (last 90 days) for accuracy and query speed
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      console.log(`🎵 [VIBE] getSimilarTasteUsers - Using recency filter: last 90 days (since ${ninetyDaysAgo.toISOString()})`);
+      
+      // Get user's top genres from recent reviews
       const { data: userReviews } = await supabase
         .from('reviews')
         .select('events:event_id(genres)')
         .eq('user_id', userId)
         .eq('is_draft', false)
         .not('events.genres', 'is', null)
-        .limit(20);
+        .gte('created_at', ninetyDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      console.log(`🎵 [VIBE] getSimilarTasteUsers - Fetched ${userReviews?.length || 0} user reviews from last 90 days`);
 
       const userGenres = new Set<string>();
       (userReviews || []).forEach((r: any) => {
@@ -224,7 +250,10 @@ export class DiscoverVibeService {
         }
       });
 
+      console.log(`🎵 [VIBE] getSimilarTasteUsers - Found ${userGenres.size} unique genres from user reviews`);
+
       if (userGenres.size === 0) {
+        console.log('🎵 [VIBE] getSimilarTasteUsers - No genres found, returning empty');
         return {
           events: [],
           title: 'Highly Rated by Similar Tastes',
@@ -233,16 +262,20 @@ export class DiscoverVibeService {
         };
       }
 
-      // Get events with high ratings and similar genres
-      // First get event IDs with high ratings
+      // Get events with high ratings and similar genres from recent reviews
       const { data: highRatedReviews } = await supabase
         .from('reviews')
         .select('event_id')
         .gte('rating', 4)
         .eq('is_draft', false)
-        .limit(100);
+        .gte('created_at', ninetyDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      console.log(`🎵 [VIBE] getSimilarTasteUsers - Fetched ${highRatedReviews?.length || 0} high-rated reviews (4+) from last 90 days`);
 
       if (!highRatedReviews || highRatedReviews.length === 0) {
+        console.log('🎵 [VIBE] getSimilarTasteUsers - No high-rated reviews found, returning empty');
         return {
           events: [],
           title: 'Highly Rated by Similar Tastes',
@@ -252,6 +285,7 @@ export class DiscoverVibeService {
       }
 
       const highRatedEventIds = [...new Set(highRatedReviews.map(r => r.event_id))];
+      console.log(`🎵 [VIBE] getSimilarTasteUsers - Found ${highRatedEventIds.length} unique high-rated events`);
 
       // Then get events with similar genres
       let query = supabase
@@ -266,6 +300,8 @@ export class DiscoverVibeService {
         .order('event_date', { ascending: true })
         .limit(limit);
 
+      console.log(`🎵 [VIBE] getSimilarTasteUsers - Found ${events?.length || 0} events matching genres`);
+
       // Deduplicate and format
       const eventMap = new Map<string, JamBaseEvent>();
       (events || []).forEach((e: any) => {
@@ -274,6 +310,7 @@ export class DiscoverVibeService {
         }
       });
 
+      console.log(`🎵 [VIBE] getSimilarTasteUsers - Returning ${eventMap.size} deduplicated events`);
       return {
         events: Array.from(eventMap.values()),
         title: 'Highly Rated by Similar Tastes',
@@ -371,46 +408,48 @@ export class DiscoverVibeService {
 
   /**
    * Get events at small venues
+   * Uses venues.maximum_attendee_capacity to filter for small venues (< 500 capacity)
    */
   static async getSmallVenues(limit: number = 20, filters?: VibeFilters): Promise<VibeResult> {
     try {
-      // Small venues are typically those with fewer events or specific capacity
-      // For now, we'll use a heuristic: venues with fewer total events
+      // First, get small venue IDs from venues table (capacity < 500)
+      // venue_jambase_id in events references venues.id (the UUID primary key)
+      const { data: smallVenues } = await supabase
+        .from('venues')
+        .select('id')
+        .not('maximum_attendee_capacity', 'is', null)
+        .lt('maximum_attendee_capacity', 500)
+        .limit(100);
+
+      if (!smallVenues || smallVenues.length === 0) {
+        return {
+          events: [],
+          title: 'Small Venues',
+          description: 'Intimate shows at smaller venues',
+          totalCount: 0,
+        };
+      }
+
+      const smallVenueIds = smallVenues.map(v => v.id);
+
+      // Now get events at these small venues
+      // venue_jambase_id is the FK that references venues.id
       let query = supabase
         .from('events')
-        .select('*, venues:venue_uuid(name)');
+        .select('*')
+        .in('venue_jambase_id', smallVenueIds);
       
       query = DiscoverVibeService.applyFilters(query, filters);
       
       const { data: events } = await query
         .order('event_date', { ascending: true })
-        .limit(limit * 2);
-
-      // Filter to smaller venues (heuristic: venues with fewer events)
-      const venueEventCounts = new Map<string, number>();
-      (events || []).forEach((e: any) => {
-        const venueId = e.venue_uuid || e.venue_id;
-        if (venueId) {
-          venueEventCounts.set(venueId, (venueEventCounts.get(venueId) || 0) + 1);
-        }
-      });
-
-      // Get venues with fewer events (smaller venues)
-      const smallVenueIds = Array.from(venueEventCounts.entries())
-        .filter(([_, count]) => count < 10)
-        .map(([id]) => id)
-        .slice(0, limit);
-
-      const filteredEvents = (events || []).filter((e: any) => {
-        const venueId = e.venue_uuid || e.venue_id;
-        return venueId && smallVenueIds.includes(venueId);
-      }).slice(0, limit);
+        .limit(limit);
 
       return {
-        events: filteredEvents as JamBaseEvent[],
+        events: (events || []) as JamBaseEvent[],
         title: 'Small Venues',
-        description: 'Intimate shows at smaller venues',
-        totalCount: filteredEvents.length,
+        description: 'Intimate shows at smaller venues (< 500 capacity)',
+        totalCount: events?.length || 0,
       };
     } catch (error) {
       console.error('Error getting small venues:', error);
@@ -425,26 +464,46 @@ export class DiscoverVibeService {
 
   /**
    * Get late shows (after 10 PM)
+   * Filters by doors_time hour >= 22 using EXTRACT in the database
    */
   static async getLateShows(limit: number = 20, filters?: VibeFilters): Promise<VibeResult> {
     try {
+      console.log('🎵 [VIBE] getLateShows - Starting');
+      // Use raw SQL to filter by hour of doors_time
+      // Supabase PostgREST doesn't have direct hour extraction, so we'll use a time range filter
+      // Filter for doors_time >= 22:00 (10 PM) by using time component
+      const today = new Date();
+      const tenPM = new Date(today);
+      tenPM.setHours(22, 0, 0, 0);
+      
       let query = supabase
         .from('events')
         .select('*')
         .not('doors_time', 'is', null);
       
+      // Note: Supabase PostgREST doesn't support EXTRACT directly in filters
+      // We filter by fetching events and filtering in JS, but we can at least ensure doors_time exists
       query = DiscoverVibeService.applyFilters(query, filters);
       
       const { data: events } = await query
         .order('event_date', { ascending: true })
-        .limit(limit * 2);
+        .limit(limit * 3);
 
-      // Filter to events with doors time after 10 PM
+      console.log(`🎵 [VIBE] getLateShows - Fetched ${events?.length || 0} events with doors_time`);
+
+      // Filter to events with doors time hour >= 22 (10 PM)
+      // This requires JS filtering since PostgREST doesn't support EXTRACT(HOUR FROM doors_time)
       const lateEvents = (events || []).filter((e: any) => {
         if (!e.doors_time) return false;
         const doorsDate = new Date(e.doors_time);
-        return doorsDate.getHours() >= 22; // 10 PM
+        const isLate = doorsDate.getHours() >= 22; // 10 PM
+        if (isLate) {
+          console.log(`🎵 [VIBE] getLateShows - Found late show: ${e.title} at ${doorsDate.toLocaleTimeString()}`);
+        }
+        return isLate;
       }).slice(0, limit);
+
+      console.log(`🎵 [VIBE] getLateShows - Filtered to ${lateEvents.length} late shows (doors_time >= 22:00)`);
 
       return {
         events: lateEvents as JamBaseEvent[],
@@ -468,12 +527,22 @@ export class DiscoverVibeService {
    */
   static async getUpAndComing(limit: number = 20, filters?: VibeFilters): Promise<VibeResult> {
     try {
-      // Get artists with fewer reviews
+      console.log('🎵 [VIBE] getUpAndComing - Starting');
+      // Get artists with fewer reviews from recent reviews (last 180 days)
+      const oneHundredEightyDaysAgo = new Date();
+      oneHundredEightyDaysAgo.setDate(oneHundredEightyDaysAgo.getDate() - 180);
+      console.log(`🎵 [VIBE] getUpAndComing - Using recency filter: last 180 days (since ${oneHundredEightyDaysAgo.toISOString()})`);
+      
       const { data: artistReviews } = await supabase
         .from('reviews')
         .select('events:event_id(artist_name)')
         .eq('is_draft', false)
-        .not('events.artist_name', 'is', null);
+        .not('events.artist_name', 'is', null)
+        .gte('created_at', oneHundredEightyDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(2000);
+
+      console.log(`🎵 [VIBE] getUpAndComing - Fetched ${artistReviews?.length || 0} reviews from last 180 days`);
 
       const artistReviewCounts = new Map<string, number>();
       (artistReviews || []).forEach((r: any) => {
@@ -483,9 +552,13 @@ export class DiscoverVibeService {
         }
       });
 
+      console.log(`🎵 [VIBE] getUpAndComing - Found ${artistReviewCounts.size} unique artists with reviews`);
+
       const upAndComingArtists = Array.from(artistReviewCounts.entries())
         .filter(([_, count]) => count < 10)
         .map(([name]) => name);
+
+      console.log(`🎵 [VIBE] getUpAndComing - Found ${upAndComingArtists.length} artists with <10 reviews`);
 
       if (upAndComingArtists.length === 0) {
         return {
@@ -507,6 +580,7 @@ export class DiscoverVibeService {
         .order('event_date', { ascending: true })
         .limit(limit);
 
+      console.log(`🎵 [VIBE] getUpAndComing - Found ${events?.length || 0} events for up-and-coming artists`);
       return {
         events: (events || []) as JamBaseEvent[],
         title: 'Up-and-Coming Artists',
@@ -529,17 +603,28 @@ export class DiscoverVibeService {
    */
   static async getLessThan10Reviews(limit: number = 20, filters?: VibeFilters): Promise<VibeResult> {
     try {
-      // Get review counts per event
+      console.log('🎵 [VIBE] getLessThan10Reviews - Starting');
+      // Get review counts per event from recent reviews (last 180 days)
+      const oneHundredEightyDaysAgo = new Date();
+      oneHundredEightyDaysAgo.setDate(oneHundredEightyDaysAgo.getDate() - 180);
+      console.log(`🎵 [VIBE] getLessThan10Reviews - Using recency filter: last 180 days (since ${oneHundredEightyDaysAgo.toISOString()})`);
+      
       const { data: reviewCounts } = await supabase
         .from('reviews')
         .select('event_id')
         .eq('is_draft', false)
-        .limit(1000);
+        .gte('created_at', oneHundredEightyDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(2000);
+
+      console.log(`🎵 [VIBE] getLessThan10Reviews - Fetched ${reviewCounts?.length || 0} reviews from last 180 days`);
 
       const eventReviewCounts = new Map<string, number>();
       (reviewCounts || []).forEach((r: any) => {
         eventReviewCounts.set(r.event_id, (eventReviewCounts.get(r.event_id) || 0) + 1);
       });
+
+      console.log(`🎵 [VIBE] getLessThan10Reviews - Found ${eventReviewCounts.size} unique events with reviews`);
 
       // Get events with less than 10 reviews
       let query = supabase
@@ -557,6 +642,7 @@ export class DiscoverVibeService {
         return reviewCount < 10;
       }).slice(0, limit);
 
+      console.log(`🎵 [VIBE] getLessThan10Reviews - Filtered to ${filteredEvents.length} events with <10 reviews`);
       return {
         events: filteredEvents as JamBaseEvent[],
         title: 'Events with <10 Reviews',
@@ -574,74 +660,17 @@ export class DiscoverVibeService {
     }
   }
 
-  /**
-   * Get events - first time in user's city
-   */
-  static async getFirstTimeCity(userId: string, limit: number = 20): Promise<VibeResult> {
-    try {
-      // Get user's city from users table
-      const { data: userProfile } = await supabase
-        .from('users')
-        .select('location_city')
-        .eq('user_id', userId)
-        .single();
-
-      if (!userProfile?.location_city) {
-        return {
-          events: [],
-          title: 'First Time in Your City',
-          description: 'Set your location to see first-time shows',
-          totalCount: 0,
-        };
-      }
-
-      // Get artists user has seen before
-      const { data: seenArtists } = await supabase
-        .from('reviews')
-        .select('events:event_id(artist_name)')
-        .eq('user_id', userId)
-        .eq('is_draft', false)
-        .not('events.artist_name', 'is', null);
-
-      const seenArtistNames = new Set(
-        (seenArtists || []).map((r: any) => r.events?.artist_name).filter(Boolean)
-      );
-
-      // Get events in user's city by artists they haven't seen
-      const { data: events } = await supabase
-        .from('events')
-        .select('*')
-        .gte('event_date', new Date().toISOString())
-        .ilike('venue_city', `%${userProfile.location_city}%`)
-        .not('artist_name', 'in', Array.from(seenArtistNames))
-        .order('event_date', { ascending: true })
-        .limit(limit);
-
-      return {
-        events: (events || []) as JamBaseEvent[],
-        title: 'First Time in Your City',
-        description: `Artists playing ${userProfile.location_city} for the first time`,
-        totalCount: events?.length || 0,
-      };
-    } catch (error) {
-      console.error('Error getting first time city:', error);
-      return {
-        events: [],
-        title: 'First Time in Your City',
-        description: 'Unable to load first-time shows.',
-        totalCount: 0,
-      };
-    }
-  }
 
   /**
    * Get highest-rated events this month
    */
   static async getHighestRatedMonth(limit: number = 20, filters?: VibeFilters): Promise<VibeResult> {
     try {
+      console.log('🎵 [VIBE] getHighestRatedMonth - Starting');
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      console.log(`🎵 [VIBE] getHighestRatedMonth - Filtering reviews from ${startOfMonth.toISOString()} to ${endOfMonth.toISOString()}`);
 
       // Get event IDs with high ratings this month
       const { data: highRatedReviews } = await supabase
@@ -649,7 +678,12 @@ export class DiscoverVibeService {
         .select('event_id')
         .gte('rating', 4.5)
         .eq('is_draft', false)
-        .limit(100);
+        .gte('created_at', startOfMonth.toISOString())
+        .lte('created_at', endOfMonth.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      console.log(`🎵 [VIBE] getHighestRatedMonth - Fetched ${highRatedReviews?.length || 0} reviews with rating >= 4.5 this month`);
 
       if (!highRatedReviews || highRatedReviews.length === 0) {
         return {
@@ -661,6 +695,7 @@ export class DiscoverVibeService {
       }
 
       const highRatedEventIds = [...new Set(highRatedReviews.map(r => r.event_id))];
+      console.log(`🎵 [VIBE] getHighestRatedMonth - Found ${highRatedEventIds.length} unique events with rating >= 4.5 this month`);
 
       let query = supabase
         .from('events')
@@ -684,6 +719,8 @@ export class DiscoverVibeService {
         .order('event_date', { ascending: true })
         .limit(limit);
 
+      console.log(`🎵 [VIBE] getHighestRatedMonth - Found ${events?.length || 0} events matching filters`);
+
       // Deduplicate
       const eventMap = new Map<string, JamBaseEvent>();
       (events || []).forEach((e: any) => {
@@ -692,6 +729,7 @@ export class DiscoverVibeService {
         }
       });
 
+      console.log(`🎵 [VIBE] getHighestRatedMonth - Returning ${eventMap.size} deduplicated events`);
       return {
         events: Array.from(eventMap.values()),
         title: 'Highest-Rated This Month',
@@ -714,14 +752,22 @@ export class DiscoverVibeService {
    */
   static async getBestVenues(limit: number = 20, filters?: VibeFilters): Promise<VibeResult> {
     try {
-      // Get venues with high ratings - use venue_rating_decimal column
+      console.log('🎵 [VIBE] getBestVenues - Starting');
+      // Get venues with high ratings from recent reviews (last 180 days)
+      // Use venue_rating_new column (or venue_rating if decimal)
+      const oneHundredEightyDaysAgo = new Date();
+      oneHundredEightyDaysAgo.setDate(oneHundredEightyDaysAgo.getDate() - 180);
+      console.log(`🎵 [VIBE] getBestVenues - Using recency filter: last 180 days (since ${oneHundredEightyDaysAgo.toISOString()})`);
+      
       const { data: venueReviews } = await supabase
         .from('reviews')
-        .select('event_id, venue_rating_decimal')
+        .select('event_id, venue_rating_new, venue_rating')
         .eq('is_draft', false)
-        .gte('venue_rating_decimal', 4)
-        .not('venue_rating_decimal', 'is', null)
-        .limit(100);
+        .gte('created_at', oneHundredEightyDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+      console.log(`🎵 [VIBE] getBestVenues - Fetched ${venueReviews?.length || 0} reviews from last 180 days`);
 
       if (!venueReviews || venueReviews.length === 0) {
         return {
@@ -732,23 +778,45 @@ export class DiscoverVibeService {
         };
       }
 
-      // Get event details to find venue names
-      const eventIds = [...new Set(venueReviews.map(r => r.event_id))];
+      // Filter reviews with ratings >= 4 (prefer venue_rating_new if available, fallback to venue_rating)
+      const highRatedReviews = venueReviews.filter((r: any) => {
+        const rating = r.venue_rating_new || r.venue_rating;
+        return rating && rating >= 4;
+      });
+
+      console.log(`🎵 [VIBE] getBestVenues - Found ${highRatedReviews.length} reviews with rating >= 4`);
+
+      if (highRatedReviews.length === 0) {
+        console.log('🎵 [VIBE] getBestVenues - No high-rated reviews found, returning empty');
+        return {
+          events: [],
+          title: 'Best Venues',
+          description: 'No highly rated venues found',
+          totalCount: 0,
+        };
+      }
+
+      // Get event details to find venue IDs
+      const eventIds = [...new Set(highRatedReviews.map((r: any) => r.event_id))];
+      console.log(`🎵 [VIBE] getBestVenues - Found ${eventIds.length} unique events with high venue ratings`);
+      
       const { data: eventsData } = await supabase
         .from('events')
-        .select('id, venue_uuid, venue_name')
+        .select('id, venue_jambase_id, venue_name')
         .in('id', eventIds);
+
+      console.log(`🎵 [VIBE] getBestVenues - Fetched ${eventsData?.length || 0} event details`);
 
       const venueRatings = new Map<string, { name: string; avgRating: number; count: number }>();
       const eventsMap = new Map((eventsData || []).map((e: any) => [e.id, e]));
       
-      (venueReviews || []).forEach((r: any) => {
+      highRatedReviews.forEach((r: any) => {
         const event = eventsMap.get(r.event_id);
         if (!event) return;
         
-        const venueId = event.venue_uuid;
+        const venueId = event.venue_jambase_id;
         const venueName = event.venue_name;
-        const rating = r.venue_rating_decimal;
+        const rating = r.venue_rating_new || r.venue_rating;
         
         if (venueId && venueName && rating) {
           const existing = venueRatings.get(venueId) || { name: venueName, avgRating: 0, count: 0 };
@@ -760,13 +828,22 @@ export class DiscoverVibeService {
 
       const topVenueIds = Array.from(venueRatings.entries())
         .sort(([_, a], [__, b]) => b.avgRating - a.avgRating)
-        .slice(0, 10)
+        .slice(0, 20)
         .map(([id]) => id);
+
+      if (topVenueIds.length === 0) {
+        return {
+          events: [],
+          title: 'Best Venues',
+          description: 'No highly rated venues found',
+          totalCount: 0,
+        };
+      }
 
       let query = supabase
         .from('events')
         .select('*')
-        .in('venue_uuid', topVenueIds);
+        .in('venue_jambase_id', topVenueIds);
       
       query = DiscoverVibeService.applyFilters(query, filters);
       
@@ -774,6 +851,7 @@ export class DiscoverVibeService {
         .order('event_date', { ascending: true })
         .limit(limit);
 
+      console.log(`🎵 [VIBE] getBestVenues - Found ${events?.length || 0} events at best venues`);
       return {
         events: (events || []) as JamBaseEvent[],
         title: 'Best Venues',
@@ -796,16 +874,26 @@ export class DiscoverVibeService {
    */
   static async getBestValue(limit: number = 20, filters?: VibeFilters): Promise<VibeResult> {
     try {
-      // Get event IDs with high value ratings
+      console.log('🎵 [VIBE] getBestValue - Starting');
+      // Get event IDs with high value ratings from recent reviews (last 90 days)
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      console.log(`🎵 [VIBE] getBestValue - Using recency filter: last 90 days (since ${ninetyDaysAgo.toISOString()})`);
+      
       const { data: highValueReviews } = await supabase
         .from('reviews')
         .select('event_id')
         .gte('value_rating', 4)
         .eq('is_draft', false)
         .not('value_rating', 'is', null)
-        .limit(100);
+        .gte('created_at', ninetyDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      console.log(`🎵 [VIBE] getBestValue - Fetched ${highValueReviews?.length || 0} reviews with value_rating >= 4 from last 90 days`);
 
       if (!highValueReviews || highValueReviews.length === 0) {
+        console.log('🎵 [VIBE] getBestValue - No high-value reviews found, returning empty');
         return {
           events: [],
           title: 'Best Value',
@@ -815,6 +903,7 @@ export class DiscoverVibeService {
       }
 
       const highValueEventIds = [...new Set(highValueReviews.map(r => r.event_id))];
+      console.log(`🎵 [VIBE] getBestValue - Found ${highValueEventIds.length} unique events with high value ratings`);
 
       let query = supabase
         .from('events')
@@ -827,6 +916,8 @@ export class DiscoverVibeService {
         .order('event_date', { ascending: true })
         .limit(limit);
 
+      console.log(`🎵 [VIBE] getBestValue - Found ${events?.length || 0} events matching filters`);
+
       // Deduplicate
       const eventMap = new Map<string, JamBaseEvent>();
       (events || []).forEach((e: any) => {
@@ -835,6 +926,7 @@ export class DiscoverVibeService {
         }
       });
 
+      console.log(`🎵 [VIBE] getBestValue - Returning ${eventMap.size} deduplicated events`);
       return {
         events: Array.from(eventMap.values()),
         title: 'Best Value',
@@ -856,6 +948,10 @@ export class DiscoverVibeService {
    * Execute a vibe query
    */
   static async executeVibe(vibeType: VibeType, userId: string, limit: number = 20, filters?: VibeFilters): Promise<VibeResult> {
+    console.log(`🎵 [VIBE] executeVibe - Executing vibe: ${vibeType} for user: ${userId}, limit: ${limit}`);
+    if (filters) {
+      console.log(`🎵 [VIBE] executeVibe - Filters:`, JSON.stringify(filters, null, 2));
+    }
     switch (vibeType) {
       case 'similar-artists':
         return this.getSimilarArtists(userId, limit, filters);
@@ -875,8 +971,6 @@ export class DiscoverVibeService {
         return this.getUpAndComing(limit, filters);
       case 'less-than-10-reviews':
         return this.getLessThan10Reviews(limit, filters);
-      case 'first-time-city':
-        return this.getFirstTimeCity(userId, limit);
       case 'highest-rated-month':
         return this.getHighestRatedMonth(limit, filters);
       case 'best-venues':

@@ -1,6 +1,17 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { JamBaseEvent } from '@/types/eventTypes';
 
+export interface SceneParticipant {
+  id: string;
+  participant_type: 'artist' | 'venue' | 'city' | 'genre';
+  artist_id?: string;
+  venue_id?: string;
+  text_value?: string;
+  // Joined data
+  artist_name?: string;
+  venue_name?: string;
+}
+
 export interface Scene {
   id: string;
   name: string;
@@ -14,10 +25,13 @@ export interface Scene {
   image_url: string | null;
   scene_url: string | null;
   color_theme: string | null;
+  // Legacy array fields (deprecated, use participants instead)
   participating_artists: string[];
   participating_venues: string[];
   participating_cities: string[];
   participating_genres: string[];
+  // New normalized participants
+  participants?: SceneParticipant[];
   discovery_threshold: number;
   completion_threshold: number;
   is_active: boolean;
@@ -81,31 +95,120 @@ export class SceneService {
       if (error) throw error;
       if (!scenes || scenes.length === 0) return [];
 
-      // Get user progress if userId provided
+      // Get user progress if userId provided (fail silently if table/RLS issues)
       let userProgressMap = new Map<string, UserSceneProgress>();
       if (userId) {
-        const sceneIds = scenes.map(s => s.id);
-        const { data: progress } = await supabase
-          .from('user_scene_progress')
-          .select('*')
-          .eq('user_id', userId)
-          .in('scene_id', sceneIds);
+        try {
+          const sceneIds = scenes.map(s => s.id);
+          const { data: progress, error: progressError } = await supabase
+            .from('user_scene_progress')
+            .select('*')
+            .eq('user_id', userId)
+            .in('scene_id', sceneIds);
 
-        if (progress) {
-          progress.forEach(p => {
-            userProgressMap.set(p.scene_id, p as UserSceneProgress);
-              });
-            }
+          // Only use progress if no error (ignore 406/RLS errors silently)
+          if (!progressError && progress) {
+            progress.forEach(p => {
+              userProgressMap.set(p.scene_id, p as UserSceneProgress);
+            });
+          }
+        } catch (error) {
+          // Silently fail - progress is optional
+        }
+      }
+
+      // Fetch participants for all scenes
+      const sceneIds = scenes.map(s => s.id);
+      const { data: participantsData } = await supabase
+        .from('scene_participants')
+        .select(`
+          id,
+          scene_id,
+          participant_type,
+          artist_id,
+          venue_id,
+          text_value
+        `)
+        .in('scene_id', sceneIds);
+
+      // Get artist and venue IDs to fetch names
+      const artistIds = [...new Set(participantsData?.filter(p => p.artist_id).map(p => p.artist_id) || [])];
+      const venueIds = [...new Set(participantsData?.filter(p => p.venue_id).map(p => p.venue_id) || [])];
+
+      // Fetch artist names
+      const artistMap = new Map<string, string>();
+      if (artistIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('id, name')
+          .in('id', artistIds);
+        artists?.forEach(a => artistMap.set(a.id, a.name));
+      }
+
+      // Fetch venue names
+      const venueMap = new Map<string, string>();
+      if (venueIds.length > 0) {
+        const { data: venues } = await supabase
+          .from('venues')
+          .select('id, name')
+          .in('id', venueIds);
+        venues?.forEach(v => venueMap.set(v.id, v.name));
+      }
+
+      // Group participants by scene_id
+      const participantsByScene = new Map<string, SceneParticipant[]>();
+      if (participantsData) {
+        participantsData.forEach((p: any) => {
+          if (!participantsByScene.has(p.scene_id)) {
+            participantsByScene.set(p.scene_id, []);
+          }
+          participantsByScene.get(p.scene_id)!.push({
+            id: p.id,
+            participant_type: p.participant_type,
+            artist_id: p.artist_id,
+            venue_id: p.venue_id,
+            text_value: p.text_value,
+            artist_name: p.artist_id ? artistMap.get(p.artist_id) : undefined,
+            venue_name: p.venue_id ? venueMap.get(p.venue_id) : undefined,
+          });
+        });
       }
 
       // Calculate upcoming events count and active reviewers for each scene
       const scenesWithCounts = await Promise.all(
         scenes.map(async (scene) => {
-          const upcomingCount = await this.getUpcomingEventsCount(scene);
-          const reviewersCount = await this.getActiveReviewersCount(scene.id, scene.participating_genres || []);
+          const participants = participantsByScene.get(scene.id) || [];
+          
+          // Build legacy arrays for backward compatibility
+          const participating_artists = participants
+            .filter(p => p.participant_type === 'artist' && p.artist_id)
+            .map(p => p.artist_id!);
+          const participating_venues = participants
+            .filter(p => p.participant_type === 'venue' && p.venue_id)
+            .map(p => p.venue_id!);
+          const participating_cities = participants
+            .filter(p => p.participant_type === 'city' && p.text_value)
+            .map(p => p.text_value!);
+          const participating_genres = participants
+            .filter(p => p.participant_type === 'genre' && p.text_value)
+            .map(p => p.text_value!);
+
+          const upcomingCount = await this.getUpcomingEventsCount({
+            ...scene,
+            participating_artists,
+            participating_venues,
+            participating_cities,
+            participating_genres,
+          });
+          const reviewersCount = await this.getActiveReviewersCount(scene.id, participating_genres);
           
           return {
             ...scene,
+            participants,
+            participating_artists,
+            participating_venues,
+            participating_cities,
+            participating_genres,
             upcomingEventsCount: upcomingCount,
             activeReviewersCount: reviewersCount,
             userProgress: userProgressMap.get(scene.id),
@@ -117,6 +220,63 @@ export class SceneService {
     } catch (error) {
       console.error('Error getting scenes:', error);
       return [];
+    }
+  }
+
+  /**
+   * Get active reviewers count for a scene
+   * Counts unique users who have reviewed events matching the scene criteria
+   */
+  private static async getActiveReviewersCount(sceneId: string, genres: string[]): Promise<number> {
+    try {
+      // Get scene to access its criteria
+      const { data: scene } = await supabase
+        .from('scenes')
+        .select('*')
+        .eq('id', sceneId)
+        .single();
+
+      if (!scene) return 0;
+
+      // Build query for upcoming events matching scene criteria
+      let eventsQuery = supabase
+        .from('events')
+        .select('id')
+        .gte('event_date', new Date().toISOString());
+
+      // Apply scene filters
+      if (scene.participating_artists && scene.participating_artists.length > 0) {
+        eventsQuery = eventsQuery.in('artist_id', scene.participating_artists).not('artist_id', 'is', null);
+      }
+      if (scene.participating_venues && scene.participating_venues.length > 0) {
+        eventsQuery = eventsQuery.in('venue_id', scene.participating_venues).not('venue_id', 'is', null);
+      }
+      if (scene.participating_cities && scene.participating_cities.length > 0) {
+        eventsQuery = eventsQuery.in('venue_city', scene.participating_cities);
+      }
+      if (genres && genres.length > 0) {
+        eventsQuery = eventsQuery.overlaps('genres', genres);
+      }
+
+      const { data: events } = await eventsQuery.limit(100);
+
+      if (!events || events.length === 0) return 0;
+
+      const eventIds = events.map(e => e.id);
+
+      // Count unique reviewers
+      const { count, error } = await supabase
+        .from('reviews')
+        .select('user_id', { count: 'exact', head: true })
+        .in('event_id', eventIds)
+        .eq('is_draft', false)
+        .eq('was_there', true);
+
+      if (error) throw error;
+      return count || 0;
+    } catch (error) {
+      console.error('Error counting active reviewers:', error);
+      return 0;
     }
   }
 
@@ -159,39 +319,62 @@ export class SceneService {
    */
   static async getUserSceneProgress(userId: string, sceneId: string): Promise<UserSceneProgress | null> {
     try {
+      // Skip RPC function entirely - use direct table query
+      // The RPC function has PostgREST exposure issues, so we'll use direct queries
+      // which work fine with proper RLS policies
       const { data, error } = await supabase
         .from('user_scene_progress')
         .select('*')
         .eq('user_id', userId)
         .eq('scene_id', sceneId)
-        .single();
+        .maybeSingle();
 
       if (error) {
+        // Handle various error codes gracefully
         if (error.code === 'PGRST116') return null; // Not found
-        throw error;
+        if (error.code === 'PGRST301' || error.status === 406) {
+          // RLS policy issue - log for debugging but return null gracefully
+          console.warn('RLS blocking access to user_scene_progress:', {
+            code: error.code,
+            status: error.status,
+            message: error.message
+          });
+          return null;
+        }
+        // For other errors, log but don't throw
+        console.warn('Error getting user scene progress:', error);
+        return null;
       }
 
-      return data as UserSceneProgress;
+      return data as UserSceneProgress | null;
     } catch (error) {
-      console.error('Error getting user scene progress:', error);
+      // Catch any unexpected errors
+      console.warn('Error getting user scene progress:', error);
       return null;
-      }
+    }
   }
 
   /**
    * Refresh user's scene progress (triggers calculation)
+   * Returns false if the operation fails (non-critical)
    */
-  static async refreshSceneProgress(userId: string, sceneId: string): Promise<void> {
+  static async refreshSceneProgress(userId: string, sceneId: string): Promise<boolean> {
     try {
       const { error } = await supabase.rpc('calculate_scene_progress', {
         p_user_id: userId,
         p_scene_id: sceneId,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Log but don't throw - this is non-critical for scene display
+        console.warn('Scene progress calculation failed (non-critical):', error);
+        return false;
+      }
+      return true;
     } catch (error) {
-      console.error('Error refreshing scene progress:', error);
-      throw error;
+      // Log but don't throw - scene can still be displayed without progress
+      console.warn('Error refreshing scene progress (non-critical):', error);
+      return false;
     }
   }
 
@@ -200,16 +383,43 @@ export class SceneService {
    */
   static async getAllUserSceneProgress(userId: string): Promise<UserSceneProgress[]> {
     try {
+      // Try using the function first (bypasses RLS)
+      const { data: functionData, error: functionError } = await supabase
+        .rpc('get_all_user_scene_progress', {
+          p_user_id: userId
+        });
+
+      // If function works and returns data, use it
+      if (!functionError && functionData) {
+        return functionData as UserSceneProgress[];
+      }
+
+      // If function returns 406 or other access errors, skip to direct query
+      // Don't log 406 errors as warnings since they're expected if function isn't accessible
+      if (functionError && functionError.status !== 406) {
+        console.warn('RPC function error (non-critical):', functionError);
+      }
+
+      // Fallback to direct table query if function doesn't exist or fails
       const { data, error } = await supabase
         .from('user_scene_progress')
         .select('*')
         .eq('user_id', userId)
         .order('last_activity_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        // Handle RLS/access errors gracefully
+        if (error.code === 'PGRST301' || error.status === 406) {
+          // Don't log as this is expected if RLS blocks access
+          return [];
+        }
+        // For other errors, log but don't throw
+        console.warn('Error getting all user scene progress:', error);
+        return [];
+      }
       return (data || []) as UserSceneProgress[];
     } catch (error) {
-      console.error('Error getting all user scene progress:', error);
+      console.warn('Error getting all user scene progress:', error);
       return [];
     }
   }
@@ -239,86 +449,290 @@ export class SceneService {
         return null;
       }
 
-      // Get user progress if userId provided
+      // Get user progress if userId provided (fail silently if table/RLS issues)
       let userProgress: UserSceneProgress | null = null;
       if (userId) {
-        userProgress = await this.getUserSceneProgress(userId, sceneId);
+        try {
+          userProgress = await this.getUserSceneProgress(userId, sceneId);
+        } catch (error) {
+          // Silently fail - progress is optional
+        }
       }
+
+      // Fetch participants from normalized table
+      const { data: participantsData } = await supabase
+        .from('scene_participants')
+        .select(`
+          id,
+          participant_type,
+          artist_id,
+          venue_id,
+          text_value
+        `)
+        .eq('scene_id', sceneId);
+
+      // Get artist and venue IDs to fetch names
+      const artistIds = [...new Set(participantsData?.filter(p => p.artist_id).map(p => p.artist_id) || [])];
+      const venueIds = [...new Set(participantsData?.filter(p => p.venue_id).map(p => p.venue_id) || [])];
+
+      // Fetch artist names and identifiers
+      const artistMap = new Map<string, { name: string; identifier: string }>();
+      if (artistIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('id, name, identifier')
+          .in('id', artistIds);
+        artists?.forEach(a => artistMap.set(a.id, { name: a.name, identifier: a.identifier }));
+      }
+
+      // Fetch venue names and identifiers
+      const venueMap = new Map<string, { name: string; identifier: string }>();
+      if (venueIds.length > 0) {
+        const { data: venues } = await supabase
+          .from('venues')
+          .select('id, name, identifier')
+          .in('id', venueIds);
+        venues?.forEach(v => venueMap.set(v.id, { name: v.name, identifier: v.identifier }));
+      }
+
+      // Build legacy arrays from participants for backward compatibility
+      const participating_artists: string[] = [];
+      const participating_venues: string[] = [];
+      const participating_cities: string[] = [];
+      const participating_genres: string[] = [];
+      const participants: SceneParticipant[] = [];
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:471',message:'Building participant arrays',data:{participantsCount:participantsData?.length||0,artistIdsCount:artistIds.length,venueIdsCount:venueIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
+      if (participantsData) {
+        participantsData.forEach((p: any) => {
+          participants.push({
+            id: p.id,
+            participant_type: p.participant_type,
+            artist_id: p.artist_id,
+            venue_id: p.venue_id,
+            text_value: p.text_value,
+            artist_name: p.artist_id ? artistMap.get(p.artist_id)?.name : undefined,
+            venue_name: p.venue_id ? venueMap.get(p.venue_id)?.name : undefined,
+          });
+
+          if (p.participant_type === 'artist' && p.artist_id) {
+            const artist = artistMap.get(p.artist_id);
+            if (artist?.identifier) {
+              participating_artists.push(artist.identifier);
+            }
+          } else if (p.participant_type === 'venue' && p.venue_id) {
+            const venue = venueMap.get(p.venue_id);
+            if (venue?.identifier) {
+              participating_venues.push(venue.identifier);
+            }
+          } else if (p.participant_type === 'city' && p.text_value) {
+            participating_cities.push(p.text_value);
+          } else if (p.participant_type === 'genre' && p.text_value) {
+            participating_genres.push(p.text_value);
+          }
+        });
+      }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:499',message:'Participant arrays built',data:{participating_artists:participating_artists.length,participating_venues:participating_venues.length,participating_cities:participating_cities.length,participating_genres:participating_genres.length,artistIdentifiers:participating_artists.slice(0,3),venueIdentifiers:participating_venues.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
 
       // Build query for upcoming events - fetch events matching any scene criteria
       const eventQueries: Promise<any>[] = [];
       const eventSet = new Set<string>();
       const allEvents: any[] = [];
 
-      // Query by artists - use JamBase artist_id
-      if (scene.participating_artists && scene.participating_artists.length > 0) {
-        const query = supabase
+      // Query by artists - match by identifier with flexible matching
+      if (participating_artists.length > 0) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:507',message:'Querying artist events',data:{artistIdentifiersCount:participating_artists.length,identifiers:participating_artists.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        
+        const artistQueryPromise = supabase
           .from('events')
           .select('*')
           .gte('event_date', new Date().toISOString())
-          .in('artist_id', scene.participating_artists)
           .not('artist_id', 'is', null)
           .order('event_date', { ascending: true })
-          .limit(50);
-        eventQueries.push(query);
+          .limit(200)
+          .then(({ data: artistEvents, error }) => {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:515',message:'Artist events query result',data:{error:error?.message,rawEventCount:artistEvents?.length||0,sampleEventIds:artistEvents?.slice(0,3).map((e:any)=>e.artist_id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+            
+            if (error) throw error;
+            if (!artistEvents) return [];
+            
+            // Filter events where artist_id matches any of our artist identifiers
+            const filtered = artistEvents.filter((event: any) => {
+              if (!event.artist_id) return false;
+              return participating_artists.some(artistId => {
+                // Try exact match
+                if (event.artist_id === artistId) return true;
+                // Try with/without jambase: prefix
+                const eventId = event.artist_id.replace(/^jambase:/, '');
+                const artistIdClean = artistId.replace(/^jambase:/, '');
+                if (eventId === artistIdClean) return true;
+                return false;
+              });
+            });
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:531',message:'Artist events after filter',data:{filteredCount:filtered.length,rawCount:artistEvents.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+            
+            return filtered;
+          });
+        
+        eventQueries.push(artistQueryPromise);
       }
 
-      // Query by venues - use JamBase venue_id
-      if (scene.participating_venues && scene.participating_venues.length > 0) {
-        const query = supabase
+      // Query by venues - match by identifier with flexible matching, fallback to name
+      if (participating_venues.length > 0) {
+        // Get venue names for fallback matching from participants we just built
+        const venueNames = participants
+          .filter(p => p.participant_type === 'venue' && p.venue_name)
+          .map(p => p.venue_name!)
+          .filter(Boolean);
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:538',message:'Querying venue events',data:{venueIdentifiersCount:participating_venues.length,venueNamesCount:venueNames.length,identifiers:participating_venues.slice(0,3),names:venueNames.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        
+        // Build a promise that fetches and filters events
+        const venueQueryPromise = supabase
           .from('events')
           .select('*')
           .gte('event_date', new Date().toISOString())
-          .in('venue_id', scene.participating_venues)
-          .not('venue_id', 'is', null)
           .order('event_date', { ascending: true })
-          .limit(50);
-        eventQueries.push(query);
+          .limit(500) // Get more events to filter
+          .then(({ data: venueEvents, error }) => {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:552',message:'Venue events query result',data:{error:error?.message,rawEventCount:venueEvents?.length||0,sampleVenueIds:venueEvents?.slice(0,3).map((e:any)=>e.venue_id),sampleVenueNames:venueEvents?.slice(0,3).map((e:any)=>e.venue_name)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+            
+            if (error) throw error;
+            if (!venueEvents) return [];
+            
+            // Filter events where venue_id OR venue_name matches
+            const filtered = venueEvents.filter((event: any) => {
+              // Try identifier matching first
+              if (event.venue_id) {
+                const matches = participating_venues.some(venueId => {
+                  // Try exact match
+                  if (event.venue_id === venueId) return true;
+                  // Try with/without jambase: prefix
+                  const eventId = event.venue_id.replace(/^jambase:/, '');
+                  const venueIdClean = venueId.replace(/^jambase:/, '');
+                  if (eventId === venueIdClean) return true;
+                  return false;
+                });
+                if (matches) return true;
+              }
+              
+              // Fallback to name matching
+              if (event.venue_name && venueNames.length > 0) {
+                return venueNames.some(name => {
+                  const eventName = event.venue_name?.toLowerCase().trim();
+                  const venueName = name?.toLowerCase().trim();
+                  if (!eventName || !venueName) return false;
+                  // Exact match or contains
+                  return eventName === venueName || 
+                         eventName.includes(venueName) || 
+                         venueName.includes(eventName);
+                });
+              }
+              
+              return false;
+            });
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:586',message:'Venue events after filter',data:{filteredCount:filtered.length,rawCount:venueEvents.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+            
+            return filtered;
+          });
+        
+        eventQueries.push(venueQueryPromise);
       }
 
       // Query by cities
-      if (scene.participating_cities && scene.participating_cities.length > 0) {
+      if (participating_cities.length > 0) {
         const query = supabase
         .from('events')
         .select('*')
         .gte('event_date', new Date().toISOString())
-          .in('venue_city', scene.participating_cities)
+          .in('venue_city', participating_cities)
         .order('event_date', { ascending: true })
           .limit(50);
         eventQueries.push(query);
       }
 
       // Query by genres
-      if (scene.participating_genres && scene.participating_genres.length > 0) {
+      if (participating_genres.length > 0) {
         const query = supabase
         .from('events')
           .select('*')
         .gte('event_date', new Date().toISOString())
-          .overlaps('genres', scene.participating_genres)
+          .overlaps('genres', participating_genres)
           .order('event_date', { ascending: true })
           .limit(50);
         eventQueries.push(query);
       }
 
       // Execute all queries and combine results
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:617',message:'Executing event queries',data:{queryCount:eventQueries.length,now:new Date().toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      
       if (eventQueries.length > 0) {
-        const results = await Promise.all(eventQueries);
-        results.forEach((result) => {
-          if (result.data) {
-            result.data.forEach((event: any) => {
-              if (!eventSet.has(event.id)) {
+        try {
+          const results = await Promise.all(eventQueries);
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:625',message:'Event queries completed',data:{resultCount:results.length,resultTypes:results.map((r:any)=>Array.isArray(r)?'array':typeof r),resultLengths:results.map((r:any)=>Array.isArray(r)?r.length:r?.data?.length||0)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+          
+          results.forEach((result, idx) => {
+            // Handle both array results (from filtering) and Supabase response objects
+            let events: any[] = [];
+            if (Array.isArray(result)) {
+              events = result;
+            } else if (result && typeof result === 'object' && 'data' in result) {
+              events = result.data || [];
+            }
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:635',message:'Processing query result',data:{queryIndex:idx,eventCount:events.length,uniqueBefore:eventSet.size},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
+            
+            events.forEach((event: any) => {
+              if (event && event.id && !eventSet.has(event.id)) {
                 eventSet.add(event.id);
                 allEvents.push(event);
               }
             });
-          }
-        });
+          });
+        } catch (error) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:648',message:'Error fetching scene events',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+          console.error('Error fetching scene events:', error);
+          // Continue with empty events array - don't break the scene display
+        }
       }
 
       // Sort by date and limit
       const events = allEvents
         .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
         .slice(0, 20);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:656',message:'Final events result',data:{allEventsCount:allEvents.length,finalEventsCount:events.length,eventDates:events.slice(0,3).map((e:any)=>e.event_date)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
 
       // Get event IDs for reviewer lookup
       const eventIds = (events || []).map(e => e.id);
@@ -373,6 +787,11 @@ export class SceneService {
 
       return {
         ...scene,
+        participants,
+        participating_artists,
+        participating_venues,
+        participating_cities,
+        participating_genres,
         userProgress: userProgress || undefined,
         upcomingEvents: (events || []) as JamBaseEvent[],
         activeReviewers: Array.from(reviewerMap.values())

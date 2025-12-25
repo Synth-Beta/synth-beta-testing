@@ -139,12 +139,34 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
       if (eventIds.length > 0) {
         const { data: eventsData } = await (supabase as any)
           .from('events')
-          .select('id, venue_name, artist_name, event_date, title')
+          .select('id, venue_uuid, artist_name, event_date, title, venue_city, venue_state')
           .in('id', eventIds);
         
         if (eventsData) {
+          // Get venue names for events that have venue_uuid
+          const venueUuids = eventsData
+            .map((e: any) => e.venue_uuid)
+            .filter(Boolean);
+          
+          let venueMap = new Map<string, string>();
+          if (venueUuids.length > 0) {
+            const { data: venues } = await supabase
+              .from('venues')
+              .select('id, name')
+              .in('id', venueUuids);
+            
+            venues?.forEach((v: any) => {
+              venueMap.set(v.id, v.name);
+            });
+          }
+          
           eventsData.forEach((event: any) => {
-            eventMap.set(event.id, event);
+            // Add venue_name from venues table lookup
+            const venueName = event.venue_uuid ? venueMap.get(event.venue_uuid) : null;
+            eventMap.set(event.id, {
+              ...event,
+              venue_name: venueName
+            });
           });
         }
       }
@@ -354,42 +376,89 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
   // Decode the venue ID (which might be a URL-encoded name)
   const decodedVenueId = venueId ? decodeURIComponent(venueId) : '';
 
+  // Helper to check if a string is a valid UUID
+  const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  };
+
   const fetchVenueEvents = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch events from database first (existing behavior)
-      let { data: eventsData, error: eventsError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('venue_id', venueId)
-        .order('event_date', { ascending: true });
+      let eventsData: any[] | null = null;
+      let eventsError: any = null;
+      let venueNameToSearch = decodedVenueId;
+      let venueLocation = 'Location TBD';
+      let venueUuid: string | null = null;
 
-      // If no events found by venue_id, try by exact venue_name match
-      if (!eventsData || eventsData.length === 0) {
-        // Use exact match instead of fuzzy match to avoid showing similar venues
-        const { data: nameSearchData, error: nameSearchError } = await supabase
+      // Step 1: Determine the venue UUID
+      if (venueId && isValidUUID(venueId)) {
+        // It's a UUID, use it directly
+        venueUuid = venueId;
+        
+        // Get venue details (venues table doesn't have city column)
+        const { data: venueData } = await supabase
+          .from('venues')
+          .select('id, name, state, street_address')
+          .eq('id', venueUuid)
+          .maybeSingle();
+        
+        if (venueData) {
+          venueNameToSearch = venueData.name;
+          const locationParts = [venueData.street_address, venueData.state].filter(Boolean);
+          venueLocation = locationParts.length > 0 ? locationParts.join(', ') : 'Location TBD';
+        }
+      } else {
+        // It's a name, find the venue UUID by name
+        // Try multiple matching strategies
+        let venueData = null;
+        
+        // Strategy 1: Try exact match (case-insensitive) - venues table doesn't have city column
+        const { data: exactMatches } = await supabase
+          .from('venues')
+          .select('id, name, state, street_address')
+          .ilike('name', `%${decodedVenueId}%`)
+          .limit(5);
+        
+        if (exactMatches && exactMatches.length > 0) {
+          // Find the best match (exact or closest)
+          const exactMatch = exactMatches.find(v => 
+            v.name.toLowerCase() === decodedVenueId.toLowerCase()
+          );
+          venueData = exactMatch || exactMatches[0];
+        }
+        
+        if (venueData) {
+          venueUuid = venueData.id;
+          venueNameToSearch = venueData.name;
+          const locationParts = [venueData.street_address, venueData.state].filter(Boolean);
+          venueLocation = locationParts.length > 0 ? locationParts.join(', ') : 'Location TBD';
+        }
+      }
+
+      // Step 2: Query events by venue_id (if we have a UUID)
+      if (venueUuid) {
+        const result = await supabase
           .from('events')
           .select('*')
-          .eq('venue_name', decodedVenueId) // Exact match, not fuzzy
+          .eq('venue_id', venueUuid)
           .order('event_date', { ascending: true });
-          
-        if (!nameSearchError && nameSearchData && nameSearchData.length > 0) {
-          eventsData = nameSearchData;
-          eventsError = null;
-        }
+        eventsData = result.data;
+        eventsError = result.error;
+      } else {
+        // No venue found - return empty results
+        // Don't try to query by venue_id with a name string (venue_id is UUID type)
+        eventsData = [];
+        eventsError = null;
+        console.warn(`Venue not found: ${decodedVenueId}`);
       }
 
       if (eventsError) throw eventsError;
 
-      // Get venue name from database results if available
-      let venueNameToSearch = decodedVenueId;
-      if (eventsData && eventsData.length > 0) {
-        venueNameToSearch = eventsData[0].venue_name;
-        const locationParts = [eventsData[0].venue_city, eventsData[0].venue_state].filter(Boolean);
-        setVenueLocation(locationParts.length > 0 ? locationParts.join(', ') : 'Location TBD');
-      }
+      // Set venue location
+      setVenueLocation(venueLocation);
 
       // Use database events only (API calls removed)
       const dbEvents: JamBaseEvent[] = (eventsData || []).map(event => ({
@@ -431,7 +500,12 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
     return events.filter(event => {
       // Normalize artist and venue names for better matching
       const normalizeArtist = (event.artist_name || '').toLowerCase().trim();
-      const normalizeVenue = (event.venue_name || '').toLowerCase()
+      // Use venue_uuid for matching if venue_name doesn't exist, or get venue name from venues table
+      // For now, use a combination of venue_city and venue_state if venue_name unavailable
+      const venueIdentifier = (event as any).venue_name || 
+        `${(event as any).venue_city || ''} ${(event as any).venue_state || ''}`.trim() ||
+        (event as any).venue_uuid || '';
+      const normalizeVenue = venueIdentifier.toLowerCase()
         .replace(/\s+/g, ' ')
         .replace(/\bthe\s+/gi, '')
         .replace(/[^\w\s]/g, '')

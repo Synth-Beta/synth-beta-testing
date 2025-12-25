@@ -29,7 +29,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
     }
   };
 
-  const imageUrl = event.images?.[0]?.url || event.poster_image_url;
+  const imageUrl = event.images?.[0]?.url || (event as any).event_media_url || (event as any).media_urls?.[0];
 
   return (
     <Card
@@ -55,17 +55,34 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
         {event.artist_name && (
           <p className="text-xs text-muted-foreground mb-2">{event.artist_name}</p>
         )}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 flex-wrap">
           {event.event_date && (
             <div className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />
               <span>{formatDate(event.event_date)}</span>
             </div>
           )}
-          {event.venue_name && (
+          {(event.venue_city || event.venue_state) && (
             <div className="flex items-center gap-1">
               <MapPin className="w-3 h-3" />
-              <span className="line-clamp-1">{event.venue_name}</span>
+              <span className="line-clamp-1">
+                {event.venue_city 
+                  ? (event.venue_state ? `${event.venue_city}, ${event.venue_state}` : event.venue_city)
+                  : event.venue_state || ''}
+              </span>
+            </div>
+          )}
+          {(event.price_min || event.price_max || event.price_range) && (
+            <div className="flex items-center gap-1 text-xs font-medium text-foreground">
+              {event.price_range || (
+                event.price_min && event.price_max
+                  ? `$${event.price_min}${event.price_min !== event.price_max ? `-$${event.price_max}` : ''}`
+                  : event.price_min
+                  ? `$${event.price_min}+`
+                  : event.price_max
+                  ? `Up to $${event.price_max}`
+                  : ''
+              )}
             </div>
           )}
         </div>

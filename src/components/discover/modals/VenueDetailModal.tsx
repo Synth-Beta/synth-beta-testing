@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Star, MapPin, Calendar } from 'lucide-react';
@@ -46,11 +46,36 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
     try {
       setLoading(true);
       
-      // Get events for this venue
-      const { data: events } = await supabase
+      // Get events for this venue using venue_id (UUID join)
+      // This is the primary source of data - events have venue location info
+      const { data: events, error: eventsError } = await supabase
         .from('events')
         .select('id, event_date, venue_city, venue_state, latitude, longitude')
-        .ilike('venue_name', `%${venueName}%`);
+        .eq('venue_id', venueId)
+        .limit(100);
+
+      if (eventsError) {
+        console.warn('Error fetching venue events:', eventsError);
+      }
+
+      // Get venue details if possible (but don't fail if it errors)
+      try {
+        const { data: venueData } = await supabase
+          .from('venues')
+          .select('id, name, state, latitude, longitude, street_address, zip, country')
+          .eq('id', venueId)
+          .maybeSingle();
+
+        // Use venue table data if available (fallback to events)
+        if (venueData) {
+          if (venueData.state && !venueState) setVenueState(venueData.state);
+          if (venueData.latitude && !latitude) setLatitude(Number(venueData.latitude));
+          if (venueData.longitude && !longitude) setLongitude(Number(venueData.longitude));
+        }
+      } catch (venueError) {
+        // Silently fail - we'll use event data instead
+        console.warn('Could not fetch venue details (non-critical):', venueError);
+      }
 
       if (events && events.length > 0) {
         setTotalEvents(events.length);
@@ -59,12 +84,29 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
         setUpcomingEvents(upcoming);
         setPastEvents(events.length - upcoming);
 
-        // Get location from first event
+        // Get location from first event (most reliable source)
         const firstEvent = events[0];
         if (firstEvent.venue_city) setVenueCity(firstEvent.venue_city);
         if (firstEvent.venue_state) setVenueState(firstEvent.venue_state);
         if (firstEvent.latitude) setLatitude(Number(firstEvent.latitude));
         if (firstEvent.longitude) setLongitude(Number(firstEvent.longitude));
+      }
+
+      if (events && events.length > 0) {
+        setTotalEvents(events.length);
+        const now = new Date();
+        const upcoming = events.filter(e => new Date(e.event_date) >= now).length;
+        setUpcomingEvents(upcoming);
+        setPastEvents(events.length - upcoming);
+
+        // Get location from first event if venue data didn't have it
+        if (!venueCity || !venueState) {
+          const firstEvent = events[0];
+          if (firstEvent.venue_city && !venueCity) setVenueCity(firstEvent.venue_city);
+          if (firstEvent.venue_state && !venueState) setVenueState(firstEvent.venue_state);
+          if (firstEvent.latitude && !latitude) setLatitude(Number(firstEvent.latitude));
+          if (firstEvent.longitude && !longitude) setLongitude(Number(firstEvent.longitude));
+        }
       }
 
       // Get reviews for events at this venue
@@ -103,6 +145,9 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
             </Button>
             <DialogTitle className="flex-1">{venueName}</DialogTitle>
           </div>
+          <DialogDescription>
+            Venue details and upcoming events
+          </DialogDescription>
         </DialogHeader>
 
         {loading ? (

@@ -100,10 +100,11 @@ export function ArtistSearchBox({
       const results = await UnifiedArtistSearchService.searchArtists(searchQuery, 10);
       
       // Transform UnifiedArtistSearchService results to match expected format
+      // Ensure id is the UUID from artists table (not jambase_artist_id text)
       const transformedResults = {
         artists: results.map(result => ({
-          id: result.id,
-          jambase_artist_id: result.identifier,
+          id: result.id, // This should be the UUID from artists table
+          jambase_artist_id: result.identifier?.replace('jambase:', '') || result.id,
           name: result.name,
           description: `${result.num_upcoming_events || 0} upcoming events`,
           genres: result.genres || [],

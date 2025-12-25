@@ -36,24 +36,8 @@ export class VenueFollowService {
       // First, try to find venue by name to get UUID
       let venueId: string | null = null;
       
-      let venueQuery = supabase
-        .from('venues')
-        .select('id')
-        .ilike('name', normalizedName)
-        .limit(1);
-      
-      if (venueCity) {
-        venueQuery = venueQuery.ilike('city', venueCity);
-      }
-      
-      if (venueState) {
-        venueQuery = venueQuery.ilike('state', venueState);
-      }
-      
-      const { data: venues } = await venueQuery;
-      if (venues && venues.length > 0) {
-        venueId = venues[0].id;
-      }
+      // Use the helper function that handles state matching
+      venueId = await this.getVenueIdByName(normalizedName, venueCity, venueState);
       
       // Must have venue UUID to follow (3NF requires FK)
       if (!venueId) {
@@ -114,26 +98,69 @@ export class VenueFollowService {
     try {
       const normalizedName = this.normalizeVenueName(venueName);
       
+      // Query venues table - use state column (which exists) but not city (which doesn't)
       let venueQuery = supabase
         .from('venues')
-        .select('id')
-        .ilike('name', normalizedName)
-        .limit(1);
+        .select('id, state')
+        .ilike('name', `%${normalizedName}%`)
+        .limit(10);
       
-      if (venueCity) {
-        venueQuery = venueQuery.ilike('city', venueCity);
-      }
-      
+      // Only filter by state if provided (city column doesn't exist in venues table)
       if (venueState) {
-        venueQuery = venueQuery.ilike('state', venueState);
+        venueQuery = venueQuery.ilike('state', `%${venueState}%`);
       }
       
-      const { data: venues } = await venueQuery;
-      if (venues && venues.length > 0) {
-        return venues[0].id;
+      const { data: venues, error } = await venueQuery;
+      
+      if (error) {
+        console.warn('Error querying venues by name:', error);
+        return null;
       }
       
-      return null;
+      if (!venues || venues.length === 0) {
+        return null;
+      }
+      
+      // If we have city filter, try to match via events table
+      // (venues table doesn't have city, but events table has venue_city)
+      if (venueCity) {
+        const venueIds = venues.map(v => v.id);
+        
+        // Query events to find which venue_id matches the city
+        const { data: matchingEvents } = await supabase
+          .from('events')
+          .select('venue_id')
+          .in('venue_id', venueIds)
+          .ilike('venue_city', `%${venueCity}%`)
+          .limit(100);
+        
+        if (matchingEvents && matchingEvents.length > 0) {
+          // Find the most common venue_id in matching events
+          const venueIdCounts = new Map<string, number>();
+          matchingEvents.forEach((e: any) => {
+            if (e.venue_id) {
+              venueIdCounts.set(e.venue_id, (venueIdCounts.get(e.venue_id) || 0) + 1);
+            }
+          });
+          
+          // Return the venue_id with most matching events
+          let maxCount = 0;
+          let bestVenueId: string | null = null;
+          venueIdCounts.forEach((count, vid) => {
+            if (count > maxCount) {
+              maxCount = count;
+              bestVenueId = vid;
+            }
+          });
+          
+          if (bestVenueId) {
+            return bestVenueId;
+          }
+        }
+      }
+      
+      // Return first match if no city filter or no match found
+      return venues[0].id;
     } catch (error) {
       console.error('Error getting venue ID by name:', error);
       return null;
@@ -157,21 +184,35 @@ export class VenueFollowService {
       const normalizedName = this.normalizeVenueName(venueName);
 
       // Use relationships table directly instead of RPC
-      // First, find venues matching the name
+      // First, find venues matching the name (venues table doesn't have city column)
       let venueQuery = supabase
         .from('venues')
         .select('id')
         .ilike('name', normalizedName);
 
-      if (venueCity) {
-        venueQuery = venueQuery.ilike('city', venueCity);
-      }
-
+      // Only filter by state (city column doesn't exist in venues table)
       if (venueState) {
         venueQuery = venueQuery.ilike('state', venueState);
       }
 
-      const { data: venues } = await venueQuery;
+      let { data: venues } = await venueQuery;
+      
+      // If we have city filter, use events table to narrow down
+      if (venueCity && venues && venues.length > 0) {
+        const venueIds = venues.map((v: any) => v.id);
+        const { data: matchingEvents } = await supabase
+          .from('events')
+          .select('venue_id')
+          .in('venue_id', venueIds)
+          .ilike('venue_city', `%${venueCity}%`)
+          .limit(100);
+        
+        if (matchingEvents && matchingEvents.length > 0) {
+          const matchedVenueIds = new Set(matchingEvents.map((e: any) => e.venue_id));
+          venues = venues.filter((v: any) => matchedVenueIds.has(v.id));
+        }
+      }
+      
       if (!venues || venues.length === 0) {
         // Venue doesn't exist in database, so user can't be following it
         return false;
@@ -208,21 +249,34 @@ export class VenueFollowService {
       const normalizedName = this.normalizeVenueName(venueName);
 
       // Use relationships table directly instead of RPC
-      // First, find venues matching the name
+      // First, find venues matching the name (venues table doesn't have city column)
       let venueQuery = supabase
         .from('venues')
         .select('id')
         .ilike('name', normalizedName);
 
-      if (venueCity) {
-        venueQuery = venueQuery.ilike('city', venueCity);
-      }
-
+      // Only filter by state (city column doesn't exist in venues table)
       if (venueState) {
         venueQuery = venueQuery.ilike('state', venueState);
       }
 
-      const { data: venues } = await venueQuery;
+      let { data: venues } = await venueQuery;
+      
+      // If we have city filter, use events table to narrow down
+      if (venueCity && venues && venues.length > 0) {
+        const venueIds = venues.map((v: any) => v.id);
+        const { data: matchingEvents } = await supabase
+          .from('events')
+          .select('venue_id')
+          .in('venue_id', venueIds)
+          .ilike('venue_city', `%${venueCity}%`)
+          .limit(100);
+        
+        if (matchingEvents && matchingEvents.length > 0) {
+          const matchedVenueIds = new Set(matchingEvents.map((e: any) => e.venue_id));
+          venues = venues.filter((v: any) => matchedVenueIds.has(v.id));
+        }
+      }
       
       let totalCount = 0;
 
@@ -359,21 +413,34 @@ export class VenueFollowService {
     try {
       const normalizedName = this.normalizeVenueName(venueName);
 
-      // First, find venues matching the name
+      // First, find venues matching the name (venues table doesn't have city column)
       let venueQuery = supabase
         .from('venues')
-        .select('id, name, city, state')
+        .select('id, name, state')
         .ilike('name', normalizedName);
 
-      if (venueCity) {
-        venueQuery = venueQuery.ilike('city', venueCity);
-      }
-
+      // Only filter by state (city column doesn't exist in venues table)
       if (venueState) {
         venueQuery = venueQuery.ilike('state', venueState);
       }
 
-      const { data: venues, error: venuesError } = await venueQuery;
+      let { data: venues, error: venuesError } = await venueQuery;
+      
+      // If we have city filter, use events table to narrow down
+      if (venueCity && venues && venues.length > 0) {
+        const venueIds = venues.map((v: any) => v.id);
+        const { data: matchingEvents } = await supabase
+          .from('events')
+          .select('venue_id')
+          .in('venue_id', venueIds)
+          .ilike('venue_city', `%${venueCity}%`)
+          .limit(100);
+        
+        if (matchingEvents && matchingEvents.length > 0) {
+          const matchedVenueIds = new Set(matchingEvents.map((e: any) => e.venue_id));
+          venues = venues.filter((v: any) => matchedVenueIds.has(v.id));
+        }
+      }
 
       if (venuesError) throw venuesError;
 

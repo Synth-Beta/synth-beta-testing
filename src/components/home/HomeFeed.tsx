@@ -103,9 +103,9 @@ interface FriendEventInterest {
 
   // Load all feed sections when filters change
   useEffect(() => {
-    if (activeCity !== undefined) {
-      loadAllFeedSections();
-    }
+    // Always load feed sections, even if activeCity is null
+    // The feed will work without a city filter
+    loadAllFeedSections();
   }, [currentUserId, activeCity, dateWindow, cityCoordinates]);
 
   const loadUserCity = async () => {
@@ -127,9 +127,14 @@ interface FriendEventInterest {
         } catch (err) {
           console.error('Error getting city coordinates:', err);
         }
-        }
-      } catch (error) {
+      } else {
+        // Explicitly set to null if no city found (so useEffect can trigger)
+        setActiveCity(null);
+      }
+    } catch (error) {
       console.error('Error loading user city:', error);
+      // Set to null on error so feed can still load
+      setActiveCity(null);
     }
   };
 
@@ -160,14 +165,16 @@ interface FriendEventInterest {
   };
 
   const loadAllFeedSections = async () => {
+    console.log('🔄 HomeFeed: Loading all feed sections...', { currentUserId, activeCity, dateWindow });
     const dateRange = getDateRange();
     const filters = {
       selectedCities: activeCity ? [activeCity] : undefined,
       dateRange,
     };
 
-    // Load all sections in parallel
-    Promise.all([
+    // Load all sections in parallel with error handling
+    // Use Promise.allSettled so one failure doesn't block others
+    const results = await Promise.allSettled([
       loadRecommendedEvents(filters),
       loadNetworkEvents(),
       loadReviews(),
@@ -176,18 +183,37 @@ interface FriendEventInterest {
       loadRecommendedFriends(),
       loadRecommendedGroupChats(),
     ]);
+    
+    // Log any failures
+    results.forEach((result, index) => {
+      const sectionNames = ['Recommended', 'Network', 'Reviews', 'Lists', 'Trending', 'Friends', 'GroupChats'];
+      if (result.status === 'rejected') {
+        console.error(`❌ HomeFeed: ${sectionNames[index]} section failed:`, result.reason);
+      } else {
+        console.log(`✅ HomeFeed: ${sectionNames[index]} section loaded successfully`);
+      }
+    });
+    
+    console.log('✅ HomeFeed: All feed sections loading completed');
   };
 
   const loadRecommendedEvents = async (filters: any) => {
     setLoadingRecommended(true);
     try {
-      const events = await PersonalizedFeedService.getPersonalizedFeed(
+      // Add timeout to prevent infinite loading (30 seconds)
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Feed loading timeout after 30s')), 30000)
+      );
+      
+      const eventsPromise = PersonalizedFeedService.getPersonalizedFeed(
         currentUserId,
         20,
         0,
         false,
         filters
       );
+      
+      const events = await Promise.race([eventsPromise, timeoutPromise]);
       setRecommendedEvents(events);
     } catch (error) {
       console.error('Error loading recommended events:', error);
@@ -887,12 +913,12 @@ interface FriendEventInterest {
 
         {/* Collapsible Event Sections */}
         <Accordion type="multiple" className="w-full space-y-2">
-          {/* 1. Recommended for You */}
+          {/* 1. Your Events */}
           <AccordionItem value="recommended" className="border border-gray-200 rounded-xl px-3 py-2 bg-white">
             <AccordionTrigger className="hover:no-underline py-2">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-synth-pink" />
-                <h2 className="text-base font-bold">Recommended</h2>
+                <h2 className="text-base font-bold">Your Events</h2>
                 {recommendedEvents.length > 0 && (
                   <span className="text-xs text-muted-foreground">({recommendedEvents.length})</span>
                 )}
