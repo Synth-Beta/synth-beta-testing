@@ -169,3 +169,5 @@ GRANT EXECUTE ON FUNCTION public.get_venue_stats(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_popular_venue_tags(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_artist_stats(TEXT) TO authenticated;
 
+
+

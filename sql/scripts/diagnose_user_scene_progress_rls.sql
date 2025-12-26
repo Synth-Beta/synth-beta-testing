@@ -72,3 +72,5 @@ SELECT
 FROM auth.users
 WHERE id = '349bda34-7878-4c10-9f86-ec5888e55571';
 
+
+

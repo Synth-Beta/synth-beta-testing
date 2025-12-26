@@ -703,8 +703,7 @@ export class UserEventService {
         .from('reviews')
         .select('was_there, review_text, id, created_at')
         .eq('user_id', userId)
-        .eq('entity_type', 'event')
-        .eq('entity_id', eventId)
+        .eq('event_id', eventId)
         .maybeSingle();
 
       console.log('🔍 getUserAttendance:', { userId, eventId, data, error });
@@ -724,8 +723,7 @@ export class UserEventService {
             .from('reviews')
             .update({ was_there: true })
             .eq('user_id', userId)
-            .eq('entity_type', 'event')
-            .eq('entity_id', eventId);
+            .eq('event_id', eventId);
           return true;
         }
         
@@ -758,8 +756,7 @@ export class UserEventService {
       const { count, error } = await (supabase as any)
         .from('reviews')
         .select('*', { count: 'exact', head: true })
-        .eq('entity_type', 'event')
-        .eq('entity_id', eventId)
+        .eq('event_id', eventId)
         .eq('was_there', true);
 
       if (error) throw error;

@@ -233,4 +233,3 @@ export const EventMap: React.FC<EventMapProps> = ({
     </div>
   );
 };
-

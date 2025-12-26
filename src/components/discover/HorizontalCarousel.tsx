@@ -64,13 +64,13 @@ export const HorizontalCarousel: React.FC<HorizontalCarouselProps> = ({
         </div>
       )}
       <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-        <div className="flex gap-4 items-start" style={{ 
+        <div className="flex gap-4 items-stretch" style={{ 
           width: 'max-content',
           minWidth: '100%',
           justifyContent: 'center'
         }}>
           {items.map((item, index) => (
-            <div key={index} className={cn('flex-shrink-0', itemClassName)}>
+            <div key={index} className={cn('flex-shrink-0 h-full', itemClassName)}>
               {item}
             </div>
           ))}

@@ -10,6 +10,7 @@ import ArtistEvents from "./pages/ArtistEvents";
 import VenueEvents from "./pages/VenueEvents";
 import { StreamingStatsPage } from "./pages/StreamingStatsPage";
 import { ArtistFollowingPage } from "./pages/ArtistFollowingPage";
+import Admin from "./pages/Admin";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<AppPage />} />
+              <Route path="/admin" element={<Admin />} />
               <Route path="/artist/:artistId" element={<ArtistEvents />} />
               <Route path="/venue/:venueId" element={<VenueEvents />} />
               <Route path="/streaming-stats" element={<StreamingStatsPage />} />

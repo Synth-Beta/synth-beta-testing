@@ -310,4 +310,3 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
     </div>
   );
 };
-

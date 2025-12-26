@@ -48,10 +48,11 @@ BEGIN
     LIMIT 1;
     
     -- For events, try to get more details for better naming
+    -- Join with artists and venues tables for 3NF compliance
     SELECT 
       e.title,
-      e.artist_name,
-      e.venue_name,
+      a.name as artist_name,
+      v.name as venue_name,
       e.event_date::DATE
     INTO 
       v_event_title,
@@ -59,6 +60,8 @@ BEGIN
       v_venue_name,
       v_event_date
     FROM public.events e
+    LEFT JOIN public.artists a ON e.artist_id = a.id
+    LEFT JOIN public.venues v ON e.venue_id = v.id
     WHERE e.id::TEXT = p_entity_id OR (p_entity_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND e.id = p_entity_id::UUID)
     LIMIT 1;
 

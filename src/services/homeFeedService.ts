@@ -266,27 +266,37 @@ export class HomeFeedService {
         interestedCounts.set(eventId, (interestedCounts.get(eventId) || 0) + 1);
       });
 
-      // Get most reviewed artists
+      // Get most reviewed artists - query reviews and events separately to avoid FK syntax issues
       const { data: reviews, error: reviewsError } = await supabase
         .from('reviews')
-        .select(`
-          event_id,
-          events:event_id (
-            artist_name
-          )
-        `)
+        .select('event_id')
         .eq('is_public', true);
 
       if (reviewsError) throw reviewsError;
 
-      // Count reviews per artist
-      const artistReviewCounts = new Map<string, number>();
-      (reviews || []).forEach((review: any) => {
-        const artistName = review.events?.artist_name;
-        if (artistName) {
-          artistReviewCounts.set(artistName, (artistReviewCounts.get(artistName) || 0) + 1);
+      // Get unique event IDs from reviews
+      const reviewEventIds = [...new Set((reviews || []).map((r: any) => r.event_id))];
+      
+      // Query events to get artist names
+      let artistReviewCounts = new Map<string, number>();
+      if (reviewEventIds.length > 0) {
+        const { data: eventsWithArtists, error: eventsError } = await supabase
+          .from('events')
+          .select('id, artist_name, title')
+          .in('id', reviewEventIds);
+
+        if (!eventsError && eventsWithArtists) {
+          // Count reviews per artist
+          (eventsWithArtists || []).forEach((event: any) => {
+            const artistName = event.artist_name || event.title?.split(' at ')[0] || event.title || 'Unknown Artist';
+            if (artistName) {
+              // Count how many reviews this event has
+              const reviewCountForEvent = (reviews || []).filter((r: any) => r.event_id === event.id).length;
+              artistReviewCounts.set(artistName, (artistReviewCounts.get(artistName) || 0) + reviewCountForEvent);
+            }
+          });
         }
-      });
+      }
 
       // Get top reviewed artists (top 10)
       const topArtists = Array.from(artistReviewCounts.entries())
@@ -302,20 +312,24 @@ export class HomeFeedService {
       // Get event details (3NF: events table) with images
       const { data: events, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, artist_name, venue_name, venue_city, event_date, images, latitude, longitude')
+        .select('id, title, artist_name, venue_name, venue_city, event_date, images, latitude, longitude, genres')
         .in('id', allEventIds)
         .gte('event_date', new Date().toISOString())
         .order('event_date', { ascending: true })
         .limit(limit * 3);
 
-      if (eventsError) throw eventsError;
+      if (eventsError) {
+        console.error('Error fetching events for trending:', eventsError);
+        throw eventsError;
+      }
 
       // Calculate trending scores
       const trendingEvents: TrendingEvent[] = (events || [])
         .map((event: any) => {
           const interestedCount = interestedCounts.get(event.id) || 0;
-          const artistReviewCount = artistReviewCounts.get(event.artist_name) || 0;
-          const isTopReviewedArtist = topArtists.includes(event.artist_name);
+          const artistName = event.artist_name || event.title?.split(' at ')[0] || 'Unknown Artist';
+          const artistReviewCount = artistReviewCounts.get(artistName) || 0;
+          const isTopReviewedArtist = topArtists.includes(artistName);
 
           // Calculate trending score: weight interested users heavily, boost for top reviewed artists
           const trendingScore = interestedCount * 3 + (isTopReviewedArtist ? artistReviewCount * 2 : 0);
@@ -332,8 +346,8 @@ export class HomeFeedService {
 
           return {
             event_id: event.id,
-            title: event.title || event.artist_name || 'Event',
-            artist_name: event.artist_name || 'Unknown Artist',
+            title: event.title || artistName || 'Event',
+            artist_name: artistName,
             venue_name: event.venue_name || 'Unknown Venue',
             venue_city: event.venue_city || undefined,
             event_date: event.event_date,

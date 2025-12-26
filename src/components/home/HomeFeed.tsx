@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PersonalizedFeedService, type PersonalizedEvent, type FeedItem } from '@/services/personalizedFeedService';
 import { HomeFeedService, type NetworkEvent, type EventList, type TrendingEvent } from '@/services/homeFeedService';
 import { UnifiedFeedService, type UnifiedFeedItem } from '@/services/unifiedFeedService';
@@ -13,12 +13,15 @@ import { CompactEventCard } from './CompactEventCard';
 import { FigmaEventCard } from '@/components/cards/FigmaEventCard';
 import { NetworkReviewCard } from './NetworkReviewCard';
 import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
+import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
-import { Loader2, Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare } from 'lucide-react';
+import { EventFilters, type FilterState } from '@/components/search/EventFilters';
+import { Loader2, Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { LocationService } from '@/services/locationService';
 
 interface HomeFeedProps {
   currentUserId: string;
@@ -40,6 +43,28 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [dateWindow, setDateWindow] = useState<DateWindow>('next_30_days');
   const [cityCoordinates, setCityCoordinates] = useState<{ lat: number; lng: number } | null>(null);
 
+  // Filter state for all sections
+  const [filters, setFilters] = useState<FilterState>({
+    genres: [],
+    selectedCities: [],
+    dateRange: {},
+    showFilters: false,
+    radiusMiles: 50,
+    filterByFollowing: 'all',
+    daysOfWeek: [],
+  });
+
+  // Refs for filter management
+  const locationAutoAppliedRef = useRef(false);
+
+  // Available genres and cities for filters
+  const [availableGenres] = useState<string[]>([
+    'Rock', 'Pop', 'Hip-Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 
+    'R&B', 'Reggae', 'Folk', 'Blues', 'Alternative', 'Indie', 'Punk',
+    'Metal', 'Funk', 'Soul', 'Gospel', 'Latin', 'World'
+  ]);
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+
   // Feed sections state
   const [recommendedEvents, setRecommendedEvents] = useState<PersonalizedEvent[]>([]);
   const [firstDegreeEvents, setFirstDegreeEvents] = useState<NetworkEvent[]>([]);
@@ -47,6 +72,12 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [reviews, setReviews] = useState<UnifiedFeedItem[]>([]);
   const [eventLists, setEventLists] = useState<EventList[]>([]);
   const [trendingEvents, setTrendingEvents] = useState<TrendingEvent[]>([]);
+
+  // Pagination state for each section
+  const [trendingPage, setTrendingPage] = useState(0);
+  const [friendsPage, setFriendsPage] = useState(0);
+  const [trendingHasMore, setTrendingHasMore] = useState(true);
+  const [friendsHasMore, setFriendsHasMore] = useState(true);
   const [recommendedFriends, setRecommendedFriends] = useState<Array<{
     connected_user_id: string;
   name: string;
@@ -96,15 +127,114 @@ interface FriendEventInterest {
 }
   const [friendEventInterests, setFriendEventInterests] = useState<FriendEventInterest[]>([]);
 
-  // Load user's active city
+  // Load user's active city and apply to filters
   useEffect(() => {
     loadUserCity();
   }, [currentUserId]);
 
-  // Load all feed sections when filters change
+  // Automatically apply location to filters (from profile or geolocation)
   useEffect(() => {
-    // Always load feed sections, even if activeCity is null
-    // The feed will work without a city filter
+    const applyLocationFilter = async () => {
+      // First, try to use the user's saved city from profile
+      if (activeCity) {
+        console.log('📍 Using saved city from profile:', activeCity);
+        
+        setFilters(prev => {
+          // Don't overwrite if user already selected cities
+          if (prev.selectedCities && prev.selectedCities.length > 0) {
+            console.log('📍 User already has cities selected, not overwriting:', prev.selectedCities);
+            locationAutoAppliedRef.current = true;
+            return prev;
+          }
+          
+          locationAutoAppliedRef.current = true;
+          return {
+            ...prev,
+            selectedCities: [activeCity],
+          };
+        });
+        
+        console.log('✅ Location filter applied from profile:', activeCity);
+        return;
+      }
+
+      // If no saved city and not already applied, try geolocation
+      if (locationAutoAppliedRef.current) {
+        return;
+      }
+
+      try {
+        console.log('📍 No saved city, getting current location via geolocation...');
+        const currentLocation = await LocationService.getCurrentLocation();
+        console.log('📍 Got location coordinates:', currentLocation);
+        
+        // Reverse geocode to get city name
+        const cityName = await LocationService.reverseGeocode(
+          currentLocation.latitude,
+          currentLocation.longitude
+        );
+        
+        console.log('📍 Reverse geocode result:', cityName);
+        
+        if (cityName) {
+          console.log('📍 Applying location filter from geolocation:', cityName);
+          locationAutoAppliedRef.current = true;
+          
+          // Use functional update to check current state and update
+          setFilters(prev => {
+            // Don't overwrite if user already selected cities
+            if (prev.selectedCities && prev.selectedCities.length > 0) {
+              console.log('📍 User already has cities selected, not overwriting:', prev.selectedCities);
+              return prev;
+            }
+            
+            return {
+              ...prev,
+              selectedCities: [cityName],
+            };
+          });
+          
+          console.log('✅ Location filter applied successfully from geolocation:', cityName);
+        } else {
+          console.log('📍 No city name found from reverse geocoding');
+          locationAutoAppliedRef.current = true;
+        }
+      } catch (error) {
+        console.error('📍 Error getting current location:', error);
+        // Mark as applied even on error to prevent retrying
+        locationAutoAppliedRef.current = true;
+      }
+    };
+
+    applyLocationFilter();
+  }, [activeCity]); // Re-run when activeCity changes (loaded from profile)
+
+  // Load cities for filters
+  useEffect(() => {
+    const loadCities = async () => {
+      try {
+        const { data } = await supabase.rpc('get_available_cities_for_filter', {
+          min_event_count: 1,
+          limit_count: 500
+        });
+        if (data) {
+          setAvailableCities(data.map((row: any) => row.city_name));
+        }
+      } catch (error) {
+        console.error('Error loading cities:', error);
+      }
+    };
+    loadCities();
+  }, []);
+
+  // Reload sections when filters change
+  useEffect(() => {
+    loadTrendingEvents(true);
+    loadNetworkEvents(true);
+  }, [filters.genres, filters.selectedCities, filters.dateRange]);
+
+  // Load all feed sections when user/city/date changes
+  useEffect(() => {
     loadAllFeedSections();
   }, [currentUserId, activeCity, dateWindow, cityCoordinates]);
 
@@ -166,20 +296,17 @@ interface FriendEventInterest {
 
   const loadAllFeedSections = async () => {
     console.log('🔄 HomeFeed: Loading all feed sections...', { currentUserId, activeCity, dateWindow });
-    const dateRange = getDateRange();
-    const filters = {
-      selectedCities: activeCity ? [activeCity] : undefined,
-      dateRange,
-    };
-
+    
     // Load all sections in parallel with error handling
     // Use Promise.allSettled so one failure doesn't block others
+    // Note: loadRecommendedEvents is now handled by PreferencesV4FeedSection component
+    // loadTrendingEvents and loadNetworkEvents now handle their own filter application
     const results = await Promise.allSettled([
-      loadRecommendedEvents(filters),
-      loadNetworkEvents(),
+      // loadRecommendedEvents(filters), // Now handled by PreferencesV4FeedSection
+      loadNetworkEvents(true), // Reset to page 0
       loadReviews(),
       loadEventLists(),
-      loadTrendingEvents(),
+      loadTrendingEvents(true), // Reset to page 0
       loadRecommendedFriends(),
       loadRecommendedGroupChats(),
     ]);
@@ -223,21 +350,50 @@ interface FriendEventInterest {
     }
   };
 
-  const loadNetworkEvents = async () => {
-    setLoadingNetwork(true);
+  const loadNetworkEvents = async (reset: boolean = false) => {
+    if (reset) {
+      setFriendsPage(0);
+      setLoadingNetwork(true);
+    }
     try {
+      const pageSize = 18;
       const [firstDegree, secondDegree] = await Promise.all([
-        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, 10),
-        HomeFeedService.getSecondDegreeNetworkEvents(currentUserId, 8),
+        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, (friendsPage + 1) * 10),
+        HomeFeedService.getSecondDegreeNetworkEvents(currentUserId, (friendsPage + 1) * 8),
       ]);
-      setFirstDegreeEvents(firstDegree);
-      setSecondDegreeEvents(secondDegree);
+      
+      // Combine and apply filters
+      const allEvents = [...firstDegree, ...secondDegree];
+      const filteredEvents = applyFiltersToEvents(allEvents);
+      
+      // Split back into first and second degree
+      const firstDegreeFiltered = filteredEvents.filter(e => firstDegree.some(fd => fd.event_id === e.event_id));
+      const secondDegreeFiltered = filteredEvents.filter(e => secondDegree.some(sd => sd.event_id === e.event_id));
+      
+      if (reset) {
+        setFirstDegreeEvents(firstDegreeFiltered.slice(0, 10));
+        setSecondDegreeEvents(secondDegreeFiltered.slice(0, 8));
+      } else {
+        setFirstDegreeEvents(prev => [...prev, ...firstDegreeFiltered.slice(friendsPage * 10, (friendsPage + 1) * 10)]);
+        setSecondDegreeEvents(prev => [...prev, ...secondDegreeFiltered.slice(friendsPage * 8, (friendsPage + 1) * 8)]);
+      }
+      
+      setFriendsHasMore(filteredEvents.length > (friendsPage + 1) * pageSize);
     } catch (error) {
       console.error('Error loading network events:', error);
-      setFirstDegreeEvents([]);
-      setSecondDegreeEvents([]);
+      if (reset) {
+        setFirstDegreeEvents([]);
+        setSecondDegreeEvents([]);
+      }
     } finally {
       setLoadingNetwork(false);
+    }
+  };
+
+  const loadMoreFriends = () => {
+    if (!loadingNetwork && friendsHasMore) {
+      setFriendsPage(prev => prev + 1);
+      loadNetworkEvents(false);
     }
   };
 
@@ -274,22 +430,83 @@ interface FriendEventInterest {
     }
   };
 
-  const loadTrendingEvents = async () => {
-    setLoadingTrending(true);
+  // Helper function to apply filters to events
+  const applyFiltersToEvents = <T extends { event_date?: string; venue_city?: string; genres?: string[] | null }>(
+    events: T[]
+  ): T[] => {
+    return events.filter(event => {
+      // Date filter
+      if (filters.dateRange.from || filters.dateRange.to) {
+        if (!event.event_date) return false;
+        const eventDate = new Date(event.event_date);
+        if (filters.dateRange.from && eventDate < filters.dateRange.from) return false;
+        if (filters.dateRange.to) {
+          const toDate = new Date(filters.dateRange.to);
+          toDate.setHours(23, 59, 59, 999);
+          if (eventDate > toDate) return false;
+        }
+      }
+
+      // City filter
+      if (filters.selectedCities && filters.selectedCities.length > 0) {
+        const eventCity = event.venue_city?.toLowerCase().trim();
+        const matches = filters.selectedCities.some(city => 
+          eventCity?.includes(city.toLowerCase().trim())
+        );
+        if (!matches) return false;
+      }
+
+      // Genre filter (skip if genres not available on event)
+      if (filters.genres && filters.genres.length > 0) {
+        const eventGenres = (event.genres || []).map((g: string) => g.toLowerCase());
+        if (eventGenres.length === 0) return false; // No genres on event, skip if genre filter active
+        const matches = filters.genres.some(genre => 
+          eventGenres.some((eg: string) => eg.includes(genre.toLowerCase()) || genre.toLowerCase().includes(eg))
+        );
+        if (!matches) return false;
+      }
+
+      return true;
+    });
+  };
+
+  const loadTrendingEvents = async (reset: boolean = false) => {
+    if (reset) {
+      setTrendingPage(0);
+      setLoadingTrending(true);
+    }
     try {
+      const pageSize = 12;
       const events = await HomeFeedService.getTrendingEvents(
         currentUserId,
         cityCoordinates?.lat,
         cityCoordinates?.lng,
         50,
-        12
+        (trendingPage + 1) * pageSize
       );
-      setTrendingEvents(events);
+      
+      // Apply filters
+      const filteredEvents = applyFiltersToEvents(events);
+      
+      if (reset) {
+        setTrendingEvents(filteredEvents.slice(0, pageSize));
+      } else {
+        setTrendingEvents(prev => [...prev, ...filteredEvents.slice(trendingPage * pageSize, (trendingPage + 1) * pageSize)]);
+      }
+      
+      setTrendingHasMore(filteredEvents.length > (trendingPage + 1) * pageSize);
     } catch (error) {
       console.error('Error loading trending events:', error);
-      setTrendingEvents([]);
+      if (reset) setTrendingEvents([]);
     } finally {
       setLoadingTrending(false);
+    }
+  };
+
+  const loadMoreTrending = () => {
+    if (!loadingTrending && trendingHasMore) {
+      setTrendingPage(prev => prev + 1);
+      loadTrendingEvents(false);
     }
   };
 
@@ -919,60 +1136,25 @@ interface FriendEventInterest {
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-synth-pink" />
                 <h2 className="text-base font-bold">Your Events</h2>
-                {recommendedEvents.length > 0 && (
-                  <span className="text-xs text-muted-foreground">({recommendedEvents.length})</span>
-                )}
                             </div>
             </AccordionTrigger>
             <AccordionContent className="pt-2">
-              {loadingRecommended ? (
-                <div className="flex items-center justify-center py-6">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                          </div>
-              ) : recommendedEvents.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground text-sm">
-                  <p>No recommendations yet.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto pb-2 scrollbar-hide">
-                  <div className="flex gap-3" style={{ width: 'max-content' }}>
-                    {recommendedEvents.map((event) => {
-                      // Resolve image URL with priority:
-                      // 1. poster_image_url (from SQL function - already resolved with all sources)
-                      // 2. images JSONB (first image URL, prefer 16:9 or large images)
-                      // 3. event_media_url (if available in event object)
-                      let imageUrl: string | undefined = undefined;
-                      
-                      if (event.poster_image_url) {
-                        imageUrl = event.poster_image_url;
-                      } else if (event.images && Array.isArray(event.images) && event.images.length > 0) {
-                        // Prefer 16:9 ratio or large images
-                        const bestImage = event.images.find((img: any) => 
-                          img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
-                        ) || event.images.find((img: any) => img?.url);
-                        imageUrl = bestImage?.url;
-                      }
-                      
-                      return (
-                      <CompactEventCard
-                        key={event.id}
-                        event={{
-                          id: event.id || '',
-                          title: event.title || (event as any).artist_name_normalized || 'Event',
-                          artist_name: (event as any).artist_name_normalized,
-                          venue_name: (event as any).venue_name_normalized,
-                          event_date: event.event_date,
-                          venue_city: event.venue_city || undefined,
-                            image_url: imageUrl,
-                          poster_image_url: event.poster_image_url || undefined,
-                        }}
-                        onClick={() => handleEventClick(event.id)}
-                      />
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              <PreferencesV4FeedSection
+                userId={currentUserId}
+                onEventClick={handleEventClick}
+                filters={filters}
+                filterControls={
+                  <EventFilters
+                    filters={filters}
+                    onFiltersChange={(newFilters) => {
+                      setFilters(newFilters);
+                    }}
+                    availableGenres={availableGenres}
+                    availableCities={availableCities}
+                    className="flex-1"
+                  />
+                }
+              />
             </AccordionContent>
           </AccordionItem>
 
@@ -988,50 +1170,92 @@ interface FriendEventInterest {
               </div>
             </AccordionTrigger>
             <AccordionContent className="pt-2">
-              {loadingTrending ? (
+              {loadingTrending && trendingEvents.length === 0 ? (
                 <div className="flex items-center justify-center py-6">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>
-              ) : trendingEvents.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground text-sm">
-                  <p>No trending events right now.</p>
-                </div>
               ) : (
-                <div className="overflow-x-auto pb-2 scrollbar-hide">
-                  <div className="flex gap-3" style={{ width: 'max-content' }}>
-                    {trendingEvents.map((event) => {
-                      // Resolve image URL with priority:
-                      // 1. poster_image_url (if available)
-                      // 2. images JSONB (first image URL, prefer 16:9 or large images)
-                      let imageUrl: string | undefined = undefined;
-                      
-                      if (event.images && Array.isArray(event.images) && event.images.length > 0) {
-                        // Prefer 16:9 ratio or large images
-                        const bestImage = event.images.find((img: any) => 
-                          img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
-                        ) || event.images.find((img: any) => img?.url);
-                        imageUrl = bestImage?.url;
-                      }
-                      
-                      return (
-                      <CompactEventCard
-                        key={event.event_id}
-                        event={{
-                          id: event.event_id,
-                          title: event.title,
-                          artist_name: (event as any).artist_name_normalized,
-                          venue_name: (event as any).venue_name_normalized,
-                          event_date: event.event_date,
-                          venue_city: event.venue_city,
-                            image_url: imageUrl,
-                            poster_image_url: imageUrl,
-                        }}
-                        onClick={() => handleEventClick(event.event_id)}
-                      />
-                      );
-                    })}
+                <>
+                  {trendingEvents.length > 0 ? (
+                    <div className="overflow-x-auto pb-2 scrollbar-hide">
+                      <div className="flex gap-3" style={{ width: 'max-content' }}>
+                        {trendingEvents.map((event) => {
+                          // Resolve image URL with priority:
+                          // 1. poster_image_url (if available)
+                          // 2. images JSONB (first image URL, prefer 16:9 or large images)
+                          let imageUrl: string | undefined = undefined;
+                          
+                          if (event.images && Array.isArray(event.images) && event.images.length > 0) {
+                            // Prefer 16:9 ratio or large images
+                            const bestImage = event.images.find((img: any) => 
+                              img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
+                            ) || event.images.find((img: any) => img?.url);
+                            imageUrl = bestImage?.url;
+                          }
+                          
+                          return (
+                          <CompactEventCard
+                            key={event.event_id}
+                            event={{
+                              id: event.event_id,
+                              title: event.title,
+                              artist_name: (event as any).artist_name_normalized,
+                              venue_name: (event as any).venue_name_normalized,
+                              event_date: event.event_date,
+                              venue_city: event.venue_city,
+                                image_url: imageUrl,
+                                poster_image_url: imageUrl,
+                            }}
+                            onClick={() => handleEventClick(event.event_id)}
+                          />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground text-sm">
+                      <p>No trending events right now.</p>
+                    </div>
+                  )}
+
+                  {/* Filters on their own row - always visible */}
+                  <div className={`pt-4 ${trendingEvents.length > 0 ? 'border-t' : ''}`}>
+                    <EventFilters
+                      filters={filters}
+                      onFiltersChange={(newFilters) => {
+                        setFilters(newFilters);
+                      }}
+                      availableGenres={availableGenres}
+                      availableCities={availableCities}
+                      className="w-full"
+                    />
                   </div>
-                </div>
+
+                  {/* Load More Button - on its own row, centered */}
+                  {trendingHasMore && (
+                    <div className="flex justify-center pt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={loadMoreTrending}
+                        disabled={loadingTrending}
+                        className="flex items-center gap-2"
+                      >
+                        {loadingTrending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            Load More
+                            <ChevronRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </AccordionContent>
           </AccordionItem>
@@ -1053,50 +1277,92 @@ interface FriendEventInterest {
               </div>
             </AccordionTrigger>
             <AccordionContent className="pt-2">
-              {loadingNetwork ? (
+              {loadingNetwork && firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
                 <div className="flex items-center justify-center py-6">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>
-              ) : firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground text-sm">
-                  <p>No friends interested in events yet.</p>
-                </div>
               ) : (
-                <div className="overflow-x-auto pb-2 scrollbar-hide">
-                  <div className="flex gap-3" style={{ width: 'max-content' }}>
-                    {[...firstDegreeEvents, ...secondDegreeEvents].map((event) => {
-                      // Resolve image URL with priority:
-                      // 1. poster_image_url (if available)
-                      // 2. images JSONB (first image URL, prefer 16:9 or large images)
-                      let imageUrl: string | undefined = undefined;
-                      
-                      if (event.images && Array.isArray(event.images) && event.images.length > 0) {
-                        // Prefer 16:9 ratio or large images
-                        const bestImage = event.images.find((img: any) => 
-                          img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
-                        ) || event.images.find((img: any) => img?.url);
-                        imageUrl = bestImage?.url;
-                      }
-                      
-                      return (
-                      <CompactEventCard
-                        key={`${event.event_id}-${event.friend_id}`}
-                        event={{
-                          id: event.event_id,
-                          title: event.title,
-                          artist_name: (event as any).artist_name_normalized,
-                          venue_name: (event as any).venue_name_normalized,
-                          event_date: event.event_date,
-                          venue_city: event.venue_city,
-                            image_url: imageUrl,
-                            poster_image_url: imageUrl,
-                        }}
-                        onClick={() => handleEventClick(event.event_id)}
-                      />
-                      );
-                    })}
+                <>
+                  {firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground text-sm">
+                      <p>No friends interested in events yet.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto pb-2 scrollbar-hide">
+                      <div className="flex gap-3" style={{ width: 'max-content' }}>
+                        {[...firstDegreeEvents, ...secondDegreeEvents].map((event) => {
+                          // Resolve image URL with priority:
+                          // 1. poster_image_url (if available)
+                          // 2. images JSONB (first image URL, prefer 16:9 or large images)
+                          let imageUrl: string | undefined = undefined;
+                          
+                          if (event.images && Array.isArray(event.images) && event.images.length > 0) {
+                            // Prefer 16:9 ratio or large images
+                            const bestImage = event.images.find((img: any) => 
+                              img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
+                            ) || event.images.find((img: any) => img?.url);
+                            imageUrl = bestImage?.url;
+                          }
+                          
+                          return (
+                          <CompactEventCard
+                            key={`${event.event_id}-${event.friend_id}`}
+                            event={{
+                              id: event.event_id,
+                              title: event.title,
+                              artist_name: (event as any).artist_name_normalized,
+                              venue_name: (event as any).venue_name_normalized,
+                              event_date: event.event_date,
+                              venue_city: event.venue_city,
+                                image_url: imageUrl,
+                                poster_image_url: imageUrl,
+                            }}
+                            onClick={() => handleEventClick(event.event_id)}
+                          />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Filters on their own row - always visible */}
+                  <div className={`pt-4 ${(firstDegreeEvents.length > 0 || secondDegreeEvents.length > 0) ? 'border-t' : ''}`}>
+                    <EventFilters
+                      filters={filters}
+                      onFiltersChange={(newFilters) => {
+                        setFilters(newFilters);
+                      }}
+                      availableGenres={availableGenres}
+                      availableCities={availableCities}
+                      className="w-full"
+                    />
                   </div>
-                </div>
+
+                  {/* Load More Button - on its own row, centered */}
+                  {friendsHasMore && (
+                    <div className="flex justify-center pt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={loadMoreFriends}
+                        disabled={loadingNetwork}
+                        className="flex items-center gap-2"
+                      >
+                        {loadingNetwork ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            Load More
+                            <ChevronRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </AccordionContent>
           </AccordionItem>

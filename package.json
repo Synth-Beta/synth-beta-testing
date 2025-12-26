@@ -21,7 +21,8 @@
     "cap:open:ios": "npx cap open ios",
     "cap:open:android": "npx cap open android",
     "ios:build": "npm run build && npx cap sync ios",
-    "android:build": "npm run build && npx cap sync android"
+    "android:build": "npm run build && npx cap sync android",
+    "sync-admin": "./scripts/sync-admin-to-getsynth.sh"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",

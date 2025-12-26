@@ -67,3 +67,5 @@ FROM public.get_personalized_feed_v3(
 GROUP BY type
 ORDER BY count DESC;
 
+
+

@@ -424,11 +424,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
             {/* Section 3: Scenes & Signals */}
             <div className="mt-8">
-              <ScenesSection
-                currentUserId={currentUserId}
-                onNavigateToProfile={onNavigateToProfile}
-                onNavigateToChat={onNavigateToChat}
-              />
+          <ScenesSection
+            currentUserId={currentUserId}
+            onNavigateToProfile={onNavigateToProfile}
+            onNavigateToChat={onNavigateToChat}
+          />
             </div>
           </>
         )}

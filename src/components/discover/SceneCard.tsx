@@ -25,18 +25,20 @@ export const SceneCard: React.FC<SceneCardProps> = ({
      (scene.participating_cities?.length || 0) +
      (scene.participating_genres?.length || 0));
   
-  // Calculate engaged participants (max 10 for display)
+  // Calculate engaged participants
   const engagedCount = progress ? 
     (progress.artists_experienced || 0) +
     (progress.venues_experienced || 0) +
     (progress.cities_experienced || 0) +
     (progress.genres_experienced || 0) : 0;
   
-  const displayEngaged = Math.min(engagedCount, 10);
-  const displayTotal = Math.min(totalParticipants, 10);
+  // Display total participants (not capped at 10)
+  const displayTotal = totalParticipants;
+  const displayEngaged = engagedCount;
   
   // Calculate progress percentage for color gradient
-  const progressPercent = displayTotal > 0 ? (displayEngaged / displayTotal) * 100 : 0;
+  // Use completion_threshold for progress calculation, but cap at 100%
+  const progressPercent = displayTotal > 0 ? Math.min((displayEngaged / displayTotal) * 100, 100) : 0;
   
   // Determine color based on progress: red (0-30%) -> yellow (30-70%) -> green (70-100%)
   const getProgressColor = () => {
@@ -57,7 +59,7 @@ export const SceneCard: React.FC<SceneCardProps> = ({
   return (
     <Card
       className={cn(
-        'cursor-pointer transition-all hover:shadow-lg flex flex-col h-full w-[320px] flex-shrink-0',
+        'cursor-pointer transition-all hover:shadow-lg flex flex-col h-full min-h-[400px] w-[320px] flex-shrink-0',
         className
       )}
       onClick={onClick}
