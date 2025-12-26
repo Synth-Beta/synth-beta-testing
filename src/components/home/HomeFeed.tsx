@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { LocationService } from '@/services/locationService';
+import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
 
 interface HomeFeedProps {
   currentUserId: string;
@@ -92,6 +93,11 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
     chat_name: string;
     member_count: number;
     friends_in_chat_count?: number;
+    entity_type?: string;
+    entity_name?: string;
+    entity_image_url?: string;
+    relevance_score?: number;
+    distance_miles?: number;
   }>>([]);
 
   // Loading states
@@ -549,90 +555,41 @@ interface FriendEventInterest {
   const loadRecommendedGroupChats = async () => {
     setLoadingRecommendedGroupChats(true);
     try {
-      // Get user's friends to find group chats with friends
-      const { data: friendsData } = await supabase
-        .from('friends')
-        .select('user1_id, user2_id')
-        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
-
-      const friendIds = friendsData?.map(f => 
-        f.user1_id === currentUserId ? f.user2_id : f.user1_id
-      ) || [];
-
-      // Find group chats that:
-      // 1. Are group chats
-      // 2. User is not a member of (check via chat_participants)
-      // 3. Have at least one friend as a member
-      // 4. Are recent (created in last 30 days)
-      const { data: allGroupChats, error } = await supabase
-        .from('chats')
-        .select('id, chat_name, created_at, member_count')
-        .eq('is_group_chat', true)
-        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-
-      // Get all chat IDs where user is a participant
-      const { data: userParticipations } = await supabase
-        .from('chat_participants')
-        .select('chat_id')
-        .eq('user_id', currentUserId);
-
-      const userChatIds = new Set(userParticipations?.map(p => p.chat_id) || []);
-
-      // Filter out chats where user is already a member
-      const groupChats = (allGroupChats || []).filter(chat => 
-        !userChatIds.has(chat.id)
-      );
-
-      // Get participants for all group chats to find friends
-      const groupChatIds = groupChats.map(chat => chat.id);
+      console.log('🔄 Loading recommended chats for user:', currentUserId);
       
-      // Bug 1 fix: Guard against empty array in .in() query
-      let allParticipants: any[] | null = null;
-      if (groupChatIds.length > 0) {
-        const { data } = await supabase
-          .from('chat_participants')
-          .select('chat_id, user_id')
-          .in('chat_id', groupChatIds);
-        allParticipants = data;
-      }
-
-      // Build map of chat_id -> participant user_ids
-      const chatParticipantsMap = new Map<string, string[]>();
-      allParticipants?.forEach(p => {
-        const existing = chatParticipantsMap.get(p.chat_id) || [];
-        existing.push(p.user_id);
-        chatParticipantsMap.set(p.chat_id, existing);
+      // Use the new get_recommended_chats RPC function
+      // This uses location (for venues) and genre preferences (for artists)
+      const { data: recommendedChats, error } = await supabase.rpc('get_recommended_chats', {
+        p_user_id: currentUserId,
+        p_limit: 20,
+        p_offset: 0,
+        p_radius_miles: 50
       });
 
-      // Filter to only chats with friends and calculate friend count
-      const chatsWithFriends = (groupChats || [])
-        .map(chat => {
-          const participantIds = chatParticipantsMap.get(chat.id) || [];
-          const chatFriendIds = participantIds.filter((id: string) => friendIds.includes(id));
-          return {
-            id: chat.id,
-            chat_name: chat.chat_name || 'Unnamed Group',
-            member_count: chat.member_count ?? participantIds.length, // Use ?? to handle 0 as valid value
-            friends_in_chat_count: chatFriendIds.length,
-          };
-        })
-        .filter(chat => chat.friends_in_chat_count > 0)
-        .sort((a, b) => {
-          // Sort by number of friends in chat, then by member count
-          if (a.friends_in_chat_count !== b.friends_in_chat_count) {
-            return b.friends_in_chat_count - a.friends_in_chat_count;
-          }
-          return b.member_count - a.member_count;
-        })
-        .slice(0, 10); // Limit to top 10
+      if (error) {
+        console.error('❌ Error calling get_recommended_chats:', error);
+        throw error;
+      }
 
+      console.log('📊 Raw recommended chats from RPC:', recommendedChats);
+
+      // Transform the RPC response to match the expected format
+      const chatsWithFriends = (recommendedChats || []).map((chat: any) => ({
+        id: chat.chat_id,
+        chat_name: chat.chat_name || chat.entity_name || 'Unnamed Group',
+        member_count: chat.member_count || 0,
+        friends_in_chat_count: 0, // Not calculated in RPC, but kept for compatibility
+        entity_type: chat.entity_type,
+        entity_name: chat.entity_name,
+        entity_image_url: chat.entity_image_url,
+        relevance_score: chat.relevance_score,
+        distance_miles: chat.distance_miles,
+      }));
+
+      console.log('✅ Loaded recommended chats:', chatsWithFriends.length, chatsWithFriends);
       setRecommendedGroupChats(chatsWithFriends);
     } catch (error) {
-      console.error('Error loading recommended group chats:', error);
+      console.error('❌ Error loading recommended group chats:', error);
       setRecommendedGroupChats([]);
     } finally {
       setLoadingRecommendedGroupChats(false);
@@ -1086,41 +1043,60 @@ interface FriendEventInterest {
               ) : (
                 <div className="overflow-x-auto pb-2 scrollbar-hide">
                   <div className="flex gap-3" style={{ width: 'max-content' }}>
-                    {recommendedGroupChats.map((chat) => (
-                      <div
-                        key={chat.id}
-                        className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden cursor-pointer group relative bg-gradient-to-br from-synth-pink/20 to-synth-pink/40 hover:shadow-lg transition-all duration-200"
-                        onClick={() => onNavigateToChat?.(chat.id)}
-                      >
-                        {/* Chat icon/avatar */}
-                        <div className="w-full h-full flex flex-col items-center justify-center p-2">
-                          <MessageSquare className="w-8 h-8 text-synth-pink mb-1" />
-                          <p className="text-[10px] font-semibold text-synth-pink text-center line-clamp-2">
-                            {chat.chat_name}
-                          </p>
-                        </div>
-                        
-                        {/* Overlay with info on hover */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-                          <div className="absolute bottom-0 left-0 right-0 p-1.5 text-white">
-                            <p className="text-[10px] font-semibold line-clamp-1 mb-0.5">{chat.chat_name}</p>
-                            <p className="text-[9px] opacity-90">
-                              {chat.member_count} member{chat.member_count !== 1 ? 's' : ''}
-                              {chat.friends_in_chat_count && chat.friends_in_chat_count > 0 && (
-                                <> • {chat.friends_in_chat_count} friend{chat.friends_in_chat_count !== 1 ? 's' : ''}</>
-                              )}
+                    {recommendedGroupChats.map((chat) => {
+                      const imageUrl = chat.entity_image_url || '';
+                      const hasImage = imageUrl && imageUrl.trim() !== '';
+                      
+                      return (
+                        <div
+                          key={chat.id}
+                          className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden cursor-pointer group relative bg-gradient-to-br from-synth-pink/20 to-synth-pink/40 hover:shadow-lg transition-all duration-200"
+                          onClick={() => onNavigateToChat?.(chat.id)}
+                        >
+                          {/* Entity image or placeholder */}
+                          {hasImage ? (
+                            <img
+                              src={imageUrl}
+                              alt={chat.entity_name || chat.chat_name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Fallback to placeholder if image fails to load
+                                const target = e.target as HTMLImageElement;
+                                target.src = getFallbackEventImage(chat.id);
+                                target.onerror = null; // Prevent infinite loop
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center p-2 bg-gradient-to-br from-synth-pink/20 to-synth-pink/40">
+                              <MessageSquare className="w-8 h-8 text-synth-pink mb-1" />
+                              <p className="text-[10px] font-semibold text-synth-pink text-center line-clamp-2">
+                                {chat.chat_name}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* Overlay with info on hover */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                            <div className="absolute bottom-0 left-0 right-0 p-1.5 text-white">
+                              <p className="text-[10px] font-semibold line-clamp-1 mb-0.5">{chat.chat_name}</p>
+                              <p className="text-[9px] opacity-90">
+                                {chat.member_count} member{chat.member_count !== 1 ? 's' : ''}
+                                {chat.friends_in_chat_count && chat.friends_in_chat_count > 0 && (
+                                  <> • {chat.friends_in_chat_count} friend{chat.friends_in_chat_count !== 1 ? 's' : ''}</>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Bottom info bar (always visible) */}
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1">
+                            <p className="text-[10px] font-medium text-white line-clamp-1 truncate">
+                              {chat.chat_name}
                             </p>
                           </div>
                         </div>
-
-                        {/* Bottom info bar (always visible) */}
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1">
-                          <p className="text-[10px] font-medium text-white line-clamp-1 truncate">
-                            {chat.chat_name}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

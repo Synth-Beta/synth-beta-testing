@@ -77,12 +77,12 @@ BEGIN
     END IF;
 
   ELSIF p_entity_type = 'artist' THEN
-    -- Try UUID first, then text ID
+    -- Try UUID first, then text ID (identifier)
     SELECT id INTO v_entity_uuid
     FROM public.artists
     WHERE id::TEXT = p_entity_id 
        OR (p_entity_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND id = p_entity_id::UUID)
-       OR jambase_artist_id = p_entity_id
+       OR identifier = p_entity_id
     LIMIT 1;
     
     -- For artists, try to get name from database
@@ -90,18 +90,18 @@ BEGIN
     FROM public.artists a
     WHERE a.id::TEXT = p_entity_id 
        OR (p_entity_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND a.id = p_entity_id::UUID)
-       OR a.jambase_artist_id = p_entity_id
+       OR a.identifier = p_entity_id
     LIMIT 1;
 
     v_chat_name := COALESCE(v_artist_name, p_entity_name, 'Artist') || ' Chat';
 
   ELSIF p_entity_type = 'venue' THEN
-    -- Try UUID first, then text ID
+    -- Try UUID first, then text ID (identifier)
     SELECT id INTO v_entity_uuid
     FROM public.venues
     WHERE id::TEXT = p_entity_id 
        OR (p_entity_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND id = p_entity_id::UUID)
-       OR jambase_venue_id = p_entity_id
+       OR identifier = p_entity_id
     LIMIT 1;
     
     -- For venues, try to get name from database
@@ -109,7 +109,7 @@ BEGIN
     FROM public.venues v
     WHERE v.id::TEXT = p_entity_id 
        OR (p_entity_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' AND v.id = p_entity_id::UUID)
-       OR v.jambase_venue_id = p_entity_id
+       OR v.identifier = p_entity_id
     LIMIT 1;
 
     v_chat_name := COALESCE(v_venue_name, p_entity_name, 'Venue') || ' Chat';

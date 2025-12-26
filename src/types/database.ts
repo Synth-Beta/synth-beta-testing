@@ -349,19 +349,43 @@ export interface UserPreferences {
 
 export interface Chat {
   id: string;
-  match_id?: string | null; // UUID - may reference relationships(id) for matches
-  chat_name?: string | null;
-  is_group_chat: boolean;
-  users?: string[]; // UUID[] - Populated from chat_participants table by RPC functions (backward compatibility)
-  created_at: string;
-  updated_at: string;
+  chat_name: string; // NOT NULL, default 'Chat'
+  is_group_chat: boolean; // NOT NULL, default false
+  users: string[]; // UUID[] NOT NULL, default '{}'
+  latest_message_id?: string | null; // UUID - references messages(id)
+  group_admin_id?: string | null; // UUID - references users(user_id)
+  created_at?: string | null; // TIMESTAMPTZ, default now()
+  updated_at?: string | null; // TIMESTAMPTZ, default now()
   // Verified chat fields
   entity_type?: 'event' | 'artist' | 'venue' | null;
-  entity_id?: string | null;
-  is_verified?: boolean;
-  member_count?: number; // Cached count from chat_participants (maintained by trigger)
-  last_activity_at?: string | null;
+  entity_id?: string | null; // TEXT - can be UUID or text ID (jambase_artist_id, venue_name)
+  entity_uuid?: string | null; // UUID - references actual entity table (events.id, artists.id, venues.id)
+  is_verified?: boolean | null; // default false
+  member_count?: number | null; // INTEGER - cached count from chat_participants (maintained by trigger)
+  last_activity_at?: string | null; // TIMESTAMPTZ
   // Note: For 3NF compliance, prefer querying chat_participants table directly instead of using users array
+}
+
+export interface ChatParticipant {
+  id: string; // UUID - primary key
+  chat_id: string; // UUID - references chats(id)
+  user_id: string; // UUID - references users(user_id)
+  joined_at: string; // TIMESTAMPTZ - NOT NULL, default now()
+  last_read_at?: string | null; // TIMESTAMPTZ
+  is_admin?: boolean | null; // default false
+  notifications_enabled?: boolean | null; // default true
+}
+
+export interface ChatMembersView {
+  chat_id: string; // UUID
+  user_id: string; // UUID
+  joined_at: string; // TIMESTAMPTZ
+  is_admin?: boolean | null;
+  last_read_at?: string | null;
+  notifications_enabled?: boolean | null;
+  name: string; // from users table
+  avatar_url?: string | null; // from users table
+  username?: string | null; // from users table
 }
 
 export interface Message {
