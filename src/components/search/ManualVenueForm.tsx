@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MapPin, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { MissingEntityRequestService } from '@/services/missingEntityRequestService';
 import { useToast } from '@/hooks/use-toast';
 
 interface ManualVenueFormProps {
@@ -44,60 +44,25 @@ export function ManualVenueForm({ open, onClose, onVenueCreated, initialQuery = 
     setIsSubmitting(true);
 
     try {
-      // Create venue in database - only name is required
-      const jambaseVenueId = `user-created-${Date.now()}`;
-      const venueData = {
-        jambase_venue_id: jambaseVenueId, // Keep for backward compatibility during migration
-        name: name.trim(),
-        identifier: `user-created-${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
-        date_published: new Date().toISOString(),
-        date_modified: new Date().toISOString(),
-      };
-
-      const { data: venue, error: insertError } = await supabase
-        .from('venues')
-        .insert([venueData])
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('🏗️ ManualVenueForm: Database error:', insertError);
-        throw insertError;
-      }
-
-      // Insert into external_entity_ids for normalization
-      await supabase
-        .from('external_entity_ids')
-        .insert({
-          entity_type: 'venue',
-          entity_uuid: venue.id,
-          source: 'manual',
-          external_id: jambaseVenueId
-        })
-        .catch(() => {}); // Ignore duplicate errors
-
-      toast({
-        title: "Venue Created! 📍",
-        description: `${name.trim()} has been added to your database.`,
+      // Submit request for missing venue instead of creating directly
+      await MissingEntityRequestService.submitRequest({
+        entity_type: 'venue',
+        entity_name: name.trim(),
       });
 
-      // Convert to the expected format for the callback
-      const venueFormatted = {
-        id: venue.id,
-        name: venue.name,
-        identifier: venue.identifier,
-        match_score: 100,
-        is_from_database: true,
-        source: 'user_created',
-      };
+      toast({
+        title: "Request Submitted! 📍",
+        description: `Your request for "${name.trim()}" has been submitted. We'll review it and add it to the database if approved.`,
+      });
 
-      onVenueCreated(venueFormatted);
+      // Don't call onVenueCreated since we're not creating a venue
+      // The user will need to wait for admin approval
       handleClose();
     } catch (error) {
-      console.error('Error creating venue:', error);
+      console.error('Error submitting venue request:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create venue",
+        description: error instanceof Error ? error.message : "Failed to submit request",
         variant: "destructive",
       });
     } finally {
@@ -117,10 +82,10 @@ export function ManualVenueForm({ open, onClose, onVenueCreated, initialQuery = 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5" />
-            Add Venue Manually
+            Request Missing Venue
           </DialogTitle>
           <DialogDescription>
-            Can't find the venue you're looking for? Add it manually to your database.
+            Can't find the venue you're looking for? Submit a request and we'll review it for addition to the database.
           </DialogDescription>
         </DialogHeader>
 
@@ -154,10 +119,10 @@ export function ManualVenueForm({ open, onClose, onVenueCreated, initialQuery = 
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
+                  Submitting...
                 </>
               ) : (
-                'Create Venue'
+                'Submit Request'
               )}
             </Button>
           </DialogFooter>

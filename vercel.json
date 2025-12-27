@@ -2,6 +2,11 @@
   "rewrites": [
     { "source": "/auth/spotify/callback", "destination": "/" },
     { "source": "/(.*)", "destination": "/" }
-  ]
+  ],
+  "functions": {
+    "api/setlists/search.ts": {
+      "maxDuration": 10
+    }
+  }
 }
 

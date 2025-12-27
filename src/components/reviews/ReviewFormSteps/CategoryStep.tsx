@@ -62,7 +62,7 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
 
     if (config.ratingKey === 'venueRating') {
       // Copy venue rating and feedback (use only 5-category column)
-      const venueRating = (previousVenueReview as any).venue_rating_decimal;
+      const venueRating = (previousVenueReview as any).venue_rating;
       if (venueRating) {
         const ratingValue = typeof venueRating === 'number' ? venueRating : parseFloat(String(venueRating));
         if (!isNaN(ratingValue) && ratingValue > 0) {

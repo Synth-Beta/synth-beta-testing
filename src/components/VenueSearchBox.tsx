@@ -2,12 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Search, MapPin, X, PlusCircle } from 'lucide-react';
+import { Loader2, Search, MapPin, X } from 'lucide-react';
 import { UnifiedVenueSearchService } from '@/services/unifiedVenueSearchService';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import { cn } from '@/lib/utils';
 import { trackInteraction } from '@/services/interactionTrackingService';
-import { ManualVenueForm } from '@/components/search/ManualVenueForm';
 
 interface VenueSearchBoxProps {
   onVenueSelect: (venue: VenueSearchResult) => void;
@@ -27,15 +26,6 @@ export function VenueSearchBox({
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [showManualForm, setShowManualForm] = useState(false);
-  
-  // Close dropdown when manual form opens
-  React.useEffect(() => {
-    if (showManualForm) {
-      setIsOpen(false);
-      setSelectedIndex(-1);
-    }
-  }, [showManualForm]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -130,13 +120,6 @@ export function VenueSearchBox({
       const target = event.target as Node;
       const container = containerRef.current; // The main container div
       
-      // Check if the click is on a manual form button
-      const isManualFormButton = (target as Element)?.closest('button')?.textContent?.includes('Add manually') || 
-                                (target as Element)?.closest('button')?.textContent?.includes('Can\'t find');
-      
-      if (isManualFormButton) {
-        return;
-      }
       
       if (container && !container.contains(target)) {
         setIsOpen(false);
@@ -204,22 +187,7 @@ export function VenueSearchBox({
     return `${capacity} capacity`;
   };
 
-  const handleManualVenueCreated = (venue: VenueSearchResult) => {
-    onVenueSelect(venue);
-    setQuery(venue.name);
-    setIsOpen(false);
-  };
-
   return (
-    <>
-      <ManualVenueForm
-        open={showManualForm}
-        onClose={() => setShowManualForm(false)}
-        onVenueCreated={handleManualVenueCreated}
-        initialQuery={query}
-      />
-      
-      
     <div ref={containerRef} className={cn("relative w-full", className)}>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -316,51 +284,12 @@ export function VenueSearchBox({
                   <MapPin className="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No venues found</h3>
-                <p className="text-sm text-gray-600 mb-4">We couldn't find any venues matching "{query}"</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowManualForm(true);
-                  }}
-                  className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  Add Manually
-                </Button>
-              </div>
-            )}
-            {searchResults.length > 0 && (
-              <div className="border-t px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowManualForm(true);
-                  }}
-                  className="w-full gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 font-medium"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  Add Manually
-                </Button>
+                <p className="text-sm text-gray-600">Try a different search term</p>
               </div>
             )}
           </CardContent>
         </Card>
       )}
     </div>
-    </>
   );
 }

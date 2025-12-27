@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // Setlist.fm API Configuration
-const SETLIST_FM_API_KEY = 'QxGjjwxk0MUyxyCJa2FADnFRwEqFUy__7wpt';
+const SETLIST_FM_API_KEY = process.env.SETLIST_FM_API_KEY || 'QxGjjwxk0MUyxyCJa2FADnFRwEqFUy__7wpt';
 const SETLIST_FM_BASE_URL = 'https://api.setlist.fm/rest/1.0';
 
 // Rate limiting: setlist.fm allows ~2 requests per second
@@ -46,8 +46,9 @@ router.get('/api/setlists/search', async (req, res) => {
               // DD-MM-YYYY format
               dateObj = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
             } else if (parts[0].length === 4) {
-              // YYYY-MM-DD format
-              dateObj = new Date(date);
+              // YYYY-MM-DD format - parse as UTC to avoid timezone issues
+              // Parse as YYYY-MM-DD and create date in UTC to avoid timezone shifts
+              dateObj = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
             } else {
               dateObj = new Date(date);
             }
@@ -58,15 +59,16 @@ router.get('/api/setlists/search', async (req, res) => {
           dateObj = new Date(date);
         }
         
-        console.log('🎵 Parsed date object:', dateObj);
+        console.log('🎵 Parsed date object:', dateObj, 'UTC:', dateObj.toUTCString());
         if (!isNaN(dateObj.getTime())) {
           // Setlist.fm expects DD-MM-YYYY format
-          const day = String(dateObj.getDate()).padStart(2, '0');
-          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-          const year = dateObj.getFullYear();
+          // Use UTC methods to avoid timezone issues
+          const day = String(dateObj.getUTCDate()).padStart(2, '0');
+          const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+          const year = dateObj.getUTCFullYear();
           const formattedDate = `${day}-${month}-${year}`;
           queryParams.append('date', formattedDate);
-          console.log('🎵 Date formatted for Setlist.fm:', formattedDate);
+          console.log('🎵 Date formatted for Setlist.fm:', formattedDate, '(from input:', date, ')');
         } else {
           console.warn('🎵 Invalid date format, skipping:', date);
         }
@@ -80,6 +82,7 @@ router.get('/api/setlists/search', async (req, res) => {
     if (venueName) queryParams.append('venueName', venueName);
     if (cityName) queryParams.append('cityName', cityName);
     if (stateCode) queryParams.append('stateCode', stateCode);
+
 
     const url = `${SETLIST_FM_BASE_URL}/search/setlists?${queryParams.toString()}`;
     
@@ -182,5 +185,9 @@ router.get('/api/setlists/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+module.exports = router;
+
+module.exports = router;
 
 module.exports = router;

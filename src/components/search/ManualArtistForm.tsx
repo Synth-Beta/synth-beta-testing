@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Music, Loader2, X } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Music, Loader2, X, AlertCircle } from 'lucide-react';
+import { MissingEntityRequestService } from '@/services/missingEntityRequestService';
 import { useToast } from '@/hooks/use-toast';
 
 interface ManualArtistFormProps {
@@ -73,65 +73,30 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
     setIsSubmitting(true);
 
     try {
-      // Create artist in database using the correct 'artists' table schema
-      const { data: artistProfile, error: profileError } = await supabase
-        .from('artists')
-        .insert([
-          {
-            jambase_artist_id: `user-created-${Date.now()}`,
-            name: formData.name.trim(),
-            identifier: `user-created-${formData.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
-            url: null,
-            image_url: formData.imageUrl.trim() || null,
-            date_published: new Date().toISOString(),
-            date_modified: new Date().toISOString(),
-          }
-        ])
-        .select()
-        .single();
-
-      if (profileError) throw profileError;
-
-      // Insert into external_entity_ids for normalization
-      await supabase
-        .from('external_entity_ids')
-        .insert({
-          entity_type: 'artist',
-          entity_uuid: artistProfile.id,
-          source: 'manual',
-          external_id: jambaseArtistId
-        })
-        .catch(() => {}); // Ignore duplicate errors
-
-      toast({
-        title: "Artist Created! 🎵",
-        description: `${formData.name} has been added to your database.`,
+      // Submit request for missing artist instead of creating directly
+      await MissingEntityRequestService.submitRequest({
+        entity_type: 'artist',
+        entity_name: formData.name.trim(),
+        entity_description: formData.description.trim() || undefined,
+        entity_image_url: formData.imageUrl.trim() || undefined,
+        additional_info: {
+          genres: genreTags,
+        },
       });
 
-      // Convert to the expected format with client-side metadata
-      // Store description and genres in memory for this session since they're not in DB
-      const artist = {
-        id: artistProfile.id,
-        jambase_artist_id: artistProfile.jambase_artist_id,
-        name: artistProfile.name,
-        identifier: artistProfile.identifier,
-        description: formData.description.trim() || '',
-        genres: genreTags,
-        image_url: artistProfile.image_url,
-        url: artistProfile.url,
-        popularity_score: 0,
-        source: 'user_created',
-        created_at: artistProfile.created_at,
-        updated_at: artistProfile.updated_at,
-      };
+      toast({
+        title: "Request Submitted! 🎵",
+        description: `Your request for "${formData.name}" has been submitted. We'll review it and add it to the database if approved.`,
+      });
 
-      onArtistCreated(artist);
+      // Don't call onArtistCreated since we're not creating an artist
+      // The user will need to wait for admin approval
       handleClose();
     } catch (error) {
-      console.error('Error creating artist:', error);
+      console.error('Error submitting artist request:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create artist",
+        description: error instanceof Error ? error.message : "Failed to submit request",
         variant: "destructive",
       });
     } finally {
@@ -151,10 +116,10 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Music className="h-5 w-5" />
-            Add Artist Manually
+            Request Missing Artist
           </DialogTitle>
           <DialogDescription>
-            Can't find the artist you're looking for? Add them manually to your database.
+            Can't find the artist you're looking for? Submit a request and we'll review it for addition to the database.
           </DialogDescription>
         </DialogHeader>
 
@@ -257,10 +222,10 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
+                  Submitting...
                 </>
               ) : (
-                'Create Artist'
+                'Submit Request'
               )}
             </Button>
           </DialogFooter>

@@ -83,6 +83,53 @@ export function BelliStyleReviewCard({
   followedArtists = [],
   followedVenues = []
 }: BelliStyleReviewCardProps) {
+  // State to store fetched review data if missing from props
+  const [fetchedReviewData, setFetchedReviewData] = useState<any>(null);
+
+  // Fetch full review data if category ratings are missing
+  useEffect(() => {
+    const hasCategoryRatings = 
+      (review as any).artist_performance_rating != null ||
+      (review as any).production_rating != null ||
+      (review as any).venue_rating != null ||
+      (review as any).location_rating != null ||
+      (review as any).value_rating != null;
+
+    // If we have feedback but no ratings, or if we're missing venue_rating specifically, fetch it
+    const hasVenueFeedback = !!(review as any).venue_feedback;
+    const missingVenueRating = hasVenueFeedback && (review as any).venue_rating == null;
+
+    if (!hasCategoryRatings || missingVenueRating) {
+      console.log('🔍 BelliStyleReviewCard - Missing category ratings, fetching full review data for:', review.id);
+      
+      supabase
+        .from('reviews')
+        .select('rating, artist_performance_rating, production_rating, venue_rating, location_rating, value_rating, artist_performance_feedback, production_feedback, venue_feedback, location_feedback, value_feedback')
+        .eq('id', review.id)
+        .single()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            console.log('✅ BelliStyleReviewCard - Fetched review data:', data);
+            setFetchedReviewData(data);
+          } else if (error) {
+            console.error('❌ BelliStyleReviewCard - Error fetching review data:', error);
+          }
+        });
+    } else {
+      // Debug: Log the full review object to see what data we have
+      console.log('🔍 BelliStyleReviewCard - Full review object:', {
+        id: review.id,
+        venue_rating: (review as any).venue_rating,
+        artist_performance_rating: (review as any).artist_performance_rating,
+        production_rating: (review as any).production_rating,
+        location_rating: (review as any).location_rating,
+        value_rating: (review as any).value_rating,
+        rating: review.rating,
+        allKeys: Object.keys(review)
+      });
+    }
+  }, [review.id]);
+
   const [isLiked, setIsLiked] = useState(review.is_liked_by_user || false);
   const [likesCount, setLikesCount] = useState(review.likes_count);
   const [isLiking, setIsLiking] = useState(false);
@@ -208,23 +255,62 @@ export function BelliStyleReviewCard({
 
   const isOwner = currentUserId && review.user_id === currentUserId;
 
+  // Use fetched data if available, otherwise use review props
+  const effectiveReview = fetchedReviewData ? { ...review, ...fetchedReviewData } : review;
+  
+  // Get category ratings from effective review (fetched data takes precedence)
+  const artistPerf = fetchedReviewData?.artist_performance_rating ?? (review as any).artist_performance_rating;
+  const production = fetchedReviewData?.production_rating ?? (review as any).production_rating;
+  const venue = fetchedReviewData?.venue_rating ?? (review as any).venue_rating;
+  const location = fetchedReviewData?.location_rating ?? (review as any).location_rating;
+  const value = fetchedReviewData?.value_rating ?? (review as any).value_rating;
+  
   const categoryAverages = [
-    (review as any).artist_performance_rating,
-    (review as any).production_rating,
-    (review as any).venue_rating,
-    (review as any).location_rating,
-    (review as any).value_rating,
-  ].filter((value): value is number => typeof value === 'number' && value > 0);
+    artistPerf,
+    production,
+    venue,
+    location,
+    value,
+  ].filter((value): value is number => typeof value === 'number' && !isNaN(value) && value > 0);
 
+  // Calculate average from available categories
   const computedAverage =
     categoryAverages.length > 0
-      ? categoryAverages.reduce((total, value) => total + value, 0) / categoryAverages.length
-      : 0;
+      ? Number((categoryAverages.reduce((total, value) => total + value, 0) / categoryAverages.length).toFixed(1))
+      : null;
 
-const overallRating =
-  categoryAverages.length > 0
-    ? computedAverage
-    : (typeof review.rating === 'number' && !Number.isNaN(review.rating) ? review.rating : 0);
+  // Use database rating if available (calculated by trigger), otherwise use computed average
+  // The database rating is the source of truth as it's calculated by the trigger
+  // Handle both number and string types (database might return string)
+  const reviewRatingValue = typeof review.rating === 'string' 
+    ? parseFloat(review.rating) 
+    : (typeof review.rating === 'number' ? review.rating : null);
+  
+  // Also check fetched data for rating
+  const fetchedRatingValue = fetchedReviewData?.rating 
+    ? (typeof fetchedReviewData.rating === 'string' ? parseFloat(fetchedReviewData.rating) : fetchedReviewData.rating)
+    : null;
+  
+  const overallRating = 
+    (fetchedRatingValue != null && !Number.isNaN(fetchedRatingValue) && fetchedRatingValue >= 0)
+      ? fetchedRatingValue
+      : (reviewRatingValue != null && !Number.isNaN(reviewRatingValue) && reviewRatingValue >= 0)
+        ? reviewRatingValue
+        : (computedAverage != null && computedAverage >= 0 ? computedAverage : null);
+
+  // Debug overall rating calculation
+  useEffect(() => {
+    console.log('⭐ Overall Rating Debug:', {
+      reviewRating: review.rating,
+      reviewRatingType: typeof review.rating,
+      reviewRatingValue,
+      computedAverage,
+      categoryAverages,
+      overallRating,
+      fetchedReviewData: !!fetchedReviewData,
+      willDisplay: overallRating > 0
+    });
+  }, [review.rating, reviewRatingValue, computedAverage, overallRating, fetchedReviewData]);
 
   // Calculate ring color based on rating
   const getRingColor = (rating: number) => {
@@ -422,26 +508,28 @@ const overallRating =
       id={`belli-review-card-${review.id}`}
     >
       <CardHeader className="pb-4 bg-gradient-to-br from-gray-50 via-white to-gray-50 border-b-2 relative">
-        {/* Hero Rating Badge - Top Right */}
-        <div className={cn(
-          "absolute top-4 right-4 w-16 h-16 rounded-full flex flex-col items-center justify-center",
-          "bg-gradient-to-br shadow-lg",
-          getRatingGradient(overallRating),
-          "text-white font-bold z-10"
-        )}>
-          <span className="text-2xl leading-none">{overallRating.toFixed(1)}</span>
-          <div className="flex items-center gap-0.5 mt-1">
-            {Array.from({ length: 5 }, (_, i) => (
-              <Star 
-                key={i} 
-                className={cn(
-                  "w-2 h-2",
-                  i < Math.round(overallRating) ? "fill-white text-white" : "text-white/40"
-                )} 
-              />
-            ))}
+        {/* Hero Rating Badge - Top Right - Show if rating exists (including 0) */}
+        {overallRating != null && overallRating >= 0 && (
+          <div className={cn(
+            "absolute top-4 right-4 w-16 h-16 rounded-full flex flex-col items-center justify-center",
+            "bg-gradient-to-br shadow-lg",
+            getRatingGradient(Math.max(0.5, overallRating)), // Ensure at least 0.5 for gradient
+            "text-white font-bold z-10"
+          )}>
+            <span className="text-2xl leading-none">{overallRating.toFixed(1)}</span>
+            <div className="flex items-center gap-0.5 mt-1">
+              {Array.from({ length: 5 }, (_, i) => (
+                <Star 
+                  key={i} 
+                  className={cn(
+                    "w-2 h-2",
+                    i < Math.round(overallRating) ? "fill-white text-white" : "text-white/40"
+                  )} 
+                />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Profile Info Row */}
         <div className="flex items-start gap-4 pr-20">
@@ -654,9 +742,8 @@ const overallRating =
             {[
               {
                 label: 'Artist Performance',
-                rating: (review as any).artist_performance_rating,
-                fallback: review.rating,
-                feedback: (review as any).artist_performance_feedback,
+                rating: fetchedReviewData?.artist_performance_rating ?? (review as any).artist_performance_rating,
+                feedback: fetchedReviewData?.artist_performance_feedback ?? (review as any).artist_performance_feedback,
                 icon: Music2,
                 border: 'border-[#FF3399]',
                 gradient: 'from-[#FF3399]/5 to-[#FF3399]/10',
@@ -664,9 +751,8 @@ const overallRating =
               },
               {
                 label: 'Production Quality',
-                rating: (review as any).production_rating,
-                fallback: review.rating,
-                feedback: (review as any).production_feedback,
+                rating: fetchedReviewData?.production_rating ?? (review as any).production_rating,
+                feedback: fetchedReviewData?.production_feedback ?? (review as any).production_feedback,
                 icon: Lightbulb,
                 border: 'border-purple-500',
                 gradient: 'from-purple-50 to-purple-50/30',
@@ -674,9 +760,8 @@ const overallRating =
               },
               {
                 label: 'Venue Experience',
-                rating: (review as any).venue_rating,
-                fallback: review.rating,
-                feedback: (review as any).venue_feedback,
+                rating: fetchedReviewData?.venue_rating ?? (review as any).venue_rating ?? undefined,
+                feedback: fetchedReviewData?.venue_feedback ?? (review as any).venue_feedback,
                 recommendation: (review as any).venue_recommendation,
                 icon: Building2,
                 border: 'border-blue-500',
@@ -685,9 +770,8 @@ const overallRating =
               },
               {
                 label: 'Location & Logistics',
-                rating: (review as any).location_rating,
-                fallback: review.rating,
-                feedback: (review as any).location_feedback,
+                rating: fetchedReviewData?.location_rating ?? (review as any).location_rating,
+                feedback: fetchedReviewData?.location_feedback ?? (review as any).location_feedback,
                 recommendation: (review as any).location_recommendation,
                 icon: Compass,
                 border: 'border-emerald-500',
@@ -696,9 +780,8 @@ const overallRating =
               },
               {
                 label: 'Value for Ticket',
-                rating: (review as any).value_rating,
-                fallback: review.rating,
-                feedback: (review as any).value_feedback,
+                rating: fetchedReviewData?.value_rating ?? (review as any).value_rating,
+                feedback: fetchedReviewData?.value_feedback ?? (review as any).value_feedback,
                 recommendation: (review as any).value_recommendation,
                 icon: DollarSign,
                 border: 'border-amber-500',
@@ -706,9 +789,28 @@ const overallRating =
                 iconColor: 'text-amber-600'
               }
             ].map((category) => {
-              const resolvedRating = typeof category.rating === 'number' && category.rating > 0
-                ? category.rating
-                : (typeof category.fallback === 'number' ? category.fallback : undefined);
+              // Only use the category rating if it's a valid number > 0
+              // Do NOT fallback to overall rating - NULL means the category wasn't rated
+              // Handle both number and string types (in case DB returns string)
+              const ratingValue = typeof category.rating === 'string' 
+                ? parseFloat(category.rating) 
+                : category.rating;
+              const resolvedRating = typeof ratingValue === 'number' && !isNaN(ratingValue) && ratingValue > 0
+                ? ratingValue
+                : undefined;
+
+              // Debug logging for venue rating specifically
+              if (category.label === 'Venue Experience') {
+                console.log('🏢 Venue Experience Debug:', {
+                  label: category.label,
+                  rawRating: category.rating,
+                  ratingValue,
+                  resolvedRating,
+                  reviewVenueRating: (review as any).venue_rating,
+                  fetchedVenueRating: fetchedReviewData?.venue_rating,
+                  hasFeedback: !!category.feedback
+                });
+              }
 
               if (!resolvedRating && !category.feedback) {
                 return null;

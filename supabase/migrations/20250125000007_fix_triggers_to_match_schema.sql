@@ -225,3 +225,5 @@ COMMENT ON FUNCTION public.update_events_when_artist_image_changes() IS
 'Automatically updates event_media_url for all events when an artist image_url changes. Uses artist_id column (UUID FK).';
 
 
+
+

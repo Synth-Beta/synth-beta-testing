@@ -603,7 +603,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           rank_order: (item.review as any).rank_order,
           artist_performance_rating: (item.review as any).artist_performance_rating,
           production_rating: (item.review as any).production_rating,
-          venue_rating: (item.review as any).venue_rating_decimal,
+          venue_rating: (item.review as any).venue_rating,
           location_rating: (item.review as any).location_rating,
           value_rating: (item.review as any).value_rating,
           review_text: item.review.review_text,

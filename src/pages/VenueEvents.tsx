@@ -102,7 +102,7 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
           user_id,
           event_id,
           rating,
-          venue_rating_decimal,
+          venue_rating,
           artist_performance_rating,
           production_rating,
           location_rating,
@@ -192,7 +192,7 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
         return {
           id: review.id,
           rating: review.rating,
-          venue_rating: (review as any).venue_rating_decimal || review.venue_rating,
+          venue_rating: review.venue_rating,
           artist_performance_rating: review.artist_performance_rating,
           production_rating: review.production_rating,
           location_rating: review.location_rating,

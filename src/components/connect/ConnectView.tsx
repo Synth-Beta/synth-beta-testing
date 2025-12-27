@@ -959,21 +959,23 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                     console.log('Review object:', review);
                     console.log('Item object:', item);
                     
-                    // Query review details using the actual schema columns
-                    // Based on public_reviews_with_profiles view schema:
-                    // performance_rating, venue_rating, overall_experience_rating
-                    // performance_review_text, venue_review_text, overall_experience_review_text
+                    // Query review details using the 5-category rating system
+                    // artist_performance_rating, production_rating, venue_rating, location_rating, value_rating
                     const { data, error } = await (supabase as any)
                       .from('reviews')
                       .select(`
                         photos,
                         videos,
-                        performance_rating,
+                        artist_performance_rating,
+                        production_rating,
                         venue_rating,
-                        overall_experience_rating,
-                        performance_review_text,
-                        venue_review_text,
-                        overall_experience_review_text,
+                        location_rating,
+                        value_rating,
+                        artist_performance_feedback,
+                        production_feedback,
+                        venue_feedback,
+                        location_feedback,
+                        value_feedback,
                         mood_tags,
                         genre_tags,
                         context_tags,
@@ -1002,14 +1004,14 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                         photos: Array.isArray(data.photos) ? data.photos : [],
                         videos: Array.isArray(data.videos) ? data.videos : [],
                         categoryRatings: {
-                          performance: typeof data.performance_rating === 'number' ? data.performance_rating : undefined,
+                          performance: typeof data.artist_performance_rating === 'number' ? data.artist_performance_rating : undefined,
                           venue: typeof data.venue_rating === 'number' ? data.venue_rating : undefined,
-                          overallExperience: typeof data.overall_experience_rating === 'number' ? data.overall_experience_rating : undefined,
+                          overallExperience: typeof data.production_rating === 'number' ? data.production_rating : undefined,
                         },
                         categoryTexts: {
-                          performance: data.performance_review_text || undefined,
-                          venue: data.venue_review_text || undefined,
-                          overallExperience: data.overall_experience_review_text || undefined,
+                          performance: data.artist_performance_feedback || undefined,
+                          venue: data.venue_feedback || undefined,
+                          overallExperience: data.production_feedback || undefined,
                         },
                         moodTags: Array.isArray(data.mood_tags) && data.mood_tags.length > 0 ? data.mood_tags : undefined,
                         genreTags: Array.isArray(data.genre_tags) && data.genre_tags.length > 0 ? data.genre_tags : undefined,

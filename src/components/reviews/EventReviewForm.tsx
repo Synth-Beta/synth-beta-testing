@@ -5,11 +5,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { JamBaseEvent } from '@/types/eventTypes';
-import { useReviewForm, REVIEW_FORM_TOTAL_STEPS } from '@/hooks/useReviewForm';
+import { useReviewForm, REVIEW_FORM_TOTAL_STEPS, getTotalSteps } from '@/hooks/useReviewForm';
 import { ReviewService, type ReviewData, type UserReview, type PublicReviewWithProfile } from '@/services/reviewService';
+import { TimeSelectionStep } from './ReviewFormSteps/TimeSelectionStep';
 import { EventDetailsStep } from './ReviewFormSteps/EventDetailsStep';
 import { CategoryStep, type CategoryConfig } from './ReviewFormSteps/CategoryStep';
 import { ReviewContentStep } from './ReviewFormSteps/ReviewContentStep';
+import { QuickReviewStep } from './ReviewFormSteps/QuickReviewStep';
 import { PrivacySubmitStep } from './ReviewFormSteps/PrivacySubmitStep';
 import { supabase } from '@/integrations/supabase/client';
 import type { ShowEntry } from './ShowRanking';
@@ -59,16 +61,21 @@ const VALUE_SUGGESTIONS: CategoryConfig['suggestions'] = [
   { id: 'value-hidden-fees', label: 'Too many fees', description: 'Fees and merch prices added up fast.', sentiment: 'negative' },
 ];
 
-const STEP_LABELS = [
-  'Event details',
-  'Artist performance',
-  'Production quality',
-  'Venue experience',
-  'Location & logistics',
-  'Value for ticket',
-  'Story & media',
-  'Privacy & submit',
-];
+// Helper to get step labels based on flow
+const getStepLabels = (flow: 'quick' | 'standard' | 'detailed' | null): string[] => {
+  if (!flow) return ['Select time'];
+  
+  switch (flow) {
+    case 'quick':
+      return ['Select time', 'Event details', 'Quick review', 'Submit'];
+    case 'standard':
+      return ['Select time', 'Event details', 'Artist performance', 'Venue', 'Review content', 'Submit'];
+    case 'detailed':
+      return ['Select time', 'Event details', 'Artist performance', 'Production', 'Venue', 'Location', 'Value', 'Review content', 'Submit'];
+    default:
+      return [];
+  }
+};
 
 interface EventReviewFormProps {
   event: JamBaseEvent | PublicReviewWithProfile;
@@ -93,7 +100,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     prevStep,
     canProceed,
     canGoBack,
-    isLastStep
+    isLastStep,
+    totalSteps,
+    currentFlow
   } = useReviewForm();
 
   const [existingReview, setExistingReview] = useState<UserReview | null>(null);
@@ -251,8 +260,10 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     };
   }, [formData.selectedArtist?.name, formData.selectedVenue?.name]);
 
-  // Create event in database when artist and venue are selected (for new reviews)
-  useEffect(() => {
+  // Note: Events are NOT created during form filling - they must exist in the database first
+  // The review will be linked to an event when submitted, but we don't create events here
+  // Disabled event creation useEffect - events must exist in DB before review submission
+  /* useEffect(() => {
     const createEventForDraft = async () => {
       // Only create event if it's a new review (starts with 'new-review')
       if (!event?.id?.startsWith('new-review')) {
@@ -329,20 +340,29 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           
           console.log('🔍 DEBUG: Insert payload:', JSON.stringify(insertPayloadWithId, null, 2));
           
-          // Insert the new event
-          const { data: newEvent, error: insertError } = await (supabase as any)
-            .from('events')
-            .insert(insertPayloadWithId)
-            .select()
-            .single();
-          
-          if (insertError) {
-            console.error('❌ Error creating event for draft:', insertError);
-            throw insertError;
-          }
-          
-          console.log('✅ Event created for draft:', newEvent.id);
-          setActualEventId(newEvent.id);
+          // Users can no longer directly create events
+        // Submit a request instead
+        try {
+          const { MissingEntityRequestService } = await import('@/services/missingEntityRequestService');
+          await MissingEntityRequestService.submitRequest({
+            entity_type: 'event',
+            entity_name: insertPayload.title,
+            entity_date: insertPayload.event_date,
+            entity_location: `${insertPayload.venue_city}, ${insertPayload.venue_state}`,
+            additional_info: {
+              artist_name: formData.selectedArtist.name,
+              venue_name: formData.selectedVenue.name,
+            },
+          });
+          console.log('📝 Submitted request for missing event:', insertPayload.title);
+          toast({
+            title: "Event Request Submitted",
+            description: "Your event request has been submitted for review. You can still write your review, but the event will need to be approved first.",
+          });
+        } catch (error) {
+          console.error('❌ Error submitting event request:', error);
+          // Don't throw - allow user to continue with review
+        }
         }
       } catch (error) {
         console.error('❌ Exception creating event for draft:', error);
@@ -350,7 +370,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     };
     
     createEventForDraft();
-  }, [formData.selectedArtist, formData.selectedVenue, formData.eventDate, event?.id, actualEventId]);
+  }, [formData.selectedArtist, formData.selectedVenue, formData.eventDate, event?.id, actualEventId]); */
 
   useEffect(() => {
     const load = async () => {
@@ -416,8 +436,8 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             eventDate: eventDateFromReview,
             artistPerformanceRating: review.artist_performance_rating || review.rating,
             productionRating: review.production_rating || review.artist_performance_rating || review.rating,
-            venueRating: (review as any).venue_rating_decimal || review.venue_rating || review.rating,
-            locationRating: review.location_rating || (review as any).venue_rating_decimal || review.venue_rating || review.rating,
+            venueRating: review.venue_rating || review.rating,
+            locationRating: review.location_rating || review.venue_rating || review.rating,
             valueRating: review.value_rating || review.rating,
             artistPerformanceFeedback: review.artist_performance_feedback || '',
             productionFeedback: review.production_feedback || '',
@@ -427,7 +447,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             ticketPricePaid: review.ticket_price_paid ? String(review.ticket_price_paid) : '',
             rating: review.rating,
             reviewText: review.review_text || '',
-            reactionEmoji: review.reaction_emoji || '',
             photos: review.photos || [],
             videos: review.videos || [],
             selectedSetlist: review.setlist || null,
@@ -572,7 +591,35 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       }
     }
 
-    // Step 2: Ratings Validation
+    // Step 2: Ratings Validation (flow-aware)
+    const flow = currentFlow || 'detailed';
+    if (flow === 'quick') {
+      // 1min: Only overall rating required
+      if (!formData.rating || formData.rating < 0.5 || formData.rating > 5.0) {
+        validationErrors.push('Please provide an overall rating (0.5 - 5 stars)');
+      }
+      // Review text validation for quick review
+      if (!formData.reviewText || formData.reviewText.trim() === '') {
+        validationErrors.push('Please share a brief description of your experience');
+      } else if (formData.reviewText.length > 200) {
+        validationErrors.push('Review text must be 200 characters or less for quick review');
+      }
+    } else if (flow === 'standard') {
+      // 3min: Artist Performance and Venue ratings required
+      if (!formData.artistPerformanceRating || formData.artistPerformanceRating < 0.5 || formData.artistPerformanceRating > 5.0) {
+        validationErrors.push('Please rate the artist performance (0.5 - 5 stars)');
+      }
+      if (!formData.venueRating || formData.venueRating < 0.5 || formData.venueRating > 5.0) {
+        validationErrors.push('Please rate the venue (0.5 - 5 stars)');
+      }
+      // Review text validation for standard review
+      if (!formData.reviewText || formData.reviewText.trim() === '') {
+        validationErrors.push('Please share a description of your experience');
+      } else if (formData.reviewText.length > 400) {
+        validationErrors.push('Review text must be 400 characters or less for standard review');
+      }
+    } else {
+      // 5min (detailed): All 5 category ratings required
     const ratingChecks: Array<[number, string]> = [
       [formData.artistPerformanceRating, 'artist performance'],
       [formData.productionRating, 'production quality'],
@@ -589,11 +636,12 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       }
     });
 
-    // Step 3: Review Text Validation
+      // Review text validation for detailed review
     if (!formData.reviewText || formData.reviewText.trim() === '') {
       validationErrors.push('Please share a brief description of your experience');
     } else if (formData.reviewText.length > 500) {
       validationErrors.push('Review text must be 500 characters or less');
+      }
     }
 
     // Optional field length validation
@@ -645,34 +693,39 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       console.log('🔍 EventReviewForm: Artist resolution - candidate:', artistCandidate, 'jambaseArtistId:', jambaseArtistId);
       if (jambaseArtistId) {
         console.log('🔍 EventReviewForm: Looking up artist with jambaseArtistId:', jambaseArtistId);
-        // Try DB first
-        // Use helper view for normalized schema
-        const byId = await (supabase as any)
-          .from('artists_with_external_ids')
+        // Try to find artist by identifier or name
+        // Use identifier column or external_identifiers jsonb to find artist
+        if (artistCandidate?.identifier) {
+          const { data: artistByIdentifier } = await supabase
+            .from('artists')
           .select('id')
-          .eq('jambase_artist_id', jambaseArtistId)
-          .limit(1);
-        if (Array.isArray(byId.data) && byId.data.length > 0) {
-          artistProfileId = byId.data[0].id;
-          console.log('🔍 EventReviewForm: Found existing artist in DB:', artistProfileId);
-        } else {
-          console.log('🔍 EventReviewForm: Artist not found in DB, searching local DB only...');
-          // Review form: local DB search only, no API calls
-          try {
-            const { UnifiedArtistSearchService } = await import('@/services/unifiedArtistSearchService');
-            await UnifiedArtistSearchService.searchArtists(artistCandidate?.name || '', 20, false);
-            const reSel = await (supabase as any)
-              .from('artists_with_external_ids')
+            .eq('identifier', artistCandidate.identifier)
+            .limit(1)
+            .maybeSingle();
+          
+          if (artistByIdentifier) {
+            artistProfileId = artistByIdentifier.id;
+            console.log('🔍 EventReviewForm: Found existing artist by identifier:', artistProfileId);
+          }
+        }
+        
+        // If not found by identifier, try by name
+        if (!artistProfileId && artistCandidate?.name) {
+          const { data: artistByName } = await supabase
+            .from('artists')
               .select('id')
-              .eq('jambase_artist_id', jambaseArtistId)
-              .limit(1);
-            if (Array.isArray(reSel.data) && reSel.data.length > 0) {
-              artistProfileId = reSel.data[0].id;
-              console.log('🔍 EventReviewForm: Found artist after search:', artistProfileId);
-            } else {
-              console.log('⚠️ EventReviewForm: Artist still not found after search');
-            }
-          } catch {}
+            .ilike('name', artistCandidate.name)
+            .limit(1)
+            .maybeSingle();
+          
+          if (artistByName) {
+            artistProfileId = artistByName.id;
+            console.log('🔍 EventReviewForm: Found existing artist by name:', artistProfileId);
+          }
+        }
+        
+        if (!artistProfileId) {
+          console.log('⚠️ EventReviewForm: Artist not found in database');
         }
       }
     } catch {}
@@ -798,24 +851,38 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           event_date: eventDateTime.toISOString(),
           description: `Concert by ${formData.selectedArtist?.name || ''} at ${formData.selectedVenue?.name || ''}`
         };
-        let ins = await (supabase as any)
-          .from('events')
-          .insert(insertPayload)
-          .select()
-          .single();
-        if (ins.error) {
-          // Fallback: minimal payload with just required fields
-          insertPayload = {
-            title: insertPayload.title,
-            event_date: insertPayload.event_date,
-            ...(resolvedArtistId ? { artist_id: resolvedArtistId } : {}),
-            ...(resolvedVenueId ? { venue_id: resolvedVenueId } : {}),
-          };
-          ins = await (supabase as any)
-            .from('events')
-            .insert(insertPayload)
-            .select()
-            .single();
+        // Users can no longer directly create events
+        // Submit a request instead
+        let ins: any = { data: null, error: null };
+        try {
+          const { MissingEntityRequestService } = await import('@/services/missingEntityRequestService');
+          await MissingEntityRequestService.submitRequest({
+            entity_type: 'event',
+            entity_name: insertPayload.title,
+            entity_date: insertPayload.event_date,
+            entity_location: `${insertPayload.venue_city}, ${insertPayload.venue_state}`,
+            additional_info: {
+              artist_id: resolvedArtistId,
+              venue_id: resolvedVenueId,
+            },
+          });
+          console.log('📝 Submitted request for missing event:', insertPayload.title);
+          toast({
+            title: "Event Request Submitted",
+            description: "Your event request has been submitted for review. You can still write your review.",
+          });
+          // Set a placeholder event ID so the review can proceed
+          // The actual event will need to be created by an admin
+          ins.data = { id: `pending-${Date.now()}` };
+        } catch (error) {
+          console.error('❌ Error submitting event request:', error);
+          ins.error = error;
+          toast({
+            title: "Request Submission Failed",
+            description: "Could not submit event request, but you can still write your review.",
+            variant: "destructive",
+          });
+          // Don't throw - allow user to continue with review
         }
         
         // Note: venue_uuid column exists in events table
@@ -865,7 +932,24 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         `
         : '';
 
-      // Calculate decimal average from 5 category ratings
+      // Calculate decimal average based on flow
+      const flow = currentFlow || 'detailed';
+      let decimalAverage: number;
+      
+      if (flow === 'quick') {
+        // Quick flow: use overall rating directly
+        decimalAverage = formData.rating || 0;
+      } else if (flow === 'standard') {
+        // Standard flow: average of Artist Performance and Venue
+        const standardRatings = [
+          formData.artistPerformanceRating,
+          formData.venueRating
+        ].filter((r): r is number => typeof r === 'number' && r > 0);
+        decimalAverage = standardRatings.length > 0
+          ? Number((standardRatings.reduce((sum, r) => sum + r, 0) / standardRatings.length).toFixed(1))
+          : (formData.rating || 0);
+      } else {
+        // Detailed flow: average of all 5 category ratings
       const categoryRatings = [
         formData.artistPerformanceRating,
         formData.productionRating,
@@ -874,9 +958,10 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         formData.valueRating
       ].filter((r): r is number => typeof r === 'number' && r > 0);
       
-      const decimalAverage = categoryRatings.length > 0
+        decimalAverage = categoryRatings.length > 0
         ? Number((categoryRatings.reduce((sum, r) => sum + r, 0) / categoryRatings.length).toFixed(1))
         : (formData.rating || 0);
+      }
       
       const ticketPrice = formData.ticketPricePaid ? Number(formData.ticketPricePaid) : undefined;
       
@@ -910,7 +995,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         value_feedback: valueFeedback,
         ticket_price_paid: typeof ticketPrice === 'number' && !Number.isNaN(ticketPrice) ? ticketPrice : undefined,
         review_text: (formData.reviewText.trim() + showsRankingBlock).trim() || undefined,
-        reaction_emoji: formData.reactionEmoji || undefined,
         photos: formData.photos && formData.photos.length > 0 ? formData.photos : undefined,
         videos: formData.videos && formData.videos.length > 0 ? formData.videos : undefined,
         // Preserve existing setlist when editing if not explicitly changed
@@ -1041,35 +1125,52 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         venueId = undefined;
       }
 
-    if (!isValidUUID(eventId)) {
-      throw new Error('Unable to determine a valid event ID for this review.');
-    }
-
+      // Allow reviews without event_id if we have artist_id and venue_id
+      const safeEventId = isValidUUID(eventId) ? eventId : undefined;
       const safeVenueId = venueId && isValidUUID(venueId) ? venueId : undefined;
-      const review = await ReviewService.setEventReview(userId, eventId, reviewData, safeVenueId);
+      const safeArtistId = artistProfileId && isValidUUID(artistProfileId) ? artistProfileId : undefined;
+      
+      // Require either event_id OR both artist_id and venue_id
+      if (!safeEventId && (!safeArtistId || !safeVenueId)) {
+        throw new Error('Unable to determine a valid event ID or artist+venue combination for this review.');
+      }
+
+      const review = await ReviewService.setEventReview(userId, safeEventId, reviewData, safeVenueId, safeArtistId);
       
       // Clear localStorage draft after successful submission
-      clearDraft(eventId);
+      if (safeEventId) {
+        clearDraft(safeEventId);
+      }
       
       // NUCLEAR OPTION: Delete ALL drafts for this user that match the same artist/venue/date
       // This handles the case where a new event was created, leaving an old draft with a different event_id
       try {
-        console.log('🗑️ EventReviewForm: Starting NUCLEAR draft deletion for event:', eventId);
+        console.log('🗑️ EventReviewForm: Starting NUCLEAR draft deletion:', { eventId: safeEventId, artistId: safeArtistId, venueId: safeVenueId });
         
-        // First, delete drafts for this specific event
-        const { error: deleteError, data: deletedData } = await supabase
+        // First, delete drafts for this specific event (if eventId exists) or artist+venue (if no eventId)
+        let deleteQuery = supabase
           .from('reviews')
           .delete()
           .eq('user_id', userId)
-          .eq('event_id', eventId)
           .eq('is_draft', true)
           .select('id');
+        
+        if (safeEventId) {
+          deleteQuery = deleteQuery.eq('event_id', safeEventId);
+        } else if (safeArtistId && safeVenueId) {
+          deleteQuery = deleteQuery
+            .eq('artist_id', safeArtistId)
+            .eq('venue_id', safeVenueId)
+            .is('event_id', null);
+        }
+        
+        const { error: deleteError, data: deletedData } = await deleteQuery;
         
         if (deleteError) {
           console.error('❌ EventReviewForm: First deletion failed:', deleteError);
         } else {
           const deletedCount = deletedData?.length || 0;
-          console.log(`🧹 EventReviewForm: Deleted ${deletedCount} draft(s) for event ${eventId}`);
+          console.log(`🧹 EventReviewForm: Deleted ${deletedCount} draft(s)`);
         }
         
         // CRITICAL: Also delete drafts that match the same artist/venue/date
@@ -1242,7 +1343,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           rating: review.rating,
           artist_performance_rating: (review as any).artist_performance_rating,
           production_rating: (review as any).production_rating,
-          venue_rating: (review as any).venue_rating_decimal || review.venue_rating, // Prefer venue_rating_decimal, fallback to INTEGER venue_rating
+          venue_rating: review.venue_rating,
           location_rating: (review as any).location_rating,
           value_rating: (review as any).value_rating,
         });
@@ -1251,7 +1352,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         const ratingParts = [
           (review as any).artist_performance_rating,
           (review as any).production_rating,
-          (review as any).venue_rating_decimal || review.venue_rating, // Prefer venue_rating_decimal, fallback to INTEGER venue_rating
+          review.venue_rating
           (review as any).location_rating,
           (review as any).value_rating,
         ].filter((value): value is number => typeof value === 'number' && value > 0);
@@ -1329,11 +1430,13 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   };
 
   const averageRatingForSummary = getEffectiveRating();
+  const effectiveTotalSteps = totalSteps || REVIEW_FORM_TOTAL_STEPS;
   const progressPercent = Math.min(
     100,
-    Math.max(0, Math.round((currentStep / REVIEW_FORM_TOTAL_STEPS) * 100))
+    Math.max(0, Math.round((currentStep / effectiveTotalSteps) * 100))
   );
-  const nextStepLabel = currentStep < REVIEW_FORM_TOTAL_STEPS ? STEP_LABELS[currentStep] : null;
+  const stepLabels = getStepLabels(currentFlow || 'detailed');
+  const nextStepLabel = currentStep < effectiveTotalSteps && stepLabels[currentStep] ? stepLabels[currentStep] : null;
 
   const categoryBreakdown = [
     {
@@ -1362,6 +1465,92 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       annotation: formData.valueFeedback
     }
   ];
+
+  const renderSetlistSection = () => {
+    const canImportSetlist = formData.selectedArtist?.name && formData.eventDate;
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsSetlistModalOpen(true)}
+            disabled={!canImportSetlist}
+            className="border-pink-200 text-pink-600 hover:bg-pink-50 w-full sm:w-auto"
+          >
+            <Music className="w-4 h-4 mr-2" />
+            Import from setlist.fm
+          </Button>
+          {formData.selectedSetlist && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleClearSetlist}
+              className="text-gray-500 hover:text-gray-700 w-full sm:w-auto"
+            >
+              Clear setlist
+            </Button>
+          )}
+        </div>
+        {!canImportSetlist && (
+          <p className="text-xs text-gray-500">
+            Select an artist (and date if you know it) to search official setlists.
+          </p>
+        )}
+
+        {formData.selectedSetlist ? (
+          <div className="rounded-xl border border-pink-100 bg-pink-50/40 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {formData.selectedSetlist.artist?.name || formData.selectedArtist?.name}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {formData.selectedSetlist.venue?.name}
+                  {formData.selectedSetlist.eventDate && (
+                    <> • {formatSetlistDate(formData.selectedSetlist.eventDate)}</>
+                  )}
+                </p>
+              </div>
+              <Badge variant="secondary" className="bg-white text-pink-600 border-pink-100">
+                {formData.selectedSetlist.songCount} songs
+              </Badge>
+            </div>
+            <ul className="grid gap-1 text-xs text-gray-700 sm:grid-cols-2">
+              {(formData.selectedSetlist.songs || []).slice(0, 8).map((song: any, index: number) => (
+                <li key={`${song.name}-${index}`} className="flex items-start gap-2">
+                  <span className="font-medium text-pink-600">{index + 1}.</span>
+                  <span className="flex-1">
+                    {song.name}
+                    {song.cover?.artist && (
+                      <span className="block text-[11px] text-gray-500">Cover: {song.cover.artist}</span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {Array.isArray(formData.selectedSetlist.songs) && formData.selectedSetlist.songs.length > 8 && (
+              <p className="text-[11px] text-gray-500">
+                +{formData.selectedSetlist.songs.length - 8} more in the setlist
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500">
+            Can't find it? Add your own setlist below so other fans know what was played.
+          </p>
+        )}
+
+        <CustomSetlistInput
+          songs={(formData.customSetlist as any) || []}
+          onChange={handleCustomSetlistChange}
+          disabled={!!formData.selectedSetlist}
+          className="mt-2"
+        />
+      </div>
+    );
+  };
 
   const renderArtistExtras = () => {
     const canImportSetlist = Boolean(formData.selectedArtist?.name);
@@ -1450,10 +1639,66 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   };
 
   const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
+    const flow = currentFlow || 'detailed'; // Default to detailed for backward compatibility
+    const stepLabels = getStepLabels(flow);
+
+    // Step 1: Time selection (always first)
+    if (currentStep === 1) {
+      return (
+        <TimeSelectionStep
+          reviewDuration={formData.reviewDuration}
+          onSelectDuration={(duration) => {
+            updateFormData({ reviewDuration: duration });
+            // Auto-advance to next step after selection
+            setTimeout(() => nextStep(), 100);
+          }}
+        />
+      );
+    }
+
+    // Flow-specific step rendering
+    switch (flow) {
+      case 'quick': // 1-minute flow
+        // Step 2: Event details
+        if (currentStep === 2) {
         return <EventDetailsStep formData={formData} errors={errors} onUpdateFormData={updateFormData} />;
-      case 2:
+        }
+        // Step 3: Quick review (rating + text + optional setlist)
+        if (currentStep === 3) {
+          return (
+            <QuickReviewStep
+              formData={formData}
+              errors={errors}
+              onUpdateFormData={updateFormData}
+              artistName={formData.selectedArtist?.name}
+              venueName={formData.selectedVenue?.name}
+              eventDate={formData.eventDate}
+            />
+          );
+        }
+        // Step 4: Submit
+        if (currentStep === 4) {
+          return (
+            <PrivacySubmitStep
+              formData={formData}
+              errors={errors}
+              onUpdateFormData={updateFormData}
+              onSubmit={handleSubmit}
+              isLoading={isLoading}
+              averageRating={formData.rating}
+              categoryBreakdown={[]}
+            />
+          );
+        }
+        break;
+
+      case 'standard': // 3-minute flow
+        // Step 2: Event details
+        if (currentStep === 2) {
+          return <EventDetailsStep formData={formData} errors={errors} onUpdateFormData={updateFormData} />;
+        }
+        // Step 3: Artist Performance
+        if (currentStep === 3) {
         return (
           <CategoryStep
             config={categoryConfigs[2]}
@@ -1464,7 +1709,79 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             {renderArtistExtras()}
           </CategoryStep>
         );
-      case 3:
+        }
+        // Step 4: Venue
+        if (currentStep === 4) {
+          return (
+            <CategoryStep
+              config={categoryConfigs[4]}
+              formData={formData}
+              errors={errors}
+              onUpdateFormData={updateFormData}
+              previousVenueReview={previousVenueReview}
+            />
+          );
+        }
+        // Step 5: Review content (with setlist)
+        if (currentStep === 5) {
+          return (
+            <>
+              <ReviewContentStep 
+                formData={formData} 
+                errors={errors} 
+                onUpdateFormData={updateFormData}
+                maxCharacters={400}
+              />
+              {/* Add setlist section */}
+              <div className="mt-8 space-y-4">
+                <Label className="text-base font-semibold text-gray-900">Setlist (Optional)</Label>
+                {renderSetlistSection()}
+              </div>
+            </>
+          );
+        }
+        // Step 6: Submit
+        if (currentStep === 6) {
+          const avgRating = formData.artistPerformanceRating > 0 && formData.venueRating > 0
+            ? (formData.artistPerformanceRating + formData.venueRating) / 2
+            : formData.rating;
+          return (
+            <PrivacySubmitStep
+              formData={formData}
+              errors={errors}
+              onUpdateFormData={updateFormData}
+              onSubmit={handleSubmit}
+              isLoading={isLoading}
+              averageRating={avgRating}
+              categoryBreakdown={[
+                { label: 'Artist Performance', rating: formData.artistPerformanceRating },
+                { label: 'Venue', rating: formData.venueRating },
+              ]}
+            />
+          );
+        }
+        break;
+
+      case 'detailed': // 5-minute flow (original flow)
+        // Step 2: Event details
+        if (currentStep === 2) {
+          return <EventDetailsStep formData={formData} errors={errors} onUpdateFormData={updateFormData} />;
+        }
+        // Step 3: Artist Performance
+        if (currentStep === 3) {
+          return (
+            <CategoryStep
+              config={categoryConfigs[2]}
+              formData={formData}
+              errors={errors}
+              onUpdateFormData={updateFormData}
+            >
+              {renderArtistExtras()}
+            </CategoryStep>
+          );
+        }
+        // Step 4: Production
+        if (currentStep === 4) {
         return (
           <CategoryStep
             config={categoryConfigs[3]}
@@ -1473,7 +1790,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             onUpdateFormData={updateFormData}
           />
         );
-      case 4:
+        }
+        // Step 5: Venue
+        if (currentStep === 5) {
         return (
           <CategoryStep
             config={categoryConfigs[4]}
@@ -1483,7 +1802,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             previousVenueReview={previousVenueReview}
           />
         );
-      case 5:
+        }
+        // Step 6: Location
+        if (currentStep === 6) {
         return (
           <CategoryStep
             config={categoryConfigs[5]}
@@ -1493,7 +1814,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             previousVenueReview={previousVenueReview}
           />
         );
-      case 6:
+        }
+        // Step 7: Value
+        if (currentStep === 7) {
         return (
           <CategoryStep
             config={categoryConfigs[6]}
@@ -1521,9 +1844,27 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             </div>
           </CategoryStep>
         );
-      case 7:
-        return <ReviewContentStep formData={formData} errors={errors} onUpdateFormData={updateFormData} />;
-      case 8:
+        }
+        // Step 8: Review content (with setlist)
+        if (currentStep === 8) {
+          return (
+            <>
+              <ReviewContentStep 
+                formData={formData} 
+                errors={errors} 
+                onUpdateFormData={updateFormData}
+                maxCharacters={500}
+              />
+              {/* Add setlist section */}
+              <div className="mt-8 space-y-4">
+                <Label className="text-base font-semibold text-gray-900">Setlist (Optional)</Label>
+                {renderSetlistSection()}
+              </div>
+            </>
+          );
+        }
+        // Step 9: Submit
+        if (currentStep === 9) {
         return (
           <PrivacySubmitStep
             formData={formData}
@@ -1535,9 +1876,11 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             categoryBreakdown={categoryBreakdown}
           />
         );
-      default:
-        return null;
     }
+        break;
+    }
+    
+    return null;
   };
 
   // Debug component state
@@ -1586,10 +1929,10 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">
-                Step {currentStep} of {REVIEW_FORM_TOTAL_STEPS}
+                Step {currentStep} of {totalSteps || REVIEW_FORM_TOTAL_STEPS}
               </p>
               <h3 className="text-lg font-semibold text-gray-900 mt-1">
-                {STEP_LABELS[currentStep - 1]}
+                {getStepLabels(currentFlow || 'detailed')[currentStep - 1] || 'Review'}
               </h3>
             </div>
             <div className="w-full md:w-72 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -1600,13 +1943,13 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            {STEP_LABELS.map((label, index) => {
+            {getStepLabels(currentFlow || 'detailed').map((label, index) => {
               const stepNumber = index + 1;
               const isActive = stepNumber === currentStep;
               const isComplete = stepNumber < currentStep;
               return (
                 <span
-                  key={label}
+                  key={`${label}-${index}`}
                   className={cn(
                     'px-3 py-1 rounded-full text-xs font-medium transition-colors',
                     isActive
@@ -1659,7 +2002,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
             <div className="flex flex-wrap items-center gap-2">
               {/* Manual save button removed - auto-save handles everything automatically */}
-              {currentStep < REVIEW_FORM_TOTAL_STEPS && (
+              {currentStep < (totalSteps || REVIEW_FORM_TOTAL_STEPS) && (
                 <Button
                   onClick={nextStep}
                   disabled={!canProceed}

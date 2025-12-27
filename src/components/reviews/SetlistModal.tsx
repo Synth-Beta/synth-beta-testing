@@ -159,8 +159,9 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
       // Auto-select exact date match if available
       if (eventDate && sortedResults.length > 0) {
         const exactMatch = sortedResults.find(setlist => {
-          const setlistDate = new Date(setlist.eventDate);
-          const targetDate = new Date(eventDate);
+          const setlistDate = parseSetlistDate(setlist.eventDate);
+          const targetDate = parseSetlistDate(eventDate) || new Date(eventDate);
+          if (!setlistDate) return false;
           return setlistDate.toDateString() === targetDate.toDateString();
         });
         
@@ -198,22 +199,54 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
     }
   };
 
-  const formatDate = (dateString: string) => {
+  // Helper function to parse dates from setlist.fm API (DD-MM-YYYY) or standard formats
+  const parseSetlistDate = (dateString: string): Date | null => {
+    if (!dateString) return null;
+    
     try {
+      // Handle DD-MM-YYYY format from setlist.fm API
+      if (dateString.includes('-') && dateString.length === 10) {
+        const parts = dateString.split('-');
+        if (parts.length === 3) {
+          // Check if it's DD-MM-YYYY format (first part is 2 digits, second is 2 digits, third is 4 digits)
+          if (parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+            // DD-MM-YYYY format - parse as local date to preserve the date value
+            const year = parseInt(parts[2], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+            const day = parseInt(parts[0], 10);
+            return new Date(year, month, day);
+          } else if (parts[0].length === 4) {
+            // YYYY-MM-DD format
+            return new Date(dateString);
+          }
+        }
+      }
+      
+      // Try standard Date parsing
       const date = new Date(dateString);
-      // Check if date is valid
-      if (isNaN(date.getTime())) {
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    } catch {
+      // Fall through to return null
+    }
+    
+    return null;
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = parseSetlistDate(dateString);
+    
+    if (!date || isNaN(date.getTime())) {
         console.warn('Invalid date string:', dateString);
         return 'Date TBD';
       }
+    
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       });
-    } catch {
-      return 'Date TBD';
-    }
   };
 
   const groupSongsBySet = (songs: SetlistData['songs']) => {
@@ -299,7 +332,9 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
               {setlists.map((setlist, index) => {
                 const sets = groupSongsBySet(setlist.songs);
                 const isSelected = selectedSetlist?.setlistFmId === setlist.setlistFmId;
-                const isExactDateMatch = eventDate && new Date(setlist.eventDate).toDateString() === new Date(eventDate).toDateString();
+                const setlistDate = parseSetlistDate(setlist.eventDate);
+                const targetDate = eventDate ? (parseSetlistDate(eventDate) || new Date(eventDate)) : null;
+                const isExactDateMatch = eventDate && setlistDate && targetDate && setlistDate.toDateString() === targetDate.toDateString();
                 
                 return (
                   <Card key={setlist.setlistFmId} className={`overflow-hidden transition-all duration-200 ${
@@ -415,7 +450,7 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
                               // Show success toast and close modal
                               toast({
                                 title: "Setlist Selected",
-                                description: `Selected setlist from ${setlist.venue.name} on ${new Date(setlist.eventDate).toLocaleDateString()}`,
+                                description: `Selected setlist from ${setlist.venue.name} on ${formatDate(setlist.eventDate)}`,
                               });
                               // Close modal after a brief delay to show the toast
                               setTimeout(() => {

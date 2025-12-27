@@ -154,24 +154,30 @@ export class VenueService {
     longitude?: number
   ): Promise<string | null> {
     try {
-      const { data, error } = await supabase.rpc('find_or_create_venue', {
-        venue_name: venueName,
-        venue_address: venueAddress,
-        venue_city: venueCity,
-        venue_state: venueState,
-        venue_zip: venueZip,
-        latitude: latitude,
-        longitude: longitude
-      });
+      // Try to find existing venue
+      const { data: existingVenue } = await supabase
+        .from('venues')
+        .select('id')
+        .ilike('name', venueName)
+        .limit(1)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error finding or creating venue:', error);
-        return null;
+      if (existingVenue) {
+        return existingVenue.id;
       }
 
-      return data;
+      // Venue not found - submit a request instead of creating
+      const { MissingEntityRequestService } = await import('@/services/missingEntityRequestService');
+      await MissingEntityRequestService.submitRequest({
+        entity_type: 'venue',
+        entity_name: venueName,
+        entity_location: [venueAddress, venueCity, venueState, venueZip].filter(Boolean).join(', '),
+      });
+
+      console.log('📝 Submitted request for missing venue:', venueName);
+      return null; // Return null since venue doesn't exist yet
     } catch (error) {
-      console.error('Exception finding or creating venue:', error);
+      console.error('Error finding venue or submitting request:', error);
       return null;
     }
   }

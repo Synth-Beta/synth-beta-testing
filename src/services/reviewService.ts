@@ -36,7 +36,6 @@ export interface ReviewData {
   artist_rating?: number; // Legacy field for backward compatibility
   review_type: 'event' | 'venue' | 'artist'; // Type of review
   review_text?: string;
-  reaction_emoji?: string;
   photos?: string[]; // Array of photo URLs from storage
   videos?: string[]; // Array of video URLs from storage
   attendees?: Array<{ type: 'user'; user_id: string; name: string; avatar_url?: string } | { type: 'phone'; phone: string; name?: string }>; // People who attended
@@ -46,6 +45,7 @@ export interface ReviewData {
   artist_tags?: string[]; // Artist-specific tags
   setlist?: any; // Selected setlist data from Setlist.fm (API verified)
   custom_setlist?: CustomSetlistSong[]; // User-created custom setlist (review-only)
+  reaction_emoji?: string; // Emoji reaction to the review
 }
 
 export interface UserReview {
@@ -67,7 +67,6 @@ export interface UserReview {
   ticket_price_paid?: number;
   artist_rating?: number; // Legacy field
   review_type?: 'event' | 'venue' | 'artist';
-  reaction_emoji?: string;
   review_text?: string;
   photos?: string[];
   videos?: string[];
@@ -80,6 +79,7 @@ export interface UserReview {
   artist_tags?: string[];
   setlist?: any; // Selected setlist data from Setlist.fm (API verified)
   custom_setlist?: CustomSetlistSong[]; // User-created custom setlist (review-only)
+  reaction_emoji?: string; // Emoji reaction to the review
   likes_count: number;
   comments_count: number;
   shares_count: number;
@@ -211,9 +211,10 @@ export class ReviewService {
    */
   static async setEventReview(
     userId: string,
-    eventId: string,
+    eventId: string | undefined,
     reviewData: ReviewData,
-    venueId?: string
+    venueId?: string,
+    artistId?: string
   ): Promise<UserReview> {
     try {
       // Helper to ensure a valid INTEGER rating value (1..5) for inserts/updates
@@ -227,7 +228,7 @@ export class ReviewService {
         const newParts = [
           data.artist_performance_rating,
           data.production_rating,
-          (data as any).venue_rating_decimal || data.venue_rating, // Use venue_rating_decimal, not INTEGER venue_rating
+          data.venue_rating,
           data.location_rating,
           data.value_rating,
         ].filter(
@@ -250,19 +251,30 @@ export class ReviewService {
         return 3;
       };
 
-      // Check if user already has ANY review (draft OR published) for this event
-      // The unique constraint on (user_id, event_id) ensures only one row per user/event
-      // We should always UPDATE the existing row, never create a new one
-      const isUuid = isValidUuid(eventId);
+      // Check if user already has ANY review (draft OR published)
+      // If eventId is provided, check by event_id
+      // If eventId is not provided, check by artist_id + venue_id
+      const isUuid = eventId ? isValidUuid(eventId) : false;
       const normalizedVenueId = isValidUuid(venueId) ? venueId : undefined;
+      const normalizedArtistId = isValidUuid(artistId) ? artistId : undefined;
+      
       if (venueId && !normalizedVenueId) {
         console.warn('⚠️ ReviewService: Received non-UUID venueId parameter, ignoring', venueId);
       }
-      // If eventId is not a UUID, skip .single() to avoid 400s and treat as not found
+      if (artistId && !normalizedArtistId) {
+        console.warn('⚠️ ReviewService: Received non-UUID artistId parameter, ignoring', artistId);
+      }
+      
+      // If no eventId and no artistId/venueId, we can't create a review
+      if (!isUuid && (!normalizedArtistId || !normalizedVenueId)) {
+        throw new Error('Either eventId or both artistId and venueId must be provided');
+      }
+      
       let existingReview: any = null;
       let checkError: any = null;
       
       if (isUuid) {
+        // Check by event_id (existing logic)
         // CRITICAL: Check for BOTH published reviews AND drafts separately
         // There might be both a draft AND a published review (bad state)
         // We need to find the published one first, and delete any drafts
@@ -288,7 +300,7 @@ export class ReviewService {
         const publishedReview = publishedResult.data;
         const draftReview = draftResult.data;
         
-        console.log('🔍 ReviewService: Checked for existing reviews:', { 
+        console.log('🔍 ReviewService: Checked for existing reviews by event_id:', { 
           published: !!publishedReview, 
           published_id: publishedReview?.id,
           draft: !!draftReview,
@@ -301,6 +313,71 @@ export class ReviewService {
           checkError = publishedResult.error;
           
           // Delete any drafts that exist for this event (cleanup bad state)
+          if (draftReview) {
+            console.log('⚠️ ReviewService: Found both published review and draft - deleting draft:', draftReview.id);
+            try {
+              const { error: deleteError } = await supabase
+                .from('reviews')
+                .delete()
+                .eq('id', draftReview.id);
+              if (deleteError) {
+                console.warn('⚠️ Failed to delete draft:', deleteError);
+              } else {
+                console.log('✅ Deleted draft:', draftReview.id);
+              }
+            } catch (error) {
+              console.warn('⚠️ Error deleting draft:', error);
+            }
+          }
+        } else if (draftReview) {
+          // Only a draft exists, use that
+          existingReview = draftReview;
+          checkError = draftResult.error;
+        } else {
+          // No review exists at all
+          existingReview = null;
+          checkError = null;
+        }
+      } else if (normalizedArtistId && normalizedVenueId) {
+        // Check by artist_id + venue_id (when event_id is not provided)
+        // First, check for a published review
+        const publishedResult = await (supabase as any)
+          .from('reviews')
+          .select('id, is_draft')
+          .eq('user_id', userId)
+          .eq('artist_id', normalizedArtistId)
+          .eq('venue_id', normalizedVenueId)
+          .is('event_id', null)
+          .eq('is_draft', false)
+          .maybeSingle();
+        
+        // Then, check for any drafts
+        const draftResult = await (supabase as any)
+          .from('reviews')
+          .select('id, is_draft')
+          .eq('user_id', userId)
+          .eq('artist_id', normalizedArtistId)
+          .eq('venue_id', normalizedVenueId)
+          .is('event_id', null)
+          .eq('is_draft', true)
+          .maybeSingle();
+        
+        const publishedReview = publishedResult.data;
+        const draftReview = draftResult.data;
+        
+        console.log('🔍 ReviewService: Checked for existing reviews by artist_id + venue_id:', { 
+          published: !!publishedReview, 
+          published_id: publishedReview?.id,
+          draft: !!draftReview,
+          draft_id: draftReview?.id
+        });
+        
+        // If there's a published review, use that (and we'll delete drafts)
+        if (publishedReview) {
+          existingReview = publishedReview;
+          checkError = publishedResult.error;
+          
+          // Delete any drafts that exist for this artist+venue (cleanup bad state)
           if (draftReview) {
             console.log('⚠️ ReviewService: Found both published review and draft - deleting draft:', draftReview.id);
             try {
@@ -366,12 +443,22 @@ export class ReviewService {
           if (isUuid) {
             try {
               // Delete all drafts (but not the published review we're updating)
-              const { error: deleteError } = await supabase
+              let deleteQuery = supabase
                 .from('reviews')
                 .delete()
                 .eq('user_id', userId)
-                .eq('event_id', eventId)
                 .eq('is_draft', true);
+              
+              if (isUuid && eventId) {
+                deleteQuery = deleteQuery.eq('event_id', eventId);
+              } else if (normalizedArtistId && normalizedVenueId) {
+                deleteQuery = deleteQuery
+                  .eq('artist_id', normalizedArtistId)
+                  .eq('venue_id', normalizedVenueId)
+                  .is('event_id', null);
+              }
+              
+              const { error: deleteError } = await deleteQuery;
               
               if (!deleteError) {
                 console.log('✅ Deleted all drafts before updating published review');
@@ -401,9 +488,9 @@ export class ReviewService {
           // Save all 5 category ratings and feedback directly to database
           const fullUpdate: any = {
             ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
+            ...(normalizedArtistId ? { artist_id: normalizedArtistId } : {}),
           // rating will be calculated by database trigger from category ratings
           review_text: reviewData.review_text,
-          reaction_emoji: reviewData.reaction_emoji,
           is_public: reviewData.is_public,
           is_draft: false, // Mark as published (not a draft)
           draft_data: null, // Clear draft data when publishing
@@ -411,7 +498,7 @@ export class ReviewService {
           // All 5 category ratings (0.5-5.0, rounded to 1 decimal) - MUST be included
           artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' ? Number(reviewData.artist_performance_rating.toFixed(1)) : undefined,
           production_rating: typeof reviewData.production_rating === 'number' ? Number(reviewData.production_rating.toFixed(1)) : undefined,
-          venue_rating_decimal: typeof reviewData.venue_rating === 'number' ? Number(reviewData.venue_rating.toFixed(1)) : undefined, // Use venue_rating_decimal (DECIMAL) since venue_rating is INTEGER
+          venue_rating: typeof reviewData.venue_rating === 'number' ? Number(reviewData.venue_rating.toFixed(1)) : undefined,
           location_rating: typeof reviewData.location_rating === 'number' ? Number(reviewData.location_rating.toFixed(1)) : undefined,
           value_rating: typeof reviewData.value_rating === 'number' ? Number(reviewData.value_rating.toFixed(1)) : undefined,
           // All 5 category feedback text fields - MUST be included
@@ -437,13 +524,10 @@ export class ReviewService {
           updated_at: new Date().toISOString()
           };
           
-          // Explicitly remove venue_rating (INTEGER) - we use venue_rating_decimal for decimals
-          delete fullUpdate.venue_rating;
-
           console.log('🔍 ReviewService: Update payload category ratings:', {
           artist_performance_rating: fullUpdate.artist_performance_rating,
           production_rating: fullUpdate.production_rating,
-          venue_rating_decimal: fullUpdate.venue_rating_decimal,
+          venue_rating: fullUpdate.venue_rating,
           location_rating: fullUpdate.location_rating,
           value_rating: fullUpdate.value_rating,
         });
@@ -475,7 +559,7 @@ export class ReviewService {
           console.log('✅ ReviewService: Updated review category ratings:', {
             artist_performance_rating: (data as any)?.artist_performance_rating,
             production_rating: (data as any)?.production_rating,
-            venue_rating_decimal: (data as any)?.venue_rating_decimal,
+            venue_rating: (data as any)?.venue_rating,
             location_rating: (data as any)?.location_rating,
             value_rating: (data as any)?.value_rating,
           });
@@ -495,7 +579,6 @@ export class ReviewService {
               ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
               rating: typeof reviewData.rating === 'number' ? Number(reviewData.rating.toFixed(1)) : deriveRating(reviewData),
               review_text: reviewData.review_text,
-              reaction_emoji: reviewData.reaction_emoji,
               is_public: reviewData.is_public,
               is_draft: false, // Mark as published (not a draft)
               draft_data: null, // Clear draft data when publishing
@@ -545,15 +628,25 @@ export class ReviewService {
               }
             }
             
-            // Delete ALL drafts for this event (including any that might still be marked as drafts)
+            // Delete ALL drafts (including any that might still be marked as drafts)
             // This ensures the draft completely disappears from "Unreviewed" section
             // We delete ALL drafts because the review is now published, not a draft
-            const deleteResult = await (supabase as any)
+            let deleteQuery = (supabase as any)
               .from('reviews')
               .delete()
               .eq('user_id', userId)
-              .eq('event_id', eventId)
               .eq('is_draft', true);
+            
+            if (isUuid && eventId) {
+              deleteQuery = deleteQuery.eq('event_id', eventId);
+            } else if (normalizedArtistId && normalizedVenueId) {
+              deleteQuery = deleteQuery
+                .eq('artist_id', normalizedArtistId)
+                .eq('venue_id', normalizedVenueId)
+                .is('event_id', null);
+            }
+            
+            const deleteResult = await deleteQuery;
             
             if (deleteResult.error) {
               console.warn('⚠️ ReviewService: Failed to delete drafts after update:', deleteResult.error);
@@ -565,13 +658,23 @@ export class ReviewService {
                 console.log('✅ ReviewService: No drafts found to delete (review is now published)');
               }
               
-              // Final verification: check if any drafts still exist for this event
-              const remainingDrafts = await supabase
+              // Final verification: check if any drafts still exist
+              let checkQuery = supabase
                 .from('reviews')
                 .select('id, is_draft')
                 .eq('user_id', userId)
-                .eq('event_id', eventId)
                 .eq('is_draft', true);
+              
+              if (isUuid && eventId) {
+                checkQuery = checkQuery.eq('event_id', eventId);
+              } else if (normalizedArtistId && normalizedVenueId) {
+                checkQuery = checkQuery
+                  .eq('artist_id', normalizedArtistId)
+                  .eq('venue_id', normalizedVenueId)
+                  .is('event_id', null);
+              }
+              
+              const remainingDrafts = await checkQuery;
               
               if (remainingDrafts.data && remainingDrafts.data.length > 0) {
                 console.warn(`⚠️ ReviewService: WARNING - ${remainingDrafts.data.length} draft(s) still exist after cleanup for event:`, eventId);
@@ -590,15 +693,14 @@ export class ReviewService {
       }
 
       // No existing review found - create a new one
-      // The unique constraint on (user_id, event_id) ensures only one row per user/event
       // This will be a published review (is_draft = false)
       // Save all 5 category ratings and feedback directly to database
-      // Build insert payload - explicitly exclude venue_rating (INTEGER) since we use venue_rating_decimal for decimals
       // NOTE: Do NOT send rating - let the database trigger calculate it from category ratings
       const insertPayload: any = {
         user_id: userId,
-        event_id: eventId,
+        ...(isUuid && eventId ? { event_id: eventId } : {}),
         ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
+        ...(normalizedArtistId ? { artist_id: normalizedArtistId } : {}),
         // rating will be calculated by ensure_draft_no_rating trigger from category ratings
         reaction_emoji: reviewData.reaction_emoji,
         review_text: reviewData.review_text,
@@ -607,10 +709,9 @@ export class ReviewService {
         // All 5 category ratings (0.5-5.0, rounded to 1 decimal)
         artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' ? Number(reviewData.artist_performance_rating.toFixed(1)) : undefined,
         production_rating: typeof reviewData.production_rating === 'number' ? Number(reviewData.production_rating.toFixed(1)) : undefined,
-        venue_rating_decimal: typeof reviewData.venue_rating === 'number' ? Number(reviewData.venue_rating.toFixed(1)) : undefined, // Use venue_rating_decimal since venue_rating is INTEGER
+        venue_rating: typeof reviewData.venue_rating === 'number' ? Number(reviewData.venue_rating.toFixed(1)) : undefined,
         location_rating: typeof reviewData.location_rating === 'number' ? Number(reviewData.location_rating.toFixed(1)) : undefined,
         value_rating: typeof reviewData.value_rating === 'number' ? Number(reviewData.value_rating.toFixed(1)) : undefined,
-        // DO NOT include venue_rating (INTEGER) - we use venue_rating_decimal for decimals
         // All 5 category feedback text fields
         artist_performance_feedback: reviewData.artist_performance_feedback?.trim() || undefined,
         production_feedback: reviewData.production_feedback?.trim() || undefined,
@@ -629,15 +730,11 @@ export class ReviewService {
         met_on_synth: reviewData.met_on_synth, // Add met_on_synth field
         was_there: true // If someone writes a review, they obviously attended
       } as any;
-      
-      // Explicitly remove venue_rating (INTEGER) - we use venue_rating_decimal (DECIMAL) for all decimal values
-      // This prevents trying to cast decimals like 4.8 to INTEGER which causes errors
-      delete (insertPayload as any).venue_rating;
 
       console.log('🔍 ReviewService: Insert payload category ratings:', {
         artist_performance_rating: insertPayload.artist_performance_rating,
         production_rating: insertPayload.production_rating,
-        venue_rating_decimal: insertPayload.venue_rating_decimal,
+        venue_rating: insertPayload.venue_rating,
         location_rating: insertPayload.location_rating,
         value_rating: insertPayload.value_rating,
       });
@@ -649,41 +746,57 @@ export class ReviewService {
         value_feedback: insertPayload.value_feedback,
       });
 
-      // Use JamBase IDs directly for event matching
-      console.log('🔍 ReviewService: Checking event JamBase IDs for eventId:', eventId);
-      const { data: eventData, error: eventError } = await supabase
-        .from('events_with_artist_venue')
-        .select('id, artist_id, artist_name_normalized, venue_id, venue_name_normalized')
-        .eq('id', eventId)
-        .single();
-      
-      if (eventError) {
-        console.error('❌ ReviewService: Error fetching event data:', eventError);
-      } else {
-        console.log('🔍 ReviewService: Event data:', eventData);
+      // If eventId is provided, fetch event data to get artist_id
+      // Otherwise, use the provided artistId
+      if (isUuid && eventId) {
+        console.log('🔍 ReviewService: Checking event JamBase IDs for eventId:', eventId);
+        const { data: eventData, error: eventError } = await supabase
+          .from('events_with_artist_venue')
+          .select('id, artist_id, artist_name_normalized, venue_id, venue_name_normalized')
+          .eq('id', eventId)
+          .single();
         
-        // Use JamBase artist_id directly (not UUID)
-        const eventArtistId = eventData?.artist_id;
-        if (eventArtistId) {
-          console.log('🔍 ReviewService: Using JamBase artist_id:', eventArtistId);
-          (insertPayload as any).artist_id = eventArtistId;
+        if (eventError) {
+          console.error('❌ ReviewService: Error fetching event data:', eventError);
         } else {
-          console.log('⚠️ ReviewService: No JamBase artist_id found for event');
-        }
-        
-        // Use JamBase venue_id directly (not UUID)
-        if (normalizedVenueId) {
-          console.log('🔍 ReviewService: Using venueId parameter:', normalizedVenueId);
-          (insertPayload as any).venue_id = normalizedVenueId;
-        } else {
-          if (venueId) {
-            console.warn(
-              '⚠️ ReviewService: Ignoring non-UUID venueId parameter',
-              venueId
-            );
+          console.log('🔍 ReviewService: Event data:', eventData);
+          
+          // Use JamBase artist_id directly (not UUID)
+          const eventArtistId = eventData?.artist_id;
+          if (eventArtistId && !normalizedArtistId) {
+            console.log('🔍 ReviewService: Using JamBase artist_id from event:', eventArtistId);
+            (insertPayload as any).artist_id = eventArtistId;
+          } else if (normalizedArtistId) {
+            console.log('🔍 ReviewService: Using provided artistId parameter:', normalizedArtistId);
+            (insertPayload as any).artist_id = normalizedArtistId;
           } else {
-            console.log('⚠️ ReviewService: No venueId parameter provided');
+            console.log('⚠️ ReviewService: No artist_id found for event');
           }
+          
+          // Use JamBase venue_id directly (not UUID)
+          if (normalizedVenueId) {
+            console.log('🔍 ReviewService: Using venueId parameter:', normalizedVenueId);
+            (insertPayload as any).venue_id = normalizedVenueId;
+          } else {
+            if (venueId) {
+              console.warn(
+                '⚠️ ReviewService: Ignoring non-UUID venueId parameter',
+                venueId
+              );
+            } else {
+              console.log('⚠️ ReviewService: No venueId parameter provided');
+            }
+          }
+        }
+      } else {
+        // No eventId - use provided artistId and venueId
+        if (normalizedArtistId) {
+          console.log('🔍 ReviewService: Using provided artistId (no event):', normalizedArtistId);
+          (insertPayload as any).artist_id = normalizedArtistId;
+        }
+        if (normalizedVenueId) {
+          console.log('🔍 ReviewService: Using provided venueId (no event):', normalizedVenueId);
+          (insertPayload as any).venue_id = normalizedVenueId;
         }
       }
       
@@ -693,7 +806,7 @@ export class ReviewService {
         category_ratings: {
           artist_performance_rating: insertPayload.artist_performance_rating,
           production_rating: insertPayload.production_rating,
-          venue_rating_decimal: insertPayload.venue_rating_decimal,
+          venue_rating: insertPayload.venue_rating,
           location_rating: insertPayload.location_rating,
           value_rating: insertPayload.value_rating,
         },
@@ -737,14 +850,13 @@ export class ReviewService {
           event_id: eventId,
           ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
           // rating will be calculated by database trigger from category ratings
-          reaction_emoji: reviewData.reaction_emoji,
           review_text: reviewData.review_text,
           is_public: reviewData.is_public ?? true,
           is_draft: false, // Explicitly mark as published
           // All 5 category ratings (0.5-5.0, rounded to 1 decimal)
           artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' ? Number(reviewData.artist_performance_rating.toFixed(1)) : undefined,
           production_rating: typeof reviewData.production_rating === 'number' ? Number(reviewData.production_rating.toFixed(1)) : undefined,
-          venue_rating_decimal: typeof reviewData.venue_rating === 'number' ? Number(reviewData.venue_rating.toFixed(1)) : undefined,
+          venue_rating: typeof reviewData.venue_rating === 'number' ? Number(reviewData.venue_rating.toFixed(1)) : undefined,
           location_rating: typeof reviewData.location_rating === 'number' ? Number(reviewData.location_rating.toFixed(1)) : undefined,
           value_rating: typeof reviewData.value_rating === 'number' ? Number(reviewData.value_rating.toFixed(1)) : undefined,
           // All 5 category feedback text fields
@@ -758,9 +870,6 @@ export class ReviewService {
           setlist: reviewData.setlist,
           was_there: true
         };
-        
-        // Explicitly remove venue_rating (INTEGER) - we use venue_rating_decimal for decimals
-        delete (minimalInsert as any).venue_rating;
 
         console.error('⚠️ ReviewService: First insert failed, retrying with minimal insert. Error:', error);
         const retry = await supabase
@@ -781,7 +890,7 @@ export class ReviewService {
       console.log('✅ ReviewService: Saved category ratings:', {
         artist_performance_rating: (data as any)?.artist_performance_rating,
         production_rating: (data as any)?.production_rating,
-        venue_rating_decimal: (data as any)?.venue_rating_decimal,
+        venue_rating: (data as any)?.venue_rating,
         location_rating: (data as any)?.location_rating,
         value_rating: (data as any)?.value_rating,
       });
@@ -943,7 +1052,7 @@ export class ReviewService {
       // Filter to find reviews with venue or location data (use only 5-category columns)
       const reviewWithVenueData = data.find((review: any) => {
         return (
-          review.venue_rating_decimal != null ||
+          review.venue_rating != null ||
           review.location_rating != null ||
           review.venue_feedback ||
           review.location_feedback
@@ -1200,7 +1309,6 @@ export class ReviewService {
             rating: item.rating,
             rank_order: (item as any).rank_order,
             review_type: item.review_type,
-            reaction_emoji: item.reaction_emoji,
             review_text: item.review_text,
             photos: item.photos,
             videos: item.videos,
@@ -1211,7 +1319,7 @@ export class ReviewService {
             artist_rating: item.artist_rating,
             artist_performance_rating: item.artist_performance_rating,
             production_rating: item.production_rating,
-            venue_rating: (item as any).venue_rating_decimal || item.venue_rating,
+            venue_rating: item.venue_rating,
             location_rating: item.location_rating,
             value_rating: item.value_rating,
             artist_performance_feedback: item.artist_performance_feedback,
@@ -1265,7 +1373,7 @@ export class ReviewService {
       // Match reviews by effective rating (calculated from 5-category system, rounded to 1 decimal)
       const { data: allReviewsWithRating, error: fetchError } = await (supabase as any)
         .from('reviews')
-        .select('id, rating, artist_performance_rating, production_rating, venue_rating_decimal, location_rating, value_rating')
+        .select('id, rating, artist_performance_rating, production_rating, venue_rating, location_rating, value_rating')
         .eq('user_id', userId)
         .eq('is_draft', false);
       
@@ -1278,7 +1386,7 @@ export class ReviewService {
           const values = [
             review.artist_performance_rating,
             review.production_rating,
-            review.venue_rating_decimal,
+            review.venue_rating,
             review.location_rating,
             review.value_rating
           ].filter((v: any): v is number => typeof v === 'number' && v > 0);

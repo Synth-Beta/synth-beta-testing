@@ -3,12 +3,11 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Search, Music, X, Star, PlusCircle } from 'lucide-react';
+import { Loader2, Search, Music, X, Star } from 'lucide-react';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import type { Artist, ArtistSearchResult } from '@/types/concertSearch';
 import { cn } from '@/lib/utils';
 import { trackInteraction } from '@/services/interactionTrackingService';
-import { ManualArtistForm } from '@/components/search/ManualArtistForm';
 
 interface ArtistSearchBoxProps {
   onArtistSelect: (artist: Artist) => void;
@@ -28,7 +27,6 @@ export function ArtistSearchBox({
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [showManualForm, setShowManualForm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -67,10 +65,6 @@ export function ArtistSearchBox({
           e.preventDefault();
           if (selectedIndex >= 0 && selectedIndex < searchResults.artists.length) {
             handleArtistSelect(searchResults.artists[selectedIndex]);
-          } else if (query.trim()) {
-            // If no item is selected but there's text, try manual selection
-            setIsOpen(false);
-            setShowManualForm(true);
           }
           break;
         case 'Escape':
@@ -173,20 +167,7 @@ export function ArtistSearchBox({
     return genres.slice(0, 3).join(', ');
   };
 
-  const handleManualArtistCreated = (artist: Artist) => {
-    onArtistSelect(artist);
-    setQuery(artist.name);
-    setIsOpen(false);
-  };
-
   return (
-    <>
-      <ManualArtistForm
-        open={showManualForm}
-        onClose={() => setShowManualForm(false)}
-        onArtistCreated={handleManualArtistCreated}
-        initialQuery={query}
-      />
     <div className={cn("relative w-full", className)}>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -270,41 +251,12 @@ export function ArtistSearchBox({
               <div className="px-4 py-8 text-center text-gray-500">
                 <Music className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                 <p>No artists found for "{query}"</p>
-                <p className="text-sm text-gray-400 mb-3">Try a different search term</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsOpen(false);
-                    setShowManualForm(true);
-                  }}
-                  className="gap-2 border-pink-200 text-pink-600 hover:bg-pink-50 hover:border-pink-300"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  Add Manually
-                </Button>
-              </div>
-            )}
-            {searchResults.artists.length > 0 && (
-              <div className="border-t px-4 py-3 bg-gradient-to-r from-pink-50 to-purple-50">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setIsOpen(false);
-                    setShowManualForm(true);
-                  }}
-                  className="w-full gap-2 text-pink-600 hover:text-pink-700 hover:bg-pink-100 font-medium"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  Add Manually
-                </Button>
+                <p className="text-sm text-gray-400">Try a different search term</p>
               </div>
             )}
           </CardContent>
         </Card>
       )}
     </div>
-    </>
   );
 }

@@ -14,31 +14,14 @@ interface ReviewContentStepProps {
   formData: ReviewFormData;
   errors: Record<string, string>;
   onUpdateFormData: (updates: Partial<ReviewFormData>) => void;
+  maxCharacters?: number; // Allow different max characters based on flow
 }
 
-const emojiOptions = [
-  { emoji: '🔥', label: 'Fire', description: 'Incredible energy' },
-  { emoji: '🤩', label: 'Starstruck', description: 'Mind-blowing' },
-  { emoji: '🎵', label: 'Musical', description: 'Perfect music' },
-  { emoji: '💯', label: 'Perfect', description: 'Absolutely amazing' },
-  { emoji: '⚡', label: 'Electric', description: 'High energy' },
-  { emoji: '❤️', label: 'Love', description: 'Loved every moment' },
-  { emoji: '🎉', label: 'Party', description: 'Great party vibes' },
-  { emoji: '✨', label: 'Magical', description: 'Magical experience' },
-];
-
-export function ReviewContentStep({ formData, errors, onUpdateFormData }: ReviewContentStepProps) {
+export function ReviewContentStep({ formData, errors, onUpdateFormData, maxCharacters = 500 }: ReviewContentStepProps) {
   const { user } = useAuth();
 
   const characterCount = formData.reviewText.length;
-  const maxCharacters = 500;
   const isNearLimit = characterCount > maxCharacters * 0.8;
-
-  const handleEmojiSelect = (emoji: string) => {
-    onUpdateFormData({
-      reactionEmoji: formData.reactionEmoji === emoji ? '' : emoji,
-    });
-  };
 
   return (
     <div className="space-y-8">
@@ -46,7 +29,7 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
         <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">Almost there</p>
         <h2 className="text-2xl font-semibold text-gray-900">Share the story</h2>
         <p className="text-sm text-gray-600 max-w-xl mx-auto">
-          Bring the show to life with a short recap, a reaction emoji, and any photos you snapped.
+          Bring the show to life with a short recap and any photos you snapped.
         </p>
       </header>
 
@@ -72,30 +55,6 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
         {errors.reviewText && (
           <p className="text-sm text-red-600">{errors.reviewText}</p>
         )}
-      </div>
-
-      <div className="space-y-3">
-        <Label className="text-sm font-semibold text-gray-900">Set the vibe (optional)</Label>
-        <div className="flex flex-wrap gap-2">
-          {emojiOptions.map((option) => {
-            const isActive = formData.reactionEmoji === option.emoji;
-            return (
-              <Button
-                key={option.emoji}
-                type="button"
-                variant={isActive ? 'default' : 'outline'}
-                className={cn(
-                  'h-auto py-2 px-3 rounded-full text-base border border-pink-200/60',
-                  isActive ? 'bg-pink-500 text-white hover:bg-pink-600' : 'bg-white text-gray-700 hover:bg-pink-50'
-                )}
-                onClick={() => handleEmojiSelect(option.emoji)}
-              >
-                <span className="mr-2 text-lg">{option.emoji}</span>
-                {option.label}
-              </Button>
-            );
-          })}
-        </div>
       </div>
 
       {user && (

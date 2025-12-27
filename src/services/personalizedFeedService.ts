@@ -337,9 +337,6 @@ export class PersonalizedFeedService {
       
       // Apply minimal client-side filtering since RPC already handles location and basic filtering
       // Only apply filters that RPC doesn't support (genres, date range, days of week)
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'personalizedFeedService.ts:338',message:'BEFORE applyClientSideFilters call',data:{eventItemsCount:eventItems.length,includePast,normalizedFilters:{cityCoordinates:normalizedFilters.cityCoordinates,cleanedCities:normalizedFilters.cleanedCities,originalCities:normalizedFilters.originalCities,genres:normalizedFilters.genres,dateStart:normalizedFilters.dateStart?.toISOString(),dateEnd:normalizedFilters.dateEnd?.toISOString(),daysOfWeek:normalizedFilters.daysOfWeek},sampleEvents:eventItems.slice(0,3).map(e=>({title:e.title,event_date:e.event_date,venue_city:e.venue_city,genres:e.genres}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       const filteredRows = this.applyClientSideFilters(eventItems, normalizedFilters, includePast);
       
       logger.debug('📊 After client-side filtering:', {
@@ -904,9 +901,6 @@ export class PersonalizedFeedService {
     filters: NormalizedFilters,
     includePast: boolean
   ): PersonalizedFeedRow[] {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'personalizedFeedService.ts:899',message:'applyClientSideFilters ENTRY',data:{rowCount:rows.length,includePast,hasCityCoordinates:!!filters.cityCoordinates,hasCleanedCities:!!(filters.cleanedCities?.length),hasOriginalCities:!!(filters.originalCities?.length),hasGenres:!!(filters.genres?.length),hasDateStart:!!filters.dateStart,hasDateEnd:!!filters.dateEnd,hasDaysOfWeek:!!(filters.daysOfWeek?.length),dateStart:filters.dateStart?.toISOString(),dateEnd:filters.dateEnd?.toISOString(),sampleEvents:rows.slice(0,3).map(r=>({title:r.title,event_date:r.event_date,venue_city:r.venue_city,genres:r.genres}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     let result = rows;
     const initialCount = rows.length;
 
@@ -914,25 +908,16 @@ export class PersonalizedFeedService {
     // Note: RPC already filters events to be within a reasonable date range
     // Only apply this filter if RPC didn't already filter by date range (i.e., no coordinates were used)
     // AND no explicit date range filter is provided (date range filter handles past events)
-    // #region agent log
     const shouldRunPastEventsFilter = !includePast && !filters.cityCoordinates && !filters.dateStart && !filters.dateEnd;
-    fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'personalizedFeedService.ts:917',message:'PAST EVENTS FILTER CONDITION CHECK',data:{shouldRunPastEventsFilter,includePast,hasCityCoordinates:!!filters.cityCoordinates,dateStartType:typeof filters.dateStart,dateStartValue:filters.dateStart,dateEndType:typeof filters.dateEnd,dateEndValue:filters.dateEnd,conditionParts:{notIncludePast:!includePast,notCityCoordinates:!filters.cityCoordinates,notDateStart:!filters.dateStart,notDateEnd:!filters.dateEnd}},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix'})}).catch(()=>{});
-    // #endregion
     if (shouldRunPastEventsFilter) {
       const now = Date.now();
       const beforeDateFilter = result.length;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'personalizedFeedService.ts:910',message:'BEFORE past events filter',data:{beforeCount:beforeDateFilter,now:new Date(now).toISOString(),sampleEvents:result.slice(0,3).map(r=>({title:r.title,event_date:r.event_date,eventTime:Date.parse(r.event_date||''),isPast:Date.parse(r.event_date||'')<now}))},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix'})}).catch(()=>{});
-      // #endregion
       result = result.filter((row) => {
         if (!row.event_date) return true; // Keep events without dates
         const eventTime = Date.parse(row.event_date);
         if (Number.isNaN(eventTime)) return true;
         return eventTime >= now;
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'personalizedFeedService.ts:920',message:'AFTER past events filter',data:{afterCount:result.length,removed:beforeDateFilter-result.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix'})}).catch(()=>{});
-      // #endregion
       if (result.length < beforeDateFilter) {
         logger.debug(`📅 Date filter removed ${beforeDateFilter - result.length} past events`);
       }
@@ -950,9 +935,6 @@ export class PersonalizedFeedService {
           normalizeCityName(city || '').replace(/\s+/g, ' ').trim();
         const allowed = new Set(citySource.map(normalizeCity));
         const beforeCityFilter = result.length;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'personalizedFeedService.ts:926',message:'BEFORE city filter',data:{beforeCount:beforeCityFilter,allowedCities:Array.from(allowed),citySource,cleanedCities:filters.cleanedCities,originalCities:filters.originalCities,sampleEvents:result.slice(0,3).map(r=>({title:r.title,venue_city:r.venue_city,normalizedCity:r.venue_city?normalizeCity(r.venue_city):null}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         result = result.filter((row) => {
           const city = row.venue_city ? normalizeCity(row.venue_city) : '';
           const isAllowed = allowed.has(city);
@@ -961,9 +943,6 @@ export class PersonalizedFeedService {
           }
           return isAllowed;
         });
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'personalizedFeedService.ts:944',message:'AFTER city filter',data:{afterCount:result.length,removed:beforeCityFilter-result.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         if (result.length < beforeCityFilter) {
           logger.debug(`🏙️ City filter removed ${beforeCityFilter - result.length} events (allowed cities: ${Array.from(allowed).join(', ')})`);
         }
@@ -1002,9 +981,6 @@ export class PersonalizedFeedService {
         // Set to end of day in UTC (23:59:59.999 UTC)
         endDate.setUTCHours(23, 59, 59, 999);
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'personalizedFeedService.ts:966',message:'BEFORE date range filter',data:{beforeCount:beforeDateRangeFilter,startDate:startDate?.toISOString(),endDate:endDate?.toISOString(),startDateMs:startDate?.getTime(),endDateMs:endDate?.getTime(),sampleEvents:result.slice(0,3).map(r=>({title:r.title,event_date:r.event_date,eventTime:Date.parse(r.event_date||''),eventDate:new Date(Date.parse(r.event_date||'')).toISOString(),beforeStart:startDate?Date.parse(r.event_date||'')<startDate.getTime():null,afterEnd:endDate?Date.parse(r.event_date||'')>endDate.getTime():null}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       result = result.filter((row) => {
         if (!row.event_date) return true; // Keep events without dates
         
@@ -1027,9 +1003,6 @@ export class PersonalizedFeedService {
         
         return true;
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'personalizedFeedService.ts:1002',message:'AFTER date range filter',data:{afterCount:result.length,removed:beforeDateRangeFilter-result.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       if (result.length < beforeDateRangeFilter) {
         logger.debug(`📆 Date range filter removed ${beforeDateRangeFilter - result.length} events`);
       }
@@ -1052,9 +1025,6 @@ export class PersonalizedFeedService {
     if (result.length < initialCount) {
       logger.debug(`🔍 Client-side filters: ${initialCount} → ${result.length} events (removed ${initialCount - result.length})`);
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'personalizedFeedService.ts:1025',message:'applyClientSideFilters EXIT',data:{initialCount,finalCount:result.length,removed:initialCount-result.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
 
     return result;
   }

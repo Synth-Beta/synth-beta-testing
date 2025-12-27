@@ -374,27 +374,32 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
     setLoadingReviewDetails(true);
     setReviewDetailData(null);
 
-    // Fetch full review details
-    try {
-      const { data, error } = await (supabase as any)
-        .from('reviews')
-        .select(`
-          photos,
-          videos,
-          performance_rating,
-          venue_rating,
-          overall_experience_rating,
-          performance_review_text,
-          venue_review_text,
-          overall_experience_review_text,
-          mood_tags,
-          genre_tags,
-          context_tags,
-          venue_tags,
-          artist_tags,
-          reaction_emoji,
-          review_text
-        `)
+      // Fetch full review details using the 5-category rating system
+      try {
+        const { data, error } = await (supabase as any)
+          .from('reviews')
+          .select(`
+            photos,
+            videos,
+            artist_performance_rating,
+            production_rating,
+            venue_rating,
+            venue_rating,
+            location_rating,
+            value_rating,
+            artist_performance_feedback,
+            production_feedback,
+            venue_feedback,
+            location_feedback,
+            value_feedback,
+            mood_tags,
+            genre_tags,
+            context_tags,
+            venue_tags,
+            artist_tags,
+            reaction_emoji,
+            review_text
+          `)
         .eq('id', review.id)
         .maybeSingle();
 

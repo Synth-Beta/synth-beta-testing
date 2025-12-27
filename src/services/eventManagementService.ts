@@ -25,7 +25,8 @@ export interface CreateEventData {
 
 class EventManagementService {
   /**
-   * Create a new event (for business, creator, and admin accounts only)
+   * Create a new event (DISABLED - users must submit requests instead)
+   * This method now submits a request instead of creating directly
    */
   static async createEvent(eventData: CreateEventData): Promise<any> {
     try {
@@ -33,37 +34,41 @@ class EventManagementService {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('User not authenticated');
 
-      // Check user account type
-      const { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select('account_type')
-        .eq('user_id', user.id)
-        .single();
+      // Submit a request instead of creating directly
+      const { MissingEntityRequestService } = await import('@/services/missingEntityRequestService');
+      const request = await MissingEntityRequestService.submitRequest({
+        entity_type: 'event',
+        entity_name: eventData.title,
+        entity_description: eventData.artist_name && eventData.venue_name 
+          ? `${eventData.artist_name} at ${eventData.venue_name}`
+          : undefined,
+        entity_date: eventData.event_date,
+        entity_location: eventData.venue_name,
+        entity_image_url: eventData.poster_image_url,
+        additional_info: {
+          artist_name: eventData.artist_name,
+          venue_name: eventData.venue_name,
+          latitude: eventData.latitude,
+          longitude: eventData.longitude,
+          video_url: eventData.video_url,
+          age_restriction: eventData.age_restriction,
+          accessibility_info: eventData.accessibility_info,
+          parking_info: eventData.parking_info,
+          venue_capacity: eventData.venue_capacity,
+          estimated_attendance: eventData.estimated_attendance,
+          media_urls: eventData.media_urls,
+        },
+      });
 
-      if (profileError) throw profileError;
-
-      // Only business, creator, and admin accounts can create events
-      if (!['business', 'creator', 'admin'].includes(profile.account_type)) {
-        throw new Error('Only business, creator, or admin accounts can create events');
-      }
-
-      // Create event with simple ownership tracking
-      const { data: event, error: eventError } = await supabase
-        .from('events')
-        .insert({
-          ...eventData,
-          created_by_user_id: user.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (eventError) throw eventError;
-
-      return event;
+      // Return a placeholder object so the UI doesn't break
+      return {
+        id: request.id,
+        title: eventData.title,
+        status: 'pending',
+        message: 'Your event request has been submitted for review.',
+      };
     } catch (error) {
-      console.error('Error creating event:', error);
+      console.error('Error submitting event request:', error);
       throw error;
     }
   }

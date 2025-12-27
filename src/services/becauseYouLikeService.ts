@@ -171,15 +171,15 @@ export class BecauseYouLikeService {
         }
       }
 
-      // Get venues user rated highly (4+ stars) - venue_rating_decimal is in reviews table
+      // Get venues user rated highly (4+ stars) - venue_rating is in reviews table
       // Query without join first, then fetch venue names separately to avoid query syntax issues
       const { data: venueReviews, error: venueReviewsError } = await supabase
         .from('reviews')
-        .select('venue_rating_decimal, event_id')
+        .select('venue_rating, event_id')
         .eq('user_id', userId)
         .eq('is_draft', false)
-        .gte('venue_rating_decimal', 4)
-        .not('venue_rating_decimal', 'is', null)
+        .gte('venue_rating', 4)
+        .not('venue_rating', 'is', null)
         .limit(10);
       
       if (venueReviewsError) {

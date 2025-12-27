@@ -490,11 +490,36 @@ export class UnifiedVenueSearchService {
    */
   private static async getFuzzyMatchedResults(query: string, limit: number): Promise<VenueSearchResult[]> {
     try {
-      // Get all venues from database
+      // #region agent log
+      const queryStartTime = Date.now();
+      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'unifiedVenueSearchService.ts:493',message:'BEFORE database query',data:{query,limit,queryLength:query.length,pattern:`%${query}%`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      // Query venues from database with name filtering first (more efficient than fetching all)
+      // Use prefix matching for single-word queries (faster, can use regular index)
+      // Use full wildcard for multi-word queries (requires trigram index but matches better)
+      const trimmedQuery = query.trim();
+      const isSingleWord = trimmedQuery.split(/\s+/).length === 1;
+      const searchPattern = isSingleWord && trimmedQuery.length > 0
+        ? `${trimmedQuery}%`  // Prefix match for single words (faster)
+        : `%${trimmedQuery}%`; // Full wildcard for multi-word queries (uses trigram index)
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'unifiedVenueSearchService.ts:499',message:'Query pattern selected',data:{originalQuery:query,searchPattern,isPrefixMatch:!searchPattern.startsWith('%')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
       const { data: allVenues, error } = await supabase
         .from('venues' as any)
         .select('*')
-        .order('created_at', { ascending: false });
+        .ilike('name', searchPattern)
+        .order('num_upcoming_events', { ascending: false, nullsFirst: false })
+        .limit(Math.max(limit * 5, 100)); // Get more results than needed for better fuzzy matching
+
+      // #region agent log
+      const queryEndTime = Date.now();
+      const queryDuration = queryEndTime - queryStartTime;
+      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'unifiedVenueSearchService.ts:506',message:'AFTER database query',data:{queryDuration,error:error?.message,resultCount:allVenues?.length||0,hasError:!!error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
 
       if (error) {
         // Handle table not existing or other database errors
@@ -521,7 +546,6 @@ export class UnifiedVenueSearchService {
       const venues = (allVenues as Array<any>).filter(
         (venue): venue is {
           id: string;
-          jambase_venue_id: string | null;
           name: string;
           identifier: string | null;
           image_url: string | null;
@@ -531,6 +555,9 @@ export class UnifiedVenueSearchService {
           country: string | null;
           latitude: number | null;
           longitude: number | null;
+          geo: any; // JSONB object or null
+          maximum_attendee_capacity: number | null;
+          num_upcoming_events: number | null;
         } =>
           typeof venue === 'object' &&
           venue !== null &&
@@ -541,31 +568,67 @@ export class UnifiedVenueSearchService {
       // Calculate fuzzy match scores for all venues
       // Transform flat columns to JSONB format for consistency with interface
       const scoredVenues = venues.map(venue => ({
-        id: venue.jambase_venue_id || venue.id,
+        id: venue.id, // Use UUID from venues table
         name: venue.name,
-        identifier: venue.identifier || '',
+        identifier: venue.identifier || `manual:${venue.id}`,
         image_url: venue.image_url || undefined,
         address: {
-          streetAddress: venue.street_address,
-          addressLocality: null, // Not in schema - would need city column if available
-          addressRegion: venue.state,
-          postalCode: venue.zip,
-          addressCountry: venue.country
+          streetAddress: venue.street_address || undefined,
+          addressLocality: undefined, // city column not in schema
+          addressRegion: venue.state || undefined,
+          postalCode: venue.zip || undefined,
+          addressCountry: venue.country || undefined
         },
-        geo: {
-          latitude: venue.latitude,
-          longitude: venue.longitude
-        },
-        maximumAttendeeCapacity: undefined,
-        num_upcoming_events: 0,
+        geo: (() => {
+          // Handle geo field - can be JSONB object or we can construct from lat/lng columns
+          if (venue.geo) {
+            try {
+              // If it's already an object, use it
+              if (typeof venue.geo === 'object' && venue.geo !== null) {
+                return {
+                  latitude: venue.geo.latitude || venue.latitude,
+                  longitude: venue.geo.longitude || venue.longitude
+                };
+              }
+              // If it's a string, try to parse it
+              if (typeof venue.geo === 'string') {
+                const parsed = JSON.parse(venue.geo);
+                return {
+                  latitude: parsed.latitude || venue.latitude,
+                  longitude: parsed.longitude || venue.longitude
+                };
+              }
+            } catch (e) {
+              // If parsing fails, fall back to lat/lng columns
+            }
+          }
+          // Fall back to lat/lng columns if geo field is not available
+          if (venue.latitude && venue.longitude) {
+            return {
+              latitude: venue.latitude,
+              longitude: venue.longitude
+            };
+          }
+          return undefined;
+        })(),
+        maximumAttendeeCapacity: venue.maximum_attendee_capacity || undefined,
+        num_upcoming_events: venue.num_upcoming_events || 0,
         match_score: this.calculateFuzzyMatchScore(query, venue.name),
         is_from_database: true,
       }));
 
-      // Filter out very low matches and sort by score
+      // Sort by match score (higher is better) and then by num_upcoming_events
+      // Lower threshold (5%) to catch more partial matches
       return scoredVenues
-        .filter(venue => venue.match_score > 20) // Only show matches above 20%
-        .sort((a, b) => b.match_score - a.match_score)
+        .filter(venue => venue.match_score > 5) // Lower threshold to catch partial matches
+        .sort((a, b) => {
+          // First sort by match score (higher is better)
+          if (b.match_score !== a.match_score) {
+            return b.match_score - a.match_score;
+          }
+          // Then by num_upcoming_events (more events = more relevant)
+          return (b.num_upcoming_events || 0) - (a.num_upcoming_events || 0);
+        })
         .slice(0, limit);
     } catch (error) {
       console.error('❌ Error getting fuzzy matched results:', error);

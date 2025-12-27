@@ -1,10 +1,97 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProfileStarBucketsProps {
   reviews: any[];
   onSelectReview?: (review: any) => void;
+}
+
+interface CompactReviewCardProps {
+  review: any;
+  ratingValue: number;
+  stars: number;
+  onSelectReview?: (review: any) => void;
+  renderStars: (rating: number) => React.ReactNode;
+}
+
+// Separate component for each review card to use hooks properly
+function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderStars }: CompactReviewCardProps) {
+  const event = review.event || {};
+  const jambaseEvent = review.jambase_events || {};
+  
+  // Get artist and venue names
+  const artistName = jambaseEvent.artist_name || event._fullEvent?.artist_name || 'Unknown Artist';
+  const venueName = jambaseEvent.venue_name || event.location || event._fullEvent?.venue_name || 'Unknown Venue';
+  const dateStr = event.event_date || review.created_at;
+  
+  // Get artist_id from event data
+  const artistId = jambaseEvent.artist_id || event._fullEvent?.artist_id || null;
+  
+  const hasUserImage = Array.isArray(review.photos) && review.photos.length > 0;
+  const primaryImage = hasUserImage ? review.photos[0] : undefined;
+  
+  // Fetch artist image if no user image
+  const [artistImageUrl, setArtistImageUrl] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (!primaryImage && artistId) {
+      // Fetch artist image_url from artists table
+      supabase
+        .from('artists')
+        .select('image_url')
+        .eq('id', artistId)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (!error && data?.image_url) {
+            setArtistImageUrl(data.image_url);
+          }
+        });
+    }
+  }, [primaryImage, artistId]);
+  
+  // Determine image source: user photo > artist image > fallback
+  const imageKey = `${review.id}-${artistName}-${venueName}-${dateStr || ''}`;
+  const imageSrc = primaryImage || artistImageUrl || getFallbackEventImage(imageKey);
+
+  return (
+    <button
+      key={review.id}
+      type="button"
+      onClick={() => onSelectReview?.(review)}
+      className="w-40 shrink-0 rounded-2xl bg-white border border-pink-100 shadow-sm hover:shadow-md transition-shadow text-left overflow-hidden"
+    >
+      {/* Image */}
+      <div className="relative h-20 w-full overflow-hidden">
+        <img
+          src={imageSrc}
+          alt={`${artistName} at ${venueName}`}
+          className={`w-full h-full object-cover transition-transform duration-500 ${hasUserImage ? '' : 'scale-105'}`}
+          loading="lazy"
+        />
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"
+          aria-hidden="true"
+        />
+      </div>
+      {/* Text content */}
+      <div className="px-3 py-2 space-y-1">
+        <p className="text-sm font-semibold text-gray-900 line-clamp-1">Concert Review</p>
+        <p className="text-xs text-gray-600 line-clamp-1">{artistName}</p>
+        <p className="text-xs text-gray-600 line-clamp-1">{venueName}</p>
+        <p className="text-[11px] text-gray-400">
+          {dateStr ? new Date(dateStr).toLocaleDateString() : ''}
+        </p>
+        <div className="flex items-center justify-between mt-1">
+          {renderStars(ratingValue)}
+          <span className="text-xs font-semibold text-gray-800">
+            {Math.round(ratingValue * 10) / 10}★
+          </span>
+        </div>
+      </div>
+    </button>
+  );
 }
 
 /**
@@ -112,15 +199,6 @@ export function ProfileStarBuckets({ reviews, onSelectReview }: ProfileStarBucke
             </h3>
             <div className="flex gap-3 overflow-x-auto pb-1">
               {bucket.map((review) => {
-                const event = review.event || {};
-                const eventName =
-                  event.event_name ||
-                  (review.jambase_events?.title ??
-                    (review.jambase_events?.artist_name && review.jambase_events?.venue_name
-                      ? `${review.jambase_events.artist_name} at ${review.jambase_events.venue_name}`
-                      : 'Concert Review'));
-                const venueName = review.jambase_events?.venue_name || event.location || 'Unknown venue';
-                const dateStr = event.event_date || review.created_at;
                 const ratingValue =
                   typeof review.category_average === 'number'
                     ? review.category_average
@@ -128,46 +206,15 @@ export function ProfileStarBuckets({ reviews, onSelectReview }: ProfileStarBucke
                       ? review.rating
                       : stars;
 
-                const hasUserImage = Array.isArray(review.photos) && review.photos.length > 0;
-                const primaryImage = hasUserImage ? review.photos[0] : undefined;
-                const imageKey = `${review.id}-${eventName}-${dateStr || ''}`;
-                const imageSrc = primaryImage || getFallbackEventImage(imageKey);
-
                 return (
-                  <button
+                  <CompactReviewCard
                     key={review.id}
-                    type="button"
-                    onClick={() => onSelectReview?.(review)}
-                    className="w-40 shrink-0 rounded-2xl bg-white border border-pink-100 shadow-sm hover:shadow-md transition-shadow text-left overflow-hidden"
-                  >
-                    {/* Image */}
-                    <div className="relative h-20 w-full overflow-hidden">
-                      <img
-                        src={imageSrc}
-                        alt={eventName}
-                        className={`w-full h-full object-cover transition-transform duration-500 ${hasUserImage ? '' : 'scale-105'}`}
-                        loading="lazy"
-                      />
-                      <div
-                        className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"
-                        aria-hidden="true"
-                      />
-                    </div>
-                    {/* Text content */}
-                    <div className="px-3 py-2 space-y-1">
-                      <p className="text-sm font-semibold text-gray-900 line-clamp-1">{eventName}</p>
-                      <p className="text-xs text-gray-600 line-clamp-1">{venueName}</p>
-                      <p className="text-[11px] text-gray-400">
-                        {dateStr ? new Date(dateStr).toLocaleDateString() : ''}
-                      </p>
-                      <div className="flex items-center justify-between mt-1">
-                        {renderStars(ratingValue)}
-                        <span className="text-xs font-semibold text-gray-800">
-                          {Math.round(ratingValue * 10) / 10}★
-                        </span>
-                      </div>
-                    </div>
-                  </button>
+                    review={review}
+                    ratingValue={ratingValue}
+                    stars={stars}
+                    onSelectReview={onSelectReview}
+                    renderStars={renderStars}
+                  />
                 );
               })}
             </div>

@@ -3,14 +3,39 @@ import { supabase } from '@/integrations/supabase/client';
 const REMOTE_PROXY_URL =
   import.meta.env.VITE_REMOTE_SETLIST_PROXY_URL || 'https://synth-beta-testing.vercel.app';
 
-// Use relative URL in production (Vercel serverless functions) or backend URL in development
+// Determine the correct backend URL based on environment
+// Supports: localhost, Vercel web, iOS (Capacitor), Android (Capacitor)
 const getBackendUrl = () => {
-  if (typeof window !== 'undefined') {
-    const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.startsWith('127.0.0.1');
-    if (isProduction) return '';
+  if (typeof window === 'undefined') {
+    // Server-side: use backend URL
     return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
   }
-  return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+
+  // For web browsers - check hostname FIRST (prioritize localhost over Capacitor)
+  const hostname = window.location.hostname;
+  const isLocalhost = hostname === 'localhost' || 
+                      hostname.startsWith('127.0.0.1') ||
+                      hostname.startsWith('192.168.') ||
+                      hostname.startsWith('10.0.') ||
+                      hostname.startsWith('172.');
+  
+  if (isLocalhost) {
+    // Development: use backend Express server (even if Capacitor is loaded)
+    return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+  }
+
+  // Check if we're in a Capacitor app (iOS/Android) - only for non-localhost
+  const isCapacitor = !!(window as any).Capacitor;
+  
+  if (isCapacitor) {
+    // For Capacitor apps (iOS/Android), always use the Vercel production URL
+    // This ensures the serverless function works in native apps
+    return import.meta.env.VITE_VERCEL_URL || 'https://synth-beta-testing.vercel.app';
+  }
+  
+  // Production web (Vercel): use relative URL for serverless functions
+  // This will automatically use the same domain (Vercel deployment)
+  return '';
 };
 
 export interface SetlistSearchParams {
@@ -60,10 +85,13 @@ export class SetlistService {
    */
   static async searchSetlists(params: SetlistSearchParams): Promise<SetlistData[] | null> {
     const queryString = this.buildQueryString(params);
-    const url = `${getBackendUrl()}/api/setlists/search?${queryString}`;
+    const backendUrl = getBackendUrl();
     
+    const url = `${backendUrl}/api/setlists/search?${queryString}`;
+    
+    // Always try setlist.fm API first via backend proxy
     try {
-      console.log('🎵 SetlistService: Making request to backend proxy:', url);
+      console.log('🎵 SetlistService: Making request to setlist.fm API via backend proxy:', url);
       
       const response = await fetch(url, {
         headers: {
@@ -74,8 +102,9 @@ export class SetlistService {
       
       if (!response.ok) {
         if (response.status === 404) {
-          // Backend searched but found nothing. Fall back to Supabase for cached data.
-          return await this.searchSetlistsFromDatabase(params);
+          // Backend searched setlist.fm API but found nothing
+          console.log('📭 No results from setlist.fm API');
+          return null;
         }
         throw new Error(`Backend API error: ${response.status} ${response.statusText}`);
       }
@@ -83,41 +112,18 @@ export class SetlistService {
       const data = await response.json();
       
       if (!data.setlist || data.setlist.length === 0) {
-        // No matches from backend – attempt other fallbacks before giving up
-        const serverless = await this.searchSetlistsViaServerless(params, queryString);
-        if (serverless && serverless.length > 0) return serverless;
-
-        const remote = await this.searchSetlistsViaRemoteProxy(params, queryString);
-        if (remote && remote.length > 0) return remote;
-
-        return await this.searchSetlistsFromDatabase(params);
+        // No matches from backend
+        console.log('📭 No results from setlist.fm API');
+        return null;
       }
       
-      console.log('🎵 SetlistService: Received setlists:', data.setlist.length);
+      console.log('✅ SetlistService: Received setlists from setlist.fm API:', data.setlist.length);
       
       // Data is already transformed by the backend
       return data.setlist;
       
     } catch (error) {
-      console.error('Error searching setlists:', error);
-      // Try serverless Vercel proxy
-      const fallbackServerless = await this.searchSetlistsViaServerless(params, queryString);
-      if (fallbackServerless && fallbackServerless.length > 0) {
-        return fallbackServerless;
-      }
-
-      // Try hosted production proxy
-      const fallbackRemote = await this.searchSetlistsViaRemoteProxy(params, queryString);
-      if (fallbackRemote && fallbackRemote.length > 0) {
-        return fallbackRemote;
-      }
-
-      // Finally, fall back to any cached Supabase setlists
-      const cachedSetlists = await this.searchSetlistsFromDatabase(params);
-      if (cachedSetlists && cachedSetlists.length > 0) {
-        return cachedSetlists;
-      }
-
+      console.error('❌ Error with setlist.fm API proxy:', error);
       const offlineError = new Error('setlist-service-offline');
       offlineError.name = 'SetlistServiceOfflineError';
       throw offlineError;
@@ -151,7 +157,8 @@ export class SetlistService {
 
       if (!response.ok) {
         if (response.status === 404) {
-          return await this.searchSetlistsFromDatabase(params);
+          // setlist.fm API returned no results
+          return null;
         }
         throw new Error(`Serverless proxy error: ${response.status} ${response.statusText}`);
       }
@@ -192,7 +199,8 @@ export class SetlistService {
 
       if (!response.ok) {
         if (response.status === 404) {
-          return await this.searchSetlistsFromDatabase(params);
+          // setlist.fm API returned no results
+          return null;
         }
         // Refresh the remote Vercel proxy once to ensure new code is deployed
         try {
@@ -251,19 +259,57 @@ export class SetlistService {
     try {
       let query = supabase
         .from('events')
-        .select('setlist, artist_name, venue_name, event_date')
+        .select('id, setlist, artist_id, venue_id, event_date')
         .not('setlist', 'is', null);
 
+      // If searching by artist name, first find the artist ID
       if (params.artistName) {
-        query = query.ilike('artist_name', `%${params.artistName}%`);
+        const { data: artistData } = await supabase
+          .from('artists')
+          .select('id')
+          .ilike('name', `%${params.artistName}%`)
+          .limit(1)
+          .maybeSingle();
+        
+        if (artistData?.id) {
+          query = query.eq('artist_id', artistData.id);
+        } else {
+          // No artist found, return empty
+          return null;
+        }
       }
 
+      // If searching by venue name, first find the venue ID
       if (params.venueName) {
-        query = query.ilike('venue_name', `%${params.venueName}%`);
+        const { data: venueData } = await supabase
+          .from('venues')
+          .select('id')
+          .ilike('name', `%${params.venueName}%`)
+          .limit(1)
+          .maybeSingle();
+        
+        if (venueData?.id) {
+          query = query.eq('venue_id', venueData.id);
+        } else {
+          // No venue found, return empty
+          return null;
+        }
       }
 
+      // Handle date filtering - convert date string to date range if needed
       if (params.date) {
-        query = query.eq('event_date', params.date);
+        // If date is in YYYY-MM-DD format, filter by date range (start and end of day)
+        const dateStr = params.date.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          // Date is in YYYY-MM-DD format, create range for the entire day
+          const startOfDay = new Date(dateStr + 'T00:00:00Z');
+          const endOfDay = new Date(dateStr + 'T23:59:59Z');
+          query = query.gte('event_date', startOfDay.toISOString())
+                       .lte('event_date', endOfDay.toISOString());
+        } else {
+          // Try exact match as fallback
+          query = query.eq('event_date', dateStr);
+        }
       }
 
       const { data, error } = await query.limit(10);
@@ -300,7 +346,7 @@ export class SetlistService {
     try {
       const { data, error } = await supabase
         .from('events')
-        .select('setlist, setlist_enriched, setlist_song_count, setlist_fm_id, artist_name, venue_name, event_date')
+        .select('setlist, setlist_enriched, setlist_song_count, setlist_fm_id, event_date')
         .eq('id', eventId)
         .single();
 

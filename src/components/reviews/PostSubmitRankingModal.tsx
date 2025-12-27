@@ -124,11 +124,11 @@ export function PostSubmitRankingModal({
   };
 
   const calculateEffectiveRating = (review: UserReview): number => {
-    // Use database 5-category system: artist_performance_rating, production_rating, venue_rating_decimal, location_rating, value_rating
+    // Use database 5-category system: artist_performance_rating, production_rating, venue_rating, location_rating, value_rating
     const values = [
       review.artist_performance_rating,
       review.production_rating,
-      (review as any).venue_rating_decimal || review.venue_rating, // Prefer venue_rating_decimal, fallback to INTEGER venue_rating
+      review.venue_rating,
       review.location_rating,
       review.value_rating
     ].filter((value): value is number => typeof value === 'number' && value > 0);

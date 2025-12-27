@@ -2695,7 +2695,10 @@ export const UnifiedFeed = ({
                       id: item.review_id || item.id,
                       user_id: item.author?.id || currentUserId,
                       event_id: (item as any).event_id || '',
-                      rating: typeof item.rating === 'number' ? item.rating : (item as any).artist_performance_rating || 0,
+                      // Use item.rating directly - it should be a number from the database
+                      rating: typeof item.rating === 'number' 
+                        ? item.rating 
+                        : (typeof item.rating === 'string' ? parseFloat(item.rating) : null) ?? 0,
                       review_text: item.content || '',
                       is_public: true,
                       created_at: item.created_at,
@@ -2704,7 +2707,7 @@ export const UnifiedFeed = ({
                       comments_count: item.comments_count || 0,
                       shares_count: item.shares_count || 0,
                       is_liked_by_user: likedPosts.has(item.id),
-                      reaction_emoji: '',
+                      reaction_emoji: (item as any).reaction_emoji || '',
                       photos: item.photos || [],
                       videos: [],
                       mood_tags: [],

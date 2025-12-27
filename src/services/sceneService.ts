@@ -502,10 +502,6 @@ export class SceneService {
       const participating_genres: string[] = [];
       const participants: SceneParticipant[] = [];
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:471',message:'Building participant arrays',data:{participantsCount:participantsData?.length||0,artistIdsCount:artistIds.length,venueIdsCount:venueIds.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-
       if (participantsData) {
         participantsData.forEach((p: any) => {
           participants.push({
@@ -536,10 +532,6 @@ export class SceneService {
         });
       }
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:499',message:'Participant arrays built',data:{participating_artists:participating_artists.length,participating_venues:participating_venues.length,participating_cities:participating_cities.length,participating_genres:participating_genres.length,artistIdentifiers:participating_artists.slice(0,3),venueIdentifiers:participating_venues.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-
       // Build query for upcoming events - fetch events matching any scene criteria
       const eventQueries: Promise<any>[] = [];
       const eventSet = new Set<string>();
@@ -547,10 +539,6 @@ export class SceneService {
 
       // Query by artists - match by identifier with flexible matching
       if (participating_artists.length > 0) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:507',message:'Querying artist events',data:{artistIdentifiersCount:participating_artists.length,identifiers:participating_artists.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        
         const artistQueryPromise = supabase
           .from('events')
           .select('*')
@@ -559,10 +547,6 @@ export class SceneService {
           .order('event_date', { ascending: true })
           .limit(200)
           .then(({ data: artistEvents, error }) => {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:515',message:'Artist events query result',data:{error:error?.message,rawEventCount:artistEvents?.length||0,sampleEventIds:artistEvents?.slice(0,3).map((e:any)=>e.artist_id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
-            
             if (error) throw error;
             if (!artistEvents) return [];
             
@@ -580,10 +564,6 @@ export class SceneService {
               });
             });
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:531',message:'Artist events after filter',data:{filteredCount:filtered.length,rawCount:artistEvents.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
-            
             return filtered;
           });
         
@@ -598,10 +578,6 @@ export class SceneService {
           .map(p => p.venue_name!)
           .filter(Boolean);
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:538',message:'Querying venue events',data:{venueIdentifiersCount:participating_venues.length,venueNamesCount:venueNames.length,identifiers:participating_venues.slice(0,3),names:venueNames.slice(0,3)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        
         // Build a promise that fetches and filters events
         const venueQueryPromise = supabase
           .from('events')
@@ -610,10 +586,6 @@ export class SceneService {
           .order('event_date', { ascending: true })
           .limit(500) // Get more events to filter
           .then(({ data: venueEvents, error }) => {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:552',message:'Venue events query result',data:{error:error?.message,rawEventCount:venueEvents?.length||0,sampleVenueIds:venueEvents?.slice(0,3).map((e:any)=>e.venue_id),sampleVenueNames:venueEvents?.slice(0,3).map((e:any)=>e.venue_name)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
-            
             if (error) throw error;
             if (!venueEvents) return [];
             
@@ -649,10 +621,6 @@ export class SceneService {
               return false;
             });
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:586',message:'Venue events after filter',data:{filteredCount:filtered.length,rawCount:venueEvents.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
-            
             return filtered;
           });
         
@@ -684,17 +652,9 @@ export class SceneService {
       }
 
       // Execute all queries and combine results
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:617',message:'Executing event queries',data:{queryCount:eventQueries.length,now:new Date().toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
-      
       if (eventQueries.length > 0) {
         try {
           const results = await Promise.all(eventQueries);
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:625',message:'Event queries completed',data:{resultCount:results.length,resultTypes:results.map((r:any)=>Array.isArray(r)?'array':typeof r),resultLengths:results.map((r:any)=>Array.isArray(r)?r.length:r?.data?.length||0)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           
           results.forEach((result, idx) => {
             // Handle both array results (from filtering) and Supabase response objects
@@ -705,10 +665,6 @@ export class SceneService {
               events = result.data || [];
             }
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:635',message:'Processing query result',data:{queryIndex:idx,eventCount:events.length,uniqueBefore:eventSet.size},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
-            
             events.forEach((event: any) => {
               if (event && event.id && !eventSet.has(event.id)) {
                 eventSet.add(event.id);
@@ -717,9 +673,6 @@ export class SceneService {
             });
           });
         } catch (error) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:648',message:'Error fetching scene events',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           console.error('Error fetching scene events:', error);
           // Continue with empty events array - don't break the scene display
         }
@@ -729,10 +682,6 @@ export class SceneService {
       const events = allEvents
         .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
         .slice(0, 20);
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sceneService.ts:656',message:'Final events result',data:{allEventsCount:allEvents.length,finalEventsCount:events.length,eventDates:events.slice(0,3).map((e:any)=>e.event_date)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
 
       // Get event IDs for reviewer lookup
       const eventIds = (events || []).map(e => e.id);

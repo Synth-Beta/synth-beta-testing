@@ -489,129 +489,82 @@ export class UnifiedArtistSearchService {
   }
 
   /**
-   * Get fuzzy matched results from Supabase by searching events table
+   * Get fuzzy matched results from Supabase by searching artists table
    */
   private static async getFuzzyMatchedResults(query: string, limit: number): Promise<ArtistSearchResult[]> {
     try {
-      // First, try to get artists directly from artists table
+      // #region agent log
+      const queryStartTime = Date.now();
+      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'unifiedArtistSearchService.ts:497',message:'BEFORE database query',data:{query,limit,queryLength:query.length,pattern:`%${query}%`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      // Query artists from database with name filtering first (more efficient)
+      // Use prefix matching for single-word queries (faster, can use regular index)
+      // Use full wildcard for multi-word queries (requires trigram index but matches better)
+      const trimmedQuery = query.trim();
+      const isSingleWord = trimmedQuery.split(/\s+/).length === 1;
+      const searchPattern = isSingleWord && trimmedQuery.length > 0
+        ? `${trimmedQuery}%`  // Prefix match for single words (faster)
+        : `%${trimmedQuery}%`; // Full wildcard for multi-word queries (uses trigram index)
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'unifiedArtistSearchService.ts:503',message:'Query pattern selected',data:{originalQuery:query,searchPattern,isPrefixMatch:!searchPattern.startsWith('%')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
       const { data: artistsFromTable, error: artistsError } = await supabase
         .from('artists')
-        .select('id, jambase_artist_id, name, identifier, image_url, genres')
-        .ilike('name', `%${query}%`)
-        .limit(Math.max(100, limit * 10));
+        .select('id, name, identifier, image_url, genres')
+        .ilike('name', searchPattern)
+        .limit(Math.max(limit * 5, 100)); // Get more results than needed for better fuzzy matching
 
-      // Get events from database to extract unique artists (for artists not in artists table)
-      const { data: events, error: eventsError } = await (supabase as any)
-        .from('events')
-        .select('artist_name, genres')
-        .ilike('artist_name', `%${query}%`)
-        .order('event_date', { ascending: false })
-        .limit(Math.max(100, limit * 10));
+      // #region agent log
+      const queryEndTime = Date.now();
+      const queryDuration = queryEndTime - queryStartTime;
+      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'unifiedArtistSearchService.ts:510',message:'AFTER database query',data:{queryDuration,error:artistsError?.message,resultCount:artistsFromTable?.length||0,hasError:!!artistsError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
 
-      if (artistsError && eventsError) {
-        console.warn(`⚠️  Database error getting artists/events: ${artistsError.message}`);
+      if (artistsError) {
+        console.warn(`⚠️  Database error getting artists: ${artistsError.message}`);
         return [];
       }
 
-      // Build artist map from artists table first (preferred source)
-      const artistMap = new Map<string, any>();
-      
-      if (artistsFromTable && artistsFromTable.length > 0) {
-        artistsFromTable.forEach(artist => {
-          if (artist.name) {
-            artistMap.set(artist.name.toLowerCase(), {
-              id: artist.id, // Always use UUID from artists table
-              name: artist.name,
-              identifier: artist.identifier || `jambase:${artist.jambase_artist_id || artist.id}`,
-              image_url: artist.image_url,
-              genres: artist.genres || [],
-              band_or_musician: 'band' as 'band' | 'musician',
-              num_upcoming_events: 0,
-              eventCount: 0
-            });
-          }
-        });
-      }
-
-      // Add artists from events if not already in map
-      // Only include artists that exist in the artists table (to ensure we have UUIDs)
-      if (events && events.length > 0) {
-        // First, get unique artist names from events and fetch their full data from artists table
-        const eventArtistNames = [...new Set(events.map(e => e.artist_name).filter(Boolean))];
-        if (eventArtistNames.length > 0) {
-          const { data: eventArtists } = await supabase
-            .from('artists')
-            .select('id, name, image_url, identifier, jambase_artist_id, genres')
-            .in('name', eventArtistNames);
-          
-          // Create a map of artist names to full artist data
-          const eventArtistsMap = new Map<string, any>();
-          if (eventArtists) {
-            eventArtists.forEach(artist => {
-              if (artist.name) {
-                eventArtistsMap.set(artist.name.toLowerCase(), artist);
-              }
-            });
-          }
-          
-          // Only process events for artists that exist in the artists table
-          events.forEach(event => {
-            if (event.artist_name) {
-              const artistName = event.artist_name;
-              const key = artistName.toLowerCase();
-              const artistFromTable = eventArtistsMap.get(key);
-              
-              // Only add if artist exists in artists table (has UUID)
-              if (artistFromTable && !artistMap.has(key)) {
-                artistMap.set(key, {
-                  id: artistFromTable.id, // Use UUID from artists table
-                  name: artistFromTable.name,
-                  identifier: artistFromTable.identifier || `jambase:${artistFromTable.jambase_artist_id || artistFromTable.id}`,
-                  image_url: artistFromTable.image_url,
-                  genres: artistFromTable.genres || event.genres || [],
-                  band_or_musician: 'band' as 'band' | 'musician',
-                  num_upcoming_events: 0,
-                  eventCount: 0
-                });
-              }
-              
-              // Increment event count if artist is in map
-              if (artistMap.has(key)) {
-                artistMap.get(key)!.eventCount++;
-              }
-            }
-          });
-        }
-      }
-
-      if (artistMap.size === 0) {
+      if (!artistsFromTable || artistsFromTable.length === 0) {
         console.log('📭 No artists found in database for artist search');
         return [];
       }
 
-      // Convert to array and calculate match scores
-      const artists = Array.from(artistMap.values()).map(artist => {
-        const result = {
-        id: artist.id,
+      // Filter out any rows that are not valid artist objects
+      const artists = (artistsFromTable as Array<any>).filter(
+        (artist): artist is {
+          id: string;
+          name: string;
+          identifier: string | null;
+          image_url: string | null;
+          genres: string[] | null;
+        } =>
+          typeof artist === 'object' &&
+          artist !== null &&
+          typeof artist.id === 'string' &&
+          typeof artist.name === 'string'
+      );
+
+      // Calculate fuzzy match scores for all artists
+      const scoredArtists = artists.map(artist => ({
+        id: artist.id, // Use UUID from artists table
         name: artist.name,
-        identifier: artist.identifier,
-          image_url: artist.image_url || undefined, // Ensure undefined instead of null for React
-        genres: artist.genres,
-        band_or_musician: artist.band_or_musician,
-        num_upcoming_events: artist.eventCount,
+        identifier: artist.identifier || `manual:${artist.id}`,
+        image_url: artist.image_url || undefined,
+        genres: artist.genres || [],
+        band_or_musician: 'band' as 'band' | 'musician',
+        num_upcoming_events: 0,
         match_score: this.calculateFuzzyMatchScore(query, artist.name),
         is_from_database: true,
-        };
-        // Debug logging
-        if (!result.image_url) {
-          console.log(`⚠️ Artist "${artist.name}" has no image_url`);
-        }
-        return result;
-      });
+      }));
 
-      // Filter out very low matches and sort by score
-      return artists
-        .filter(artist => artist.match_score > 15) // Original threshold for better artist matching
+      // Sort by match score (higher is better) and filter out very low matches
+      // Lower threshold (5%) to catch more partial matches like "oe russo's" matching "Joe Russo's Almost Dead"
+      return scoredArtists
+        .filter(artist => artist.match_score > 5) // Lower threshold to catch partial matches
         .sort((a, b) => b.match_score - a.match_score)
         .slice(0, limit);
     } catch (error) {

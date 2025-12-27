@@ -4,6 +4,9 @@ import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import type { CustomSetlistSong } from '@/services/reviewService';
 
 export interface ReviewFormData {
+  // Step 0: Time Selection
+  reviewDuration: '1min' | '3min' | '5min' | null;
+  
   // Step 1: Event Details
   selectedArtist: Artist | null;
   selectedVenue: VenueSearchResult | null;
@@ -26,17 +29,16 @@ export interface ReviewFormData {
 
   ticketPricePaid: string;
 
-  rating: number; // Overall rating (calculated as average of the three)
+  rating: number; // Overall rating (calculated as average of available category ratings)
   
-  // Step 3: Review Content
+  // Review Content
   reviewText: string;
-  reactionEmoji: string;
   photos: string[]; // Photo URLs uploaded to storage
   videos: string[]; // Video URLs uploaded to storage
   attendees: Array<{ type: 'user'; user_id: string; name: string; avatar_url?: string } | { type: 'phone'; phone: string; name?: string }>; // People who attended with the reviewer
   metOnSynth: boolean; // Track if users met/planned on Synth (for admin dashboard)
   
-  // Step 4: Privacy
+  // Privacy
   isPublic: boolean;
   
   // Review type
@@ -51,9 +53,20 @@ export interface ReviewFormState {
   isValid: boolean;
 }
 
-export const REVIEW_FORM_TOTAL_STEPS = 8;
+// Dynamic step calculation based on review duration
+export const getTotalSteps = (duration: '1min' | '3min' | '5min' | null): number => {
+  switch(duration) {
+    case '1min': return 4; // Time selection, Event details, Quick review (rating + text + optional setlist), Submit
+    case '3min': return 6; // Time selection, Event details, Categories (2), Review content (text + optional photos + optional setlist), Submit
+    case '5min': return 9; // Time selection, Event details, All 5 categories, Review content (text + optional media + optional setlist), Submit
+    default: return 1; // Just time selection
+  }
+};
+
+export const REVIEW_FORM_TOTAL_STEPS = 8; // Legacy constant for backward compatibility
 
 const initialFormData: ReviewFormData = {
+  reviewDuration: null,
   selectedArtist: null,
   selectedVenue: null,
   eventDate: '',
@@ -72,7 +85,6 @@ const initialFormData: ReviewFormData = {
   ticketPricePaid: '',
   rating: 0,
   reviewText: '',
-  reactionEmoji: '',
   photos: [],
   videos: [],
   attendees: [],
@@ -90,18 +102,41 @@ export function useReviewForm() {
     isValid: false,
   });
 
+  // Helper to get current flow based on duration
+  const getCurrentFlow = (duration: '1min' | '3min' | '5min' | null): 'quick' | 'standard' | 'detailed' | null => {
+    switch(duration) {
+      case '1min': return 'quick';
+      case '3min': return 'standard';
+      case '5min': return 'detailed';
+      default: return null;
+    }
+  };
+
+  // Get total steps based on duration
+  const getTotalStepsForDuration = (duration: '1min' | '3min' | '5min' | null): number => {
+    return getTotalSteps(duration);
+  };
+
   const validateStep = useCallback((step: number, data: ReviewFormData): Record<string, string> => {
     const errors: Record<string, string> = {};
+    const flow = getCurrentFlow(data.reviewDuration);
+    const totalSteps = getTotalStepsForDuration(data.reviewDuration);
 
-    switch (step) {
-      case 1:
-        console.log('🔍 validateStep 1 - checking:', {
-          selectedArtist: !!data.selectedArtist,
-          selectedVenue: !!data.selectedVenue,
-          eventDate: !!data.eventDate,
-          selectedVenueName: data.selectedVenue?.name
-        });
-        
+    // Step 0: Time selection (always first step)
+    if (step === 1 && !data.reviewDuration) {
+      errors.reviewDuration = 'Please select how much time you want to spend';
+      return errors;
+    }
+
+    // Map steps based on flow
+    // 1min flow: Step 1 (time), Step 2 (event details), Step 3 (quick review), Step 4 (submit)
+    // 3min flow: Step 1 (time), Step 2 (event details), Step 3-4 (categories), Step 5 (content), Step 6 (submit)
+    // 5min flow: Step 1 (time), Step 2 (event details), Step 3-7 (categories), Step 8 (content), Step 9 (submit)
+
+    switch (flow) {
+      case 'quick': // 1min flow
+        if (step === 2) {
+          // Event details
         if (!data.selectedArtist) {
           errors.selectedArtist = 'Please select an artist';
         }
@@ -111,30 +146,114 @@ export function useReviewForm() {
         if (!data.eventDate) {
           errors.eventDate = 'Please select a date';
         }
-        
-        console.log('🔍 validateStep 1 - errors:', errors);
+        } else if (step === 3) {
+          // Quick review: overall rating + text
+          if (!data.rating || data.rating < 0.5 || data.rating > 5.0) {
+            errors.rating = 'Please provide an overall rating (0.5 - 5 stars)';
+          }
+          if (!data.reviewText || data.reviewText.trim() === '') {
+            errors.reviewText = 'Please share a brief description of your experience';
+          } else if (data.reviewText.length > 200) {
+            errors.reviewText = 'Review text must be 200 characters or less for quick review';
+          }
+        }
         break;
-      case 2:
+      case 'standard': // 3min flow
+        if (step === 2) {
+          // Event details
+          if (!data.selectedArtist) {
+            errors.selectedArtist = 'Please select an artist';
+          }
+          if (!data.selectedVenue) {
+            errors.selectedVenue = 'Please select a venue';
+          }
+          if (!data.eventDate) {
+            errors.eventDate = 'Please select a date';
+          }
+        } else if (step === 3) {
+          // Artist Performance rating
         if (!data.artistPerformanceRating || data.artistPerformanceRating < 0.5 || data.artistPerformanceRating > 5.0) {
           errors.artistPerformanceRating = 'Please rate the artist performance (0.5 - 5 stars)';
+          }
+        } else if (step === 4) {
+          // Venue rating
+          if (!data.venueRating || data.venueRating < 0.5 || data.venueRating > 5.0) {
+            errors.venueRating = 'Please rate the venue (0.5 - 5 stars)';
+          }
+        } else if (step === 5) {
+          // Review content
+          if (!data.reviewText || data.reviewText.trim() === '') {
+            errors.reviewText = 'Please share a description of your experience';
+          } else if (data.reviewText.length > 400) {
+            errors.reviewText = 'Review text must be 400 characters or less for standard review';
+          }
         }
         break;
-      case 3:
-        if (!data.productionRating || data.productionRating < 0.5 || data.productionRating > 5.0) {
-          errors.productionRating = 'Please rate the production quality (0.5 - 5 stars)';
+      case 'detailed': // 5min flow
+        if (step === 2) {
+          // Event details
+          if (!data.selectedArtist) {
+            errors.selectedArtist = 'Please select an artist';
+          }
+          if (!data.selectedVenue) {
+            errors.selectedVenue = 'Please select a venue';
+          }
+          if (!data.eventDate) {
+            errors.eventDate = 'Please select a date';
+          }
+        } else if (step === 3) {
+          // Artist Performance rating
+          if (!data.artistPerformanceRating || data.artistPerformanceRating < 0.5 || data.artistPerformanceRating > 5.0) {
+            errors.artistPerformanceRating = 'Please rate the artist performance (0.5 - 5 stars)';
+          }
+        } else if (step === 4) {
+          // Venue rating
+          if (!data.venueRating || data.venueRating < 0.5 || data.venueRating > 5.0) {
+            errors.venueRating = 'Please rate the venue (0.5 - 5 stars)';
+          }
+        } else if (step === 5) {
+          // Review content
+          if (!data.reviewText || data.reviewText.trim() === '') {
+            errors.reviewText = 'Please share a description of your experience';
+          } else if (data.reviewText.length > 400) {
+            errors.reviewText = 'Review text must be 400 characters or less for standard review';
+          }
         }
         break;
-      case 4:
+      case 'detailed': // 5min flow
+        if (step === 2) {
+          // Event details
+          if (!data.selectedArtist) {
+            errors.selectedArtist = 'Please select an artist';
+          }
+          if (!data.selectedVenue) {
+            errors.selectedVenue = 'Please select a venue';
+          }
+          if (!data.eventDate) {
+            errors.eventDate = 'Please select a date';
+          }
+        } else if (step === 3) {
+          // Artist Performance rating
+          if (!data.artistPerformanceRating || data.artistPerformanceRating < 0.5 || data.artistPerformanceRating > 5.0) {
+            errors.artistPerformanceRating = 'Please rate the artist performance (0.5 - 5 stars)';
+          }
+        } else if (step === 4) {
+          // Production rating
+          if (!data.productionRating || data.productionRating < 0.5 || data.productionRating > 5.0) {
+            errors.productionRating = 'Please rate the production quality (0.5 - 5 stars)';
+          }
+        } else if (step === 5) {
+          // Venue rating
         if (!data.venueRating || data.venueRating < 0.5 || data.venueRating > 5.0) {
           errors.venueRating = 'Please rate the venue (0.5 - 5 stars)';
         }
-        break;
-      case 5:
+        } else if (step === 6) {
+          // Location rating
         if (!data.locationRating || data.locationRating < 0.5 || data.locationRating > 5.0) {
           errors.locationRating = 'Please rate the location & logistics (0.5 - 5 stars)';
         }
-        break;
-      case 6:
+        } else if (step === 7) {
+          // Value rating
         if (!data.valueRating || data.valueRating < 0.5 || data.valueRating > 5.0) {
           errors.valueRating = 'Please rate the value for the ticket (0.5 - 5 stars)';
         }
@@ -143,17 +262,17 @@ export function useReviewForm() {
         } else if (data.ticketPricePaid && Number(data.ticketPricePaid) < 0) {
           errors.ticketPricePaid = 'Ticket price cannot be negative';
         }
-        break;
-      case 7:
-        // Review text is required per new design
-        if (!data.reviewText) {
+        } else if (step === 8) {
+          // Review content
+          if (!data.reviewText || data.reviewText.trim() === '') {
           errors.reviewText = 'Please share a brief description of your experience';
         } else if (data.reviewText.length > 500) {
           errors.reviewText = 'Review text must be 500 characters or less';
+          }
         }
         break;
-      case 8:
-        // Privacy is always valid (has default value)
+      default:
+        // No flow selected yet or invalid flow
         break;
     }
 
@@ -219,7 +338,9 @@ export function useReviewForm() {
         };
       }
 
-      const nextStepNumber = Math.min(prev.currentStep + 1, REVIEW_FORM_TOTAL_STEPS);
+      const totalSteps = getTotalStepsForDuration(prev.formData.reviewDuration);
+      const maxStep = totalSteps > 0 ? totalSteps : REVIEW_FORM_TOTAL_STEPS;
+      const nextStepNumber = Math.min(prev.currentStep + 1, maxStep);
       return {
         ...prev,
         currentStep: nextStepNumber,
@@ -238,11 +359,15 @@ export function useReviewForm() {
   }, []);
 
   const setStep = useCallback((step: number) => {
-    setState(prev => ({
+    setState(prev => {
+      const totalSteps = getTotalStepsForDuration(prev.formData.reviewDuration);
+      const maxStep = totalSteps > 0 ? totalSteps : REVIEW_FORM_TOTAL_STEPS;
+      return {
       ...prev,
-      currentStep: Math.max(1, Math.min(step, REVIEW_FORM_TOTAL_STEPS)),
+        currentStep: Math.max(1, Math.min(step, maxStep)),
       errors: {},
-    }));
+      };
+    });
   }, []);
 
   const setLoading = useCallback((loading: boolean) => {
@@ -283,6 +408,9 @@ export function useReviewForm() {
     });
   }, [validateStep, calculateOverallRating]);
 
+  const totalSteps = getTotalStepsForDuration(state.formData.reviewDuration);
+  const maxStep = totalSteps > 0 ? totalSteps : REVIEW_FORM_TOTAL_STEPS;
+
   return {
     ...state,
     updateFormData,
@@ -294,6 +422,8 @@ export function useReviewForm() {
     setFormData,
     canProceed: state.isValid,
     canGoBack: state.currentStep > 1,
-    isLastStep: state.currentStep === REVIEW_FORM_TOTAL_STEPS,
+    isLastStep: state.currentStep === maxStep,
+    totalSteps: maxStep,
+    currentFlow: getCurrentFlow(state.formData.reviewDuration),
   };
 }

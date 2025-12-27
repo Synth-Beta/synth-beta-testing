@@ -300,3 +300,5 @@ COMMENT ON FUNCTION auto_generate_genre_signals() IS 'Trigger function that auto
 COMMENT ON FUNCTION backfill_genre_signals() IS 'Backfills genre signals for existing artist/event signals that are missing genres';
 COMMENT ON FUNCTION verify_genre_coverage() IS 'Verifies how many artist/event signals have corresponding genre signals';
 
+
+

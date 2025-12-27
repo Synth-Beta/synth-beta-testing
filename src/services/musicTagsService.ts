@@ -142,26 +142,21 @@ export class MusicTagsService {
         if (existingArtist) {
           artistId = existingArtist.id;
         } else {
-          // Artist doesn't exist, create it
-          const normalizedIdentifier = tagInput.tag_value.toLowerCase().replace(/\s+/g, '-');
-          const { data: newArtist, error: createError } = await supabase
-            .from('artists')
-            .insert({
-              name: tagInput.tag_value,
-              jambase_artist_id: `manual:${normalizedIdentifier}-${Date.now()}`,
-              identifier: normalizedIdentifier,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .select('id')
-            .single();
-          
-          if (createError) {
-            console.warn(`Error creating artist "${tagInput.tag_value}":`, createError);
-          } else if (newArtist) {
-            artistId = newArtist.id;
-            console.log(`✅ Created new artist: "${tagInput.tag_value}" (${newArtist.id})`);
+          // Artist doesn't exist - submit a request instead of creating directly
+          // Users can no longer directly create artists
+          try {
+            const { MissingEntityRequestService } = await import('@/services/missingEntityRequestService');
+            await MissingEntityRequestService.submitRequest({
+              entity_type: 'artist',
+              entity_name: tagInput.tag_value,
+            });
+            console.log(`📝 Submitted request for missing artist: "${tagInput.tag_value}"`);
+            // Note: We don't set artistId here since the artist doesn't exist yet
+            // The user will need to wait for admin approval
+          } catch (error) {
+            console.warn(`Error submitting artist request "${tagInput.tag_value}":`, error);
           }
+          // Don't add to preferred_artists since the artist doesn't exist yet
         }
         
         if (artistId && !existingArtistUuids.includes(artistId)) {

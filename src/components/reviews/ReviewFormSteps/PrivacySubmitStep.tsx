@@ -178,14 +178,6 @@ export function PrivacySubmitStep({
               </div>
             )}
 
-            {formData.reactionEmoji && (
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" />
-                <span>
-                  Reaction emoji: <span className="text-base">{formData.reactionEmoji}</span>
-                </span>
-              </div>
-            )}
 
             {formData.reviewText && (
               <div className="flex items-start gap-2">

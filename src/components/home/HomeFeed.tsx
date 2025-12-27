@@ -1048,11 +1048,11 @@ interface FriendEventInterest {
                       const hasImage = imageUrl && imageUrl.trim() !== '';
                       
                       return (
-                        <div
-                          key={chat.id}
-                          className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden cursor-pointer group relative bg-gradient-to-br from-synth-pink/20 to-synth-pink/40 hover:shadow-lg transition-all duration-200"
-                          onClick={() => onNavigateToChat?.(chat.id)}
-                        >
+                      <div
+                        key={chat.id}
+                        className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden cursor-pointer group relative bg-gradient-to-br from-synth-pink/20 to-synth-pink/40 hover:shadow-lg transition-all duration-200"
+                        onClick={() => onNavigateToChat?.(chat.id)}
+                      >
                           {/* Entity image or placeholder */}
                           {hasImage ? (
                             <img
@@ -1068,33 +1068,33 @@ interface FriendEventInterest {
                             />
                           ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center p-2 bg-gradient-to-br from-synth-pink/20 to-synth-pink/40">
-                              <MessageSquare className="w-8 h-8 text-synth-pink mb-1" />
-                              <p className="text-[10px] font-semibold text-synth-pink text-center line-clamp-2">
-                                {chat.chat_name}
-                              </p>
-                            </div>
+                          <MessageSquare className="w-8 h-8 text-synth-pink mb-1" />
+                          <p className="text-[10px] font-semibold text-synth-pink text-center line-clamp-2">
+                            {chat.chat_name}
+                          </p>
+                        </div>
                           )}
-                          
-                          {/* Overlay with info on hover */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-                            <div className="absolute bottom-0 left-0 right-0 p-1.5 text-white">
-                              <p className="text-[10px] font-semibold line-clamp-1 mb-0.5">{chat.chat_name}</p>
-                              <p className="text-[9px] opacity-90">
-                                {chat.member_count} member{chat.member_count !== 1 ? 's' : ''}
-                                {chat.friends_in_chat_count && chat.friends_in_chat_count > 0 && (
-                                  <> • {chat.friends_in_chat_count} friend{chat.friends_in_chat_count !== 1 ? 's' : ''}</>
-                                )}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Bottom info bar (always visible) */}
-                          <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1">
-                            <p className="text-[10px] font-medium text-white line-clamp-1 truncate">
-                              {chat.chat_name}
+                        
+                        {/* Overlay with info on hover */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                          <div className="absolute bottom-0 left-0 right-0 p-1.5 text-white">
+                            <p className="text-[10px] font-semibold line-clamp-1 mb-0.5">{chat.chat_name}</p>
+                            <p className="text-[9px] opacity-90">
+                              {chat.member_count} member{chat.member_count !== 1 ? 's' : ''}
+                              {chat.friends_in_chat_count && chat.friends_in_chat_count > 0 && (
+                                <> • {chat.friends_in_chat_count} friend{chat.friends_in_chat_count !== 1 ? 's' : ''}</>
+                              )}
                             </p>
                           </div>
                         </div>
+
+                        {/* Bottom info bar (always visible) */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1">
+                          <p className="text-[10px] font-medium text-white line-clamp-1 truncate">
+                            {chat.chat_name}
+                          </p>
+                        </div>
+                      </div>
                       );
                     })}
                   </div>
@@ -1450,6 +1450,16 @@ interface FriendEventInterest {
                 artist_id: selectedReview.event_info?.artist_id,
                 venue_name: selectedReview.event_info?.venue_name,
                 venue_id: (selectedReview.event_info as any)?.venue_id,
+                artist_performance_rating: (selectedReview as any).artist_performance_rating,
+                production_rating: (selectedReview as any).production_rating,
+                venue_rating: (selectedReview as any).venue_rating,
+                location_rating: (selectedReview as any).location_rating,
+                value_rating: (selectedReview as any).value_rating,
+                artist_performance_feedback: (selectedReview as any).artist_performance_feedback,
+                production_feedback: (selectedReview as any).production_feedback,
+                venue_feedback: (selectedReview as any).venue_feedback,
+                location_feedback: (selectedReview as any).location_feedback,
+                value_feedback: (selectedReview as any).value_feedback,
               }}
               currentUserId={currentUserId}
               onLike={async () => {

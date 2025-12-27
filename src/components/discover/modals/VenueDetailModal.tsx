@@ -120,12 +120,18 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
           .eq('is_draft', false);
 
         if (reviews && reviews.length > 0) {
-          const ratings = reviews.map(r => r.venue_rating || r.rating || 0).filter(r => r > 0);
+          // Filter out NULL/undefined ratings - only include actual numeric ratings
+          const ratings = reviews
+            .map(r => r.venue_rating || r.rating)
+            .filter((r): r is number => typeof r === 'number' && !isNaN(r) && r > 0);
           if (ratings.length > 0) {
             const avgRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
             setAverageRating(avgRating);
+          } else {
+            setAverageRating(null); // NULL when no ratings exist
           }
-          setTotalReviews(reviews.length);
+          // Only count reviews that have ratings
+          setTotalReviews(ratings.length);
         }
       }
     } catch (error) {
@@ -253,6 +259,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
               <div>
                 <h3 className="font-semibold mb-4">Reviews</h3>
                 <ArtistVenueReviews
+                  artistName=""
                   venueName={venueName}
                   venueId={venueId}
                 />
