@@ -370,7 +370,12 @@ export class UserAnalyticsService {
           id, 
           is_draft, 
           review_text, 
-          events(venue_name, title, artist_name)
+          events!inner(
+            id,
+            title, 
+            venues(name),
+            artists(name)
+          )
         `)
         .eq('user_id', userId);
       
@@ -389,9 +394,9 @@ export class UserAnalyticsService {
       
       allReviewsData.forEach((review: any) => {
         const event = review.events;
-        const venueName = event?.venue_name;
-        const eventTitle = event?.title;
-        const artistName = event?.artist_name;
+        const venueName = event?.venues?.name || null;
+        const artistName = event?.artists?.name || null;
+        const eventTitle = event?.title || null;
         
         if (venueName) {
           venueNames.add(venueName);

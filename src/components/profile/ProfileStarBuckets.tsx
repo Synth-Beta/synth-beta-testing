@@ -21,13 +21,15 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
   const event = review.event || {};
   const jambaseEvent = review.jambase_events || {};
   
-  // Get artist and venue names
-  const artistName = jambaseEvent.artist_name || event._fullEvent?.artist_name || 'Unknown Artist';
-  const venueName = jambaseEvent.venue_name || event.location || event._fullEvent?.venue_name || 'Unknown Venue';
+  // Get artist and venue names - prioritize event data from getUserReviewHistory
+  // The event object from getUserReviewHistory has artist_name and venue_name from the events table
+  // or normalized names from artists/venues tables
+  const artistName = event.artist_name || jambaseEvent.artist_name || event.artist_name_normalized || 'Unknown Artist';
+  const venueName = event.venue_name || jambaseEvent.venue_name || event.venue_name_normalized || 'Unknown Venue';
   const dateStr = event.event_date || review.created_at;
   
-  // Get artist_id from event data
-  const artistId = jambaseEvent.artist_id || event._fullEvent?.artist_id || null;
+  // Get artist_id from event data - prefer from event, then from review
+  const artistId = event?.artist_id || review.artist_id || jambaseEvent?.artist_id || null;
   
   const hasUserImage = Array.isArray(review.photos) && review.photos.length > 0;
   const primaryImage = hasUserImage ? review.photos[0] : undefined;
@@ -77,9 +79,8 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
       </div>
       {/* Text content */}
       <div className="px-3 py-2 space-y-1">
-        <p className="text-sm font-semibold text-gray-900 line-clamp-1">Concert Review</p>
-        <p className="text-xs text-gray-600 line-clamp-1">{artistName}</p>
-        <p className="text-xs text-gray-600 line-clamp-1">{venueName}</p>
+        <p className="text-sm font-bold text-gray-900 break-words">{artistName}</p>
+        <p className="text-xs text-gray-600 break-words">{venueName}</p>
         <p className="text-[11px] text-gray-400">
           {dateStr ? new Date(dateStr).toLocaleDateString() : ''}
         </p>

@@ -3,12 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 export interface PassportEntry {
   id: string;
   user_id: string;
-  type: 'city' | 'venue' | 'artist' | 'scene';
+  type: 'city' | 'venue' | 'artist' | 'scene' | 'era' | 'festival' | 'artist_milestone';
   entity_id: string | null; // Legacy external ID (for cities/scenes, or metadata)
   entity_uuid: string | null; // UUID foreign key (for venues/artists, primary identity)
   entity_name: string;
   unlocked_at: string;
   metadata: Record<string, any>;
+  rarity?: 'common' | 'uncommon' | 'legendary';
+  cultural_context?: string;
 }
 
 export interface PassportProgress {
@@ -237,20 +239,24 @@ export class PassportService {
       // Check for upcoming events with artists user hasn't seen
       const { data: upcomingEvents } = await supabase
         .from('events')
-        .select('artist_id, artist_name')
+        .select('artist_id, artists!inner(name)')
         .gte('event_date', new Date().toISOString())
         .not('artist_id', 'is', null)
         .limit(10);
 
       if (upcomingEvents && upcomingEvents.length > 0) {
         const seenArtists = new Set(progress.artists.map(a => a.entity_id));
-        const unseenArtist = upcomingEvents.find(e => e.artist_id && !seenArtists.has(e.artist_id));
+        const unseenArtist = upcomingEvents.find((e: any) => {
+          const artistId = e.artist_id || (e.artists?.id);
+          return artistId && !seenArtists.has(artistId);
+        });
         
         if (unseenArtist) {
+          const artistName = (unseenArtist as any).artists?.name || 'Unknown Artist';
           hints.push({
             type: 'artist',
-            entity_name: unseenArtist.artist_name || 'Unknown Artist',
-            hint: `Attend a show by ${unseenArtist.artist_name} to unlock this artist`,
+            entity_name: artistName,
+            hint: `Attend a show by ${artistName} to unlock this artist`,
             progress: progress.artists.length,
             goal: progress.artists.length + 1,
           });
@@ -263,7 +269,168 @@ export class PassportService {
       return [];
     }
   }
+
+  /**
+   * Get passport identity (fan type, home scene, join year)
+   */
+  static async getPassportIdentity(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('passport_identity')
+        .select('*, home_scene:scenes(*)')
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching passport identity:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get stamps filtered by rarity
+   */
+  static async getStampsByRarity(userId: string, rarity?: 'common' | 'uncommon' | 'legendary') {
+    try {
+      let query = supabase
+        .from('passport_entries')
+        .select('*')
+        .eq('user_id', userId)
+        .order('unlocked_at', { ascending: false });
+
+      if (rarity) {
+        query = query.eq('rarity', rarity);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as PassportEntry[];
+    } catch (error) {
+      console.error('Error fetching stamps by rarity:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get timeline highlights
+   */
+  static async getTimeline(userId: string, limit: number = 20) {
+    try {
+      const { data, error } = await supabase
+        .from('passport_timeline')
+        .select('*, event:events(*), review:reviews(*)')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching timeline:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Pin timeline event (max 5)
+   */
+  static async pinTimelineEvent(userId: string, eventId: string, reviewId?: string) {
+    try {
+      // Check current pin count
+      const { count } = await supabase
+        .from('passport_timeline')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_pinned', true);
+
+      if (count && count >= 5) {
+        throw new Error('Maximum of 5 pinned timeline items allowed');
+      }
+
+      // Insert or update timeline entry
+      const { data, error } = await supabase
+        .from('passport_timeline')
+        .upsert({
+          user_id: userId,
+          event_id: eventId,
+          review_id: reviewId || null,
+          is_pinned: true,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id,event_id,review_id',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error pinning timeline event:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Unpin timeline event
+   */
+  static async unpinTimelineEvent(userId: string, timelineId: string) {
+    try {
+      const { error } = await supabase
+        .from('passport_timeline')
+        .update({ is_pinned: false })
+        .eq('id', timelineId)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error unpinning timeline event:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get taste map data
+   */
+  static async getTasteMap(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('passport_taste_map')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle(); // Use maybeSingle() instead of single() to avoid 406 errors when no row exists
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching taste map:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Trigger identity recalculation
+   */
+  static async calculateAndUpdateIdentity(userId: string) {
+    try {
+      const { error } = await supabase.rpc('recalculate_passport_data', {
+        p_user_id: userId,
+      });
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error recalculating passport identity:', error);
+      return false;
+    }
+  }
 }
+
+
+
+
+
 
 
 

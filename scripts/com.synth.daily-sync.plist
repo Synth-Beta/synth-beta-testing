@@ -6,9 +6,11 @@
     <string>com.synth.daily-sync</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/bash</string>
-        <string>/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/scripts/run-daily-sync.sh</string>
+        <string>/opt/homebrew/bin/node</string>
+        <string>/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/scripts/sync-jambase-incremental-3nf.mjs</string>
     </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main</string>
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
@@ -29,6 +31,11 @@
     </dict>
 </dict>
 </plist>
+
+
+
+
+
 
 
 

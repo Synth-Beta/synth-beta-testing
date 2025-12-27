@@ -23,3 +23,8 @@ COMMENT ON TABLE public.venues IS 'Venues table - users cannot directly insert. 
 
 
 
+
+
+
+
+

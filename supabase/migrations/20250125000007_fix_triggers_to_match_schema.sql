@@ -227,3 +227,8 @@ COMMENT ON FUNCTION public.update_events_when_artist_image_changes() IS
 
 
 
+
+
+
+
+

@@ -28,8 +28,7 @@ import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
 import { EventDetailsModal } from '../events/EventDetailsModal';
 import { MusicTasteCard } from './MusicTasteCard';
 import { HolisticStatsCard } from './HolisticStatsCard';
-import { UserAnalyticsService, Achievement } from '@/services/userAnalyticsService';
-import { AchievementCard } from '@/components/analytics/shared/AchievementCard';
+import { UserAnalyticsService } from '@/services/userAnalyticsService';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { SkeletonProfileCard } from '@/components/skeleton/SkeletonProfileCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
@@ -146,9 +145,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [draftReviews, setDraftReviews] = useState<any[]>([]);
   const [draftReviewsLoading, setDraftReviewsLoading] = useState(false);
   
-  // 🏆 Achievements state
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [achievementsLoading, setAchievementsLoading] = useState(false);
+  // 🏆 Achievements state (removed - now in Passport)
   const [canViewInterested, setCanViewInterested] = useState<boolean>(true);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -163,7 +160,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [friendStatus, setFriendStatus] = useState<'none' | 'friends' | 'pending_sent' | 'pending_received'>('none');
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const [followedArtistsCount, setFollowedArtistsCount] = useState(0);
-  const [passportModalOpen, setPassportModalOpen] = useState(false);
   const [passportProgress, setPassportProgress] = useState({
     cities: 0,
     venues: 0,
@@ -220,7 +216,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             fetchAttendedEvents(),
             fetchDraftReviews(),
             fetchFollowedArtistsCount(),
-            loadAchievements(),
             loadPassportSummary(),
             // Only check friend status if viewing someone else's profile
             !isViewingOwnProfile ? checkFriendStatus() : Promise.resolve()
@@ -1182,31 +1177,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     }
   };
 
-  // 🏆 Load user achievements
-  const loadAchievements = async () => {
-    try {
-      if (sessionExpired || !user) {
-        console.log('Session expired or no user, skipping achievements fetch');
-        return;
-      }
-
-      console.log('🔍 ProfileView: Fetching achievements for user:', targetUserId);
-      setAchievementsLoading(true);
-      
-      const achievementsData = await UserAnalyticsService.getUserAchievements(targetUserId);
-      
-      console.log('🔍 ProfileView: Achievements data:', achievementsData);
-      console.log('🔍 ProfileView: Total achievements:', achievementsData?.length);
-      console.log('🔍 ProfileView: Unlocked achievements:', achievementsData?.filter(a => a.unlocked).length);
-      
-      setAchievements(achievementsData || []);
-    } catch (error) {
-      console.error('Error fetching achievements:', error);
-      setAchievements([]);
-    } finally {
-      setAchievementsLoading(false);
-    }
-  };
+  // Achievements moved to Passport tab
 
   const loadPassportSummary = async () => {
     try {
@@ -1693,15 +1664,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                       <Edit className="w-4 h-4 mr-2" />
                       Edit Profile
                     </Button>
-                    <Button 
-                      onClick={() => setPassportModalOpen(true)} 
-                      variant="outline" 
-                      size="sm" 
-                      className="border-pink-200 hover:border-pink-300 text-pink-600 hover:text-pink-700"
-                    >
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Live Music Passport
-                    </Button>
                     <Button onClick={onSettings} variant="outline" size="sm" className="border-gray-200 hover:border-gray-300">
                       <Settings className="w-4 h-4" />
                     </Button>
@@ -1818,28 +1780,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 </a>
               )}
               
-              {/* Streaming Stats Button - Always show if viewing own profile */}
-              {isViewingOwnProfile && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('🎵 View Streaming Stats button clicked');
-                    console.log('🎵 Current location:', window.location.href);
-                    console.log('🎵 Navigating to /streaming-stats');
-                    // Use absolute URL to ensure navigation works
-                    const url = '/streaming-stats';
-                    console.log('🎵 Navigating to:', url);
-                    window.location.href = url;
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-pink-500/10 to-purple-500/10 hover:from-pink-500/20 hover:to-purple-500/20 rounded-lg border border-pink-200/50 text-pink-600 hover:text-pink-700 transition-all duration-200 text-sm font-medium cursor-pointer hover:shadow-md"
-                >
-                  <Music className="w-4 h-4" />
-                  <span>View Streaming Stats</span>
-                </button>
-              )}
-              
               {/* Show streaming profile link only if viewing someone else's profile */}
               {!isViewingOwnProfile && profile.music_streaming_profile && (() => {
                 const serviceType = detectStreamingServiceType(profile.music_streaming_profile);
@@ -1907,9 +1847,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 Interested
               </TabsTrigger>
             )}
-            <TabsTrigger value="achievements" className="flex items-center gap-2">
-              <Award className="w-4 h-4" />
-              Achievements
+            <TabsTrigger value="passport" className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Passport
             </TabsTrigger>
           </TabsList>
 
@@ -2520,97 +2460,15 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
           
 
-          {/* 🏆 Achievements Tab */}
-          <TabsContent value="achievements" className="mt-6 mb-40">
-            <div className="space-y-6">
-              {/* Header */}
-              <div className="text-center mb-6">
-                <div className="flex items-center justify-center gap-3 mb-2">
-                  <Trophy className="w-8 h-8 text-yellow-500" />
-                  <h2 className="gradient-text text-2xl font-bold">Achievements</h2>
-                </div>
-                <p className="text-gray-600 text-sm">
-                  {isViewingOwnProfile 
-                    ? 'Track your concert journey milestones' 
-                    : `${profile?.name || 'User'}'s concert achievements`}
-                </p>
-              </div>
-
-              {achievementsLoading ? (
-                <div className="space-y-4">
-                  <SkeletonCard />
-                  <SkeletonCard />
-                </div>
-              ) : (
-                <>
-                  {/* Unlocked Achievements */}
-                  {achievements.filter(a => a.unlocked).length > 0 && (
-                    <div className="mb-6">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Award className="w-5 h-5 text-yellow-500" />
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          Unlocked ({achievements.filter(a => a.unlocked).length})
-                        </h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {achievements.filter(a => a.unlocked).map(achievement => (
-                          <AchievementCard
-                            key={achievement.id}
-                            name={achievement.name}
-                            description={achievement.description}
-                            icon={achievement.icon}
-                            progress={achievement.progress}
-                            goal={achievement.goal}
-                            unlocked={achievement.unlocked}
-                            unlockedAt={achievement.unlockedAt}
-                            compact
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* In Progress Achievements */}
-                  {achievements.filter(a => !a.unlocked).length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Award className="w-5 h-5 text-gray-400" />
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          In Progress ({achievements.filter(a => !a.unlocked).length})
-                        </h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {achievements.filter(a => !a.unlocked).map(achievement => (
-                          <AchievementCard
-                            key={achievement.id}
-                            name={achievement.name}
-                            description={achievement.description}
-                            icon={achievement.icon}
-                            progress={achievement.progress}
-                            goal={achievement.goal}
-                            unlocked={achievement.unlocked}
-                            compact
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Empty state */}
-                  {achievements.length === 0 && (
-                    <div className="text-center py-12">
-                      <Trophy className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">No Achievements Yet</h3>
-                      <p className="text-gray-600">
-                        {isViewingOwnProfile 
-                          ? 'Start attending events and writing reviews to unlock achievements!'
-                          : 'This user hasn\'t unlocked any achievements yet.'}
-                      </p>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+          {/* 🎫 Passport Tab */}
+          <TabsContent value="passport" className="mt-6 mb-40">
+            <PassportModal
+              isOpen={true}
+              onClose={() => setActiveTab('my-events')}
+              userId={targetUserId}
+              userName={profile?.name || undefined}
+              inline={true}
+            />
           </TabsContent>
 
         </Tabs>
@@ -2844,14 +2702,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         />
       )}
 
-      {/* Passport Modal */}
-      {isViewingOwnProfile && (
-        <PassportModal
-          isOpen={passportModalOpen}
-          onClose={() => setPassportModalOpen(false)}
-          userId={targetUserId}
-        />
-      )}
     </div>
   );
 };

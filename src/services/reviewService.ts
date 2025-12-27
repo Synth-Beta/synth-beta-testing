@@ -1244,10 +1244,15 @@ export class ReviewService {
       console.log('🔍 ReviewService: Event IDs to fetch:', eventIds.length, eventIds);
       let eventsMap: Record<string, any> = {};
       
+      // Also collect artist_id and venue_id from reviews table directly (as fallback)
+      const reviewArtistIds = [...new Set((reviewsData || []).map((r: any) => r.artist_id).filter(Boolean))];
+      const reviewVenueIds = [...new Set((reviewsData || []).map((r: any) => r.venue_id).filter(Boolean))];
+      
       if (eventIds.length > 0) {
+        // Query events table
         const { data: eventsData, error: eventsError } = await supabase
-          .from('events_with_artist_venue')
-          .select('id, title, artist_name_normalized, venue_name_normalized, venue_id, event_date, doors_time, venue_city, venue_state, venue_zip')
+          .from('events')
+          .select('id, title, artist_name, venue_name, artist_id, venue_id, event_date, doors_time, venue_city, venue_state, venue_zip')
           .in('id', eventIds);
         
         console.log('🔍 ReviewService: Events query result:', {
@@ -1257,10 +1262,58 @@ export class ReviewService {
         });
         
         if (!eventsError && eventsData) {
+          // Get unique artist and venue IDs from events
+          const eventArtistIds = [...new Set(eventsData.map((e: any) => e.artist_id).filter(Boolean))];
+          const eventVenueIds = [...new Set(eventsData.map((e: any) => e.venue_id).filter(Boolean))];
+          
+          // Combine with review-level artist/venue IDs
+          const allArtistIds = [...new Set([...eventArtistIds, ...reviewArtistIds])];
+          const allVenueIds = [...new Set([...eventVenueIds, ...reviewVenueIds])];
+          
+          // Fetch artist names from artists table
+          let artistsMap: Record<string, any> = {};
+          if (allArtistIds.length > 0) {
+            const { data: artistsData } = await supabase
+              .from('artists')
+              .select('id, name, image_url')
+              .in('id', allArtistIds);
+            
+            if (artistsData) {
+              artistsMap = artistsData.reduce((acc: Record<string, any>, artist: any) => {
+                acc[artist.id] = artist;
+                return acc;
+              }, {});
+            }
+          }
+          
+          // Fetch venue names from venues table
+          let venuesMap: Record<string, any> = {};
+          if (allVenueIds.length > 0) {
+            const { data: venuesData } = await supabase
+              .from('venues')
+              .select('id, name, image_url')
+              .in('id', allVenueIds);
+            
+            if (venuesData) {
+              venuesMap = venuesData.reduce((acc: Record<string, any>, venue: any) => {
+                acc[venue.id] = venue;
+                return acc;
+              }, {});
+            }
+          }
+          
+          // Build events map with normalized names from artists/venues tables, fallback to event.artist_name/venue_name
           eventsMap = eventsData.reduce((acc: Record<string, any>, event: any) => {
-            acc[event.id] = event;
+            acc[event.id] = {
+              ...event,
+              artist_name: artistsMap[event.artist_id]?.name || event.artist_name,
+              venue_name: venuesMap[event.venue_id]?.name || event.venue_name,
+              artist_id: event.artist_id,
+              venue_id: event.venue_id,
+            };
             return acc;
           }, {});
+          
           console.log('🔍 ReviewService: Events map created with', Object.keys(eventsMap).length, 'events');
           console.log('🔍 ReviewService: Sample event in map:', eventsMap[Object.keys(eventsMap)[0]]);
         } else if (eventsError) {
@@ -1268,6 +1321,38 @@ export class ReviewService {
         }
       } else {
         console.warn('⚠️ ReviewService: No event IDs found in reviews');
+      }
+      
+      // Also fetch artist/venue names for reviews that don't have event_id but have artist_id/venue_id
+      let artistsMap: Record<string, any> = {};
+      let venuesMap: Record<string, any> = {};
+      
+      if (reviewArtistIds.length > 0) {
+        const { data: artistsData } = await supabase
+          .from('artists')
+          .select('id, name, image_url')
+          .in('id', reviewArtistIds);
+        
+        if (artistsData) {
+          artistsMap = artistsData.reduce((acc: Record<string, any>, artist: any) => {
+            acc[artist.id] = artist;
+            return acc;
+          }, {});
+        }
+      }
+      
+      if (reviewVenueIds.length > 0) {
+        const { data: venuesData } = await supabase
+          .from('venues')
+          .select('id, name, image_url')
+          .in('id', reviewVenueIds);
+        
+        if (venuesData) {
+          venuesMap = venuesData.reduce((acc: Record<string, any>, venue: any) => {
+            acc[venue.id] = venue;
+            return acc;
+          }, {});
+        }
       }
 
       const data = reviewsData;
@@ -1300,46 +1385,78 @@ export class ReviewService {
       } : 'No reviews');
 
       const result = {
-        reviews: filteredData.map((item: any) => ({
-          review: {
-            id: item.id,
-            user_id: item.user_id,
-            event_id: item.event_id,
-            venue_id: item.venue_id,
-            rating: item.rating,
-            rank_order: (item as any).rank_order,
-            review_type: item.review_type,
-            review_text: item.review_text,
-            photos: item.photos,
-            videos: item.videos,
-            setlist: item.setlist,
-            mood_tags: item.mood_tags,
-            genre_tags: item.genre_tags,
-            context_tags: item.context_tags,
-            artist_rating: item.artist_rating,
-            artist_performance_rating: item.artist_performance_rating,
-            production_rating: item.production_rating,
-            venue_rating: item.venue_rating,
-            location_rating: item.location_rating,
-            value_rating: item.value_rating,
-            artist_performance_feedback: item.artist_performance_feedback,
-            production_feedback: item.production_feedback,
-            venue_feedback: item.venue_feedback,
-            location_feedback: item.location_feedback,
-            value_feedback: item.value_feedback,
-            ticket_price_paid: item.ticket_price_paid,
-            created_at: item.created_at,
-            updated_at: item.updated_at,
-            likes_count: item.likes_count,
-            comments_count: item.comments_count,
-            shares_count: item.shares_count,
-            is_public: item.is_public,
-            was_there: item.was_there,
-            attendees: item.attendees,
-            met_on_synth: item.met_on_synth,
-          },
-          event: item.event_id ? (eventsMap[item.event_id] || null) : null
-        })),
+        reviews: filteredData.map((item: any) => {
+          // Get event data if event_id exists
+          const eventData = item.event_id ? (eventsMap[item.event_id] || null) : null;
+          
+          // If no event data but review has artist_id/venue_id, create event-like object
+          let event = eventData;
+          if (!event && (item.artist_id || item.venue_id)) {
+            event = {
+              id: null,
+              title: null,
+              artist_name: item.artist_id ? (artistsMap[item.artist_id]?.name || null) : null,
+              venue_name: item.venue_id ? (venuesMap[item.venue_id]?.name || null) : null,
+              artist_id: item.artist_id,
+              venue_id: item.venue_id,
+              event_date: null,
+            };
+          }
+          
+          // If event exists but missing artist/venue names, try to get from review's artist_id/venue_id
+          if (event && (!event.artist_name || !event.venue_name)) {
+            if (!event.artist_name && item.artist_id && artistsMap[item.artist_id]) {
+              event.artist_name = artistsMap[item.artist_id].name;
+              event.artist_id = item.artist_id;
+            }
+            if (!event.venue_name && item.venue_id && venuesMap[item.venue_id]) {
+              event.venue_name = venuesMap[item.venue_id].name;
+              event.venue_id = item.venue_id;
+            }
+          }
+          
+          return {
+            review: {
+              id: item.id,
+              user_id: item.user_id,
+              event_id: item.event_id,
+              artist_id: item.artist_id,
+              venue_id: item.venue_id,
+              rating: item.rating,
+              rank_order: (item as any).rank_order,
+              review_type: item.review_type,
+              review_text: item.review_text,
+              photos: item.photos,
+              videos: item.videos,
+              setlist: item.setlist,
+              mood_tags: item.mood_tags,
+              genre_tags: item.genre_tags,
+              context_tags: item.context_tags,
+              artist_rating: item.artist_rating,
+              artist_performance_rating: item.artist_performance_rating,
+              production_rating: item.production_rating,
+              venue_rating: item.venue_rating,
+              location_rating: item.location_rating,
+              value_rating: item.value_rating,
+              artist_performance_feedback: item.artist_performance_feedback,
+              production_feedback: item.production_feedback,
+              venue_feedback: item.venue_feedback,
+              location_feedback: item.location_feedback,
+              value_feedback: item.value_feedback,
+              ticket_price_paid: item.ticket_price_paid,
+              created_at: item.created_at,
+              updated_at: item.updated_at,
+              likes_count: item.likes_count,
+              comments_count: item.comments_count,
+              shares_count: item.shares_count,
+              is_public: item.is_public,
+              was_there: item.was_there,
+              attendees: item.attendees,
+              met_on_synth: item.met_on_synth,
+            },
+            event: event
+          };
+        }),
         total: Array.isArray(data) ? data.length : 0
       };
       
