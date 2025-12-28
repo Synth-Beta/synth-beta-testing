@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Search, MapPin, X } from 'lucide-react';
 import { UnifiedVenueSearchService } from '@/services/unifiedVenueSearchService';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
@@ -11,15 +10,17 @@ import { trackInteraction } from '@/services/interactionTrackingService';
 interface VenueSearchBoxProps {
   onVenueSelect: (venue: VenueSearchResult) => void;
   placeholder?: string;
-  className?: string;wadaaa
+  className?: string;
   hideClearButton?: boolean;
+  onSearchStateChange?: (isSearching: boolean) => void;
 }
 
 export function VenueSearchBox({ 
   onVenueSelect, 
   placeholder = "Search for a venue...",
   className,
-  hideClearButton = false
+  hideClearButton = false,
+  onSearchStateChange
 }: VenueSearchBoxProps) {
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<VenueSearchResult[]>([]);
@@ -35,6 +36,7 @@ export function VenueSearchBox({
     if (!query.trim()) {
       setSearchResults([]);
       setIsOpen(false);
+      onSearchStateChange?.(false);
       return;
     }
 
@@ -96,6 +98,7 @@ export function VenueSearchBox({
       setSearchResults(results);
       setIsOpen(true);
       setSelectedIndex(-1);
+      onSearchStateChange?.(true);
     } catch (error) {
       console.error('Venue search error:', error);
       setSearchResults([]);
@@ -111,6 +114,7 @@ export function VenueSearchBox({
     setQuery(venue.name);
     setIsOpen(false);
     setSelectedIndex(-1);
+    onSearchStateChange?.(false);
     inputRef.current?.blur();
   };
 
@@ -124,6 +128,7 @@ export function VenueSearchBox({
       if (container && !container.contains(target)) {
         setIsOpen(false);
         setSelectedIndex(-1);
+        onSearchStateChange?.(false);
       }
     };
 
@@ -161,6 +166,7 @@ export function VenueSearchBox({
     setTimeout(() => {
       setIsOpen(false);
       setSelectedIndex(-1);
+      onSearchStateChange?.(false);
     }, 100);
   };
 
@@ -169,6 +175,7 @@ export function VenueSearchBox({
     setSearchResults([]);
     setIsOpen(false);
     setSelectedIndex(-1);
+    onSearchStateChange?.(false);
     inputRef.current?.focus();
   };
 
@@ -201,7 +208,7 @@ export function VenueSearchBox({
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
-          className="pl-10 pr-20"
+          className="pl-10 pr-20 border-2 border-synth-pink focus:border-synth-pink focus:ring-2 focus:ring-synth-pink/20 rounded-lg"
           autoComplete="off"
         />
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
@@ -224,71 +231,79 @@ export function VenueSearchBox({
 
       {/* Search Results Dropdown */}
       {isOpen && searchResults && (
-        <Card className="absolute top-full left-0 right-0 z-[9999] mt-2 max-h-96 overflow-y-auto shadow-xl border-0 bg-white rounded-lg">
-          <CardContent className="p-0">
-            {searchResults.length > 0 ? (
-              <div ref={listRef} className="py-1">
-                {searchResults.map((venue, index) => (
-                  <div
-                    key={venue.id}
-                    className={cn(
-                      "px-4 py-4 cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200",
-                      "border-b border-gray-100 last:border-b-0",
-                      selectedIndex === index && "bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500"
+        <div className="absolute top-full left-0 right-0 z-[9999] mt-2 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden">
+          {searchResults.length > 0 ? (
+            <div 
+              ref={listRef} 
+              className="max-h-[min(500px,calc(100vh-300px))] overflow-y-auto overscroll-contain synth-scrollbar"
+              style={{
+                scrollBehavior: 'smooth',
+              }}
+            >
+              {searchResults.map((venue, index) => (
+                <div
+                  key={venue.id}
+                  className={cn(
+                    "relative px-4 py-3 cursor-pointer transition-all duration-150",
+                    "flex items-center gap-3",
+                    "hover:bg-gray-50",
+                    selectedIndex === index && "bg-blue-50"
+                  )}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleVenueSelect(venue);
+                  }}
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // Prevent input blur
+                    e.stopPropagation();
+                  }}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                >
+                  {/* Blue accent bar for selected item */}
+                  {selectedIndex === index && (
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r" />
+                  )}
+                  
+                  {/* Venue Image */}
+                  <div className="flex-shrink-0">
+                    {venue.image_url ? (
+                      <img
+                        src={venue.image_url}
+                        alt={venue.name}
+                        className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-100"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center ring-2 ring-gray-100">
+                        <MapPin className="w-6 h-6 text-blue-500" />
+                      </div>
                     )}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleVenueSelect(venue);
-                    }}
-                    onMouseDown={(e) => {
-                      e.preventDefault(); // Prevent input blur
-                      e.stopPropagation();
-                    }}
-                    onMouseEnter={() => setSelectedIndex(index)}
-                  >
-                    <div className="flex items-start gap-3">
-                      {/* Venue Image */}
-                      <div className="flex-shrink-0">
-                        {venue.image_url ? (
-                          <img
-                            src={venue.image_url}
-                            alt={venue.name}
-                            className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center ring-2 ring-gray-200">
-                            <MapPin className="w-5 h-5 text-blue-500" />
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Venue Info */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 text-base leading-tight mb-1">
-                          {venue.name}
-                        </h3>
-                        {formatAddress(venue) && (
-                          <p className="text-sm text-gray-600">
-                            {formatAddress(venue)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="px-6 py-12 text-center text-gray-500">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                  <MapPin className="w-8 h-8 text-gray-400" />
+                  
+                  {/* Venue Info */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm leading-tight truncate">
+                      {venue.name}
+                    </h3>
+                    {formatAddress(venue) && (
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">
+                        {formatAddress(venue)}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No venues found</h3>
-                <p className="text-sm text-gray-600">Try a different search term</p>
+              ))}
+            </div>
+          ) : (
+            <div className="px-6 py-12 text-center text-gray-500">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <MapPin className="w-8 h-8 text-gray-400" />
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No venues found</h3>
+              <p className="text-sm text-gray-600">Try a different search term</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

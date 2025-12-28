@@ -722,14 +722,19 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     // Handle string ratings from database (sometimes Supabase returns NUMERIC as string)
     if (typeof review.rating === 'string') {
       const parsed = parseFloat(review.rating);
-      return isNaN(parsed) ? 0 : parsed;
+      return isNaN(parsed) ? null : parsed;
+    }
+
+    // If rating is null or undefined, return null (don't default to 0)
+    if (review.rating === null || review.rating === undefined) {
+      return null;
     }
 
     // Legacy fallback for old string ratings
     if (review.rating === 'good') return 5;
     if (review.rating === 'okay') return 3;
     if (review.rating === 'bad') return 1;
-    return 0;
+    return null; // Return null instead of 0 for unknown values
   };
 
   // Compute display rating - use review.rating directly from database (already rounded to 1 decimal)

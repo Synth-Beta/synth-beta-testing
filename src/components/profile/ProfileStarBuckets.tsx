@@ -84,12 +84,18 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
         <p className="text-[11px] text-gray-400">
           {dateStr ? new Date(dateStr).toLocaleDateString() : ''}
         </p>
-        <div className="flex items-center justify-between mt-1">
-          {renderStars(ratingValue)}
-          <span className="text-xs font-semibold text-gray-800">
-            {Math.round(ratingValue * 10) / 10}★
-          </span>
-        </div>
+        {ratingValue > 0 ? (
+          <div className="flex items-center justify-between mt-1">
+            {renderStars(ratingValue)}
+            <span className="text-xs font-semibold text-gray-800">
+              {Math.round(ratingValue * 10) / 10}★
+            </span>
+          </div>
+        ) : (
+          <div className="mt-1">
+            <span className="text-xs text-gray-500">No rating</span>
+          </div>
+        )}
       </div>
     </button>
   );
@@ -104,16 +110,26 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
 export function ProfileStarBuckets({ reviews, onSelectReview }: ProfileStarBucketsProps) {
   const grouped = useMemo(() => {
     const buckets: Record<1 | 2 | 3 | 4 | 5, any[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+    const unrated: any[] = []; // Reviews with no rating
 
     for (const review of reviews || []) {
       // Skip attendance-only markers that aren't real written reviews
       if (review.review_text === 'ATTENDANCE_ONLY' && !review.was_there) continue;
 
+      // Check category_average first, then rating, preserving null values
       const rawRating = typeof review.category_average === 'number'
         ? review.category_average
-        : typeof review.rating === 'number'
-          ? review.rating
-          : 0;
+        : review.category_average === null || review.category_average === undefined
+          ? null // Preserve null category_average
+          : typeof review.rating === 'number'
+            ? review.rating
+            : (review.rating === null || review.rating === undefined ? null : 0);
+
+      // Handle reviews with null/undefined ratings (allow NULL ratings to display)
+      if (rawRating === null || rawRating === undefined) {
+        unrated.push(review);
+        continue;
+      }
 
       if (!rawRating || rawRating <= 0) continue;
 
@@ -149,7 +165,14 @@ export function ProfileStarBuckets({ reviews, onSelectReview }: ProfileStarBucke
       });
     });
 
-    return buckets;
+    // Sort unrated reviews by created_at desc (newest first)
+    const sortedUnrated = unrated.slice().sort((a, b) => {
+      const aDate = a?.event?.event_date || a?.created_at;
+      const bDate = b?.event?.event_date || b?.created_at;
+      return new Date(bDate).getTime() - new Date(aDate).getTime();
+    });
+
+    return { buckets, unrated: sortedUnrated };
   }, [reviews]);
 
   const renderStars = (rating: number) => {
@@ -184,13 +207,13 @@ export function ProfileStarBuckets({ reviews, onSelectReview }: ProfileStarBucke
     { stars: 1, label: '1 Star Reviews' },
   ];
 
-  const hasAny = sections.some(({ stars }) => grouped[stars].length > 0);
+  const hasAny = sections.some(({ stars }) => grouped.buckets[stars].length > 0) || grouped.unrated.length > 0;
   if (!hasAny) return null;
 
   return (
     <div className="space-y-6 mb-8">
       {sections.map(({ stars, label }) => {
-        const bucket = grouped[stars];
+        const bucket = grouped.buckets[stars];
         if (!bucket || bucket.length === 0) return null;
 
         return (
@@ -222,6 +245,27 @@ export function ProfileStarBuckets({ reviews, onSelectReview }: ProfileStarBucke
           </section>
         );
       })}
+      
+      {/* Unrated Reviews Section */}
+      {grouped.unrated.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-base font-semibold text-gray-900">
+            Unrated Reviews <span className="text-sm font-normal text-gray-500">({grouped.unrated.length})</span>
+          </h3>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {grouped.unrated.map((review) => (
+              <CompactReviewCard
+                key={review.id}
+                review={review}
+                ratingValue={0} // No rating to display
+                stars={0}
+                onSelectReview={onSelectReview}
+                renderStars={renderStars}
+              />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -207,37 +207,6 @@ export function useReviewForm() {
             errors.artistPerformanceRating = 'Please rate the artist performance (0.5 - 5 stars)';
           }
         } else if (step === 4) {
-          // Venue rating
-          if (!data.venueRating || data.venueRating < 0.5 || data.venueRating > 5.0) {
-            errors.venueRating = 'Please rate the venue (0.5 - 5 stars)';
-          }
-        } else if (step === 5) {
-          // Review content
-          if (!data.reviewText || data.reviewText.trim() === '') {
-            errors.reviewText = 'Please share a description of your experience';
-          } else if (data.reviewText.length > 400) {
-            errors.reviewText = 'Review text must be 400 characters or less for standard review';
-          }
-        }
-        break;
-      case 'detailed': // 5min flow
-        if (step === 2) {
-          // Event details
-          if (!data.selectedArtist) {
-            errors.selectedArtist = 'Please select an artist';
-          }
-          if (!data.selectedVenue) {
-            errors.selectedVenue = 'Please select a venue';
-          }
-          if (!data.eventDate) {
-            errors.eventDate = 'Please select a date';
-          }
-        } else if (step === 3) {
-          // Artist Performance rating
-          if (!data.artistPerformanceRating || data.artistPerformanceRating < 0.5 || data.artistPerformanceRating > 5.0) {
-            errors.artistPerformanceRating = 'Please rate the artist performance (0.5 - 5 stars)';
-          }
-        } else if (step === 4) {
           // Production rating
           if (!data.productionRating || data.productionRating < 0.5 || data.productionRating > 5.0) {
             errors.productionRating = 'Please rate the production quality (0.5 - 5 stars)';

@@ -613,6 +613,27 @@ class IncrementalSync3NF {
 
 // Main execution
 async function main() {
+  // Ensure output is not buffered for launchd
+  if (process.stdout.isTTY === false) {
+    process.stdout.write = ((originalWrite) => {
+      return function(chunk, encoding, callback) {
+        originalWrite.call(process.stdout, chunk, encoding, callback);
+        // Force flush
+        if (typeof chunk === 'string') {
+          try {
+            require('fs').appendFileSync(
+              '/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/logs/launchd-sync.log',
+              chunk,
+              { flag: 'a' }
+            );
+          } catch (e) {
+            // Ignore file write errors
+          }
+        }
+      };
+    })(process.stdout.write);
+  }
+
   try {
     const dotenv = await import('dotenv');
     dotenv.default.config({ path: '.env.local' });
@@ -620,13 +641,29 @@ async function main() {
     // dotenv not installed, assume env vars are already set
   }
 
+  console.log(`🔄 Starting Daily Incremental Sync (3NF Compliant)...`);
+  console.log(`📅 Started at: ${new Date().toISOString()}`);
+
   const syncService = new JambaseSyncService();
   const incrementalSync = new IncrementalSync3NF(syncService);
   await incrementalSync.run();
+
+  console.log(`✅ Sync completed at: ${new Date().toISOString()}`);
 }
 
 main().catch(error => {
-  console.error('❌ Fatal error:', error);
+  const errorMsg = `❌ Fatal error at ${new Date().toISOString()}: ${error.message}\n${error.stack}\n`;
+  console.error(errorMsg);
+  // Also write to error log file directly
+  try {
+    require('fs').appendFileSync(
+      '/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/logs/launchd-sync-error.log',
+      errorMsg,
+      { flag: 'a' }
+    );
+  } catch (e) {
+    // Ignore file write errors
+  }
   process.exit(1);
 });
 

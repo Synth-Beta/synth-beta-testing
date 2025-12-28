@@ -13,8 +13,9 @@ import { PassportIdentity } from '@/components/passport/PassportIdentity';
 import { PassportStampsView } from '@/components/passport/PassportStampsView';
 import { PassportTimelineView } from '@/components/passport/PassportTimelineView';
 import { PassportTasteMapView } from '@/components/passport/PassportTasteMapView';
+import { PassportBucketListView } from '@/components/passport/PassportBucketListView';
 import { PassportAchievementService } from '@/services/passportAchievementService';
-import { Loader2, MapPin, Building2, Music, Sparkles, User, Clock, BarChart3, Award } from 'lucide-react';
+import { Loader2, MapPin, Building2, Music, Sparkles, User, Clock, BarChart3, Award, ListChecks } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -46,7 +47,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
   const [achievements, setAchievements] = useState<any[]>([]);
   const [nextToUnlock, setNextToUnlock] = useState<NextToUnlock[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'identity' | 'stamps' | 'achievements' | 'timeline' | 'taste'>('identity');
+  const [activeTab, setActiveTab] = useState<'identity' | 'stamps' | 'achievements' | 'timeline' | 'taste' | 'bucket'>('identity');
 
   useEffect(() => {
     if (isOpen || inline) {
@@ -99,7 +100,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
         </div>
       ) : (
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className={inline ? '' : 'mt-4'}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="identity" className="flex items-center gap-2">
               <User className="w-4 h-4" />
               Identity
@@ -119,6 +120,10 @@ export const PassportModal: React.FC<PassportModalProps> = ({
             <TabsTrigger value="taste" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               Taste Map
+            </TabsTrigger>
+            <TabsTrigger value="bucket" className="flex items-center gap-2">
+              <ListChecks className="w-4 h-4" />
+              Bucket List
             </TabsTrigger>
           </TabsList>
 
@@ -282,6 +287,10 @@ export const PassportModal: React.FC<PassportModalProps> = ({
 
           <TabsContent value="taste" className="mt-4">
             <PassportTasteMapView userId={userId} />
+          </TabsContent>
+
+          <TabsContent value="bucket" className="mt-4 relative overflow-visible">
+            <PassportBucketListView userId={userId} />
           </TabsContent>
         </Tabs>
       )}

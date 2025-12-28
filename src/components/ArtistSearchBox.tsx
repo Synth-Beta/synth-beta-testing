@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Search, Music, X, Star } from 'lucide-react';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import type { Artist, ArtistSearchResult } from '@/types/concertSearch';
@@ -14,13 +13,15 @@ interface ArtistSearchBoxProps {
   placeholder?: string;
   className?: string;
   hideClearButton?: boolean;
+  onSearchStateChange?: (isSearching: boolean) => void;
 }
 
 export function ArtistSearchBox({ 
   onArtistSelect, 
   placeholder = "Search for an artist...",
   className,
-  hideClearButton = false
+  hideClearButton = false,
+  onSearchStateChange
 }: ArtistSearchBoxProps) {
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ArtistSearchResult | null>(null);
@@ -35,6 +36,7 @@ export function ArtistSearchBox({
     if (!query.trim()) {
       setSearchResults(null);
       setIsOpen(false);
+      onSearchStateChange?.(false);
       return;
     }
 
@@ -115,6 +117,7 @@ export function ArtistSearchBox({
       setSearchResults(transformedResults);
       setIsOpen(true);
       setSelectedIndex(-1);
+      onSearchStateChange?.(true);
     } catch (error) {
       console.error('Artist search error:', error);
       setSearchResults({
@@ -134,6 +137,7 @@ export function ArtistSearchBox({
     setQuery(artist.name);
     setIsOpen(false);
     setSelectedIndex(-1);
+    onSearchStateChange?.(false);
     inputRef.current?.blur();
   };
 
@@ -152,6 +156,7 @@ export function ArtistSearchBox({
     setTimeout(() => {
       setIsOpen(false);
       setSelectedIndex(-1);
+      onSearchStateChange?.(false);
     }, 150);
   };
 
@@ -160,6 +165,7 @@ export function ArtistSearchBox({
     setSearchResults(null);
     setIsOpen(false);
     setSelectedIndex(-1);
+    onSearchStateChange?.(false);
     inputRef.current?.focus();
   };
 
@@ -181,7 +187,7 @@ export function ArtistSearchBox({
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
-          className="pl-10 pr-20"
+          className="pl-10 pr-20 border-2 border-synth-pink focus:border-synth-pink focus:ring-2 focus:ring-synth-pink/20 rounded-lg"
           autoComplete="off"
         />
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
@@ -204,58 +210,77 @@ export function ArtistSearchBox({
 
       {/* Search Results Dropdown */}
       {isOpen && searchResults && (
-        <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-80 overflow-y-auto shadow-lg border">
-          <CardContent className="p-0">
-            {searchResults.artists.length > 0 ? (
-              <div ref={listRef} className="py-2">
-                {searchResults.artists.map((artist, index) => (
-                  <div
-                    key={artist.id}
-                    className={cn(
-                      "px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors",
-                      "flex items-start gap-3",
-                      selectedIndex === index && "bg-blue-50 border-l-4 border-blue-500"
+        <div className="absolute top-full left-0 right-0 z-[9999] mt-2 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden">
+          {searchResults.artists.length > 0 ? (
+            <div 
+              ref={listRef} 
+              className="max-h-[min(500px,calc(100vh-300px))] overflow-y-auto overscroll-contain synth-scrollbar"
+              style={{
+                scrollBehavior: 'smooth',
+              }}
+            >
+              {searchResults.artists.map((artist, index) => (
+                <div
+                  key={artist.id}
+                  className={cn(
+                    "relative px-4 py-3 cursor-pointer transition-all duration-150",
+                    "flex items-center gap-3",
+                    "hover:bg-gray-50",
+                    selectedIndex === index && "bg-blue-50"
+                  )}
+                  onClick={() => handleArtistSelect(artist)}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                >
+                  {/* Blue accent bar for selected item */}
+                  {selectedIndex === index && (
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r" />
+                  )}
+                  
+                  {/* Artist Image */}
+                  <div className="flex-shrink-0">
+                    {artist.image_url ? (
+                      <img
+                        src={artist.image_url}
+                        alt={artist.name}
+                        className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-100"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center ring-2 ring-gray-100">
+                        <Music className="w-6 h-6 text-pink-500" />
+                      </div>
                     )}
-                    onClick={() => handleArtistSelect(artist)}
-                    onMouseEnter={() => setSelectedIndex(index)}
-                  >
-                    <div className="flex-shrink-0 mt-1">
-                      {artist.image_url ? (
-                        <img
-                          src={artist.image_url}
-                          alt={artist.name}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                          <Music className="w-5 h-5 text-gray-400" />
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 text-base leading-tight">
-                        {artist.name}
-                      </h3>
-                    </div>
                   </div>
-                ))}
-                
-                {searchResults.totalFound > searchResults.artists.length && (
-                  <div className="px-4 py-2 text-xs text-gray-500 text-center border-t">
-                    Showing {searchResults.artists.length} of {searchResults.totalFound} artists
+                  
+                  {/* Artist Info */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm leading-tight truncate">
+                      {artist.name}
+                    </h3>
+                    {artist.genres && artist.genres.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">
+                        {formatGenres(artist.genres)}
+                      </p>
+                    )}
                   </div>
-                )}
+                </div>
+              ))}
+              
+              {searchResults.totalFound > searchResults.artists.length && (
+                <div className="sticky bottom-0 px-4 py-2 text-xs text-gray-500 text-center bg-gray-50 border-t border-gray-200">
+                  Showing {searchResults.artists.length} of {searchResults.totalFound} artists
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="px-6 py-12 text-center text-gray-500">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <Music className="w-8 h-8 text-gray-400" />
               </div>
-            ) : (
-              <div className="px-4 py-8 text-center text-gray-500">
-                <Music className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                <p>No artists found for "{query}"</p>
-                <p className="text-sm text-gray-400">Try a different search term</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No artists found</h3>
+              <p className="text-sm text-gray-600">Try a different search term</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

@@ -17,6 +17,49 @@ export interface ArtistSearchResult {
 export class UnifiedArtistSearchService {
 
   /**
+   * Fast server-side trigram search for artists
+   * Uses PostgreSQL trigram indexing for improved performance
+   * 
+   * @param query - Search query string
+   * @param limit - Maximum results to return
+   */
+  static async searchArtistsTrigram(query: string, limit: number = 20): Promise<ArtistSearchResult[]> {
+    if (!query || query.length < 2) {
+      return [];
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('search_artists_trigram', {
+        p_search_query: query,
+        p_limit: limit
+      });
+
+      if (error) {
+        console.error('Error in trigram search:', error);
+        // Fall back to regular search if RPC fails
+        return this.searchArtists(query, limit, false);
+      }
+
+      // Transform RPC results to ArtistSearchResult format
+      return (data || []).map((artist: any) => ({
+        id: artist.id,
+        name: artist.name,
+        identifier: artist.identifier || `manual:${artist.id}`,
+        image_url: artist.image_url || undefined,
+        genres: artist.genres || [],
+        band_or_musician: (artist.band_or_musician || 'band') as 'band' | 'musician',
+        num_upcoming_events: artist.num_upcoming_events || 0,
+        match_score: artist.match_score || 0,
+        is_from_database: true,
+      }));
+    } catch (error) {
+      console.error('Error in trigram search:', error);
+      // Fall back to regular search if trigram search fails
+      return this.searchArtists(query, limit, false);
+    }
+  }
+
+  /**
    * Main search function - PROTECTED API USAGE:
    * 1. ALWAYS search local database FIRST
    * 2. Only call external API if useApi=true (explicit user search)
@@ -26,22 +69,38 @@ export class UnifiedArtistSearchService {
    * @param query - Search query string
    * @param limit - Maximum results to return
    * @param useApi - If true, will call external APIs for new results. If false, only searches local DB.
+   * @param useTrigram - If true, uses fast server-side trigram search (default: true)
    */
-  static async searchArtists(query: string, limit: number = 20, useApi: boolean = false): Promise<ArtistSearchResult[]> {
+  static async searchArtists(query: string, limit: number = 20, useApi: boolean = false, useTrigram: boolean = true): Promise<ArtistSearchResult[]> {
     if (!query || query.length < 2) {
       return [];
     }
 
     try {
-      console.log(`🔍 Searching for artists: "${query}" (useApi: ${useApi})`);
+      console.log(`🔍 Searching for artists: "${query}" (useApi: ${useApi}, useTrigram: ${useTrigram})`);
 
       // STEP 1: ALWAYS search local database FIRST (no API call)
       let fuzzyResults: ArtistSearchResult[] = [];
       try {
-        fuzzyResults = await this.getFuzzyMatchedResults(query, limit);
-        console.log(`🎯 Found ${fuzzyResults.length} artists from local database`);
+        // Use fast trigram search if enabled, otherwise use client-side fuzzy matching
+        if (useTrigram) {
+          fuzzyResults = await this.searchArtistsTrigram(query, limit);
+          console.log(`🎯 Found ${fuzzyResults.length} artists using trigram search`);
+        } else {
+          fuzzyResults = await this.getFuzzyMatchedResults(query, limit);
+          console.log(`🎯 Found ${fuzzyResults.length} artists from local database`);
+        }
       } catch (fuzzyError) {
         console.warn('⚠️  Could not get fuzzy results from database:', fuzzyError);
+        // Fall back to non-trigram search if trigram fails
+        if (useTrigram) {
+          try {
+            fuzzyResults = await this.getFuzzyMatchedResults(query, limit);
+            console.log(`🎯 Fallback: Found ${fuzzyResults.length} artists using client-side search`);
+          } catch (fallbackError) {
+            console.warn('⚠️  Fallback search also failed:', fallbackError);
+          }
+        }
       }
 
       // STEP 2: Return database results immediately (for suggestions/autocomplete)
@@ -54,10 +113,25 @@ export class UnifiedArtistSearchService {
       // Note: Ticketmaster API has been removed - we only use database results
       let finalResults: ArtistSearchResult[] = [];
       try {
-        finalResults = await this.getFuzzyMatchedResults(query, limit);
-        console.log(`🎯 Final database results: ${finalResults.length}`);
+        // Use trigram search if enabled
+        if (useTrigram) {
+          finalResults = await this.searchArtistsTrigram(query, limit);
+          console.log(`🎯 Final trigram search results: ${finalResults.length}`);
+        } else {
+          finalResults = await this.getFuzzyMatchedResults(query, limit);
+          console.log(`🎯 Final database results: ${finalResults.length}`);
+        }
       } catch (finalError) {
         console.warn('⚠️  Could not get final results from database:', finalError);
+        // Fall back to non-trigram search if trigram fails
+        if (useTrigram) {
+          try {
+            finalResults = await this.getFuzzyMatchedResults(query, limit);
+            console.log(`🎯 Fallback final results: ${finalResults.length}`);
+          } catch (fallbackError) {
+            console.warn('⚠️  Fallback final search also failed:', fallbackError);
+          }
+        }
       }
 
       // Return database results

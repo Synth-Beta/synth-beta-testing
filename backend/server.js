@@ -106,11 +106,11 @@ setlistRoutes.stack.forEach((route) => {
   }
 });
 if (ticketmasterRoutes && ticketmasterRoutes.stack) {
-  ticketmasterRoutes.stack.forEach((route) => {
-    if (route.route) {
-      console.log(`${Object.keys(route.route.methods).join(', ').toUpperCase()} ${route.route.path}`);
-    }
-  });
+ticketmasterRoutes.stack.forEach((route) => {
+  if (route.route) {
+    console.log(`${Object.keys(route.route.methods).join(', ').toUpperCase()} ${route.route.path}`);
+  }
+});
 }
 
 // Health check
