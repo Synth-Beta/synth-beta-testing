@@ -29,29 +29,9 @@ export class UnifiedArtistSearchService {
     }
 
     try {
-      const { data, error } = await supabase.rpc('search_artists_trigram', {
-        p_search_query: query,
-        p_limit: limit
-      });
-
-      if (error) {
-        console.error('Error in trigram search:', error);
-        // Fall back to regular search if RPC fails
-        return this.searchArtists(query, limit, false);
-      }
-
-      // Transform RPC results to ArtistSearchResult format
-      return (data || []).map((artist: any) => ({
-        id: artist.id,
-        name: artist.name,
-        identifier: artist.identifier || `manual:${artist.id}`,
-        image_url: artist.image_url || undefined,
-        genres: artist.genres || [],
-        band_or_musician: (artist.band_or_musician || 'band') as 'band' | 'musician',
-        num_upcoming_events: artist.num_upcoming_events || 0,
-        match_score: artist.match_score || 0,
-        is_from_database: true,
-      }));
+      // Use the existing getFuzzyMatchedResults method which uses trigram index via .ilike()
+      // This is the accurate function that works with the trigram indexes (like bucket_list, reviews, tour trackers)
+      return await this.getFuzzyMatchedResults(query, limit);
     } catch (error) {
       console.error('Error in trigram search:', error);
       // Fall back to regular search if trigram search fails

@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ProfileSetupStepProps {
   initialData?: {
+    username?: string;
     location_city?: string;
     birthday?: string;
     gender?: string;
@@ -24,6 +25,7 @@ interface ProfileSetupStepProps {
     avatar_url?: string;
   };
   onNext: (data: {
+    username?: string;
     location_city?: string;
     birthday?: string;
     gender?: string;
@@ -35,6 +37,7 @@ interface ProfileSetupStepProps {
 
 export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupStepProps) => {
   const [formData, setFormData] = useState({
+    username: initialData?.username || '',
     location_city: initialData?.location_city || '',
     birthday: initialData?.birthday || '',
     gender: initialData?.gender || '',
@@ -44,6 +47,7 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -114,10 +118,79 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const checkUsernameAvailability = async (username: string): Promise<boolean> => {
+    if (!username.trim()) return false;
+    
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('username')
+        .eq('username', username.toLowerCase().trim())
+        .limit(1);
+
+      if (error && error.code !== 'PGRST116') {
+        // Column might not exist, allow it
+        console.warn('Error checking username:', error);
+        return true; // Allow if column doesn't exist
+      }
+
+      // Username is available if no results found
+      return !data || data.length === 0;
+    } catch (error) {
+      console.error('Error checking username availability:', error);
+      return true; // Allow on error to not block onboarding
+    }
+  };
+
+  const handleUsernameBlur = async () => {
+    const username = formData.username.trim();
+    if (!username) {
+      setErrors({ ...errors, username: '' });
+      return;
+    }
+
+    // Validate format
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!usernameRegex.test(username)) {
+      setErrors({ ...errors, username: 'Username must be 3-20 characters, letters, numbers, and underscores only' });
+      return;
+    }
+
+    // Check availability
+    setIsCheckingUsername(true);
+    const isAvailable = await checkUsernameAvailability(username);
+    setIsCheckingUsername(false);
+
+    if (!isAvailable) {
+      setErrors({ ...errors, username: 'This username is already taken' });
+    } else {
+      setErrors({ ...errors, username: '' });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const newErrors: Record<string, string> = {};
+
+    // Validate username
+    const username = formData.username.trim();
+    if (!username) {
+      newErrors.username = 'Username is required';
+    } else {
+      const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+      if (!usernameRegex.test(username)) {
+        newErrors.username = 'Username must be 3-20 characters, letters, numbers, and underscores only';
+      } else {
+        // Check availability one more time
+        setIsCheckingUsername(true);
+        const isAvailable = await checkUsernameAvailability(username);
+        setIsCheckingUsername(false);
+        if (!isAvailable) {
+          newErrors.username = 'This username is already taken';
+        }
+      }
+    }
 
     // Validate required fields
     if (!formData.location_city.trim()) {
@@ -164,6 +237,42 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Username (Required) */}
+        <div className="space-y-2">
+          <Label htmlFor="username">
+            Username <span className="text-destructive">*</span>
+          </Label>
+          <div className="relative">
+            <Input
+              id="username"
+              placeholder="e.g., musiclover123"
+              value={formData.username}
+              onChange={(e) => {
+                const value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                setFormData({ ...formData, username: value });
+                // Clear error when user starts typing
+                if (errors.username) {
+                  setErrors({ ...errors, username: '' });
+                }
+              }}
+              onBlur={handleUsernameBlur}
+              maxLength={20}
+              className={`bg-white ${errors.username ? 'border-destructive' : ''}`}
+            />
+            {isCheckingUsername && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
+          {errors.username && (
+            <p className="text-sm text-destructive">{errors.username}</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Your unique username (3-20 characters, letters, numbers, and underscores only)
+          </p>
+        </div>
+
         {/* Profile Photo (Optional) */}
         <div className="space-y-2">
           <Label>Profile Photo (Optional)</Label>

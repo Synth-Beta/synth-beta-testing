@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { ProfileSetupStep } from './ProfileSetupStep';
-import { AccountTypeStep } from './AccountTypeStep';
 import { MusicTagsStep } from './MusicTagsStep';
 import { OnboardingSkipModal } from './OnboardingSkipModal';
 import { OnboardingService, ProfileSetupData } from '@/services/onboardingService';
-import { MusicTagsService } from '@/services/musicTagsService';
+import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -23,12 +22,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
   // Step data
   const [profileData, setProfileData] = useState<ProfileSetupData>({});
-  const [accountData, setAccountData] = useState<{
-    accountType: 'user' | 'creator' | 'business';
-    businessInfo?: Record<string, any>;
-  }>({ accountType: 'user' });
 
-  const totalSteps = 3;
+  const totalSteps = 2;
   const progress = (currentStep / totalSteps) * 100;
 
   const handleProfileSetup = async (data: ProfileSetupData) => {
@@ -47,55 +42,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           variant: 'destructive',
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error?.message || 'An error occurred. Please try again.';
       toast({
         title: 'Error',
-        description: 'An error occurred. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAccountType = async (data: {
-    accountType: 'user' | 'creator' | 'business';
-    businessInfo?: Record<string, any>;
-  }) => {
-    if (!user) return;
-
-    setLoading(true);
-    try {
-      // If user selected creator or business, submit upgrade request
-      if (data.accountType !== 'user' && data.businessInfo) {
-        const success = await OnboardingService.requestAccountUpgrade(
-          user.id,
-          data.accountType,
-          data.businessInfo
-        );
-
-        if (!success) {
-          toast({
-            title: 'Error',
-            description: 'Failed to submit account upgrade request.',
-            variant: 'destructive',
-          });
-          setLoading(false);
-          return;
-        }
-
-        toast({
-          title: 'Request Submitted',
-          description: 'Your account upgrade request has been sent for review.',
-        });
-      }
-
-      setAccountData(data);
-      setCurrentStep(3);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'An error occurred. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -108,23 +59,47 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
     setLoading(true);
     try {
-      // Save music tags
-      const genreTags = data.genres.map((genre, index) => ({
-        tag_type: 'genre' as const,
-        tag_value: genre,
-        tag_source: 'manual' as const,
-        weight: Math.max(10 - index, 1),
-      }));
+      // For artists, we need to find or create them in the database
+      // Use trigram search to find existing artists
+      const artistData: { name: string; id?: string }[] = [];
+      
+      for (const artistName of data.artists) {
+        try {
+          // Search for existing artist using trigram search
+          const searchResults = await UnifiedArtistSearchService.searchArtistsTrigram(artistName, 1);
+          
+          if (searchResults.length > 0 && searchResults[0].name.toLowerCase() === artistName.toLowerCase()) {
+            // Found exact match
+            artistData.push({ name: searchResults[0].name, id: searchResults[0].id });
+          } else {
+            // No exact match found - artist will be created via missing entity request
+            // For now, save with just the name (entity_id will be null)
+            artistData.push({ name: artistName });
+            
+            // Submit missing entity request
+            try {
+              const { MissingEntityRequestService } = await import('@/services/missingEntityRequestService');
+              await MissingEntityRequestService.submitRequest({
+                entity_type: 'artist',
+                entity_name: artistName,
+              });
+            } catch (error) {
+              console.warn('Error submitting missing artist request:', error);
+            }
+          }
+        } catch (error) {
+          console.warn(`Error searching for artist "${artistName}":`, error);
+          // Continue with just the name if search fails
+          artistData.push({ name: artistName });
+        }
+      }
 
-      const artistTags = data.artists.map((artist, index) => ({
-        tag_type: 'artist' as const,
-        tag_value: artist,
-        tag_source: 'manual' as const,
-        weight: Math.max(10 - index, 1),
-      }));
-
-      const allTags = [...genreTags, ...artistTags];
-      const success = await MusicTagsService.bulkUpdateMusicTags(user.id, allTags);
+      // Save preferences to user_preference_signals
+      const success = await OnboardingService.saveMusicPreferences(
+        user.id,
+        data.genres,
+        artistData
+      );
 
       if (!success) {
         toast({
@@ -146,6 +121,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
       onComplete();
     } catch (error) {
+      console.error('Error in handleMusicTags:', error);
       toast({
         title: 'Error',
         description: 'An error occurred. Please try again.',
@@ -215,17 +191,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               )}
 
               {currentStep === 2 && (
-                <AccountTypeStep
-                  onNext={handleAccountType}
-                  onBack={() => setCurrentStep(1)}
-                  onSkip={handleSkip}
-                />
-              )}
-
-              {currentStep === 3 && (
                 <MusicTagsStep
                   onNext={handleMusicTags}
-                  onBack={() => setCurrentStep(2)}
+                  onBack={() => setCurrentStep(1)}
                   onSkip={handleSkip}
                 />
               )}

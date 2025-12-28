@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { X, Music, User as UserIcon } from 'lucide-react';
+import { X, Music, User as UserIcon, Loader2 } from 'lucide-react';
 import { MUSIC_GENRES } from '@/data/musicGenres';
 import {
   Command,
@@ -13,6 +13,7 @@ import {
   CommandItem,
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 
 interface MusicTagsStepProps {
   onNext: (data: { genres: string[]; artists: string[] }) => void;
@@ -27,6 +28,10 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip }: MusicTagsStepProps) =>
   const [customArtist, setCustomArtist] = useState('');
   const [genreSearchOpen, setGenreSearchOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [artistSearchResults, setArtistSearchResults] = useState<any[]>([]);
+  const [isSearchingArtists, setIsSearchingArtists] = useState(false);
+  const [artistSearchOpen, setArtistSearchOpen] = useState(false);
+  const artistSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleAddGenre = (genre: string) => {
     if (selectedGenres.length >= 7) {
@@ -61,6 +66,58 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip }: MusicTagsStepProps) =>
     setErrors({ ...errors, genres: '' });
   };
 
+  // Search artists using trigram search
+  useEffect(() => {
+    if (customArtist.trim().length < 2) {
+      setArtistSearchResults([]);
+      setArtistSearchOpen(false);
+      return;
+    }
+
+    // Debounce search
+    if (artistSearchTimeoutRef.current) {
+      clearTimeout(artistSearchTimeoutRef.current);
+    }
+
+    artistSearchTimeoutRef.current = setTimeout(async () => {
+      setIsSearchingArtists(true);
+      try {
+        const results = await UnifiedArtistSearchService.searchArtistsTrigram(
+          customArtist.trim(),
+          5
+        );
+        setArtistSearchResults(results);
+        setArtistSearchOpen(results.length > 0);
+      } catch (error) {
+        console.error('Error searching artists:', error);
+        setArtistSearchResults([]);
+      } finally {
+        setIsSearchingArtists(false);
+      }
+    }, 300);
+
+    return () => {
+      if (artistSearchTimeoutRef.current) {
+        clearTimeout(artistSearchTimeoutRef.current);
+      }
+    };
+  }, [customArtist]);
+
+  const handleSelectArtist = (artist: { name: string; id: string }) => {
+    if (selectedArtists.length >= 15) {
+      setErrors({ ...errors, artists: 'Maximum 15 artists allowed' });
+      return;
+    }
+
+    if (!selectedArtists.includes(artist.name)) {
+      setSelectedArtists([...selectedArtists, artist.name]);
+      setCustomArtist('');
+      setArtistSearchResults([]);
+      setArtistSearchOpen(false);
+      setErrors({ ...errors, artists: '' });
+    }
+  };
+
   const handleAddArtist = () => {
     const artist = customArtist.trim();
     if (!artist) return;
@@ -73,6 +130,8 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip }: MusicTagsStepProps) =>
     if (!selectedArtists.includes(artist)) {
       setSelectedArtists([...selectedArtists, artist]);
       setCustomArtist('');
+      setArtistSearchResults([]);
+      setArtistSearchOpen(false);
       setErrors({ ...errors, artists: '' });
     }
   };
@@ -218,23 +277,69 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip }: MusicTagsStepProps) =>
           </span>
         </div>
 
-        {/* Artist Input */}
-        <div className="flex gap-2">
-          <Input
-            placeholder="Type an artist name..."
-            value={customArtist}
-            onChange={(e) => setCustomArtist(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAddArtist();
-              }
-            }}
-            className="bg-white"
-          />
-          <Button type="button" onClick={handleAddArtist} variant="secondary">
-            Add
-          </Button>
+        {/* Artist Input with Autocomplete */}
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <Input
+                placeholder="Type an artist name..."
+                value={customArtist}
+                onChange={(e) => setCustomArtist(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (artistSearchResults.length > 0 && artistSearchOpen) {
+                      handleSelectArtist(artistSearchResults[0]);
+                    } else {
+                      handleAddArtist();
+                    }
+                  }
+                }}
+                onFocus={() => {
+                  if (artistSearchResults.length > 0 && customArtist.trim().length >= 2) {
+                    setArtistSearchOpen(true);
+                  }
+                }}
+                onBlur={() => {
+                  // Delay closing to allow click on dropdown
+                  setTimeout(() => setArtistSearchOpen(false), 200);
+                }}
+                className="bg-white"
+              />
+              {isSearchingArtists && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
+            <Button type="button" onClick={handleAddArtist} variant="secondary">
+              Add
+            </Button>
+          </div>
+
+          {/* Artist Search Results Dropdown */}
+          {artistSearchOpen && artistSearchResults.length > 0 && (
+            <div 
+              className="border rounded-md bg-white shadow-md max-h-48 overflow-auto z-10"
+              onMouseDown={(e) => e.preventDefault()} // Prevent input blur when clicking dropdown
+            >
+              {artistSearchResults.map((artist) => (
+                <button
+                  key={artist.id}
+                  type="button"
+                  onClick={() => handleSelectArtist(artist)}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <span className="flex-1">{artist.name}</span>
+                  {artist.genres && artist.genres.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {artist.genres[0]}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Selected Artists */}

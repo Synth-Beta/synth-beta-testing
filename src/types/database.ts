@@ -7,6 +7,7 @@
 export interface User {
   id: string; // UUID
   user_id: string; // UUID - references auth.users(id)
+  username: string | null; // TEXT
   name: string;
   avatar_url: string | null;
   bio: string | null;
