@@ -496,11 +496,12 @@ export class ReviewService {
           draft_data: null, // Clear draft data when publishing
           last_saved_at: null, // Clear last_saved_at when publishing
           // All 5 category ratings (0.5-5.0, rounded to 1 decimal) - MUST be included
-          artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' ? Number(reviewData.artist_performance_rating.toFixed(1)) : undefined,
-          production_rating: typeof reviewData.production_rating === 'number' ? Number(reviewData.production_rating.toFixed(1)) : undefined,
-          venue_rating: typeof reviewData.venue_rating === 'number' ? Number(reviewData.venue_rating.toFixed(1)) : undefined,
-          location_rating: typeof reviewData.location_rating === 'number' ? Number(reviewData.location_rating.toFixed(1)) : undefined,
-          value_rating: typeof reviewData.value_rating === 'number' ? Number(reviewData.value_rating.toFixed(1)) : undefined,
+          // Only set if value is > 0, otherwise undefined (NULL in database)
+          artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) && reviewData.artist_performance_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
+          production_rating: typeof reviewData.production_rating === 'number' && !isNaN(reviewData.production_rating) && reviewData.production_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.production_rating)).toFixed(1)) : undefined,
+          venue_rating: typeof reviewData.venue_rating === 'number' && !isNaN(reviewData.venue_rating) && reviewData.venue_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.venue_rating)).toFixed(1)) : undefined,
+          location_rating: typeof reviewData.location_rating === 'number' && !isNaN(reviewData.location_rating) && reviewData.location_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.location_rating)).toFixed(1)) : undefined,
+          value_rating: typeof reviewData.value_rating === 'number' && !isNaN(reviewData.value_rating) && reviewData.value_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.value_rating)).toFixed(1)) : undefined,
           // All 5 category feedback text fields - MUST be included
           artist_performance_feedback: reviewData.artist_performance_feedback?.trim() || undefined,
           production_feedback: reviewData.production_feedback?.trim() || undefined,
@@ -515,6 +516,7 @@ export class ReviewService {
           artist_tags: reviewData.artist_tags,
           photos: reviewData.photos, // Add photos field
           // Preserve setlist if not explicitly provided, otherwise use the new value
+          // setlist is JSONB - store the object directly (Supabase will handle JSONB conversion)
           setlist: reviewData.setlist !== undefined ? reviewData.setlist : (existingReviewData?.setlist || null),
           // Preserve custom_setlist if not explicitly provided
           custom_setlist: reviewData.custom_setlist !== undefined ? reviewData.custom_setlist : (existingReviewData?.custom_setlist || null),
@@ -707,11 +709,12 @@ export class ReviewService {
         is_public: reviewData.is_public ?? true,
         is_draft: false, // Explicitly mark as published (not a draft)
         // All 5 category ratings (0.5-5.0, rounded to 1 decimal)
-        artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' ? Number(reviewData.artist_performance_rating.toFixed(1)) : undefined,
-        production_rating: typeof reviewData.production_rating === 'number' ? Number(reviewData.production_rating.toFixed(1)) : undefined,
-        venue_rating: typeof reviewData.venue_rating === 'number' ? Number(reviewData.venue_rating.toFixed(1)) : undefined,
-        location_rating: typeof reviewData.location_rating === 'number' ? Number(reviewData.location_rating.toFixed(1)) : undefined,
-        value_rating: typeof reviewData.value_rating === 'number' ? Number(reviewData.value_rating.toFixed(1)) : undefined,
+        // Only set if value is > 0, otherwise undefined (NULL in database)
+        artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) && reviewData.artist_performance_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
+        production_rating: typeof reviewData.production_rating === 'number' && !isNaN(reviewData.production_rating) && reviewData.production_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.production_rating)).toFixed(1)) : undefined,
+        venue_rating: typeof reviewData.venue_rating === 'number' && !isNaN(reviewData.venue_rating) && reviewData.venue_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.venue_rating)).toFixed(1)) : undefined,
+        location_rating: typeof reviewData.location_rating === 'number' && !isNaN(reviewData.location_rating) && reviewData.location_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.location_rating)).toFixed(1)) : undefined,
+        value_rating: typeof reviewData.value_rating === 'number' && !isNaN(reviewData.value_rating) && reviewData.value_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.value_rating)).toFixed(1)) : undefined,
         // All 5 category feedback text fields
         artist_performance_feedback: reviewData.artist_performance_feedback?.trim() || undefined,
         production_feedback: reviewData.production_feedback?.trim() || undefined,
@@ -725,7 +728,7 @@ export class ReviewService {
         venue_tags: reviewData.venue_tags,
         artist_tags: reviewData.artist_tags,
         photos: reviewData.photos, // Add photos field
-        setlist: reviewData.setlist, // Add setlist field
+        setlist: reviewData.setlist || null, // Add setlist field (JSONB - Supabase handles conversion)
         attendees: reviewData.attendees, // Add attendees field
         met_on_synth: reviewData.met_on_synth, // Add met_on_synth field
         was_there: true // If someone writes a review, they obviously attended
@@ -854,11 +857,12 @@ export class ReviewService {
           is_public: reviewData.is_public ?? true,
           is_draft: false, // Explicitly mark as published
           // All 5 category ratings (0.5-5.0, rounded to 1 decimal)
-          artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' ? Number(reviewData.artist_performance_rating.toFixed(1)) : undefined,
-          production_rating: typeof reviewData.production_rating === 'number' ? Number(reviewData.production_rating.toFixed(1)) : undefined,
-          venue_rating: typeof reviewData.venue_rating === 'number' ? Number(reviewData.venue_rating.toFixed(1)) : undefined,
-          location_rating: typeof reviewData.location_rating === 'number' ? Number(reviewData.location_rating.toFixed(1)) : undefined,
-          value_rating: typeof reviewData.value_rating === 'number' ? Number(reviewData.value_rating.toFixed(1)) : undefined,
+          // Only set if value is > 0, otherwise undefined (NULL in database)
+          artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) && reviewData.artist_performance_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
+          production_rating: typeof reviewData.production_rating === 'number' && !isNaN(reviewData.production_rating) && reviewData.production_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.production_rating)).toFixed(1)) : undefined,
+          venue_rating: typeof reviewData.venue_rating === 'number' && !isNaN(reviewData.venue_rating) && reviewData.venue_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.venue_rating)).toFixed(1)) : undefined,
+          location_rating: typeof reviewData.location_rating === 'number' && !isNaN(reviewData.location_rating) && reviewData.location_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.location_rating)).toFixed(1)) : undefined,
+          value_rating: typeof reviewData.value_rating === 'number' && !isNaN(reviewData.value_rating) && reviewData.value_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.value_rating)).toFixed(1)) : undefined,
           // All 5 category feedback text fields
           artist_performance_feedback: reviewData.artist_performance_feedback?.trim() || undefined,
           production_feedback: reviewData.production_feedback?.trim() || undefined,
@@ -867,7 +871,7 @@ export class ReviewService {
           value_feedback: reviewData.value_feedback?.trim() || undefined,
           ticket_price_paid: reviewData.ticket_price_paid,
           photos: reviewData.photos,
-          setlist: reviewData.setlist,
+          setlist: reviewData.setlist || null, // JSONB field (Supabase handles conversion)
           was_there: true
         };
 

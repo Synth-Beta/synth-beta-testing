@@ -938,7 +938,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       
       if (flow === 'quick') {
         // Quick flow: use overall rating directly
-        decimalAverage = formData.rating || 0;
+        decimalAverage = typeof formData.rating === 'number' && formData.rating > 0 ? formData.rating : undefined;
       } else if (flow === 'standard') {
         // Standard flow: average of Artist Performance and Venue
         const standardRatings = [
@@ -947,7 +947,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         ].filter((r): r is number => typeof r === 'number' && r > 0);
         decimalAverage = standardRatings.length > 0
           ? Number((standardRatings.reduce((sum, r) => sum + r, 0) / standardRatings.length).toFixed(1))
-          : (formData.rating || 0);
+          : (typeof formData.rating === 'number' && formData.rating > 0 ? formData.rating : undefined);
       } else {
         // Detailed flow: average of all 5 category ratings
       const categoryRatings = [
@@ -960,17 +960,17 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       
         decimalAverage = categoryRatings.length > 0
         ? Number((categoryRatings.reduce((sum, r) => sum + r, 0) / categoryRatings.length).toFixed(1))
-        : (formData.rating || 0);
+        : (typeof formData.rating === 'number' && formData.rating > 0 ? formData.rating : undefined);
       }
       
       const ticketPrice = formData.ticketPricePaid ? Number(formData.ticketPricePaid) : undefined;
       
-      // Round category ratings to 1 decimal place
-      const artistPerfRating = typeof formData.artistPerformanceRating === 'number' ? Number(formData.artistPerformanceRating.toFixed(1)) : undefined;
-      const prodRating = typeof formData.productionRating === 'number' ? Number(formData.productionRating.toFixed(1)) : undefined;
-      const venueRating = typeof formData.venueRating === 'number' ? Number(formData.venueRating.toFixed(1)) : undefined;
-      const locationRating = typeof formData.locationRating === 'number' ? Number(formData.locationRating.toFixed(1)) : undefined;
-      const valueRating = typeof formData.valueRating === 'number' ? Number(formData.valueRating.toFixed(1)) : undefined;
+      // Round category ratings to 1 decimal place - only if value is > 0
+      const artistPerfRating = typeof formData.artistPerformanceRating === 'number' && formData.artistPerformanceRating > 0 ? Number(formData.artistPerformanceRating.toFixed(1)) : undefined;
+      const prodRating = typeof formData.productionRating === 'number' && formData.productionRating > 0 ? Number(formData.productionRating.toFixed(1)) : undefined;
+      const venueRating = typeof formData.venueRating === 'number' && formData.venueRating > 0 ? Number(formData.venueRating.toFixed(1)) : undefined;
+      const locationRating = typeof formData.locationRating === 'number' && formData.locationRating > 0 ? Number(formData.locationRating.toFixed(1)) : undefined;
+      const valueRating = typeof formData.valueRating === 'number' && formData.valueRating > 0 ? Number(formData.valueRating.toFixed(1)) : undefined;
       
       // Trim feedback fields
       const artistPerfFeedback = formData.artistPerformanceFeedback?.trim() || undefined;
@@ -982,7 +982,8 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       const reviewData: ReviewData = {
         review_type: 'event',
         // Send decimal average rating (NUMERIC(3,1) supports decimals)
-        rating: decimalAverage,
+        // Rating will be calculated by database trigger from category ratings if not provided
+        rating: typeof decimalAverage === 'number' && decimalAverage > 0 ? decimalAverage : undefined,
         artist_performance_rating: artistPerfRating,
         production_rating: prodRating,
         venue_rating: venueRating,
@@ -1247,46 +1248,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       
       // Update events table with API setlist data ONLY (not custom setlist)
       // Custom setlist stays in user_reviews.custom_setlist column only
-      if (formData.selectedSetlist) {
-        try {
-          console.log('🎵 EventReviewForm: Updating events with API setlist data:', {
-            eventId,
-            setlist: formData.selectedSetlist,
-            songCount: formData.selectedSetlist.songCount
-          });
-          
-          const updateData: any = {
-            setlist: formData.selectedSetlist,
-            updated_at: new Date().toISOString()
-          };
-          
-          // Add song count if available
-          if (formData.selectedSetlist.songCount) {
-            updateData.setlist_song_count = formData.selectedSetlist.songCount;
-          }
-          
-          // Add setlist.fm URL if available
-          if (formData.selectedSetlist.url) {
-            updateData.setlist_fm_url = formData.selectedSetlist.url;
-          }
-          
-          // Note: setlist_fm_id is not on the events table, only on jambase_events
-          // The setlist data will be synced via trigger if needed
-          
-          const { error: updateError } = await supabase
-            .from('events')
-            .update(updateData)
-            .eq('id', eventId);
-          
-          if (updateError) {
-            console.error('🎵 Error updating events with setlist:', updateError);
-          } else {
-            console.log('🎵 Successfully updated events with setlist data');
-          }
-        } catch (error) {
-          console.error('🎵 Error updating events with setlist:', error);
-        }
-      }
+      // Note: setlist data is stored in the reviews table's setlist field (JSONB)
+      // We do NOT update the events table with setlist data - it belongs in the review
+      // The setlist will be saved as part of the review submission below
       
       try {
         const entityType = formData.reviewType === 'artist' ? 'artist' : (formData.reviewType === 'venue' ? 'venue' : 'event');
@@ -1352,7 +1316,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         const ratingParts = [
           (review as any).artist_performance_rating,
           (review as any).production_rating,
-          review.venue_rating
+          (review as any).venue_rating,
           (review as any).location_rating,
           (review as any).value_rating,
         ].filter((value): value is number => typeof value === 'number' && value > 0);
