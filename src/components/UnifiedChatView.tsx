@@ -532,16 +532,20 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
       });
 
       // Ensure all required fields are present
-      const normalizedChats: Chat[] = sortedChats.map(chat => ({
-        ...chat,
-        latest_message_id: chat.latest_message_id ?? null,
-        latest_message: chat.latest_message ?? null,
-        latest_message_created_at: chat.latest_message_created_at ?? null,
-        latest_message_sender_name: chat.latest_message_sender_name ?? null,
-        group_admin_id: chat.group_admin_id ?? null,
-        created_at: chat.created_at ?? new Date().toISOString(),
-        updated_at: chat.updated_at ?? new Date().toISOString(),
-      }));
+      const normalizedChats: Chat[] = sortedChats.map(chat => {
+        const chatAny = chat as any;
+        return {
+          ...chat,
+          latest_message_id: chat.latest_message_id ?? null,
+          latest_message: chat.latest_message ?? null,
+          latest_message_created_at: chat.latest_message_created_at ?? null,
+          latest_message_sender_name: chat.latest_message_sender_name ?? null,
+          group_admin_id: chat.group_admin_id ?? null,
+          member_count: chatAny.member_count ?? null, // member_count from RPC
+          created_at: chat.created_at ?? new Date().toISOString(),
+          updated_at: chat.updated_at ?? new Date().toISOString(),
+        };
+      });
       
       setChats(normalizedChats);
       
@@ -552,11 +556,16 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         .map(chat => chat.id);
       
       if (directChatIds.length > 0) {
-        const { data: participants } = await supabase
+        const { data: participants, error: participantsError } = await supabase
           .from('chat_participants')
           .select('chat_id, user_id')
           .in('chat_id', directChatIds)
           .neq('user_id', currentUserId);
+        
+        if (participantsError) {
+          console.error('Error fetching chat participants for direct chats:', participantsError);
+          // Continue with empty map if error occurs
+        }
         
         // Build map of chat_id -> other_user_id for direct chats (Bug 1 fix)
         const chatToUserMap = new Map<string, string>();
@@ -1039,17 +1048,34 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   // Settings menu functions
   const fetchChatParticipants = async (chatId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('chats')
-        .select('users')
-        .eq('id', chatId)
-        .single();
+      // Use chat_participants table (3NF compliant)
+      const { data: participantData, error: participantsError } = await supabase
+        .from('chat_participants')
+        .select('user_id, users!user_id(user_id, name, avatar_url)')
+        .eq('chat_id', chatId);
 
-      if (error) throw error;
+      if (participantsError) {
+        console.error('Error fetching chat participants:', participantsError);
+        return;
+      }
 
-      const participantIds = data.users || [];
-      const participants = users.filter(user => participantIds.includes(user.user_id));
-      setChatParticipants(participants);
+      if (!participantData || participantData.length === 0) {
+        setChatParticipants([]);
+        return;
+      }
+
+      // Extract user profiles from the joined data
+      const profiles = participantData
+        .map(p => p.users as any)
+        .filter(Boolean);
+
+      const participantList = profiles?.map(p => ({
+        user_id: p.user_id,
+        name: p.name || 'Unknown User',
+        avatar_url: p.avatar_url || null
+      })) || [];
+
+      setChatParticipants(participantList);
     } catch (error) {
       console.error('Error fetching chat participants:', error);
     }

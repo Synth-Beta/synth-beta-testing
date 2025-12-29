@@ -26,56 +26,152 @@ export class UserEventService {
     try {
       console.log('🔍 setEventInterest called with:', { userId, jambaseEventId, interested });
       
-      // Presence-based interest model: if interested=true ensure row exists; if false, delete it
-      // Use SECURITY DEFINER function to avoid recursive RLS
-      // Always convert event ID to string to match TEXT function signature
-      const { error } = await supabase.rpc('set_user_interest', {
-        event_id: String(jambaseEventId), // Ensure it's always a string
-        interested
-      });
-      
-      console.log('🔍 RPC call result:', { error });
-      if (error) {
-        console.error('🔍 Detailed RPC error:', JSON.stringify(error, null, 2));
-        throw error;
-      }
-
       // Get event UUID from jambase_event_id if needed
+      // The RPC writes to relationships table which expects UUID in related_entity_id
       let eventUuid = jambaseEventId;
-      // Check if jambaseEventId is already a UUID, otherwise look it up
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId);
+      
+      // Always verify the event exists (even if it's a UUID) to ensure foreign key constraint will work
+      const { data: eventCheck, error: eventCheckError } = await supabase
+        .from('events')
+        .select('id')
+        .eq('id', jambaseEventId)
+        .maybeSingle();
+      
+      // Check for query errors first - if the query failed, throw the actual error
+      if (eventCheckError) {
+        throw new Error(`Failed to verify event existence: ${eventCheckError.message}`);
+      }
+      
       if (!isUUID) {
-        const { data: event } = await supabase
+        const { data: event, error: eventError } = await supabase
           .from('events')
           .select('id')
           .eq('jambase_event_id', jambaseEventId)
           .maybeSingle();
+        
+        // Check for query errors first
+        if (eventError) {
+          throw new Error(`Failed to lookup event by jambase_event_id: ${eventError.message}`);
+        }
+        
         if (event) {
           eventUuid = event.id;
         } else {
-          // Event not found - throw error to match removeEventInterest behavior
+          // Event not found - throw error
           throw new Error(`Event not found: ${jambaseEventId}`);
         }
+      } else if (!eventCheck) {
+        // UUID format but event doesn't exist - this will cause foreign key constraint violation
+        throw new Error(`Event not found: ${jambaseEventId}`);
+      }
+      
+      // Verify current authenticated user matches userId parameter
+      // The RPC uses auth.uid() which should match userId
+      const { data: authData1, error: authError1 } = await supabase.auth.getUser();
+      
+      // Check for auth errors
+      if (authError1) {
+        console.warn('⚠️ Error getting auth user:', authError1);
+      }
+      
+      const authUser = authData1?.user;
+      
+      if (authUser?.id !== userId) {
+        console.warn('⚠️ User ID mismatch: auth.uid() =', authUser?.id, 'but userId param =', userId);
+      }
+      
+      // Presence-based interest model: if interested=true ensure row exists; if false, delete it
+      // Use SECURITY DEFINER function to avoid recursive RLS
+      // Pass UUID as string to match TEXT function signature (RPC will cast to UUID)
+      const { error, data: rpcData } = await supabase.rpc('set_user_interest', {
+        event_id: String(eventUuid), // Pass UUID as string (RPC stores in UUID column)
+        interested
+      });
+      
+      console.log('🔍 RPC call result:', { error, eventUuid, rpcData });
+      if (error) {
+        console.error('🔍 Detailed RPC error:', JSON.stringify(error, null, 2));
+        throw error;
       }
       
       console.log('🔍 Checking if relationship was saved:', { userId, eventUuid, interested });
       
       // Wait a moment for the database write to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      const { data, error: fetchError } = await supabase
-        .from('user_event_relationships')
+      // Use RPC to check if relationship exists (bypasses RLS, uses same auth.uid() as insert)
+      const { data: rpcCheckResult, error: rpcCheckError } = await supabase.rpc('check_user_interest', {
+        p_event_id: String(eventUuid)
+      });
+      
+      // Log RPC check error if it occurs (non-fatal, just for debugging)
+      if (rpcCheckError) {
+        console.warn('⚠️ check_user_interest RPC error (non-fatal):', rpcCheckError);
+      }
+      
+      // Get current authenticated user - RPC uses auth.uid() so we should query with that
+      const { data: authData2, error: authError2 } = await supabase.auth.getUser();
+      
+      // Check for auth errors (non-fatal, just log)
+      if (authError2) {
+        console.warn('⚠️ Error getting auth user:', authError2);
+      }
+      
+      const currentAuthUser = authData2?.user;
+      const queryUserId = currentAuthUser?.id || userId; // Use auth.uid() if available, fallback to userId
+      
+      // First, check ALL relationships for this user to see what was actually inserted
+      const { data: allRelationships, error: allError } = await supabase
+        .from('relationships')
+        .select('*')
+        .eq('user_id', queryUserId) // Use auth user ID since RPC uses auth.uid()
+        .eq('related_entity_type', 'event')
+        .eq('relationship_type', 'interest');
+      
+      // Log all relationships query error if it occurs (non-fatal, just for debugging)
+      if (allError) {
+        console.warn('⚠️ Error querying all relationships (non-fatal):', allError);
+      }
+      
+      // Check relationships table (where RPC writes) - try both UUID and TEXT formats
+      // The RPC converts TEXT to UUID, but let's check both to be safe
+      
+      // Try querying with UUID format first
+      // Use queryUserId (auth.uid()) since RPC uses auth.uid() for inserts
+      let { data, error: fetchError } = await supabase
+        .from('relationships')
         .select('*')
         .eq('relationship_type', 'interest')
-        .eq('user_id', userId)
-        .eq('event_id', eventUuid)
+        .eq('user_id', queryUserId) // Use auth user ID since RPC uses auth.uid()
+        .eq('related_entity_type', 'event')
+        .eq('related_entity_id', eventUuid) // UUID format
         .maybeSingle();
+      
+      // If not found, try with TEXT format (in case RPC stored it as TEXT)
+      if (!data && !fetchError) {
+        const { data: textData, error: textError } = await supabase
+          .from('relationships')
+          .select('*')
+          .eq('relationship_type', 'interest')
+          .eq('user_id', queryUserId) // Use auth user ID since RPC uses auth.uid()
+          .eq('related_entity_type', 'event')
+          .eq('related_entity_id', String(eventUuid)) // TEXT format
+          .maybeSingle();
+        
+        if (textData) {
+          data = textData;
+        }
+        if (textError) fetchError = textError;
+      }
       
       console.log('🔍 Fresh state check result:', { 
         found: !!data, 
         error: fetchError,
         eventUuid,
-        interested
+        interested,
+        allRelationshipsCount: allRelationships?.length,
+        allRelatedEntityIds: allRelationships?.map(r => r.related_entity_id)
       });
       
       if (fetchError) throw fetchError;
@@ -145,12 +241,11 @@ export class UserEventService {
         }
       }
       
-      const { error } = await supabase
-        .from('user_event_relationships')
-        .delete()
-        .eq('user_id', userId)
-        .eq('event_id', eventUuid)
-        .eq('relationship_type', 'interest');
+      // Use RPC for consistency (it handles relationships table)
+      const { error } = await supabase.rpc('set_user_interest', {
+        event_id: String(eventUuid),
+        interested: false
+      });
 
       if (error) throw error;
       try {
@@ -183,12 +278,25 @@ export class UserEventService {
         }
       }
       
+      // Get current authenticated user - RPC uses auth.uid() so we should query with that
+      const { data: authData3, error: authError3 } = await supabase.auth.getUser();
+      
+      // Check for auth errors (non-fatal, just log)
+      if (authError3) {
+        console.warn('⚠️ Error getting auth user:', authError3);
+      }
+      
+      const currentAuthUser = authData3?.user;
+      const queryUserId = currentAuthUser?.id || userId; // Use auth.uid() if available, fallback to userId
+      
+      // Check relationships table (where RPC writes)
       const { data, error } = await supabase
-        .from('user_event_relationships')
+        .from('relationships')
         .select('id')
         .eq('relationship_type', 'interest')
-        .eq('user_id', userId)
-        .eq('event_id', eventUuid)
+        .eq('user_id', queryUserId) // Use auth user ID since RPC uses auth.uid()
+        .eq('related_entity_type', 'event')
+        .eq('related_entity_id', eventUuid) // UUID format
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
@@ -211,12 +319,24 @@ export class UserEventService {
     total: number;
   }> {
     try {
-      // Get all event interests from user_event_relationships (3NF compliant)
+      // Get current authenticated user - RPC uses auth.uid() so we should query with that
+      const { data: authData4, error: authError4 } = await supabase.auth.getUser();
+      
+      // Check for auth errors (non-fatal, just log)
+      if (authError4) {
+        console.warn('⚠️ Error getting auth user:', authError4);
+      }
+      
+      const currentAuthUser = authData4?.user;
+      const queryUserId = currentAuthUser?.id || userId; // Use auth.uid() if available, fallback to userId
+      
+      // Get all event interests from relationships table (where RPC writes)
       const { data: relationships, error: relationshipsError } = await supabase
-        .from('user_event_relationships')
+        .from('relationships')
         .select('*')
         .eq('relationship_type', 'interest')
-        .eq('user_id', userId)
+        .eq('user_id', queryUserId) // Use auth user ID since RPC uses auth.uid()
+        .eq('related_entity_type', 'event')
         .order('created_at', { ascending: false });
 
       if (relationshipsError) throw relationshipsError;
@@ -225,8 +345,8 @@ export class UserEventService {
         return { events: [], total: 0 };
       }
 
-      // Extract event UUIDs (all are UUIDs now)
-      const eventIds = relationships.map((r: any) => r.event_id).filter(Boolean);
+      // Extract event UUIDs from related_entity_id (relationships table uses related_entity_id)
+      const eventIds = relationships.map((r: any) => r.related_entity_id).filter(Boolean);
       
       if (eventIds.length === 0) {
         return { events: [], total: 0 };
@@ -248,7 +368,7 @@ export class UserEventService {
       // Combine relationships with events
       const combinedEvents = relationships
         .map((row: any) => {
-          const event = eventMap.get(row.event_id) || null;
+          const event = eventMap.get(row.related_entity_id) || null;
           return {
             interest: {
               id: row.id,
@@ -505,19 +625,31 @@ export class UserEventService {
     total: number;
   }> {
     try {
+      // Get current authenticated user - RPC uses auth.uid() so we should query with that
+      const { data: authData5, error: authError5 } = await supabase.auth.getUser();
+      
+      // Check for auth errors (non-fatal, just log)
+      if (authError5) {
+        console.warn('⚠️ Error getting auth user:', authError5);
+      }
+      
+      const currentAuthUser = authData5?.user;
+      const queryUserId = currentAuthUser?.id || userId; // Use auth.uid() if available, fallback to userId
+      
       const now = new Date();
       now.setHours(0, 0, 0, 0); // Set to start of today for more reliable date comparison
       const nowISOString = now.toISOString().split('T')[0]; // Get YYYY-MM-DD for date comparison
 
-      // Query user_event_relationships with join to events (3NF compliant)
+      // Query relationships table with join to events
       // Use events!inner(*) to enable filtering on nested columns
       const { data, error } = await supabase
-        .from('user_event_relationships')
+        .from('relationships')
         .select(`
           *,
-          events:events!user_event_relationships_event_id_fkey!inner(*)
+          events:events!relationships_related_entity_id_fkey!inner(*)
         `)
-        .eq('user_id', userId)
+        .eq('user_id', queryUserId) // Use auth user ID since RPC uses auth.uid()
+        .eq('related_entity_type', 'event')
         .in('relationship_type', ['interest', 'going', 'maybe'])
         .gte('events.event_date', nowISOString)
         .order('events.event_date', { ascending: true });

@@ -1237,13 +1237,14 @@ export const UnifiedFeed = ({
     if (!currentUserId || eventIds.length === 0) return;
     
     try {
-      // Query user_event_relationships table to get all events user is interested in (3NF compliant)
+      // Query relationships table to get all events user is interested in
       const { data, error } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
+        .from('relationships')
+        .select('related_entity_id')
         .eq('relationship_type', 'interest')
         .eq('user_id', currentUserId)
-        .in('event_id', eventIds);
+        .eq('related_entity_type', 'event')
+        .in('related_entity_id', eventIds);
       
       if (error) {
         console.error('Error loading interested events:', error);
@@ -1254,8 +1255,8 @@ export const UnifiedFeed = ({
       const allInterestedIds = new Set<string>();
       if (data) {
         data.forEach((row: any) => {
-          if (row.event_id) {
-            allInterestedIds.add(String(row.event_id));
+          if (row.related_entity_id) {
+            allInterestedIds.add(String(row.related_entity_id));
           }
         });
       }

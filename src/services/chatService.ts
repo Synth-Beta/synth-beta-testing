@@ -15,6 +15,7 @@ export interface UserChat {
   latest_message_created_at?: string | null;
   latest_message_sender_name?: string | null;
   group_admin_id?: string | null;
+  member_count?: number | null; // Cached count from chat_participants (maintained by trigger)
   created_at: string;
   updated_at: string;
 }

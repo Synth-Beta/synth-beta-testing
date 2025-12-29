@@ -803,13 +803,14 @@ interface FriendEventInterest {
 
       // First, get relationships for friends' event interests
       const { data: relationships, error: relError } = await supabase
-        .from('user_event_relationships')
+        .from('relationships')
         .select(`
           id,
           user_id,
-          event_id,
+          related_entity_id,
           created_at
         `)
+        .eq('related_entity_type', 'event')
         .in('relationship_type', ['going', 'maybe'])
         .in('user_id', friendIds)
         .order('created_at', { ascending: false })
@@ -822,7 +823,7 @@ interface FriendEventInterest {
       }
 
       // Get event IDs and user IDs
-      const eventIds = relationships.map(r => r.event_id).filter(Boolean) as string[];
+      const eventIds = relationships.map(r => r.related_entity_id).filter(Boolean) as string[];
       const userIds = [...new Set(relationships.map(r => r.user_id))];
 
       // Fetch events and users in parallel
