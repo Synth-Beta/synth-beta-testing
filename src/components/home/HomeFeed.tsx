@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PersonalizedFeedService, type PersonalizedEvent, type FeedItem } from '@/services/personalizedFeedService';
-import { HomeFeedService, type NetworkEvent, type EventList, type TrendingEvent } from '@/services/homeFeedService';
+import { HomeFeedService, type NetworkEvent, type EventList, type TrendingEvent, type NetworkReview } from '@/services/homeFeedService';
 import { UnifiedFeedService, type UnifiedFeedItem } from '@/services/unifiedFeedService';
 import { UserEventService } from '@/services/userEventService';
 import { SimpleEventRecommendationService } from '@/services/simpleEventRecommendationService';
@@ -17,7 +17,7 @@ import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
-import { Loader2, Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, ChevronRight, ChevronDown, MapPin } from 'lucide-react';
+import { Loader2, Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, ChevronRight, ChevronDown, MapPin, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { LocationService } from '@/services/locationService';
@@ -79,7 +79,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [recommendedEvents, setRecommendedEvents] = useState<PersonalizedEvent[]>([]);
   const [firstDegreeEvents, setFirstDegreeEvents] = useState<NetworkEvent[]>([]);
   const [secondDegreeEvents, setSecondDegreeEvents] = useState<NetworkEvent[]>([]);
-  const [reviews, setReviews] = useState<UnifiedFeedItem[]>([]);
+  const [reviews, setReviews] = useState<NetworkReview[]>([]);
   const [eventLists, setEventLists] = useState<EventList[]>([]);
   const [trendingEvents, setTrendingEvents] = useState<TrendingEvent[]>([]);
 
@@ -97,6 +97,8 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   }>>([]);
   const [sendingFriendRequests, setSendingFriendRequests] = useState<Set<string>>(new Set());
   const [sentFriendRequests, setSentFriendRequests] = useState<Set<string>>(new Set());
+  const [joiningGroupChats, setJoiningGroupChats] = useState<Set<string>>(new Set());
+  const [joinedGroupChats, setJoinedGroupChats] = useState<Set<string>>(new Set());
   const [recommendedGroupChats, setRecommendedGroupChats] = useState<Array<{
     id: string;
     chat_name: string;
@@ -257,7 +259,9 @@ interface FriendEventInterest {
 
   // Load feed data when feed type changes
   useEffect(() => {
+    console.log('🔄 [HOME FEED] Feed type changed:', selectedFeedType);
     if (selectedFeedType === 'trending') {
+      console.log('🔥 [HOME FEED] Loading trending events...');
       loadTrendingEvents(true);
     } else if (selectedFeedType === 'friends') {
       loadNetworkEvents(true);
@@ -534,15 +538,8 @@ interface FriendEventInterest {
   const loadReviews = async () => {
     setLoadingReviews(true);
     try {
-      const feedItems = await UnifiedFeedService.getFeedItems({
-        userId: currentUserId,
-        feedType: 'friends_plus_one',
-        limit: 20,
-        offset: 0,
-      });
-      // Filter to only reviews
-      const reviewItems = feedItems.filter((item) => item.type === 'review');
-      setReviews(reviewItems);
+      const networkReviews = await HomeFeedService.getNetworkReviews(currentUserId, 20);
+      setReviews(networkReviews);
     } catch (error) {
       console.error('Error loading reviews:', error);
       setReviews([]);
@@ -568,72 +565,118 @@ interface FriendEventInterest {
   const applyFiltersToEvents = <T extends { event_date?: string; venue_city?: string; genres?: string[] | null }>(
     events: T[]
   ): T[] => {
-    return events.filter(event => {
+    console.log('🔍 [FILTER] applyFiltersToEvents called:', { 
+      eventCount: events.length, 
+      filters: {
+        selectedCities: filters.selectedCities,
+        dateRange: filters.dateRange,
+        genres: filters.genres
+      }
+    });
+    
+    const filtered = events.filter((event, index) => {
       // Date filter
       if (filters.dateRange.from || filters.dateRange.to) {
-        if (!event.event_date) return false;
+        if (!event.event_date) {
+          console.log(`🔍 [FILTER] Event ${index} filtered out: no event_date`);
+          return false;
+        }
         const eventDate = new Date(event.event_date);
-        if (filters.dateRange.from && eventDate < filters.dateRange.from) return false;
+        if (filters.dateRange.from && eventDate < filters.dateRange.from) {
+          console.log(`🔍 [FILTER] Event ${index} filtered out: before date range`, eventDate);
+          return false;
+        }
         if (filters.dateRange.to) {
           const toDate = new Date(filters.dateRange.to);
           toDate.setHours(23, 59, 59, 999);
-          if (eventDate > toDate) return false;
+          if (eventDate > toDate) {
+            console.log(`🔍 [FILTER] Event ${index} filtered out: after date range`, eventDate);
+            return false;
+          }
         }
       }
 
-      // City filter
-      if (filters.selectedCities && filters.selectedCities.length > 0) {
-        const eventCity = event.venue_city?.toLowerCase().trim();
-        const matches = filters.selectedCities.some(city => 
-          eventCity?.includes(city.toLowerCase().trim())
-        );
-        if (!matches) return false;
-      }
+      // City filter removed - location filtering is done by coordinates in the service layer
 
       // Genre filter (skip if genres not available on event)
       if (filters.genres && filters.genres.length > 0) {
         const eventGenres = (event.genres || []).map((g: string) => g.toLowerCase());
-        if (eventGenres.length === 0) return false; // No genres on event, skip if genre filter active
+        if (eventGenres.length === 0) {
+          console.log(`🔍 [FILTER] Event ${index} filtered out: no genres`);
+          return false; // No genres on event, skip if genre filter active
+        }
         const matches = filters.genres.some(genre => 
           eventGenres.some((eg: string) => eg.includes(genre.toLowerCase()) || genre.toLowerCase().includes(eg))
         );
-        if (!matches) return false;
+        if (!matches) {
+          console.log(`🔍 [FILTER] Event ${index} filtered out: genre mismatch`, { eventGenres, filterGenres: filters.genres });
+          return false;
+        }
       }
 
       return true;
     });
+    
+    console.log('🔍 [FILTER] applyFiltersToEvents result:', { 
+      inputCount: events.length, 
+      outputCount: filtered.length 
+    });
+    
+    return filtered;
   };
 
   const loadTrendingEvents = async (reset: boolean = false) => {
+    console.log('🔥 [TRENDING] loadTrendingEvents called', { reset, trendingPage, cityCoordinates });
+    
     if (reset) {
       setTrendingPage(0);
-    setLoadingTrending(true);
+      setLoadingTrending(true);
     }
     try {
       const pageSize = 12;
+      console.log('🔥 [TRENDING] Calling getTrendingEvents with params:', {
+        userId: currentUserId,
+        cityLat: cityCoordinates?.lat,
+        cityLng: cityCoordinates?.lng,
+        radiusMiles: 50,
+        limit: (trendingPage + 1) * pageSize,
+        activeCity,
+      });
+      
       const events = await HomeFeedService.getTrendingEvents(
         currentUserId,
         cityCoordinates?.lat,
         cityCoordinates?.lng,
         50,
-        (trendingPage + 1) * pageSize
+        (trendingPage + 1) * pageSize,
+        activeCity || undefined
       );
+      
+      console.log('🔥 [TRENDING] getTrendingEvents returned:', { eventCount: events.length, events });
       
       // Apply filters
       const filteredEvents = applyFiltersToEvents(events);
+      console.log('🔥 [TRENDING] After applying filters:', { filteredCount: filteredEvents.length });
       
       if (reset) {
         setTrendingEvents(filteredEvents.slice(0, pageSize));
+        console.log('🔥 [TRENDING] Set trending events (reset):', filteredEvents.slice(0, pageSize).length);
       } else {
-        setTrendingEvents(prev => [...prev, ...filteredEvents.slice(trendingPage * pageSize, (trendingPage + 1) * pageSize)]);
+        setTrendingEvents(prev => {
+          const newEvents = [...prev, ...filteredEvents.slice(trendingPage * pageSize, (trendingPage + 1) * pageSize)];
+          console.log('🔥 [TRENDING] Set trending events (append):', { prevCount: prev.length, newCount: newEvents.length });
+          return newEvents;
+        });
       }
       
       setTrendingHasMore(filteredEvents.length > (trendingPage + 1) * pageSize);
+      console.log('🔥 [TRENDING] Load complete:', { hasMore: filteredEvents.length > (trendingPage + 1) * pageSize });
     } catch (error) {
-      console.error('Error loading trending events:', error);
+      console.error('❌ [TRENDING] Error loading trending events:', error);
       if (reset) setTrendingEvents([]);
     } finally {
       setLoadingTrending(false);
+      console.log('🔥 [TRENDING] Loading state set to false');
     }
   };
 
@@ -701,18 +744,32 @@ interface FriendEventInterest {
 
       console.log('📊 Raw recommended chats from RPC:', recommendedChats);
 
-      // Transform the RPC response to match the expected format
-      const chatsWithFriends = (recommendedChats || []).map((chat: any) => ({
-        id: chat.chat_id,
-        chat_name: chat.chat_name || chat.entity_name || 'Unnamed Group',
-        member_count: chat.member_count || 0,
-        friends_in_chat_count: 0, // Not calculated in RPC, but kept for compatibility
-        entity_type: chat.entity_type,
-        entity_name: chat.entity_name,
-        entity_image_url: chat.entity_image_url,
-        relevance_score: chat.relevance_score,
-        distance_miles: chat.distance_miles,
-      }));
+      // The RPC function should already filter out chats the user is already in
+      // We also filter out any chats joined in this session using joinedGroupChats state
+      const chatsWithFriends = (recommendedChats || [])
+        .filter((chat: any) => !joinedGroupChats.has(chat.chat_id))
+        .map((chat: any) => {
+          // Clean member_count to ensure it's a proper integer
+          let memberCount = 0;
+          if (typeof chat.member_count === 'number') {
+            memberCount = Math.floor(chat.member_count);
+          } else if (chat.member_count != null) {
+            const cleaned = String(chat.member_count).replace(/[^0-9]/g, '');
+            memberCount = parseInt(cleaned, 10) || 0;
+          }
+          
+          return {
+            id: chat.chat_id,
+            chat_name: chat.chat_name || chat.entity_name || 'Unnamed Group',
+            member_count: memberCount,
+            friends_in_chat_count: 0, // Not calculated in RPC, but kept for compatibility
+            entity_type: chat.entity_type,
+            entity_name: chat.entity_name,
+            entity_image_url: chat.entity_image_url,
+            relevance_score: chat.relevance_score,
+            distance_miles: chat.distance_miles,
+          };
+        });
 
       console.log('✅ Loaded recommended chats:', chatsWithFriends.length, chatsWithFriends);
       setRecommendedGroupChats(chatsWithFriends);
@@ -721,6 +778,54 @@ interface FriendEventInterest {
       setRecommendedGroupChats([]);
     } finally {
       setLoadingRecommendedGroupChats(false);
+    }
+  };
+
+  const handleJoinGroupChat = async (chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click from triggering
+    
+    if (joiningGroupChats.has(chatId) || joinedGroupChats.has(chatId)) {
+      return; // Already joining or joined
+    }
+    
+    setJoiningGroupChats(prev => new Set(prev).add(chatId));
+    
+    try {
+      // Add user to chat by inserting into chat_participants table
+      // The trigger will automatically sync the users array in the chats table
+      const { error: insertError } = await supabase
+        .from('chat_participants')
+        .insert({
+          chat_id: chatId,
+          user_id: currentUserId,
+          joined_at: new Date().toISOString(),
+          notifications_enabled: true,
+          is_admin: false
+        });
+      
+      if (insertError) {
+        // If it's a unique constraint violation, user is already a participant
+        if (insertError.code === '23505') {
+          // User is already in the chat - just update UI
+          setJoinedGroupChats(prev => new Set(prev).add(chatId));
+          setRecommendedGroupChats(prev => prev.filter(chat => chat.id !== chatId));
+          return;
+        }
+        throw insertError;
+      }
+      
+      // Update local state - mark as joined and remove from recommended list
+      setJoinedGroupChats(prev => new Set(prev).add(chatId));
+      setRecommendedGroupChats(prev => prev.filter(chat => chat.id !== chatId));
+    } catch (error) {
+      console.error('Error joining group chat:', error);
+      // You could add a toast notification here
+    } finally {
+      setJoiningGroupChats(prev => {
+        const next = new Set(prev);
+        next.delete(chatId);
+        return next;
+      });
     }
   };
 
@@ -1153,15 +1258,6 @@ interface FriendEventInterest {
                 <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {trendingEvents.map((event) => {
-                      let imageUrl: string | undefined = undefined;
-                      
-                      if (event.images && Array.isArray(event.images) && event.images.length > 0) {
-                        const bestImage = event.images.find((img: any) => 
-                          img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
-                        ) || event.images.find((img: any) => img?.url);
-                        imageUrl = bestImage?.url;
-                      }
-                      
                       return (
                       <CompactEventCard
                         key={event.event_id}
@@ -1172,7 +1268,7 @@ interface FriendEventInterest {
                           venue_name: event.venue_name,
                           event_date: event.event_date,
                           venue_city: event.venue_city || undefined,
-                            image_url: imageUrl,
+                          image_url: event.event_media_url || undefined,
                         }}
                         onClick={() => handleEventClick(event.event_id)}
                       />
@@ -1268,13 +1364,35 @@ interface FriendEventInterest {
                 {recommendedGroupChats.map((chat) => {
                   const imageUrl = chat.entity_image_url || '';
                   const hasImage = imageUrl && imageUrl.trim() !== '';
+                  const isJoining = joiningGroupChats.has(chat.id);
+                  const isJoined = joinedGroupChats.has(chat.id);
                   
                   return (
                     <div
                       key={chat.id}
-                      className="flex flex-col items-center gap-2 p-4 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:border-synth-pink/30 hover:shadow-md transition-all"
-                      onClick={() => onNavigateToChat?.(chat.id)}
+                      className="relative flex flex-col items-center gap-2 p-4 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:border-synth-pink/30 hover:shadow-md transition-all"
+                      onClick={() => {
+                        if (isJoined) {
+                          // Only navigate if already joined
+                          onNavigateToChat?.(chat.id);
+                        }
+                      }}
                     >
+                      {!isJoined && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="absolute top-2 right-2 z-10 h-7 w-7 p-0 rounded-full bg-synth-pink hover:bg-synth-pink/90 text-white"
+                          onClick={(e) => handleJoinGroupChat(chat.id, e)}
+                          disabled={isJoining}
+                        >
+                          {isJoining ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
                       {hasImage ? (
                         <img
                           src={imageUrl}
@@ -1297,7 +1415,14 @@ interface FriendEventInterest {
                       <div className="w-full text-center">
                         <p className="text-sm font-semibold line-clamp-1 mb-1">{chat.chat_name}</p>
                         <p className="text-xs text-gray-600">
-                          {chat.member_count} member{chat.member_count !== 1 ? 's' : ''}
+                          {(() => {
+                            // Ensure member_count is a clean number
+                            const rawCount = chat.member_count;
+                            const count = typeof rawCount === 'number' 
+                              ? Math.floor(rawCount)
+                              : parseInt(String(rawCount || 0).replace(/[^0-9]/g, ''), 10) || 0;
+                            return `${count} member${count !== 1 ? 's' : ''}`;
+                          })()}
                           {chat.friends_in_chat_count && chat.friends_in_chat_count > 0 && (
                             <> • {chat.friends_in_chat_count} friend{chat.friends_in_chat_count !== 1 ? 's' : ''}</>
                           )}
@@ -1339,7 +1464,20 @@ interface FriendEventInterest {
                     event_info: review.event_info,
                   }}
                   onClick={() => {
-                    setSelectedReview(review);
+                    // Convert NetworkReview to UnifiedFeedItem format for the modal
+                    const unifiedReview: UnifiedFeedItem = {
+                      id: review.id,
+                      type: 'review',
+                      title: review.event_info?.artist_name || 'Review',
+                      author: review.author,
+                      created_at: review.created_at,
+                      content: review.content,
+                      rating: review.rating,
+                      photos: review.photos,
+                      event_info: review.event_info,
+                      relevance_score: 0,
+                    };
+                    setSelectedReview(unifiedReview);
                     setReviewDetailOpen(true);
                   }}
                 />
