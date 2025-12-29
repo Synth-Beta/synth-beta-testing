@@ -560,7 +560,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     return renderCurrentView();
   }
 
-  const showMainNav = ['feed', 'search', 'profile'].includes(currentView);
+  const showMainNav = ['feed', 'search', 'profile', 'chat'].includes(currentView);
 
   return (
     <div className="min-h-screen bg-background">
@@ -593,7 +593,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         </div>
       )}
       
-      <div className={showMainNav ? 'pt-[59px]' : 'pt-[59px] pb-16'}>
+      <div className={showMainNav ? 'pt-[59px] pb-20' : 'pt-[59px] pb-16'}>
         {renderCurrentView()}
       </div>
       {/* Show bottom navigation for main pages (Discover, Connect, Share) */}
