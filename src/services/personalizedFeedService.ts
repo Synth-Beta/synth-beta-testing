@@ -51,6 +51,8 @@ export interface PersonalizedEvent extends JamBaseEvent {
   friends_interested_count?: number;
   distance_miles?: number | null;
   poster_image_url?: string | null;
+  recommendation_reason?: string;  // 'just_released', 'because_you_follow_artist', 'because_you_follow_venue', 'because_you_love_genre'
+  recommendation_context?: string; // Additional context (artist name, genre name, etc.)
 }
 
 export interface UserMusicProfile {

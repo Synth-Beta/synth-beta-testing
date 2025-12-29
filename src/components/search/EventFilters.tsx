@@ -30,6 +30,8 @@ export interface FilterState {
   };
   showFilters: boolean;
   radiusMiles: number;
+  latitude?: number;
+  longitude?: number;
   filterByFollowing: 'all' | 'following';
   daysOfWeek: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 }
@@ -608,6 +610,40 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                   </Button>
                 )}
               </div>
+
+              {/* Radius Selector - only show when cities are selected or being selected */}
+              {(tempSelectedCities.length > 0 || (filters.selectedCities && filters.selectedCities.length > 0)) && (
+                <div className="border-t border-gray-200/50 pt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-gray-700">
+                      Search Radius
+                    </label>
+                    <span className="text-sm text-gray-600">
+                      {filters.radiusMiles} miles
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max="100"
+                    step="5"
+                    value={filters.radiusMiles || 25}
+                    onChange={(e) => {
+                      onFiltersChange({
+                        ...filters,
+                        radiusMiles: parseInt(e.target.value, 10)
+                      });
+                    }}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-synth-pink"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>5 mi</span>
+                    <span>25 mi</span>
+                    <span>50 mi</span>
+                    <span>100 mi</span>
+                  </div>
+                </div>
+              )}
 
               {/* Cities List */}
               <div className="max-h-48 overflow-auto pr-1 space-y-1 synth-scrollbar">

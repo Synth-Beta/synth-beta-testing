@@ -32,7 +32,6 @@ import { HomeFeed } from './home/HomeFeed';
 import { streamingSyncService } from '@/services/streamingSyncService';
 import { ToastAction } from '@/components/ui/toast';
 import { EventReviewModal } from './EventReviewModal';
-import { PermanentHeader } from './PermanentHeader';
 
 type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events' | 'onboarding';
 
@@ -564,12 +563,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Permanent Header - shown on all pages */}
-      <PermanentHeader
-        currentUserId={user?.id || ''}
-        onNavigateToNotifications={handleNavigateToNotifications}
-      />
-
       {/* Onboarding Reminder Banner */}
       {showOnboardingReminder && (
         <OnboardingReminderBanner onComplete={() => setCurrentView('onboarding')} />
@@ -577,7 +570,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
       {/* API Key Error Banner - Only show if there's actually an API key issue */}
       {showApiKeyError && (
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" style={{ marginTop: '59px' }}>
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="font-bold">API Key Error Detected</p>
@@ -593,7 +586,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         </div>
       )}
       
-      <div className={showMainNav ? 'pt-[59px] pb-20' : 'pt-[59px] pb-16'}>
+      <div className={showMainNav ? 'pb-20' : 'pb-16'}>
         {renderCurrentView()}
       </div>
       {/* Show bottom navigation for main pages (Discover, Connect, Share) */}

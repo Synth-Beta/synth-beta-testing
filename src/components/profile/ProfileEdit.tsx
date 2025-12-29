@@ -227,12 +227,28 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
             {/* Avatar Upload */}
             <SinglePhotoUpload
               value={formData.avatar_url}
-              onChange={(url) => handleInputChange('avatar_url', url || '')}
+              onChange={async (url) => {
+                handleInputChange('avatar_url', url || '');
+                // Auto-save avatar URL to database immediately after upload
+                if (url && profile && profile.id) {
+                  try {
+                    await supabase
+                      .from('users')
+                      .update({ avatar_url: url })
+                      .eq('user_id', currentUserId);
+                    // Update local profile state to reflect change
+                    setProfile({ ...profile, avatar_url: url });
+                  } catch (error) {
+                    console.error('Error auto-saving avatar:', error);
+                    // Don't show error toast here as upload already succeeded
+                  }
+                }
+              }}
               userId={currentUserId}
               bucket="profile-avatars"
-              maxSizeMB={2}
+              maxSizeMB={25}
               label="Profile Picture"
-              helperText="Upload a photo to personalize your profile. Max 2MB."
+              helperText="Upload a photo to personalize your profile. Max 25MB. Your avatar saves automatically."
               aspectRatio="circle"
             />
 

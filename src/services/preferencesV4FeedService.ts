@@ -4,6 +4,8 @@ import type { PersonalizedEvent } from './personalizedFeedService';
 export interface PreferencesV4FeedFilters {
   city?: string;
   state?: string;
+  latitude?: number;
+  longitude?: number;
   includePast?: boolean;
   maxDaysAhead?: number;
   genres?: string[]; // Genre filters (will be applied client-side for now)
@@ -11,6 +13,7 @@ export interface PreferencesV4FeedFilters {
     from?: Date;
     to?: Date;
   };
+  radiusMiles?: number; // Radius in miles for distance-based filtering
 }
 
 export interface PreferencesV4FeedResult {
@@ -31,23 +34,50 @@ export class PreferencesV4FeedService {
     userId: string,
     limit: number = 20,
     offset: number = 0,
-    filters?: PreferencesV4FeedFilters
+    filters?: PreferencesV4FeedFilters,
+    skipFollowing: boolean = false  // When true, skip following-first logic (for refresh)
   ): Promise<PreferencesV4FeedResult> {
     try {
       console.log('🎯 PreferencesV4Feed: Fetching feed for user:', userId, {
         limit,
         offset,
         filters,
+        skipFollowing,
       });
+
+      // Use city name for backend filtering (prioritize city over lat/lng)
+      // Only use lat/lng coordinates if no city name is provided
+      let cityFilter = filters?.city ?? null;
+      
+      // If we have lat/lng but no city, reverse geocode to get city name
+      // This ensures the backend does the bulk of the location filtering
+      if (filters?.latitude && filters?.longitude && !cityFilter) {
+        try {
+          const { LocationService } = await import('@/services/locationService');
+          const cityName = await LocationService.reverseGeocode(
+            filters.latitude,
+            filters.longitude
+          );
+          if (cityName) {
+            // Extract just the city name (remove state if present)
+            cityFilter = cityName.split(',')[0].trim();
+            console.log(`📍 Reverse geocoded ${filters.latitude},${filters.longitude} to city: ${cityFilter}`);
+          }
+        } catch (error) {
+          console.error('Error reverse geocoding for feed filter:', error);
+        }
+      }
 
       const { data, error } = await supabase.rpc('get_preferences_v4_feed', {
         p_user_id: userId,
         p_limit: limit,
         p_offset: offset,
         p_include_past: filters?.includePast ?? false,
-        p_city_filter: filters?.city ?? null,
+        p_city_filter: cityFilter,
         p_state_filter: filters?.state ?? null,
         p_max_days_ahead: filters?.maxDaysAhead ?? 90,
+        p_skip_following: skipFollowing,
+        p_radius_miles: filters?.radiusMiles ?? null,
       });
 
       if (error) {
@@ -101,6 +131,9 @@ export class PreferencesV4FeedService {
         user_is_interested: row.user_is_interested ?? false,
         interested_count: row.interested_count ?? 0,
         friends_interested_count: row.friends_interested_count ?? 0,
+        // Recommendation reason fields
+        recommendation_reason: row.recommendation_reason || undefined,
+        recommendation_context: row.recommendation_context || undefined,
       }));
 
       // Apply client-side genre filtering if specified
@@ -134,8 +167,24 @@ export class PreferencesV4FeedService {
         }
       }
 
-      // Determine if there are more results (before client-side filtering)
-      const hasMore = data.length === limit;
+      // Apply fine-grained client-side location filtering by lat/long/radius if specified
+      // This is used to refine the results from city-based backend filtering
+      // Only filter if we have lat/lng and the radius is less than 50 miles (city-based filtering should cover larger areas)
+      if (filters?.latitude && filters?.longitude && filters?.radiusMiles && filters.radiusMiles < 50) {
+        const { filterEventsByRadius } = await import('@/utils/distanceUtils');
+        const beforeCount = events.length;
+        events = filterEventsByRadius(
+          events,
+          filters.latitude,
+          filters.longitude,
+          filters.radiusMiles
+        );
+        console.log(`📍 Client-side radius filter: ${beforeCount} -> ${events.length} events (${filters.radiusMiles}mi radius)`);
+      }
+
+      // Determine if there are more results
+      // Use the filtered count to determine hasMore more accurately
+      const hasMore = data.length === limit && events.length > 0;
 
       console.log(`✅ PreferencesV4Feed: Found ${events.length} events`, {
         hasMore,
@@ -164,10 +213,11 @@ export class PreferencesV4FeedService {
     userId: string,
     page: number = 0,
     pageSize: number = 20,
-    filters?: PreferencesV4FeedFilters
+    filters?: PreferencesV4FeedFilters,
+    skipFollowing: boolean = false
   ): Promise<PreferencesV4FeedResult> {
     const offset = page * pageSize;
-    return this.getFeed(userId, pageSize, offset, filters);
+    return this.getFeed(userId, pageSize, offset, filters, skipFollowing);
   }
 }
 

@@ -40,7 +40,7 @@ const createNumberedIcon = (number: number) => {
     ">${number}</div>`,
     iconSize: [32, 32],
     iconAnchor: [16, 16],
-  });
+});
 };
 
 interface MapCalendarTourSectionProps {
@@ -699,17 +699,17 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                       
                       return (
                         <React.Fragment key={idx}>
-                          <Polyline
-                            positions={[
+                      <Polyline
+                        positions={[
                               [lat1, lng1],
                               [lat2, lng2],
-                            ]}
-                            pathOptions={{
-                              color: '#ec4899',
-                              weight: 3,
-                              opacity: 0.7,
-                            }}
-                          />
+                        ]}
+                        pathOptions={{
+                          color: '#ec4899',
+                          weight: 3,
+                          opacity: 0.7,
+                        }}
+                      />
                           {/* Arrowhead marker */}
                           <Marker
                             position={[arrowLat, arrowLng]}

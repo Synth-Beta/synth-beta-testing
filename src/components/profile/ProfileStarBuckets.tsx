@@ -62,10 +62,10 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
       key={review.id}
       type="button"
       onClick={() => onSelectReview?.(review)}
-      className="w-40 shrink-0 rounded-2xl bg-white border border-pink-100 shadow-sm hover:shadow-md transition-shadow text-left overflow-hidden"
+      className="w-40 shrink-0 rounded-2xl bg-white border border-pink-100 shadow-sm hover:shadow-md transition-shadow text-left overflow-hidden flex flex-col h-auto min-h-0"
     >
       {/* Image */}
-      <div className="relative h-20 w-full overflow-hidden">
+      <div className="relative h-20 w-full overflow-hidden shrink-0">
         <img
           src={imageSrc}
           alt={`${artistName} at ${venueName}`}
@@ -78,21 +78,25 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
         />
       </div>
       {/* Text content */}
-      <div className="px-3 py-2 space-y-1">
-        <p className="text-sm font-bold text-gray-900 break-words">{artistName}</p>
-        <p className="text-xs text-gray-600 break-words">{venueName}</p>
-        <p className="text-[11px] text-gray-400">
+      <div className="px-3 py-2 space-y-1 flex flex-col flex-grow min-h-0">
+        {/* Artist name - fixed height for 2 lines to ensure consistent spacing */}
+        <div className="h-8 min-h-[2rem] flex items-center">
+          <p className="text-sm font-bold text-gray-900 break-words leading-tight line-clamp-2">{artistName}</p>
+        </div>
+        {/* Venue - starts at consistent position */}
+        <p className="text-xs text-gray-600 break-words leading-tight">{venueName}</p>
+        <p className="text-[11px] text-gray-400 leading-tight shrink-0">
           {dateStr ? new Date(dateStr).toLocaleDateString() : ''}
         </p>
         {ratingValue > 0 ? (
-          <div className="flex items-center justify-between mt-1">
+          <div className="flex items-center justify-between mt-1 shrink-0">
             {renderStars(ratingValue)}
             <span className="text-xs font-semibold text-gray-800">
               {Math.round(ratingValue * 10) / 10}★
             </span>
           </div>
         ) : (
-          <div className="mt-1">
+          <div className="mt-1 shrink-0">
             <span className="text-xs text-gray-500">No rating</span>
           </div>
         )}

@@ -932,7 +932,7 @@ export class ReviewService {
               .from('reviews')
               .select('id')
               .eq('user_id', userId)
-              .eq('event_id', eventId)
+              .eq('event_id' , eventId)
               .eq('is_draft', true);
             
             if (verifyResult.data && verifyResult.data.length > 0) {

@@ -15,6 +15,7 @@ import { LocationService } from '@/services/locationService';
 import { supabase } from '@/integrations/supabase/client';
 import type { VibeType } from '@/services/discoverVibeService';
 import type { VibeFilters } from '@/services/discoverVibeService';
+import { TopRightMenu } from '@/components/TopRightMenu';
 
 interface DiscoverViewProps {
   currentUserId: string;
@@ -240,9 +241,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   return (
     <div className="min-h-screen bg-[#fcfcfc] pb-[max(2rem,env(safe-area-inset-bottom))]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-6 space-y-2">
-        {/* Search Bar - Always Visible */}
-        <div className="mb-2">
+      {/* Top bar with search and menu */}
+      <div className="sticky top-0 z-50 bg-[#fcfcfc] border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
           <RedesignedSearchPage
             userId={currentUserId}
             allowedTabs={['artists', 'venues', 'users', 'events']}
@@ -263,6 +266,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             onNavigateToChat={onNavigateToChat}
           />
         </div>
+            <TopRightMenu />
+          </div>
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6 space-y-2">
 
         {/* Browse Vibes and Location Filter - Always Visible (Above Search Results) */}
         <div className="mb-2 flex items-center gap-2 flex-wrap overflow-x-auto">

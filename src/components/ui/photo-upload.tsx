@@ -226,7 +226,7 @@ export function SinglePhotoUpload({
   onChange,
   userId,
   bucket,
-  maxSizeMB = 2,
+  maxSizeMB = 25,
   label = 'Photo',
   helperText,
   className,
@@ -310,8 +310,11 @@ export function SinglePhotoUpload({
       });
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      if (galleryInputRef.current) {
+        galleryInputRef.current.value = '';
+      }
+      if (cameraInputRef.current) {
+        cameraInputRef.current.value = '';
       }
     }
   };
@@ -341,7 +344,7 @@ export function SinglePhotoUpload({
   };
 
   const openFilePicker = () => {
-    fileInputRef.current?.click();
+    galleryInputRef.current?.click();
   };
 
   return (

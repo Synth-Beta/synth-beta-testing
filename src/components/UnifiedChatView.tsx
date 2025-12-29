@@ -67,9 +67,12 @@ interface Chat {
   // Verified chat fields
   entity_type?: 'event' | 'artist' | 'venue' | null;
   entity_id?: string | null;
+  entity_uuid?: string | null;
   is_verified?: boolean;
   member_count?: number;
   last_activity_at?: string | null;
+  // Event image URL (for group chats)
+  event_image_url?: string | null;
 }
 
 interface Message {
@@ -531,19 +534,106 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         return bTime - aTime; // Descending order
       });
 
+      // Fetch entity data for group chats (to get event images from artists table)
+      const groupChatIds = sortedChats.filter(chat => chat.is_group_chat).map(chat => chat.id);
+      const entityDataMap = new Map<string, { entity_type?: string; entity_uuid?: string; event_image_url?: string }>();
+      
+      console.log('🔍 fetchChats: Group chat IDs:', groupChatIds);
+      
+      if (groupChatIds.length > 0) {
+        const { data: chatEntities, error: chatEntitiesError } = await supabase
+          .from('chats')
+          .select('id, entity_type, entity_uuid')
+          .in('id', groupChatIds);
+        
+        console.log('🔍 fetchChats: Chat entities:', chatEntities, 'Error:', chatEntitiesError);
+        
+        // For event-type chats, fetch artist image from artists table via event's artist relationship
+        const eventChats = chatEntities?.filter(c => c.entity_type === 'event' && c.entity_uuid) || [];
+        console.log('🔍 fetchChats: Event chats:', eventChats);
+        
+        if (eventChats.length > 0) {
+          const eventIds = eventChats.map(c => c.entity_uuid).filter(Boolean) as string[];
+          console.log('🔍 fetchChats: Event IDs:', eventIds);
+          
+          // Fetch events with artist_id (UUID - direct foreign key to artists.id)
+          const { data: events, error: eventsError } = await supabase
+            .from('events')
+            .select('id, artist_id')
+            .in('id', eventIds);
+          
+          console.log('🔍 fetchChats: Events with artist_id:', events, 'Error:', eventsError);
+          
+          // Get unique artist_ids (UUIDs - direct foreign keys to artists.id)
+          const artistUuids = [...new Set(events?.map(e => e.artist_id).filter(Boolean) as string[])] || [];
+          console.log('🔍 fetchChats: Artist UUIDs:', artistUuids);
+          
+          if (artistUuids.length > 0) {
+            // Directly query artists by their UUID primary key (id)
+            const { data: artists, error: artistsError } = await supabase
+              .from('artists')
+              .select('id, image_url')
+              .in('id', artistUuids);
+            
+            console.log('🔍 fetchChats: Artists fetched by UUID:', artists, 'Error:', artistsError);
+            
+            if (artists && artists.length > 0) {
+              // Create a map: artist_id (UUID from events) -> image_url
+              const artistImageMap = new Map<string, string>();
+              artists.forEach(artist => {
+                if (artist.image_url && artist.id) {
+                  artistImageMap.set(artist.id, artist.image_url);
+                  console.log(`🔍 Mapped artist UUID: ${artist.id} -> image_url: ${artist.image_url}`);
+                }
+              });
+              
+              console.log('🔍 fetchChats: Artist image map:', Array.from(artistImageMap.entries()));
+              
+              // Map artist images to chat IDs via event -> artist relationship
+              events?.forEach(event => {
+                const chat = eventChats.find(c => c.entity_uuid === event.id);
+                if (chat && event.artist_id) {
+                  const artistImageUrl = artistImageMap.get(event.artist_id);
+                  console.log(`🔍 fetchChats: Mapping chat ${chat.id} to artist image:`, {
+                    eventId: event.id,
+                    artist_id: event.artist_id,
+                    imageUrl: artistImageUrl
+                  });
+                  if (artistImageUrl) {
+                    entityDataMap.set(chat.id, {
+                      entity_type: chat.entity_type,
+                      entity_uuid: chat.entity_uuid,
+                      event_image_url: artistImageUrl
+                    });
+                  }
+                }
+              });
+              
+              console.log('🔍 fetchChats: Final entityDataMap:', Array.from(entityDataMap.entries()));
+            } else {
+              console.log('🔍 fetchChats: No artists found for UUIDs:', artistUuids);
+            }
+          }
+        }
+      }
+
       // Ensure all required fields are present
       const normalizedChats: Chat[] = sortedChats.map(chat => {
         const chatAny = chat as any;
+        const entityData = entityDataMap.get(chat.id);
         return {
-          ...chat,
-          latest_message_id: chat.latest_message_id ?? null,
-          latest_message: chat.latest_message ?? null,
-          latest_message_created_at: chat.latest_message_created_at ?? null,
-          latest_message_sender_name: chat.latest_message_sender_name ?? null,
-          group_admin_id: chat.group_admin_id ?? null,
+        ...chat,
+        latest_message_id: chat.latest_message_id ?? null,
+        latest_message: chat.latest_message ?? null,
+        latest_message_created_at: chat.latest_message_created_at ?? null,
+        latest_message_sender_name: chat.latest_message_sender_name ?? null,
+        group_admin_id: chat.group_admin_id ?? null,
           member_count: chatAny.member_count ?? null, // member_count from RPC
-          created_at: chat.created_at ?? new Date().toISOString(),
-          updated_at: chat.updated_at ?? new Date().toISOString(),
+          entity_type: entityData?.entity_type ?? chatAny.entity_type ?? null,
+          entity_uuid: entityData?.entity_uuid ?? chatAny.entity_uuid ?? null,
+          event_image_url: entityData?.event_image_url ?? null,
+        created_at: chat.created_at ?? new Date().toISOString(),
+        updated_at: chat.updated_at ?? new Date().toISOString(),
         };
       });
       
@@ -983,7 +1073,16 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
 
   const getChatAvatar = (chat: Chat) => {
     if (chat.is_group_chat) {
-      return null; // Group chat - could add group avatar logic
+      // For group chats, use event image if available (same logic as home feed)
+      const imageUrl = chat.event_image_url;
+      console.log('🔍 getChatAvatar for group chat:', {
+        chatId: chat.id,
+        chatName: chat.chat_name,
+        event_image_url: imageUrl,
+        entity_type: chat.entity_type,
+        entity_uuid: chat.entity_uuid
+      });
+      return imageUrl || null;
     }
     
     // For direct chats, find the specific other user for this chat (Bug 1 fix)
@@ -1307,17 +1406,17 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
           </div>
           
           {/* Action Button with Dropdown */}
-          <Button 
+            <Button 
             className="w-full bg-[#cc2486] hover:bg-[#b01f75] text-white font-normal shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] hover:shadow-lg transition-all duration-300 rounded-[10px] py-2 px-[15px] h-[36px] border-2 border-[#cc2486] flex items-center justify-center gap-[10px]"
-            onClick={(e) => {
-              e.preventDefault();
-              console.log('🟢 Button clicked! Opening user search');
-              setShowUserSearch(true);
-            }}
-          >
+              onClick={(e) => {
+                e.preventDefault();
+                console.log('🟢 Button clicked! Opening user search');
+                setShowUserSearch(true);
+              }}
+            >
             <span className="text-[16px]">New Chat</span>
             <Plus className="w-6 h-6" />
-          </Button>
+            </Button>
         </div>
 
         {/* Chat List */}
@@ -1424,28 +1523,15 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                               <span className="text-gray-400 italic">No messages yet</span>
                             )}
                           </p>
-                          {chat.is_group_chat && (
+                          {chat.is_group_chat && chat.is_verified && (
                             <div className="flex items-center gap-2 mt-2">
-                              {chat.is_verified ? (
                                 <Badge 
                                   variant="default" 
-                                  className="text-xs bg-gradient-to-r from-green-100 to-emerald-50 text-green-800 border-green-300/50 shadow-sm font-medium"
+                                className="text-xs bg-gradient-to-r from-green-100 to-emerald-50 text-green-800 border-green-300/50 shadow-sm font-medium"
                                 >
                                   <Shield className="w-3 h-3 mr-1" />
                                   Verified {chat.entity_type ? chat.entity_type.charAt(0).toUpperCase() + chat.entity_type.slice(1) : 'Chat'}
                                 </Badge>
-                              ) : (
-                            <Badge 
-                              variant={eventCreatedChats.has(chat.id) ? "default" : "secondary"} 
-                                  className={`text-xs font-medium shadow-sm ${
-                                eventCreatedChats.has(chat.id) 
-                                  ? 'bg-gradient-to-r from-blue-100 to-sky-50 text-blue-800 border-blue-300/50 hover:bg-blue-200' 
-                                  : 'bg-gradient-to-r from-gray-100 to-slate-50 text-gray-800 border-gray-300/50 hover:bg-gray-200'
-                              }`}
-                            >
-                              {eventCreatedChats.has(chat.id) ? 'Event Group' : 'User Group'}
-                            </Badge>
-                              )}
                             </div>
                           )}
                         </div>
@@ -1484,34 +1570,34 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                   <ArrowLeft className="w-6 h-6 text-[#0e0e0e]" />
                 </button>
                 <Avatar className="w-10 h-10 flex-shrink-0">
-                  <AvatarImage src={getChatAvatar(selectedChat) || undefined} />
+                    <AvatarImage src={getChatAvatar(selectedChat) || undefined} />
                   <AvatarFallback className="bg-synth-beige/50 text-synth-black font-medium">
-                    {selectedChat.is_group_chat ? (
+                      {selectedChat.is_group_chat ? (
                       <Users className="w-5 h-5" />
-                    ) : (
-                      getChatDisplayName(selectedChat).split(' ').map(n => n[0]).join('')
-                    )}
-                  </AvatarFallback>
-                </Avatar>
+                      ) : (
+                        getChatDisplayName(selectedChat).split(' ').map(n => n[0]).join('')
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
                 <div className="flex flex-col gap-[6px]">
                   <h2 className="font-medium text-[24px] text-[#0e0e0e] leading-[normal]">
-                    {getChatDisplayName(selectedChat)}
-                  </h2>
+                            {getChatDisplayName(selectedChat)}
+                          </h2>
                   {selectedChat.is_group_chat && selectedChat.member_count !== undefined && (
                     <p className="font-normal text-[16px] text-[#5d646f] underline leading-[normal]">
                       {selectedChat.member_count} Members
                     </p>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-              
-              {/* Settings Menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                
+                {/* Settings Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                     <MoreVertical className="h-6 w-6 text-[#0e0e0e]" />
-                  </Button>
-                </DropdownMenuTrigger>
+                    </Button>
+                  </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     {selectedChat.is_group_chat && (
                       <>
@@ -1615,21 +1701,21 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                           </div>
                         )}
                         <div
-                          className={`flex ${
-                            message.sender_id === currentUserId ? 'justify-end' : 'justify-start'
-                          }`}
-                        >
+                    className={`flex ${
+                      message.sender_id === currentUserId ? 'justify-end' : 'justify-start'
+                    }`}
+                  >
                     {message.message_type === 'review_share' && message.shared_review_id ? (
                       // Review Share Message Card
                       <div className={`flex flex-col ${message.sender_id === currentUserId ? 'items-end' : 'items-start'}`}>
                         <div className={`${message.sender_id === currentUserId ? 'ml-auto' : ''}`}>
-                          <ReviewMessageCard
-                            reviewId={message.shared_review_id}
-                            customMessage={message.metadata?.custom_message}
-                            onReviewClick={handleReviewClick}
-                            currentUserId={currentUserId}
-                            metadata={message.metadata}
-                          />
+                        <ReviewMessageCard
+                          reviewId={message.shared_review_id}
+                          customMessage={message.metadata?.custom_message}
+                          onReviewClick={handleReviewClick}
+                          currentUserId={currentUserId}
+                          metadata={message.metadata}
+                        />
                         </div>
                         <p className={`text-[16px] text-[#5d646f] mt-[6px] font-normal leading-[normal] ${
                           message.sender_id === currentUserId ? 'text-right' : 'text-left'
@@ -1641,15 +1727,15 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                       // Event Share Message Card
                       <div className={`flex flex-col ${message.sender_id === currentUserId ? 'items-end' : 'items-start'}`}>
                         <div className={`${message.sender_id === currentUserId ? 'ml-auto' : ''}`}>
-                          <EventMessageCard
-                            eventId={message.shared_event_id}
-                            customMessage={message.metadata?.custom_message}
-                            onEventClick={handleEventClick}
-                            onInterestToggle={handleInterestToggle}
-                            onAttendanceToggle={handleAttendanceToggle}
-                            currentUserId={currentUserId}
-                            refreshTrigger={refreshTrigger}
-                          />
+                        <EventMessageCard
+                          eventId={message.shared_event_id}
+                          customMessage={message.metadata?.custom_message}
+                          onEventClick={handleEventClick}
+                          onInterestToggle={handleInterestToggle}
+                          onAttendanceToggle={handleAttendanceToggle}
+                          currentUserId={currentUserId}
+                          refreshTrigger={refreshTrigger}
+                        />
                         </div>
                         <p className={`text-[16px] text-[#5d646f] mt-[6px] font-normal leading-[normal] ${
                           message.sender_id === currentUserId ? 'text-right' : 'text-left'
@@ -1677,13 +1763,13 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                     ) : (
                       // Regular Text Message
                       <div className="flex flex-col">
-                        <div
+                      <div
                           className={`max-w-[172px] p-[12px] rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex flex-col gap-[6px] ${
-                            message.sender_id === currentUserId
+                          message.sender_id === currentUserId
                               ? 'bg-[#fdf2f7] ml-auto items-end'
                               : 'bg-[#fcfcfc] items-start'
-                          }`}
-                        >
+                        }`}
+                      >
                           <p className="font-normal text-[16px] text-[#0e0e0e] leading-[normal] break-words whitespace-pre-wrap">{message.content}</p>
                           {!selectedChat?.is_group_chat && (
                             <p className="font-normal text-[16px] text-[#5d646f] leading-[normal]">
@@ -1694,13 +1780,13 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                         {selectedChat?.is_group_chat && (
                           <p className={`font-normal text-[16px] text-[#5d646f] leading-[normal] mt-[6px] ${
                             message.sender_id === currentUserId ? 'text-right' : 'text-left'
-                          }`}>
-                            {format(parseISO(message.created_at), 'h:mm a')}
-                          </p>
+                        }`}>
+                          {format(parseISO(message.created_at), 'h:mm a')}
+                        </p>
                         )}
                       </div>
                     )}
-                        </div>
+                  </div>
                       </div>
                     </div>
                   );
@@ -1748,13 +1834,13 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
           <div className="bg-[#fcfcfc] border border-[#5d646f] rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] w-[353px] h-[452px] flex flex-col p-3 relative">
             {/* Close Button */}
             <button
-              onClick={() => {
-                setShowUserSearch(false);
-                setSelectedUsers([]);
-                setSearchQuery('');
-              }}
+                  onClick={() => {
+                    setShowUserSearch(false);
+                    setSelectedUsers([]);
+                    setSearchQuery('');
+                  }}
               className="absolute top-3 right-3 w-6 h-6 flex items-center justify-center cursor-pointer hover:bg-gray-100 rounded transition-colors"
-            >
+                >
               <X className="w-5 h-5 text-[#0e0e0e]" />
             </button>
             
@@ -1767,35 +1853,35 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
               
               {/* Search Input */}
               <div className="relative">
-                <Input
-                  placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+            <Input
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-[#fcfcfc] border-2 border-[#5d646f] rounded-[10px] h-[45px] pl-[9px] pr-[40px] text-[16px] text-[#5d646f] placeholder:text-[#5d646f] focus:border-[#5d646f] focus:ring-0"
                 />
                 <Search className="absolute right-[9px] top-1/2 -translate-y-1/2 w-6 h-6 text-[#5d646f]" />
-              </div>
-              
+                </div>
+            
               {/* Friends List */}
               <div className="flex flex-col gap-3 h-[235px] overflow-y-auto overflow-x-hidden">
-                {filteredUsers.length === 0 ? (
+              {filteredUsers.length === 0 ? (
                   <div className="text-center py-12">
                     <Users className="w-12 h-12 mx-auto mb-2 text-[#5d646f]" />
                     <p className="text-[#0e0e0e] font-medium mb-1">No friends to chat with yet</p>
                     <p className="text-sm text-[#5d646f]">
-                      You need to be friends with someone before you can chat with them.
-                    </p>
-                  </div>
-                ) : (
-                  filteredUsers.map((user) => {
-                    const isSelected = selectedUsers.some(u => u.user_id === user.user_id);
-                    return (
-                      <div
-                        key={user.user_id}
+                    You need to be friends with someone before you can chat with them.
+                  </p>
+                </div>
+              ) : (
+                filteredUsers.map((user) => {
+                  const isSelected = selectedUsers.some(u => u.user_id === user.user_id);
+                  return (
+                    <div
+                      key={user.user_id}
                         className={`bg-[#fcfcfc] border border-[#cc2486] rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] h-[60px] cursor-pointer flex items-center px-[7px] gap-[45px] transition-all ${
                           isSelected ? 'bg-synth-pink/5' : 'hover:bg-gray-50'
-                        }`}
-                        onClick={() => {
+                      }`}
+                      onClick={() => {
                           // For direct messages, selecting a user should immediately create the chat
                           createDirectChat(user.user_id);
                           setShowUserSearch(false);
@@ -1806,29 +1892,29 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                         {/* Profile Picture and Name */}
                         <div className="flex items-center gap-[6px] flex-1 min-w-0">
                           <Avatar className="w-10 h-10 flex-shrink-0">
-                            <AvatarImage src={user.avatar_url || undefined} />
+                        <AvatarImage src={user.avatar_url || undefined} />
                             <AvatarFallback className="bg-synth-beige/50 text-synth-black font-medium text-sm">
-                              {user.name.split(' ').map(n => n[0]).join('')}
-                            </AvatarFallback>
-                          </Avatar>
+                          {user.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
                           <div className="flex flex-col gap-[6px] justify-center min-w-0 flex-1">
                             <p className="font-bold text-[20px] text-[#0e0e0e] leading-[normal] truncate">
                               {user.name}
                             </p>
-                            {user.bio && (
+                        {user.bio && (
                               <p className="font-normal text-[16px] text-[#5d646f] leading-[normal] truncate">
                                 {user.bio}
                               </p>
-                            )}
-                          </div>
+                        )}
+                      </div>
                         </div>
                         
                         {/* Arrow Icon */}
                         <ChevronRight className="w-6 h-6 text-[#0e0e0e] flex-shrink-0" />
-                      </div>
-                    );
-                  })
-                )}
+                    </div>
+                  );
+                })
+              )}
               </div>
             </div>
           </div>

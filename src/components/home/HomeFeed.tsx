@@ -17,12 +17,21 @@ import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
-import { Loader2, Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, ChevronRight } from 'lucide-react';
+import { Loader2, Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, ChevronRight, ChevronDown, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { LocationService } from '@/services/locationService';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
+import { TopRightMenu } from '@/components/TopRightMenu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
 
 interface HomeFeedProps {
   currentUserId: string;
@@ -109,6 +118,18 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [loadingRecommendedFriends, setLoadingRecommendedFriends] = useState(false);
   const [loadingRecommendedGroupChats, setLoadingRecommendedGroupChats] = useState(false);
 
+  // Feed type selection
+  const [selectedFeedType, setSelectedFeedType] = useState<string>('recommended');
+
+  // Location state for feed filtering
+  const [feedLocation, setFeedLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    radiusMiles: number;
+    locationName: string;
+  } | null>(null);
+  const [locationPopoverOpen, setLocationPopoverOpen] = useState(false);
+
   // Event details modal
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
@@ -136,6 +157,7 @@ interface FriendEventInterest {
   // Load user's active city and apply to filters
   useEffect(() => {
     loadUserCity();
+    loadFeedLocation(); // Also load location for feed filtering
   }, [currentUserId]);
 
   // Automatically apply location to filters (from profile or geolocation)
@@ -233,16 +255,122 @@ interface FriendEventInterest {
     loadCities();
   }, []);
 
+  // Load feed data when feed type changes
+  useEffect(() => {
+    if (selectedFeedType === 'trending') {
+      loadTrendingEvents(true);
+    } else if (selectedFeedType === 'friends') {
+      loadNetworkEvents(true);
+    } else if (selectedFeedType === 'group-chats') {
+      loadRecommendedGroupChats();
+    } else if (selectedFeedType === 'reviews') {
+      loadReviews();
+    }
+  }, [selectedFeedType]);
+
   // Reload sections when filters change
   useEffect(() => {
+    if (selectedFeedType === 'trending') {
     loadTrendingEvents(true);
+    } else if (selectedFeedType === 'friends') {
     loadNetworkEvents(true);
+    }
   }, [filters.genres, filters.selectedCities, filters.dateRange]);
 
-  // Load all feed sections when user/city/date changes
-  useEffect(() => {
-    loadAllFeedSections();
-  }, [currentUserId, activeCity, dateWindow, cityCoordinates]);
+  // Load user location for feed filtering (lat/long from users table or browser geolocation)
+  const loadFeedLocation = async () => {
+    try {
+      // First, try to get user's saved location from database
+      const { data: userProfile, error: userError } = await supabase
+        .from('users')
+        .select('latitude, longitude, location_city')
+        .eq('user_id', currentUserId)
+        .single();
+
+      // Prioritize saved city name if available, otherwise use lat/lng
+      if (userProfile?.location_city) {
+        // User has a saved city - use that for backend filtering
+        setFeedLocation({
+          latitude: userProfile.latitude || 0, // Store lat/lng for potential future use
+          longitude: userProfile.longitude || 0,
+          radiusMiles: 50,
+          locationName: userProfile.location_city,
+        });
+
+        // Preserve the city name in filters for backend filtering
+        setFilters(prev => ({
+          ...prev,
+          selectedCities: prev.selectedCities && prev.selectedCities.length > 0 
+            ? prev.selectedCities // Don't overwrite if user has manually selected cities
+            : [userProfile.location_city], // Use saved city name
+          // Don't set latitude/longitude when we have a city name
+          // The city name will be used for backend filtering
+          radiusMiles: 50,
+        }));
+        return;
+      } else if (userProfile?.latitude && userProfile?.longitude) {
+        // User has coordinates but no city name - reverse geocode to get city
+        let locationName = 'Current Location';
+        try {
+          const cityName = await LocationService.reverseGeocode(
+            userProfile.latitude,
+            userProfile.longitude
+          );
+          if (cityName) {
+            locationName = cityName;
+          }
+        } catch (geoError) {
+          console.error('Error reverse geocoding saved location:', geoError);
+        }
+
+        setFeedLocation({
+          latitude: userProfile.latitude,
+          longitude: userProfile.longitude,
+          radiusMiles: 50,
+          locationName,
+        });
+
+        // Use lat/lng for filtering when no city name is available
+        setFilters(prev => ({
+          ...prev,
+          latitude: userProfile.latitude,
+          longitude: userProfile.longitude,
+          radiusMiles: 50,
+        }));
+        return;
+      }
+
+      // Fallback to browser geolocation
+      try {
+        const currentLocation = await LocationService.getCurrentLocation();
+        const cityName = await LocationService.reverseGeocode(
+          currentLocation.latitude,
+          currentLocation.longitude
+        );
+
+        setFeedLocation({
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          radiusMiles: 50,
+          locationName: cityName || 'Current Location',
+        });
+
+        // Update filters to use lat/long
+        setFilters(prev => ({
+          ...prev,
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          radiusMiles: 50,
+          selectedCities: [], // Clear city-based filtering
+        }));
+      } catch (geoError) {
+        console.error('Error getting current location:', geoError);
+        // Location will remain null if both methods fail
+      }
+    } catch (error) {
+      console.error('Error loading feed location:', error);
+    }
+  };
 
   const loadUserCity = async () => {
     try {
@@ -302,7 +430,7 @@ interface FriendEventInterest {
 
   const loadAllFeedSections = async () => {
     console.log('🔄 HomeFeed: Loading all feed sections...', { currentUserId, activeCity, dateWindow });
-    
+
     // Load all sections in parallel with error handling
     // Use Promise.allSettled so one failure doesn't block others
     // Note: loadRecommendedEvents is now handled by PreferencesV4FeedSection component
@@ -359,7 +487,7 @@ interface FriendEventInterest {
   const loadNetworkEvents = async (reset: boolean = false) => {
     if (reset) {
       setFriendsPage(0);
-      setLoadingNetwork(true);
+    setLoadingNetwork(true);
     }
     try {
       const pageSize = 18;
@@ -388,8 +516,8 @@ interface FriendEventInterest {
     } catch (error) {
       console.error('Error loading network events:', error);
       if (reset) {
-        setFirstDegreeEvents([]);
-        setSecondDegreeEvents([]);
+      setFirstDegreeEvents([]);
+      setSecondDegreeEvents([]);
       }
     } finally {
       setLoadingNetwork(false);
@@ -479,7 +607,7 @@ interface FriendEventInterest {
   const loadTrendingEvents = async (reset: boolean = false) => {
     if (reset) {
       setTrendingPage(0);
-      setLoadingTrending(true);
+    setLoadingTrending(true);
     }
     try {
       const pageSize = 12;
@@ -917,437 +1045,273 @@ interface FriendEventInterest {
     return 'Based on your preferences';
   };
 
-  return (
-    <div className="min-h-screen bg-[#fcfcfc] pb-[max(2rem,env(safe-area-inset-bottom))]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-6 space-y-2">
-        {/* Recommended Friends Accordion - Open by default */}
-        <Accordion type="single" collapsible defaultValue="recommended-friends" className="w-full mb-2">
-          <AccordionItem value="recommended-friends" className="border border-gray-200 rounded-xl px-3 py-2 bg-white">
-            <AccordionTrigger className="hover:no-underline py-2">
-              <div className="flex items-center gap-2">
-                <UserPlus className="h-4 w-4 text-synth-pink" />
-                <h2 className="text-base font-bold">Recommended Friends</h2>
-                {recommendedFriends.length > 0 && (
-                  <span className="text-xs text-muted-foreground">({recommendedFriends.length})</span>
-                )}
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="pt-2">
-              {loadingRecommendedFriends ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : recommendedFriends.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <p>No recommended friends at this time.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto pb-2 scrollbar-hide">
-                  <div className="flex gap-3" style={{ width: 'max-content' }}>
-                    {recommendedFriends.map((friend) => {
-                      const isSending = sendingFriendRequests.has(friend.connected_user_id);
-                      const isSent = sentFriendRequests.has(friend.connected_user_id);
+  const feedTypes = [
+    { value: 'recommended', label: 'Hand Picked Events' },
+    { value: 'trending', label: 'Trending Events' },
+    { value: 'friends', label: 'Friends Interested' },
+    { value: 'group-chats', label: 'Recommended Group Chats' },
+    { value: 'reviews', label: 'Reviews' },
+  ];
                       
                       return (
-                        <div
-                          key={friend.connected_user_id}
-                          className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden cursor-pointer group relative bg-gray-100 hover:shadow-lg transition-all duration-200"
-                          onClick={() => onNavigateToProfile?.(friend.connected_user_id)}
-                        >
-                          {/* Avatar fills entire card */}
-                          <Avatar className="w-full h-full rounded-lg">
-                            <AvatarImage src={friend.avatar_url || undefined} className="object-cover" />
-                            <AvatarFallback className="bg-gradient-to-br from-synth-pink/20 to-synth-pink/40 text-synth-pink text-base font-semibold rounded-lg">
-                              {friend.name ? friend.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
-                            </AvatarFallback>
-                        </Avatar>
-                          
-                          {/* Overlay with info on hover */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-                            <div className="absolute bottom-0 left-0 right-0 p-1.5 text-white">
-                              <p className="text-[10px] font-semibold line-clamp-1 mb-0.5">{friend.name}</p>
-                              {friend.mutual_friends_count && friend.mutual_friends_count > 0 && (
-                                <p className="text-[9px] opacity-90">{friend.mutual_friends_count} mutual</p>
-                              )}
+    <div className="min-h-screen bg-[#fcfcfc] pb-[max(2rem,env(safe-area-inset-bottom))]">
+      {/* Top bar with feed type dropdown and menu */}
+      <div className="sticky top-0 z-50 bg-[#fcfcfc] border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+          <div className="flex-1 flex justify-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2 bg-white">
+                  {feedTypes.find(ft => ft.value === selectedFeedType)?.label || 'Hand Picked Events'}
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-white">
+                {feedTypes.map((feedType) => (
+                  <DropdownMenuItem
+                    key={feedType.value}
+                    onClick={() => setSelectedFeedType(feedType.value)}
+                  >
+                    {feedType.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
                             </div>
-                          </div>
-
-                          {/* Bottom info bar (always visible) */}
-                          <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1">
-                            <p className="text-[10px] font-medium text-white line-clamp-1 truncate">
-                              {friend.name}
-                            </p>
-                          </div>
-
-                          {/* Add Friend Button - positioned absolutely */}
-                          <div
-                            className="absolute top-1 right-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddFriend(friend.connected_user_id, e);
-                            }}
-                          >
+          <div className="flex items-center gap-2">
+            {/* Location Icon */}
+            {feedLocation && (
+              <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
+                <PopoverTrigger asChild>
                         <Button
+                    variant="ghost"
                           size="sm"
-                              variant={isSent ? "outline" : "default"}
-                              className={`h-5 w-5 p-0 ${
-                                isSent 
-                                  ? "bg-white/90 text-gray-600 border-gray-300" 
-                                  : "bg-synth-pink hover:bg-synth-pink/90 text-white border-0"
-                              }`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                                handleAddFriend(friend.connected_user_id, e);
-                              }}
-                              disabled={isSending || isSent}
+                    className="h-8 w-8 p-0 hover:bg-gray-100"
+                    title={`${feedLocation.locationName} (${feedLocation.radiusMiles} mi radius)`}
                             >
-                              {isSending ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : isSent ? (
-                                <UserCheck className="w-3 h-3" />
-                              ) : (
-                                <UserPlus className="w-3 h-3" />
-                              )}
+                    <MapPin className="h-4 w-4 text-gray-700" />
                         </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="end">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium">Location</Label>
+                      <p className="text-sm text-gray-600 mt-1">{feedLocation.locationName}</p>
                       </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">Radius</Label>
+                        <span className="text-sm text-gray-600">{feedLocation.radiusMiles} miles</span>
                         </div>
+                      <Slider
+                        value={[feedLocation.radiusMiles]}
+                        onValueChange={(value) => {
+                          const newRadius = value[0];
+                          setFeedLocation(prev => prev ? { ...prev, radiusMiles: newRadius } : null);
+                          setFilters(prev => ({
+                            ...prev,
+                            radiusMiles: newRadius,
+                          }));
+                        }}
+                        min={1}
+                        max={50}
+                        step={1}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>1 mi</span>
+                        <span>50 mi</span>
+                        </div>
+                          </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Update your location preferences in Settings
+                          </p>
+                        </div>
+                </PopoverContent>
+              </Popover>
+            )}
+            <TopRightMenu />
+                      </div>
+                  </div>
+                </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
+        {/* Feed content based on selection */}
+        {selectedFeedType === 'recommended' && (
+              <PreferencesV4FeedSection
+                userId={currentUserId}
+                onEventClick={handleEventClick}
+                filters={filters}
+          />
+        )}
+        {selectedFeedType === 'trending' && (
+          <div className="space-y-4">
+              {loadingTrending && trendingEvents.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {trendingEvents.map((event) => {
+                      let imageUrl: string | undefined = undefined;
+                      
+                      if (event.images && Array.isArray(event.images) && event.images.length > 0) {
+                        const bestImage = event.images.find((img: any) => 
+                          img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
+                        ) || event.images.find((img: any) => img?.url);
+                        imageUrl = bestImage?.url;
+                      }
+                      
+                      return (
+                      <CompactEventCard
+                        key={event.event_id}
+                        event={{
+                          id: event.event_id,
+                          title: event.title,
+                          artist_name: event.artist_name,
+                          venue_name: event.venue_name,
+                          event_date: event.event_date,
+                          venue_city: event.venue_city || undefined,
+                            image_url: imageUrl,
+                        }}
+                        onClick={() => handleEventClick(event.event_id)}
+                      />
                       );
                     })}
                   </div>
-                </div>
+                  {trendingHasMore && (
+                    <div className="flex justify-center pt-4">
+                      <Button
+                        variant="outline"
+                      onClick={() => {
+                        setTrendingPage(prev => prev + 1);
+                        loadTrendingEvents(false);
+                      }}
+                        disabled={loadingTrending}
+                      >
+                        {loadingTrending ? (
+                          <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            Loading...
+                          </>
+                        ) : (
+                        'Load More'
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-
-        {/* Recommended Chats Accordion */}
-        <Accordion type="single" collapsible className="w-full mb-2">
-          <AccordionItem value="recommended-chats" className="border border-gray-200 rounded-xl px-3 py-2 bg-white">
-            <AccordionTrigger className="hover:no-underline py-2">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-synth-pink" />
-                <h2 className="text-base font-bold">Recommended Chats</h2>
-                {recommendedGroupChats.length > 0 && (
-                  <span className="text-xs text-muted-foreground">({recommendedGroupChats.length})</span>
-                )}
               </div>
-            </AccordionTrigger>
-            <AccordionContent className="pt-2">
-              {loadingRecommendedGroupChats ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : recommendedGroupChats.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <p>No recommended chats at this time.</p>
+        )}
+        {selectedFeedType === 'friends' && (
+          <div className="space-y-4">
+              {loadingNetwork && firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <div className="overflow-x-auto pb-2 scrollbar-hide">
-                  <div className="flex gap-3" style={{ width: 'max-content' }}>
-                    {recommendedGroupChats.map((chat) => {
-                      const imageUrl = chat.entity_image_url || '';
-                      const hasImage = imageUrl && imageUrl.trim() !== '';
-                      
-                      return (
-                      <div
-                        key={chat.id}
-                        className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden cursor-pointer group relative bg-gradient-to-br from-synth-pink/20 to-synth-pink/40 hover:shadow-lg transition-all duration-200"
-                        onClick={() => onNavigateToChat?.(chat.id)}
+                <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {[...firstDegreeEvents, ...secondDegreeEvents].map((event) => (
+                      <CompactEventCard
+                      key={event.event_id}
+                        event={{
+                          id: event.event_id,
+                          title: event.title,
+                        artist_name: event.artist_name,
+                        venue_name: event.venue_name,
+                          event_date: event.event_date,
+                        venue_city: event.venue_city || undefined,
+                        }}
+                        onClick={() => handleEventClick(event.event_id)}
+                      />
+                  ))}
+                  </div>
+                  {friendsHasMore && (
+                    <div className="flex justify-center pt-4">
+                      <Button
+                        variant="outline"
+                      onClick={() => {
+                        setFriendsPage(prev => prev + 1);
+                        loadNetworkEvents(false);
+                      }}
+                        disabled={loadingNetwork}
                       >
-                          {/* Entity image or placeholder */}
-                          {hasImage ? (
-                            <img
-                              src={imageUrl}
-                              alt={chat.entity_name || chat.chat_name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                // Fallback to placeholder if image fails to load
-                                const target = e.target as HTMLImageElement;
-                                target.src = getFallbackEventImage(chat.id);
-                                target.onerror = null; // Prevent infinite loop
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center p-2 bg-gradient-to-br from-synth-pink/20 to-synth-pink/40">
+                        {loadingNetwork ? (
+                          <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            Loading...
+                          </>
+                        ) : (
+                        'Load More'
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+          </div>
+        )}
+        {selectedFeedType === 'group-chats' && (
+          <div className="space-y-4">
+            {loadingRecommendedGroupChats ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : recommendedGroupChats.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>No recommended chats at this time.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {recommendedGroupChats.map((chat) => {
+                  const imageUrl = chat.entity_image_url || '';
+                  const hasImage = imageUrl && imageUrl.trim() !== '';
+                  
+                  return (
+                    <div
+                      key={chat.id}
+                      className="flex flex-col items-center gap-2 p-4 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:border-synth-pink/30 hover:shadow-md transition-all"
+                      onClick={() => onNavigateToChat?.(chat.id)}
+                    >
+                      {hasImage ? (
+                        <img
+                          src={imageUrl}
+                          alt={chat.entity_name || chat.chat_name}
+                          className="w-full aspect-square object-cover rounded-lg"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = getFallbackEventImage(chat.id);
+                            target.onerror = null;
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full aspect-square flex flex-col items-center justify-center p-2 bg-gradient-to-br from-synth-pink/20 to-synth-pink/40 rounded-lg">
                           <MessageSquare className="w-8 h-8 text-synth-pink mb-1" />
                           <p className="text-[10px] font-semibold text-synth-pink text-center line-clamp-2">
                             {chat.chat_name}
                           </p>
                         </div>
+                      )}
+                      <div className="w-full text-center">
+                        <p className="text-sm font-semibold line-clamp-1 mb-1">{chat.chat_name}</p>
+                        <p className="text-xs text-gray-600">
+                          {chat.member_count} member{chat.member_count !== 1 ? 's' : ''}
+                          {chat.friends_in_chat_count && chat.friends_in_chat_count > 0 && (
+                            <> • {chat.friends_in_chat_count} friend{chat.friends_in_chat_count !== 1 ? 's' : ''}</>
                           )}
-                        
-                        {/* Overlay with info on hover */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-                          <div className="absolute bottom-0 left-0 right-0 p-1.5 text-white">
-                            <p className="text-[10px] font-semibold line-clamp-1 mb-0.5">{chat.chat_name}</p>
-                            <p className="text-[9px] opacity-90">
-                              {chat.member_count} member{chat.member_count !== 1 ? 's' : ''}
-                              {chat.friends_in_chat_count && chat.friends_in_chat_count > 0 && (
-                                <> • {chat.friends_in_chat_count} friend{chat.friends_in_chat_count !== 1 ? 's' : ''}</>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Bottom info bar (always visible) */}
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1">
-                          <p className="text-[10px] font-medium text-white line-clamp-1 truncate">
-                            {chat.chat_name}
-                          </p>
-                        </div>
+                        </p>
                       </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-
-        {/* Collapsible Event Sections */}
-        <Accordion type="multiple" className="w-full space-y-2">
-          {/* 1. Your Events */}
-          <AccordionItem value="recommended" className="border border-gray-200 rounded-xl px-3 py-2 bg-white">
-            <AccordionTrigger className="hover:no-underline py-2">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-synth-pink" />
-                <h2 className="text-base font-bold">Your Events</h2>
-                            </div>
-            </AccordionTrigger>
-            <AccordionContent className="pt-2">
-              <PreferencesV4FeedSection
-                userId={currentUserId}
-                onEventClick={handleEventClick}
-                filters={filters}
-                filterControls={
-                  <EventFilters
-                    filters={filters}
-                    onFiltersChange={(newFilters) => {
-                      setFilters(newFilters);
-                    }}
-                    availableGenres={availableGenres}
-                    availableCities={availableCities}
-                    className="flex-1"
-                  />
-                }
-              />
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* 2. Trending */}
-          <AccordionItem value="trending" className="border border-gray-200 rounded-xl px-3 py-2 bg-white">
-            <AccordionTrigger className="hover:no-underline py-2">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-synth-pink" />
-                <h2 className="text-base font-bold">Trending</h2>
-                {trendingEvents.length > 0 && (
-                  <span className="text-xs text-muted-foreground">({trendingEvents.length})</span>
-                )}
+                    </div>
+                  );
+                })}
               </div>
-            </AccordionTrigger>
-            <AccordionContent className="pt-2">
-              {loadingTrending && trendingEvents.length === 0 ? (
-                <div className="flex items-center justify-center py-6">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <>
-                  {trendingEvents.length > 0 ? (
-                    <div className="overflow-x-auto pb-2 scrollbar-hide">
-                      <div className="flex gap-3" style={{ width: 'max-content' }}>
-                        {trendingEvents.map((event) => {
-                          // Resolve image URL with priority:
-                          // 1. poster_image_url (if available)
-                          // 2. images JSONB (first image URL, prefer 16:9 or large images)
-                          let imageUrl: string | undefined = undefined;
-                          
-                          if (event.images && Array.isArray(event.images) && event.images.length > 0) {
-                            // Prefer 16:9 ratio or large images
-                            const bestImage = event.images.find((img: any) => 
-                              img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
-                            ) || event.images.find((img: any) => img?.url);
-                            imageUrl = bestImage?.url;
-                          }
-                          
-                          return (
-                          <CompactEventCard
-                            key={event.event_id}
-                            event={{
-                              id: event.event_id,
-                              title: event.title,
-                              artist_name: (event as any).artist_name_normalized,
-                              venue_name: (event as any).venue_name_normalized,
-                              event_date: event.event_date,
-                              venue_city: event.venue_city,
-                                image_url: imageUrl,
-                                poster_image_url: imageUrl,
-                            }}
-                            onClick={() => handleEventClick(event.event_id)}
-                          />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 text-muted-foreground text-sm">
-                      <p>No trending events right now.</p>
-                    </div>
-                  )}
-
-                  {/* Filters on their own row - always visible */}
-                  <div className={`pt-4 ${trendingEvents.length > 0 ? 'border-t' : ''}`}>
-                    <EventFilters
-                      filters={filters}
-                      onFiltersChange={(newFilters) => {
-                        setFilters(newFilters);
-                      }}
-                      availableGenres={availableGenres}
-                      availableCities={availableCities}
-                      className="w-full"
-                    />
-                  </div>
-
-                  {/* Load More Button - on its own row, centered */}
-                  {trendingHasMore && (
-                    <div className="flex justify-center pt-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={loadMoreTrending}
-                        disabled={loadingTrending}
-                        className="flex items-center gap-2"
-                      >
-                        {loadingTrending ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Loading...
-                          </>
-                        ) : (
-                          <>
-                            Load More
-                            <ChevronRight className="w-4 h-4" />
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* 3. Friends Interested */}
-          <AccordionItem value="friends" className="border border-gray-200 rounded-xl px-3 py-2 bg-white">
-            <AccordionTrigger className="hover:no-underline py-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-synth-pink" />
-                <h2 className="text-base font-bold">Friends Interested</h2>
-                {(() => {
-                  const totalInterested = [...firstDegreeEvents, ...secondDegreeEvents].reduce((sum, event) => {
-                    return sum + (event.interested_count || 1);
-                  }, 0);
-                  return totalInterested > 0 ? (
-                    <span className="text-xs text-muted-foreground">({totalInterested})</span>
-                  ) : null;
-                })()}
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="pt-2">
-              {loadingNetwork && firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
-                <div className="flex items-center justify-center py-6">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <>
-                  {firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground text-sm">
-                      <p>No friends interested in events yet.</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto pb-2 scrollbar-hide">
-                      <div className="flex gap-3" style={{ width: 'max-content' }}>
-                        {[...firstDegreeEvents, ...secondDegreeEvents].map((event) => {
-                          // Resolve image URL with priority:
-                          // 1. poster_image_url (if available)
-                          // 2. images JSONB (first image URL, prefer 16:9 or large images)
-                          let imageUrl: string | undefined = undefined;
-                          
-                          if (event.images && Array.isArray(event.images) && event.images.length > 0) {
-                            // Prefer 16:9 ratio or large images
-                            const bestImage = event.images.find((img: any) => 
-                              img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
-                            ) || event.images.find((img: any) => img?.url);
-                            imageUrl = bestImage?.url;
-                          }
-                          
-                          return (
-                          <CompactEventCard
-                            key={`${event.event_id}-${event.friend_id}`}
-                            event={{
-                              id: event.event_id,
-                              title: event.title,
-                              artist_name: (event as any).artist_name_normalized,
-                              venue_name: (event as any).venue_name_normalized,
-                              event_date: event.event_date,
-                              venue_city: event.venue_city,
-                                image_url: imageUrl,
-                                poster_image_url: imageUrl,
-                            }}
-                            onClick={() => handleEventClick(event.event_id)}
-                          />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Filters on their own row - always visible */}
-                  <div className={`pt-4 ${(firstDegreeEvents.length > 0 || secondDegreeEvents.length > 0) ? 'border-t' : ''}`}>
-                    <EventFilters
-                      filters={filters}
-                      onFiltersChange={(newFilters) => {
-                        setFilters(newFilters);
-                      }}
-                      availableGenres={availableGenres}
-                      availableCities={availableCities}
-                      className="w-full"
-                    />
-                  </div>
-
-                  {/* Load More Button - on its own row, centered */}
-                  {friendsHasMore && (
-                    <div className="flex justify-center pt-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={loadMoreFriends}
-                        disabled={loadingNetwork}
-                        className="flex items-center gap-2"
-                      >
-                        {loadingNetwork ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Loading...
-                          </>
-                        ) : (
-                          <>
-                            Load More
-                            <ChevronRight className="w-4 h-4" />
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-
-        {/* 3. Reviews Feed */}
-        <section className="mt-2">
-          <h2 className="text-lg font-bold mb-2">Reviews Feed</h2>
+            )}
+          </div>
+        )}
+        {selectedFeedType === 'reviews' && (
+          <div className="space-y-4">
           {loadingReviews ? (
             <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -1357,7 +1321,7 @@ interface FriendEventInterest {
               <p>No reviews yet. Be the first to review an event!</p>
                   </div>
                 ) : (
-            <div className="space-y-2">
+              <div className="space-y-3">
               {reviews.map((review) => (
                 <NetworkReviewCard
                   key={review.id}
@@ -1382,18 +1346,8 @@ interface FriendEventInterest {
               ))}
             </div>
               )}
-        </section>
-
-        {/* 4. Lists & Collections */}
-        <section>
-          {loadingLists ? (
-            <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                   </div>
-          ) : (
-            <EventListsCarousel lists={eventLists} onEventClick={handleEventClick} />
           )}
-        </section>
       </div>
 
       {/* Event Details Modal */}

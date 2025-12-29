@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Calendar, MapPin } from 'lucide-react';
+import { Calendar, MapPin, Plus, Send } from 'lucide-react';
 
 interface CompactEventCardProps {
   event: {
@@ -14,12 +14,20 @@ interface CompactEventCardProps {
     image_url?: string;
     poster_image_url?: string;
   };
+  interestedCount?: number;
+  isInterested?: boolean;
+  onInterestClick?: (e: React.MouseEvent) => void;
+  onShareClick?: (e: React.MouseEvent) => void;
   onClick?: () => void;
   className?: string;
 }
 
 export const CompactEventCard: React.FC<CompactEventCardProps> = ({
   event,
+  interestedCount = 0,
+  isInterested = false,
+  onInterestClick,
+  onShareClick,
   onClick,
   className,
 }) => {
@@ -28,15 +36,18 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
 
   return (
     <div
-      onClick={onClick}
       className={cn(
-        'flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden cursor-pointer',
+        'flex flex-col rounded-lg overflow-hidden',
         'bg-gray-100 hover:shadow-lg transition-all duration-200',
         'relative group',
         className
       )}
     >
       {/* Event Image */}
+      <div
+        onClick={onClick}
+        className="relative w-full aspect-square cursor-pointer"
+      >
       {imageUrl ? (
         <img
           src={imageUrl}
@@ -53,7 +64,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
         </div>
       )}
 
-      {/* Overlay with event info */}
+        {/* Overlay with event info on hover */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
         <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
           <p className="text-xs font-semibold line-clamp-1 mb-1">{event.title}</p>
@@ -65,14 +76,55 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
               {format(eventDate, 'MMM d')}
             </p>
           )}
+          </div>
         </div>
       </div>
 
-      {/* Bottom info bar (always visible) */}
-      <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-1.5">
-        <p className="text-[10px] font-medium text-white line-clamp-1 truncate">
+      {/* Event title */}
+      <div className="px-2 pt-2 pb-1 bg-white">
+        <p className="text-sm font-semibold text-[#0e0e0e] line-clamp-2 leading-tight">
           {event.title}
         </p>
+      </div>
+
+      {/* Footer with interested count and action buttons */}
+      <div className="flex items-center justify-between px-2 pb-2 bg-white">
+        {/* Interested count on the left */}
+        <div className="text-sm text-[#0e0e0e] font-normal">
+          {interestedCount} interested
+        </div>
+
+        {/* Action buttons on the right */}
+        <div className="flex items-center gap-3">
+          {/* Share button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onShareClick?.(e);
+            }}
+            className="p-1.5 rounded transition-colors bg-transparent text-[#0e0e0e] hover:bg-gray-100"
+            aria-label="Share event"
+          >
+            <Send className="w-5 h-5" strokeWidth={2} />
+          </button>
+
+          {/* Interest button - moved to the right */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onInterestClick?.(e);
+            }}
+            className={cn(
+              'p-1.5 rounded transition-colors',
+              isInterested 
+                ? 'bg-[#b00056] text-white' 
+                : 'bg-transparent text-[#0e0e0e] hover:bg-gray-100'
+            )}
+            aria-label={isInterested ? 'Remove interest' : 'Mark as interested'}
+          >
+            <Plus className={cn('w-5 h-5', isInterested && 'rotate-45')} strokeWidth={2} />
+          </button>
+        </div>
       </div>
     </div>
   );

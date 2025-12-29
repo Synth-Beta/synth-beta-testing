@@ -48,6 +48,7 @@ import { ProfileStarBuckets } from './ProfileStarBuckets';
 import { PassportModal } from '@/components/discover/PassportModal';
 import { PassportService } from '@/services/passportService';
 import { Sparkles } from 'lucide-react';
+import { TopRightMenu } from '@/components/TopRightMenu';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -65,6 +66,7 @@ interface UserProfile {
   id: string;
   user_id: string;
   name: string;
+  username: string | null;
   avatar_url: string | null;
   bio: string | null;
   instagram_handle: string | null;
@@ -449,12 +451,15 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       const events = data?.map(item => {
         // Item is already the event object (3NF schema)
         const jambaseEvent = item as JamBaseEvent;
+        const rawItem = item as any; // Keep raw item to access all database fields
         
         // Debug all events to see what we're getting
         console.log('ProfileView: Processing event in getUserEvents:', {
           title: jambaseEvent?.title,
           artist_name: jambaseEvent?.artist_name,
-          venue_name: jambaseEvent?.venue_name
+          venue_name: jambaseEvent?.venue_name,
+          poster_image_url: rawItem?.poster_image_url,
+          images: rawItem?.images
         });
         
         // Debug specific event if it's the Anotha event
@@ -492,6 +497,11 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           ticket_available: Boolean(jambaseEvent?.ticket_available),
           price_range: jambaseEvent?.price_range ?? null,
           ticket_urls: jambaseEvent?.ticket_urls || [],
+          // Preserve image fields for display - use rawItem to get all database fields
+          poster_image_url: rawItem?.poster_image_url ?? null,
+          event_media_url: rawItem?.event_media_url ?? null,
+          images: rawItem?.images ?? null,
+          media_urls: rawItem?.media_urls ?? null,
         setlist: null,
         setlist_enriched: null,
         setlist_song_count: null,
@@ -1563,9 +1573,17 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   // setViewReviewOpen is defined by useState earlier
 
   return (
-    <div className="min-h-screen p-4 pb-48">
-      <div className="max-w-2xl mx-auto">
-
+    <div className="min-h-screen pb-48">
+      {/* Top bar with username and menu */}
+      <div className="sticky top-0 z-50 bg-[#fcfcfc] border-b border-gray-200">
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+          <h1 className="text-xl font-bold text-gray-900">
+            {profile.username ? `@${profile.username}` : profile.name}
+          </h1>
+          <TopRightMenu />
+        </div>
+      </div>
+      <div className="max-w-2xl mx-auto p-4">
         {/* Enhanced Profile Header */}
         <div className="mb-8 bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 rounded-2xl p-8 border border-pink-100/50 shadow-sm relative overflow-hidden">
           <div className="absolute top-6 right-6">
@@ -2339,7 +2357,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
             {canViewInterested && (
             <TabsContent value="interested" className="mt-6">
-              {/* Toggle between Upcoming and Archive */}
+              {/* Toggle between Upcoming and Past */}
               {userEvents.length > 0 && (
                 <div className="flex justify-center mb-4">
                   <div className="bg-gray-100 rounded-lg p-1 flex">
@@ -2361,7 +2379,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                           : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
-                      Archive
+                      Past
                     </button>
                   </div>
                 </div>
@@ -2429,9 +2447,51 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                         }}
                       >
                         <div className="h-full flex flex-col">
-                          <div className="h-2/3 w-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center relative">
-                            {/* Always show the heart icon instead of trying to load images */}
+                          <div className="h-2/3 w-full relative overflow-hidden bg-gradient-to-br from-pink-400 to-pink-600">
+                            {/* Event image - use same resolution logic as home feed (PreferencesV4FeedSection) */}
+                            {(() => {
+                              // Resolve image URL with same priority as PreferencesV4FeedSection
+                              const evAny = ev as any;
+                              let imageUrl: string | undefined = undefined;
+                              
+                              // First priority: poster_image_url (same as PreferencesV4FeedSection)
+                              if (evAny?.poster_image_url) {
+                                imageUrl = evAny.poster_image_url;
+                              } 
+                              // Second priority: images JSONB array (same logic as PreferencesV4FeedSection)
+                              else if (evAny?.images && Array.isArray(evAny.images) && evAny.images.length > 0) {
+                                const bestImage = evAny.images.find((img: any) => 
+                                  img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
+                                ) || evAny.images.find((img: any) => img?.url);
+                                imageUrl = bestImage?.url;
+                              }
+                              // Third priority: media_urls array (fallback)
+                              else if (evAny?.media_urls && Array.isArray(evAny.media_urls) && evAny.media_urls.length > 0) {
+                                imageUrl = evAny.media_urls[0];
+                              }
+                              // Fourth priority: event_media_url (fallback)
+                              else if (evAny?.event_media_url) {
+                                imageUrl = evAny.event_media_url;
+                              }
+                              
+                              if (imageUrl) {
+                                return (
+                                  <img
+                                    src={imageUrl}
+                                    alt={ev.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                );
+                              }
+                              
+                              // Fallback to gradient with heart icon if no image
+                              return (
+                                <div className="w-full h-full flex items-center justify-center">
                             <Heart className="w-1/3 h-1/3 text-white" />
+                                </div>
+                              );
+                            })()}
+                            
                             {/* Interested badge - only show for upcoming events */}
                             {!showPastEvents && (
                               <div className="absolute top-1 right-1 bg-white text-black text-[8px] px-1 py-0.5 rounded font-medium">

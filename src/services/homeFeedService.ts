@@ -274,8 +274,8 @@ export class HomeFeedService {
 
       if (reviewsError) throw reviewsError;
 
-      // Get unique event IDs from reviews
-      const reviewEventIds = [...new Set((reviews || []).map((r: any) => r.event_id))];
+      // Get unique event IDs from reviews, filtering out null/undefined values
+      const reviewEventIds = [...new Set((reviews || []).map((r: any) => r.event_id).filter((id: any) => id != null))];
       
       // Query events to get artist names
       let artistReviewCounts = new Map<string, number>();

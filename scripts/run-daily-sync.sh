@@ -48,16 +48,14 @@ fi
 if [ -t 0 ]; then
     # Running interactively - show output on terminal
     node scripts/sync-jambase-incremental-3nf.mjs 2>&1 | tee -a "$LOG_FILE"
+    EXIT_CODE=${PIPESTATUS[0]}
 else
     # Running from cron - log to file only
     echo "[$(date)] Starting sync script execution" >> "$CRON_LOG"
     node scripts/sync-jambase-incremental-3nf.mjs >> "$LOG_FILE" 2>&1
-    SYNC_EXIT_CODE=$?
-    echo "[$(date)] Sync script finished with exit code: $SYNC_EXIT_CODE" >> "$CRON_LOG"
+    EXIT_CODE=$?
+    echo "[$(date)] Sync script finished with exit code: $EXIT_CODE" >> "$CRON_LOG"
 fi
-
-# Capture exit code
-EXIT_CODE=$?
 
 # Log end time and exit code
 echo "" >> "$LOG_FILE"
