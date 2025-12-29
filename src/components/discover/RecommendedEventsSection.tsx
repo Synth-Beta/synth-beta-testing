@@ -34,13 +34,14 @@ export const RecommendedEventsSection: React.FC<RecommendedEventsSectionProps> =
   const loadInterestedEvents = async () => {
     try {
       const { data } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
+        .from('relationships')
+        .select('related_entity_id')
         .eq('user_id', currentUserId)
-        .eq('relationship_type', 'interest');
+        .eq('relationship_type', 'interest')
+        .eq('related_entity_type', 'event');
 
       if (data) {
-        setInterestedEvents(new Set(data.map(r => r.event_id)));
+        setInterestedEvents(new Set(data.map(r => r.related_entity_id)));
       }
     } catch (error) {
       console.error('Error loading interested events:', error);

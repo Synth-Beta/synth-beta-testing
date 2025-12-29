@@ -90,21 +90,32 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
   const loadInterestedEvents = async () => {
     if (!currentUserId) return;
 
-    try {
-      // Use user_event_relationships table (3NF compliant)
-      const { data, error } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
-        .eq('relationship_type', 'interest')
-        .eq('user_id', currentUserId);
-
-      if (error) throw error;
-
-      const interestedSet = new Set(data?.map(item => item.event_id).filter(Boolean) || []);
-      setInterestedEvents(interestedSet);
-    } catch (error) {
-      console.error('Error loading interested events:', error);
+    // Get current authenticated user - RPC uses auth.uid() so we should query with that
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    
+    // Check for auth errors
+    if (authError) {
+      console.warn('⚠️ Error getting auth user:', authError);
     }
+    
+    const authUser = authData?.user;
+    const queryUserId = authUser?.id || currentUserId;
+    
+    // Use relationships table (where RPC writes)
+    const { data, error } = await supabase
+      .from('relationships')
+      .select('related_entity_id')
+      .eq('relationship_type', 'interest')
+      .eq('user_id', queryUserId) // Use auth user ID since RPC uses auth.uid()
+      .eq('related_entity_type', 'event');
+
+    if (error) {
+      console.error('Error loading interested events:', error);
+      throw error; // Re-throw to allow caller to handle
+    }
+
+    const interestedSet = new Set(data?.map(item => item.related_entity_id).filter(Boolean) || []);
+    setInterestedEvents(interestedSet);
   };
 
   const handleInterestToggle = async (eventId: string) => {
@@ -115,19 +126,16 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
 
       // Use centralized service to ensure consistent behavior and RLS-safe upsert
       await UserEventService.setEventInterest(currentUserId, eventId, !isCurrentlyInterested);
+      
+      // Reload interested events from database to ensure UI is in sync
+      await loadInterestedEvents();
 
       if (isCurrentlyInterested) {
-        setInterestedEvents(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(eventId);
-          return newSet;
-        });
         toast({
           title: "Removed from Interested",
           description: "Event removed from your interested list",
         });
       } else {
-        setInterestedEvents(prev => new Set([...prev, eventId]));
         toast({
           title: "Added to Interested!",
           description: "Event added to your interested list",

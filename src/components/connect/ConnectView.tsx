@@ -314,8 +314,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         }
 
         const { data, error } = await supabase
-          .from('user_event_relationships')
-          .select('id, user_id, event_id, created_at')
+          .from('relationships')
+          .select('id, user_id, related_entity_id, created_at')
+          .eq('related_entity_type', 'event')
           .in('user_id', interestIds)
           .in('relationship_type', ['interest', 'going', 'maybe'])
           .order('created_at', { ascending: false })
@@ -329,7 +330,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
         // Batch fetch user and event details in parallel
         const userIds = [...new Set((data || []).map((row: any) => row.user_id).filter(Boolean))];
-        const eventIds = [...new Set((data || []).map((row: any) => row.event_id).filter(Boolean))];
+        const eventIds = [...new Set((data || []).map((row: any) => row.related_entity_id).filter(Boolean))];
         
         const [usersResult, eventsResult] = await Promise.all([
           userIds.length > 0
@@ -1087,15 +1088,16 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       try {
         // Get user's interested events
         const { data: userEvents } = await supabase
-          .from('user_event_relationships')
-          .select('event_id')
+          .from('relationships')
+          .select('related_entity_id')
           .eq('user_id', currentUserId)
+          .eq('related_entity_type', 'event')
           .in('relationship_type', ['interest', 'going', 'maybe'])
           .limit(50);
 
         if (userEvents) {
           userEvents.forEach(event => {
-            userInterestedEvents.add(event.event_id);
+            userInterestedEvents.add(event.related_entity_id);
           });
         }
       } catch (error) {
@@ -1231,9 +1233,10 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     try {
       // First, get user's interested events
       const { data: userEvents } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
+        .from('relationships')
+        .select('related_entity_id')
         .eq('user_id', currentUserId)
+        .eq('related_entity_type', 'event')
         .in('relationship_type', ['interest', 'going', 'maybe'])
         .limit(50);
 
@@ -1243,7 +1246,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         return;
       }
 
-      const userEventIds = userEvents.map(e => e.event_id);
+      const userEventIds = userEvents.map(e => e.related_entity_id);
 
       // Get friends who are also interested in these events
       const { data: friendsData } = await supabase
@@ -1263,15 +1266,16 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
       // Get friends' interested events that match user's events
       const { data: friendInterests } = await supabase
-        .from('user_event_relationships')
+        .from('relationships')
         .select(`
           user_id,
-          event_id,
+          related_entity_id,
           created_at
         `)
+        .eq('related_entity_type', 'event')
         .in('user_id', friendIds)
         .in('relationship_type', ['interest', 'going', 'maybe'])
-        .in('event_id', userEventIds)
+        .in('related_entity_id', userEventIds)
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -1282,7 +1286,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       }
 
       // Fetch event details separately
-      const sharedEventIds = [...new Set(friendInterests.map((i: any) => i.event_id).filter(Boolean))];
+      const sharedEventIds = [...new Set(friendInterests.map((i: any) => i.related_entity_id).filter(Boolean))];
       const sharedEventMap = new Map<string, any>();
       
       if (sharedEventIds.length > 0) {
@@ -1303,10 +1307,10 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       const friendMap = new Map<string, any>();
       friendInterests.forEach((interest: any) => {
         if (!friendMap.has(interest.user_id)) {
-          const eventData = sharedEventMap.get(interest.event_id) || {};
+          const eventData = sharedEventMap.get(interest.related_entity_id) || {};
           friendMap.set(interest.user_id, {
             user_id: interest.user_id,
-            shared_event_id: interest.event_id,
+            shared_event_id: interest.related_entity_id,
             shared_event_title: eventData.title,
             shared_event_artist: (eventData as any).artist_name_normalized,
             shared_event_date: eventData.event_date,
