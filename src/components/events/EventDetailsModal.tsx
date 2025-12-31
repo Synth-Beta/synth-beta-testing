@@ -432,7 +432,7 @@ export function EventDetailsModal({
           .from('user_event_relationships')
           .select('*', { count: 'exact', head: true })
           .eq('event_id', uuidId)
-          .eq('relationship_type', 'interest')
+          .eq('relationship_type', 'interested')
           .neq('user_id', currentUserId);
           
         // Count query completed
@@ -443,7 +443,7 @@ export function EventDetailsModal({
           .from('user_event_relationships')
           .select('user_id')
           .eq('event_id', uuidId)
-          .eq('relationship_type', 'interest');
+          .eq('relationship_type', 'interested');
         // Checking all users
         
         if (error) {
@@ -453,7 +453,7 @@ export function EventDetailsModal({
             .from('user_event_relationships')
             .select('user_id')
             .eq('event_id', uuidId)
-            .eq('relationship_type', 'interest');
+            .eq('relationship_type', 'interested');
             
           if (allUsersError) {
             console.error('Alternative query also failed:', allUsersError);
@@ -711,7 +711,7 @@ export function EventDetailsModal({
         .from('user_event_relationships')
         .select('user_id')
         .eq('event_id', uuidId)
-        .eq('relationship_type', 'interest')
+        .eq('relationship_type', 'interested')
         .neq('user_id', currentUserId)
         .range(from, to);
           

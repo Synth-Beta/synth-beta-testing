@@ -418,15 +418,14 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       }
 
       console.log('🔍 ProfileView: Fetching user events from database...');
-      // Get user's interested events from relationships table
+      // Get user's interested events from user_event_relationships table
       const { data: relationships } = await supabase
-        .from('relationships')
-        .select('related_entity_id')
+        .from('user_event_relationships')
+        .select('event_id')
         .eq('user_id', targetUserId)
-        .eq('related_entity_type', 'event')
-        .eq('relationship_type', 'interest');
+        .eq('relationship_type', 'interested');
       
-      const eventIds = relationships?.map(r => r.related_entity_id) || [];
+      const eventIds = relationships?.map(r => r.event_id) || [];
       
       let data: JamBaseEvent[] = [];
       if (eventIds.length > 0) {

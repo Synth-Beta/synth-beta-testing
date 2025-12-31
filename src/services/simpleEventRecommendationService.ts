@@ -85,20 +85,11 @@ export class SimpleEventRecommendationService {
               spotifyService.getTopTracks('short_term', 50)
             ]);
 
-            // Sync to database
-            const syncedStats = await UserStreamingStatsService.syncSpotifyData(
-              userId,
-              topArtistsResponse.items,
-              topTracksResponse.items
-            );
-
-            if (syncedStats) {
-              console.log('✅ Successfully synced Spotify data to database');
-              // Try again to get top artists
-              const newTopArtists = await UserStreamingStatsService.getTopArtistsForRecommendations(userId, 'spotify', 10);
-              if (newTopArtists.length > 0) {
-                return await this.getRecommendationsWithArtists(userId, newTopArtists, userLocation, radius, limit, maxDaysAhead);
-              }
+            // Database table removed - stats are no longer persisted
+            // Just try to get top artists directly (they might be from other sources)
+            const newTopArtists = await UserStreamingStatsService.getTopArtistsForRecommendations(userId, 'spotify', 10);
+            if (newTopArtists.length > 0) {
+              return await this.getRecommendationsWithArtists(userId, newTopArtists, userLocation, radius, limit, maxDaysAhead);
             }
           } catch (syncError) {
             console.error('❌ Error syncing Spotify data:', syncError);

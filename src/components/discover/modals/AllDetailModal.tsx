@@ -47,7 +47,7 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
           .select('id')
           .eq('user_id', currentUserId)
           .eq('event_id', result.id)
-          .eq('relationship_type', 'interest')
+          .eq('relationship_type', 'interested')
           .maybeSingle();
         
         setIsInterested(!!interested.data);
@@ -103,7 +103,7 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
             .insert({
               user_id: currentUserId,
               event_id: result.id,
-              relationship_type: 'interest',
+              relationship_type: 'interested',
             });
         } else {
           await supabase
@@ -111,7 +111,7 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
             .delete()
             .eq('user_id', currentUserId)
             .eq('event_id', result.id)
-            .eq('relationship_type', 'interest');
+            .eq('relationship_type', 'interested');
         }
       } else {
         // Follow/unfollow for artist or venue

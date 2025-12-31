@@ -167,8 +167,19 @@ export interface Venue {
 }
 
 // ============================================
-// 5. RELATIONSHIPS TABLE (unified relationship table)
+// 5. RELATIONSHIPS TABLES (3NF-compliant domain-specific tables)
 // ============================================
+
+// User-Event Relationships (3NF compliant)
+export interface UserEventRelationship {
+  user_id: string; // UUID - references users(user_id)
+  event_id: string; // UUID - references events(id)
+  relationship_type: 'going' | 'interested' | 'maybe' | 'not_going';
+  created_at: string; // TIMESTAMPTZ
+  updated_at: string; // TIMESTAMPTZ
+}
+
+// Legacy polymorphic relationship table (deprecated for events - use UserEventRelationship)
 export interface Relationship {
   id: string; // UUID
   user_id: string; // UUID - references users(user_id)

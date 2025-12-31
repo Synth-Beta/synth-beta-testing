@@ -285,7 +285,7 @@ export class BusinessAnalyticsService {
       const { data: interestedUsers } = await supabase
         .from('user_event_relationships')
         .select('*')
-        .in('relationship_type', ['interest', 'going', 'maybe'])
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .in('event_id', eventIds);
 
       // Get reviews to determine satisfaction
@@ -473,7 +473,7 @@ export class BusinessAnalyticsService {
       const [interactionsResult, reviewsResult, interestedUsersResult] = await Promise.all([
         supabase.from('interactions').select('*').in('entity_id', eventIds).eq('entity_type', 'event'),
         supabase.from('reviews').select('*').in('event_id', eventIds),
-        supabase.from('user_event_relationships').select('*').in('relationship_type', ['interest', 'going', 'maybe']).in('event_id', eventIds),
+        supabase.from('user_event_relationships').select('*').in('relationship_type', ['interested', 'going', 'maybe']).in('event_id', eventIds),
       ]);
       
       const interactions = interactionsResult.data || [];

@@ -8,11 +8,11 @@ type TablesUpdate<T extends string> = any;
 // Type exports for easier use
 export type Profile = Tables<'users'>;
 export type JamBaseEvent = Tables<'events'>;
-export type Match = Tables<'relationships'>; // matches migrated to relationships
+export type Match = Tables<'user_relationships'>; // matches migrated to user_relationships (3NF compliant)
 export type Chat = Tables<'chats'>;
 export type Message = Tables<'messages'>;
 export type UserSwipe = Tables<'engagements'>; // user_swipes migrated to engagements
-export type EventInterest = Tables<'relationships'>; // user_jambase_events migrated to relationships
+export type EventInterest = Tables<'user_event_relationships'>; // user_jambase_events migrated to user_event_relationships (3NF compliant)
 
 export class SupabaseService {
   // ===== USERS (formerly profiles) =====
@@ -130,7 +130,7 @@ export class SupabaseService {
         )
       `)
       .eq('user_id', userId)
-      .in('relationship_type', ['interest', 'going', 'maybe'])
+      .in('relationship_type', ['interested', 'going', 'maybe'])
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -143,7 +143,7 @@ export class SupabaseService {
       .insert({
         user_id: userId,
         event_id: eventId,
-        relationship_type: 'interest'
+        relationship_type: 'interested'
       })
       .select()
       .single();
@@ -158,7 +158,7 @@ export class SupabaseService {
       .delete()
       .eq('user_id', userId)
       .eq('event_id', eventId)
-      .in('relationship_type', ['interest', 'going', 'maybe']);
+      .in('relationship_type', ['interested', 'going', 'maybe']);
 
     if (error) throw error;
   }
@@ -382,7 +382,7 @@ export class SupabaseService {
       .select('id')
       .eq('user_id', userId)
       .eq('event_id', eventId)
-      .in('relationship_type', ['interest', 'going', 'maybe'])
+      .in('relationship_type', ['interested', 'going', 'maybe'])
       .maybeSingle();
 
     if (error && error.code !== 'PGRST116') throw error;
@@ -419,7 +419,7 @@ export class SupabaseService {
         )
       `)
       .eq('event_id', eventId)
-      .in('relationship_type', ['interest', 'going', 'maybe'])
+      .in('relationship_type', ['interested', 'going', 'maybe'])
       .order('created_at', { ascending: false });
 
     if (excludeUserId) {

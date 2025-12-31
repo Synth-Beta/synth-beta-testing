@@ -99,7 +99,7 @@ export class HomeFeedService {
           )
         `)
         .in('user_id', friendIds)
-        .eq('relationship_type', 'interest')
+        .eq('relationship_type', 'interested')
         .order('created_at', { ascending: false })
         .limit(limit * 2);
 
@@ -201,7 +201,7 @@ export class HomeFeedService {
           )
         `)
         .in('user_id', secondDegreeIds)
-        .eq('relationship_type', 'interest');
+        .eq('relationship_type', 'interested');
 
       if (relError) throw relError;
       if (!relationships || relationships.length === 0) return [];
@@ -285,7 +285,7 @@ export class HomeFeedService {
       const { data: allInterests, error: interestsError } = await supabase
         .from('user_event_relationships')
         .select('event_id')
-        .eq('relationship_type', 'interest');
+        .eq('relationship_type', 'interested');
 
       if (interestsError) {
         console.error('❌ [TRENDING SERVICE] Error fetching interests:', interestsError);
