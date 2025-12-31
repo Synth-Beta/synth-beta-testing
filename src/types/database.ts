@@ -327,8 +327,8 @@ export interface Interaction {
 export interface AnalyticsDaily {
   id: string; // UUID
   entity_type: 'user' | 'event' | 'artist' | 'venue' | 'campaign';
-  entity_id: string | null; // Legacy external ID (kept as metadata)
-  entity_uuid: string; // UUID foreign key (primary identity)
+  entity_id: string | null; // Text identifier (used for entities without UUIDs, e.g., campaigns)
+  entity_uuid: string | null; // UUID foreign key (NULL for entities that only have entity_id, such as campaigns)
   date: string; // DATE
   metrics: Record<string, any>; // JSONB
   created_at: string; // TIMESTAMPTZ
