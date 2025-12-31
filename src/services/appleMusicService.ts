@@ -444,8 +444,8 @@ class AppleMusicService {
             total_listening_hours: profileData.totalListeningHours || 0
           };
 
-          await UserStreamingStatsService.upsertStats(statsInsert);
-          console.log('✅ Apple Music stats stored permanently');
+          // Database table removed - stats are no longer persisted
+          console.log('⚠️ Stats table removed - stats not persisted');
 
           // Notify sync service that sync completed (only if sync is being tracked)
           try {

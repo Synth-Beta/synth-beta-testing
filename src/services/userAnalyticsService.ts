@@ -99,7 +99,7 @@ export class UserAnalyticsService {
 
       // Get counts from other tables (3NF compliant)
       const [interested, completedReviews, friends] = await Promise.all([
-        supabase.from('user_event_relationships').select('*', { count: 'exact', head: true }).eq('user_id', userId).in('relationship_type', ['interest', 'going', 'maybe']),
+        supabase.from('user_event_relationships').select('*', { count: 'exact', head: true }).eq('user_id', userId).in('relationship_type', ['interested', 'going', 'maybe']),
         supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_draft', false).neq('review_text', 'ATTENDANCE_ONLY'),
         supabase.from('user_relationships').select('*', { count: 'exact', head: true }).eq('relationship_type', 'friend').or(`user_id.eq.${userId},related_user_id.eq.${userId}`)
       ]);
@@ -455,7 +455,7 @@ export class UserAnalyticsService {
         .from('user_event_relationships')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .in('relationship_type', ['interest', 'going', 'maybe']);
+        .in('relationship_type', ['interested', 'going', 'maybe']);
 
       const interestedCount = count || 0;
       console.log(`🎯 Interested events: ${interestedCount}`);

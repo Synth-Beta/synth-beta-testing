@@ -81,38 +81,10 @@ export const StreamingStatsPage = () => {
 
   const checkForExistingStats = async () => {
     if (!user) return;
-    try {
-      setLoading(true);
-      // Check both services in parallel, defaulting to 'all_time'
-      const [spotifyStats, appleStats] = await Promise.all([
-        UserStreamingStatsService.getStats(user.id, 'spotify', 'all_time'),
-        UserStreamingStatsService.getStats(user.id, 'apple-music', 'all_time')
-      ]);
-      
-      // Check available time ranges for the service that has stats
-      if (spotifyStats) {
-        setServiceType('spotify');
-        setStats(spotifyStats);
-        const ranges = await UserStreamingStatsService.getAllTimeRanges(user.id, 'spotify');
-        setAvailableTimeRanges(ranges.length > 0 ? ranges : ['all_time']);
-        setSelectedTimeRange(ranges.includes('all_time') ? 'all_time' : ranges[0] || 'all_time');
-        setLoading(false);
-      } else if (appleStats) {
-        setServiceType('apple-music');
-        setStats(appleStats);
-        const ranges = await UserStreamingStatsService.getAllTimeRanges(user.id, 'apple-music');
-        setAvailableTimeRanges(ranges.length > 0 ? ranges : ['all_time']);
-        setSelectedTimeRange(ranges.includes('all_time') ? 'all_time' : ranges[0] || 'all_time');
-        setLoading(false);
-      } else {
-        setLoading(false);
-        setNeedsConnection(true);
-      }
-    } catch (error) {
-      // Error already handled in getStats, just set loading state
-      setLoading(false);
-      setNeedsConnection(true);
-    }
+    // Database table has been removed - stats are no longer persisted
+    // Always show connection screen
+    setLoading(false);
+    setNeedsConnection(true);
   };
 
   const loadUserProfile = async () => {
@@ -152,57 +124,10 @@ export const StreamingStatsPage = () => {
       return;
     }
 
-    try {
-      setLoading(true);
-      const rangeToLoad = timeRange || selectedTimeRange;
-      const statsData = await UserStreamingStatsService.getStats(
-        user.id,
-        serviceType as 'spotify' | 'apple-music',
-        rangeToLoad
-      );
-      
-      if (statsData) {
-        setStats(statsData);
-        setNeedsConnection(false);
-        
-        // Update available time ranges
-        const ranges = await UserStreamingStatsService.getAllTimeRanges(
-          user.id,
-          serviceType as 'spotify' | 'apple-music'
-        );
-        setAvailableTimeRanges(ranges.length > 0 ? ranges : ['all_time']);
-      } else {
-        // No stats found for this time range - try all_time as fallback
-        if (rangeToLoad !== 'all_time') {
-          const fallbackStats = await UserStreamingStatsService.getStats(
-            user.id,
-            serviceType as 'spotify' | 'apple-music',
-            'all_time'
-          );
-          if (fallbackStats) {
-            setStats(fallbackStats);
-            setSelectedTimeRange('all_time');
-            setNeedsConnection(false);
-            return;
-          }
-        }
-        
-        // No stats found - check if user needs to connect
-        if (serviceType === 'spotify' && !spotifyService.isAuthenticated()) {
-          setNeedsConnection(true);
-        } else if (serviceType === 'apple-music' && !appleMusicService.checkStoredToken()) {
-          setNeedsConnection(true);
-        } else {
-          // Service is connected but no stats yet - show connection screen to sync
-          setNeedsConnection(true);
-        }
-      }
-    } catch (error) {
-      // Error already handled in getStats
-      setNeedsConnection(true);
-    } finally {
-      setLoading(false);
-    }
+    // Database table has been removed - stats are no longer persisted
+    // Always show connection screen since we can't load from database
+    setLoading(false);
+    setNeedsConnection(true);
   };
 
   const handleConnectSpotify = async () => {
@@ -333,17 +258,17 @@ export const StreamingStatsPage = () => {
             total_listening_hours: profileData.totalListeningHours || 0
           };
 
-          await UserStreamingStatsService.upsertStats(statsInsert);
+          // Database table removed - stats are no longer persisted
         }
       }
 
-      // Reload stats after sync
+      // Reload stats after sync (note: database table removed, stats are not persisted)
       await loadStats(selectedTimeRange);
       setNeedsConnection(false);
 
       toast({
         title: "Sync Complete",
-        description: "Your comprehensive streaming stats have been updated and stored permanently.",
+        description: "Your streaming stats have been synced from your music service. Note: Stats are not stored permanently.",
       });
     } catch (error) {
       console.error('Error syncing stats:', error);

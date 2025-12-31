@@ -167,8 +167,19 @@ export interface Venue {
 }
 
 // ============================================
-// 5. RELATIONSHIPS TABLE (unified relationship table)
+// 5. RELATIONSHIPS TABLES (3NF-compliant domain-specific tables)
 // ============================================
+
+// User-Event Relationships (3NF compliant)
+export interface UserEventRelationship {
+  user_id: string; // UUID - references users(user_id)
+  event_id: string; // UUID - references events(id)
+  relationship_type: 'going' | 'interested' | 'maybe' | 'not_going';
+  created_at: string; // TIMESTAMPTZ
+  updated_at: string; // TIMESTAMPTZ
+}
+
+// Legacy polymorphic relationship table (deprecated for events - use UserEventRelationship)
 export interface Relationship {
   id: string; // UUID
   user_id: string; // UUID - references users(user_id)
@@ -316,8 +327,8 @@ export interface Interaction {
 export interface AnalyticsDaily {
   id: string; // UUID
   entity_type: 'user' | 'event' | 'artist' | 'venue' | 'campaign';
-  entity_id: string | null; // Legacy external ID (kept as metadata)
-  entity_uuid: string; // UUID foreign key (primary identity)
+  entity_id: string | null; // Text identifier (used for entities without UUIDs, e.g., campaigns)
+  entity_uuid: string | null; // UUID foreign key (NULL for entities that only have entity_id, such as campaigns)
   date: string; // DATE
   metrics: Record<string, any>; // JSONB
   created_at: string; // TIMESTAMPTZ

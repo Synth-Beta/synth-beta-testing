@@ -189,7 +189,7 @@ export class MatchingService {
         .from('user_event_relationships')
         .select('user_id')
         .eq('event_id', eventId)
-        .in('relationship_type', ['interest', 'going', 'maybe'])
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .neq('user_id', user.id);
 
       if (eventUsersError) throw eventUsersError;

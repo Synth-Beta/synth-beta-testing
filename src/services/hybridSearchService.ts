@@ -180,7 +180,7 @@ class HybridSearchService {
         .select('*')
         .eq('event_id', eventId)
         .eq('user_id', userId)
-        .eq('relationship_type', 'interest')
+        .eq('relationship_type', 'interested')
         .maybeSingle();
 
       if (existing) {
@@ -193,7 +193,7 @@ class HybridSearchService {
         .from('user_event_relationships')
         .insert({ 
           event_id: eventId,
-          relationship_type: 'interest',
+          relationship_type: 'interested',
           user_id: userId 
         });
 

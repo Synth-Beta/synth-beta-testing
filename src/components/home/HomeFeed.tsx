@@ -1064,14 +1064,12 @@ interface FriendEventInterest {
 
       // First, get relationships for friends' event interests
       const { data: relationships, error: relError } = await supabase
-        .from('relationships')
+        .from('user_event_relationships')
         .select(`
-          id,
           user_id,
-          related_entity_id,
+          event_id,
           created_at
         `)
-        .eq('related_entity_type', 'event')
         .in('relationship_type', ['going', 'maybe'])
         .in('user_id', friendIds)
         .order('created_at', { ascending: false })
@@ -1084,7 +1082,7 @@ interface FriendEventInterest {
       }
 
       // Get event IDs and user IDs
-      const eventIds = relationships.map(r => r.related_entity_id).filter(Boolean) as string[];
+      const eventIds = relationships.map(r => r.event_id).filter(Boolean) as string[];
       const userIds = [...new Set(relationships.map(r => r.user_id))];
 
       // Fetch events and users in parallel
@@ -1115,7 +1113,7 @@ interface FriendEventInterest {
           if (!event) return null; // Skip if event not found
 
           const interest: FriendEventInterest = {
-            id: rel.id,
+            id: `${rel.user_id}-${rel.event_id}`, // Composite key since user_event_relationships has composite PK
             friend_id: rel.user_id,
             friend_name: user?.name || 'Friend',
             friend_avatar: user?.avatar_url ?? undefined,

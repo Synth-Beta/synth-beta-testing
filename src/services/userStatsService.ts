@@ -47,7 +47,7 @@ export class UserStatsService {
       .from('user_event_relationships')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .in('relationship_type', ['interest', 'going', 'maybe']);
+      .in('relationship_type', ['interested', 'going', 'maybe']);
     const total = totalRes.count ?? 0;
 
     const today = new Date();
@@ -57,7 +57,7 @@ export class UserStatsService {
       .from('user_event_relationships')
       .select('*, events!inner(event_date)', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .in('relationship_type', ['interest', 'going', 'maybe'])
+      .in('relationship_type', ['interested', 'going', 'maybe'])
       .gte('events.event_date', dateStr);
     const upcoming = upcomingRes.count ?? 0;
     return { total, upcoming };

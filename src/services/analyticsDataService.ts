@@ -132,7 +132,7 @@ export class AnalyticsDataService {
       let query = supabase
         .from('user_event_relationships')
         .select('*')
-        .in('relationship_type', ['interest', 'going', 'maybe']);
+        .in('relationship_type', ['interested', 'going', 'maybe']);
 
       if (eventIds && eventIds.length > 0) {
         query = query.in('event_id', eventIds);

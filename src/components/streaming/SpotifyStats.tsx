@@ -282,33 +282,9 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     try {
       setLoading(true);
       
-      // Try to load from database first
+      // Database table removed - stats are no longer persisted
+      // Always fetch from API
       let loadedFromDatabase = false;
-      if (user) {
-        try {
-          const dbStats = await UserStreamingStatsService.getStats(user.id, 'spotify');
-          if (dbStats && dbStats.top_artists.length > 0) {
-            // Convert database stats to component format
-            const dbArtists: SpotifyArtist[] = dbStats.top_artists.map(artist => ({
-              id: artist.id || '',
-              name: artist.name,
-              popularity: artist.popularity,
-              genres: dbStats.top_genres.map(g => g.genre),
-              external_urls: { spotify: '' },
-              href: '',
-              type: 'artist',
-              uri: ''
-            }));
-
-            setTopArtists(dbArtists);
-            loadedFromDatabase = true;
-            setLoadedFromDB(true);
-            console.log('✅ Loaded Spotify stats from database');
-          }
-        } catch (dbError) {
-          console.log('Could not load from database, falling back to API:', dbError);
-        }
-      }
 
       // Always fetch recent tracks and detailed data from API
       // Also fetch if we didn't get data from DB

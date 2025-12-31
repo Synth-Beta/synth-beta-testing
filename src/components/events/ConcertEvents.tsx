@@ -101,20 +101,19 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
     const authUser = authData?.user;
     const queryUserId = authUser?.id || currentUserId;
     
-    // Use relationships table (where RPC writes)
+    // Use user_event_relationships table (where RPC writes)
     const { data, error } = await supabase
-      .from('relationships')
-      .select('related_entity_id')
-      .eq('relationship_type', 'interest')
-      .eq('user_id', queryUserId) // Use auth user ID since RPC uses auth.uid()
-      .eq('related_entity_type', 'event');
+      .from('user_event_relationships')
+      .select('event_id')
+      .eq('relationship_type', 'interested')
+      .eq('user_id', queryUserId); // Use auth user ID since RPC uses auth.uid()
 
     if (error) {
       console.error('Error loading interested events:', error);
       throw error; // Re-throw to allow caller to handle
     }
 
-    const interestedSet = new Set(data?.map(item => item.related_entity_id).filter(Boolean) || []);
+    const interestedSet = new Set(data?.map(item => item.event_id).filter(Boolean) || []);
     setInterestedEvents(interestedSet);
   };
 

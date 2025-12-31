@@ -80,7 +80,7 @@ export class VIPAnalyticsService {
       const { data: interestedUsers, error: interestedError } = await supabase
         .from('user_event_relationships')
         .select('user_id, event_id')
-        .in('relationship_type', ['interest', 'going', 'maybe'])
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .in('event_id', eventIds);
 
       if (interestedError) {

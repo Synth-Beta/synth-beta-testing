@@ -367,26 +367,10 @@ export class SpotifyService {
             return unique.slice(0, 200); // Limit to 200 most recent
           });
 
-          // Store stats for each time range separately
-          await UserStreamingStatsService.syncComprehensiveSpotifyData(user.id, {
-            short_term: {
-              artists: allArtistsShort,
-              tracks: allTracksShort,
-              recentlyPlayed: recentlyPlayedExtended
-            },
-            medium_term: {
-              artists: allArtistsMed,
-              tracks: allTracksMed,
-              recentlyPlayed: recentlyPlayedExtended
-            },
-            long_term: {
-              artists: allArtistsLong,
-              tracks: allTracksLong,
-              recentlyPlayed: recentlyPlayedExtended
-            }
-          });
+          // Database table removed - stats are no longer persisted
+          // Removed: UserStreamingStatsService.syncComprehensiveSpotifyData call
 
-          console.log('✅ Comprehensive Spotify stats stored permanently:', {
+          console.log('⚠️ Stats table removed - stats not persisted. Fetched:', {
             short_term: { artists: allArtistsShort.length, tracks: allTracksShort.length },
             medium_term: { artists: allArtistsMed.length, tracks: allTracksMed.length },
             long_term: { artists: allArtistsLong.length, tracks: allTracksLong.length },

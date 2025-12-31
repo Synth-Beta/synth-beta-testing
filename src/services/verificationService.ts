@@ -50,7 +50,7 @@ export class VerificationService {
         .from('user_event_relationships')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .in('relationship_type', ['interest', 'going', 'maybe']);
+        .in('relationship_type', ['interested', 'going', 'maybe']);
 
       // Get attended event count (events with reviews)
       const { count: attendedCount } = await supabase
@@ -129,7 +129,7 @@ export class VerificationService {
         .from('user_event_relationships')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .in('relationship_type', ['interest', 'going', 'maybe']);
+        .in('relationship_type', ['interested', 'going', 'maybe']);
 
       // Get attended event count
       const { count: attendedCount } = await supabase
