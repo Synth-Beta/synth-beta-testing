@@ -12,14 +12,20 @@ import { PassportService, type PassportProgress, type NextToUnlock } from '@/ser
 import { PassportIdentity } from '@/components/passport/PassportIdentity';
 import { PassportStampsView } from '@/components/passport/PassportStampsView';
 import { PassportTimelineView } from '@/components/passport/PassportTimelineView';
-import { PassportTasteMapView } from '@/components/passport/PassportTasteMapView';
 import { PassportBucketListView } from '@/components/passport/PassportBucketListView';
-import { PassportAchievementService } from '@/services/passportAchievementService';
-import { Loader2, MapPin, Building2, Music, Sparkles, User, Clock, BarChart3, Award, ListChecks } from 'lucide-react';
+import { PassportAchievementService, type AchievementDisplay } from '@/services/passportAchievementService';
+import { Loader2, MapPin, Building2, Music, Sparkles, User, Clock, Award, ListChecks } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { PassportEntry } from '@/services/passportService';
+
+interface ProcessedAchievement extends AchievementDisplay {
+  completedTier?: 'bronze' | 'silver' | 'gold' | null;
+  bronzeGoal?: number;
+  silverGoal?: number;
+  goldGoal?: number;
+}
 
 interface PassportModalProps {
   isOpen: boolean;
@@ -44,7 +50,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
     totalCount: 0,
   });
   const [allStamps, setAllStamps] = useState<PassportEntry[]>([]);
-  const [achievements, setAchievements] = useState<any[]>([]);
+  const [achievements, setAchievements] = useState<AchievementDisplay[]>([]);
   const [nextToUnlock, setNextToUnlock] = useState<NextToUnlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'identity' | 'stamps' | 'achievements' | 'timeline' | 'taste' | 'bucket'>('identity');
@@ -117,10 +123,6 @@ export const PassportModal: React.FC<PassportModalProps> = ({
               <Clock className="w-4 h-4" />
               Timeline
             </TabsTrigger>
-            <TabsTrigger value="taste" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Taste Map
-            </TabsTrigger>
             <TabsTrigger value="bucket" className="flex items-center gap-2">
               <ListChecks className="w-4 h-4" />
               Bucket List
@@ -132,7 +134,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
           </TabsContent>
 
           <TabsContent value="stamps" className="mt-4">
-            <PassportStampsView stamps={allStamps} loading={loading} />
+            <PassportStampsView stamps={allStamps} achievements={achievements} loading={loading} />
           </TabsContent>
 
             <TabsContent value="achievements" className="mt-4">
@@ -143,12 +145,116 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Unlocked Achievements */}
                   {(() => {
-                    const unlocked = achievements.filter(a => a.unlocked);
-                    if (unlocked.length === 0) return null;
+                    // Group achievements by type
+                    const groupedByType = new Map<string, AchievementDisplay[]>();
+                    achievements.forEach(achievement => {
+                      if (!groupedByType.has(achievement.type)) {
+                        groupedByType.set(achievement.type, []);
+                      }
+                      groupedByType.get(achievement.type)!.push(achievement);
+                    });
+
+                    // Convert to array and process each group
+                    const processedAchievements = Array.from(groupedByType.entries()).map(([type, tierAchievements]) => {
+                      // Sort by tier: bronze, silver, gold
+                      tierAchievements.sort((a, b) => {
+                        const tierOrder = { bronze: 0, silver: 1, gold: 2 };
+                        return (tierOrder[a.tier || 'bronze'] || 0) - (tierOrder[b.tier || 'bronze'] || 0);
+                      });
+
+                      // Get all tiers - we need to find the goals from any tier that has them
+                      // The goals are consistent across tiers for the same achievement type
+                      const goldTier = tierAchievements.find(a => a.tier === 'gold');
+                      const silverTier = tierAchievements.find(a => a.tier === 'silver');
+                      const bronzeTier = tierAchievements.find(a => a.tier === 'bronze');
+
+                      // Get goals - check metadata or use the goal from each tier
+                      // Since all tiers share the same progress, we can get goals from any tier
+                      // But we need to get the actual tier-specific goals
+                      // For now, use the goals from the tier objects, or infer from the service
+                      let bronzeGoal = bronzeTier?.goal || 0;
+                      let silverGoal = silverTier?.goal || 0;
+                      let goldGoal = goldTier?.goal || 0;
+                      
+                      // If we don't have all goals, try to get them from the achievement info
+                      // We'll need to call the service method to get the goals
+                      if (!bronzeGoal || !silverGoal || !goldGoal) {
+                        // Get goals from the service's getAchievementInfo method
+                        // For now, we'll use standard goals based on achievement type
+                        // This is a fallback - ideally the RPC should return all goals
+                        const getStandardGoals = (achievementType: string) => {
+                          const goals: Record<string, { bronze: number; silver: number; gold: number }> = {
+                            venue_hopper: { bronze: 3, silver: 7, gold: 15 },
+                            scene_explorer: { bronze: 2, silver: 4, gold: 7 },
+                            city_crosser: { bronze: 2, silver: 5, gold: 10 },
+                            era_walker: { bronze: 2, silver: 3, gold: 5 },
+                            first_through_door: { bronze: 1, silver: 3, gold: 6 },
+                            trusted_voice: { bronze: 3, silver: 10, gold: 25 },
+                            deep_cut_reviewer: { bronze: 2, silver: 5, gold: 10 },
+                            scene_regular: { bronze: 3, silver: 6, gold: 10 },
+                            road_tripper: { bronze: 1, silver: 3, gold: 6 },
+                            venue_loyalist: { bronze: 3, silver: 6, gold: 10 },
+                            genre_blender: { bronze: 2, silver: 4, gold: 6 },
+                            memory_maker: { bronze: 1, silver: 3, gold: 5 },
+                            early_adopter: { bronze: 1, silver: 3, gold: 5 },
+                            connector: { bronze: 2, silver: 5, gold: 10 },
+                            passport_complete: { bronze: 5, silver: 10, gold: 15 },
+                          };
+                          return goals[achievementType] || { bronze: 0, silver: 0, gold: 0 };
+                        };
+                        
+                        const standardGoals = getStandardGoals(type);
+                        if (!bronzeGoal) bronzeGoal = standardGoals.bronze;
+                        if (!silverGoal) silverGoal = standardGoals.silver;
+                        if (!goldGoal) goldGoal = standardGoals.gold;
+                      }
+
+                      // Use the highest goal (gold if available, otherwise silver, otherwise bronze)
+                      const highestGoal = goldGoal || silverGoal || bronzeGoal || 0;
+                      const currentProgress = goldTier?.progress || silverTier?.progress || bronzeTier?.progress || 0;
+
+                      // Determine which tier is completed (highest unlocked tier)
+                      let completedTier: 'bronze' | 'silver' | 'gold' | null = null;
+                      if (goldTier?.unlocked) {
+                        completedTier = 'gold';
+                      } else if (silverTier?.unlocked) {
+                        completedTier = 'silver';
+                      } else if (bronzeTier?.unlocked) {
+                        completedTier = 'bronze';
+                      }
+
+                      // Get base achievement info (use bronze for name/icon)
+                      const baseAchievement = bronzeTier || silverTier || goldTier || tierAchievements[0];
+                      
+                      // Get base description (without tier label)
+                      const baseDescription = bronzeTier?.description?.replace(/\([^)]+\)\s*$/, '').trim() || 
+                                             baseAchievement.description?.replace(/\([^)]+\)\s*$/, '').trim() || 
+                                             '';
+
+                      return {
+                        ...baseAchievement,
+                        type,
+                        progress: currentProgress,
+                        goal: highestGoal,
+                        completedTier,
+                        bronzeGoal,
+                        silverGoal,
+                        goldGoal,
+                        description: baseDescription,
+                        unlocked: !!completedTier,
+                        unlocked_at: goldTier?.unlocked_at || silverTier?.unlocked_at || bronzeTier?.unlocked_at,
+                      } as ProcessedAchievement;
+                    });
+
+                    // Separate into unlocked and in progress
+                    const unlocked = processedAchievements.filter(a => a.unlocked);
+                    const inProgress = processedAchievements.filter(a => !a.unlocked);
                     
                     return (
+                      <>
+                        {/* Unlocked Achievements */}
+                        {unlocked.length > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-4">
                           <Award className="w-5 h-5 text-yellow-500" />
@@ -158,22 +264,38 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {unlocked.map((achievement) => {
-                            const tierColors = {
-                              gold: 'bg-yellow-50 border-yellow-300',
-                              silver: 'bg-gray-50 border-gray-300',
-                              bronze: 'bg-orange-50 border-orange-300',
+                                const progressPercent = Math.min((achievement.progress / achievement.goal) * 100, 100);
+                                
+                                // Determine current tier based on progress
+                                let currentTier: 'bronze' | 'silver' | 'gold' = 'bronze';
+                                if (achievement.goldGoal > 0 && achievement.progress >= achievement.goldGoal) {
+                                  currentTier = 'gold';
+                                } else if (achievement.silverGoal > 0 && achievement.progress >= achievement.silverGoal) {
+                                  currentTier = 'silver';
+                                } else if (achievement.bronzeGoal > 0 && achievement.progress >= achievement.bronzeGoal) {
+                                  currentTier = 'bronze';
+                                }
+                                
+                                // Color based on current tier
+                                const cardColors = {
+                                  gold: 'bg-white border-yellow-400 border-2',
+                                  silver: 'bg-white border-gray-400 border-2',
+                                  bronze: 'bg-white border-orange-400 border-2',
                             };
-                            const progressColors = {
+                                
+                                const progressBarColors = {
                               gold: 'bg-yellow-500',
                               silver: 'bg-gray-400',
                               bronze: 'bg-orange-400',
                             };
-                            const progressPercent = Math.min((achievement.progress / achievement.goal) * 100, 100);
+
+                                const cardColor = cardColors[currentTier];
+                                const progressColor = progressBarColors[currentTier];
                             
                             return (
                               <Card 
-                                key={achievement.id} 
-                                className={`border-2 ${tierColors[achievement.tier || 'bronze']}`}
+                                    key={achievement.type} 
+                                    className={cardColor}
                               >
                                 <CardContent className="p-4">
                                   <div className="flex items-start gap-3">
@@ -181,11 +303,34 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                                     <div className="flex-1">
                                       <div className="flex items-center justify-between mb-1">
                                         <h4 className="font-semibold">{achievement.name.replace(/\s+\([^)]+\)$/, '')}</h4>
+                                            <div className="flex items-center gap-1">
+                                              {achievement.completedTier === 'gold' && (
+                                                <span className="text-yellow-600 text-lg">⭐</span>
+                                              )}
                                         <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs px-2 py-0.5">
-                                          ✓ Unlocked
+                                                ✓ {achievement.completedTier?.charAt(0).toUpperCase() + achievement.completedTier?.slice(1)}
                                         </Badge>
                                       </div>
-                                      <p className="text-sm text-muted-foreground mb-3">{achievement.description}</p>
+                                          </div>
+                                          <p className="text-sm text-muted-foreground mb-2">{achievement.description || baseAchievement.description}</p>
+                                          {/* Tier goals */}
+                                          <div className="flex items-center gap-2 mb-3 text-xs">
+                                            {achievement.bronzeGoal > 0 && (
+                                              <span className="px-2 py-0.5 rounded bg-orange-100 text-orange-700 font-medium">
+                                                Bronze: {achievement.bronzeGoal}
+                                              </span>
+                                            )}
+                                            {achievement.silverGoal > 0 && (
+                                              <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700 font-medium">
+                                                Silver: {achievement.silverGoal}
+                                              </span>
+                                            )}
+                                            {achievement.goldGoal > 0 && (
+                                              <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 font-medium">
+                                                Gold: {achievement.goldGoal}
+                                              </span>
+                                            )}
+                                          </div>
                                       <div className="mb-2">
                                         <div className="flex justify-between text-xs text-muted-foreground mb-1">
                                           <span>Progress</span>
@@ -193,7 +338,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                                         </div>
                                         <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                                           <div 
-                                            className={`h-2 rounded-full ${progressColors[achievement.tier || 'bronze']}`}
+                                                className={`h-2 rounded-full ${progressColor}`}
                                             style={{ width: `${progressPercent}%` }}
                                           ></div>
                                         </div>
@@ -211,15 +356,10 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                           })}
                         </div>
                       </div>
-                    );
-                  })()}
+                        )}
 
                   {/* In Progress Achievements */}
-                  {(() => {
-                    const inProgress = achievements.filter(a => !a.unlocked);
-                    if (inProgress.length === 0) return null;
-                    
-                    return (
+                        {inProgress.length > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-4">
                           <Award className="w-5 h-5 text-gray-400" />
@@ -230,21 +370,46 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {inProgress.map((achievement) => {
                             const progressPercent = Math.min((achievement.progress / achievement.goal) * 100, 100);
-                            const tierColors = {
-                              gold: 'border-yellow-200',
-                              silver: 'border-gray-200',
-                              bronze: 'border-orange-200',
+                                
+                                // Determine current tier based on progress
+                                let currentTier: 'bronze' | 'silver' | 'gold' = 'bronze';
+                                if (achievement.goldGoal > 0 && achievement.progress >= achievement.goldGoal) {
+                                  currentTier = 'gold';
+                                } else if (achievement.silverGoal > 0 && achievement.progress >= achievement.silverGoal) {
+                                  currentTier = 'silver';
+                                } else if (achievement.bronzeGoal > 0 && achievement.progress >= achievement.bronzeGoal) {
+                                  currentTier = 'bronze';
+                                } else {
+                                  // Not yet at bronze - determine which tier they're working toward
+                                  if (achievement.bronzeGoal > 0 && achievement.progress < achievement.bronzeGoal) {
+                                    currentTier = 'bronze';
+                                  } else if (achievement.silverGoal > 0 && achievement.progress < achievement.silverGoal) {
+                                    currentTier = 'silver';
+                                  } else {
+                                    currentTier = 'gold';
+                                  }
+                                }
+                                
+                                // Color based on current tier
+                                const cardColors = {
+                                  gold: 'bg-white border-yellow-400 border-2',
+                                  silver: 'bg-white border-gray-400 border-2',
+                                  bronze: 'bg-white border-orange-400 border-2',
                             };
-                            const progressColors = {
-                              gold: 'bg-yellow-400',
-                              silver: 'bg-gray-300',
-                              bronze: 'bg-orange-300',
+                                
+                                const progressBarColors = {
+                                  gold: 'bg-yellow-500',
+                                  silver: 'bg-gray-400',
+                                  bronze: 'bg-orange-400',
                             };
+
+                                const cardColor = cardColors[currentTier];
+                                const progressColor = progressBarColors[currentTier];
                             
                             return (
                               <Card 
-                                key={achievement.id} 
-                                className={`border-2 bg-white ${tierColors[achievement.tier || 'bronze']}`}
+                                    key={achievement.type} 
+                                    className={cardColor}
                               >
                                 <CardContent className="p-4">
                                   <div className="flex items-start gap-3">
@@ -254,7 +419,25 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                                         <h4 className="font-semibold">{achievement.name.replace(/\s+\([^)]+\)$/, '')}</h4>
                                         <Award className="w-4 h-4 text-gray-400" />
                                       </div>
-                                      <p className="text-sm text-muted-foreground mb-3">{achievement.description}</p>
+                                          <p className="text-sm text-muted-foreground mb-2">{achievement.description}</p>
+                                          {/* Tier goals */}
+                                          <div className="flex items-center gap-2 mb-3 text-xs">
+                                            {achievement.bronzeGoal > 0 && (
+                                              <span className="px-2 py-0.5 rounded bg-orange-100 text-orange-700 font-medium">
+                                                Bronze: {achievement.bronzeGoal}
+                                              </span>
+                                            )}
+                                            {achievement.silverGoal > 0 && (
+                                              <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700 font-medium">
+                                                Silver: {achievement.silverGoal}
+                                              </span>
+                                            )}
+                                            {achievement.goldGoal > 0 && (
+                                              <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 font-medium">
+                                                Gold: {achievement.goldGoal}
+                                              </span>
+                                            )}
+                                          </div>
                                       <div className="mb-2">
                                         <div className="flex justify-between text-xs text-muted-foreground mb-1">
                                           <span>Progress</span>
@@ -262,7 +445,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                                         </div>
                                         <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                                           <div 
-                                            className={`h-2 rounded-full ${progressColors[achievement.tier || 'bronze']}`}
+                                                className={`h-2 rounded-full ${progressColor}`}
                                             style={{ width: `${progressPercent}%` }}
                                           ></div>
                                         </div>
@@ -275,6 +458,8 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                           })}
                         </div>
                       </div>
+                        )}
+                      </>
                     );
                   })()}
                 </div>
@@ -283,10 +468,6 @@ export const PassportModal: React.FC<PassportModalProps> = ({
 
           <TabsContent value="timeline" className="mt-4">
             <PassportTimelineView userId={userId} />
-          </TabsContent>
-
-          <TabsContent value="taste" className="mt-4">
-            <PassportTasteMapView userId={userId} />
           </TabsContent>
 
           <TabsContent value="bucket" className="mt-4 relative overflow-visible">

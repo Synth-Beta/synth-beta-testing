@@ -182,7 +182,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         is_public: item.review.is_public,
         event_title: item.event?.title || item.event?.event_name || 'Concert Review',
         venue_name: item.event?.venue_name || 'Unknown Venue',
-        event_date: item.event?.event_date || item.review.created_at,
+        event_date: (item.review as any).Event_date || (item.review as any).event_date || item.event?.event_date || item.review.created_at,
         artist_name: item.event?.artist_name || 'Unknown Artist',
         reviewer_name: 'You',
         reviewer_avatar: null,

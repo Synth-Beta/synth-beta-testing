@@ -293,6 +293,15 @@ class InteractionTrackingService {
       // Use insert instead of rpc due to lint error and to match table structure
       // Note: entity_uuid is preferred for UUID-based entities (artists, venues, events)
       // entity_id is kept as metadata for legacy support
+      // Entity types that don't require entity_uuid: search, view, form, ticket_link, song, album, playlist, genre, scene
+      const ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene'];
+      
+      // Skip if entity_type requires entity_uuid but it's not provided
+      if (!ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT.includes(event.entityType) && !event.entityUuid) {
+        console.warn(`Skipping interaction: entity_type '${event.entityType}' requires entity_uuid but it was not provided`, event);
+        return;
+      }
+      
       const { error } = await supabase
         .from('interactions')
         .insert([{
@@ -397,7 +406,20 @@ class InteractionTrackingService {
       // Map camelCase to snake_case for database
       // Note: entity_uuid is preferred for UUID-based entities (artists, venues, events)
       // entity_id is kept as metadata for legacy support
-      const dbBatch = validEvents.map(event => ({
+      // Entity types that don't require entity_uuid: search, view, form, ticket_link, song, album, playlist, genre, scene
+      const ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene'];
+      
+      const dbBatch = validEvents
+        .filter(event => {
+          // Filter out events that violate the constraint
+          // If entity_type is NOT in the exception list, entity_uuid must be provided
+          if (!ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT.includes(event.entityType) && !event.entityUuid) {
+            console.warn(`Skipping interaction: entity_type '${event.entityType}' requires entity_uuid but it was not provided`, event);
+            return false;
+          }
+          return true;
+        })
+        .map(event => ({
         user_id: user.id,
         session_id: event.sessionId || this.sessionId,
         event_type: event.eventType,

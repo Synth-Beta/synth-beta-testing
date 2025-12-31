@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Calendar, Ticket, MessageCircle, Share2, Heart } from 'lucide-react';
+import { MapPin, Calendar, Ticket, MessageCircle, Share2, Heart, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -19,6 +19,7 @@ interface FigmaEventCardProps {
   onInterestToggle?: () => void;
   onComment?: () => void;
   onShare?: () => void;
+  onFlag?: () => void;
   onClick?: () => void;
   className?: string;
 }
@@ -30,6 +31,7 @@ export const FigmaEventCard: React.FC<FigmaEventCardProps> = ({
   onInterestToggle,
   onComment,
   onShare,
+  onFlag,
   onClick,
   className,
 }) => {
@@ -160,6 +162,17 @@ export const FigmaEventCard: React.FC<FigmaEventCardProps> = ({
           <span className="font-['Inter',sans-serif] font-normal leading-normal not-italic text-[16px] text-[#0e0e0e]">
             Share
           </span>
+        </div>
+
+        {/* Flag */}
+        <div
+          className="flex gap-2 items-center justify-center cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            onFlag?.();
+          }}
+        >
+          <Flag className="w-[18px] h-[22px] text-[#5d646f]" strokeWidth={2} />
         </div>
       </div>
     </div>

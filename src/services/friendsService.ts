@@ -193,5 +193,93 @@ export class FriendsService {
       return null;
     }
   }
+
+  /**
+   * Get recommended friends from 2nd and 3rd degree connections
+   * @param userId - The user ID to get recommendations for
+   * @param limit - Maximum number of recommendations (default: 10)
+   * @returns Array of friend recommendation objects with connection depth and mutual friends info
+   */
+  static async getRecommendedFriends(userId: string, limit: number = 10): Promise<Array<{
+    user_id: string;
+    name: string;
+    avatar_url: string | null;
+    verified?: boolean;
+    connection_depth: number;
+    mutual_friends_count: number;
+    shared_genres_count?: number;
+  }>> {
+    try {
+      // Get 2nd and 3rd degree connections using existing RPC functions
+      const [secondDegreeResult, thirdDegreeResult] = await Promise.all([
+        supabase.rpc('get_second_degree_connections', { target_user_id: userId }),
+        supabase.rpc('get_third_degree_connections', { target_user_id: userId })
+      ]);
+
+      if (secondDegreeResult.error) {
+        console.error('Error fetching second degree connections:', secondDegreeResult.error);
+      }
+      if (thirdDegreeResult.error) {
+        console.error('Error fetching third degree connections:', thirdDegreeResult.error);
+      }
+
+      const secondDegree = secondDegreeResult.data || [];
+      const thirdDegree = thirdDegreeResult.data || [];
+
+      // Combine and format the results
+      const recommendations: Array<{
+        user_id: string;
+        name: string;
+        avatar_url: string | null;
+        verified?: boolean;
+        connection_depth: number;
+        mutual_friends_count: number;
+        shared_genres_count?: number;
+      }> = [];
+
+      // Add 2nd degree connections
+      secondDegree.forEach((conn: any) => {
+        recommendations.push({
+          user_id: conn.connected_user_id,
+          name: conn.name || 'Unknown User',
+          avatar_url: conn.avatar_url || null,
+          verified: conn.is_public_profile !== false, // Use profile visibility as proxy
+          connection_depth: 2,
+          mutual_friends_count: conn.mutual_friends_count || 0,
+        });
+      });
+
+      // Add 3rd degree connections
+      thirdDegree.forEach((conn: any) => {
+        recommendations.push({
+          user_id: conn.connected_user_id,
+          name: conn.name || 'Unknown User',
+          avatar_url: conn.avatar_url || null,
+          verified: conn.is_public_profile !== false,
+          connection_depth: 3,
+          mutual_friends_count: conn.mutual_friends_count || 0,
+        });
+      });
+
+      // Sort by mutual friends count (descending), then by connection depth (2nd before 3rd)
+      recommendations.sort((a, b) => {
+        if (a.mutual_friends_count !== b.mutual_friends_count) {
+          return b.mutual_friends_count - a.mutual_friends_count;
+        }
+        return a.connection_depth - b.connection_depth;
+      });
+
+      // Remove duplicates (in case same user appears in both)
+      const uniqueRecommendations = Array.from(
+        new Map(recommendations.map(rec => [rec.user_id, rec])).values()
+      );
+
+      // Return limited results
+      return uniqueRecommendations.slice(0, limit);
+    } catch (error) {
+      console.error('Error getting recommended friends:', error);
+      return [];
+    }
+  }
 }
 

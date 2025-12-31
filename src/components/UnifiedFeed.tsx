@@ -70,6 +70,7 @@ import { EventLikesService } from '@/services/eventLikesService';
 import { EventShareModal } from '@/components/events/EventShareModal';
 import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
 import { ShareService } from '@/services/shareService';
+import { FlagContentModal } from '@/components/moderation/FlagContentModal';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { FriendActivityFeed } from '@/components/social/FriendActivityFeed';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
@@ -98,6 +99,8 @@ import { FollowIndicator } from '@/components/events/FollowIndicator';
 import type { Artist } from '@/types/concertSearch';
 import { EventFilters, FilterState } from '@/components/search/EventFilters';
 import { parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { FriendSuggestionsRail } from '@/components/feed/FriendSuggestionsRail';
+import { FriendsService } from '@/services/friendsService';
 import { normalizeCityName } from '@/utils/cityNormalization';
 import { RadiusSearchService } from '@/services/radiusSearchService';
 import { useNavigate } from 'react-router-dom';
@@ -276,6 +279,10 @@ export const UnifiedFeed = ({
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<string>>(new Set());
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
   
+  // Flag modal state
+  const [flagModalOpen, setFlagModalOpen] = useState(false);
+  const [flaggedEvent, setFlaggedEvent] = useState<{ id: string; title: string } | null>(null);
+  
   // Following state
   const [followedArtists, setFollowedArtists] = useState<string[]>([]);
   const [followedVenues, setFollowedVenues] = useState<Array<{name: string, city?: string, state?: string}>>([]);
@@ -292,6 +299,18 @@ export const UnifiedFeed = ({
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsSource, setNewsSource] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<FeedSectionKey>(() => resolvedSections[0] ?? 'events');
+  
+  // Recommended friends state
+  const [recommendedFriends, setRecommendedFriends] = useState<Array<{
+    user_id: string;
+    name: string;
+    avatar_url: string | null;
+    verified?: boolean;
+    connection_depth: number;
+    mutual_friends_count: number;
+    shared_genres_count?: number;
+  }>>([]);
+  const [loadingRecommendedFriends, setLoadingRecommendedFriends] = useState(false);
 
   useEffect(() => {
     if (isStacked) return;
@@ -420,6 +439,49 @@ export const UnifiedFeed = ({
       // Always fetch fresh personalized results when clicking News tab
       NewsService.clearCache(); // Clear cache for fresh results
       fetchNews();
+    }
+    if (value === 'reviews' && resolvedSections.includes('reviews')) {
+      // Load recommended friends when reviews tab is active
+      loadRecommendedFriends();
+    }
+  };
+
+  // Fetch recommended friends (2nd and 3rd degree connections)
+  const loadRecommendedFriends = async () => {
+    if (loadingRecommendedFriends || recommendedFriends.length > 0) return;
+    
+    setLoadingRecommendedFriends(true);
+    try {
+      const recommendations = await FriendsService.getRecommendedFriends(currentUserId, 10);
+      setRecommendedFriends(recommendations);
+    } catch (error) {
+      console.error('Error loading recommended friends:', error);
+    } finally {
+      setLoadingRecommendedFriends(false);
+    }
+  };
+
+  // Send friend request
+  const handleSendFriendRequest = async (userId: string) => {
+    try {
+      const { error } = await supabase.rpc('create_friend_request', {
+        receiver_user_id: userId
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Friend Request Sent! 🎉',
+        description: 'Your friend request has been sent.',
+      });
+    } catch (error: any) {
+      console.error('Error sending friend request:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send friend request. Please try again.',
+        variant: 'destructive',
+      });
+      throw error;
     }
   };
 
@@ -599,7 +661,9 @@ export const UnifiedFeed = ({
         Promise.resolve(loadFeedData(0, false)),
         loadUpcomingEvents(),
         loadFollowedData(),
-        loadCities()
+        loadCities(),
+        loadRecommendedFriends(),
+        loadAllInterestedEvents()
       ]).catch(err => console.warn('Error loading parallel data:', err));
     };
     
@@ -769,7 +833,8 @@ export const UnifiedFeed = ({
     checkForSelectedEvent();
   }, []);
 
-  // Load interested events when feedItems change
+  // Note: Interested events are now loaded immediately on mount via loadAllInterestedEvents()
+  // This useEffect is kept as a fallback but should rarely trigger since we load all events upfront
   useEffect(() => {
     if (!currentUserId || feedItems.length === 0) return;
     
@@ -778,11 +843,12 @@ export const UnifiedFeed = ({
     
     const eventIds = eventItems.map(item => item.event_data!.id).filter(Boolean) as string[];
     
-    // Only load if we have events that aren't already in interestedEvents
+    // Only load if we have events that aren't already in interestedEvents (fallback check)
     const uncheckedEventIds = eventIds.filter(id => !interestedEvents.has(id));
     if (uncheckedEventIds.length === 0) return;
     
-    loadInterestedEventsForFeed(uncheckedEventIds);
+    // Fallback: if somehow we don't have these events loaded, trigger full reload
+    loadAllInterestedEvents();
   }, [feedItems, currentUserId, interestedEvents]);
 
   const handleMapEventClick = (mapEvent: JamBaseEventResponse) => {
@@ -1174,10 +1240,8 @@ export const UnifiedFeed = ({
       console.log(`📊 Loaded ${items.length} items (${eventItems.length} events), hasMore: ${newHasMore}`);
       setHasMore(newHasMore);
       
-      // Load interested events for the events in the feed
-      if (currentUserId && eventItems.length > 0) {
-        loadInterestedEventsForFeed(eventItems.map(item => item.event_data?.id).filter(Boolean) as string[]);
-      }
+      // Note: Interested events are already loaded upfront via loadAllInterestedEvents()
+      // No need to load them again here
       
     } catch (error) {
       console.error('Error loading feed data:', error);
@@ -1232,45 +1296,50 @@ export const UnifiedFeed = ({
     }
   };
 
-  // Load interested events for events in the feed
-  const loadInterestedEventsForFeed = async (eventIds: string[]) => {
-    if (!currentUserId || eventIds.length === 0) return;
+  // Load ALL interested events immediately on mount
+  const loadAllInterestedEvents = async () => {
+    if (!currentUserId) return;
     
     try {
-      // Query relationships table to get all events user is interested in
+      // Query user_event_relationships table to get ALL events user is interested in
       const { data, error } = await supabase
-        .from('relationships')
-        .select('related_entity_id')
-        .eq('relationship_type', 'interest')
+        .from('user_event_relationships')
+        .select('event_id')
         .eq('user_id', currentUserId)
-        .eq('related_entity_type', 'event')
-        .in('related_entity_id', eventIds);
+        .eq('relationship_type', 'interested');
       
       if (error) {
-        console.error('Error loading interested events:', error);
+        console.error('Error loading all interested events:', error);
         return;
       }
       
-      // Extract event IDs
+      // Extract event IDs into a Set
       const allInterestedIds = new Set<string>();
       if (data) {
         data.forEach((row: any) => {
-          if (row.related_entity_id) {
-            allInterestedIds.add(String(row.related_entity_id));
+          if (row.event_id) {
+            allInterestedIds.add(String(row.event_id));
           }
         });
       }
       
-      // Update interestedEvents state
-      setInterestedEvents(prev => {
-        const newSet = new Set(prev);
-        allInterestedIds.forEach(id => newSet.add(id));
-        return newSet;
-      });
+      // Set all interested events immediately
+      setInterestedEvents(allInterestedIds);
       
-      console.log('✅ Loaded interested events:', allInterestedIds.size, 'events');
+      console.log('✅ Loaded all interested events:', allInterestedIds.size, 'events');
     } catch (error) {
-      console.error('Error loading interested events for feed:', error);
+      console.error('Error loading all interested events:', error);
+    }
+  };
+
+  // Legacy function kept for backwards compatibility (but shouldn't be needed if loadAllInterestedEvents is called)
+  const loadInterestedEventsForFeed = async (eventIds: string[]) => {
+    // This is now a no-op since we load all interested events upfront
+    // Kept for backwards compatibility in case it's called
+    if (!currentUserId || eventIds.length === 0) return;
+    // If somehow we don't have the interested events loaded yet, just load all of them
+    if (interestedEvents.size === 0) {
+      await loadAllInterestedEvents();
     }
   };
 
@@ -2150,6 +2219,19 @@ export const UnifiedFeed = ({
                       <Share2 className="w-4 h-4" />
                       <span>Share</span>
                     </button>
+                    {item.type === 'event' && item.event_data && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFlaggedEvent({ id: item.event_data!.id, title: item.event_data!.title || item.title });
+                          setFlagModalOpen(true);
+                        }}
+                        className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition-colors"
+                        aria-label="Flag event"
+                      >
+                        <Flag className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                   <div className="text-xs text-gray-400">{formatTimeAgo(item.created_at)}</div>
                 </div>
@@ -2681,18 +2763,26 @@ export const UnifiedFeed = ({
                   </div>
             ) : (
               <div className="space-y-6">
-                {feedItems.filter(item => item.type === 'review' && !(item as any).deleted_at && !(item as any).is_deleted).map((item, index) => {
-                  console.log('🖼️ Review item author data:', {
-                    id: item.id,
-                    authorName: item.author?.name,
-                    avatarUrl: item.author?.avatar_url,
-                    authorId: item.author?.id,
-                    fullAuthor: item.author
-                  });
+                {(() => {
+                  const reviewItems = feedItems.filter(item => item.type === 'review' && !(item as any).deleted_at && !(item as any).is_deleted);
+                  const firstThreeReviews = reviewItems.slice(0, 3);
+                  const remainingReviews = reviewItems.slice(3);
+                  
                   return (
-                  <BelliStyleReviewCard
-                    key={`${item.id}-${index}`}
-                    review={{
+                    <>
+                      {/* First 3 reviews */}
+                      {firstThreeReviews.map((item, index) => {
+                        console.log('🖼️ Review item author data:', {
+                          id: item.id,
+                          authorName: item.author?.name,
+                          avatarUrl: item.author?.avatar_url,
+                          authorId: item.author?.id,
+                          fullAuthor: item.author
+                        });
+                        return (
+                        <BelliStyleReviewCard
+                          key={`${item.id}-${index}`}
+                          review={{
                       id: item.review_id || item.id,
                       user_id: item.author?.id || currentUserId,
                       event_id: (item as any).event_id || '',
@@ -2887,8 +2977,183 @@ export const UnifiedFeed = ({
                     followedArtists={followedArtists}
                     followedVenues={followedVenues}
                   />
+                        );
+                      })}
+                      
+                      {/* Friend Suggestions Rail - Insert after first 3 reviews */}
+                      {recommendedFriends.length > 0 && (
+                        <FriendSuggestionsRail
+                          suggestions={recommendedFriends}
+                          onUserClick={(userId) => onNavigateToProfile?.(userId)}
+                          onAddFriend={handleSendFriendRequest}
+                        />
+                      )}
+                      
+                      {/* Remaining reviews */}
+                      {remainingReviews.map((item, index) => {
+                        return (
+                        <BelliStyleReviewCard
+                          key={`${item.id}-${index + 3}`}
+                          review={{
+                            id: item.review_id || item.id,
+                            user_id: item.author?.id || currentUserId,
+                            event_id: (item as any).event_id || '',
+                            rating: typeof item.rating === 'number' 
+                              ? item.rating 
+                              : (typeof item.rating === 'string' ? parseFloat(item.rating) : null) ?? 0,
+                            review_text: item.content || '',
+                            is_public: true,
+                            created_at: item.created_at,
+                            updated_at: item.updated_at || item.created_at,
+                            likes_count: item.likes_count || 0,
+                            comments_count: item.comments_count || 0,
+                            shares_count: item.shares_count || 0,
+                            is_liked_by_user: likedPosts.has(item.id),
+                            reaction_emoji: (item as any).reaction_emoji || '',
+                            photos: item.photos || [],
+                            videos: [],
+                            mood_tags: [],
+                            genre_tags: [],
+                            context_tags: [],
+                            artist_name: item.event_info?.artist_name,
+                            venue_name: item.event_info?.venue_name,
+                            artist_performance_rating: (item as any).artist_performance_rating,
+                            production_rating: (item as any).production_rating,
+                            venue_rating: (item as any).venue_rating,
+                            location_rating: (item as any).location_rating,
+                            value_rating: (item as any).value_rating,
+                            artist_performance_feedback: (item as any).artist_performance_feedback,
+                            production_feedback: (item as any).production_feedback,
+                            venue_feedback: (item as any).venue_feedback,
+                            location_feedback: (item as any).location_feedback,
+                            value_feedback: (item as any).value_feedback,
+                            ticket_price_paid: (item as any).ticket_price_paid,
+                            setlist: (item as any).setlist,
+                            custom_setlist: (item as any).custom_setlist,
+                            connection_degree: item.connection_degree,
+                            connection_type_label: item.connection_type_label
+                          } as any}
+                          currentUserId={currentUserId}
+                          onLike={(reviewId, isLiked) => {
+                            if (isLiked) {
+                              setLikedPosts(prev => new Set([...prev, item.id]));
+                            } else {
+                              setLikedPosts(prev => {
+                                const next = new Set(prev);
+                                next.delete(item.id);
+                                return next;
+                              });
+                            }
+                          }}
+                          onComment={() => setOpenReviewCommentsFor(item.review_id || item.id)}
+                          onShare={(reviewId) => handleShare(item)}
+                          onEdit={() => {
+                            const fetchFullReviewData = async () => {
+                              try {
+                                const { data: reviewData, error: reviewError } = await supabase
+                                  .from('reviews')
+                                  .select(`
+                                    *,
+                                    events!inner (
+                                      id, title, artist_name, artist_id, venue_name, venue_id,
+                                      venue_city, venue_state, venue_zip, venue_address,
+                                      event_date, doors_time, description, genres,
+                                      price_range, ticket_urls, setlist
+                                    )
+                                  `)
+                                  .eq('id', item.review_id || item.id)
+                                  .single();
+                                
+                                if (reviewError || !reviewData || !reviewData.events) return;
+                                
+                                const event = reviewData.events;
+                                const review = reviewData;
+                                setSelectedReviewEvent({
+                                  id: event.id,
+                                  jambase_event_id: (event as any).jambase_event_id,
+                                  title: event.title || 'Concert Review',
+                                  artist_name: event.artist_name,
+                                  artist_id: event.artist_id,
+                                  venue_name: event.venue_name,
+                                  venue_id: event.venue_id,
+                                  event_date: event.event_date,
+                                  doors_time: event.doors_time,
+                                  description: event.description,
+                                  genres: event.genres,
+                                  venue_city: event.venue_city,
+                                  venue_state: event.venue_state,
+                                  venue_zip: event.venue_zip,
+                                  venue_address: event.venue_address,
+                                  price_range: event.price_range,
+                                  ticket_urls: event.ticket_urls,
+                                  setlist: event.setlist,
+                                  existing_review_id: review.id,
+                                  existing_review: {
+                                    rating: review.rating,
+                                    review_text: review.review_text,
+                                    artist_performance_rating: review.artist_performance_rating,
+                                    production_rating: review.production_rating,
+                                    venue_rating: review.venue_rating,
+                                    location_rating: review.location_rating,
+                                    value_rating: review.value_rating,
+                                    artist_performance_feedback: review.artist_performance_feedback,
+                                    production_feedback: review.production_feedback,
+                                    venue_feedback: review.venue_feedback,
+                                    location_feedback: review.location_feedback,
+                                    value_feedback: review.value_feedback,
+                                    ticket_price_paid: review.ticket_price_paid,
+                                    reaction_emoji: review.reaction_emoji,
+                                    is_public: review.is_public,
+                                    review_type: review.review_type,
+                                    photos: review.photos,
+                                    custom_setlist: review.custom_setlist,
+                                    selectedSetlist: event.setlist,
+                                    venue_tags: review.venue_tags,
+                                    artist_tags: review.artist_tags,
+                                    mood_tags: review.mood_tags,
+                                    genre_tags: review.genre_tags,
+                                    context_tags: review.context_tags
+                                  }
+                                });
+                                setShowReviewModal(true);
+                              } catch (error) {
+                                console.error('Error loading review data for edit:', error);
+                              }
+                            };
+                            fetchFullReviewData();
+                          }}
+                          onDelete={async (reviewId) => {
+                            try {
+                              await ReviewService.deleteEventReview(currentUserId, reviewId);
+                              loadFeedData(0);
+                              toast({ 
+                                title: "Review Deleted",
+                                description: "Your review has been deleted.",
+                              });
+                            } catch (error) {
+                              console.error('Error deleting review:', error);
+                              toast({
+                                title: "Error",
+                                description: "Failed to delete review.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          onReport={() => setOpenReportFor(item.id)}
+                          userProfile={{
+                            name: item.author?.name || 'User',
+                            avatar_url: item.author?.avatar_url || undefined,
+                            verified: (item.author as any)?.verified,
+                            account_type: (item.author as any)?.account_type
+                          }}
+                          followedArtists={followedArtists}
+                          followedVenues={followedVenues}
+                        />
+                        );
+                      })}
+                    </>
                   );
-                })}
+                })()}
               </div>
             )}
           </TabsContent>
@@ -3339,6 +3604,20 @@ export const UnifiedFeed = ({
           />
         </DialogContent>
       </Dialog>
+
+      {/* Flag Content Modal */}
+      {flaggedEvent && (
+        <FlagContentModal
+          isOpen={flagModalOpen}
+          onClose={() => {
+            setFlagModalOpen(false);
+            setFlaggedEvent(null);
+          }}
+          contentType="event"
+          contentId={flaggedEvent.id}
+          contentTitle={flaggedEvent.title}
+        />
+      )}
     </div>
   );
 };

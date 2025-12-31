@@ -418,15 +418,14 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       }
 
       console.log('🔍 ProfileView: Fetching user events from database...');
-      // Get user's interested events from relationships table
+      // Get user's interested events from user_event_relationships table
       const { data: relationships } = await supabase
-        .from('relationships')
-        .select('related_entity_id')
+        .from('user_event_relationships')
+        .select('event_id')
         .eq('user_id', targetUserId)
-        .eq('related_entity_type', 'event')
-        .eq('relationship_type', 'interest');
+        .eq('relationship_type', 'interested');
       
-      const eventIds = relationships?.map(r => r.related_entity_id) || [];
+      const eventIds = relationships?.map(r => r.event_id) || [];
       
       let data: JamBaseEvent[] = [];
       if (eventIds.length > 0) {
@@ -600,7 +599,28 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           }
           return true;
         })
-        .map((item: any) => ({
+        .map((item: any) => {
+          // Get Event_date from review - it's a Date object from getUserReviewHistory
+          // If it's a string (from database), convert to Date; if already Date, use as-is
+          let reviewEventDate: Date | undefined = undefined;
+          const eventDateValue = (item.review as any).Event_date || (item.review as any).event_date;
+          if (eventDateValue) {
+            if (eventDateValue instanceof Date) {
+              reviewEventDate = eventDateValue;
+            } else if (typeof eventDateValue === 'string') {
+              // Convert string (YYYY-MM-DD) to Date object in local timezone
+              // DATE type has no time component, so parse as local date to avoid timezone shifting
+              const [year, month, day] = eventDateValue.split('-').map(Number);
+              if (year && month && day) {
+                const parsedDate = new Date(year, month - 1, day); // month is 0-indexed
+                if (!isNaN(parsedDate.getTime())) {
+                  reviewEventDate = parsedDate;
+                }
+              }
+            }
+          }
+          
+          return {
           id: item.review.id,
           user_id: item.review.user_id,
           event_id: item.review.event_id,
@@ -627,6 +647,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           created_at: item.review.created_at,
           ticket_price_paid: item.review.ticket_price_paid,
           category_average: calculateCategoryAverage(item.review),
+          // Store Event_date as Date object for easy access
+          Event_date: reviewEventDate,
+          event_date: reviewEventDate, // Also store as lowercase for compatibility (Date object)
           // Add jambase_events data for the modal to access (keep full event object)
           jambase_events: item.event || null,
           event: {
@@ -635,12 +658,16 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 ? `${item.event.artist_name} at ${item.event.venue_name}`
                 : item.event?.event_name || 'Concert Review'),
             location: item.event?.venue_name || 'Unknown Venue',
-            event_date: item.event?.event_date || item.review.created_at,
+            // Convert Event_date (Date) to string for event_date field, or use event.event_date, or fallback to created_at
+            event_date: reviewEventDate 
+              ? reviewEventDate.toISOString().split('T')[0] 
+              : (item.event?.event_date || item.review.created_at),
             event_time: item.event?.event_time || item.event?.doors_time || 'TBD',
             // Keep full event data for PostsGrid
             _fullEvent: item.event || null
           }
-        }));
+        };
+        });
       
       console.log('🔍 ProfileView: Transformed reviews:', transformedReviews);
       console.log('🔍 ProfileView: Number of transformed reviews:', transformedReviews.length);
@@ -1440,7 +1467,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       id: review.event_id,
       title: review.event?.event_name || 'Concert Review',
       venue_name: review.event?.venue_name || review.event?.location || 'Unknown Venue',
-      event_date: review.event?.event_date || review.created_at,
+      event_date: review.Event_date || review.event_date || review.event?.event_date || review.created_at,
       artist_name: review.event?.artist_name || 'Unknown Artist',
       existing_review_id: review.id,
       // pass through existing ratings/texts where the form can read them from context if needed
@@ -1461,7 +1488,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         reaction_emoji: review.reaction_emoji,
         is_public: review.is_public,
         review_type: review.review_type,
-        event_date: review.event?.event_date || review.created_at,
+        event_date: review.Event_date || review.event_date || review.event?.event_date || review.created_at,
         artist_name: review.event?.artist_name,
         venue_name: review.event?.venue_name,
         venue_id: review.venue_id
@@ -1979,7 +2006,15 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                               <div className="h-6 w-6 rounded-full bg-gray-100 text-xs flex items-center justify-center border">{idx + 1}</div>
                               <div>
                                 <div className="text-sm font-medium">{item.event.event_name}</div>
-                                <div className="text-xs text-muted-foreground">{new Date(item.event.event_date).toLocaleDateString()}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {(() => {
+                                    // Event_date is a Date object, event_date might be Date or string, event.event_date is string
+                                    const dateToShow = item.Event_date 
+                                      || (item.event_date instanceof Date ? item.event_date : (item.event_date ? new Date(item.event_date) : null))
+                                      || (item.event.event_date ? new Date(item.event.event_date) : null);
+                                    return dateToShow ? dateToShow.toLocaleDateString() : '';
+                                  })()}
+                                </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">

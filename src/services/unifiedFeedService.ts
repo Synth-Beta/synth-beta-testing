@@ -249,7 +249,7 @@ export class UnifiedFeedService {
           event_info: {
             event_name: eventData?.title || event?.title || 'Concert Review',
             venue_name: eventData?.venue_name || event?.venue_name || 'Unknown Venue',
-            event_date: eventData?.event_date || event?.event_date || review.created_at,
+            event_date: (review as any).Event_date || (review as any).event_date || eventData?.event_date || event?.event_date || review.created_at,
             artist_name: eventData?.artist_name || event?.artist_name,
             artist_id: eventData?.artist_id || event?.artist_id
           },

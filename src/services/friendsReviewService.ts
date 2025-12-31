@@ -540,7 +540,7 @@ export class FriendsReviewService {
       event_info: {
         event_name: review.event_title || 'Concert Review',
         venue_name: review.venue_name || 'Unknown Venue',
-        event_date: review.event_date || review.created_at,
+        event_date: (review as any).Event_date || (review as any).event_date || review.event_date || review.created_at,
         artist_name: review.artist_name,
         artist_id: review.artist_id
       },

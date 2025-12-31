@@ -13,6 +13,7 @@ export interface PassportIdentity {
     slug: string;
     description: string | null;
   } | null;
+  home_city?: string | null; // User's location city from users.location_city
 }
 
 export class PassportIdentityService {
@@ -77,21 +78,21 @@ export class PassportIdentityService {
       if (identityError && identityError.code !== 'PGRST116') throw identityError;
       if (!identityData) return null;
 
-      // Fetch home scene separately if exists
-      let homeScene = null;
-      if (identityData.home_scene_id) {
-        const { data: sceneData } = await supabase
-          .from('scenes')
-          .select('id, name, slug, description')
-          .eq('id', identityData.home_scene_id)
+      // Get user's location city directly
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('location_city')
+        .eq('user_id', userId)
           .single();
         
-        homeScene = sceneData || null;
+      if (userError) {
+        console.error('Error fetching user location_city:', userError);
       }
 
       return {
         ...identityData,
-        home_scene: homeScene,
+        home_scene: null, // Not using scenes anymore
+        home_city: userData?.location_city || null,
       } as PassportIdentity;
     } catch (error) {
       console.error('Error fetching passport identity:', error);
@@ -117,20 +118,12 @@ export class PassportIdentityService {
   }
 
   /**
-   * Calculate home scene
+   * Calculate home scene (now just a no-op since we fetch it directly from location_city)
    */
   static async calculateHomeScene(userId: string): Promise<boolean> {
-    try {
-      const { error } = await supabase.rpc('update_home_scene', {
-        p_user_id: userId,
-      });
-
-      if (error) throw error;
+    // Home scene is now fetched directly based on users.location_city
+    // No calculation needed
       return true;
-    } catch (error) {
-      console.error('Error calculating home scene:', error);
-      return false;
-    }
   }
 
   /**

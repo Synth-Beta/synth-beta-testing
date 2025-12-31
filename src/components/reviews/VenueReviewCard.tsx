@@ -72,7 +72,7 @@ export function VenueReviewCard({
               </p>
               <p className="text-xs text-gray-500 flex items-center">
                 <Calendar className="w-3 h-3 mr-1" />
-                {formatDate(review.created_at)}
+                {formatDate((review as any).Event_date || (review as any).event_date || review.created_at)}
               </p>
             </div>
           </div>

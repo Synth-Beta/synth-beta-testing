@@ -966,7 +966,15 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       const ticketPrice = formData.ticketPricePaid ? Number(formData.ticketPricePaid) : undefined;
       
       // Round category ratings to 1 decimal place - only if value is > 0
-      const artistPerfRating = typeof formData.artistPerformanceRating === 'number' && formData.artistPerformanceRating > 0 ? Number(formData.artistPerformanceRating.toFixed(1)) : undefined;
+      // For 1-minute (quick) reviews, cast the overall rating to artist_performance_rating
+      let artistPerfRating: number | undefined = undefined;
+      if (flow === 'quick') {
+        // 1-minute review: cast overall rating to artist_performance_rating
+        artistPerfRating = typeof decimalAverage === 'number' && decimalAverage > 0 ? Number(decimalAverage.toFixed(1)) : undefined;
+      } else {
+        // Standard/detailed reviews: use the specific artist performance rating
+        artistPerfRating = typeof formData.artistPerformanceRating === 'number' && formData.artistPerformanceRating > 0 ? Number(formData.artistPerformanceRating.toFixed(1)) : undefined;
+      }
       const prodRating = typeof formData.productionRating === 'number' && formData.productionRating > 0 ? Number(formData.productionRating.toFixed(1)) : undefined;
       const venueRating = typeof formData.venueRating === 'number' && formData.venueRating > 0 ? Number(formData.venueRating.toFixed(1)) : undefined;
       const locationRating = typeof formData.locationRating === 'number' && formData.locationRating > 0 ? Number(formData.locationRating.toFixed(1)) : undefined;
@@ -1136,7 +1144,26 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         throw new Error('Unable to determine a valid event ID or artist+venue combination for this review.');
       }
 
-      const review = await ReviewService.setEventReview(userId, safeEventId, reviewData, safeVenueId, safeArtistId);
+      // Get event date from formData or event object for Event_date field
+      // Event_date is a Date type, convert from string to Date object
+      let eventDateForReview: Date | undefined = undefined;
+      if (formData.eventDate && formData.eventDate.trim() !== '') {
+        // Convert YYYY-MM-DD string to Date object
+        const dateObj = new Date(formData.eventDate + 'T00:00:00Z');
+        if (!isNaN(dateObj.getTime())) {
+          eventDateForReview = dateObj;
+        }
+      } else if ((event as any)?.event_date) {
+        eventDateForReview = new Date((event as any).event_date);
+      }
+      
+      // Add Event_date to reviewData (as Date object)
+      const reviewDataWithEventDate = {
+        ...reviewData,
+        ...(eventDateForReview ? { Event_date: eventDateForReview } : {}),
+      };
+      
+      const review = await ReviewService.setEventReview(userId, safeEventId, reviewDataWithEventDate, safeVenueId, safeArtistId);
       
       // Clear localStorage draft after successful submission
       if (safeEventId) {

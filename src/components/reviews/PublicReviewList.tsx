@@ -11,13 +11,15 @@ interface PublicReviewListProps {
   currentUserId?: string;
   onReviewClick?: (reviewId: string) => void;
   limit?: number;
+  refreshTrigger?: number;
 }
 
 export function PublicReviewList({
   eventId,
   currentUserId,
   onReviewClick,
-  limit = 20
+  limit = 20,
+  refreshTrigger = 0
 }: PublicReviewListProps) {
   const [reviews, setReviews] = useState<PublicReviewWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +34,7 @@ export function PublicReviewList({
 
   useEffect(() => {
     loadReviews();
-  }, [eventId, minRating]);
+  }, [eventId, minRating, refreshTrigger]);
 
   const loadReviews = async (reset = true) => {
     try {

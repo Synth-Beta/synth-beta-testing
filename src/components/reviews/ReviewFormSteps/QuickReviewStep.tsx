@@ -164,7 +164,7 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName
               {formData.selectedSetlist.artist?.name} - {formatSetlistDate(formData.selectedSetlist.eventDate)}
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              {formData.selectedSetlist.sets?.[0]?.song?.length || 0} songs
+              {formData.selectedSetlist.songCount || (formData.selectedSetlist.songs?.length || 0)} songs
             </p>
           </div>
         ) : formData.customSetlist.length > 0 ? (
@@ -200,7 +200,6 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName
             <CustomSetlistInput
               songs={formData.customSetlist}
               onChange={handleCustomSetlistChange}
-              artistName={artistName}
             />
           </div>
         )}

@@ -320,7 +320,7 @@ export class PassportService {
     try {
       const { data, error } = await supabase
         .from('passport_timeline')
-        .select('*, event:events(*), review:reviews(*)')
+        .select('*, review:reviews(*)')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -336,7 +336,7 @@ export class PassportService {
   /**
    * Pin timeline event (max 5)
    */
-  static async pinTimelineEvent(userId: string, eventId: string, reviewId?: string) {
+  static async pinTimelineEvent(userId: string, reviewId: string) {
     try {
       // Check current pin count
       const { count } = await supabase
@@ -354,12 +354,11 @@ export class PassportService {
         .from('passport_timeline')
         .upsert({
           user_id: userId,
-          event_id: eventId,
-          review_id: reviewId || null,
+          review_id: reviewId,
           is_pinned: true,
           updated_at: new Date().toISOString(),
         }, {
-          onConflict: 'user_id,event_id,review_id',
+          onConflict: 'user_id,review_id',
         })
         .select()
         .single();
@@ -387,6 +386,230 @@ export class PassportService {
     } catch (error) {
       console.error('Error unpinning timeline event:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Add or update timeline entry with significance text (user-created milestone)
+   */
+  static async addTimelineMilestone(
+    userId: string,
+    reviewId: string,
+    significance: string,
+    description?: string | null
+  ) {
+    try {
+      // Get review to build Event_name
+      const { data: review, error: reviewError } = await supabase
+        .from('reviews')
+        .select(`
+          id,
+          event_id,
+          artist_id,
+          venue_id,
+          events:event_id (
+            artist_id,
+            venue_id
+          )
+        `)
+        .eq('id', reviewId)
+        .eq('user_id', userId)
+        .single();
+
+      if (reviewError || !review) {
+        throw new Error('Review not found');
+      }
+
+      // Build Event_name from artist and venue names
+      const resolvedArtistId = (review.events as any)?.artist_id || review.artist_id;
+      const resolvedVenueId = (review.events as any)?.venue_id || review.venue_id;
+      
+      let eventName: string | null = null;
+      if (resolvedArtistId || resolvedVenueId) {
+        const [artistResult, venueResult] = await Promise.all([
+          resolvedArtistId ? supabase.from('artists').select('name').eq('id', resolvedArtistId).single() : Promise.resolve({ data: null }),
+          resolvedVenueId ? supabase.from('venues').select('name').eq('id', resolvedVenueId).single() : Promise.resolve({ data: null })
+        ]);
+        
+        const artistName = (artistResult.data as any)?.name;
+        const venueName = (venueResult.data as any)?.name;
+        
+        if (artistName && venueName) {
+          eventName = `${artistName} @ ${venueName}`;
+        } else if (artistName) {
+          eventName = artistName;
+        } else if (venueName) {
+          eventName = venueName;
+        }
+      }
+
+      // Insert or update timeline entry
+      const { data, error } = await supabase
+        .from('passport_timeline')
+        .upsert({
+          user_id: userId,
+          review_id: reviewId,
+          significance: significance,
+          description: description || null,
+          Event_name: eventName,
+          is_auto_selected: false,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id,review_id',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error adding timeline milestone:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update timeline entry significance
+   */
+  static async updateTimelineMilestone(
+    userId: string,
+    timelineId: string,
+    significance: string,
+    description?: string | null
+  ) {
+    try {
+      const { data, error } = await supabase
+        .from('passport_timeline')
+        .update({
+          significance: significance,
+          description: description !== undefined ? description : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', timelineId)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error updating timeline milestone:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete timeline entry
+   */
+  static async deleteTimelineEntry(userId: string, timelineId: string) {
+    try {
+      const { error } = await supabase
+        .from('passport_timeline')
+        .delete()
+        .eq('id', timelineId)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error deleting timeline entry:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user's reviews for timeline selection
+   */
+  static async getUserReviewsForTimeline(userId: string, limit: number = 100) {
+    try {
+      // First, get reviews with event_id
+      const { data: reviews, error } = await supabase
+        .from('reviews')
+        .select(`
+          id,
+          rating,
+          review_text,
+          created_at,
+          event_id,
+          artist_id,
+          venue_id,
+          "Event_date"
+        `)
+        .eq('user_id', userId)
+        .eq('is_draft', false)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      if (!reviews) return [];
+
+      // For each review, fetch artist and venue names
+      const reviewsWithDetails = await Promise.all(
+        reviews.map(async (review) => {
+          let artistName: string | null = null;
+          let venueName: string | null = null;
+
+          // Determine which IDs to use (prefer from event, fallback to review)
+          let artistId: string | null = null;
+          let venueId: string | null = null;
+
+          if (review.event_id) {
+            // Get event to find artist_uuid and venue_uuid (UUID foreign keys)
+            const { data: event } = await supabase
+              .from('events')
+              .select('artist_uuid, venue_uuid')
+              .eq('id', review.event_id)
+              .single();
+            
+            // Use UUID from event if available, otherwise use from review
+            artistId = event?.artist_uuid || review.artist_id;
+            venueId = event?.venue_uuid || review.venue_id;
+          } else {
+            artistId = review.artist_id;
+            venueId = review.venue_id;
+          }
+
+          // Fetch artist name
+          if (artistId) {
+            const { data: artist } = await supabase
+              .from('artists')
+              .select('name')
+              .eq('id', artistId)
+              .single();
+            artistName = artist?.name || null;
+          }
+
+          // Fetch venue name
+          if (venueId) {
+            const { data: venue } = await supabase
+              .from('venues')
+              .select('name')
+              .eq('id', venueId)
+              .single();
+            venueName = venue?.name || null;
+          }
+
+          // Build event object similar to what was expected
+          const eventName = artistName && venueName 
+            ? `${artistName} @ ${venueName}`
+            : artistName || venueName || 'Event';
+
+          return {
+            ...review,
+            event: {
+              id: review.event_id || null,
+              title: eventName,
+              artist_name: artistName,
+              venue_name: venueName,
+              event_date: review.Event_date || review.created_at,
+            },
+          };
+        })
+      );
+
+      return reviewsWithDetails;
+    } catch (error) {
+      console.error('Error fetching user reviews for timeline:', error);
+      return [];
     }
   }
 
@@ -426,13 +649,3 @@ export class PassportService {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-

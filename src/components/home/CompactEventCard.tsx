@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Plus, Send } from 'lucide-react';
+import { Calendar, MapPin, Plus, Send, Flag } from 'lucide-react';
 
 interface CompactEventCardProps {
   event: {
@@ -18,6 +18,7 @@ interface CompactEventCardProps {
   isInterested?: boolean;
   onInterestClick?: (e: React.MouseEvent) => void;
   onShareClick?: (e: React.MouseEvent) => void;
+  onFlagClick?: (e: React.MouseEvent) => void;
   onClick?: () => void;
   className?: string;
 }
@@ -28,6 +29,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
   isInterested = false,
   onInterestClick,
   onShareClick,
+  onFlagClick,
   onClick,
   className,
 }) => {
@@ -88,41 +90,53 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       </div>
 
       {/* Footer with interested count and action buttons */}
-      <div className="flex items-center justify-between px-2 pb-2 bg-white">
+      <div className="flex items-center justify-between px-2 py-2 bg-white min-h-[40px]">
         {/* Interested count on the left */}
-        <div className="text-sm text-[#0e0e0e] font-normal">
-          {interestedCount} interested
+        <div className="text-sm text-[#0e0e0e] font-normal flex-shrink-0">
+          <span className="font-semibold">{interestedCount}</span> interested
         </div>
 
         {/* Action buttons on the right */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Flag button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onFlagClick?.(e);
+            }}
+            className="p-1 rounded transition-colors bg-transparent text-[#0e0e0e] hover:bg-gray-100 flex-shrink-0"
+            aria-label="Flag event"
+          >
+            <Flag className="w-4 h-4" strokeWidth={2} />
+          </button>
+
           {/* Share button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onShareClick?.(e);
             }}
-            className="p-1.5 rounded transition-colors bg-transparent text-[#0e0e0e] hover:bg-gray-100"
+            className="p-1 rounded transition-colors bg-transparent text-[#0e0e0e] hover:bg-gray-100 flex-shrink-0"
             aria-label="Share event"
           >
-            <Send className="w-5 h-5" strokeWidth={2} />
+            <Send className="w-4 h-4" strokeWidth={2} />
           </button>
 
-          {/* Interest button - moved to the right */}
+          {/* Interest button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onInterestClick?.(e);
             }}
             className={cn(
-              'p-1.5 rounded transition-colors',
+              'p-1 rounded transition-colors flex-shrink-0',
               isInterested 
                 ? 'bg-[#b00056] text-white' 
                 : 'bg-transparent text-[#0e0e0e] hover:bg-gray-100'
             )}
             aria-label={isInterested ? 'Remove interest' : 'Mark as interested'}
           >
-            <Plus className={cn('w-5 h-5', isInterested && 'rotate-45')} strokeWidth={2} />
+            <Plus className={cn('w-4 h-4', isInterested && 'rotate-45')} strokeWidth={2} />
           </button>
         </div>
       </div>

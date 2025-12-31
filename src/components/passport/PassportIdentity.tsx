@@ -29,6 +29,9 @@ export const PassportIdentity: React.FC<PassportIdentityProps> = ({ userId, user
         identityData = await PassportIdentityService.getIdentity(userId);
       }
 
+      // Home scene is now fetched directly from location_city in getIdentity
+      // No need to calculate separately
+
       setIdentity(identityData);
     } catch (error) {
       console.error('Error loading passport identity:', error);
@@ -88,26 +91,21 @@ export const PassportIdentity: React.FC<PassportIdentityProps> = ({ userId, user
             <span className="font-medium">Live since {identity.join_year}</span>
           </div>
 
-          {/* Home Scene */}
-          {identity.home_scene && (
+          {/* Home City */}
+          {identity.home_city && (
             <div className="flex items-center gap-2 text-sm">
               <MapPin className="w-4 h-4 text-muted-foreground" />
               <div className="flex-1">
                 <span className="font-medium">Home Scene: </span>
-                <span className="text-muted-foreground">{identity.home_scene.name}</span>
-                {identity.home_scene.description && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {identity.home_scene.description}
-                  </p>
-                )}
+                <span className="text-muted-foreground">{identity.home_city}</span>
               </div>
             </div>
           )}
 
-          {!identity.home_scene && (
+          {!identity.home_city && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Sparkles className="w-4 h-4" />
-              <span>Home scene being calculated...</span>
+              <MapPin className="w-4 h-4" />
+              <span>No location set</span>
             </div>
           )}
         </CardContent>

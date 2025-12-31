@@ -40,7 +40,7 @@ export const RightNowSection: React.FC<RightNowSectionProps> = ({
         .from('user_event_relationships')
         .select('event_id')
         .eq('user_id', currentUserId)
-        .eq('relationship_type', 'interest');
+        .eq('relationship_type', 'interested');
 
       if (data) {
         setInterestedEvents(new Set(data.map(r => r.event_id)));
@@ -205,6 +205,8 @@ export const RightNowSection: React.FC<RightNowSectionProps> = ({
     </>
   );
 };
+
+
 
 
 

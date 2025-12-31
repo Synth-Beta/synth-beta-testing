@@ -34,7 +34,11 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
   const authorName = review.author.name || 'User';
   const artistName = review.event_info?.artist_name || 'Artist';
   const venueName = review.event_info?.venue_name || 'Venue';
-  const eventDate = review.event_info?.event_date 
+  // Use Event_date from review if available, otherwise fall back to event_info.event_date or created_at
+  const reviewEventDate = (review as any).Event_date || (review as any).event_date;
+  const eventDate = reviewEventDate
+    ? format(new Date(reviewEventDate), 'MMM d, yyyy')
+    : review.event_info?.event_date 
     ? format(new Date(review.event_info.event_date), 'MMM d, yyyy')
     : review.created_at 
     ? format(new Date(review.created_at), 'MMM d, yyyy')

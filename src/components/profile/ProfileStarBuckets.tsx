@@ -26,7 +26,21 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
   // or normalized names from artists/venues tables
   const artistName = event.artist_name || jambaseEvent.artist_name || event.artist_name_normalized || 'Unknown Artist';
   const venueName = event.venue_name || jambaseEvent.venue_name || event.venue_name_normalized || 'Unknown Venue';
-  const dateStr = event.event_date || review.created_at;
+  // Use Event_date from review if available - it's a Date object
+  // Convert Date to string for display, or use event.event_date (string), or fallback to created_at
+  let dateStr: string | undefined = undefined;
+  const eventDateValue = (review as any).Event_date || (review as any).event_date;
+  if (eventDateValue) {
+    if (eventDateValue instanceof Date) {
+      dateStr = eventDateValue.toISOString().split('T')[0];
+    } else if (typeof eventDateValue === 'string') {
+      dateStr = eventDateValue;
+    }
+  }
+  // Fallback to event.event_date or created_at
+  if (!dateStr) {
+    dateStr = event.event_date || review.created_at;
+  }
   
   // Get artist_id from event data - prefer from event, then from review
   const artistId = event?.artist_id || review.artist_id || jambaseEvent?.artist_id || null;
@@ -86,7 +100,15 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
         {/* Venue - starts at consistent position */}
         <p className="text-xs text-gray-600 break-words leading-tight">{venueName}</p>
         <p className="text-[11px] text-gray-400 leading-tight shrink-0">
-          {dateStr ? new Date(dateStr).toLocaleDateString() : ''}
+          {dateStr ? (() => {
+            // Parse YYYY-MM-DD string in local timezone to avoid date shifting
+            const [year, month, day] = dateStr.split('-').map(Number);
+            if (year && month && day) {
+              const date = new Date(year, month - 1, day); // month is 0-indexed
+              return date.toLocaleDateString();
+            }
+            return dateStr; // Fallback to string if parsing fails
+          })() : ''}
         </p>
         {ratingValue > 0 ? (
           <div className="flex items-center justify-between mt-1 shrink-0">
@@ -163,16 +185,18 @@ export function ProfileStarBuckets({ reviews, onSelectReview }: ProfileStarBucke
         }
 
         // Secondary: newer events/reviews first
-        const aDate = a?.event?.event_date || a?.created_at;
-        const bDate = b?.event?.event_date || b?.created_at;
+        // Use Event_date from review if available, otherwise fall back to event.event_date or created_at
+        const aDate = (a as any)?.Event_date || (a as any)?.event_date || a?.event?.event_date || a?.created_at;
+        const bDate = (b as any)?.Event_date || (b as any)?.event_date || b?.event?.event_date || b?.created_at;
         return new Date(bDate).getTime() - new Date(aDate).getTime();
       });
     });
 
-    // Sort unrated reviews by created_at desc (newest first)
+    // Sort unrated reviews by Event_date desc (newest first)
     const sortedUnrated = unrated.slice().sort((a, b) => {
-      const aDate = a?.event?.event_date || a?.created_at;
-      const bDate = b?.event?.event_date || b?.created_at;
+      // Use Event_date from review if available, otherwise fall back to event.event_date or created_at
+      const aDate = (a as any)?.Event_date || (a as any)?.event_date || a?.event?.event_date || a?.created_at;
+      const bDate = (b as any)?.Event_date || (b as any)?.event_date || b?.event?.event_date || b?.created_at;
       return new Date(bDate).getTime() - new Date(aDate).getTime();
     });
 

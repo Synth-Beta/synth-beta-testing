@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar as CalendarIcon, Route, Loader2, Trophy, Music, MapPin, X } from 'lucide-react';
@@ -89,7 +89,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
   // Calendar view state
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
   const [calendarEvents, setCalendarEvents] = useState<Map<string, JamBaseEvent[]>>(new Map());
-  const [selectedDateRange, setSelectedDateRange] = useState<{ from?: Date; to?: Date } | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedDateEvents, setSelectedDateEvents] = useState<JamBaseEvent[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
   
@@ -102,74 +102,79 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
   const [selectedEvent, setSelectedEvent] = useState<JamBaseEvent | null>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
 
-  // Load calendar events
-  useEffect(() => {
-    if (activeTab === 'calendar') {
-      loadCalendarEvents();
-    }
-  }, [activeTab, filters?.latitude, filters?.longitude, filters?.radiusMiles, filters?.cities]);
+  // Track the last filter key to prevent unnecessary reloads
+  const lastFilterKeyRef = useRef<string>('');
+  const hasLoadedOnceRef = useRef(false);
 
-  const loadCalendarEvents = async () => {
+  // Memoize loadCalendarEvents to prevent unnecessary re-renders
+  const loadCalendarEvents = useCallback(async () => {
     setCalendarLoading(true);
     try {
       const now = new Date();
       now.setHours(0, 0, 0, 0); // Start of today
       
-      console.log('📅 [CALENDAR] Loading all upcoming events');
+      console.log('📅 [CALENDAR] Loading upcoming events with optimized spatial filtering');
       
-      // Start with upcoming events only
-      let query = supabase
-        .from('events')
-        .select('*')
-        .gte('event_date', now.toISOString());
+      let filteredEvents: JamBaseEvent[] = [];
 
-      // Apply location filters - prioritize coordinate-based radius over city names
+      // Use RPC function that properly uses spatial index with BETWEEN operator
+      // This is much faster than PostgREST query builder which doesn't use the index efficiently
       if (filters?.latitude && filters?.longitude && filters?.radiusMiles) {
-        // Use bounding box for efficient pre-filtering
-        const latDelta = filters.radiusMiles / 69;
-        const lngDelta = filters.radiusMiles / (69 * Math.cos(filters.latitude * Math.PI / 180));
-        query = query
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null)
-          .gte('latitude', filters.latitude - latDelta)
-          .lte('latitude', filters.latitude + latDelta)
-          .gte('longitude', filters.longitude - lngDelta)
-          .lte('longitude', filters.longitude + lngDelta);
-        console.log(`📅 [CALENDAR] Applied location filter: (${filters.latitude}, ${filters.longitude}) within ${filters.radiusMiles} miles`);
+        console.log('📅 [CALENDAR] Using RPC function with spatial index');
+        
+        const { data: events, error } = await supabase.rpc('get_calendar_events', {
+          p_latitude: filters.latitude,
+          p_longitude: filters.longitude,
+          p_radius_miles: filters.radiusMiles,
+          p_min_date: now.toISOString(),
+          p_genres: filters?.genres && filters.genres.length > 0 ? filters.genres : null,
+          p_limit: 1500
+        });
+
+        if (error) throw error;
+
+        // RPC function already filters by exact distance, just use the results
+        filteredEvents = (events || []) as JamBaseEvent[];
+
+        console.log(`📅 [CALENDAR] Loaded ${filteredEvents.length} events within ${filters.radiusMiles} miles (using spatial index)`);
       } else if (filters?.cities && filters.cities.length > 0) {
         // Fallback to city name filtering if no coordinates
-        query = query.in('venue_city', filters.cities);
-        console.log('📅 [CALENDAR] Applied city filters:', filters.cities);
-      }
+        // Use direct query for city filtering (not using spatial index)
+        let query = supabase
+          .from('events')
+          .select('*')
+          .gte('event_date', now.toISOString())
+          .in('venue_city', filters.cities);
 
-      // Apply genre filters if present
-      if (filters?.genres && filters.genres.length > 0) {
-        query = query.overlaps('genres', filters.genres);
-        console.log('📅 [CALENDAR] Applied genre filters:', filters.genres);
-      }
+        // Apply genre filters if present
+        if (filters?.genres && filters.genres.length > 0) {
+          query = query.overlaps('genres', filters.genres);
+          console.log('📅 [CALENDAR] Applied genre filters:', filters.genres);
+        }
 
-      // Add limit to prevent timeouts - 10000 events should be enough for most use cases
-      const { data, error } = await query
-        .order('event_date', { ascending: true })
-        .limit(10000);
+        const { data, error } = await query
+          .order('event_date', { ascending: true })
+          .limit(10000); // Load all events (high limit for calendar view)
 
-      if (error) throw error;
-
-      // Filter by exact distance if location filter was applied (bounding box is approximate)
-      let filteredEvents = (data || []) as JamBaseEvent[];
-      if (filters?.latitude && filters?.longitude && filters?.radiusMiles) {
-        const beforeDistanceFilter = filteredEvents.length;
-        filteredEvents = filteredEvents.filter((event: any) => {
-          if (!event.latitude || !event.longitude) return false;
-          const distance = LocationService.calculateDistance(
-            filters.latitude!,
-            filters.longitude!,
-            Number(event.latitude),
-            Number(event.longitude)
-          );
-          return distance <= filters.radiusMiles!;
+        if (error) throw error;
+        filteredEvents = (data || []) as JamBaseEvent[];
+        console.log('📅 [CALENDAR] City filter:', filteredEvents.length, 'events');
+      } else {
+        // No location filter - use RPC function without location params
+        console.log('📅 [CALENDAR] Using RPC function without location filter');
+        
+        const { data, error } = await supabase.rpc('get_calendar_events', {
+          p_latitude: null,
+          p_longitude: null,
+          p_radius_miles: null,
+          p_min_date: now.toISOString(),
+          p_genres: filters?.genres && filters.genres.length > 0 ? filters.genres : null,
+          p_limit: 10000
         });
-        console.log(`📅 [CALENDAR] Applied exact distance filter: ${beforeDistanceFilter} -> ${filteredEvents.length} events`);
+
+        if (error) throw error;
+        filteredEvents = (data || []) as JamBaseEvent[];
+        console.log('📅 [CALENDAR] No location filter:', filteredEvents.length, 'events');
       }
 
       console.log(`📅 [CALENDAR] Final count: ${filteredEvents.length} events`);
@@ -192,7 +197,49 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
     } finally {
       setCalendarLoading(false);
     }
-  };
+  }, [filters?.latitude, filters?.longitude, filters?.radiusMiles, filters?.cities, filters?.genres]);
+
+  // Load calendar events
+  useEffect(() => {
+    if (activeTab !== 'calendar') {
+      return;
+    }
+
+    // Create a stable key from filter values
+    const filterKey = JSON.stringify({
+      lat: filters?.latitude,
+      lng: filters?.longitude,
+      radius: filters?.radiusMiles,
+      cities: filters?.cities,
+      genres: filters?.genres,
+    });
+
+    // Only reload if filters actually changed
+    if (filterKey === lastFilterKeyRef.current) {
+      return;
+    }
+
+    const hasLocationFilters = filters?.latitude && filters?.longitude && filters?.radiusMiles;
+    const hasCityFilters = filters?.cities && filters.cities.length > 0;
+    
+    // Skip loading if filters are empty/undefined and we've already loaded with location filters
+    // This prevents the initial "no location filter" load from overwriting a good result
+    if (!hasLocationFilters && !hasCityFilters && hasLoadedOnceRef.current) {
+      console.log('📅 [CALENDAR] Skipping load - filters cleared but we already have data');
+      return;
+    }
+
+    // If filters are empty/undefined and we haven't loaded yet, skip the initial load
+    // Wait for filters to be set before loading (they'll trigger another useEffect run)
+    if (!hasLocationFilters && !hasCityFilters && !hasLoadedOnceRef.current) {
+      console.log('📅 [CALENDAR] Skipping initial load - waiting for filters to be set');
+      return;
+    }
+
+    lastFilterKeyRef.current = filterKey;
+    hasLoadedOnceRef.current = true;
+    loadCalendarEvents();
+  }, [activeTab, filters?.latitude, filters?.longitude, filters?.radiusMiles, filters?.cities, filters?.genres, loadCalendarEvents]);
 
   // Load tour events when artist is selected
   useEffect(() => {
@@ -221,46 +268,29 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
     }
   };
 
-  const handleDateRangeSelect = (range: { from?: Date; to?: Date } | undefined) => {
-    if (!range) {
-      setSelectedDateRange(null);
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    if (!date) {
       setSelectedDateEvents([]);
       return;
     }
-    setSelectedDateRange(range);
   };
 
-  // Update selected date events when calendar events or date range changes
+  // Update selected date events when calendar events or selected date changes
   useEffect(() => {
-    if (!selectedDateRange?.from && !selectedDateRange?.to) {
+    if (!selectedDate) {
       setSelectedDateEvents([]);
       return;
     }
 
-    const events: JamBaseEvent[] = [];
-    calendarEvents.forEach((dateEvents, dateKey) => {
-      const date = new Date(dateKey);
-      date.setHours(0, 0, 0, 0);
-      
-      if (selectedDateRange.from) {
-        const fromDate = new Date(selectedDateRange.from);
-        fromDate.setHours(0, 0, 0, 0);
-        if (date < fromDate) return;
-      }
-      
-      if (selectedDateRange.to) {
-        const toDate = new Date(selectedDateRange.to);
-        toDate.setHours(23, 59, 59, 999);
-        if (date > toDate) return;
-      }
-      
-      events.push(...dateEvents);
-    });
+    // Get events for the selected single date only
+    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    const events = calendarEvents.get(dateKey) || [];
     
-    // Sort by date
-    events.sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
-    setSelectedDateEvents(events);
-  }, [calendarEvents, selectedDateRange]);
+    // Sort by time
+    const sortedEvents = [...events].sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
+    setSelectedDateEvents(sortedEvents);
+  }, [calendarEvents, selectedDate]);
 
   const getEventsForDate = (date: Date): JamBaseEvent[] => {
     const dateKey = format(date, 'yyyy-MM-dd');
@@ -436,31 +466,9 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
             <div className="space-y-4 flex flex-col items-center">
               <div className="w-full max-w-2xl">
                 <Calendar
-                  mode="range"
-                  selected={
-                    selectedDateRange?.from 
-                      ? { 
-                          from: selectedDateRange.from, 
-                          to: selectedDateRange.to || selectedDateRange.from 
-                        } 
-                      : undefined
-                  }
-                  onSelect={(range) => {
-                    if (range?.from) {
-                      // If selecting the same date twice, treat as single day
-                      if (range.to && range.from.getTime() === range.to.getTime()) {
-                        const sameDay = new Date(range.from);
-                        sameDay.setHours(0, 0, 0, 0);
-                        const endOfDay = new Date(range.from);
-                        endOfDay.setHours(23, 59, 59, 999);
-                        handleDateRangeSelect({ from: sameDay, to: endOfDay });
-                      } else {
-                        handleDateRangeSelect(range);
-                      }
-                    } else if (range === null || range === undefined) {
-                      handleDateRangeSelect(null);
-                    }
-                  }}
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={handleDateSelect}
                   month={calendarDate}
                   onMonthChange={setCalendarDate}
                   className="rounded-md border mx-auto"
@@ -481,20 +489,10 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                   }}
                 />
               </div>
-              {selectedDateRange && selectedDateEvents.length > 0 && (
+              {selectedDate && selectedDateEvents.length > 0 && (
                 <div className="mt-4 space-y-2 w-full max-w-2xl">
                   <h3 className="font-semibold">
-                    {selectedDateRange.from && selectedDateRange.to && 
-                     selectedDateRange.from.getTime() === selectedDateRange.to.getTime() ? (
-                      <>Events on {format(selectedDateRange.from, 'MMMM d, yyyy')}</>
-                    ) : (
-                      <>
-                        Events from {format(selectedDateRange.from || new Date(), 'MMMM d, yyyy')}
-                        {selectedDateRange.to && selectedDateRange.to.getTime() !== selectedDateRange.from?.getTime() && (
-                          <> to {format(selectedDateRange.to, 'MMMM d, yyyy')}</>
-                        )}
-                      </>
-                    )}
+                    Events on {format(selectedDate, 'MMMM d, yyyy')}
                   </h3>
                   <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
                     {selectedDateEvents.map((event) => (
@@ -515,9 +513,9 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                   </div>
                 </div>
               )}
-              {selectedDateRange && selectedDateEvents.length === 0 && !calendarLoading && (
+              {selectedDate && selectedDateEvents.length === 0 && !calendarLoading && (
                 <div className="mt-4 text-center text-muted-foreground">
-                  <p>No events found for the selected date range.</p>
+                  <p>No events found for the selected date.</p>
                 </div>
               )}
             </div>

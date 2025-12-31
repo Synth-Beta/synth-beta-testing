@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import type { PersonalizedEvent } from '@/services/personalizedFeedService';
 import type { FilterState } from '@/components/search/EventFilters';
 import { UserEventService } from '@/services/userEventService';
+import { supabase } from '@/integrations/supabase/client';
 import { EventShareModal } from '@/components/events/EventShareModal';
 import { useToast } from '@/hooks/use-toast';
 
@@ -38,38 +39,44 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
 
   const pageSize = 20;
 
-  // Load interested events for current user
-  const loadInterestedEvents = async () => {
+  // Load ALL interested events immediately on mount
+  const loadAllInterestedEvents = async () => {
     if (!userId) return;
     try {
-      // Get all events user is interested in
-      const eventIds = events.map(e => e.id).filter(Boolean);
-      if (eventIds.length === 0) return;
-
-      const interestedSet = new Set<string>();
-      for (const eventId of eventIds) {
-        try {
-          const isInterested = await UserEventService.isUserInterested(userId, eventId);
-          if (isInterested) {
-            interestedSet.add(eventId);
-          }
-        } catch (error) {
-          // Skip if error checking individual event
-          console.error(`Error checking interest for event ${eventId}:`, error);
-        }
+      // Get ALL events user is interested in (not just the ones in current events list)
+      const { data, error } = await supabase
+        .from('user_event_relationships')
+        .select('event_id')
+        .eq('user_id', userId)
+        .eq('relationship_type', 'interested');
+      
+      if (error) {
+        console.error('Error loading all interested events:', error);
+        return;
       }
+      
+      const interestedSet = new Set<string>();
+      if (data) {
+        data.forEach((row: any) => {
+          if (row.event_id) {
+            interestedSet.add(String(row.event_id));
+          }
+        });
+      }
+      
       setInterestedEvents(interestedSet);
+      console.log('✅ PreferencesV4FeedSection: Loaded all interested events:', interestedSet.size);
     } catch (error) {
-      console.error('Error loading interested events:', error);
+      console.error('Error loading all interested events:', error);
     }
   };
 
-  // Load interested events when events change
+  // Load interested events immediately on mount
   useEffect(() => {
-    if (events.length > 0) {
-      loadInterestedEvents();
+    if (userId) {
+      loadAllInterestedEvents();
     }
-  }, [events, userId]);
+  }, [userId]);
 
   // Handle interest toggle
   const handleInterestToggle = async (eventId: string, e: React.MouseEvent) => {
@@ -93,12 +100,12 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     try {
       await UserEventService.setEventInterest(userId, eventId, newInterestState);
       
-      // Update event's interested count optimistically
+      // Update user_is_interested flag (interested_count from database excludes current user)
+      // Display logic will add 1 when user is interested
       setEvents(prev => prev.map(event => {
         if (event.id === eventId) {
           return {
             ...event,
-            interested_count: (event.interested_count || 0) + (newInterestState ? 1 : -1),
             user_is_interested: newInterestState,
           };
         }
@@ -308,24 +315,24 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
             const uniqueKey = `${event.id || 'event'}-${index}`;
             
             return (
-                <CompactEventCard
+              <CompactEventCard
                 key={uniqueKey}
-                  event={{
-                    id: event.id || '',
-                    title: event.title || event.artist_name || 'Event',
-                    artist_name: event.artist_name,
-                    venue_name: event.venue_name,
-                    event_date: event.event_date,
-                    venue_city: event.venue_city || undefined,
-                    image_url: imageUrl,
-                    poster_image_url: event.poster_image_url || undefined,
-                  }}
-                interestedCount={event.interested_count || 0}
+                event={{
+                  id: event.id || '',
+                  title: event.title || event.artist_name || 'Event',
+                  artist_name: event.artist_name,
+                  venue_name: event.venue_name,
+                  event_date: event.event_date,
+                  venue_city: event.venue_city || undefined,
+                  image_url: imageUrl,
+                  poster_image_url: event.poster_image_url || undefined,
+                }}
+                interestedCount={(event.interested_count || 0) + ((interestedEvents.has(event.id) || event.user_is_interested) ? 1 : 0)}
                 isInterested={interestedEvents.has(event.id) || event.user_is_interested || false}
                 onInterestClick={(e) => handleInterestToggle(event.id, e)}
                 onShareClick={(e) => handleShareClick(event, e)}
-                  onClick={() => onEventClick?.(event.id)}
-                />
+                onClick={() => onEventClick?.(event.id)}
+              />
             );
           })}
         </div>

@@ -18,7 +18,10 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
 import { Loader2, Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, ChevronRight, ChevronDown, MapPin, Plus } from 'lucide-react';
+import { FriendSuggestionsRail } from '@/components/feed/FriendSuggestionsRail';
+import { FriendsService } from '@/services/friendsService';
 import { Button } from '@/components/ui/button';
+import { FlagContentModal } from '@/components/moderation/FlagContentModal';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { LocationService } from '@/services/locationService';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
@@ -29,9 +32,43 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+
+// Helper function to format member count - guaranteed to return clean string
+const formatMemberCount = (count: number | string | null | undefined): string => {
+  // Convert to number - be very explicit
+  let num = 0;
+  if (count != null && count !== undefined) {
+    if (typeof count === 'number') {
+      num = Math.floor(Math.max(0, count));
+    } else if (typeof count === 'string') {
+      // Remove ALL non-numeric characters
+      const cleaned = count.replace(/[^0-9]/g, '');
+      if (cleaned.length > 0) {
+        const parsed = parseInt(cleaned, 10);
+        if (!isNaN(parsed) && parsed >= 0) {
+          num = parsed;
+        }
+      }
+    }
+  }
+  
+  // Ensure it's a clean integer
+  num = Math.floor(Math.max(0, num));
+  
+  // Format as string - use explicit string concatenation, no template literals
+  // This ensures no unexpected characters can be added
+  // Return a completely new string to avoid any reference issues
+  if (num === 0) {
+    return new String('0 members').toString();
+  } else if (num === 1) {
+    return new String('1 member').toString();
+  } else {
+    // Convert number to string explicitly and create new string
+    const numStr = String(num);
+    return new String(numStr + ' members').toString();
+  }
+};
 
 interface HomeFeedProps {
   currentUserId: string;
@@ -119,6 +156,21 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [loadingTrending, setLoadingTrending] = useState(true);
   const [loadingRecommendedFriends, setLoadingRecommendedFriends] = useState(false);
   const [loadingRecommendedGroupChats, setLoadingRecommendedGroupChats] = useState(false);
+  
+  // Recommended friends for friend suggestions rail (2nd and 3rd degree)
+  const [friendSuggestionsForRail, setFriendSuggestionsForRail] = useState<Array<{
+    user_id: string;
+    name: string;
+    avatar_url: string | null;
+    verified?: boolean;
+    connection_depth: number;
+    mutual_friends_count: number;
+    shared_genres_count?: number;
+  }>>([]);
+
+  // Flag modal state
+  const [flagModalOpen, setFlagModalOpen] = useState(false);
+  const [flaggedEvent, setFlaggedEvent] = useState<{ id: string; title: string } | null>(null);
 
   // Feed type selection
   const [selectedFeedType, setSelectedFeedType] = useState<string>('recommended');
@@ -128,9 +180,11 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
     latitude: number;
     longitude: number;
     radiusMiles: number;
-    locationName: string;
+    locationName: string; // Current location from geolocation
+    specifiedLocationName?: string; // User specified location (from profile/filters)
+    specifiedLatitude?: number;
+    specifiedLongitude?: number;
   } | null>(null);
-  const [locationPopoverOpen, setLocationPopoverOpen] = useState(false);
 
   // Event details modal
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
@@ -162,82 +216,8 @@ interface FriendEventInterest {
     loadFeedLocation(); // Also load location for feed filtering
   }, [currentUserId]);
 
-  // Automatically apply location to filters (from profile or geolocation)
-  useEffect(() => {
-    const applyLocationFilter = async () => {
-      // First, try to use the user's saved city from profile
-      if (activeCity) {
-        console.log('📍 Using saved city from profile:', activeCity);
-        
-        setFilters(prev => {
-          // Don't overwrite if user already selected cities
-          if (prev.selectedCities && prev.selectedCities.length > 0) {
-            console.log('📍 User already has cities selected, not overwriting:', prev.selectedCities);
-            locationAutoAppliedRef.current = true;
-            return prev;
-          }
-          
-          locationAutoAppliedRef.current = true;
-          return {
-            ...prev,
-            selectedCities: [activeCity],
-          };
-        });
-        
-        console.log('✅ Location filter applied from profile:', activeCity);
-        return;
-      }
-
-      // If no saved city and not already applied, try geolocation
-      if (locationAutoAppliedRef.current) {
-        return;
-      }
-
-      try {
-        console.log('📍 No saved city, getting current location via geolocation...');
-        const currentLocation = await LocationService.getCurrentLocation();
-        console.log('📍 Got location coordinates:', currentLocation);
-        
-        // Reverse geocode to get city name
-        const cityName = await LocationService.reverseGeocode(
-          currentLocation.latitude,
-          currentLocation.longitude
-        );
-        
-        console.log('📍 Reverse geocode result:', cityName);
-        
-        if (cityName) {
-          console.log('📍 Applying location filter from geolocation:', cityName);
-          locationAutoAppliedRef.current = true;
-          
-          // Use functional update to check current state and update
-          setFilters(prev => {
-            // Don't overwrite if user already selected cities
-            if (prev.selectedCities && prev.selectedCities.length > 0) {
-              console.log('📍 User already has cities selected, not overwriting:', prev.selectedCities);
-              return prev;
-            }
-            
-            return {
-              ...prev,
-              selectedCities: [cityName],
-            };
-          });
-          
-          console.log('✅ Location filter applied successfully from geolocation:', cityName);
-        } else {
-          console.log('📍 No city name found from reverse geocoding');
-          locationAutoAppliedRef.current = true;
-        }
-      } catch (error) {
-        console.error('📍 Error getting current location:', error);
-        // Mark as applied even on error to prevent retrying
-        locationAutoAppliedRef.current = true;
-      }
-    };
-
-    applyLocationFilter();
-  }, [activeCity]); // Re-run when activeCity changes (loaded from profile)
+  // Note: Location filtering is now handled by loadFeedLocation which always uses lat/long + radius
+  // This useEffect is kept for backwards compatibility but doesn't set city names anymore
 
   // Load cities for filters
   useEffect(() => {
@@ -267,109 +247,122 @@ interface FriendEventInterest {
       loadNetworkEvents(true);
     } else if (selectedFeedType === 'group-chats') {
       loadRecommendedGroupChats();
+      loadFriendSuggestionsForRail();
     } else if (selectedFeedType === 'reviews') {
       loadReviews();
     }
   }, [selectedFeedType]);
 
-  // Reload sections when filters change
+  // Reload sections when filters change (but NOT for friends feed - no filters on friends feed)
   useEffect(() => {
     if (selectedFeedType === 'trending') {
     loadTrendingEvents(true);
-    } else if (selectedFeedType === 'friends') {
-    loadNetworkEvents(true);
     }
+    // Friends feed does NOT reload on filter changes - it shows all events
   }, [filters.genres, filters.selectedCities, filters.dateRange]);
 
-  // Load user location for feed filtering (lat/long from users table or browser geolocation)
+  // Load user location for feed filtering - ALWAYS use lat/long + radius, NEVER city names
   const loadFeedLocation = async () => {
     try {
-      // First, try to get user's saved location from database
-      const { data: userProfile, error: userError } = await supabase
+      // Always get current location from geolocation first
+      let currentLocation: { latitude: number; longitude: number } | null = null;
+      let currentLocationName = 'Current Location';
+
+      try {
+        currentLocation = await LocationService.getCurrentLocation();
+        const cityName = await LocationService.reverseGeocode(
+          currentLocation.latitude,
+          currentLocation.longitude
+        );
+        if (cityName) {
+          currentLocationName = cityName;
+        }
+      } catch (geoError) {
+        console.error('Error getting current location:', geoError);
+      }
+
+      // Get user's specified location from database/profile
+      const { data: userProfile } = await supabase
         .from('users')
-        .select('latitude, longitude, location_city')
+        .select('location_city, latitude, longitude')
         .eq('user_id', currentUserId)
         .single();
 
-      // Prioritize saved city name if available, otherwise use lat/lng
-      if (userProfile?.location_city) {
-        // User has a saved city - use that for backend filtering
-        setFeedLocation({
-          latitude: userProfile.latitude || 0, // Store lat/lng for potential future use
-          longitude: userProfile.longitude || 0,
-          radiusMiles: 50,
-          locationName: userProfile.location_city,
-        });
+      let specifiedLocationName: string | undefined;
+      let specifiedLat: number | undefined;
+      let specifiedLng: number | undefined;
 
-        // Preserve the city name in filters for backend filtering
-        setFilters(prev => ({
-          ...prev,
-          selectedCities: prev.selectedCities && prev.selectedCities.length > 0 
-            ? prev.selectedCities // Don't overwrite if user has manually selected cities
-            : [userProfile.location_city], // Use saved city name
-          // Don't set latitude/longitude when we have a city name
-          // The city name will be used for backend filtering
-          radiusMiles: 50,
-        }));
-        return;
+      // Convert user's specified city to coordinates if they have one
+      if (userProfile?.location_city) {
+        specifiedLocationName = userProfile.location_city;
+        
+        // Convert city name to coordinates using city_centers table
+        try {
+          const { RadiusSearchService } = await import('@/services/radiusSearchService');
+          const coords = await RadiusSearchService.getCityCoordinates(userProfile.location_city);
+          if (coords) {
+            specifiedLat = coords.lat;
+            specifiedLng = coords.lng;
+          }
+        } catch (error) {
+          console.error('Error converting city to coordinates:', error);
+        }
       } else if (userProfile?.latitude && userProfile?.longitude) {
-        // User has coordinates but no city name - reverse geocode to get city
-        let locationName = 'Current Location';
+        // User has coordinates saved
+        specifiedLat = userProfile.latitude;
+        specifiedLng = userProfile.longitude;
         try {
           const cityName = await LocationService.reverseGeocode(
             userProfile.latitude,
             userProfile.longitude
           );
           if (cityName) {
-            locationName = cityName;
+            specifiedLocationName = cityName;
           }
-        } catch (geoError) {
-          console.error('Error reverse geocoding saved location:', geoError);
+        } catch (error) {
+          console.error('Error reverse geocoding specified location:', error);
         }
-
-        setFeedLocation({
-          latitude: userProfile.latitude,
-          longitude: userProfile.longitude,
-          radiusMiles: 50,
-          locationName,
-        });
-
-        // Use lat/lng for filtering when no city name is available
-        setFilters(prev => ({
-          ...prev,
-          latitude: userProfile.latitude,
-          longitude: userProfile.longitude,
-          radiusMiles: 50,
-        }));
-        return;
       }
 
-      // Fallback to browser geolocation
-      try {
-        const currentLocation = await LocationService.getCurrentLocation();
-        const cityName = await LocationService.reverseGeocode(
-          currentLocation.latitude,
-          currentLocation.longitude
-        );
+      // Use specified location for filtering (if available), otherwise use current location
+      const filterLat = specifiedLat || currentLocation?.latitude;
+      const filterLng = specifiedLng || currentLocation?.longitude;
 
+      if (filterLat && filterLng) {
+        setFeedLocation({
+          latitude: filterLat,
+          longitude: filterLng,
+          radiusMiles: 50,
+          locationName: currentLocationName,
+          specifiedLocationName,
+          specifiedLatitude: specifiedLat,
+          specifiedLongitude: specifiedLng,
+        });
+
+        // ALWAYS use lat/long + radius for filtering, NEVER city names
+        setFilters(prev => ({
+          ...prev,
+          latitude: filterLat,
+          longitude: filterLng,
+          radiusMiles: prev.radiusMiles || 50,
+          selectedCities: [], // Clear city names - we use coordinates
+        }));
+      } else if (currentLocation) {
+        // Fallback to current location only
         setFeedLocation({
           latitude: currentLocation.latitude,
           longitude: currentLocation.longitude,
           radiusMiles: 50,
-          locationName: cityName || 'Current Location',
+          locationName: currentLocationName,
         });
 
-        // Update filters to use lat/long
         setFilters(prev => ({
           ...prev,
           latitude: currentLocation.latitude,
           longitude: currentLocation.longitude,
-          radiusMiles: 50,
-          selectedCities: [], // Clear city-based filtering
+          radiusMiles: prev.radiusMiles || 50,
+          selectedCities: [],
         }));
-      } catch (geoError) {
-        console.error('Error getting current location:', geoError);
-        // Location will remain null if both methods fail
       }
     } catch (error) {
       console.error('Error loading feed location:', error);
@@ -447,6 +440,7 @@ interface FriendEventInterest {
       loadTrendingEvents(true), // Reset to page 0
       loadRecommendedFriends(),
       loadRecommendedGroupChats(),
+      loadFriendSuggestionsForRail(),
     ]);
     
     // Log any failures
@@ -500,23 +494,18 @@ interface FriendEventInterest {
         HomeFeedService.getSecondDegreeNetworkEvents(currentUserId, (friendsPage + 1) * 8),
       ]);
       
-      // Combine and apply filters
-      const allEvents = [...firstDegree, ...secondDegree];
-      const filteredEvents = applyFiltersToEvents(allEvents);
-      
-      // Split back into first and second degree
-      const firstDegreeFiltered = filteredEvents.filter(e => firstDegree.some(fd => fd.event_id === e.event_id));
-      const secondDegreeFiltered = filteredEvents.filter(e => secondDegree.some(sd => sd.event_id === e.event_id));
-      
+      // NO FILTERS - show all events that any friend is going to
+      // Split into first and second degree
       if (reset) {
-        setFirstDegreeEvents(firstDegreeFiltered.slice(0, 10));
-        setSecondDegreeEvents(secondDegreeFiltered.slice(0, 8));
+        setFirstDegreeEvents(firstDegree.slice(0, 10));
+        setSecondDegreeEvents(secondDegree.slice(0, 8));
       } else {
-        setFirstDegreeEvents(prev => [...prev, ...firstDegreeFiltered.slice(friendsPage * 10, (friendsPage + 1) * 10)]);
-        setSecondDegreeEvents(prev => [...prev, ...secondDegreeFiltered.slice(friendsPage * 8, (friendsPage + 1) * 8)]);
+        setFirstDegreeEvents(prev => [...prev, ...firstDegree.slice(friendsPage * 10, (friendsPage + 1) * 10)]);
+        setSecondDegreeEvents(prev => [...prev, ...secondDegree.slice(friendsPage * 8, (friendsPage + 1) * 8)]);
       }
       
-      setFriendsHasMore(filteredEvents.length > (friendsPage + 1) * pageSize);
+      const totalEvents = firstDegree.length + secondDegree.length;
+      setFriendsHasMore(totalEvents > (friendsPage + 1) * pageSize);
     } catch (error) {
       console.error('Error loading network events:', error);
       if (reset) {
@@ -723,6 +712,32 @@ interface FriendEventInterest {
     }
   };
 
+  const loadFriendSuggestionsForRail = async () => {
+    try {
+      const suggestions = await FriendsService.getRecommendedFriends(currentUserId);
+      // FriendsService.getRecommendedFriends already returns the correct format
+      setFriendSuggestionsForRail(suggestions);
+    } catch (error) {
+      console.error('Error loading friend suggestions for rail:', error);
+      setFriendSuggestionsForRail([]);
+    }
+  };
+
+  const handleSendFriendRequestForRail = async (userId: string) => {
+    try {
+      const { error } = await supabase.rpc('create_friend_request', {
+        receiver_user_id: userId
+      });
+
+      if (error) throw error;
+
+      // Update the friend suggestions list to remove the user we just sent a request to
+      setFriendSuggestionsForRail(prev => prev.filter(f => f.user_id !== userId));
+    } catch (error: any) {
+      console.error('Error sending friend request:', error);
+    }
+  };
+
   const loadRecommendedGroupChats = async () => {
     setLoadingRecommendedGroupChats(true);
     try {
@@ -751,11 +766,23 @@ interface FriendEventInterest {
         .map((chat: any) => {
           // Clean member_count to ensure it's a proper integer
           let memberCount = 0;
-          if (typeof chat.member_count === 'number') {
-            memberCount = Math.floor(chat.member_count);
-          } else if (chat.member_count != null) {
-            const cleaned = String(chat.member_count).replace(/[^0-9]/g, '');
-            memberCount = parseInt(cleaned, 10) || 0;
+          if (chat.member_count != null && chat.member_count !== undefined) {
+            const rawValue = chat.member_count;
+            if (typeof rawValue === 'number') {
+              memberCount = Math.max(0, Math.floor(rawValue));
+            } else {
+              // Handle string case - remove all non-numeric and parse
+              const cleaned = String(rawValue).replace(/[^0-9]/g, '');
+              const parsed = parseInt(cleaned, 10);
+              if (!isNaN(parsed) && parsed >= 0) {
+                memberCount = parsed;
+              }
+            }
+          }
+          // Ensure it's definitely a number
+          memberCount = Number(memberCount);
+          if (isNaN(memberCount) || memberCount < 0) {
+            memberCount = 0;
           }
           
           return {
@@ -771,7 +798,8 @@ interface FriendEventInterest {
           };
         });
 
-      console.log('✅ Loaded recommended chats:', chatsWithFriends.length, chatsWithFriends);
+      console.log('✅ Loaded recommended chats:', chatsWithFriends.length);
+      console.log('📊 Member counts:', chatsWithFriends.map(c => ({ id: c.id, name: c.chat_name, member_count: c.member_count, type: typeof c.member_count })));
       setRecommendedGroupChats(chatsWithFriends);
     } catch (error) {
       console.error('❌ Error loading recommended group chats:', error);
@@ -1184,62 +1212,53 @@ interface FriendEventInterest {
             </DropdownMenu>
                             </div>
           <div className="flex items-center gap-2">
-            {/* Location Icon */}
-            {feedLocation && (
-              <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
-                <PopoverTrigger asChild>
-                        <Button
-                    variant="ghost"
-                          size="sm"
-                    className="h-8 w-8 p-0 hover:bg-gray-100"
-                    title={`${feedLocation.locationName} (${feedLocation.radiusMiles} mi radius)`}
-                            >
-                    <MapPin className="h-4 w-4 text-gray-700" />
-                        </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80" align="end">
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium">Location</Label>
-                      <p className="text-sm text-gray-600 mt-1">{feedLocation.locationName}</p>
-                      </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium">Radius</Label>
-                        <span className="text-sm text-gray-600">{feedLocation.radiusMiles} miles</span>
-                        </div>
-                      <Slider
-                        value={[feedLocation.radiusMiles]}
-                        onValueChange={(value) => {
-                          const newRadius = value[0];
-                          setFeedLocation(prev => prev ? { ...prev, radiusMiles: newRadius } : null);
-                          setFilters(prev => ({
-                            ...prev,
-                            radiusMiles: newRadius,
-                          }));
-                        }}
-                        min={1}
-                        max={50}
-                        step={1}
-                        className="w-full"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>1 mi</span>
-                        <span>50 mi</span>
-                        </div>
-                          </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Update your location preferences in Settings
-                          </p>
-                        </div>
-                </PopoverContent>
-              </Popover>
-            )}
             <TopRightMenu />
                       </div>
                   </div>
                 </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
+        {/* Location Filter - compact info section above feeds */}
+        {feedLocation && (
+          <div className="mb-3 flex items-center justify-between gap-4 text-xs text-gray-600 bg-white rounded-md px-3 py-2 border border-gray-200">
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-medium text-gray-700">Location:</span>
+                <span className="truncate">
+                  {feedLocation.locationName || 'Not set'}
+                </span>
+              </div>
+              {feedLocation.specifiedLocationName && (
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-medium text-gray-700">Specified:</span>
+                  <span className="truncate">
+                    {feedLocation.specifiedLocationName}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="font-medium text-gray-700">Radius:</span>
+              <select
+                value={feedLocation.radiusMiles}
+                onChange={(e) => {
+                  const newRadius = parseInt(e.target.value, 10);
+                  setFeedLocation(prev => prev ? { ...prev, radiusMiles: newRadius } : null);
+                  setFilters(prev => ({
+                    ...prev,
+                    radiusMiles: newRadius,
+                  }));
+                }}
+                className="text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              >
+                {[1, 5, 10, 15, 20, 25, 30, 40, 50].map((radius) => (
+                  <option key={radius} value={radius}>
+                    {radius} mi
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
         {/* Feed content based on selection */}
         {selectedFeedType === 'recommended' && (
               <PreferencesV4FeedSection
@@ -1271,6 +1290,10 @@ interface FriendEventInterest {
                           image_url: event.event_media_url || undefined,
                         }}
                         onClick={() => handleEventClick(event.event_id)}
+                        onFlagClick={() => {
+                          setFlaggedEvent({ id: event.event_id, title: event.title });
+                          setFlagModalOpen(true);
+                        }}
                       />
                       );
                     })}
@@ -1360,12 +1383,50 @@ interface FriendEventInterest {
                 <p>No recommended chats at this time.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {recommendedGroupChats.map((chat) => {
+              <div className="space-y-6">
+                {(() => {
+                  const firstThreeChats = recommendedGroupChats.slice(0, 3);
+                  const remainingChats = recommendedGroupChats.slice(3);
+                  
+                  return (
+                    <>
+                      {/* First 3 group chats */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {firstThreeChats.map((chat) => {
                   const imageUrl = chat.entity_image_url || '';
                   const hasImage = imageUrl && imageUrl.trim() !== '';
                   const isJoining = joiningGroupChats.has(chat.id);
                   const isJoined = joinedGroupChats.has(chat.id);
+                  
+                  // Format member count - SIMPLIFIED APPROACH
+                  // Since data shows member_count is always a number (0), format directly
+                  const count = chat.member_count ?? 0;
+                  const countNum = typeof count === 'number' ? Math.floor(Math.max(0, count)) : 0;
+                  
+                  // Create the text string directly - ensure it's a clean string
+                  // IMPORTANT: This is the ONLY place we format the text
+                  let memberCountText: string;
+                  if (countNum === 0) {
+                    memberCountText = '0 members';
+                  } else if (countNum === 1) {
+                    memberCountText = '1 member';
+                  } else {
+                    memberCountText = String(countNum) + ' members';
+                  }
+                  
+                  // Final safety: remove any "members0" pattern
+                  memberCountText = memberCountText.replace(/members0/g, 'members');
+                  
+                  // Debug log to see what we're creating
+                  console.log('🔍 Member count debug:', { 
+                    chatId: chat.id, 
+                    chatName: chat.chat_name,
+                    rawCount: chat.member_count, 
+                    countNum, 
+                    memberCountText,
+                    memberCountTextLength: memberCountText.length,
+                    memberCountTextChars: memberCountText.split('').map(c => `${c} (${c.charCodeAt(0)})`).join(', ')
+                  });
                   
                   return (
                     <div
@@ -1415,22 +1476,117 @@ interface FriendEventInterest {
                       <div className="w-full text-center">
                         <p className="text-sm font-semibold line-clamp-1 mb-1">{chat.chat_name}</p>
                         <p className="text-xs text-gray-600">
+                          {/* Render ONLY memberCountText - create single string to avoid multiple children */}
                           {(() => {
-                            // Ensure member_count is a clean number
-                            const rawCount = chat.member_count;
-                            const count = typeof rawCount === 'number' 
-                              ? Math.floor(rawCount)
-                              : parseInt(String(rawCount || 0).replace(/[^0-9]/g, ''), 10) || 0;
-                            return `${count} member${count !== 1 ? 's' : ''}`;
+                            const baseText = String(memberCountText || '0 members');
+                            const friendsText = chat.friends_in_chat_count && chat.friends_in_chat_count > 0
+                              ? ` • ${chat.friends_in_chat_count} friend${chat.friends_in_chat_count !== 1 ? 's' : ''}`
+                              : '';
+                            return baseText + friendsText;
                           })()}
-                          {chat.friends_in_chat_count && chat.friends_in_chat_count > 0 && (
-                            <> • {chat.friends_in_chat_count} friend{chat.friends_in_chat_count !== 1 ? 's' : ''}</>
-                          )}
                         </p>
                       </div>
                     </div>
                   );
-                })}
+                        })}
+                      </div>
+                      
+                      {/* Friend Suggestions Rail - Insert after first 3 chats */}
+                      {friendSuggestionsForRail.length > 0 && (
+                        <FriendSuggestionsRail
+                          suggestions={friendSuggestionsForRail}
+                          onUserClick={(userId) => onNavigateToProfile?.(userId)}
+                          onAddFriend={handleSendFriendRequestForRail}
+                        />
+                      )}
+                      
+                      {/* Remaining group chats */}
+                      {remainingChats.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                          {remainingChats.map((chat) => {
+                            const imageUrl = chat.entity_image_url || '';
+                            const hasImage = imageUrl && imageUrl.trim() !== '';
+                            const isJoining = joiningGroupChats.has(chat.id);
+                            const isJoined = joinedGroupChats.has(chat.id);
+                            
+                            const count = chat.member_count ?? 0;
+                            const countNum = typeof count === 'number' ? Math.floor(Math.max(0, count)) : 0;
+                            
+                            let memberCountText: string;
+                            if (countNum === 0) {
+                              memberCountText = '0 members';
+                            } else if (countNum === 1) {
+                              memberCountText = '1 member';
+                            } else {
+                              memberCountText = String(countNum) + ' members';
+                            }
+                            
+                            memberCountText = memberCountText.replace(/members0/g, 'members');
+                            
+                            return (
+                              <div
+                                key={chat.id}
+                                className="relative flex flex-col items-center gap-2 p-4 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:border-synth-pink/30 hover:shadow-md transition-all"
+                                onClick={() => {
+                                  if (isJoined) {
+                                    onNavigateToChat?.(chat.id);
+                                  }
+                                }}
+                              >
+                                {!isJoined && (
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="absolute top-2 right-2 z-10 h-7 w-7 p-0 rounded-full bg-synth-pink hover:bg-synth-pink/90 text-white"
+                                    onClick={(e) => handleJoinGroupChat(chat.id, e)}
+                                    disabled={isJoining}
+                                  >
+                                    {isJoining ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Plus className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                )}
+                                {hasImage ? (
+                                  <img
+                                    src={imageUrl}
+                                    alt={chat.entity_name || chat.chat_name}
+                                    className="w-full aspect-square object-cover rounded-lg"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.src = getFallbackEventImage(chat.id);
+                                      target.onerror = null;
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-full aspect-square flex flex-col items-center justify-center p-2 bg-gradient-to-br from-synth-pink/20 to-synth-pink/40 rounded-lg">
+                                    <MessageSquare className="w-8 h-8 text-synth-pink mb-1" />
+                                    <p className="text-[10px] font-semibold text-synth-pink text-center line-clamp-2">
+                                      {chat.chat_name}
+                                    </p>
+                                  </div>
+                                )}
+                                <div className="w-full text-center">
+                                  <p className="text-sm font-semibold line-clamp-1 mb-1">{chat.chat_name}</p>
+                                  <p className="text-xs text-gray-600">
+                                    {(() => {
+                                      const baseText = String(memberCountText || '0 members');
+                                      const friendsText = chat.friends_in_chat_count && chat.friends_in_chat_count > 0
+                                        ? ` • ${chat.friends_in_chat_count} friend${chat.friends_in_chat_count !== 1 ? 's' : ''}`
+                                        : '';
+                                      return baseText + friendsText;
+                                    })()}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -1573,6 +1729,20 @@ interface FriendEventInterest {
             />
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Flag Content Modal */}
+      {flaggedEvent && (
+        <FlagContentModal
+          isOpen={flagModalOpen}
+          onClose={() => {
+            setFlagModalOpen(false);
+            setFlaggedEvent(null);
+          }}
+          contentType="event"
+          contentId={flaggedEvent.id}
+          contentTitle={flaggedEvent.title}
+        />
       )}
     </div>
   );

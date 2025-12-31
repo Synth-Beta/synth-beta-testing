@@ -46,6 +46,7 @@ export interface ReviewData {
   setlist?: any; // Selected setlist data from Setlist.fm (API verified)
   custom_setlist?: CustomSetlistSong[]; // User-created custom setlist (review-only)
   reaction_emoji?: string; // Emoji reaction to the review
+  Event_date?: Date; // Event date - stored in reviews table as DATE type
 }
 
 export interface UserReview {
@@ -217,6 +218,34 @@ export class ReviewService {
     artistId?: string
   ): Promise<UserReview> {
     try {
+      // Fetch event date from events table if eventId is provided
+      // Event_date is a Date type, but we need to convert it to YYYY-MM-DD string for database insertion
+      let eventDate: string | undefined = undefined;
+      if (reviewData.Event_date) {
+        // Convert Date to YYYY-MM-DD string format for PostgreSQL DATE type
+        if (reviewData.Event_date instanceof Date) {
+          eventDate = reviewData.Event_date.toISOString().split('T')[0];
+        } else if (typeof reviewData.Event_date === 'string') {
+          // Handle string input (legacy support)
+          eventDate = reviewData.Event_date;
+        }
+      }
+      if (!eventDate && eventId && isValidUuid(eventId)) {
+        try {
+          const { data: eventData } = await supabase
+            .from('events')
+            .select('event_date')
+            .eq('id', eventId)
+            .maybeSingle();
+          if (eventData?.event_date) {
+            // Convert to date string (YYYY-MM-DD format) for PostgreSQL DATE type
+            const date = new Date(eventData.event_date);
+            eventDate = date.toISOString().split('T')[0];
+          }
+        } catch (error) {
+          console.warn('⚠️ ReviewService: Could not fetch event date:', error);
+        }
+      }
       // Helper to ensure a valid INTEGER rating value (1..5) for inserts/updates
       const deriveRating = (data: ReviewData): number => {
         const clampToRange = (val: number) => Math.max(0.5, Math.min(5.0, val));
@@ -495,6 +524,8 @@ export class ReviewService {
           is_draft: false, // Mark as published (not a draft)
           draft_data: null, // Clear draft data when publishing
           last_saved_at: null, // Clear last_saved_at when publishing
+          // Set Event_date from reviewData or fetched event date
+          ...(eventDate ? { Event_date: eventDate } : {}),
           // All 5 category ratings (0.5-5.0, rounded to 1 decimal) - MUST be included
           // Only set if value is > 0, otherwise undefined (NULL in database)
           artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) && reviewData.artist_performance_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
@@ -708,6 +739,8 @@ export class ReviewService {
         review_text: reviewData.review_text,
         is_public: reviewData.is_public ?? true,
         is_draft: false, // Explicitly mark as published (not a draft)
+        // Set Event_date from reviewData or fetched event date
+        ...(eventDate ? { Event_date: eventDate } : {}),
         // All 5 category ratings (0.5-5.0, rounded to 1 decimal)
         // Only set if value is > 0, otherwise undefined (NULL in database)
         artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) && reviewData.artist_performance_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
@@ -856,6 +889,8 @@ export class ReviewService {
           review_text: reviewData.review_text,
           is_public: reviewData.is_public ?? true,
           is_draft: false, // Explicitly mark as published
+          // Set Event_date from reviewData or fetched event date
+          ...(eventDate ? { Event_date: eventDate } : {}),
           // All 5 category ratings (0.5-5.0, rounded to 1 decimal)
           // Only set if value is > 0, otherwise undefined (NULL in database)
           artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) && reviewData.artist_performance_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
@@ -1182,12 +1217,27 @@ export class ReviewService {
       console.log('🔍 ReviewService: Total reviews (including drafts) for user:', totalCount);
       
       // Fetch reviews and calculate average rating for ordering
+      // Note: Event_date is a case-sensitive column ("Event_date" in PostgreSQL)
+      // PostgREST requires explicit selection of case-sensitive columns with quotes
+      // We need to explicitly select "Event_date" - PostgREST will return it preserving case
       const { data: reviewsData, error: reviewsError, count } = await supabase
         .from('reviews')
-        .select('*', { count: 'exact' })
+        .select('*, "Event_date"', { count: 'exact' })
         .eq('user_id', userId)
         .eq('is_draft', false) // Only show published reviews, not drafts
         .order('created_at', { ascending: false });
+      
+      // PostgREST may normalize "Event_date" to "event_date" (lowercase)
+      // Log the first review to see what column names we actually get
+      if (reviewsData && reviewsData.length > 0) {
+        console.log('🔍 ReviewService: First review column names:', Object.keys(reviewsData[0]));
+        console.log('🔍 ReviewService: First review Event_date check:', {
+          hasEventDate: 'event_date' in reviewsData[0],
+          hasEventDateCapital: 'Event_date' in reviewsData[0],
+          event_date: (reviewsData[0] as any).event_date,
+          Event_date: (reviewsData[0] as any).Event_date,
+        });
+      }
       
       // Sort by rating (which is calculated by database trigger from category ratings)
       if (reviewsData) {
@@ -1419,6 +1469,23 @@ export class ReviewService {
             }
           }
           
+          // Convert Event_date from string (YYYY-MM-DD) to Date object if present
+          // PostgREST returns DATE columns as strings
+          // Parse in local timezone to avoid date shifting (DATE type has no timezone)
+          let eventDate: Date | undefined = undefined;
+          const eventDateStr = (item as any).Event_date || (item as any).event_date;
+          if (eventDateStr) {
+            // Parse YYYY-MM-DD string in local timezone (not UTC) to avoid date shifting
+            // DATE type has no time component, so we parse as local date
+            const [year, month, day] = eventDateStr.split('-').map(Number);
+            if (year && month && day) {
+              const parsedDate = new Date(year, month - 1, day); // month is 0-indexed
+              if (!isNaN(parsedDate.getTime())) {
+                eventDate = parsedDate;
+              }
+            }
+          }
+          
           return {
             review: {
               id: item.id,
@@ -1447,6 +1514,7 @@ export class ReviewService {
               venue_feedback: item.venue_feedback,
               location_feedback: item.location_feedback,
               value_feedback: item.value_feedback,
+              Event_date: eventDate, // Store as Date object
               ticket_price_paid: item.ticket_price_paid,
               created_at: item.created_at,
               updated_at: item.updated_at,

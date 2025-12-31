@@ -269,6 +269,7 @@ export function EventReviewsSection({
           <PublicReviewList
             eventId={event.id}
             currentUserId={userId}
+            refreshTrigger={refreshTrigger}
           />
         </TabsContent>
       </Tabs>

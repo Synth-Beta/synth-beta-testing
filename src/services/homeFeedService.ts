@@ -83,7 +83,8 @@ export class HomeFeedService {
 
       const friendIds = friends.map((f: any) => f.connected_user_id);
 
-      // Get events where friends clicked "interested" (3NF: user_event_relationships)
+      // Get events where friends are interested, going, or maybe going (3NF: user_event_relationships)
+      // NO FILTERS - show all events that any friend is going to
       const { data: relationships, error: relError } = await supabase
         .from('user_event_relationships')
         .select(`
@@ -99,9 +100,9 @@ export class HomeFeedService {
           )
         `)
         .in('user_id', friendIds)
-        .eq('relationship_type', 'interest')
+        .in('relationship_type', ['interest', 'going', 'maybe'])
         .order('created_at', { ascending: false })
-        .limit(limit * 2);
+        .limit(limit * 10); // Increased limit to get more events
 
       if (relError) throw relError;
       if (!relationships || relationships.length === 0) return [];
@@ -188,7 +189,8 @@ export class HomeFeedService {
 
       const secondDegreeIds = secondDegree.map((c: any) => c.connected_user_id);
 
-      // Get events where second-degree connections clicked "interested" (3NF: user_event_relationships)
+      // Get events where second-degree connections are interested, going, or maybe going (3NF: user_event_relationships)
+      // NO FILTERS - show all events that any friend of friend is going to
       const { data: relationships, error: relError } = await supabase
         .from('user_event_relationships')
         .select(`
@@ -201,7 +203,7 @@ export class HomeFeedService {
           )
         `)
         .in('user_id', secondDegreeIds)
-        .eq('relationship_type', 'interest');
+        .in('relationship_type', ['interest', 'going', 'maybe']);
 
       if (relError) throw relError;
       if (!relationships || relationships.length === 0) return [];
@@ -654,12 +656,12 @@ export class HomeFeedService {
 
       if (!reviewsError && topReviews && topReviews.length > 0) {
         const eventIds = topReviews.map((r: any) => r.event_id);
-          const { data: events } = await supabase
-            .from('events')
+        const { data: events } = await supabase
+          .from('events')
             .select('id, title, venue_city, event_date, images, genres, artist_id, artists(name), venue_id, venues(name)')
-            .in('id', eventIds)
-            .gte('event_date', new Date().toISOString())
-            .limit(10);
+          .in('id', eventIds)
+          .gte('event_date', new Date().toISOString())
+          .limit(10);
 
         if (events && events.length > 0) {
           lists.push({
@@ -752,6 +754,8 @@ export class HomeFeedService {
       if (allConnectionIds.length === 0) return [];
 
       // Get reviews from connections
+      // Uses existing indexes: idx_reviews_user_id, idx_reviews_created_at
+      // Limit aggressively to prevent timeouts with deep joins
       const { data: reviews, error: reviewsError } = await supabase
         .from('reviews')
         .select(`
@@ -784,7 +788,7 @@ export class HomeFeedService {
         .in('user_id', allConnectionIds)
         .eq('is_draft', false)
         .order('created_at', { ascending: false })
-        .limit(limit * 2); // Get more to filter properly
+        .limit(Math.min(limit + 5, 30)); // More aggressive limit to prevent timeout
 
       if (reviewsError) throw reviewsError;
       if (!reviews || reviews.length === 0) return [];
