@@ -68,6 +68,30 @@ class InteractionTrackingService {
     return crypto.randomUUID();
   }
 
+  // UUID validation regex
+  private readonly UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  /**
+   * Helper to check if a string is a valid UUID
+   */
+  private isValidUuid(value?: string | null): boolean {
+    return typeof value === 'string' && this.UUID_REGEX.test(value);
+  }
+
+  /**
+   * Normalize interaction event: if entityId is a UUID and entityUuid is not set, use entityId as entityUuid
+   */
+  private normalizeInteractionEvent(event: InteractionEvent): InteractionEvent {
+    // If entityId is a UUID and entityUuid is not set, automatically set entityUuid
+    if (event.entityId && this.isValidUuid(event.entityId) && !event.entityUuid) {
+      return {
+        ...event,
+        entityUuid: event.entityId
+      };
+    }
+    return event;
+  }
+
   /**
    * Validate interaction data before logging
    */
@@ -263,11 +287,16 @@ class InteractionTrackingService {
    * Log a single interaction event
    */
   async logInteraction(event: InteractionEvent): Promise<void> {
+    // Normalize event: convert UUID entityId to entityUuid if applicable
+    // Declare outside try block so it's accessible in catch block
+    const normalizedEvent = this.normalizeInteractionEvent(event);
+    
     try {
+
       // Validate interaction data
-      const validation = this.validateInteractionData(event);
+      const validation = this.validateInteractionData(normalizedEvent);
       if (!validation.isValid) {
-        await this.logError('interaction_validation_error', new Error(validation.errors.join(', ')), event);
+        await this.logError('interaction_validation_error', new Error(validation.errors.join(', ')), normalizedEvent);
         console.warn('Invalid interaction data:', validation.errors);
         return;
       }
@@ -286,7 +315,7 @@ class InteractionTrackingService {
 
       // Track session metrics
       this.sessionInteractions++;
-      if (event.eventType === 'view') {
+      if (normalizedEvent.eventType === 'view') {
         this.sessionPageViews++;
       }
 
@@ -297,8 +326,8 @@ class InteractionTrackingService {
       const ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene'];
       
       // Skip if entity_type requires entity_uuid but it's not provided
-      if (!ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT.includes(event.entityType) && !event.entityUuid) {
-        console.warn(`Skipping interaction: entity_type '${event.entityType}' requires entity_uuid but it was not provided`, event);
+      if (!ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT.includes(normalizedEvent.entityType) && !normalizedEvent.entityUuid) {
+        console.warn(`Skipping interaction: entity_type '${normalizedEvent.entityType}' requires entity_uuid but it was not provided`, normalizedEvent);
         return;
       }
       
@@ -306,21 +335,21 @@ class InteractionTrackingService {
         .from('interactions')
         .insert([{
           user_id: user.id,
-          session_id: event.sessionId || this.sessionId,
-          event_type: event.eventType,
-          entity_type: event.entityType,
-          entity_id: event.entityId || null,
-          entity_uuid: event.entityUuid || null,
-          metadata: event.metadata || {}
+          session_id: normalizedEvent.sessionId || this.sessionId,
+          event_type: normalizedEvent.eventType,
+          entity_type: normalizedEvent.entityType,
+          entity_id: normalizedEvent.entityId || null,
+          entity_uuid: normalizedEvent.entityUuid || null,
+          metadata: normalizedEvent.metadata || {}
         }]);
 
       if (error) {
-        await this.logError('interaction_logging_error', error, event);
+        await this.logError('interaction_logging_error', error, normalizedEvent);
         console.error('Failed to log interaction:', error);
         // Don't throw - logging failures shouldn't break the app
       }
     } catch (error) {
-      await this.logError('interaction_logging_exception', error, event);
+      await this.logError('interaction_logging_exception', error, normalizedEvent);
       console.error('Error logging interaction:', error);
     }
   }
@@ -374,23 +403,29 @@ class InteractionTrackingService {
         return;
       }
 
-      // Validate all interactions in the batch before inserting
+      // Normalize and validate all interactions in the batch before inserting
       // Filter out invalid interactions and log warnings/errors
+      // IMPORTANT: Normalize BEFORE validation to match logInteraction behavior
       const invalidEvents: { event: BatchedInteractionEvent; errors: string[] }[] = [];
 
       for (const event of batch) {
-        const validation = this.validateInteractionData(event);
+        // Normalize event first (convert UUID entityId to entityUuid if applicable)
+        const normalizedEvent = this.normalizeInteractionEvent(event);
+        
+        // Then validate the normalized event (consistent with logInteraction)
+        const validation = this.validateInteractionData(normalizedEvent);
         if (!validation.isValid) {
-          invalidEvents.push({ event, errors: validation.errors });
+          invalidEvents.push({ event: normalizedEvent, errors: validation.errors });
           // Log validation errors
-          await this.logError('interaction_validation_error', new Error(validation.errors.join(', ')), event);
-          console.warn('Invalid interaction in batch:', validation.errors, event);
+          await this.logError('interaction_validation_error', new Error(validation.errors.join(', ')), normalizedEvent);
+          console.warn('Invalid interaction in batch:', validation.errors, normalizedEvent);
         } else {
           // Log warnings if any
           if (validation.warnings.length > 0) {
-            console.warn('Interaction validation warnings:', validation.warnings, event);
+            console.warn('Interaction validation warnings:', validation.warnings, normalizedEvent);
           }
-          validEvents.push(event);
+          // Store normalized event for insertion
+          validEvents.push(normalizedEvent);
         }
       }
 
@@ -407,6 +442,7 @@ class InteractionTrackingService {
       // Note: entity_uuid is preferred for UUID-based entities (artists, venues, events)
       // entity_id is kept as metadata for legacy support
       // Entity types that don't require entity_uuid: search, view, form, ticket_link, song, album, playlist, genre, scene
+      // Note: Events are already normalized in the validation loop above, no need to normalize again
       const ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene'];
       
       const dbBatch = validEvents
