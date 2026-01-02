@@ -46,8 +46,10 @@ export function useAccountType() {
         return;
       }
 
+      // Query users table with JOINs to user_verifications and user_subscriptions
+      // Using users_complete view for backward compatibility during migration
       const { data, error: fetchError } = await supabase
-        .from('users')
+        .from('users_complete')
         .select('account_type, subscription_tier, verified, verification_level, business_info')
         .eq('user_id', user.id)
         .single();

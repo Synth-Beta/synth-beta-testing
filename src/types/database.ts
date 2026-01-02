@@ -2,8 +2,10 @@
 // Updated to match the new 15-table consolidated schema
 
 // ============================================
-// 1. USERS TABLE (from profiles)
+// 1. USERS TABLE (core identity and profile)
 // ============================================
+// Note: Verification and subscription data moved to separate tables
+// for domain separation. Use JOINs or compatibility views.
 export interface User {
   id: string; // UUID
   user_id: string; // UUID - references auth.users(id)
@@ -16,20 +18,9 @@ export interface User {
   gender: string | null;
   birthday: string | null; // DATE
   account_type: 'user' | 'creator' | 'business' | 'admin';
-  verified: boolean;
-  verification_level: 'none' | 'email' | 'phone' | 'id' | 'premium';
-  subscription_tier: 'free' | 'premium' | 'professional' | 'enterprise';
-  subscription_expires_at: string | null; // TIMESTAMPTZ
-  subscription_started_at: string | null; // TIMESTAMPTZ
   business_info: Record<string, any> | null; // JSONB
-  stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
   is_public_profile: boolean;
   similar_users_notifications: boolean;
-  trust_score: number | null;
-  verification_criteria_met: any | null; // JSONB
-  verified_at: string | null; // TIMESTAMPTZ
-  verified_by: string | null; // UUID
   moderation_status: 'good_standing' | 'warned' | 'restricted' | 'suspended' | 'banned';
   warning_count: number;
   last_warned_at: string | null; // TIMESTAMPTZ
@@ -38,6 +29,50 @@ export interface User {
   last_active_at: string | null; // TIMESTAMPTZ
   created_at: string; // TIMESTAMPTZ
   updated_at: string; // TIMESTAMPTZ
+  // Metadata columns
+  permissions_metadata?: Record<string, any>; // JSONB
+  waitlist_signup_at?: string | null; // TIMESTAMPTZ
+  waitlist_metadata?: Record<string, any>; // JSONB
+  admin_actions_log?: any[]; // JSONB
+}
+
+// ============================================
+// 1a. USER_VERIFICATIONS TABLE
+// ============================================
+export interface UserVerification {
+  user_id: string; // UUID - PRIMARY KEY, references users(user_id)
+  verified: boolean;
+  verification_level: 'none' | 'email' | 'phone' | 'id' | 'premium';
+  verified_at: string | null; // TIMESTAMPTZ
+  verified_by: string | null; // UUID - references users(user_id)
+  trust_score: number | null;
+  verification_criteria_met: Record<string, any> | null; // JSONB
+  created_at: string; // TIMESTAMPTZ
+  updated_at: string; // TIMESTAMPTZ
+}
+
+// ============================================
+// 1b. USER_SUBSCRIPTIONS TABLE
+// ============================================
+export interface UserSubscription {
+  user_id: string; // UUID - PRIMARY KEY, references users(user_id)
+  subscription_tier: 'free' | 'premium' | 'professional' | 'enterprise';
+  status: 'active' | 'past_due' | 'cancelled' | 'expired' | 'trialing';
+  subscription_started_at: string | null; // TIMESTAMPTZ
+  subscription_expires_at: string | null; // TIMESTAMPTZ
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  metadata: Record<string, any> | null; // JSONB
+  created_at: string; // TIMESTAMPTZ
+  updated_at: string; // TIMESTAMPTZ
+}
+
+// ============================================
+// 1c. USER WITH VERIFICATION/SUBSCRIPTION (for JOINs)
+// ============================================
+export interface UserWithRelations extends User {
+  verification?: UserVerification | null;
+  subscription?: UserSubscription | null;
 }
 
 // Legacy alias for backward compatibility
@@ -322,8 +357,11 @@ export interface Interaction {
 }
 
 // ============================================
-// 10. ANALYTICS_DAILY TABLE (unified analytics table)
+// 10. ANALYTICS_DAILY (materialized view - derived from interactions)
 // ============================================
+// Note: This is a materialized view (analytics_daily_mv) that aggregates data
+// from the interactions table. interactions is the source of truth.
+// The view is read-only - refresh it with: REFRESH MATERIALIZED VIEW CONCURRENTLY analytics_daily_mv;
 export interface AnalyticsDaily {
   id: string; // UUID
   entity_type: 'user' | 'event' | 'artist' | 'venue' | 'campaign';

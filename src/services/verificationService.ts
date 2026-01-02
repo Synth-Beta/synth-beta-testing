@@ -11,22 +11,40 @@ export class VerificationService {
     criteriaMet: number;
   }> {
     try {
-      // Get profile data
-      const { data: profile, error: profileError } = await supabase
+      // Get user data (for account_type check)
+      const { data: user, error: userError } = await supabase
         .from('users')
+        .select('account_type')
+        .eq('user_id', userId)
+        .single();
+
+      if (userError || !user) {
+        throw new Error('User not found');
+      }
+
+      // Get existing verification data
+      const { data: verification, error: verificationError } = await supabase
+        .from('user_verifications')
         .select('*')
         .eq('user_id', userId)
         .single();
 
-      if (profileError || !profile) {
-        throw new Error('Profile not found');
-      }
-
       // For admin, creator, and business accounts, verification is handled by the database trigger
-      if (profile.account_type !== 'user') {
+      if (user.account_type !== 'user') {
+        // Ensure verification record exists for non-user accounts
+        if (verificationError || !verification) {
+          await supabase
+            .from('user_verifications')
+            .upsert({
+              user_id: userId,
+              verified: true,
+              verification_level: 'premium',
+              trust_score: 100,
+            });
+        }
         return {
-          verified: profile.verified || false,
-          trustScore: 100,
+          verified: verification?.verified || true,
+          trustScore: verification?.trust_score || 100,
           criteriaMet: 8,
         };
       }
@@ -59,25 +77,37 @@ export class VerificationService {
         .eq('user_id', userId)
         .eq('was_there', true);
 
+      // Get full profile data for trust score calculation (using compatibility view)
+      const { data: profile, error: profileError } = await supabase
+        .from('users_complete')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (profileError || !profile) {
+        console.error('Error fetching profile for trust score calculation:', profileError);
+        throw new Error('Profile not found for trust score calculation');
+      }
+
       // Calculate trust score
       const trustScoreBreakdown = calculateUserTrustScore(
-        profile,
+        profile as any, // Type cast for compatibility
         reviewCount || 0,
         friendCount || 0,
         eventCount || 0,
         attendedCount || 0
       );
 
-      // Update profile with new trust score and verification status
+      // Update user_verifications table with new trust score and verification status
       const { error: updateError } = await supabase
-        .from('users')
-        .update({
+        .from('user_verifications')
+        .upsert({
+          user_id: userId,
           trust_score: trustScoreBreakdown.score,
           verification_criteria_met: trustScoreBreakdown.criteria,
           verified: trustScoreBreakdown.isVerified,
-          verified_at: trustScoreBreakdown.isVerified && !profile.verified_at ? new Date().toISOString() : profile.verified_at,
-        })
-        .eq('user_id', userId);
+          verified_at: trustScoreBreakdown.isVerified && !verification?.verified_at ? new Date().toISOString() : verification?.verified_at,
+        });
 
       if (updateError) {
         console.error('Error updating verification status:', updateError);
@@ -99,9 +129,9 @@ export class VerificationService {
    */
   static async getTrustScoreBreakdown(userId: string): Promise<TrustScoreBreakdown> {
     try {
-      // Get profile data
+      // Get profile data using compatibility view
       const { data: profile, error: profileError } = await supabase
-        .from('users')
+        .from('users_complete')
         .select('*')
         .eq('user_id', userId)
         .single();
@@ -139,7 +169,7 @@ export class VerificationService {
         .eq('was_there', true);
 
       return calculateUserTrustScore(
-        profile,
+        profile as any, // Type cast for compatibility
         reviewCount || 0,
         friendCount || 0,
         eventCount || 0,
@@ -178,15 +208,15 @@ export class VerificationService {
         throw new Error('Only admins can manually verify users');
       }
 
-      // Update the target user's verification status
+      // Update the target user's verification status in user_verifications table
       const { error } = await supabase
-        .from('users')
-        .update({
+        .from('user_verifications')
+        .upsert({
+          user_id: targetUserId,
           verified,
           verified_by: verified ? adminUserId : null,
           verified_at: verified ? new Date().toISOString() : null,
-        })
-        .eq('user_id', targetUserId);
+        });
 
       if (error) {
         throw error;
@@ -202,13 +232,21 @@ export class VerificationService {
    */
   static async getUsersNearVerification(limit: number = 50): Promise<any[]> {
     try {
+      // Query users with verification data joined
       const { data, error } = await supabase
         .from('users')
-        .select('*')
+        .select(`
+          *,
+          user_verifications!inner (
+            verified,
+            trust_score,
+            verification_level
+          )
+        `)
         .eq('account_type', 'user')
-        .eq('verified', false)
-        .gte('trust_score', 40)
-        .order('trust_score', { ascending: false })
+        .eq('user_verifications.verified', false)
+        .gte('user_verifications.trust_score', 40)
+        .order('user_verifications.trust_score', { ascending: false })
         .limit(limit);
 
       if (error) {

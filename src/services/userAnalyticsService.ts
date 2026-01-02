@@ -799,9 +799,10 @@ export class UserAnalyticsService {
    */
   static async hasPremium(userId: string): Promise<boolean> {
     try {
-      const { data: profile, error } = await supabase
-        .from('users')
-        .select('subscription_tier, subscription_expires_at')
+      // Query user_subscriptions table directly
+      const { data: subscription, error } = await supabase
+        .from('user_subscriptions')
+        .select('subscription_tier, subscription_expires_at, status')
         .eq('user_id', userId)
         .single();
 
@@ -810,12 +811,13 @@ export class UserAnalyticsService {
         return false;
       }
 
-      if (!profile) return false;
+      if (!subscription) return false;
 
       // Check if subscription is active
-      const isActive = profile.subscription_tier && 
-        profile.subscription_tier !== 'free' &&
-        (!profile.subscription_expires_at || new Date(profile.subscription_expires_at) > new Date());
+      const isActive = subscription.subscription_tier && 
+        subscription.subscription_tier !== 'free' &&
+        subscription.status === 'active' &&
+        (!subscription.subscription_expires_at || new Date(subscription.subscription_expires_at) > new Date());
 
       return isActive;
     } catch (error) {

@@ -1903,9 +1903,8 @@ export class ReviewService {
             user_id,
             name,
             avatar_url,
-            verified,
             account_type
-          ),
+          )
           events_with_artist_venue:event_id (
             id,
             title,
@@ -1931,12 +1930,27 @@ export class ReviewService {
 
       if (error) throw error;
 
+      // Fetch verification data for all reviewer user IDs (verification moved to user_verifications table)
+      const reviewerUserIds = (data || []).map((r: any) => r.user_id).filter(Boolean);
+      const verificationMap = new Map<string, boolean>();
+      
+      if (reviewerUserIds.length > 0) {
+        const { data: verifications } = await supabase
+          .from('user_verifications')
+          .select('user_id, verified')
+          .in('user_id', reviewerUserIds);
+        
+        verifications?.forEach((v: any) => {
+          verificationMap.set(v.user_id, v.verified || false);
+        });
+      }
+
       // Transform the data to match the expected format
       const transformedReviews: PublicReviewWithProfile[] = (data || []).map((review: any) => ({
         ...review,
         reviewer_name: review.users?.name,
         reviewer_avatar: review.users?.avatar_url,
-        reviewer_verified: review.users?.verified,
+        reviewer_verified: verificationMap.get(review.user_id) || false,
         reviewer_account_type: review.users?.account_type,
         event_title: review.events_with_artist_venue?.title || review.events?.title,
         artist_name: (review.events_with_artist_venue as any)?.artist_name_normalized || review.events?.artist_name,
