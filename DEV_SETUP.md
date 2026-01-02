@@ -36,6 +36,9 @@ VITE_JAMBASE_API_KEY=[YOUR_JAMBASE_API_KEY]
 # Backend URL
 VITE_BACKEND_URL=http://localhost:3001
 
+# Mapbox API (Required for maps)
+VITE_MAPBOX_TOKEN=pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w
+
 # Development flags
 VITE_NODE_ENV=development
 ```

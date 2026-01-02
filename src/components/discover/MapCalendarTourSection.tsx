@@ -472,7 +472,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                   month={calendarDate}
                   onMonthChange={setCalendarDate}
                   className="rounded-md border mx-auto"
-                  numberOfMonths={2}
+                  numberOfMonths={1}
                   disabled={(date) => {
                     // Disable dates before today
                     const today = new Date();
@@ -662,8 +662,8 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                     boundsOptions={{ padding: [50, 50] }}
                   >
                     <TileLayer
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY || 'pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w'}`}
+                      attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                     />
                     <MapBoundsFitter events={sortedTourEvents} />
                     

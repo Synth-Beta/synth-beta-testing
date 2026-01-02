@@ -26,6 +26,9 @@ VITE_BACKEND_URL=http://localhost:3001
 
 # Apple Music Integration (Optional)
 VITE_APPLE_MUSIC_DEVELOPER_TOKEN=[YOUR_APPLE_MUSIC_TOKEN]
+
+# Mapbox API (Required for maps)
+VITE_MAPBOX_TOKEN=pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w
 ```
 
 ### Deployment Steps

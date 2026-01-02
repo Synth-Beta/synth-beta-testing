@@ -45,6 +45,12 @@ Make sure to select **All** environments (Production, Preview, Development) for 
 **Variable**: `VITE_APPLE_MUSIC_DEVELOPER_TOKEN`  
 **Value**: `your_apple_music_token` (if you have one)
 
+### 5. Mapbox (Required for Maps)
+
+**Variable**: `VITE_MAPBOX_TOKEN`  
+**Value**: `pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w`  
+ℹ️ This is your Mapbox public access token for map tiles
+
 ## Step-by-Step Instructions
 
 ### Access Vercel Dashboard
