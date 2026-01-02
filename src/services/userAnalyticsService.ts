@@ -883,8 +883,9 @@ export class UserAnalyticsService {
     }>;
   }> {
     try {
-      const { data: profile } = await supabase
-        .from('users')
+      // Query user_subscriptions table directly
+      const { data: subscription } = await supabase
+        .from('user_subscriptions')
         .select('subscription_tier, subscription_started_at, subscription_expires_at')
         .eq('user_id', userId)
         .single();
@@ -912,9 +913,9 @@ export class UserAnalyticsService {
       const totalRevenue = subscriptionHistory.reduce((sum, change) => sum + change.revenueImpact, 0);
 
       return {
-        currentTier: profile?.subscription_tier || 'free',
-        subscriptionStartDate: profile?.subscription_started_at,
-        subscriptionExpiryDate: profile?.subscription_expires_at,
+        currentTier: subscription?.subscription_tier || 'free',
+        subscriptionStartDate: subscription?.subscription_started_at || null,
+        subscriptionExpiryDate: subscription?.subscription_expires_at || null,
         totalRevenue,
         subscriptionHistory
       };

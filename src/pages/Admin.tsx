@@ -76,9 +76,9 @@ export default function Admin() {
       // Calculate offset
       const offset = (currentPage - 1) * usersPerPage;
 
-      // Build query
+      // Build query - use users_complete view to include verification and subscription data
       let query = supabase
-        .from('users')
+        .from('users_complete')
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(offset, offset + usersPerPage - 1);
@@ -114,9 +114,9 @@ export default function Admin() {
         setLoading(true);
         setError(null);
 
-        // Build query with page 1
+        // Build query with page 1 - use users_complete view to include verification and subscription data
         let query = supabase
-          .from('users')
+          .from('users_complete')
           .select('*', { count: 'exact' })
           .order('created_at', { ascending: false })
           .range(0, usersPerPage - 1);

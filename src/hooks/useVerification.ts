@@ -36,8 +36,9 @@ export function useVerification(userId: string | undefined): VerificationStatus 
 
     const fetchVerificationStatus = async () => {
       try {
+        // Query users_complete view to get verification data
         const { data: profile, error } = await supabase
-          .from('users')
+          .from('users_complete')
           .select('verified, account_type, trust_score')
           .eq('user_id', userId)
           .single();
@@ -72,7 +73,7 @@ export function useVerification(userId: string | undefined): VerificationStatus 
 
     fetchVerificationStatus();
 
-    // Subscribe to profile changes
+    // Subscribe to verification changes (user_verifications table)
     const subscription = supabase
       .channel(`profile_verification_${userId}`)
       .on(
@@ -80,19 +81,27 @@ export function useVerification(userId: string | undefined): VerificationStatus 
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'users',
+          table: 'user_verifications',
           filter: `user_id=eq.${userId}`,
         },
-        (payload) => {
+        async (payload) => {
           if (!mounted) return;
-          const newData = payload.new as any;
-          setStatus({
-            verified: newData.verified || false,
-            accountType: newData.account_type || 'user',
-            trustScore: newData.trust_score || 0,
-            loading: false,
-            error: null,
-          });
+          // Refetch verification status when user_verifications changes
+          const { data: profile } = await supabase
+            .from('users_complete')
+            .select('verified, account_type, trust_score')
+            .eq('user_id', userId)
+            .single();
+          
+          if (profile) {
+            setStatus({
+              verified: profile.verified || false,
+              accountType: profile.account_type || 'user',
+              trustScore: profile.trust_score || 0,
+              loading: false,
+              error: null,
+            });
+          }
         }
       )
       .subscribe();
