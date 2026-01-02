@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Music, MapPin, Calendar, Sparkles } from 'lucide-react';
 import { PassportIdentityService, type PassportIdentity } from '@/services/passportIdentityService';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PassportTravelTracker } from './PassportTravelTracker';
 
 interface PassportIdentityProps {
   userId: string;
@@ -110,6 +111,9 @@ export const PassportIdentity: React.FC<PassportIdentityProps> = ({ userId, user
           )}
         </CardContent>
       </Card>
+
+      {/* Travel Tracker */}
+      <PassportTravelTracker userId={userId} />
     </div>
   );
 };
