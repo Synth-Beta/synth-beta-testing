@@ -562,7 +562,13 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const showMainNav = ['feed', 'search', 'profile', 'chat'].includes(currentView);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div 
+      className="min-h-screen"
+      style={{
+        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
+        backgroundColor: 'transparent'
+      }}
+    >
       {/* Onboarding Reminder Banner */}
       {showOnboardingReminder && (
         <OnboardingReminderBanner onComplete={() => setCurrentView('onboarding')} />
@@ -586,7 +592,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         </div>
       )}
       
-      <div className={showMainNav ? 'pb-20' : 'pb-16'}>
+      <div className={showMainNav ? 'pb-[100px]' : 'pb-20'}>
         {renderCurrentView()}
       </div>
       {/* Show bottom navigation for main pages (Discover, Connect, Share) */}

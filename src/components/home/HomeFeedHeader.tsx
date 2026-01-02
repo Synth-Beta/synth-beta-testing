@@ -17,13 +17,16 @@ export const HomeFeedHeader: React.FC<HomeFeedHeaderProps> = ({
   return (
     <div
       className={cn(
-        'sticky top-0 z-50 bg-white border-b border-gray-100',
-        'pt-[env(safe-area-inset-top)]',
+        'sticky z-50 bg-transparent border-b border-gray-100',
         className
       )}
+      style={{ 
+        top: 'max(54px, calc(54px + env(safe-area-inset-top, 0px)))',
+        marginTop: 'env(safe-area-inset-top, 54px)'
+      }}
     >
       {/* Search Bar Only */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 bg-white">
         <button
           onClick={onSearchClick}
           className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors text-left"

@@ -240,10 +240,25 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc] pb-[max(2rem,env(safe-area-inset-bottom))]">
+    <div 
+      className="min-h-screen"
+      style={{
+        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
+        backgroundColor: 'transparent'
+      }}
+    >
+      {/* Transparent space above header for Dynamic Island */}
+      <div style={{ 
+        height: 'max(54px, calc(54px + env(safe-area-inset-top, 0px)))',
+        backgroundColor: 'transparent',
+        minHeight: '54px'
+      }} />
+      
       {/* Top bar with search and menu */}
-      <div className="sticky top-0 z-50 bg-[#fcfcfc] border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+      <div className="sticky z-50 bg-transparent border-b border-gray-200" style={{ 
+        top: 'max(54px, calc(54px + env(safe-area-inset-top, 0px)))'
+      }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 bg-[#fcfcfc] rounded-b-lg">
           <div className="flex items-center gap-3">
             <div className="flex-1">
           <RedesignedSearchPage
@@ -270,7 +285,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           </div>
         </div>
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6 space-y-2">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6 space-y-2 bg-[#fcfcfc]">
 
         {/* Browse Vibes and Location Filter - Always Visible (Above Search Results) */}
         <div className="mb-2 flex items-center gap-2 flex-wrap overflow-x-auto">

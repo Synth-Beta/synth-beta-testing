@@ -17,12 +17,15 @@ export const PermanentHeader: React.FC<PermanentHeaderProps> = ({
   return (
     <header
       className={cn(
-        'fixed top-0 left-0 right-0 z-50 bg-[#fcfcfc] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)]',
+        'fixed left-0 right-0 z-50 bg-transparent shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)]',
         className
       )}
-      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      style={{ 
+        top: 'env(safe-area-inset-top, 54px)',
+        paddingTop: 0
+      }}
     >
-      <div className="flex items-center justify-between h-[59px] px-5 pb-4">
+      <div className="flex items-center justify-between h-[59px] px-5 pb-4 bg-[#fcfcfc]">
         {/* Left side: Synth Logo and Text */}
         <div className="flex items-center gap-[3px]">
           <div className="relative shrink-0 w-[50px] h-[50px]">

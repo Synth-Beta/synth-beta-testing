@@ -192,7 +192,12 @@ export const UnifiedFeed = ({
     sectionCount === 2 ? 'grid-cols-2' :
     'grid-cols-3';
   const isEmbedded = embedded;
-  const outerClassName = isEmbedded ? 'w-full' : 'min-h-screen bg-gray-50';
+  const outerClassName = isEmbedded ? 'w-full' : 'min-h-screen';
+  const outerStyle = isEmbedded ? {} : {
+    paddingTop: 'max(54px, calc(54px + env(safe-area-inset-top, 0px)))',
+    paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
+    backgroundColor: 'transparent'
+  };
   const innerClassName = isEmbedded ? 'w-full space-y-0' : 'max-w-4xl mx-auto p-6 space-y-8';
   const headerSpacingClass = isEmbedded ? 'mb-0' : 'mb-8';
   const resolvedHeaderTitle = headerTitle ?? 'Feed';
@@ -2413,8 +2418,15 @@ export const UnifiedFeed = ({
   }
 
   return (
-    <div className={outerClassName}>
-      <div className={innerClassName}>
+    <div className={outerClassName} style={outerStyle}>
+      {/* Transparent space above content for Dynamic Island */}
+      {!isEmbedded && (
+        <div style={{ 
+          height: 'env(safe-area-inset-top, 54px)',
+          backgroundColor: 'transparent'
+        }} />
+      )}
+      <div className={innerClassName} style={!isEmbedded ? { backgroundColor: '#f9fafb' } : {}}>
         {shouldRenderHeader && (
         <div className={headerSpacingClass}>
           <div>
@@ -3259,7 +3271,7 @@ export const UnifiedFeed = ({
         )}
             </div>
 
-      <div className="pb-20"></div>
+      <div style={{ height: '0px' }}></div>
 
       {/* Modals */}
       {showReviewModal && (
