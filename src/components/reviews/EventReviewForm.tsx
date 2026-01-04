@@ -1884,7 +1884,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
   return (
     <>
-      <div className="px-6 py-6 space-y-8">
+      <div className="px-4 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
         {/* Draft Toggle - only show for new reviews */}
         {!existingReview && (
           <DraftToggle
@@ -1908,32 +1908,32 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         )}
 
         {!existingReview && (
-          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex items-center gap-2 text-sm text-blue-700">
-              <div className="w-2 h-2 bg-blue-400 rounded-full" />
-              <span>Your progress is automatically saved locally</span>
+          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 w-full max-w-full overflow-x-hidden">
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-blue-700">
+              <div className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0" />
+              <span className="break-words">Your progress is automatically saved locally</span>
             </div>
           </div>
         )}
 
-        <div className="space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
+        <div className="space-y-3 sm:space-y-4 w-full max-w-full overflow-x-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">
                 Step {currentStep} of {totalSteps || REVIEW_FORM_TOTAL_STEPS}
               </p>
-              <h3 className="text-lg font-semibold text-gray-900 mt-1">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mt-1 break-words">
                 {getStepLabels(currentFlow || 'detailed')[currentStep - 1] || 'Review'}
               </h3>
             </div>
-            <div className="w-full md:w-72 h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="w-full sm:w-48 h-2 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
               <div
                 className="h-full bg-pink-500 transition-all duration-300"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 w-full max-w-full overflow-x-hidden">
             {getStepLabels(currentFlow || 'detailed').map((label, index) => {
               const stepNumber = index + 1;
               const isActive = stepNumber === currentStep;
@@ -1942,7 +1942,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                 <span
                   key={`${label}-${index}`}
                   className={cn(
-                    'px-3 py-1 rounded-full text-xs font-medium transition-colors',
+                    'px-2 sm:px-3 py-1 rounded-full text-xs font-medium transition-colors flex-shrink-0',
                     isActive
                       ? 'bg-pink-500 text-white shadow-sm'
                       : isComplete
@@ -1957,50 +1957,52 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           </div>
         </div>
 
-        <div className="min-h-[420px]">
+        <div className="min-h-[420px] w-full max-w-full overflow-x-hidden">
           {renderStepContent()}
         </div>
 
-        <div className="space-y-4 border-t pt-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="space-y-3 sm:space-y-4 border-t pt-3 sm:pt-4 w-full max-w-full overflow-x-hidden">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2 w-full">
             <Button
               variant="ghost"
               onClick={prevStep}
               disabled={!canGoBack}
-              className="md:w-auto"
+                className="flex-shrink-0"
+                size="sm"
             >
               Back
             </Button>
 
-            <div className="flex items-center gap-3 text-xs text-gray-500">
+              <div className="flex items-center gap-2 text-xs text-gray-500 flex-shrink-0">
               {isSaving ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
-                  <span>Auto-saving…</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse flex-shrink-0" />
+                    <span className="whitespace-nowrap">Auto-saving…</span>
                 </div>
               ) : lastSaveTime ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-400 rounded-full" />
-                  <span>Auto-saved {lastSaveTime.toLocaleTimeString()}</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0" />
+                    <span className="whitespace-nowrap hidden sm:inline">Auto-saved {lastSaveTime.toLocaleTimeString()}</span>
+                    <span className="whitespace-nowrap sm:hidden">Saved</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-gray-300 rounded-full" />
-                  <span>Auto-save active - your progress is saved automatically</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 bg-gray-300 rounded-full flex-shrink-0" />
+                    <span className="whitespace-nowrap hidden sm:inline">Auto-save active</span>
+                    <span className="whitespace-nowrap sm:hidden">Saved</span>
                 </div>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Manual save button removed - auto-save handles everything automatically */}
               {currentStep < (totalSteps || REVIEW_FORM_TOTAL_STEPS) && (
                 <Button
                   onClick={nextStep}
                   disabled={!canProceed}
-                  className="bg-pink-500 hover:bg-pink-600"
+                  className="bg-pink-500 hover:bg-pink-600 flex-shrink-0"
+                  size="sm"
                 >
-                  Next
-                  {nextStepLabel ? `: ${nextStepLabel}` : ''}
+                  Next{nextStepLabel ? `: ${nextStepLabel}` : ''}
                 </Button>
               )}
             </div>

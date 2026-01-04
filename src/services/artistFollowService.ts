@@ -266,19 +266,28 @@ export class ArtistFollowService {
       // Query artist_follows table (3NF compliant)
       const { data: follows, error: followsError } = await supabase
         .from('artist_follows')
-        .select('id, artist_id, created_at, updated_at')
+        .select('id, artist_id, user_id, created_at, updated_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
+      console.log('🔍 ArtistFollowService query result:', {
+        followsLength: follows?.length || 0,
+        error: followsError,
+        firstFollow: follows?.[0]
+      });
+
       if (followsError) {
-        console.error('Error fetching artist follows:', followsError);
+        console.error('❌ Error fetching artist follows:', followsError);
+        console.error('❌ Error details:', JSON.stringify(followsError, null, 2));
         return [];
       }
 
       if (!follows || follows.length === 0) {
-        console.log('No artist follows found');
+        console.log('⚠️ No artist follows found for user:', userId);
         return [];
       }
+
+      console.log(`✅ Found ${follows.length} artist follows`);
 
       // Extract artist IDs
       const artistIds = follows.map((follow: any) => follow.artist_id).filter(Boolean);

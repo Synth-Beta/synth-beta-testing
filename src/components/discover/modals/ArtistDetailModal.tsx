@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Star, Music, Calendar, MapPin, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Star, Music, Calendar, MapPin, MessageSquare, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { ArtistVenueReviews } from '@/components/reviews/ArtistVenueReviews';
@@ -99,20 +98,31 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-3 mb-4">
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <DialogTitle className="flex-1">{artistName}</DialogTitle>
+    <div 
+      className="fixed inset-0 z-50 bg-[#fcfcfc] overflow-y-auto overflow-x-hidden w-full max-w-full"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
+      }}
+    >
+      {/* Header with X button */}
+      <div className="bg-[#fcfcfc] border-b border-gray-200 w-full max-w-full">
+        <div className="px-4 py-3 flex items-center justify-between gap-2">
+          <h1 className="text-lg font-bold flex-1 pr-2 break-words min-w-0">{artistName}</h1>
+          <button
+            onClick={onClose}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
           </div>
-          <DialogDescription>
-            Artist details and upcoming events
-          </DialogDescription>
-        </DialogHeader>
+      
+      <div className="px-4 py-4 w-full max-w-full overflow-x-hidden">
 
         {loading ? (
           <div className="flex items-center justify-center py-8">
@@ -121,20 +131,20 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
         ) : (
           <div className="space-y-6">
             {/* Header Section */}
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-3 w-full">
               {artistImage ? (
                 <img
                   src={artistImage}
                   alt={artistName}
-                  className="w-24 h-24 rounded-full object-cover"
+                  className="w-16 h-16 rounded-full object-cover flex-shrink-0"
                 />
               ) : (
-                <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center">
-                  <Music className="w-12 h-12 text-muted-foreground" />
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                  <Music className="w-8 h-8 text-muted-foreground" />
                 </div>
               )}
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold mb-2">{artistName}</h2>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-bold mb-2 break-words">{artistName}</h2>
                 {averageRating !== null && (
                   <div className="flex items-center gap-2 mb-2">
                     <div className="flex items-center">
@@ -155,7 +165,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                     )}
                   </div>
                 )}
-                <div className="flex items-center gap-4 mt-4">
+                <div className="flex items-center gap-2 mt-3 flex-wrap">
                   <ArtistFollowButton
                     artistName={artistName}
                     artistId={artistId}
@@ -163,6 +173,8 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                   />
                   <Button
                     variant="outline"
+                    size="sm"
+                    className="text-xs"
                     onClick={() => {
                       navigate(`/artist/${encodeURIComponent(artistName)}`);
                       onClose();
@@ -175,7 +187,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-2 w-full">
               <div className="text-center p-4 bg-muted rounded-lg">
                 <div className="text-2xl font-bold">{totalEvents}</div>
                 <div className="text-sm text-muted-foreground">Total Events</div>
@@ -214,8 +226,8 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
             </Button>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 };
 

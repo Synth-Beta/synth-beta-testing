@@ -192,11 +192,10 @@ export const UnifiedFeed = ({
     sectionCount === 2 ? 'grid-cols-2' :
     'grid-cols-3';
   const isEmbedded = embedded;
-  const outerClassName = isEmbedded ? 'w-full' : 'min-h-screen';
+  const outerClassName = isEmbedded ? 'w-full' : 'min-h-screen bg-[#f9fafb]';
   const outerStyle = isEmbedded ? {} : {
-    paddingTop: 'max(54px, calc(54px + env(safe-area-inset-top, 0px)))',
-    paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
-    backgroundColor: 'transparent'
+    paddingTop: 'env(safe-area-inset-top, 0px)',
+    paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
   };
   const innerClassName = isEmbedded ? 'w-full space-y-0' : 'max-w-4xl mx-auto p-6 space-y-8';
   const headerSpacingClass = isEmbedded ? 'mb-0' : 'mb-8';
@@ -2419,14 +2418,7 @@ export const UnifiedFeed = ({
 
   return (
     <div className={outerClassName} style={outerStyle}>
-      {/* Transparent space above content for Dynamic Island */}
-      {!isEmbedded && (
-        <div style={{ 
-          height: 'env(safe-area-inset-top, 54px)',
-          backgroundColor: 'transparent'
-        }} />
-      )}
-      <div className={innerClassName} style={!isEmbedded ? { backgroundColor: '#f9fafb' } : {}}>
+      <div className={innerClassName}>
         {shouldRenderHeader && (
         <div className={headerSpacingClass}>
           <div>

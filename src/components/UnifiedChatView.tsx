@@ -158,6 +158,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   const [chatParticipants, setChatParticipants] = useState<any[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const [linkedEvent, setLinkedEvent] = useState<any>(null);
+  const [showUsersModal, setShowUsersModal] = useState(false);
   
   // Auto-scroll ref for messages
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1147,11 +1148,27 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   // Settings menu functions
   const fetchChatParticipants = async (chatId: string) => {
     try {
-      // Use chat_participants table (3NF compliant)
+      // Use chat_participants table (3NF compliant) - fetch all participant fields
       const { data: participantData, error: participantsError } = await supabase
         .from('chat_participants')
-        .select('user_id, users!user_id(user_id, name, avatar_url)')
-        .eq('chat_id', chatId);
+        .select(`
+          id,
+          user_id,
+          joined_at,
+          last_read_at,
+          is_admin,
+          notifications_enabled,
+          users!user_id(
+            user_id,
+            name,
+            avatar_url,
+            bio,
+            verified,
+            account_type
+          )
+        `)
+        .eq('chat_id', chatId)
+        .order('joined_at', { ascending: true });
 
       if (participantsError) {
         console.error('Error fetching chat participants:', participantsError);
@@ -1163,16 +1180,27 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         return;
       }
 
-      // Extract user profiles from the joined data
-      const profiles = participantData
-        .map(p => p.users as any)
-        .filter(Boolean);
+      // Map participant data with user info
+      const participantList = participantData
+        .map(p => {
+          const user = p.users as any;
+          if (!user) return null;
 
-      const participantList = profiles?.map(p => ({
+          return {
+            id: p.id,
         user_id: p.user_id,
-        name: p.name || 'Unknown User',
-        avatar_url: p.avatar_url || null
-      })) || [];
+            name: user.name || 'Unknown User',
+            avatar_url: user.avatar_url || null,
+            bio: user.bio || null,
+            verified: user.verified || false,
+            account_type: user.account_type || null,
+            joined_at: p.joined_at,
+            last_read_at: p.last_read_at,
+            is_admin: p.is_admin || false,
+            notifications_enabled: p.notifications_enabled !== false
+          };
+        })
+        .filter(Boolean);
 
       setChatParticipants(participantList);
     } catch (error) {
@@ -1245,11 +1273,10 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   };
 
   const handleViewUsers = () => {
-    // TODO: Implement view users modal
-    toast({
-      title: 'View Users',
-      description: 'User list functionality will be implemented soon',
-    });
+    if (!selectedChat || !selectedChat.is_group_chat) return;
+    // Fetch latest participants before showing modal
+    fetchChatParticipants(selectedChat.id);
+    setShowUsersModal(true);
   };
 
   const handleViewProfile = (userId: string) => {
@@ -1396,9 +1423,16 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-139px)] synth-gradient-card">
+    <div 
+      className="flex min-h-screen bg-[#fcfcfc] w-full max-w-[393px] mx-auto"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
+      }}
+    >
       {/* Left Sidebar - Chat List */}
-      <div className="w-1/3 border-r border-synth-black/10 bg-white/98 backdrop-blur-md flex flex-col shadow-2xl">
+      {!selectedChat && (
+        <div className="w-full border-synth-black/10 bg-white/98 backdrop-blur-md flex flex-col shadow-2xl">
         {/* Header */}
         <div className="p-5 border-b border-synth-black/10 bg-[#fcfcfc] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)]">
           <div className="mb-5">
@@ -1497,22 +1531,22 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                             )}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            <h3 className={`font-semibold truncate transition-colors ${
+                            <h3 className={`font-semibold break-words transition-colors ${
                               selectedChat?.id === chat.id ? 'text-synth-black' : 'text-gray-900'
                             }`}>
                               {getChatDisplayName(chat)}
                             </h3>
                             {chat.latest_message_created_at && (
-                              <span className={`text-xs flex-shrink-0 font-medium ${
+                              <span className={`text-xs flex-shrink-0 font-medium whitespace-nowrap ${
                                 selectedChat?.id === chat.id ? 'text-synth-black/60' : 'text-gray-500'
                               }`}>
                                 {formatChatTimestamp(chat.latest_message_created_at)}
                               </span>
                             )}
                           </div>
-                          <p className={`text-sm truncate mb-1 ${
+                          <p className={`text-sm break-words mb-1 ${
                             selectedChat?.id === chat.id ? 'text-synth-black/70' : 'text-gray-600'
                           }`}>
                             {chat.latest_message ? (
@@ -1555,23 +1589,24 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
           )}
         </div>
       </div>
+      )}
 
       {/* Right Side - Messages */}
-      <div className="flex-1 flex flex-col bg-[#fdf2f7] min-h-0">
-        {selectedChat ? (
+      {selectedChat && (
+        <div className="w-full flex flex-col bg-white min-h-0">
           <>
             {/* Chat Header */}
-            <div className="h-[135px] bg-[#fcfcfc] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex items-center justify-between px-5">
+            <div className="h-[44px] bg-[#fcfcfc] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex items-center justify-between px-5">
               <div className="flex items-center gap-[6px]">
                 <button
-                  onClick={onBack}
+                  onClick={() => setSelectedChat(null)}
                   className="w-6 h-6 flex items-center justify-center cursor-pointer"
                 >
                   <ArrowLeft className="w-6 h-6 text-[#0e0e0e]" />
                 </button>
-                <Avatar className="w-10 h-10 flex-shrink-0">
+                <Avatar className="w-8 h-8 flex-shrink-0">
                     <AvatarImage src={getChatAvatar(selectedChat) || undefined} />
-                  <AvatarFallback className="bg-synth-beige/50 text-synth-black font-medium">
+                  <AvatarFallback className="bg-synth-beige/50 text-synth-black font-medium text-base">
                       {selectedChat.is_group_chat ? (
                       <Users className="w-5 h-5" />
                       ) : (
@@ -1579,19 +1614,12 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                       )}
                     </AvatarFallback>
                   </Avatar>
-                <div className="flex flex-col gap-[6px]">
-                  <h2 className="font-medium text-[24px] text-[#0e0e0e] leading-[normal]">
+                <h2 className="font-bold text-[24px] text-[#0e0e0e] leading-[normal]">
                             {getChatDisplayName(selectedChat)}
                           </h2>
-                  {selectedChat.is_group_chat && selectedChat.member_count !== undefined && (
-                    <p className="font-normal text-[16px] text-[#5d646f] underline leading-[normal]">
-                      {selectedChat.member_count} Members
-                    </p>
-                    )}
-                  </div>
                 </div>
                 
-                {/* Settings Menu */}
+              {/* Info Icon */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
@@ -1651,7 +1679,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto bg-[#fdf2f7]">
+            <div className="flex-1 overflow-y-auto bg-white px-5 py-6">
               {messages.length === 0 ? (
                 <div className="flex flex-col gap-[6px] items-center justify-center h-full">
                   <MessageCircle className="w-[60px] h-[60px] text-[#cc2486] stroke-2" />
@@ -1659,56 +1687,133 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                   <p className="font-normal text-[16px] text-[#5d646f] leading-[normal]">Start the conversation!</p>
                 </div>
               ) : (
-                <div className="p-5">
-                <>
-                {messages.map((message, index) => {
+                <div className="flex flex-col gap-[24px]">
+                  {(() => {
+                    // Group consecutive messages from the same sender
+                    const messageGroups: Array<Array<typeof messages[0]>> = [];
+                    let currentGroup: Array<typeof messages[0]> = [];
+                    
+                    messages.forEach((message, index) => {
                   const prevMessage = index > 0 ? messages[index - 1] : null;
+                      
+                      if (prevMessage && prevMessage.sender_id === message.sender_id && 
+                          prevMessage.message_type === message.message_type &&
+                          (message.message_type === 'text' || message.message_type === 'event_share' || message.message_type === 'review_share')) {
+                        currentGroup.push(message);
+                      } else {
+                        if (currentGroup.length > 0) {
+                          messageGroups.push(currentGroup);
+                        }
+                        currentGroup = [message];
+                      }
+                    });
+                    
+                    if (currentGroup.length > 0) {
+                      messageGroups.push(currentGroup);
+                    }
+                    
+                    return messageGroups.map((group, groupIndex) => {
+                      const firstMessage = group[0];
+                      const lastMessage = group[group.length - 1];
+                      const prevGroup = groupIndex > 0 ? messageGroups[groupIndex - 1] : null;
+                      const prevMessage = prevGroup ? prevGroup[prevGroup.length - 1] : null;
+                      
                   const showSenderInfo = selectedChat?.is_group_chat && 
-                    message.sender_id !== currentUserId && 
-                    (prevMessage === null || prevMessage.sender_id !== message.sender_id || 
+                        firstMessage.sender_id !== currentUserId && 
+                        (prevMessage === null || prevMessage.sender_id !== firstMessage.sender_id || 
                      (prevMessage.message_type !== 'text' && prevMessage.message_type !== 'review_share' && prevMessage.message_type !== 'event_share'));
-                  const messageDate = parseISO(message.created_at);
+                      
+                      const messageDate = parseISO(firstMessage.created_at);
                   const prevMessageDate = prevMessage ? parseISO(prevMessage.created_at) : null;
                   const showDateDivider = !prevMessageDate || 
                     format(messageDate, 'yyyy-MM-dd') !== format(prevMessageDate, 'yyyy-MM-dd');
                   const isToday = format(messageDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                      
+                      const isSent = firstMessage.sender_id === currentUserId;
                   
                   return (
-                    <div key={message.id} className="mb-[22px]">
-                      {showDateDivider && (
-                        <div className="flex justify-center mb-[22px]">
+                        <div key={`group-${groupIndex}`} className={`flex flex-col ${isSent ? 'items-end' : 'items-start'}`}>
+                          {showDateDivider && groupIndex === 0 && (
+                            <div className="flex justify-center w-full mb-6">
                           <p className="font-normal text-[16px] text-[#0e0e0e] leading-[normal]">
                             {isToday ? `Today ${format(messageDate, 'h:mm a')}` : format(messageDate, 'MMMM d, yyyy')}
                           </p>
                         </div>
                       )}
-                      <div
-                        className={`flex flex-col ${
-                          message.sender_id === currentUserId ? 'items-end' : 'items-start'
-                        }`}
-                      >
+                          
                         {showSenderInfo && (
                           <div className="flex items-center gap-[6px] mb-[12px]">
                             <Avatar className="w-10 h-10 flex-shrink-0">
-                              <AvatarImage src={message.sender_avatar || undefined} />
+                                <AvatarImage src={firstMessage.sender_avatar || undefined} />
                               <AvatarFallback className="bg-synth-beige/50 text-synth-black font-medium text-sm">
-                                {message.sender_name.split(' ').map(n => n[0]).join('')}
+                                  {firstMessage.sender_name.split(' ').map(n => n[0]).join('')}
                               </AvatarFallback>
                             </Avatar>
                             <p className="font-normal text-[16px] text-[#0e0e0e] leading-[normal]">
-                              {message.sender_name}
+                                {firstMessage.sender_name}
                             </p>
                           </div>
                         )}
-                        <div
-                    className={`flex ${
-                      message.sender_id === currentUserId ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
+                          
+                          {group.length === 1 ? (
+                            // Solo message - timestamp directly below
+                            <div className="flex flex-col gap-[6px]">
+                              {firstMessage.message_type === 'review_share' && firstMessage.shared_review_id ? (
+                                <>
+                                  <ReviewMessageCard
+                                    reviewId={firstMessage.shared_review_id}
+                                    customMessage={firstMessage.metadata?.custom_message}
+                                    onReviewClick={handleReviewClick}
+                                    currentUserId={currentUserId}
+                                    metadata={firstMessage.metadata}
+                                  />
+                                  <p className="text-[16px] text-[#5d646f] font-normal leading-[normal]">
+                                    {format(parseISO(firstMessage.created_at), 'h:mm a')}
+                                  </p>
+                                </>
+                              ) : firstMessage.message_type === 'event_share' && firstMessage.shared_event_id ? (
+                                <>
+                                  <EventMessageCard
+                                    eventId={firstMessage.shared_event_id}
+                                    customMessage={firstMessage.metadata?.custom_message}
+                                    onEventClick={handleEventClick}
+                                    onInterestToggle={handleInterestToggle}
+                                    onAttendanceToggle={handleAttendanceToggle}
+                                    currentUserId={currentUserId}
+                                    refreshTrigger={refreshTrigger}
+                                  />
+                                  <p className="text-[16px] text-[#5d646f] font-normal leading-[normal]">
+                                    {format(parseISO(firstMessage.created_at), 'h:mm a')}
+                                  </p>
+                                </>
+                              ) : (
+                                <>
+                                  <div
+                                    className={`max-w-[172px] p-[12px] rounded-[10px] border border-[#c9c9c9] ${
+                                      firstMessage.sender_id === currentUserId
+                                        ? 'bg-[#cc2486] text-[#fcfcfc]'
+                                        : 'bg-[rgba(201,201,201,0.5)] text-[#0e0e0e]'
+                                    }`}
+                                  >
+                                    <p className="font-normal text-[16px] leading-[normal] break-words whitespace-pre-wrap w-[150px]">
+                                      {firstMessage.content}
+                                    </p>
+                                  </div>
+                                  <p className="text-[16px] text-[#5d646f] font-normal leading-[normal]">
+                                    {format(parseISO(firstMessage.created_at), 'h:mm a')}
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            // Multiple messages - group together, timestamp only on last
+                            <div className="flex flex-col gap-[6px]">
+                              {group.map((message, msgIndex) => {
+                                const isLastInGroup = msgIndex === group.length - 1;
+                                
+                                return (
+                                  <div key={message.id} className="flex flex-col gap-[6px]">
                     {message.message_type === 'review_share' && message.shared_review_id ? (
-                      // Review Share Message Card
-                      <div className={`flex flex-col ${message.sender_id === currentUserId ? 'items-end' : 'items-start'}`}>
-                        <div className={`${message.sender_id === currentUserId ? 'ml-auto' : ''}`}>
                         <ReviewMessageCard
                           reviewId={message.shared_review_id}
                           customMessage={message.metadata?.custom_message}
@@ -1716,17 +1821,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                           currentUserId={currentUserId}
                           metadata={message.metadata}
                         />
-                        </div>
-                        <p className={`text-[16px] text-[#5d646f] mt-[6px] font-normal leading-[normal] ${
-                          message.sender_id === currentUserId ? 'text-right' : 'text-left'
-                        }`}>
-                          {format(parseISO(message.created_at), 'h:mm a')}
-                        </p>
-                      </div>
                     ) : message.message_type === 'event_share' && message.shared_event_id ? (
-                      // Event Share Message Card
-                      <div className={`flex flex-col ${message.sender_id === currentUserId ? 'items-end' : 'items-start'}`}>
-                        <div className={`${message.sender_id === currentUserId ? 'ml-auto' : ''}`}>
                         <EventMessageCard
                           eventId={message.shared_event_id}
                           customMessage={message.metadata?.custom_message}
@@ -1736,97 +1831,60 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                           currentUserId={currentUserId}
                           refreshTrigger={refreshTrigger}
                         />
-                        </div>
-                        <p className={`text-[16px] text-[#5d646f] mt-[6px] font-normal leading-[normal] ${
-                          message.sender_id === currentUserId ? 'text-right' : 'text-left'
-                        }`}>
-                          {format(parseISO(message.created_at), 'h:mm a')}
-                        </p>
-                      </div>
-                    ) : message.content?.toLowerCase().includes('check out this event:') ? (
-                      // Legacy event share fallback based on message content
-                      <div className={`${message.sender_id === currentUserId ? 'ml-auto' : ''}`}>
-                        <div className={`text-xs mb-2 font-medium ${
-                          message.sender_id === currentUserId ? 'text-white/80 text-right' : 'text-gray-500'
-                        }`}>
-                          {message.sender_id === currentUserId ? 'You' : message.sender_name} shared an event
-                        </div>
-                        <div className="bg-gradient-to-br from-synth-pink/15 to-synth-pink/5 border-2 border-synth-pink/30 rounded-2xl p-4 shadow-lg">
-                          <p className="text-sm text-synth-black font-medium">{message.content}</p>
-                        </div>
-                        <p className={`text-xs mt-2 font-medium ${
-                          message.sender_id === currentUserId ? 'text-white/70 text-right' : 'text-gray-400'
-                        }`}>
-                          {format(parseISO(message.created_at), 'h:mm a')}
-                        </p>
-                      </div>
-                    ) : (
-                      // Regular Text Message
-                      <div className="flex flex-col">
-                      <div
-                          className={`max-w-[172px] p-[12px] rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] flex flex-col gap-[6px] ${
+                                    ) : (
+                                      <div
+                                        className={`max-w-[172px] p-[12px] rounded-[10px] border border-[#c9c9c9] ${
                           message.sender_id === currentUserId
-                              ? 'bg-[#fdf2f7] ml-auto items-end'
-                              : 'bg-[#fcfcfc] items-start'
+                                            ? 'bg-[#cc2486] text-[#fcfcfc]'
+                                            : 'bg-[rgba(201,201,201,0.5)] text-[#0e0e0e]'
                         }`}
                       >
-                          <p className="font-normal text-[16px] text-[#0e0e0e] leading-[normal] break-words whitespace-pre-wrap">{message.content}</p>
-                          {!selectedChat?.is_group_chat && (
-                            <p className="font-normal text-[16px] text-[#5d646f] leading-[normal]">
-                              {format(parseISO(message.created_at), 'h:mm a')}
+                                        <p className="font-normal text-[16px] leading-[normal] break-words whitespace-pre-wrap w-[150px]">
+                                          {message.content}
                             </p>
-                          )}
                         </div>
-                        {selectedChat?.is_group_chat && (
-                          <p className={`font-normal text-[16px] text-[#5d646f] leading-[normal] mt-[6px] ${
-                            message.sender_id === currentUserId ? 'text-right' : 'text-left'
-                        }`}>
+                                    )}
+                                    {isLastInGroup && (
+                                      <p className="text-[16px] text-[#5d646f] font-normal leading-[normal]">
                           {format(parseISO(message.created_at), 'h:mm a')}
                         </p>
                         )}
+                                  </div>
+                                );
+                              })}
                       </div>
                     )}
-                  </div>
-                      </div>
                     </div>
                   );
-                })}
+                    });
+                  })()}
                 <div ref={messagesEndRef} />
-                </>
                 </div>
               )}
             </div>
 
             {/* Message Input - Always show when chat is selected */}
-            <div className="p-[12px] bg-[#fdf2f7]">
-              <div className="relative">
+            <div className="px-5 pb-5 bg-white">
+              <div className="bg-[#fcfcfc] border-2 border-[#c9c9c9] rounded-[10px] flex items-center justify-between h-[44px] pl-5 pr-[1px]">
                 <Input
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Type a message..."
                   onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  className="bg-[#fcfcfc] border-2 border-[#5d646f] rounded-[10px] h-[45px] pl-[9px] pr-[50px] text-[16px] text-[#5d646f] placeholder:text-[#5d646f] focus:border-[#5d646f] focus:ring-0"
+                  className="bg-transparent border-0 flex-1 h-full text-[16px] text-[#5d646f] placeholder:text-[#5d646f] focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
                 />
                 <Button 
                   onClick={sendMessage} 
                   disabled={!newMessage.trim()}
-                  className="absolute right-0 top-0 bg-[#951a6d] hover:bg-[#7a1457] text-white h-[45px] w-[37px] p-0 rounded-r-[10px] rounded-l-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-[#cc2486] hover:bg-[#b01f75] text-white h-[44px] w-[44px] p-0 rounded-br-[10px] rounded-tr-[10px] rounded-bl-0 rounded-tl-0 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                 >
-                  <Send className="w-6 h-6" />
+                  <Send className="w-[22px] h-[22px] text-[#fcfcfc]" />
                 </Button>
               </div>
             </div>
           </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-[#fcfcfc]">
-            <div className="text-center">
-              <MessageCircle className="w-[60px] h-[60px] text-[#cc2486] stroke-2 mx-auto mb-6" />
-              <h2 className="font-medium text-[20px] text-[#0e0e0e] leading-[normal] mb-2">Select a conversation</h2>
-              <p className="font-normal text-[16px] text-[#5d646f] leading-[normal]">Choose a chat from the sidebar to start messaging</p>
-            </div>
           </div>
         )}
-      </div>
 
       {/* User Search Modal - Direct Message Selection */}
       {showUserSearch && (
@@ -2195,6 +2253,101 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
           onInterestToggle={handleInterestToggle}
           isInterested={selectedEventInterested}
         />
+      )}
+
+      {/* Chat Participants Modal - Group Chat Users */}
+      {showUsersModal && selectedChat && selectedChat.is_group_chat && (
+        <Dialog open={showUsersModal} onOpenChange={setShowUsersModal}>
+          <DialogContent className="max-w-[393px] max-h-[80vh] overflow-y-auto bg-[#fcfcfc]">
+            <DialogHeader>
+              <DialogTitle className="text-[20px] font-bold text-[#0e0e0e]">
+                Group Members ({chatParticipants.length})
+              </DialogTitle>
+              <DialogDescription className="text-[16px] text-[#5d646f]">
+                Members of this group chat
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 mt-4">
+              {chatParticipants.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="w-12 h-12 text-[#5d646f] mx-auto mb-4" />
+                  <p className="text-[16px] text-[#5d646f]">No members found</p>
+                </div>
+              ) : (
+                chatParticipants.map((participant) => {
+                  const isCurrentUser = participant.user_id === currentUserId;
+                  const isAdmin = participant.is_admin;
+                  
+                  return (
+                    <div
+                      key={participant.id || participant.user_id}
+                      className="flex items-center justify-between p-3 border border-[#c9c9c9] rounded-[10px] bg-white hover:bg-gray-50 transition-colors"
+                    >
+                      <div
+                        className="flex items-center gap-3 flex-1 cursor-pointer"
+                        onClick={() => {
+                          handleViewProfile(participant.user_id);
+                          setShowUsersModal(false);
+                        }}
+                      >
+                        <Avatar className="w-10 h-10 flex-shrink-0">
+                          <AvatarImage src={participant.avatar_url || undefined} />
+                          <AvatarFallback className="bg-synth-beige/50 text-synth-black font-medium">
+                            {participant.name.split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-[16px] text-[#0e0e0e] truncate">
+                              {participant.name}
+                              {isCurrentUser && (
+                                <span className="text-[14px] text-[#5d646f] font-normal ml-1">(You)</span>
+                              )}
+                            </h3>
+                            {participant.verified && (
+                              <Badge variant="default" className="text-[10px] bg-green-500 text-white">
+                                ✓ Verified
+                              </Badge>
+                            )}
+                          </div>
+                          {participant.bio && (
+                            <p className="text-[14px] text-[#5d646f] truncate mt-1">
+                              {participant.bio}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 mt-1">
+                            {isAdmin && (
+                              <Badge variant="default" className="text-[12px] bg-[#cc2486] text-white">
+                                Admin
+                              </Badge>
+                            )}
+                            <span className="text-[12px] text-[#5d646f]">
+                              Joined {format(parseISO(participant.joined_at), 'MMM d, yyyy')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {!isCurrentUser && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewProfile(participant.user_id);
+                            setShowUsersModal(false);
+                          }}
+                          className="text-[#5d646f] hover:text-[#cc2486] hover:bg-pink-50 p-2 flex-shrink-0"
+                        >
+                          <User className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

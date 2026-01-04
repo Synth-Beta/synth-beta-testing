@@ -79,9 +79,8 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
   const [reviewFilterBy, setReviewFilterBy] = useState<'all' | '5_star' | '4_star' | '3_star' | '2_star' | '1_star'>('all');
   const [venueCoordinates, setVenueCoordinates] = useState<{lat: number, lng: number} | null>(null);
   
-  // Independent sorting state for each section
+  // Sorting state
   const [upcomingSortBy, setUpcomingSortBy] = useState<'date' | 'artist' | 'price'>('date');
-  const [pastSortBy, setPastSortBy] = useState<'date' | 'artist' | 'price'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const computeCategoryAverage = (review: any) => {
@@ -643,7 +642,6 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
     return parts.join(', ');
   };
 
-  const isPastEvent = (eventDate: string) => new Date(eventDate) < new Date();
   const isUpcomingEvent = (eventDate: string) => new Date(eventDate) >= new Date();
 
   const getLocationString = (event: JamBaseEvent) => {
@@ -717,11 +715,10 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
   };
 
   const upcomingEvents = sortEvents(events.filter(event => isUpcomingEvent(event.event_date)), upcomingSortBy);
-  const pastEvents = sortEvents(events.filter(event => isPastEvent(event.event_date)), pastSortBy);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 overflow-x-hidden w-full max-w-full">
+      <div className="container mx-auto px-4 py-8 w-full max-w-full overflow-x-hidden">
         {/* Header */}
         <div className="mb-8">
           <Button 
@@ -749,16 +746,15 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
             Back
           </Button>
           
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full">
-              <Building2 className="w-8 h-8 text-white" />
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <div className="p-2 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex-shrink-0">
+              <Building2 className="w-6 h-6 text-white" />
             </div>
-            <div className="flex items-center gap-4 flex-1">
-              <div className="flex-1">
-                <div className="flex items-center gap-4 mb-2">
-                  <h1 className="text-3xl font-bold gradient-text">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold gradient-text break-words truncate">
                     {venueName || 'Unknown Venue'}
                   </h1>
+            </div>
                   {user?.id && venueName && (
                     <VenueFollowButton
                       venueName={venueName}
@@ -766,94 +762,63 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                       venueState={venueState}
                       userId={user.id}
                       variant="outline"
-                      size="default"
-                      showFollowerCount={true}
+                size="sm"
+                showFollowerCount={false}
+                className="flex-shrink-0"
                     />
                   )}
-                </div>
-                <p className="text-muted-foreground">
-                  {venueLocation}
-                </p>
               </div>
               
-              {/* Leaflet Map */}
-              {venueCoordinates && (
-                <div className="w-80 h-40 rounded-lg overflow-hidden shadow-lg">
-                  <MapContainer
-                    center={[venueCoordinates.lat, venueCoordinates.lng]}
-                    zoom={15}
-                    style={{ height: '100%', width: '100%' }}
-                    scrollWheelZoom={false}
-                    zoomControl={false}
-                  >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    <Marker position={[venueCoordinates.lat, venueCoordinates.lng]}>
-                      <Popup>
-                        <div className="text-center">
-                          <strong>{venueName}</strong>
-                          <br />
-                          {venueLocation}
-                        </div>
-                      </Popup>
-                    </Marker>
-                  </MapContainer>
+          {venueLocation && (
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xs text-muted-foreground">All events at this venue</span>
+              <span className="text-xs text-muted-foreground">•</span>
+              <span className="text-xs text-muted-foreground">{venueLocation}</span>
                 </div>
               )}
-            </div>
-          </div>
 
-          <div className="flex gap-4 text-sm">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-sm">
               <Badge variant="default" className="bg-green-100 text-green-800">
                 {upcomingEvents.length} Upcoming
               </Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">
-                {pastEvents.length} Past
-              </Badge>
-            </div>
           </div>
         </div>
 
         {/* Venue Profile Section */}
         <div className="mb-8 space-y-6">
           {/* Venue Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2">
             <Card>
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1 mb-2">
+              <CardContent className="p-3 text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
                   {renderStars(venueStats.averageRating)}
                 </div>
-                <div className="text-2xl font-bold text-gray-900">
+                <div className="text-xl font-bold text-gray-900">
                   {venueStats.averageRating.toFixed(1)}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-xs text-gray-600">
                   Average Rating
                 </div>
               </CardContent>
             </Card>
             
             <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-gray-900">
+              <CardContent className="p-3 text-center">
+                <div className="text-xl font-bold text-gray-900">
                   {venueStats.totalReviews}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-xs text-gray-600">
                   Total Reviews
                 </div>
               </CardContent>
             </Card>
             
             <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-pink-600">
-                  {upcomingEvents.length + pastEvents.length}
+              <CardContent className="p-3 text-center">
+                <div className="text-xl font-bold text-pink-600">
+                  {upcomingEvents.length}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-xs text-gray-600">
                   Total Events
                 </div>
               </CardContent>
@@ -1056,72 +1021,42 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-3 gap-2 w-full max-w-full overflow-x-hidden">
               {upcomingEvents.map((event) => (
                 <Card 
                   key={event.id} 
-                  className="glass-card hover-card overflow-hidden floating-shadow cursor-pointer"
+                  className="overflow-hidden cursor-pointer w-full max-w-full min-w-0 hover:shadow-md transition-shadow"
                   onClick={() => handleEventClick(event)}
                 >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1 line-clamp-2">
+                  <div className="p-2 w-full max-w-full overflow-x-hidden">
+                    <h3 className="font-semibold text-xs mb-1 line-clamp-2 break-words min-h-[32px]">
                           {event.title}
                         </h3>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {event.description && event.description.length > 100 
-                            ? `${event.description.substring(0, 100)}...` 
-                            : event.description}
-                        </p>
+                    <div className="space-y-1 mb-2">
+                      <div className="flex items-center gap-1 text-xs">
+                        <Calendar className="w-3 h-3 text-pink-500 flex-shrink-0" />
+                        <span className="truncate">{formatDate(event.event_date)}</span>
                       </div>
+                      <div className="flex items-center gap-1 text-xs">
+                        <Clock className="w-3 h-3 text-pink-500 flex-shrink-0" />
+                        <span className="truncate">{formatTime(event.event_date)}</span>
                     </div>
-
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        <span>{formatDate(event.event_date)}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Clock className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        <span>{formatTime(event.event_date)}</span>
-                        {event.doors_time && (
-                          <span className="text-muted-foreground">
-                            (Doors: {formatDoorsTime(event.doors_time)})
+                      <div className="flex items-center gap-1 text-xs">
+                        <MapPin className="w-3 h-3 text-pink-500 flex-shrink-0" />
+                        <span className="truncate text-muted-foreground">
+                          {getLocationString(event)}
                           </span>
-                        )}
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <MapPin className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        <span 
-                          className="cursor-pointer hover:text-pink-600 transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (event.artist_id) handleArtistClick(event.artist_id);
-                          }}
-                        >
-                          {event.artist_name}
-                        </span>
                       </div>
-                    </div>
-
                     {event.genres && event.genres.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        {event.genres.slice(0, 3).map((genre, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
+                      <div className="flex flex-wrap gap-0.5">
+                        {event.genres.slice(0, 2).map((genre, index) => (
+                          <Badge key={index} variant="secondary" className="text-[10px] px-1 py-0 h-4">
                             {genre}
                           </Badge>
                         ))}
                       </div>
                     )}
-
-                    <div className="flex items-center justify-between">
-                      {event.price_range && (
-                        <span className="text-sm font-medium">
-                          {formatPrice(event.price_range)}
-                        </span>
-                      )}
-                    </div>
                   </div>
                 </Card>
               ))}
@@ -1129,97 +1064,7 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
           </div>
         )}
 
-        {/* Past Events */}
-        {pastEvents.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold gradient-text">Past Events</h2>
-              <Select value={pastSortBy} onValueChange={(value: 'date' | 'artist' | 'price') => setPastSortBy(value)}>
-                <SelectTrigger className="w-24 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date">Date</SelectItem>
-                  <SelectItem value="artist">Artist</SelectItem>
-                  <SelectItem value="price">Price</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {pastEvents.map((event) => (
-                <Card 
-                  key={event.id} 
-                  className="glass-card hover-card overflow-hidden floating-shadow cursor-pointer opacity-75"
-                  onClick={() => handleEventClick(event)}
-                >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1 line-clamp-2">
-                          {event.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {event.description && event.description.length > 100 
-                            ? `${event.description.substring(0, 100)}...` 
-                            : event.description}
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        <span>{formatDate(event.event_date)}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Clock className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        <span>{formatTime(event.event_date)}</span>
-                        {event.doors_time && (
-                          <span className="text-muted-foreground">
-                            (Doors: {formatDoorsTime(event.doors_time)})
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <MapPin className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        <span 
-                          className="cursor-pointer hover:text-pink-600 transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (event.artist_id) handleArtistClick(event.artist_id);
-                          }}
-                        >
-                          {event.artist_name}
-                        </span>
-                      </div>
-                    </div>
-
-                    {event.genres && event.genres.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        {event.genres.slice(0, 3).map((genre, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {genre}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary" className="text-sm">
-                        Past Event
-                      </Badge>
-                      {event.price_range && (
-                        <span className="text-sm font-medium text-muted-foreground">
-                          {formatPrice(event.price_range)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* No Events Message */}
         {events.length === 0 && (

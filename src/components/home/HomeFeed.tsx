@@ -1186,29 +1186,19 @@ interface FriendEventInterest {
                       
                       return (
     <div 
-      className="min-h-screen"
+      className="min-h-screen bg-[#fcfcfc]"
       style={{
-        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
-        backgroundColor: 'transparent'
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
       }}
     >
-      {/* Transparent space above header for Dynamic Island */}
-      <div style={{ 
-        height: 'max(54px, calc(54px + env(safe-area-inset-top, 0px)))',
-        backgroundColor: 'transparent',
-        minHeight: '54px'
-      }} />
-      
       {/* Top bar with feed type dropdown and menu */}
-      <div className="sticky z-50 bg-transparent border-b border-gray-200" style={{ 
-        top: 'max(54px, calc(54px + env(safe-area-inset-top, 0px)))'
-      }}>
-        <div className="bg-[#fcfcfc] rounded-b-lg">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <div className="bg-[#fcfcfc] border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex-1 flex justify-center">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 bg-white">
+                <Button variant="outline" className="flex items-center gap-2 bg-white" data-tour="feed-toggle">
                   {feedTypes.find(ft => ft.value === selectedFeedType)?.label || 'Hand Picked Events'}
                   <ChevronDown className="h-4 w-4" />
                 </Button>
@@ -1227,11 +1217,10 @@ interface FriendEventInterest {
                             </div>
           <div className="flex items-center gap-2">
             <TopRightMenu />
-          </div>
-        </div>
-      </div>
-      </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6 bg-[#fcfcfc]">
+                      </div>
+                  </div>
+                </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
         {/* Location Filter - compact info section above feeds */}
         {feedLocation && (
           <div className="mb-3 flex items-center justify-between gap-4 text-xs text-gray-600 bg-white rounded-md px-3 py-2 border border-gray-200">

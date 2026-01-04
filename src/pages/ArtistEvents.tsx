@@ -63,9 +63,8 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
   const [reviewSortBy, setReviewSortBy] = useState<'newest' | 'oldest' | 'highest_rating' | 'lowest_rating'>('newest');
   const [reviewFilterBy, setReviewFilterBy] = useState<'all' | '5_star' | '4_star' | '3_star' | '2_star' | '1_star'>('all');
   
-  // Independent sorting state for each section
+  // Sorting state
   const [upcomingSortBy, setUpcomingSortBy] = useState<'date' | 'location' | 'price'>('date');
-  const [pastSortBy, setPastSortBy] = useState<'date' | 'location' | 'price'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const computeCategoryAverage = (review: {
@@ -207,7 +206,6 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
           created_at,
           mood_tags,
           genre_tags,
-          reaction_emoji,
           photos
         `)
         .eq('is_public', true)
@@ -223,10 +221,21 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       const reviewEventIds = reviewsData?.map((r: any) => r.event_id).filter(Boolean) || [];
       const eventMap = new Map();
       if (reviewEventIds.length > 0) {
-        const { data: eventsData } = await (supabase as any)
+        const { data: eventsData } = await supabase
           .from('events')
-          .select('id, artist_name, venue_name, event_date, title')
+          .select('id, venue_name, event_date, title, artist_id')
           .in('id', reviewEventIds);
+        
+        // Fetch artist names separately
+        const artistIds = [...new Set(eventsData?.map((e: any) => e.artist_id).filter(Boolean) || [])];
+        const artistMap = new Map();
+        if (artistIds.length > 0) {
+          const { data: artistsData } = await supabase
+            .from('artists')
+            .select('id, name')
+            .in('id', artistIds);
+          artistsData?.forEach((a: any) => artistMap.set(a.id, a.name));
+        }
         
         if (eventsData) {
           eventsData.forEach((event: any) => {
@@ -246,6 +255,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       const transformedReviews = reviewsData?.map((review: any) => {
         const profile = profiles?.find((p: any) => p.user_id === review.user_id);
         const event = eventMap.get(review.event_id);
+        const artistName = event?.artist_id ? artistMap.get(event.artist_id) : '';
         
         return {
           id: review.id,
@@ -259,9 +269,9 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
           event_title: event?.title || '',
           event_date: event?.event_date || '',
           venue_name: event?.venue_name || '',
+          artist_name: artistName || '',
           mood_tags: review.mood_tags || [],
           genre_tags: review.genre_tags || [],
-          reaction_emoji: review.reaction_emoji || null,
           photos: review.photos || [],
           category_average: computeCategoryAverage(review)
         };
@@ -395,36 +405,68 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
         eventsError = result.error;
       }
 
-      // If no events found by UUID, or if we don't have a UUID, try by artist_name
+      // If no events found by UUID, or if we don't have a UUID, try to find artist by name first
       if (!eventsData || eventsData.length === 0) {
-        // Use exact match instead of fuzzy match to avoid showing similar artists
+        // First, find the artist by name to get their UUID
+        const { data: artistByName, error: artistByNameError } = await supabase
+          .from('artists')
+          .select('id, name')
+          .ilike('name', artistNameToSearch)
+          .maybeSingle();
+        
+        if (!artistByNameError && artistByName?.id) {
+          // Now query events by artist_id (UUID)
         const { data: nameSearchData, error: nameSearchError } = await supabase
           .from('events')
           .select('*')
-          .eq('artist_name', artistNameToSearch) // Use the resolved name
+            .eq('artist_id', artistByName.id)
           .order('event_date', { ascending: true });
           
         if (!nameSearchError && nameSearchData && nameSearchData.length > 0) {
           eventsData = nameSearchData;
           eventsError = null;
-          artistNameToSearch = nameSearchData[0].artist_name;
+            artistNameToSearch = artistByName.name;
         } else if (!eventsData) {
           // If we never got any data, use the name search result (even if empty)
           eventsData = nameSearchData || [];
           eventsError = nameSearchError;
+          }
+        } else if (!eventsData) {
+          // No artist found by name, set empty array
+          eventsData = [];
+          eventsError = null;
         }
       }
 
       if (eventsError) throw eventsError;
 
-      // Set artist name from database results if available
-      if (eventsData && eventsData.length > 0) {
-        artistNameToSearch = eventsData[0].artist_name;
+      // Ensure we have the artist name - fetch from artists table if we have UUID but no name
+      if (isUUID && decodedArtistId && !artistNameToSearch) {
+        const { data: artistData } = await supabase
+          .from('artists')
+          .select('name')
+          .eq('id', decodedArtistId)
+          .maybeSingle();
+        if (artistData?.name) {
+          artistNameToSearch = artistData.name;
+        }
       }
 
-      // Convert database events to JamBaseEvent format
-      const dbEvents: JamBaseEvent[] = (eventsData || []).map(event => ({
+      // Load artist names for events
+      const artistIdsFromEvents = [...new Set((eventsData || []).map((e: any) => e.artist_id).filter(Boolean))];
+      const artistNamesMap = new Map<string, string>();
+      if (artistIdsFromEvents.length > 0) {
+        const { data: artistsData } = await supabase
+          .from('artists')
+          .select('id, name')
+          .in('id', artistIdsFromEvents);
+        artistsData?.forEach((a: any) => artistNamesMap.set(a.id, a.name));
+      }
+
+      // Convert database events to JamBaseEvent format, adding artist_name
+      const dbEvents: JamBaseEvent[] = (eventsData || []).map((event: any) => ({
         ...event,
+        artist_name: artistNamesMap.get(event.artist_id) || artistNameToSearch || '',
         source: event.source || 'jambase'
       }));
 
@@ -440,7 +482,28 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       );
 
       setEvents(deduplicatedEvents);
-      const finalArtistName = artistNameToSearch || decodedArtistId || 'Unknown Artist';
+      
+      // Ensure we have the actual artist name, not UUID
+      let finalArtistName = artistNameToSearch;
+      if (!finalArtistName || finalArtistName === decodedArtistId) {
+        // If we still don't have a proper name, fetch it
+        if (isUUID && decodedArtistId) {
+          const { data: artistData } = await supabase
+            .from('artists')
+            .select('name')
+            .eq('id', decodedArtistId)
+            .maybeSingle();
+          if (artistData?.name) {
+            finalArtistName = artistData.name;
+          }
+        }
+      }
+      
+      // If still no name, use Unknown Artist instead of UUID
+      if (!finalArtistName || finalArtistName === decodedArtistId || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(finalArtistName)) {
+        finalArtistName = 'Unknown Artist';
+      }
+      
       setArtistName(finalArtistName);
       
       // Fetch artist profile data (image, description, etc.) even if no events found
@@ -485,8 +548,9 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
     const seen = new Map<string, JamBaseEvent>();
     
     return events.filter(event => {
-      // Normalize artist and venue names for better matching
-      const normalizeArtist = (event.artist_name || '').toLowerCase().trim();
+      // Normalize artist name - use artist_name if available, or fallback to artist_id
+      const artistName = (event as any).artist_name || '';
+      const normalizeArtist = artistName.toLowerCase().trim();
       const normalizeVenue = (event.venue_name || '').toLowerCase()
         .replace(/\s+/g, ' ')
         .replace(/\bthe\s+/gi, '')
@@ -624,7 +688,6 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
     });
   };
 
-  const isPastEvent = (eventDate: string) => new Date(eventDate) < new Date();
   const isUpcomingEvent = (eventDate: string) => new Date(eventDate) >= new Date();
 
   const getLocationString = (event: JamBaseEvent) => {
@@ -707,11 +770,10 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
   };
 
   const upcomingEvents = sortEvents(events.filter(event => isUpcomingEvent(event.event_date)), upcomingSortBy);
-  const pastEvents = sortEvents(events.filter(event => isPastEvent(event.event_date)), pastSortBy);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 overflow-x-hidden w-full max-w-full">
+      <div className="container mx-auto px-4 py-8 w-full max-w-full overflow-x-hidden">
         {/* Header */}
         <div className="mb-8">
           <Button 
@@ -745,111 +807,99 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
             Back
           </Button>
           
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full">
-              <Music className="w-8 h-8 text-white" />
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <div className="p-2 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex-shrink-0">
+              <Music className="w-6 h-6 text-white" />
             </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold gradient-text">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold gradient-text break-words truncate">
                     {artistName || 'Unknown Artist'}
                   </h1>
-                  <p className="text-muted-foreground">
-                    All events for this artist
-                  </p>
+            </div>
+            {user?.id && (
+              <ArtistFollowButton
+                artistName={artistName}
+                userId={user.id}
+                variant="outline"
+                size="sm"
+                showFollowerCount={false}
+                className="flex-shrink-0"
+              />
+            )}
+          </div>
                   
                   {/* Music Platform Links */}
                   {artistName && (
-                    <div className="flex items-center gap-3 mt-3">
+            <div className="flex items-center gap-2 mb-4">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => window.open(`https://open.spotify.com/search/${encodeURIComponent(artistName)}`, '_blank')}
-                        className="flex items-center gap-2 hover:bg-green-50 hover:border-green-300"
+                className="flex items-center gap-1.5 hover:bg-green-50 hover:border-green-300 text-xs px-2 py-1 h-7"
                       >
-                        <div className="w-4 h-4 bg-green-500 rounded-sm flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">♪</span>
+                <div className="w-3 h-3 bg-green-500 rounded-sm flex items-center justify-center">
+                  <span className="text-white text-[8px] font-bold">♪</span>
                         </div>
-                        Spotify
+                <span className="text-xs">Spotify</span>
                       </Button>
                       
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => window.open(`https://music.apple.com/search?term=${encodeURIComponent(artistName)}`, '_blank')}
-                        className="flex items-center gap-2 hover:bg-gray-50 hover:border-gray-400"
+                className="flex items-center gap-1.5 hover:bg-gray-50 hover:border-gray-400 text-xs px-2 py-1 h-7"
                       >
-                        <div className="w-4 h-4 bg-black rounded-sm flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">♫</span>
+                <div className="w-3 h-3 bg-black rounded-sm flex items-center justify-center">
+                  <span className="text-white text-[8px] font-bold">♫</span>
                         </div>
-                        Apple Music
+                <span className="text-xs">Apple Music</span>
                       </Button>
+              <span className="text-xs text-muted-foreground ml-2">All events for this artist</span>
                     </div>
                   )}
-                </div>
-                {user?.id && (
-                  <ArtistFollowButton
-                    artistName={artistName}
-                    userId={user.id}
-                    variant="outline"
-                    size="default"
-                    showFollowerCount={true}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
 
-          <div className="flex gap-4 text-sm">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-sm">
               <Badge variant="default" className="bg-green-100 text-green-800">
                 {upcomingEvents.length} Upcoming
               </Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">
-                {pastEvents.length} Past
-              </Badge>
-            </div>
           </div>
         </div>
 
         {/* Artist Profile Section */}
         <div className="mb-8 space-y-6">
           {/* Artist Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2">
             <Card>
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1 mb-2">
+              <CardContent className="p-3 text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
                   {renderStars(artistStats.averageRating)}
                 </div>
-                <div className="text-2xl font-bold text-gray-900">
+                <div className="text-xl font-bold text-gray-900">
                   {artistStats.averageRating.toFixed(1)}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-xs text-gray-600">
                   Average Rating
                 </div>
               </CardContent>
             </Card>
             
             <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-gray-900">
+              <CardContent className="p-3 text-center">
+                <div className="text-xl font-bold text-gray-900">
                   {artistStats.totalReviews}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-xs text-gray-600">
                   Total Reviews
                 </div>
               </CardContent>
             </Card>
             
             <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-pink-600">
-                  {upcomingEvents.length + pastEvents.length}
+              <CardContent className="p-3 text-center">
+                <div className="text-xl font-bold text-pink-600">
+                  {upcomingEvents.length}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-xs text-gray-600">
                   Total Events
                 </div>
               </CardContent>
@@ -985,9 +1035,6 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
                             </div>
                           )}
                           
-                          {review.reaction_emoji && (
-                            <div className="text-lg">{review.reaction_emoji}</div>
-                          )}
                         </div>
                       ))}
                     </div>
@@ -1014,75 +1061,42 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-3 gap-2 w-full max-w-full overflow-x-hidden">
               {upcomingEvents.map((event) => (
                 <Card 
                   key={event.id} 
-                  className="glass-card hover-card overflow-hidden floating-shadow cursor-pointer"
+                  className="overflow-hidden cursor-pointer w-full max-w-full min-w-0 hover:shadow-md transition-shadow"
                   onClick={() => handleEventClick(event)}
                 >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1 line-clamp-2">
+                  <div className="p-2 w-full max-w-full overflow-x-hidden">
+                    <h3 className="font-semibold text-xs mb-1 line-clamp-2 break-words min-h-[32px]">
                           {event.title}
                         </h3>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {event.description && event.description.length > 100 
-                            ? `${event.description.substring(0, 100)}...` 
-                            : event.description}
-                        </p>
+                    <div className="space-y-1 mb-2">
+                      <div className="flex items-center gap-1 text-xs">
+                        <Calendar className="w-3 h-3 text-pink-500 flex-shrink-0" />
+                        <span className="truncate">{formatDate(event.event_date)}</span>
                       </div>
+                      <div className="flex items-center gap-1 text-xs">
+                        <Clock className="w-3 h-3 text-pink-500 flex-shrink-0" />
+                        <span className="truncate">{formatTime(event.event_date)}</span>
                     </div>
-
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        <span>{formatDate(event.event_date)}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Clock className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        <span>{formatTime(event.event_date)}</span>
-                        {event.doors_time && (
-                          <span className="text-muted-foreground">
-                            (Doors: {formatDoorsTime(event.doors_time)})
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <MapPin className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        <span 
-                          className="cursor-pointer hover:text-pink-600 transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (event.venue_id) handleVenueClick(event.venue_id);
-                          }}
-                        >
-                          {event.venue_name}
-                        </span>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1 text-xs">
+                        <MapPin className="w-3 h-3 text-pink-500 flex-shrink-0" />
+                        <span className="truncate text-muted-foreground">
                         {getLocationString(event)}
-                      </div>
+                        </span>
                     </div>
-
+                  </div>
                     {event.genres && event.genres.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        {event.genres.slice(0, 3).map((genre, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
+                      <div className="flex flex-wrap gap-0.5">
+                        {event.genres.slice(0, 2).map((genre, index) => (
+                          <Badge key={index} variant="secondary" className="text-[10px] px-1 py-0 h-4">
                             {genre}
                           </Badge>
                         ))}
                       </div>
                     )}
-
-                    <div className="flex items-center justify-between">
-                      {event.price_range && (
-                        <span className="text-sm font-medium">
-                          {formatPrice(event.price_range)}
-                        </span>
-                      )}
-                    </div>
                   </div>
                 </Card>
               ))}
@@ -1090,100 +1104,6 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
           </div>
         )}
 
-        {/* Past Events */}
-        {pastEvents.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold gradient-text">Past Events</h2>
-              <Select value={pastSortBy} onValueChange={(value: 'date' | 'location' | 'price') => setPastSortBy(value)}>
-                <SelectTrigger className="w-24 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date">Date</SelectItem>
-                  <SelectItem value="location">Location</SelectItem>
-                  <SelectItem value="price">Price</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {pastEvents.map((event) => (
-                <Card 
-                  key={event.id} 
-                  className="glass-card hover-card overflow-hidden floating-shadow cursor-pointer opacity-75"
-                  onClick={() => handleEventClick(event)}
-                >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1 line-clamp-2">
-                          {event.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {event.description && event.description.length > 100 
-                            ? `${event.description.substring(0, 100)}...` 
-                            : event.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        <span>{formatDate(event.event_date)}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Clock className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        <span>{formatTime(event.event_date)}</span>
-                        {event.doors_time && (
-                          <span className="text-muted-foreground">
-                            (Doors: {formatDoorsTime(event.doors_time)})
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <MapPin className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                        <span 
-                          className="cursor-pointer hover:text-pink-600 transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (event.venue_id) handleVenueClick(event.venue_id);
-                          }}
-                        >
-                          {event.venue_name}
-                        </span>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {getLocationString(event)}
-                      </div>
-                    </div>
-
-                    {event.genres && event.genres.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        {event.genres.slice(0, 3).map((genre, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {genre}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary" className="text-sm">
-                        Past Event
-                      </Badge>
-                      {event.price_range && (
-                        <span className="text-sm font-medium text-muted-foreground">
-                          {formatPrice(event.price_range)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* No Events Message */}
         {events.length === 0 && (

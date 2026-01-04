@@ -29,112 +29,167 @@ export class PassportAchievementService {
   /**
    * Get all achievements with current progress for a user
    * Returns all possible achievements, not just unlocked ones
+   * Uses the new achievements and user_achievement_progress tables
    */
   static async getBehavioralAchievements(userId: string): Promise<AchievementDisplay[]> {
     try {
-      // First, get current progress for all achievements
-      const { data: progressData, error: progressError } = await supabase
-        .rpc('get_achievement_progress', { p_user_id: userId });
+      // Get all active achievements
+      const { data: allAchievements, error: achievementsError } = await supabase
+        .from('achievements')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
 
-      if (progressError) throw progressError;
+      if (achievementsError) throw achievementsError;
 
-      // Get unlocked achievements to know which tier was actually unlocked
-      const { data: unlockedData, error: unlockedError } = await supabase
-        .from('passport_achievements')
+      // Get user's progress for all achievements
+      const { data: userProgress, error: progressError } = await supabase
+        .from('user_achievement_progress')
         .select('*')
         .eq('user_id', userId);
 
-      if (unlockedError) throw unlockedError;
+      if (progressError) throw progressError;
 
-      // Create a map of unlocked achievements by type and tier
-      const unlockedMap = new Map<string, { tier: string; unlocked_at: string }>();
-      (unlockedData || []).forEach(achievement => {
-        const key = `${achievement.achievement_type}_${achievement.tier || 'none'}`;
-        unlockedMap.set(key, { 
-          tier: achievement.tier || '', 
-          unlocked_at: achievement.unlocked_at 
-        });
+      // Create a map of progress by achievement_id
+      const progressMap = new Map<string, any>();
+      (userProgress || []).forEach(progress => {
+        progressMap.set(progress.achievement_id, progress);
       });
 
-      // Build achievements list from progress data
+      // Build achievements list
       const achievements: AchievementDisplay[] = [];
 
-      (progressData || []).forEach((progress: any) => {
-        const achievementType = progress.achievement_type;
-        
-        // Determine which tier to show:
-        // - If gold unlocked: show gold only
-        // - If silver unlocked: show silver (unlocked) and gold (in progress)
-        // - If bronze unlocked: show bronze (unlocked) and silver (in progress)
-        // - If none unlocked: show bronze (in progress) only
-        
-        const highestTier = progress.highest_tier;
-        let tiersToShow: Array<'bronze' | 'silver' | 'gold'> = [];
+      (allAchievements || []).forEach((achievement) => {
+        const progress = progressMap.get(achievement.id);
+        const currentProgress = progress?.current_progress || 0;
+        const highestTier = progress?.highest_tier_achieved || null;
+
+        // Parse goals from strings to numbers
+        const bronzeGoal = parseInt(String(achievement.bronze_goal)) || 0;
+        const silverGoal = parseInt(String(achievement.silver_goal)) || 0;
+        const goldGoal = parseInt(String(achievement.gold_goal)) || 0;
+
+        // Determine unlocked status and which goal/requirement to show
+        let unlocked = false;
+        let currentGoal = bronzeGoal;
+        let currentTier: 'bronze' | 'silver' | 'gold' | null = null;
+        let unlockedAt: string | undefined = undefined;
+        let description = achievement.bronze_requirement;
         
         if (highestTier === 'gold') {
-          tiersToShow = ['gold'];
+          unlocked = true;
+          currentTier = 'gold';
+          currentGoal = goldGoal;
+          description = achievement.gold_requirement;
+          unlockedAt = progress?.gold_achieved_at;
         } else if (highestTier === 'silver') {
-          tiersToShow = ['silver', 'gold'];
+          unlocked = true;
+          currentTier = 'silver';
+          currentGoal = silverGoal;
+          description = achievement.silver_requirement;
+          unlockedAt = progress?.silver_achieved_at;
         } else if (highestTier === 'bronze') {
-          tiersToShow = ['bronze', 'silver'];
+          unlocked = true;
+          currentTier = 'bronze';
+          currentGoal = bronzeGoal;
+          description = achievement.bronze_requirement;
+          unlockedAt = progress?.bronze_achieved_at;
         } else {
-          tiersToShow = ['bronze'];
-        }
-
-        tiersToShow.forEach((tier, index) => {
-          const goal = tier === 'gold' ? progress.gold_goal :
-                      tier === 'silver' ? progress.silver_goal :
-                      progress.bronze_goal;
-          
-          const progressValue = progress.current_progress;
-          
-          // Determine if this specific tier is unlocked
-          let isUnlocked = false;
-          if (highestTier === 'gold') {
-            isUnlocked = tier === 'gold';
-          } else if (highestTier === 'silver') {
-            isUnlocked = tier === 'silver';
-          } else if (highestTier === 'bronze') {
-            isUnlocked = tier === 'bronze';
+          // Not unlocked - show bronze tier requirement and goal
+          currentGoal = bronzeGoal;
+          currentTier = null;
+          description = achievement.bronze_requirement;
           }
           
-          // Check if this tier was actually unlocked in the database
-          const key = `${achievementType}_${tier}`;
-          const unlocked = unlockedMap.get(key);
-          isUnlocked = isUnlocked && !!unlocked;
-          
-          const achievementInfo = this.getAchievementInfo(achievementType, tier);
+        // Get icon based on category or use default
+        const icon = this.getIconForAchievement(achievement.achievement_key, achievement.category);
           
           achievements.push({
-            id: `${achievementType}_${tier}_${index}`,
-            type: achievementType,
-            name: achievementInfo.name,
-            description: achievementInfo.description,
-            icon: achievementInfo.icon,
-            tier: tier,
-            progress: progressValue,
-            goal: goal,
-            unlocked: isUnlocked,
-            unlocked_at: unlocked?.unlocked_at,
-            metadata: {}
-          });
+          id: achievement.id,
+          type: achievement.achievement_key,
+          name: achievement.name,
+          description: description,
+          icon: icon,
+          tier: currentTier || undefined,
+          progress: currentProgress,
+          goal: currentGoal,
+          unlocked: unlocked,
+          unlocked_at: unlockedAt,
+          metadata: progress?.progress_metadata || {}
         });
       });
 
-      // Sort: unlocked first, then by tier (gold > silver > bronze), then by progress
+      // Sort: unlocked first, then by sort_order
       return achievements.sort((a, b) => {
         if (a.unlocked !== b.unlocked) {
           return a.unlocked ? -1 : 1;
         }
+        // For unlocked, sort by tier (gold > silver > bronze)
+        if (a.unlocked && b.unlocked) {
         const tierOrder = { gold: 0, silver: 1, bronze: 2 };
-        const tierDiff = (tierOrder[a.tier || 'bronze'] || 2) - (tierOrder[b.tier || 'bronze'] || 2);
+          const aTier = a.tier || 'bronze';
+          const bTier = b.tier || 'bronze';
+          const tierDiff = (tierOrder[aTier] || 2) - (tierOrder[bTier] || 2);
         if (tierDiff !== 0) return tierDiff;
+        }
+        // Then by progress
         return (b.progress || 0) - (a.progress || 0);
       });
     } catch (error) {
       console.error('Error fetching behavioral achievements:', error);
       return [];
     }
+  }
+
+  /**
+   * Get icon emoji for achievement based on key and category
+   */
+  private static getIconForAchievement(achievementKey: string, category: string): string {
+    // Map achievement keys to icons
+    const iconMap: Record<string, string> = {
+      'genre_curator': '🎵',
+      'genre_specialist': '🎸',
+      'bucket_list_starter': '📝',
+      'intentional_explorer': '🔍',
+      'return_engagement': '🔄',
+      'new_blood': '🆕',
+      'festival_attendance': '🎪',
+      'artist_devotee': '❤️',
+      'venue_regular': '🏛️',
+      'go_with_friends': '👥',
+      // Legacy achievements (if they still exist)
+      'venue_hopper': '🏛️',
+      'scene_explorer': '🎭',
+      'city_crosser': '🌆',
+      'era_walker': '⏳',
+      'first_through_door': '🚪',
+      'trusted_voice': '💬',
+      'deep_cut_reviewer': '🎸',
+      'scene_regular': '🎪',
+      'road_tripper': '🛣️',
+      'venue_loyalist': '❤️',
+      'genre_blender': '🎵',
+      'memory_maker': '📌',
+      'early_adopter': '🌟',
+      'connector': '👥',
+      'passport_complete': '🎫',
+    };
+
+    if (iconMap[achievementKey]) {
+      return iconMap[achievementKey];
+    }
+
+    // Fallback by category
+    const categoryIcons: Record<string, string> = {
+      'exploration': '🗺️',
+      'specialization': '🎯',
+      'milestones': '🏆',
+      'discovery': '✨',
+      'loyalty': '💎',
+      'social': '👥',
+    };
+
+    return categoryIcons[category] || '🏆';
   }
 
   /**

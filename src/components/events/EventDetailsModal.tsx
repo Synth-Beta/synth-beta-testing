@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -743,17 +742,33 @@ export function EventDetailsModal({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl w-[95vw] h-[90vh] my-4 p-0 overflow-y-auto" aria-describedby="event-details-desc">
-        <DialogHeader className="px-6 pt-6 pb-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <DialogTitle className="text-2xl font-bold leading-tight mb-2">
+    <div 
+      className="fixed inset-0 z-50 bg-[#fcfcfc] overflow-y-auto overflow-x-hidden w-full max-w-full"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
+      }}
+    >
+      {/* Header with X button */}
+      <div className="bg-[#fcfcfc] border-b border-gray-200 w-full max-w-full">
+        <div className="px-4 py-3 flex items-start justify-between gap-2">
+          <h1 className="text-lg font-bold leading-tight flex-1 min-w-0 pr-2 break-words">
                 {actualEvent.title}
-              </DialogTitle>
+          </h1>
+          <button
+            onClick={onClose}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="px-4 pb-3">
               {/* Interest button and Claim button placed directly under event name */}
-              <div className="mb-3 flex gap-2 flex-wrap">
+          <div className="mb-2 flex gap-1.5 flex-wrap">
                 {isUpcomingEvent && onInterestToggle && (
                   <Button
                     variant={localIsInterested ? "default" : "outline"}
@@ -789,8 +804,8 @@ export function EventDetailsModal({
                     }}
                     className={
                       localIsInterested 
-                        ? "bg-red-500 hover:bg-red-600 text-white" 
-                        : "hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+                    ? "bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 h-7" 
+                    : "hover:bg-red-50 hover:text-red-600 hover:border-red-300 text-xs px-3 py-1 h-7"
                     }
                   >
                     <Heart className={`w-4 h-4 mr-1 ${localIsInterested ? 'fill-current' : ''}`} />
@@ -801,13 +816,13 @@ export function EventDetailsModal({
                   variant="ghost"
                   size="sm"
                   onClick={() => setReportModalOpen(true)}
-                  className="text-gray-600 hover:text-red-600"
+              className="text-gray-600 hover:text-red-600 text-xs px-3 py-1 h-7"
                 >
-                  <Flag className="w-4 h-4 mr-1" />
-                  Report
+              <Flag className="w-3 h-3 mr-1" />
+              <span className="text-xs">Report</span>
                 </Button>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4 flex-wrap">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3 flex-wrap">
                 <Calendar className="w-4 h-4" />
                 <span>{formatDate(actualEvent.event_date)}</span>
                 <span>•</span>
@@ -847,27 +862,26 @@ export function EventDetailsModal({
                   }
                   return null;
                 })()}
-              </div>
             </div>
             
-            {/* Remove Interest Button for Past Events - Top Right */}
+          {/* Remove Interest Button for Past Events */}
             {isPastEvent && onInterestToggle && localIsInterested && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => onInterestToggle(actualEvent.id, false)}
-                className="text-gray-600 hover:text-red-600 hover:border-red-300 ml-4"
+              className="text-gray-600 hover:text-red-600 hover:border-red-300"
               >
                 <X className="w-4 h-4 mr-1" />
                 Remove Interest
               </Button>
             )}
           </div>
-        </DialogHeader>
+      </div>
 
-        <div className={`flex flex-col px-6 pb-28 ${friendModalOpen ? 'pb-40' : ''}`} id="event-details-desc">
+      <div className={`flex flex-col px-4 pb-28 w-full max-w-full overflow-x-hidden ${friendModalOpen ? 'pb-40' : ''}`} id="event-details-desc">
           {/* Event Status Badges */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-1.5 mb-3">
             {isPastEvent && (
               <Badge variant="secondary" className="text-sm">
                 Past Event
@@ -884,22 +898,22 @@ export function EventDetailsModal({
           </div>
 
           {/* Artist and Venue Info */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="flex flex-col gap-3 mb-3">
             {/* Artist Info */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                <Music className="w-5 h-5" />
-                Artist
+            <div className="bg-gray-50 rounded-lg p-3 w-full">
+              <h3 className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+                <Music className="w-4 h-4 flex-shrink-0" />
+                <span>Artist</span>
               </h3>
               <div
-                className="font-medium text-lg cursor-pointer hover:text-pink-600 transition-colors"
+                className="font-medium text-sm cursor-pointer hover:text-pink-600 transition-colors break-words"
                 onClick={handleArtistClick}
                 title="Click to view all events for this artist"
               >
                 {actualEvent.artist_name}
               </div>
               {actualEvent.genres && actualEvent.genres.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
+                <div className="flex flex-wrap gap-1 mt-1.5">
                   {actualEvent.genres.slice(0, 3).map((genre, index) => (
                     <Badge key={index} variant="secondary" className="text-xs">
                       {genre}
@@ -910,19 +924,19 @@ export function EventDetailsModal({
             </div>
 
             {/* Venue Info */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                Venue
+            <div className="bg-gray-50 rounded-lg p-3 w-full">
+              <h3 className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 flex-shrink-0" />
+                <span>Venue</span>
               </h3>
               <div
-                className="font-medium text-lg mb-1 cursor-pointer hover:text-pink-600 transition-colors"
+                className="font-medium text-sm mb-1 cursor-pointer hover:text-pink-600 transition-colors break-words"
                 onClick={handleVenueClick}
                 title="Click to view all events at this venue"
               >
                 {actualEvent.venue_name}
               </div>
-              <div className="text-muted-foreground text-sm">
+              <div className="text-muted-foreground text-xs break-words">
                 {getVenueAddress()}
               </div>
               {actualEvent.venue_zip && (
@@ -943,43 +957,46 @@ export function EventDetailsModal({
           />
 
           {/* Social Features Tabs */}
-          <div className="mt-6 space-y-4">
-            <div className="flex gap-2 border-b pb-2">
+          <div className="mt-4 space-y-3">
+            <div className="flex gap-1 border-b pb-2 flex-wrap">
               <Button
                 variant={showPhotos ? 'default' : 'ghost'}
                 size="sm"
+                className="text-xs px-2 py-1 h-7"
                 onClick={() => {
                   setShowPhotos(!showPhotos);
                   setShowGroups(false);
                   setShowBuddyFinder(false);
                 }}
               >
-                📸 Photos
+                <span className="text-xs">📸 Photos</span>
               </Button>
               <Button
                 variant={showGroups ? 'default' : 'ghost'}
                 size="sm"
+                className="text-xs px-2 py-1 h-7 whitespace-nowrap"
                 onClick={() => {
                   setShowGroups(!showGroups);
                   setShowPhotos(false);
                   setShowBuddyFinder(false);
                 }}
               >
-                <Users className="h-4 w-4 mr-1" />
-                Groups ({eventGroups.length + (verifiedChatInfo?.chat_id ? 1 : 0)})
+                <Users className="h-3 w-3 mr-1 flex-shrink-0" />
+                <span className="text-xs">Groups ({eventGroups.length + (verifiedChatInfo?.chat_id ? 1 : 0)})</span>
               </Button>
               {isUpcomingEvent && (
                 <Button
                   variant={showBuddyFinder ? 'default' : 'ghost'}
                   size="sm"
+                  className="text-xs px-2 py-1 h-7 whitespace-nowrap"
                   onClick={() => {
                     setShowBuddyFinder(!showBuddyFinder);
                     setShowPhotos(false);
                     setShowGroups(false);
                   }}
                 >
-                  <Heart className="h-4 w-4 mr-1" />
-                  Meet People Going ({interestedCount !== null ? interestedCount : 0})
+                  <Heart className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <span className="text-xs">Meet ({interestedCount !== null ? interestedCount : 0})</span>
                 </Button>
               )}
             </div>
@@ -1407,45 +1424,45 @@ export function EventDetailsModal({
           )}
 
           {/* Bottom: Actions - Different for past vs upcoming events */}
-          <div className={`pt-4 border-t ${friendModalOpen ? 'mt-2' : 'mt-4'}`}>
+          <div className={`pt-3 border-t ${friendModalOpen ? 'mt-2' : 'mt-4'} w-full max-w-full overflow-x-hidden`}>
             {isPastEvent ? (
               /* Past Event Actions */
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-2 w-full">
                   {/* I Was There Button for Past Events */}
                   {onReview && (
                     <Button
                       variant={hasReviewed ? "default" : "outline"}
                       size="sm"
                       onClick={() => onReview(actualEvent.id)}
-                      className={
+                    className={`text-xs px-3 py-1 h-7 ${
                         hasReviewed 
                           ? "bg-yellow-500 hover:bg-yellow-600 text-white" 
                           : "hover:bg-yellow-50 hover:text-yellow-600 hover:border-yellow-300"
-                      }
+                    }`}
                     >
                       {hasReviewed ? (
-                        <Star className="w-4 h-4 mr-1 fill-current" />
+                      <Star className="w-3 h-3 mr-1 fill-current" />
                       ) : (
-                        <Star className="w-4 h-4 mr-1" />
+                      <Star className="w-3 h-3 mr-1" />
                       )}
-                      {hasReviewed ? 'Reviewed' : 'I Was There!'}
+                    <span className="text-xs">{hasReviewed ? 'Reviewed' : 'I Was There!'}</span>
                     </Button>
                   )}
-                </div>
               </div>
             ) : (
               /* Upcoming Event Actions */
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+              <div className="flex flex-col gap-2 w-full">
+                {/* First Row: Comments, Price, Members */}
+                <div className="flex flex-wrap items-center gap-2 w-full">
                   {/* Event Comments Button for Upcoming Events */}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCommentsOpen(true)}
+                    className="text-xs px-3 py-1 h-7"
                   >
-                    <MessageSquare className="w-4 h-4 mr-1" />
-                    Comments
+                    <MessageSquare className="w-3 h-3 mr-1 flex-shrink-0" />
+                    <span className="text-xs">Comments</span>
                   </Button>
 
                   {/* Price Range for Upcoming Events */}
@@ -1460,15 +1477,15 @@ export function EventDetailsModal({
                       if (priceRange) {
                         priceDisplay = formatPrice(priceRange);
                       } else if (priceMin && priceMax) {
-                        priceDisplay = `$${priceMin} - $${priceMax}`;
+                        priceDisplay = `$${priceMin}-$${priceMax}`;
                       } else if (priceMin) {
                         priceDisplay = `$${priceMin}+`;
                       } else if (priceMax) {
-                        priceDisplay = `Up to $${priceMax}`;
+                        priceDisplay = `$${priceMax}`;
                       }
                       
                       return (
-                        <div className="text-sm">
+                        <div className="text-xs flex items-center">
                           <span className="text-muted-foreground">Price: </span>
                           <span className="font-medium">{priceDisplay}</span>
                         </div>
@@ -1479,7 +1496,7 @@ export function EventDetailsModal({
 
                   {/* Verified Chat Badge */}
                   {currentUserId && actualEvent?.id && (
-                    <div className="flex items-center">
+                    <div className="flex items-center flex-shrink-0">
                       <VerifiedChatBadge
                         entityType="event"
                         entityId={actualEvent.id}
@@ -1498,14 +1515,14 @@ export function EventDetailsModal({
                   )}
                 </div>
 
-                {/* External Links for Upcoming Events */}
-                <div className="flex items-center gap-2">
+                {/* Second Row: Ticket Links */}
+                <div className="flex flex-wrap items-center gap-2 w-full">
                   {(((actualEvent as any).ticket_urls && (actualEvent as any).ticket_urls.length > 0) || 
                     (actualEvent as any).ticket_url) && (
                     <Button
                       variant="default"
                       size="sm"
-                      className="bg-blue-600 hover:bg-blue-700"
+                      className="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1 h-7"
                       onClick={() => {
                         // 🎯 TRACK: Ticket link click (CRITICAL FOR REVENUE!)
                         const ticketUrl = (actualEvent as any).ticket_urls?.[0] || (actualEvent as any).ticket_url;
@@ -1550,9 +1567,9 @@ export function EventDetailsModal({
                         window.open(urlWithUTM, '_blank', 'noopener,noreferrer');
                       }}
                     >
-                      <Ticket className="w-4 h-4" />
-                      <span>Get Tickets</span>
-                      <ExternalLink className="w-3 h-3" />
+                      <Ticket className="w-3 h-3 mr-1 flex-shrink-0" />
+                      <span className="text-xs">Get Tickets</span>
+                      <ExternalLink className="w-3 h-3 ml-1 flex-shrink-0" />
                     </Button>
                   )}
                 </div>
@@ -1646,7 +1663,6 @@ export function EventDetailsModal({
             });
           }}
         />
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 }

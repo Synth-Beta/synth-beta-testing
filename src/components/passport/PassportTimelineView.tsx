@@ -214,7 +214,7 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
         </div>
 
         {/* Timeline line - positioned to align with center of nodes */}
-        <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-synth-pink/30 via-synth-pink/40 to-synth-pink/20" />
+        <div className="absolute left-7 sm:left-9 top-0 bottom-0 w-0.5 bg-gradient-to-b from-synth-pink/30 via-synth-pink/40 to-synth-pink/20" />
       
       <div className="space-y-8">
         {sortedTimeline.map((entry, index) => {
@@ -224,77 +224,85 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
           const canEdit = !entry.is_auto_selected;
           
           return (
-            <div key={entry.id} className="relative pl-20">
-              {/* Timeline node with date - centered on the line */}
-              <div className="absolute left-5 top-0 flex flex-col items-center -translate-x-1/2">
-                {/* Date badge above icon */}
+            <div key={entry.id} className="relative pl-16 sm:pl-20">
+              {/* Timeline node with date - positioned to the left */}
+              <div className="absolute left-0 top-0 flex flex-col items-end pr-2 w-14 sm:w-16">
+                {/* Date badge above icon - compact format */}
                 <div className={cn(
-                  "mb-2 px-2 py-1 rounded-md text-xs font-semibold whitespace-nowrap shadow-sm",
+                  "mb-2 px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-semibold whitespace-nowrap shadow-sm text-center w-full",
                   entry.is_pinned 
                     ? "bg-synth-pink text-white" 
                     : "bg-gray-100 text-gray-700"
                 )}>
-                  {format(eventDate, 'MMM d, yyyy')}
+                  <div className="leading-tight">
+                    {format(eventDate, 'MMM')}
+                  </div>
+                  <div className="leading-tight font-bold">
+                    {format(eventDate, 'd')}
+                  </div>
+                  <div className="leading-tight text-[9px] sm:text-[10px] opacity-75">
+                    {format(eventDate, 'yyyy')}
+                  </div>
                 </div>
                 
                 {/* Icon circle */}
                 <div className={cn(
-                  "w-12 h-12 rounded-full border-2 border-white shadow-lg flex items-center justify-center z-10 transition-all duration-300",
+                  "w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white shadow-lg flex items-center justify-center z-10 transition-all duration-300 mx-auto",
                   entry.is_pinned 
                     ? "bg-synth-pink ring-4 ring-synth-pink/30 scale-110 shadow-xl shadow-synth-pink/40" 
                     : `${milestoneInfo.bg} ring-2 ring-white/80`
                 )}>
-                  <Icon className={cn("w-6 h-6", entry.is_pinned ? "text-white" : milestoneInfo.color)} />
+                  <Icon className={cn("w-4 h-4 sm:w-5 sm:h-5", entry.is_pinned ? "text-white" : milestoneInfo.color)} />
                 </div>
               </div>
               
               {/* Card */}
               <Card className={cn(
-                "relative overflow-hidden transition-all duration-300 hover:shadow-xl",
+                "relative overflow-hidden transition-all duration-300 hover:shadow-xl w-full max-w-full",
                 entry.is_pinned 
                   ? "border-2 border-synth-pink shadow-lg shadow-synth-pink/20 bg-gradient-to-br from-white to-synth-pink/5" 
                   : "border border-gray-200 bg-white hover:border-synth-pink/30"
               )}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-start justify-between gap-3 sm:gap-4">
+                    <div className="flex-1 min-w-0 overflow-x-hidden">
                       {/* Significance/Milestone Text - PROMINENT! */}
                       {entry.significance && (
-                        <div className="mb-4">
+                        <div className="mb-3 sm:mb-4">
                           <div className={cn(
-                            "inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-lg mb-3",
+                            "inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-sm sm:text-base mb-2 sm:mb-3 break-words",
                             entry.is_pinned 
                               ? "bg-synth-pink/10 text-synth-pink border-2 border-synth-pink/30"
                               : `${milestoneInfo.bg} ${milestoneInfo.color} border-2 border-current/20`
                           )}>
-                            <Icon className="w-5 h-5" />
-                            <span>{entry.significance}</span>
+                            <Icon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                            <span className="break-words">{entry.significance}</span>
                           </div>
                         </div>
                       )}
                       
                       {/* Event Name */}
                       {entry.Event_name && (
-                        <h4 className="font-bold text-xl text-gray-900 mb-3">
+                        <h4 className="font-bold text-base sm:text-lg text-gray-900 mb-2 sm:mb-3 break-words">
                           {entry.Event_name}
                         </h4>
                       )}
                       
                       {/* Star Rating */}
                       {entry.review?.rating && (
-                        <div className="flex items-center gap-1.5 mb-4">
+                        <div className="flex items-center gap-1 sm:gap-1.5 mb-3 sm:mb-4">
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
                               className={cn(
-                                "w-5 h-5 transition-colors",
+                                "w-4 h-4 sm:w-5 sm:h-5 transition-colors flex-shrink-0",
                                 i < Math.round(entry.review!.rating!)
                                   ? "fill-yellow-400 text-yellow-400"
                                   : "fill-gray-200 text-gray-200"
                               )}
                             />
                           ))}
-                          <span className="text-sm font-semibold text-gray-700 ml-1">
+                          <span className="text-xs sm:text-sm font-semibold text-gray-700 ml-1 flex-shrink-0">
                             {entry.review.rating.toFixed(1)}
                           </span>
                         </div>
@@ -302,7 +310,7 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
                       
                       {/* Review Text */}
                       {entry.review?.review_text && (
-                        <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
+                        <p className="text-xs sm:text-sm text-gray-700 leading-relaxed line-clamp-3 break-words">
                           {entry.review.review_text}
                         </p>
                       )}

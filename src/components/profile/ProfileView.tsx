@@ -809,26 +809,30 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
-      console.log('🔍 ProfileView: Fetching total follows count (artists + venues) for user:', targetUserId);
+      console.log('🔍 ProfileView: Fetching artist follows count for user:', targetUserId);
+      console.log('🔍 ProfileView: Current authenticated user:', user?.id);
       
-      // Get both artist and venue follows count
+      // Get artist follows count
       const artistFollowsCount = await UserAnalyticsService.getArtistFollowsCount(targetUserId);
-      const venueFollowsCount = await UserAnalyticsService.getVenueFollowsCount(targetUserId);
-      
       console.log('🔍 ProfileView: Artist follows count:', artistFollowsCount);
-      console.log('🔍 ProfileView: Venue follows count:', venueFollowsCount);
       
-      // Also get detailed data for debugging
+      // Also get detailed data for debugging and verification
       const followedArtists = await ArtistFollowService.getUserFollowedArtists(targetUserId);
+      console.log('🔍 ProfileView: Followed artists array length:', followedArtists.length);
       console.log('🔍 ProfileView: Artist names:', followedArtists.map(a => a.artist_name));
       
-      // 🎯 FIX: Count artists + venues following
-      const totalFollowsCount = artistFollowsCount + venueFollowsCount;
-      console.log(`🔍 ProfileView: Total follows (artists + venues): ${totalFollowsCount} (${artistFollowsCount} artists + ${venueFollowsCount} venues)`);
+      // Use the count from the service (which queries the database directly)
+      // If there's a discrepancy, log it for debugging
+      const finalCount = artistFollowsCount !== followedArtists.length 
+        ? followedArtists.length  // Use actual array length if mismatch
+        : artistFollowsCount;
       
-      setFollowedArtistsCount(totalFollowsCount);
+      if (artistFollowsCount !== followedArtists.length) {
+        console.warn(`⚠️ ProfileView: Count mismatch! Service count: ${artistFollowsCount}, Array length: ${followedArtists.length}. Using array length.`);
+      }
       
-      console.log('🔍 ProfileView: Final total follows count set to:', totalFollowsCount);
+      setFollowedArtistsCount(finalCount);
+      console.log('🔍 ProfileView: Final artist follows count set to:', finalCount);
     } catch (error) {
       console.error('Error fetching followed artists count:', error);
       setFollowedArtistsCount(0);
@@ -1550,7 +1554,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   if (loading || !profile) {
     return (
       <div className="min-h-screen synth-gradient-card p-4 pb-20">
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="w-full max-w-[393px] mx-auto space-y-6 overflow-x-hidden">
           {/* Header skeleton */}
           <div className="flex items-center gap-4 mb-6">
             <SynthSLogo size="md" className="animate-breathe" />
@@ -1600,32 +1604,33 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   // setViewReviewOpen is defined by useState earlier
 
   return (
-    <div className="min-h-screen pb-48">
+    <div 
+      className="min-h-screen bg-[#fcfcfc] pb-48 w-full max-w-[393px] mx-auto overflow-x-hidden"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
+      }}
+    >
       {/* Top bar with username and menu */}
-      <div className="sticky top-0 z-50 bg-[#fcfcfc] border-b border-gray-200">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">
+      <div className="bg-[#fcfcfc] border-b border-gray-200 w-full">
+        <div className="w-full max-w-full px-4 py-3 flex items-center justify-center relative">
+          <h1 className="text-xl font-bold text-gray-900 truncate text-center">
             {profile.username ? `@${profile.username}` : profile.name}
           </h1>
+          <div className="absolute right-4">
           <TopRightMenu />
         </div>
       </div>
-      <div className="max-w-2xl mx-auto p-4">
-        {/* Enhanced Profile Header */}
-        <div className="mb-8 bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 rounded-2xl p-8 border border-pink-100/50 shadow-sm relative overflow-hidden">
-          <div className="absolute top-6 right-6">
-            <PageActions
-              currentUserId={currentUserId}
-              onNavigateToNotifications={onNavigateToNotifications}
-              onNavigateToChat={onNavigateToChat}
-            />
           </div>
-
+      <div className="w-full max-w-full p-4 overflow-x-hidden">
+        {/* Enhanced Profile Header */}
+        <div className="mb-6 bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 rounded-2xl p-4 sm:p-6 border border-pink-100/50 shadow-sm relative overflow-hidden w-full max-w-full">
           {/* Main Profile Row */}
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-6">
-            {/* Profile Picture */}
+          <div className="flex flex-col items-center gap-4 mb-4 w-full max-w-full">
+            {/* Profile Picture and Name Row */}
+            <div className="flex items-center gap-3 w-full justify-center">
             <div className="relative">
-              <Avatar className="w-24 h-24 md:w-28 md:h-28 ring-4 ring-white shadow-lg">
+                <Avatar className="w-20 h-20 sm:w-24 sm:h-24 ring-4 ring-white shadow-lg">
                 <AvatarImage 
                   src={profile.avatar_url || undefined} 
                   alt={`${profile.name}'s avatar`}
@@ -1650,12 +1655,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               )}
             </div>
               
-            {/* Profile Info */}
-            <div className="flex-1 min-w-0">
-              {/* Name and Status Row */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">
+              {/* Name and Verification Badge */}
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
                     {profile.name}
                   </h1>
                   {profile.verified && profile.account_type && (
@@ -1665,19 +1667,23 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                       size="lg"
                     />
                   )}
+              </div>
                 </div>
                 
                 {/* Status Badges */}
                 {!isViewingOwnProfile && profile.last_active_at && (
+              <div className="w-full flex justify-center">
                   <Badge variant="secondary" className="flex items-center gap-1 text-xs bg-green-100 text-green-700 border-green-200">
                     <Clock className="w-3 h-3" />
                     {UserVisibilityService.formatLastActive(profile.last_active_at)}
                   </Badge>
-                )}
               </div>
+            )}
               
-              {/* Stats Row */}
-              <div className="flex items-center gap-8 mb-6">
+            {/* Profile Info */}
+            <div className="w-full max-w-full">
+              {/* Stats Row - Centered */}
+              <div className="flex items-center justify-center gap-6 mb-4 w-full max-w-full">
                 <button
                   className="text-center hover:scale-105 transition-transform group"
                   onClick={() => { setFollowersModalType('friends'); setShowFollowersModal(true); }}
@@ -1707,7 +1713,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               </div>
               
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 w-full max-w-full">
                 {isViewingOwnProfile ? (
                   <>
                     <Button onClick={onEdit} variant="default" size="sm" className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-md">
@@ -1886,7 +1892,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
         {/* Instagram-style Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className={`glass-card inner-glow grid w-full mb-6 p-1 floating-shadow ${canViewInterested ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <TabsList className={`glass-card inner-glow grid w-full max-w-full mb-4 p-1 floating-shadow overflow-x-hidden ${canViewInterested ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <TabsTrigger value="my-events" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               Events
@@ -1905,15 +1911,15 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
 
           {/* My Events Tab - Show attended events with review/ranking toggle */}
-          <TabsContent value="my-events" className="mt-6 mb-40">
-            <div className="flex items-center justify-between mb-6 p-4">
+          <TabsContent value="my-events" className="mt-4 mb-32 w-full max-w-full overflow-x-hidden">
+            <div className="flex flex-col gap-3 mb-4 p-2 w-full max-w-full">
               <h3 className="gradient-text text-lg font-semibold">
                 {isViewingOwnProfile ? 'My Events' : `${profile?.name || 'User'}'s Events`}
               </h3>
               {isViewingOwnProfile && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">View mode:</span>
-                  <div className="bg-gray-100 rounded-lg p-1 flex">
+                <div className="flex flex-col gap-2 w-full max-w-full">
+                  <span className="text-xs text-gray-600">View mode:</span>
+                  <div className="bg-gray-100 rounded-lg p-1 flex w-full max-w-full overflow-x-auto">
                     <button
                       onClick={() => setRankingMode(false)}
                       className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
@@ -2377,25 +2383,14 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               </div>
             )}
             
-            {/* Floating Add Button - only show for own profile in reviews mode */}
-            {rankingMode === false && isViewingOwnProfile && (
-            <div className="fixed bottom-20 right-4 z-10">
-              <Button 
-                onClick={handleOpenReviewModal} 
-                size="lg"
-                className="rounded-full h-14 w-14 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-              >
-                <Plus className="w-6 h-6" />
-              </Button>
-            </div>)}
           </TabsContent>
 
             {canViewInterested && (
-            <TabsContent value="interested" className="mt-6">
+            <TabsContent value="interested" className="mt-4 w-full max-w-full overflow-x-hidden">
               {/* Toggle between Upcoming and Past */}
               {userEvents.length > 0 && (
-                <div className="flex justify-center mb-4">
-                  <div className="bg-gray-100 rounded-lg p-1 flex">
+                <div className="flex justify-center mb-4 w-full max-w-full">
+                  <div className="bg-gray-100 rounded-lg p-1 flex w-full max-w-full">
                     <button
                       onClick={() => setShowPastEvents(false)}
                       className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -2439,7 +2434,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-1 md:gap-2">
+                <div className="grid grid-cols-3 gap-1 w-full max-w-full">
                   {filteredUserEvents
                     .sort((a,b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
                     .slice(0, 9)
@@ -2561,7 +2556,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           
 
           {/* 🎫 Passport Tab */}
-          <TabsContent value="passport" className="mt-6 mb-40">
+          <TabsContent value="passport" className="mt-4 mb-32 w-full max-w-full overflow-x-hidden">
             <PassportModal
               isOpen={true}
               onClose={() => setActiveTab('my-events')}

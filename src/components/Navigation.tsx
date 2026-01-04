@@ -61,6 +61,7 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
                 onClick={handlePlusClick}
                 aria-label="Create"
                 className="h-[40px] w-[70px] bg-[#cc2486] rounded-[20px] flex items-center justify-center hover:bg-[#b01f75] transition-colors flex-shrink-0"
+                data-tour="create-review"
               >
                 <Plus className="w-6 h-6 text-white" strokeWidth={2} />
               </button>
@@ -118,6 +119,9 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
             );
           }
           
+          // Add data-tour attribute for chat and profile
+          const tourAttr = id === 'chat' ? 'chat' : id === 'profile' ? 'profile-passport' : undefined;
+          
           return (
             <button
               key={`${id}-${index}`}
@@ -125,6 +129,7 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
               aria-label={label}
               aria-current={isActive ? "page" : undefined}
               className="flex items-center justify-center w-6 h-6 transition-colors flex-shrink-0"
+              data-tour={tourAttr}
             >
               <Icon 
                 className="w-6 h-6 text-[#cc2486]" 

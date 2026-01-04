@@ -685,39 +685,63 @@ export class UserAnalyticsService {
     try {
       console.log(`🔍 Getting artist follows count for user: ${userId}`);
       
-      // Query artist_follows table (3NF compliant)
-      const { count, data, error } = await supabase
+      // First, try a direct count query
+      const { count: countResult, error: countError } = await supabase
         .from('artist_follows')
-        .select('*', { count: 'exact' })
+        .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
 
-      if (error) {
-        console.error('🚨 Artist follows query error:', error);
+      console.log(`🔍 Count query result: count=${countResult}, error=`, countError);
+
+      // Also fetch the actual data to see what we get
+      const { data: followData, error: dataError } = await supabase
+        .from('artist_follows')
+        .select('id, artist_id, user_id, created_at')
+        .eq('user_id', userId);
+
+      console.log(`🔍 Data query result: data.length=${followData?.length || 0}, error=`, dataError);
+      if (followData && followData.length > 0) {
+        console.log(`🔍 First follow record:`, followData[0]);
+      }
+
+      // If there's an error with the count query but data query works, use data length
+      if (countError) {
+        console.error('🚨 Artist follows count query error:', countError);
+        console.error('🚨 Error details:', JSON.stringify(countError, null, 2));
+        
+        // Fallback to data length if count failed but data succeeded
+        if (!dataError && followData) {
+          console.log(`⚠️ Using data length as fallback: ${followData.length}`);
+          return followData.length;
+        }
         return 0;
       }
 
-      const countResult = count || data?.length || 0;
-      console.log(`🎯 Artist follows count from artist_follows table: ${countResult} (from count: ${count}, from data.length: ${data?.length})`);
+      // Use count if available, otherwise use data length
+      const finalCount = countResult ?? (followData?.length || 0);
+      console.log(`🎯 Artist follows count: ${finalCount} (count query: ${countResult}, data length: ${followData?.length || 0})`);
 
-      // If we have follows, get the artist names for debugging
-      if (countResult > 0 && data && data.length > 0) {
-        const artistIds = data.map((follow: any) => follow.artist_id).filter(Boolean);
+      // For debugging, fetch artist names if we have follows
+      if (finalCount > 0 && followData && followData.length > 0) {
+        const artistIds = followData.map((follow: any) => follow.artist_id).filter(Boolean);
         if (artistIds.length > 0) {
           const { data: artistsData, error: artistsError } = await supabase
             .from('artists')
-            .select('name')
+            .select('id, name')
             .in('id', artistIds);
 
           if (!artistsError && artistsData) {
             const artistNames = artistsData.map((a: any) => a.name || 'Unknown Artist');
-            console.log(`🎯 Followed artist names:`, artistNames);
+            console.log(`🎯 Followed artist names (${artistsData.length}):`, artistNames);
+          } else if (artistsError) {
+            console.warn(`⚠️ Could not fetch artist names:`, artistsError);
           }
         }
       }
       
-      return countResult;
+      return finalCount;
     } catch (error) {
-      console.error('Error getting artist follows count:', error);
+      console.error('❌ Error getting artist follows count:', error);
       return 0;
     }
   }

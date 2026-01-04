@@ -312,3 +312,5 @@ COMMENT ON FUNCTION verify_genre_coverage() IS 'Verifies how many artist/event s
 
 
 
+
+

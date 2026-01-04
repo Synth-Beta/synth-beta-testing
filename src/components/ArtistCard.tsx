@@ -100,7 +100,7 @@ export function ArtistCard({
   };
 
   return (
-    <div className={cn("w-full max-w-4xl mx-auto space-y-6", className)}>
+    <div className={cn("w-full max-w-4xl mx-auto space-y-6 overflow-x-hidden", className)}>
       {/* Back Button */}
       {onBack && (
         <Button
@@ -215,107 +215,78 @@ export function ArtistCard({
           )}
         </div>
 
-        {/* Upcoming Events Table */}
+        {/* Upcoming Events Grid */}
         {upcomingEvents.length > 0 && (
-          <div>
+          <div className="w-full overflow-x-hidden">
             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
               <Calendar className="w-5 h-5" />
               Upcoming Events ({upcomingEvents.length})
             </h3>
-            <Card>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date & Time</TableHead>
-                      <TableHead>Venue</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Tickets</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+            <div className="grid grid-cols-3 gap-2 w-full max-w-full overflow-x-hidden">
                     {displayedUpcomingEvents.map((event) => (
-                      <TableRow key={event.jambase_event_id} className="hover:bg-muted/50">
-                        <TableCell>
+                <Card key={event.jambase_event_id} className="hover:bg-muted/50 cursor-pointer w-full max-w-full min-w-0 overflow-hidden">
+                  <CardContent className="p-2">
                           <div className="space-y-1">
-                            <div className="font-medium">{formatDate(event.event_date)}</div>
-                            <div className="text-sm text-muted-foreground">
+                      <div className="font-medium text-xs break-words">{formatDate(event.event_date)}</div>
+                      <div className="text-xs text-muted-foreground break-words">
                               {formatTime(event.event_date)}
                               {event.doors_time && (
-                                <span className="ml-2">
-                                  • Doors: {formatDoorsTime(event.doors_time)}
+                          <span className="ml-1 block">
+                            Doors: {formatDoorsTime(event.doors_time)}
                                 </span>
                               )}
                             </div>
+                      <div className="font-medium text-xs truncate min-w-0" title={event.venue_name}>
+                        {event.venue_name || 'Venue TBD'}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{event.venue_name}</div>
-                          {event.venue_address && (
-                            <div className="text-sm text-muted-foreground">
-                              {event.venue_address}
+                      <div className="text-xs text-muted-foreground truncate min-w-0">
+                        {getLocationString(event)}
                             </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">{getLocationString(event)}</div>
-                        </TableCell>
-                        <TableCell>
                           {event.price_range ? (
-                            <span className="font-medium">${event.price_range}</span>
+                        <div className="font-medium text-xs">${event.price_range}</div>
                           ) : (
-                            <span className="text-muted-foreground">TBD</span>
+                        <div className="text-muted-foreground text-xs">Price TBD</div>
                           )}
-                        </TableCell>
-                        <TableCell>
                           {event.ticket_available && event.ticket_urls && event.ticket_urls.length > 0 ? (
                             <Button
                               variant="outline"
                               size="sm"
                               asChild
-                              className="text-blue-600 hover:text-blue-700"
+                          className="text-blue-600 hover:text-blue-700 text-xs px-1.5 py-0.5 h-5 mt-1 w-full"
                             >
                               <a 
                                 href={event.ticket_urls[0]} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-1"
+                            className="flex items-center justify-center gap-1"
                               >
-                                <Ticket className="w-3 h-3" />
-                                <span className="hidden sm:inline">Buy</span>
+                            <Ticket className="w-2.5 h-2.5" />
+                            <span className="text-xs">Buy</span>
                               </a>
                             </Button>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">N/A</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="default" className="text-xs">
+                      ) : null}
+                      <Badge variant="default" className="text-xs mt-1 w-full text-center">
                             Upcoming
                           </Badge>
-                        </TableCell>
-                      </TableRow>
+                    </div>
+                  </CardContent>
+                </Card>
                     ))}
-                  </TableBody>
-                </Table>
               </div>
               {!showAllEvents && upcomingEvents.length > 10 && (
-                <div className="p-4 border-t">
+              <div className="mt-2">
                   <Button variant="outline" onClick={onViewAllEvents} className="w-full">
                     Show {upcomingEvents.length - 10} More Upcoming Events
                   </Button>
                 </div>
               )}
               {showAllEvents && upcomingEvents.length > 10 && (
-                <div className="p-4 border-t">
+              <div className="mt-2">
                   <Button variant="outline" onClick={() => onViewAllEvents?.()} className="w-full">
                     Show Less (Back to 10 events)
                   </Button>
                 </div>
               )}
-            </Card>
           </div>
         )}
 

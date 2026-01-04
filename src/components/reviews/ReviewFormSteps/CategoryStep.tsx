@@ -117,19 +117,19 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
     currentFeedback && (currentFeedback.includes(suggestion.label) || currentFeedback.includes(suggestion.description || ''));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       <header className="text-center space-y-2">
         <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">Step</p>
-        <h2 className="text-2xl font-semibold text-gray-900">{config.title}</h2>
-        <p className="text-sm text-gray-600 max-w-xl mx-auto">{config.subtitle}</p>
+        <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 break-words">{config.title}</h2>
+        <p className="text-xs sm:text-sm text-gray-600 max-w-full mx-auto break-words">{config.subtitle}</p>
       </header>
 
-      <section className="bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 border border-pink-200/60 rounded-2xl p-8 shadow-sm text-center space-y-6">
+      <section className="bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 border border-pink-200/60 rounded-2xl p-4 sm:p-6 shadow-sm text-center space-y-4 w-full max-w-full overflow-x-hidden">
         <div className="flex flex-col items-center gap-2">
-          <p className="text-sm uppercase tracking-[0.2em] text-pink-600 font-semibold">Your rating</p>
-          <div className="flex items-center justify-center gap-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-pink-600 font-semibold">Your rating</p>
+          <div className="flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
             <div
-              className="flex items-center"
+              className="flex items-center flex-shrink-0"
               onMouseLeave={() => setHoverValue(null)}
             >
               {Array.from({ length: 5 }, (_, index) => {
@@ -140,11 +140,11 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
                 const isHalf = !isFull && displayRating === halfValue;
 
                 return (
-                  <div key={index} className="relative w-12 h-12 cursor-pointer">
-                    <Star className="w-12 h-12 text-gray-300" />
+                  <div key={index} className="relative w-8 h-8 sm:w-10 sm:h-10 cursor-pointer flex-shrink-0">
+                    <Star className="w-8 h-8 sm:w-10 sm:h-10 text-gray-300" />
                     {(isFull || isHalf) && (
                       <div className={cn('absolute left-0 top-0 h-full overflow-hidden pointer-events-none', isFull ? 'w-full' : 'w-1/2')}>
-                        <Star className="w-12 h-12 text-pink-500 fill-current" />
+                        <Star className="w-8 h-8 sm:w-10 sm:h-10 text-pink-500 fill-current" />
                       </div>
                     )}
                     <button
@@ -169,23 +169,23 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
                 );
               })}
             </div>
-            <span className="text-4xl font-extrabold text-gray-900">{ratingLabel}</span>
+            <span className="text-2xl sm:text-3xl font-extrabold text-gray-900 break-words">{ratingLabel}</span>
           </div>
           {config.helperText && (
-            <p className="text-xs text-pink-500">{config.helperText}</p>
+            <p className="text-xs text-pink-500 break-words">{config.helperText}</p>
           )}
           {errors[config.ratingKey] && (
-            <p className="text-sm text-red-600">{errors[config.ratingKey]}</p>
+            <p className="text-xs sm:text-sm text-red-600 break-words">{errors[config.ratingKey]}</p>
           )}
         </div>
       </section>
 
       {canCopyFromPrevious && (
-        <section className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900">Copy from previous review at this venue?</p>
-              <p className="text-xs text-blue-700 mt-1">
+        <section className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 w-full max-w-full overflow-x-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-blue-900 break-words">Copy from previous review at this venue?</p>
+              <p className="text-xs text-blue-700 mt-1 break-words">
                 You've reviewed this venue before. Copy your venue and location ratings and feedback.
               </p>
             </div>
@@ -194,16 +194,16 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
               variant="outline"
               size="sm"
               onClick={handleCopyFromPrevious}
-              className="ml-4 border-blue-300 text-blue-700 hover:bg-blue-100"
+              className="sm:ml-4 border-blue-300 text-blue-700 hover:bg-blue-100 flex-shrink-0"
             >
-              <Copy className="w-4 h-4 mr-2" />
+              <Copy className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
               Copy
             </Button>
           </div>
         </section>
       )}
 
-      <section className="space-y-4">
+      <section className="space-y-3 w-full max-w-full overflow-x-hidden">
         <Label htmlFor={`${config.ratingKey}-feedback`} className="text-sm font-semibold text-gray-900 flex items-center gap-2">
           Add a quick note (optional)
         </Label>
@@ -213,7 +213,7 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
           value={currentFeedback}
           onChange={(event) => onUpdateFormData({ [config.feedbackKey]: event.target.value } as Partial<ReviewFormData>)}
           rows={4}
-          className="resize-none text-base"
+          className="resize-none text-sm sm:text-base w-full max-w-full min-w-0"
           maxLength={400}
         />
         <p className="text-xs text-gray-400 text-right">
@@ -221,7 +221,7 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
         </p>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-3 w-full max-w-full overflow-x-hidden">
         <p className="text-sm font-medium text-gray-900">Need inspiration? Tap a vibe:</p>
         <div className="flex flex-wrap gap-2">
           {config.suggestions.map((suggestion) => (
@@ -230,7 +230,7 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
               type="button"
               variant={isSelected(suggestion) ? 'default' : 'outline'}
               className={cn(
-                'px-3 py-1.5 text-sm rounded-full border',
+                'px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-full border flex-shrink-0',
                 suggestion.sentiment === 'positive'
                   ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
                   : 'border-rose-200 text-rose-700 hover:bg-rose-50',
@@ -245,7 +245,7 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
       </section>
 
       {children && (
-        <section className="space-y-4">
+        <section className="space-y-4 w-full max-w-full overflow-x-hidden">
           {children}
         </section>
       )}

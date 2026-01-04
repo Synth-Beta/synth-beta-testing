@@ -52,22 +52,22 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       <header className="text-center space-y-2">
         <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">Quick Review</p>
-        <h2 className="text-2xl font-semibold text-gray-900">Share your experience</h2>
-        <p className="text-sm text-gray-600 max-w-xl mx-auto">
+        <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 break-words">Share your experience</h2>
+        <p className="text-xs sm:text-sm text-gray-600 max-w-full mx-auto break-words">
           Rate the overall experience and share a brief recap.
         </p>
       </header>
 
       {/* Overall Rating */}
-      <section className="bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 border border-pink-200/60 rounded-2xl p-8 shadow-sm text-center space-y-6">
+      <section className="bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 border border-pink-200/60 rounded-2xl p-4 sm:p-6 shadow-sm text-center space-y-4 w-full max-w-full overflow-x-hidden">
         <div className="flex flex-col items-center gap-2">
-          <p className="text-sm uppercase tracking-[0.2em] text-pink-600 font-semibold">Overall Rating</p>
-          <div className="flex items-center justify-center gap-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-pink-600 font-semibold">Overall Rating</p>
+          <div className="flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
             <div
-              className="flex items-center"
+              className="flex items-center flex-shrink-0"
               onMouseLeave={() => setHoverValue(null)}
             >
               {Array.from({ length: 5 }, (_, index) => {
@@ -78,11 +78,11 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName
                 const isHalf = !isFull && displayRating === halfValue;
 
                 return (
-                  <div key={index} className="relative w-12 h-12 cursor-pointer">
-                    <Star className="w-12 h-12 text-gray-300" />
+                  <div key={index} className="relative w-8 h-8 sm:w-10 sm:h-10 cursor-pointer flex-shrink-0">
+                    <Star className="w-8 h-8 sm:w-10 sm:h-10 text-gray-300" />
                     {(isFull || isHalf) && (
                       <div className={cn('absolute left-0 top-0 h-full overflow-hidden pointer-events-none', isFull ? 'w-full' : 'w-1/2')}>
-                        <Star className="w-12 h-12 text-pink-500 fill-current" />
+                        <Star className="w-8 h-8 sm:w-10 sm:h-10 text-pink-500 fill-current" />
                       </div>
                     )}
                     <button
@@ -103,19 +103,19 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName
                 );
               })}
             </div>
-            <span className="text-lg font-semibold text-gray-700 min-w-[80px]">
+            <span className="text-base sm:text-lg font-semibold text-gray-700 break-words">
               {displayRating > 0 ? `${displayRating.toFixed(1)} / 5.0` : 'Not rated yet'}
             </span>
           </div>
           {errors.rating && (
-            <p className="text-sm text-red-600">{errors.rating}</p>
+            <p className="text-xs sm:text-sm text-red-600 break-words">{errors.rating}</p>
           )}
         </div>
       </section>
 
       {/* Review Text */}
-      <div className="space-y-4">
-        <Label htmlFor="reviewText" className="text-base font-semibold text-gray-900">
+      <div className="space-y-3 w-full max-w-full overflow-x-hidden">
+        <Label htmlFor="reviewText" className="text-sm sm:text-base font-semibold text-gray-900">
           Brief Review *
         </Label>
         <Textarea
@@ -124,43 +124,43 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName
           value={formData.reviewText}
           onChange={(event) => onUpdateFormData({ reviewText: event.target.value })}
           rows={4}
-          className="resize-none text-base"
+          className="resize-none text-sm sm:text-base w-full max-w-full min-w-0"
           maxLength={maxCharacters}
         />
         <div className="flex justify-between items-center text-xs text-gray-500">
-          <span>Keep it brief - 1-2 sentences is perfect.</span>
-          <span className={cn(isNearLimit ? 'text-orange-600' : 'text-gray-500')}>
+          <span className="break-words">Keep it brief - 1-2 sentences is perfect.</span>
+          <span className={cn(isNearLimit ? 'text-orange-600' : 'text-gray-500', 'flex-shrink-0 ml-2')}>
             {characterCount}/{maxCharacters}
           </span>
         </div>
         {errors.reviewText && (
-          <p className="text-sm text-red-600">{errors.reviewText}</p>
+          <p className="text-xs sm:text-sm text-red-600 break-words">{errors.reviewText}</p>
         )}
       </div>
 
       {/* Optional Setlist */}
-      <div className="space-y-4">
-        <Label className="text-base font-semibold text-gray-900">Setlist (Optional)</Label>
-        <p className="text-sm text-gray-600">Add the setlist if you remember it</p>
+      <div className="space-y-3 w-full max-w-full overflow-x-hidden">
+        <Label className="text-sm sm:text-base font-semibold text-gray-900">Setlist (Optional)</Label>
+        <p className="text-xs sm:text-sm text-gray-600 break-words">Add the setlist if you remember it</p>
         
         {formData.selectedSetlist ? (
-          <div className="p-4 bg-pink-50 rounded-lg border border-pink-200">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Music className="w-5 h-5 text-pink-600" />
-                <span className="font-semibold text-gray-900">Setlist Selected</span>
+          <div className="p-3 sm:p-4 bg-pink-50 rounded-lg border border-pink-200 w-full max-w-full overflow-x-hidden">
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Music className="w-4 h-4 sm:w-5 sm:h-5 text-pink-600 flex-shrink-0" />
+                <span className="font-semibold text-gray-900 text-sm sm:text-base truncate">Setlist Selected</span>
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={handleClearSetlist}
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 flex-shrink-0"
               >
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <p className="text-sm text-gray-600">
+            <p className="text-xs sm:text-sm text-gray-600 break-words">
               {formData.selectedSetlist.artist?.name} - {formatSetlistDate(formData.selectedSetlist.eventDate)}
             </p>
             <p className="text-xs text-gray-500 mt-1">
@@ -168,34 +168,34 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName
             </p>
           </div>
         ) : formData.customSetlist.length > 0 ? (
-          <div className="p-4 bg-pink-50 rounded-lg border border-pink-200">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Music className="w-5 h-5 text-pink-600" />
-                <span className="font-semibold text-gray-900">Custom Setlist</span>
+          <div className="p-3 sm:p-4 bg-pink-50 rounded-lg border border-pink-200 w-full max-w-full overflow-x-hidden">
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Music className="w-4 h-4 sm:w-5 sm:h-5 text-pink-600 flex-shrink-0" />
+                <span className="font-semibold text-gray-900 text-sm sm:text-base truncate">Custom Setlist</span>
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => onUpdateFormData({ customSetlist: [] })}
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 flex-shrink-0"
               >
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <p className="text-sm text-gray-600">{formData.customSetlist.length} songs</p>
+            <p className="text-xs sm:text-sm text-gray-600">{formData.customSetlist.length} songs</p>
           </div>
         ) : (
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsSetlistModalOpen(true)}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto flex-shrink-0"
             >
               <Music className="w-4 h-4" />
-              Find Setlist
+              Import from setlist.fm
             </Button>
             <CustomSetlistInput
               songs={formData.customSetlist}

@@ -111,15 +111,20 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         } else if (status.onboarding_skipped && !status.onboarding_completed) {
           // Show reminder banner if they skipped
           setShowOnboardingReminder(true);
+        } else if (status.onboarding_completed && !status.tour_completed) {
+          // If onboarding is complete but tour is not, trigger it after a short delay
+          // Only trigger if we're already on the feed view (not onboarding)
+          if (currentView === 'feed') {
+            setTimeout(() => setRunTour(true), 1500);
+          }
         }
-        // If onboarding is complete but tour is not, we'll trigger it after first navigation
       }
     };
 
     if (!loading && user) {
       checkOnboardingStatus();
     }
-  }, [user, loading]);
+  }, [user, loading, currentView]);
 
   useEffect(() => {
     // MainApp useEffect starting
@@ -635,7 +640,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       )}
 
       {/* Onboarding Tour */}
-      <OnboardingTour run={runTour} onFinish={handleTourFinish} />
+      <OnboardingTour run={runTour} onFinish={handleTourFinish} onViewChange={handleViewChange} />
     </div>
   );
 };

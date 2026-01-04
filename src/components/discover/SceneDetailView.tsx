@@ -378,7 +378,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
   };
 
   const handleParticipantClick = (participant: { type: string; name: string; id: string; participantId?: string; textValue?: string }) => {
-    // Navigate directly to the full page using venue_id or artist_id from scene_participants
+    // Navigate directly to full pages
     if (participant.type === 'artist' && participant.participantId) {
       // Navigate to full artist page using artist_id (UUID)
       navigate(`/artist/${participant.participantId}`);

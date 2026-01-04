@@ -156,9 +156,13 @@ class IncrementalSync3NF {
         };
       });
 
+      // Use upsert with onConflict to handle duplicate identifiers gracefully
       const { data: inserted, error } = await this.syncService.supabase
         .from('artists')
-        .insert(artistsToInsert)
+        .upsert(artistsToInsert, {
+          onConflict: 'identifier',
+          ignoreDuplicates: false
+        })
         .select('id, identifier');
 
       if (error) {

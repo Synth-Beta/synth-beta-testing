@@ -356,7 +356,7 @@ export class VenueFollowService {
       if (venueIds.length > 0) {
         const { data: venues } = await supabase
           .from('venues')
-          .select('id, name, image_url, address, city, state')
+          .select('id, name, image_url, street_address, state, country, zip')
           .in('id', venueIds);
         
         if (venues) {
@@ -382,9 +382,9 @@ export class VenueFollowService {
           user_id: follow.user_id,
           venue_id: follow.venue_id,
           venue_name: venue?.name || null,
-          venue_city: venue?.city || null,
+          venue_city: null, // Venues table doesn't have city column
           venue_state: venue?.state || null,
-          venue_address: venue?.address || null,
+          venue_address: venue?.street_address || null,
           venue_image_url: venue?.image_url || null,
           num_upcoming_events: null, // Could be calculated separately if needed
           created_at: follow.created_at,
