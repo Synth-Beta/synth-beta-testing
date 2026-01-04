@@ -17,7 +17,7 @@ import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
-import { Loader2, Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, ChevronRight, ChevronDown, MapPin, Plus } from 'lucide-react';
+import { Loader2, Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, MessageCircle, ChevronRight, ChevronDown, MapPin, Plus } from 'lucide-react';
 import { FriendSuggestionsRail } from '@/components/feed/FriendSuggestionsRail';
 import { FriendsService } from '@/services/friendsService';
 import { Button } from '@/components/ui/button';
@@ -1377,6 +1377,19 @@ interface FriendEventInterest {
           </div>
         )}
         {selectedFeedType === 'group-chats' && (
+          <div className="flex items-center justify-center py-24">
+            <div className="text-center space-y-2">
+              <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground" />
+              <h3 className="text-lg font-semibold">Coming Soon</h3>
+              <p className="text-sm text-muted-foreground">
+                Group chats are still in development
+              </p>
+            </div>
+          </div>
+        )}
+        
+        {/* Old group chat code - commented out */}
+        {false && selectedFeedType === 'group-chats-old' && (
           <div className="space-y-4">
             {loadingRecommendedGroupChats ? (
               <div className="flex items-center justify-center py-12">

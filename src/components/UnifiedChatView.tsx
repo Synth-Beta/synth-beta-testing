@@ -1680,7 +1680,17 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto bg-white px-5 py-6">
-              {messages.length === 0 ? (
+              {selectedChat.is_group_chat ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center space-y-2">
+                    <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">Coming Soon</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Group chats are still in development
+                    </p>
+                  </div>
+                </div>
+              ) : messages.length === 0 ? (
                 <div className="flex flex-col gap-[6px] items-center justify-center h-full">
                   <MessageCircle className="w-[60px] h-[60px] text-[#cc2486] stroke-2" />
                   <p className="font-medium text-[20px] text-[#0e0e0e] leading-[normal]">No Messages Yet</p>
@@ -1863,25 +1873,27 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
               )}
             </div>
 
-            {/* Message Input - Always show when chat is selected */}
-            <div className="px-5 pb-5 bg-white">
-              <div className="bg-[#fcfcfc] border-2 border-[#c9c9c9] rounded-[10px] flex items-center justify-between h-[44px] pl-5 pr-[1px]">
-                <Input
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  className="bg-transparent border-0 flex-1 h-full text-[16px] text-[#5d646f] placeholder:text-[#5d646f] focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
-                />
-                <Button 
-                  onClick={sendMessage} 
-                  disabled={!newMessage.trim()}
-                  className="bg-[#cc2486] hover:bg-[#b01f75] text-white h-[44px] w-[44px] p-0 rounded-br-[10px] rounded-tr-[10px] rounded-bl-0 rounded-tl-0 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                >
-                  <Send className="w-[22px] h-[22px] text-[#fcfcfc]" />
-                </Button>
+            {/* Message Input - Hide for group chats */}
+            {!selectedChat.is_group_chat && (
+              <div className="px-5 pb-5 bg-white">
+                <div className="bg-[#fcfcfc] border-2 border-[#c9c9c9] rounded-[10px] flex items-center justify-between h-[44px] pl-5 pr-[1px]">
+                  <Input
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type a message..."
+                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                    className="bg-transparent border-0 flex-1 h-full text-[16px] text-[#5d646f] placeholder:text-[#5d646f] focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
+                  />
+                  <Button 
+                    onClick={sendMessage} 
+                    disabled={!newMessage.trim()}
+                    className="bg-[#cc2486] hover:bg-[#b01f75] text-white h-[44px] w-[44px] p-0 rounded-br-[10px] rounded-tr-[10px] rounded-bl-0 rounded-tl-0 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                  >
+                    <Send className="w-[22px] h-[22px] text-[#fcfcfc]" />
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
           </>
           </div>
         )}
@@ -1995,85 +2007,21 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
               </Button>
             </div>
             
-            <Input
-              placeholder="Group name..."
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              className="mb-4 bg-white/90 border-2 border-synth-black/20 focus:border-synth-pink focus:ring-2 focus:ring-synth-pink/20 rounded-xl shadow-sm"
-            />
-            
-            <Input
-              placeholder="Search users to add..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="mb-5 bg-white/90 border-2 border-synth-black/20 focus:border-synth-pink focus:ring-2 focus:ring-synth-pink/20 rounded-xl shadow-sm"
-            />
-            
-            {/* Selected Users */}
-            {selectedUsers.length > 0 && (
-              <div className="mb-5">
-                <p className="text-sm font-semibold mb-3 text-synth-black">Selected Users:</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedUsers.map((user) => (
-                    <Badge
-                      key={user.user_id}
-                      variant="secondary"
-                      className="flex items-center gap-2 bg-gradient-to-r from-synth-pink/20 to-synth-pink-light/20 text-synth-black border-synth-pink/30 shadow-sm font-medium px-3 py-1.5 rounded-full"
-                    >
-                      {user.name}
-                      <X
-                        className="w-3.5 h-3.5 cursor-pointer hover:text-red-500 transition-colors"
-                        onClick={() => removeUserFromGroup(user.user_id)}
-                      />
-                    </Badge>
-                  ))}
-                </div>
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center space-y-2">
+                <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground" />
+                <h3 className="text-lg font-semibold">Coming Soon</h3>
+                <p className="text-sm text-muted-foreground">
+                  Group chats are still in development
+                </p>
               </div>
-            )}
-            
-            <div className="max-h-48 overflow-y-auto space-y-3 mb-6">
-              {filteredUsers.length === 0 ? (
-                <div className="text-center py-10">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-synth-pink/10 to-synth-pink/5 rounded-full flex items-center justify-center">
-                    <Users className="w-8 h-8 text-synth-pink/40" />
-                  </div>
-                  <p className="text-gray-700 font-semibold mb-2">No friends to add to group</p>
-                  <p className="text-sm text-gray-500">
-                    You need friends before creating a group chat.
-                    <br />
-                    Send friend requests first!
-                  </p>
-                </div>
-              ) : (
-                filteredUsers.map((user) => (
-                  <div
-                    key={user.user_id}
-                    className="flex items-center gap-4 p-3 hover:bg-synth-beige/30 rounded-2xl cursor-pointer border-2 border-synth-black/10 hover:border-synth-pink/20 transition-all duration-200 hover:shadow-md"
-                    onClick={() => addUserToGroup(user)}
-                  >
-                    <Avatar className="w-10 h-10 ring-2 ring-synth-black/5">
-                      <AvatarImage src={user.avatar_url || undefined} />
-                      <AvatarFallback className="bg-synth-beige/50 text-synth-black font-medium">
-                        {user.name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-semibold text-synth-black">{user.name}</p>
-                      {user.bio && (
-                        <p className="text-sm text-gray-600">{user.bio}</p>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
             
             <Button
-              onClick={() => createGroupChat()}
-              disabled={selectedUsers.length < 2}
-              className="w-full bg-gradient-to-r from-synth-pink to-synth-pink-light hover:from-synth-pink-dark hover:to-synth-pink text-white shadow-lg hover:shadow-xl rounded-xl py-6 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+              onClick={() => setShowGroupCreate(false)}
+              className="w-full bg-gradient-to-r from-synth-pink to-synth-pink-light hover:from-synth-pink-dark hover:to-synth-pink text-white shadow-lg hover:shadow-xl rounded-xl py-6 font-semibold text-base transition-all duration-300"
             >
-              Create Group ({selectedUsers.length} members)
+              Close
             </Button>
           </div>
         </div>

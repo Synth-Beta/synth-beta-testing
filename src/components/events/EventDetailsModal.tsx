@@ -14,6 +14,7 @@ import {
   Star,
   Heart,
   MessageSquare,
+  MessageCircle,
   Users,
   Music,
   Award,
@@ -1012,152 +1013,14 @@ export function EventDetailsModal({
 
             {/* Event Groups */}
             {showGroups && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Event Groups</h3>
-                  <Button size="sm" onClick={() => setShowCreateGroup(true)}>
-                    Create Group
-                  </Button>
+              <div className="flex items-center justify-center py-24">
+                <div className="text-center space-y-2">
+                  <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground" />
+                  <h3 className="text-lg font-semibold">Coming Soon</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Verified chats are coming soon!
+                  </p>
                 </div>
-                
-                {/* Verified Chat - Always visible */}
-                {verifiedChatLoading ? (
-                  <Card>
-                    <CardContent className="py-6 text-center">
-                      <Loader2 className="h-6 w-6 animate-spin text-synth-pink mx-auto" />
-                      <p className="text-sm text-gray-500 mt-2">Loading verified chat...</p>
-                    </CardContent>
-                  </Card>
-                ) : verifiedChatInfo?.chat_id ? (
-                  <Card className="border-2 border-synth-pink/30 bg-gradient-to-br from-pink-50/50 to-purple-50/50">
-                    <CardContent className="p-4">
-                      <div className="flex gap-4">
-                        {/* Verified Chat Icon */}
-                        <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-synth-pink to-purple-600 flex items-center justify-center">
-                          <MessageSquare className="h-8 w-8 text-white" />
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          {/* Chat Header */}
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-lg truncate">{verifiedChatInfo.chat_name || `${actualEvent.title} Chat`}</h3>
-                              <p className="text-sm text-gray-600">
-                                Official verified chat for this event
-                              </p>
-                            </div>
-                            <Badge className="bg-synth-pink text-white flex-shrink-0">
-                              <Award className="h-3 w-3 mr-1" />
-                              Verified
-                            </Badge>
-                          </div>
-
-                          {/* Chat Info */}
-                          <div className="flex items-center gap-3 text-sm text-gray-600 mb-3">
-                            <div className="flex items-center gap-1">
-                              <Users className="h-4 w-4" />
-                              <span>
-                                {verifiedChatInfo.member_count || 0} member{(verifiedChatInfo.member_count || 0) !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                            {verifiedChatInfo.last_activity_at && (
-                              <Badge variant="secondary" className="text-xs">
-                                <MessageSquare className="h-3 w-3 mr-1" />
-                                Active
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex gap-2">
-                            {verifiedChatInfo.is_user_member ? (
-                              <Button
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (onNavigateToChat) {
-                                    onClose();
-                                    onNavigateToChat(verifiedChatInfo.chat_id);
-                                  } else {
-                                    window.location.href = `/chats?chatId=${verifiedChatInfo.chat_id}`;
-                                  }
-                                }}
-                                className="flex-1 bg-synth-pink hover:bg-synth-pink-dark"
-                              >
-                                <MessageSquare className="h-4 w-4 mr-1" />
-                                Open Chat
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    const { VerifiedChatService } = await import('@/services/verifiedChatService');
-                                    await VerifiedChatService.joinVerifiedChat(
-                                      verifiedChatInfo.chat_id,
-                                      currentUserId
-                                    );
-                                    await loadVerifiedChat(); // Reload to update membership status
-                                    toast({
-                                      title: 'Joined Chat! 🎉',
-                                      description: 'You can now participate in the verified chat',
-                                    });
-                                  } catch (error) {
-                                    console.error('Error joining verified chat:', error);
-                                    toast({
-                                      title: 'Error',
-                                      description: 'Failed to join chat',
-                                      variant: 'destructive',
-                                    });
-                                  }
-                                }}
-                                className="flex-1 bg-synth-pink hover:bg-synth-pink-dark"
-                              >
-                                <Users className="h-4 w-4 mr-1" />
-                                Join Chat
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : null}
-
-                {/* User-Created Event Groups */}
-                {eventGroups.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-8 text-center">
-                      <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-600 text-sm">No additional groups yet</p>
-                      <p className="text-xs text-gray-500 mt-1">Create a custom group for this event!</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="space-y-3">
-                    {eventGroups.map((group) => (
-                      <EventGroupCard
-                        key={group.id}
-                        group={group}
-                        onJoinLeave={loadEventGroups}
-                        onChatClick={(chatId) => {
-                          // Navigate to group chat if handler exists
-                          if (onNavigateToChat) {
-                            onClose(); // Close event modal first
-                            onNavigateToChat(chatId);
-                          } else {
-                            toast({
-                              title: 'Group Chat',
-                              description: 'Chat navigation handler not available',
-                              variant: 'destructive',
-                            });
-                          }
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 

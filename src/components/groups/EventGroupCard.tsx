@@ -58,12 +58,7 @@ export function EventGroupCard({ group, onJoinLeave, onChatClick }: EventGroupCa
 
   return (
     <Card 
-      className="hover:shadow-md transition-shadow cursor-pointer"
-      onClick={() => {
-        if (isMember && group.chat_id) {
-          onChatClick?.(group.chat_id);
-        }
-      }}
+      className="hover:shadow-md transition-shadow"
     >
       <CardContent className="p-4">
         <div className="flex gap-4">
@@ -127,17 +122,13 @@ export function EventGroupCard({ group, onJoinLeave, onChatClick }: EventGroupCa
               {isMember ? (
                 <>
                   {group.chat_id && (
-                    <Button
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onChatClick?.(group.chat_id!);
-                      }}
-                      className="flex-1"
-                    >
-                      <MessageCircle className="h-4 w-4 mr-1" />
-                      Open Chat
-                    </Button>
+                    <div className="flex-1 bg-synth-pink/10 border-2 border-synth-pink/20 rounded-lg p-3 text-center">
+                      <MessageCircle className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm font-semibold">Coming Soon</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Group chats are still in development
+                      </p>
+                    </div>
                   )}
                   <Button
                     size="sm"
