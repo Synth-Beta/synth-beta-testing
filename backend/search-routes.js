@@ -1,27 +1,37 @@
 // Search routes for concert database
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+const { getSupabaseConfig, getApiKey, reportKeyFailure } = require('./config/apiKeys');
+const { createRateLimiter } = require('./middleware/rateLimiter');
+const { validateQuery } = require('./middleware/validateInput');
+const { createSanitizationMiddleware } = require('./middleware/sanitizeInput');
+const { concertSearchQuerySchema } = require('./validation/schemas');
 
 const router = express.Router();
 
-// Supabase configuration - uses values from process.env (set in server.js)
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+// Initialize Supabase client using secure configuration
+const supabaseConfig = getSupabaseConfig('anon', false); // Don't throw if missing
+const supabase = supabaseConfig ? createClient(supabaseConfig.url, supabaseConfig.key) : null;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Sanitization middleware
+const sanitize = createSanitizationMiddleware({ sanitizeQuery: true });
 
-// Test Supabase connection on startup
-supabase
-  .from('jambase_events')
-  .select('count')
-  .limit(1)
-  .then(({ error }) => {
-    if (error) {
-      console.error('Supabase connection test failed:', error.message);
-    } else {
-      console.log('Supabase connection successful');
-    }
-  });
+// Test Supabase connection on startup (only if configured)
+if (supabase) {
+  supabase
+    .from('jambase_events')
+    .select('count')
+    .limit(1)
+    .then(({ error }) => {
+      if (error) {
+        console.error('Supabase connection test failed:', error.message);
+      } else {
+        console.log('Supabase connection successful');
+      }
+    });
+} else {
+  console.warn('⚠️  Supabase not configured - connection test skipped');
+}
 
 // Utility function to normalize strings for better searching
 const normalizeString = (str) => {
@@ -32,10 +42,17 @@ const normalizeString = (str) => {
 // Fetch events from JamBase API
 async function fetchFromJamBase(query, date) {
   try {
-    const JAMBASE_API_KEY = process.env.JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+    // Get API key using rotation framework
+    let apiKey;
+    try {
+      apiKey = getApiKey('jambase');
+    } catch (error) {
+      console.error('JamBase API key error:', error.message);
+      return [];
+    }
     
     // Use correct JamBase API endpoint from official documentation
-    const baseUrl = `https://www.jambase.com/jb-api/v1/events?apikey=${JAMBASE_API_KEY}`;
+    const baseUrl = `https://www.jambase.com/jb-api/v1/events?apikey=${apiKey}`;
     
     // Build search parameters
     const params = new URLSearchParams();
@@ -173,35 +190,46 @@ function isCacheValid(timestamp) {
 }
 
 // Search concerts in the database
-router.get('/api/concerts/search', async (req, res) => {
-  try {
-    const { 
-      query, 
-      artist, 
-      venue, 
-      date, 
-      tour,
-      limit = 50,
-      offset = 0 
-    } = req.query;
-
-    console.log('Search parameters:', { query, artist, venue, date, tour, limit, offset });
-
-    // Check cache first
-    const cacheKey = generateCacheKey({ query, artist, venue, date, tour, limit, offset });
-    const cachedResult = searchCache.get(cacheKey);
-    
-    if (cachedResult && isCacheValid(cachedResult.timestamp)) {
-      console.log('Returning cached search results');
-      return res.json({
-        success: true,
-        concerts: cachedResult.data,
-        cached: true
+router.get('/api/concerts/search',
+  sanitize,
+  createRateLimiter('strict'),
+  validateQuery(concertSearchQuerySchema),
+  async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({
+        success: false,
+        error: 'Database service unavailable'
       });
     }
 
-    // Build the search query using jambase_events table
-    let searchQuery = supabase
+    try {
+      const { 
+        query, 
+        artist, 
+        venue, 
+        date, 
+        tour,
+        limit = 50,
+        offset = 0 
+      } = req.query;
+
+      console.log('Search parameters:', { query, artist, venue, date, tour, limit, offset });
+
+      // Check cache first
+      const cacheKey = generateCacheKey({ query, artist, venue, date, tour, limit, offset });
+      const cachedResult = searchCache.get(cacheKey);
+      
+      if (cachedResult && isCacheValid(cachedResult.timestamp)) {
+        console.log('Returning cached search results');
+        return res.json({
+          success: true,
+          concerts: cachedResult.data,
+          cached: true
+        });
+      }
+
+      // Build the search query using jambase_events table
+      let searchQuery = supabase
       .from('jambase_events')
       .select('*')
       .order('event_date', { ascending: false })
@@ -366,26 +394,36 @@ router.get('/api/concerts/search', async (req, res) => {
 });
 
 // Get recent concerts (for quick access)
-router.get('/api/concerts/recent', async (req, res) => {
-  try {
-    const { limit = 10 } = req.query;
-
-    console.log('Fetching recent concerts, limit:', limit);
-
-    // Check cache for recent concerts
-    const recentCacheKey = `recent_${limit}`;
-    const cachedRecent = searchCache.get(recentCacheKey);
-    
-    if (cachedRecent && isCacheValid(cachedRecent.timestamp)) {
-      console.log('Returning cached recent concerts');
-      return res.json({
-        success: true,
-        concerts: cachedRecent.data,
-        cached: true
+router.get('/api/concerts/recent',
+  sanitize,
+  createRateLimiter('moderate'),
+  async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({
+        success: false,
+        error: 'Database service unavailable'
       });
     }
 
-    const { data: concerts, error } = await supabase
+    try {
+      const { limit = 10 } = req.query;
+
+      console.log('Fetching recent concerts, limit:', limit);
+
+      // Check cache for recent concerts
+      const recentCacheKey = `recent_${limit}`;
+      const cachedRecent = searchCache.get(recentCacheKey);
+      
+      if (cachedRecent && isCacheValid(cachedRecent.timestamp)) {
+        console.log('Returning cached recent concerts');
+        return res.json({
+          success: true,
+          concerts: cachedRecent.data,
+          cached: true
+        });
+      }
+
+      const { data: concerts, error } = await supabase
       .from('jambase_events')
       .select('*')
       .order('created_at', { ascending: false })
@@ -424,11 +462,21 @@ router.get('/api/concerts/recent', async (req, res) => {
 });
 
 // Get concert statistics
-router.get('/api/concerts/stats', async (req, res) => {
-  try {
-    console.log('Fetching concert statistics');
+router.get('/api/concerts/stats',
+  sanitize,
+  createRateLimiter('moderate'),
+  async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({
+        success: false,
+        error: 'Database service unavailable'
+      });
+    }
 
-    const { data: concerts, error } = await supabase
+    try {
+      console.log('Fetching concert statistics');
+
+      const { data: concerts, error } = await supabase
       .from('jambase_events')
       .select('artist_name, venue_name, event_date, created_at, jambase_event_id');
 
@@ -486,20 +534,30 @@ router.get('/api/concerts/stats', async (req, res) => {
 });
 
 // Get concert by ID
-router.get('/api/concerts/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
+router.get('/api/concerts/:id',
+  sanitize,
+  createRateLimiter('moderate'),
+  async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({
+        success: false,
+        error: 'Database service unavailable'
+      });
+    }
 
-    console.log('Fetching concert with ID:', id);
+    try {
+      const { id } = req.params;
 
-    // Try UUID lookup first, then fallback to jambase_event_id
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      console.log('Fetching concert with ID:', id);
 
-    let concert = null;
-    let error = null;
+      // Try UUID lookup first, then fallback to jambase_event_id
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    if (uuidPattern.test(id)) {
-      const resp = await supabase
+      let concert = null;
+      let error = null;
+
+      if (uuidPattern.test(id)) {
+        const resp = await supabase
         .from('jambase_events')
         .select('*')
         .eq('id', id)
@@ -545,10 +603,20 @@ router.get('/api/concerts/:id', async (req, res) => {
 });
 
 // Health check endpoint
-router.get('/api/concerts/health', async (req, res) => {
-  try {
-    // Test database connection
-    const { data, error } = await supabase
+router.get('/api/concerts/health',
+  createRateLimiter('lenient'),
+  async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({
+        success: false,
+        error: 'Database service unavailable',
+        message: 'Supabase not configured'
+      });
+    }
+
+    try {
+      // Test database connection
+      const { data, error } = await supabase
       .from('jambase_events')
       .select('count')
       .limit(1);
@@ -579,15 +647,18 @@ router.get('/api/concerts/health', async (req, res) => {
 });
 
 // JamBase Events API endpoint
-router.get('/api/jambase/events', async (req, res) => {
-  try {
-    const { 
-      artistName, 
-      artistId, 
-      venueName, 
-      venueId, 
-      eventDateFrom, 
-      eventDateTo, 
+router.get('/api/jambase/events',
+  sanitize,
+  createRateLimiter('strict'),
+  async (req, res) => {
+    try {
+      const { 
+        artistName, 
+        artistId, 
+        venueName, 
+        venueId, 
+        eventDateFrom, 
+        eventDateTo, 
       eventType = 'concerts',
       page = 1, 
       perPage = 40,
@@ -612,11 +683,25 @@ router.get('/api/jambase/events', async (req, res) => {
       perPage 
     });
 
-    // Use the API key from query or environment
-    const JAMBASE_API_KEY = apikey || process.env.JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+    // Get API key using rotation framework (use provided key if available, otherwise get from config)
+    let apiKeyToUse;
+    if (apikey) {
+      apiKeyToUse = apikey;
+    } else {
+      try {
+        apiKeyToUse = getApiKey('jambase');
+      } catch (error) {
+        console.error('JamBase API key error:', error.message);
+        return res.status(503).json({
+          success: false,
+          error: 'External service unavailable',
+          message: 'JamBase API key not configured'
+        });
+      }
+    }
     
     // Build JamBase API URL
-    const baseUrl = `https://www.jambase.com/jb-api/v1/events?apikey=${JAMBASE_API_KEY}`;
+    const baseUrl = `https://www.jambase.com/jb-api/v1/events?apikey=${apiKeyToUse}`;
     const params = new URLSearchParams();
     
     // Add search parameters

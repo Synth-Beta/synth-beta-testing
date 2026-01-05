@@ -26,26 +26,67 @@
 Create a `.env.local` file in the root directory with:
 
 ```env
-# Supabase Configuration
+# ============================================
+# Frontend Environment Variables (VITE_ prefix)
+# ============================================
+
+# Supabase Configuration (Client-side)
 VITE_SUPABASE_URL=[YOUR_SUPABASE_URL]
 VITE_SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
-
-# JamBase API
-VITE_JAMBASE_API_KEY=[YOUR_JAMBASE_API_KEY]
 
 # Backend URL
 VITE_BACKEND_URL=http://localhost:3001
 
 # Mapbox API (Required for maps)
-VITE_MAPBOX_TOKEN=pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w
+VITE_MAPBOX_TOKEN=[YOUR_MAPBOX_TOKEN]
 
 # Development flags
 VITE_NODE_ENV=development
+
+# ============================================
+# Backend Environment Variables
+# ============================================
+
+# Supabase Configuration (Backend)
+SUPABASE_URL=[YOUR_SUPABASE_URL]
+SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
+SUPABASE_SERVICE_ROLE_KEY=[YOUR_SERVICE_ROLE_KEY]  # Optional, for admin operations
+
+# External API Keys (Required in production)
+JAMBASE_API_KEY=[YOUR_JAMBASE_API_KEY]
+SETLIST_FM_API_KEY=[YOUR_SETLIST_FM_API_KEY]  # Optional, for setlist features
+
+# Rate Limiting (Optional - uses in-memory fallback if not set)
+UPSTASH_REDIS_REST_URL=[YOUR_UPSTASH_REDIS_URL]  # Optional, for distributed rate limiting
+UPSTASH_REDIS_REST_TOKEN=[YOUR_UPSTASH_REDIS_TOKEN]  # Optional
+
+# Server Configuration
+PORT=3001
+NODE_ENV=development
+FRONTEND_URL=http://localhost:8080
+
+# ============================================
+# API Key Rotation (Optional)
+# ============================================
+# Uncomment during key rotation:
+# JAMBASE_API_KEY_OLD=[OLD_KEY]
+# JAMBASE_ROTATION_DATE=2024-12-31
+# SETLIST_FM_API_KEY_OLD=[OLD_KEY]
+# SETLIST_FM_ROTATION_DATE=2024-12-31
 ```
 
 **Note:** Replace `[YOUR_*]` placeholders with your actual API keys. Get these from:
 - Supabase: Your project settings at https://supabase.com
 - JamBase: https://www.jambase.com/api
+- Setlist.fm: https://www.setlist.fm/settings/api
+- Upstash: https://console.upstash.com/ (for distributed rate limiting)
+
+**Security Note:** 
+- `SUPABASE_ANON_KEY` and `VITE_SUPABASE_ANON_KEY` are safe to expose (by design)
+- `SUPABASE_SERVICE_ROLE_KEY` must NEVER be exposed client-side
+- All other API keys must be kept secret
+
+See [SECURITY.md](SECURITY.md) for detailed security policies and rate limiting information.
 
 ## Fixed Chrome Issues
 

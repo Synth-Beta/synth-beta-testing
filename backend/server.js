@@ -1,12 +1,19 @@
 // Load environment variables from .env.local (in root directory)
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env.local') });
 
-// Set Supabase defaults BEFORE requiring routes (so they can use process.env)
-if (!process.env.SUPABASE_URL) {
-  process.env.SUPABASE_URL = 'https://glpiolbrafqikqhnseto.supabase.co';
-}
-if (!process.env.SUPABASE_ANON_KEY) {
-  process.env.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5Mzc4MjQsImV4cCI6MjA3MjUxMzgyNH0.O5G3fW-YFtpACNqNfo_lsLK44F-3L3p69Ka-G2lSTLE';
+// Validate API keys on startup
+const { validateApiKeys } = require('./config/apiKeys');
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// In production, require all keys. In development, allow missing keys with warnings
+try {
+  validateApiKeys(NODE_ENV !== 'production');
+} catch (error) {
+  console.error('❌ API key validation failed:', error.message);
+  if (NODE_ENV === 'production') {
+    process.exit(1);
+  }
+  console.warn('⚠️  Continuing in development mode with missing keys');
 }
 
 const express = require('express');
@@ -22,13 +29,7 @@ const app = express();
 
 // Server Configuration
 const PORT = process.env.PORT || 3001;
-const NODE_ENV = process.env.NODE_ENV || 'development';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
-
-// JamBase API - Optional, uses default if not set
-if (!process.env.JAMBASE_API_KEY) {
-  process.env.JAMBASE_API_KEY = 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
-}
 
 // Middleware
 const allowedOrigins = [
@@ -47,28 +48,44 @@ const allowedOrigins = [
   'https://localhost'
 ];
 
+// CORS Configuration - Security hardening
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, Postman, etc.)
+    // In production, be strict about origins
+    if (NODE_ENV === 'production') {
+      // Reject requests with no origin in production (security best practice)
+      if (!origin) {
+        return callback(new Error('CORS: Origin header is required in production'));
+      }
+      
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      
+      // Reject unknown origins in production
+      console.warn(`⚠️  CORS: Rejected request from origin: ${origin}`);
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
+    }
+    
+    // In development, be more permissive
     if (!origin) {
+      // Allow requests with no origin in development (for mobile apps, Postman, etc.)
       return callback(null, true);
     }
     
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      // Log for debugging but allow in development
-      if (NODE_ENV === 'development') {
-        console.warn(`⚠️  CORS warning: ${origin} not in allowed list, but allowing in development`);
-        return callback(null, true);
-      }
-      callback(new Error(`Not allowed by CORS: ${origin}`));
+      console.warn(`⚠️  CORS warning: ${origin} not in allowed list, but allowing in development`);
+      return callback(null, true);
     }
   },
   credentials: true
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Request size limits to prevent DoS attacks
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Routes
 app.use('/', searchRoutes);
@@ -113,8 +130,9 @@ ticketmasterRoutes.stack.forEach((route) => {
 });
 }
 
-// Health check
-app.get('/health', (req, res) => {
+// Health check endpoint with lenient rate limiting
+const { createRateLimiter } = require('./middleware/rateLimiter');
+app.get('/health', createRateLimiter('lenient'), (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),

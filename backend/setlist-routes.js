@@ -1,32 +1,50 @@
 const express = require('express');
 const router = express.Router();
+const { getApiKey, reportKeyFailure } = require('./config/apiKeys');
+const { createRateLimiter } = require('./middleware/rateLimiter');
+const { validateQuery } = require('./middleware/validateInput');
+const { createSanitizationMiddleware } = require('./middleware/sanitizeInput');
+const { setlistSearchQuerySchema } = require('./validation/schemas');
 
-// Setlist.fm API Configuration
-const SETLIST_FM_API_KEY = process.env.SETLIST_FM_API_KEY || 'QxGjjwxk0MUyxyCJa2FADnFRwEqFUy__7wpt';
 const SETLIST_FM_BASE_URL = 'https://api.setlist.fm/rest/1.0';
 
-// Rate limiting: setlist.fm allows ~2 requests per second
-const RATE_LIMIT_DELAY = 1000; // ms between requests
-let lastRequestTime = 0;
-
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+// Sanitization middleware
+const sanitize = createSanitizationMiddleware({ sanitizeQuery: true });
 
 /**
  * Proxy route to search setlists on setlist.fm
  * This avoids CORS issues by making the request from the backend
+ * 
+ * Note: Setlist.fm API has its own rate limit of ~2 requests per second.
+ * Our middleware rate limiting prevents abuse, and we respect Setlist.fm's limits.
  */
-router.get('/api/setlists/search', async (req, res) => {
-  try {
-    // Rate limiting
-    const now = Date.now();
-    const timeSinceLastRequest = now - lastRequestTime;
-    if (timeSinceLastRequest < RATE_LIMIT_DELAY) {
-      await sleep(RATE_LIMIT_DELAY - timeSinceLastRequest);
-    }
-    lastRequestTime = Date.now();
+router.get('/api/setlists/search',
+  sanitize,
+  createRateLimiter('strict'), // Strict rate limiting for search endpoints
+  validateQuery(setlistSearchQuerySchema),
+  async (req, res) => {
+    try {
+      // Get API key using rotation framework
+      let apiKey;
+      try {
+        apiKey = getApiKey('setlistFm', false); // Don't throw if missing
+        if (!apiKey) {
+          return res.status(503).json({
+            success: false,
+            error: 'Setlist.fm API key not configured',
+            message: 'Setlist service is unavailable'
+          });
+        }
+      } catch (error) {
+        return res.status(503).json({
+          success: false,
+          error: 'Setlist.fm API key error',
+          message: error.message
+        });
+      }
 
-    // Extract query parameters
-    const { artistName, date, venueName, cityName, stateCode } = req.query;
+      // Extract validated query parameters
+      const { artistName, date, venueName, cityName, stateCode } = req.query;
 
     // Build query string
     const queryParams = new URLSearchParams();
@@ -89,20 +107,46 @@ router.get('/api/setlists/search', async (req, res) => {
     console.log('🎵 Setlist.fm API request:', url);
 
     // Make request to Setlist.fm API
-    const response = await fetch(url, {
-      headers: {
-        'x-api-key': SETLIST_FM_API_KEY,
-        'Accept': 'application/json',
-        'User-Agent': 'PlusOne/1.0 (https://plusone.app)'
+    let response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          'x-api-key': apiKey,
+          'Accept': 'application/json',
+          'User-Agent': 'PlusOne/1.0 (https://plusone.app)'
+        }
+      });
+    } catch (fetchError) {
+      console.error('❌ Setlist.fm API fetch error:', fetchError);
+      return res.status(503).json({
+        success: false,
+        error: 'Failed to connect to Setlist.fm API',
+        message: 'External service unavailable'
+      });
+    }
+
+    // Handle API key failures (401/403) with rotation
+    if (response.status === 401 || response.status === 403) {
+      const alternativeKey = reportKeyFailure('setlistFm', apiKey, new Error(`API key failed with status ${response.status}`));
+      if (alternativeKey) {
+        // Retry with alternative key (one retry only)
+        console.log('🔄 Retrying Setlist.fm request with alternative key');
+        response = await fetch(url, {
+          headers: {
+            'x-api-key': alternativeKey,
+            'Accept': 'application/json',
+            'User-Agent': 'PlusOne/1.0 (https://plusone.app)'
+          }
+        });
       }
-    });
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ Setlist.fm API error response:', {
         status: response.status,
         statusText: response.statusText,
-        body: errorText,
+        body: errorText.substring(0, 500), // Limit error log size
         url: url
       });
       
@@ -110,11 +154,13 @@ router.get('/api/setlists/search', async (req, res) => {
         return res.json({ setlist: [] }); // No setlists found
       }
       
-      // Return more specific error information
-      return res.status(response.status).json({
+      // Return generic error (don't expose API details)
+      return res.status(response.status >= 500 ? 503 : response.status).json({
+        success: false,
         error: 'Setlist.fm API error',
-        message: `Setlist.fm returned ${response.status}: ${response.statusText}`,
-        details: errorText
+        message: response.status === 429 
+          ? 'Rate limit exceeded. Please try again later.'
+          : 'Failed to fetch setlists from external service'
       });
     }
 
@@ -178,16 +224,15 @@ router.get('/api/setlists/search', async (req, res) => {
 /**
  * Health check endpoint for setlist service
  */
-router.get('/api/setlists/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    service: 'setlist-proxy',
-    timestamp: new Date().toISOString()
-  });
-});
-
-module.exports = router;
-
-module.exports = router;
+router.get('/api/setlists/health',
+  createRateLimiter('lenient'),
+  (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      service: 'setlist-proxy',
+      timestamp: new Date().toISOString()
+    });
+  }
+);
 
 module.exports = router;

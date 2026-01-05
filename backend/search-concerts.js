@@ -4,82 +4,42 @@ const Joi = require('joi');
 const Fuse = require('fuse.js');
 const axios = require('axios');
 const { createClient } = require('@supabase/supabase-js');
+const { getSupabaseConfig, getApiKey, reportKeyFailure } = require('./config/apiKeys');
+const { createRateLimiter } = require('./middleware/rateLimiter');
+const { validateBody } = require('./middleware/validateInput');
+const { createSanitizationMiddleware } = require('./middleware/sanitizeInput');
+const { searchConcertSchema } = require('./validation/schemas');
 
 const router = express.Router();
 
-// Supabase configuration - uses values from process.env (set in server.js)
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Initialize Supabase client using secure configuration
+const supabaseConfig = getSupabaseConfig('anon', false); // Don't throw if missing
+const supabase = supabaseConfig ? createClient(supabaseConfig.url, supabaseConfig.key) : null;
 
 // JamBase API configuration
-const JAMBASE_API_KEY = process.env.JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
 const JAMBASE_BASE_URL = process.env.JAMBASE_BASE_URL || 'https://www.jambase.com/jb-api/v1';
 
-// Rate limiting storage (in-memory for development)
-const rateLimitStore = new Map();
+// Sanitization middleware
+const sanitize = createSanitizationMiddleware({ sanitizeBody: true });
 
-// Rate limiting middleware
-const rateLimitMiddleware = (req, res, next) => {
-  const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
-  const now = Date.now();
-  const windowMs = 60 * 1000; // 1 minute
-  const maxRequests = 10;
-
-  if (!rateLimitStore.has(clientIp)) {
-    rateLimitStore.set(clientIp, { count: 1, resetTime: now + windowMs });
-    return next();
-  }
-
-  const clientData = rateLimitStore.get(clientIp);
-  
-  if (now > clientData.resetTime) {
-    clientData.count = 1;
-    clientData.resetTime = now + windowMs;
-    return next();
-  }
-
-  if (clientData.count >= maxRequests) {
-    return res.status(429).json({
-      success: false,
-      error: 'Rate limit exceeded, try again later'
-    });
-  }
-
-  clientData.count++;
-  next();
-};
-
-// Exact request validation schema using Joi
-const requestSchema = Joi.object({
-  query: Joi.string().required().min(1).max(100),
-  filters: Joi.object({
-    dateRange: Joi.object({
-      startDate: Joi.date().iso(),
-      endDate: Joi.date().iso().greater(Joi.ref('startDate'))
-    }),
-    location: Joi.object({
-      city: Joi.string().max(50),
-      state: Joi.string().length(2), // Two-letter state code
-      zipCode: Joi.string().pattern(/^\d{5}$/),
-      radius: Joi.number().min(1).max(500)
-    }),
-    genres: Joi.array().items(Joi.string().max(20)).max(10)
-  }),
-  options: Joi.object({
-    limit: Joi.number().min(5).max(20).default(15),
-    fuzzyThreshold: Joi.number().min(0.1).max(1.0).default(0.6)
-  })
-});
+// Rate limiting and validation are now handled by middleware (see route definition below)
 
 // JamBase API integration
 async function fetchFromJamBase(userQuery, filters = {}) {
   const startTime = Date.now();
   
   try {
+    // Get API key using rotation framework
+    let apiKey;
+    try {
+      apiKey = getApiKey('jambase');
+    } catch (error) {
+      throw new Error(`JamBase API key not configured: ${error.message}`);
+    }
+
     // Build query parameters
     const params = {
-      apikey: JAMBASE_API_KEY,
+      apikey: apiKey,
       num: 50, // Always set to 50 as per spec
       page: 0, // Always 0 for first page
       o: 'json' // Always 'json'
@@ -160,8 +120,28 @@ async function fetchFromJamBase(userQuery, filters = {}) {
     // Handle specific error cases
     if (error.response) {
       const status = error.response.status;
-      if (status === 401) {
-        throw new Error('Invalid API credentials');
+      if (status === 401 || status === 403) {
+        // API key failure - try rotation
+        const alternativeKey = reportKeyFailure('jambase', apiKey, new Error(`API key failed with status ${status}`));
+        if (alternativeKey) {
+          // Retry with alternative key
+          console.log('🔄 Retrying JamBase request with alternative key');
+          try {
+            params.apikey = alternativeKey;
+            const retryResponse = await axios.get(`${JAMBASE_BASE_URL}/events`, {
+              params,
+              timeout: 10000,
+              headers: { 'User-Agent': 'PlusOneEventCrew/1.0' }
+            });
+            return retryResponse.data || [];
+          } catch (retryError) {
+            console.error('Retry with alternative key also failed:', retryError.message);
+            throw new Error('External service unavailable');
+          }
+        } else {
+          // No alternative key available, throw error
+          throw new Error('Invalid API credentials');
+        }
       } else if (status === 429) {
         throw new Error('Rate limit exceeded, try again later');
       }
@@ -177,7 +157,7 @@ async function fetchFromJamBase(userQuery, filters = {}) {
           method: 'GET',
           url: `${JAMBASE_BASE_URL}/events`,
           params: {
-            apikey: JAMBASE_API_KEY,
+            apikey: apiKey,
             num: 50,
             page: 0,
             o: 'json',
@@ -264,6 +244,11 @@ function transformJamBaseEvent(event, fuseScore = 0) {
 
 // Supabase upsert operation
 async function upsertEventsToSupabase(transformedEvents) {
+  if (!supabase) {
+    console.warn('⚠️  Supabase not configured, skipping database upsert');
+    return [];
+  }
+
   try {
     console.log(`Attempting to upsert ${transformedEvents.length} events to database`);
     console.log('Sample transformed event:', JSON.stringify(transformedEvents[0], null, 2));
@@ -292,20 +277,16 @@ async function upsertEventsToSupabase(transformedEvents) {
 }
 
 // Main search endpoint
-router.post('/api/search-concerts', rateLimitMiddleware, async (req, res) => {
-  const searchStartTime = Date.now();
-  
-  try {
-    // Validate request body
-    const { error: validationError, value: validatedRequest } = requestSchema.validate(req.body);
-    if (validationError) {
-      console.log('Validation error:', validationError.details);
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid request parameters',
-        details: validationError.details
-      });
-    }
+router.post('/api/search-concerts',
+  sanitize,
+  createRateLimiter('strict'),
+  validateBody(searchConcertSchema),
+  async (req, res) => {
+    const searchStartTime = Date.now();
+    
+    try {
+      // Use validated request body (already validated by middleware)
+      const validatedRequest = req.body;
 
     console.log('Processing search request:', {
       query: validatedRequest.query,

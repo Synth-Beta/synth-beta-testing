@@ -1,14 +1,20 @@
 // Location-based search routes for JamBase API integration
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+const { getSupabaseConfig, getApiKey, reportKeyFailure } = require('./config/apiKeys');
+const { createRateLimiter } = require('./middleware/rateLimiter');
+const { validateQuery } = require('./middleware/validateInput');
+const { createSanitizationMiddleware } = require('./middleware/sanitizeInput');
+const { locationSearchQuerySchema } = require('./validation/schemas');
 
 const router = express.Router();
 
-// Supabase configuration - uses values from process.env (set in server.js)
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+// Initialize Supabase client using secure configuration
+const supabaseConfig = getSupabaseConfig('anon', false); // Don't throw if missing
+const supabase = supabaseConfig ? createClient(supabaseConfig.url, supabaseConfig.key) : null;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Sanitization middleware
+const sanitize = createSanitizationMiddleware({ sanitizeQuery: true });
 
 // Major cities for location search
 const CITY_COORDINATES = {
@@ -43,10 +49,16 @@ function searchCity(cityName) {
 // Fetch events from JamBase API by location
 async function fetchEventsFromJamBaseByLocation(lat, lng, radius = 25, limit = 50) {
   try {
-    const JAMBASE_API_KEY = process.env.JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+    const { getApiKey, reportKeyFailure } = require('./config/apiKeys');
+    let apiKey;
+    try {
+      apiKey = getApiKey('jambase');
+    } catch (error) {
+      throw new Error(`JamBase API key not configured: ${error.message}`);
+    }
     
     // JamBase API endpoint for events
-    const baseUrl = `https://www.jambase.com/jb-api/v1/events?apikey=${JAMBASE_API_KEY}`;
+    const baseUrl = `https://www.jambase.com/jb-api/v1/events?apikey=${apiKey}`;
     
     // Build search parameters for location-based search
     const params = new URLSearchParams();
@@ -132,6 +144,11 @@ async function storeEventsInSupabase(events) {
     return [];
   }
   
+  if (!supabase) {
+    console.warn('⚠️  Supabase not configured, skipping event storage');
+    return [];
+  }
+  
   try {
     console.log(`💾 Storing ${events.length} events in Supabase...`);
     
@@ -159,6 +176,11 @@ async function storeEventsInSupabase(events) {
 
 // Search events from database by location
 async function searchEventsFromDatabase(lat, lng, radius = 25, limit = 50) {
+  if (!supabase) {
+    console.warn('⚠️  Supabase not configured, skipping database search');
+    return [];
+  }
+
   try {
     // Convert radius from miles to degrees (approximate)
     const latDelta = radius / 69;
@@ -192,7 +214,10 @@ async function searchEventsFromDatabase(lat, lng, radius = 25, limit = 50) {
 }
 
 // POST /api/jambase/location-search
-router.post('/api/jambase/location-search', async (req, res) => {
+router.post('/api/jambase/location-search',
+  sanitize,
+  createRateLimiter('strict'),
+  async (req, res) => {
   try {
     const { location, radius = 25, limit = 50 } = req.body;
     

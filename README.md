@@ -15,10 +15,25 @@ Never go to shows, concerts, or activities alone again! PlusOne helps you discov
 
 - **Frontend**: React 18 + TypeScript
 - **Styling**: Tailwind CSS + shadcn/ui
-- **Backend**: Supabase
+- **Backend**: Express.js + Node.js
+- **Database**: Supabase (PostgreSQL)
 - **Build Tool**: Vite
 - **Routing**: React Router
-- **APIs**: JamBase, Spotify, Apple Music
+- **APIs**: JamBase, Spotify, Apple Music, Setlist.fm
+
+## Security
+
+This application implements comprehensive security measures following OWASP best practices:
+
+- **Rate Limiting**: IP + user-based rate limiting on all public endpoints (10-100 req/min depending on endpoint)
+- **Input Validation**: Schema-based validation with type checking, length limits, and pattern validation
+- **Input Sanitization**: XSS and injection prevention through input sanitization
+- **API Key Security**: Secure key management with rotation support, no hard-coded keys
+- **CORS Protection**: Strict origin validation in production
+- **Error Sanitization**: Prevents information disclosure through error messages
+- **Request Size Limits**: Prevents DoS attacks via large payloads (1MB limit)
+
+See [SECURITY.md](SECURITY.md) for detailed security policies and configuration.
 
 ## Quick Start
 

@@ -1,32 +1,40 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+const { getSupabaseConfig } = require('./config/apiKeys');
+const { createRateLimiter } = require('./middleware/rateLimiter');
+const { validateBody, validateQuery, validateParams } = require('./middleware/validateInput');
+const { createSanitizationMiddleware } = require('./middleware/sanitizeInput');
+const {
+  streamingProfileUploadSchema,
+  streamingProfileGetQuerySchema,
+  streamingProfileDeleteSchema,
+  serviceParamSchema,
+} = require('./validation/schemas');
 
 const router = express.Router();
 
-// Initialize Supabase client with defaults
-const supabaseUrl = process.env.SUPABASE_URL || 'https://glpiolbrafqikqhnseto.supabase.co';
-const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjkzNzgyNCwiZXhwIjoyMDcyNTEzODI0fQ.cS0y6dQiw2VvGD7tKfKADKqM8whaopJ716G4dexBRGI';
+// Initialize Supabase client using secure configuration
+const supabaseConfig = getSupabaseConfig('anon', false); // Don't throw if missing (routes will handle)
+const supabase = supabaseConfig ? createClient(supabaseConfig.url, supabaseConfig.key) : null;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Sanitization middleware (apply to all routes)
+const sanitize = createSanitizationMiddleware({ sanitizeBody: true, sanitizeQuery: true });
 
 // POST /api/user/streaming-profile - Upload streaming profile data
-router.post('/api/user/streaming-profile', async (req, res) => {
-  try {
-    const { service, data, userId } = req.body;
+router.post('/api/user/streaming-profile',
+  sanitize,
+  createRateLimiter('strict'),
+  validateBody(streamingProfileUploadSchema),
+  async (req, res) => {
+    try {
+      if (!supabase) {
+        return res.status(503).json({
+          success: false,
+          error: 'Database service unavailable'
+        });
+      }
 
-    if (!service || !data) {
-      return res.status(400).json({
-        error: 'Missing required fields: service and data'
-      });
-    }
-
-    // Validate service type
-    const validServices = ['spotify', 'apple-music'];
-    if (!validServices.includes(service)) {
-      return res.status(400).json({
-        error: 'Invalid service type. Must be one of: spotify, apple-music'
-      });
-    }
+      const { service, data, userId } = req.body;
 
     // For now, we'll store the data in a generic streaming_profiles table
     // In a real implementation, you might want separate tables for each service
@@ -128,16 +136,22 @@ router.post('/api/user/streaming-profile', async (req, res) => {
 });
 
 // GET /api/user/streaming-profile/:service - Get streaming profile data
-router.get('/api/user/streaming-profile/:service', async (req, res) => {
-  try {
-    const { service } = req.params;
-    const { userId } = req.query;
+router.get('/api/user/streaming-profile/:service',
+  sanitize,
+  createRateLimiter('moderate'),
+  validateParams({ service: serviceParamSchema }),
+  validateQuery(streamingProfileGetQuerySchema),
+  async (req, res) => {
+    try {
+      if (!supabase) {
+        return res.status(503).json({
+          success: false,
+          error: 'Database service unavailable'
+        });
+      }
 
-    if (!userId) {
-      return res.status(400).json({
-        error: 'Missing userId parameter'
-      });
-    }
+      const { service } = req.params;
+      const { userId } = req.query;
 
     const { data: profile, error } = await supabase
       .from('streaming_profiles')
@@ -178,16 +192,22 @@ router.get('/api/user/streaming-profile/:service', async (req, res) => {
 });
 
 // DELETE /api/user/streaming-profile/:service - Delete streaming profile data
-router.delete('/api/user/streaming-profile/:service', async (req, res) => {
-  try {
-    const { service } = req.params;
-    const { userId } = req.body;
+router.delete('/api/user/streaming-profile/:service',
+  sanitize,
+  createRateLimiter('strict'),
+  validateParams({ service: serviceParamSchema }),
+  validateBody(streamingProfileDeleteSchema),
+  async (req, res) => {
+    try {
+      if (!supabase) {
+        return res.status(503).json({
+          success: false,
+          error: 'Database service unavailable'
+        });
+      }
 
-    if (!userId) {
-      return res.status(400).json({
-        error: 'Missing userId in request body'
-      });
-    }
+      const { service } = req.params;
+      const { userId } = req.body;
 
     const { error } = await supabase
       .from('streaming_profiles')
@@ -216,85 +236,97 @@ router.delete('/api/user/streaming-profile/:service', async (req, res) => {
 });
 
 // GET /api/streaming-profiles/stats - Get aggregated stats across all users
-router.get('/api/streaming-profiles/stats', async (req, res) => {
-  try {
-    const { data: profiles, error } = await supabase
-      .from('streaming_profiles')
-      .select('service_type, profile_data, last_updated');
-
-    if (error) {
-      console.error('Error fetching profile stats:', error);
-      return res.status(500).json({
-        error: 'Failed to fetch streaming profile statistics'
+router.get('/api/streaming-profiles/stats',
+  sanitize,
+  createRateLimiter('moderate'),
+  async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({
+        success: false,
+        error: 'Database service unavailable'
       });
     }
 
-    // Aggregate stats
-    const stats = {
-      totalProfiles: profiles.length,
-      serviceBreakdown: {},
-      recentSyncs: 0,
-      topGenres: {},
-      topArtists: {}
-    };
+    try {
+      const { data: profiles, error } = await supabase
+        .from('streaming_profiles')
+        .select('service_type, profile_data, last_updated');
 
-    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-    profiles.forEach(profile => {
-      // Service breakdown
-      stats.serviceBreakdown[profile.service_type] = 
-        (stats.serviceBreakdown[profile.service_type] || 0) + 1;
-
-      // Recent syncs
-      if (new Date(profile.last_updated) > oneWeekAgo) {
-        stats.recentSyncs++;
-      }
-
-      // Extract genres and artists from profile data
-      if (profile.profile_data && profile.profile_data.topGenres) {
-        profile.profile_data.topGenres.forEach(genre => {
-          stats.topGenres[genre] = (stats.topGenres[genre] || 0) + 1;
+      if (error) {
+        console.error('Error fetching profile stats:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to fetch streaming profile statistics'
         });
       }
 
-      if (profile.profile_data && profile.profile_data.topArtists) {
-        profile.profile_data.topArtists.slice(0, 5).forEach(artist => {
-          const artistName = artist.name || artist.attributes?.name;
-          if (artistName) {
-            stats.topArtists[artistName] = (stats.topArtists[artistName] || 0) + 1;
-          }
-        });
-      }
-    });
+      // Aggregate stats
+      const stats = {
+        totalProfiles: profiles.length,
+        serviceBreakdown: {},
+        recentSyncs: 0,
+        topGenres: {},
+        topArtists: {}
+      };
 
-    // Sort and limit top items
-    stats.topGenres = Object.entries(stats.topGenres)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 10)
-      .reduce((obj, [key, value]) => {
-        obj[key] = value;
-        return obj;
-      }, {});
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    stats.topArtists = Object.entries(stats.topArtists)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 10)
-      .reduce((obj, [key, value]) => {
-        obj[key] = value;
-        return obj;
-      }, {});
+      profiles.forEach(profile => {
+        // Service breakdown
+        stats.serviceBreakdown[profile.service_type] = 
+          (stats.serviceBreakdown[profile.service_type] || 0) + 1;
 
-    res.json({
-      success: true,
-      stats
-    });
+        // Recent syncs
+        if (new Date(profile.last_updated) > oneWeekAgo) {
+          stats.recentSyncs++;
+        }
 
-  } catch (error) {
-    console.error('Streaming profile stats error:', error);
-    res.status(500).json({
-      error: 'Internal server error'
-    });
-  }
+        // Extract genres and artists from profile data
+        if (profile.profile_data && profile.profile_data.topGenres) {
+          profile.profile_data.topGenres.forEach(genre => {
+            stats.topGenres[genre] = (stats.topGenres[genre] || 0) + 1;
+          });
+        }
+
+        if (profile.profile_data && profile.profile_data.topArtists) {
+          profile.profile_data.topArtists.slice(0, 5).forEach(artist => {
+            const artistName = artist.name || artist.attributes?.name;
+            if (artistName) {
+              stats.topArtists[artistName] = (stats.topArtists[artistName] || 0) + 1;
+            }
+          });
+        }
+      });
+
+      // Sort and limit top items
+      stats.topGenres = Object.entries(stats.topGenres)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10)
+        .reduce((obj, [key, value]) => {
+          obj[key] = value;
+          return obj;
+        }, {});
+
+      stats.topArtists = Object.entries(stats.topArtists)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10)
+        .reduce((obj, [key, value]) => {
+          obj[key] = value;
+          return obj;
+        }, {});
+
+      res.json({
+        success: true,
+        stats
+      });
+
+    } catch (error) {
+      console.error('Streaming profile stats error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
 });
 
 module.exports = router;
