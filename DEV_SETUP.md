@@ -66,6 +66,22 @@ NODE_ENV=development
 FRONTEND_URL=http://localhost:8080
 
 # ============================================
+# Authentication Configuration
+# ============================================
+# Authentication Mode: 'dev' (mock users for testing) or 'apple' (Apple Sign In)
+AUTH_MODE=dev
+
+# Session Token Configuration
+JWT_SECRET=[YOUR_JWT_SECRET]  # Generate a secure random string for production
+JWT_EXPIRES_IN=7d  # Token expiration (default: 7 days)
+
+# Apple Sign In Configuration (for future token verification)
+APPLE_TEAM_ID=[YOUR_APPLE_TEAM_ID]
+APPLE_KEY_ID=[YOUR_APPLE_KEY_ID]
+APPLE_BUNDLE_ID=[YOUR_APPLE_BUNDLE_ID]
+APPLE_PRIVATE_KEY_PATH=backend/secure/AuthKey_[YOUR_APPLE_KEY_ID].p8  # For local development only
+
+# ============================================
 # API Key Rotation (Optional)
 # ============================================
 # Uncomment during key rotation:
@@ -85,6 +101,18 @@ FRONTEND_URL=http://localhost:8080
 - `SUPABASE_ANON_KEY` and `VITE_SUPABASE_ANON_KEY` are safe to expose (by design)
 - `SUPABASE_SERVICE_ROLE_KEY` must NEVER be exposed client-side
 - All other API keys must be kept secret
+- `JWT_SECRET` must be kept secret and use a strong random string in production
+- `APPLE_PRIVATE_KEY_PATH` and Apple Sign In configuration values are backend-only secrets
+- **Private Key File (`.p8`)**: 
+  - Must be stored in `backend/secure/` directory (excluded from git)
+  - Must NEVER be committed to git or exposed client-side
+  - For production deployments (Vercel, Fly.io, Railway, etc.): Use platform secrets/environment variables instead of file paths
+  - Consider storing the private key content directly as an environment variable (base64 encoded) in production
+  - The `APPLE_PRIVATE_KEY_PATH` approach is acceptable for local development only
+
+**Authentication Modes:**
+- `AUTH_MODE=dev`: Returns mock users for testing (no Apple credentials required)
+- `AUTH_MODE=apple`: Placeholder for Apple token verification (currently returns mock user, verification not yet implemented)
 
 See [SECURITY.md](SECURITY.md) for detailed security policies and rate limiting information.
 

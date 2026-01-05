@@ -17,7 +17,9 @@
     "express": "^4.21.2",
     "fuse.js": "^7.1.0",
     "joi": "^18.0.1",
-    "ngeohash": "^0.6.3"
+    "jsonwebtoken": "^9.0.2",
+    "ngeohash": "^0.6.3",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

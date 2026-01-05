@@ -29,6 +29,9 @@ export interface User {
   last_active_at: string | null; // TIMESTAMPTZ
   created_at: string; // TIMESTAMPTZ
   updated_at: string; // TIMESTAMPTZ
+  // Apple Sign In fields
+  apple_user_id?: string | null; // TEXT - Apple Sign In user identifier (sub claim), unique identifier for Apple-authenticated users
+  email?: string | null; // TEXT - Email provided by Apple identity provider (identity metadata only, not unique, not used for authentication)
   // Metadata columns
   permissions_metadata?: Record<string, any>; // JSONB
   waitlist_signup_at?: string | null; // TIMESTAMPTZ

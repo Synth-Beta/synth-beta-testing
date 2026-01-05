@@ -1,0 +1,150 @@
+/**
+ * Authentication Service
+ * 
+ * Centralized authentication logic with mode switching (DEV | APPLE).
+ * Supports development mode (mock users) and Apple Sign In (stub for now).
+ * 
+ * AUTH_MODE environment variable controls behavior:
+ * - 'dev': Returns mock users for testing
+ * - 'apple': Placeholder for Apple token verification (currently returns mock)
+ */
+
+const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
+
+const AUTH_MODE = process.env.AUTH_MODE || 'dev';
+const JWT_SECRET = process.env.JWT_SECRET || 'development-secret-change-in-production';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
+// Apple Sign In configuration (for future token verification)
+const APPLE_TEAM_ID = process.env.APPLE_TEAM_ID;
+const APPLE_KEY_ID = process.env.APPLE_KEY_ID;
+const APPLE_BUNDLE_ID = process.env.APPLE_BUNDLE_ID;
+const APPLE_PRIVATE_KEY_PATH = process.env.APPLE_PRIVATE_KEY_PATH;
+
+/**
+ * Generate a mock user for development/testing
+ * Returns a deterministic mock user object
+ */
+function generateMockUser() {
+  return {
+    id: uuidv4(),
+    apple_user_id: 'mock.apple.user.id.dev',
+    email: 'dev.user@example.com',
+    name: 'Dev Test User',
+    account_type: 'user',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+}
+
+/**
+ * Verify Apple identity token (STUB - not implemented yet)
+ * 
+ * This is a placeholder function. Real implementation will:
+ * 1. Decode the JWT identity token
+ * 2. Verify signature using Apple's public keys
+ * 3. Verify claims (iss, aud, exp, etc.)
+ * 4. Extract user information (sub, email, etc.)
+ * 5. Return user object or create new user in database
+ * 
+ * @param {string} identityToken - JWT identity token from Apple
+ * @returns {Promise<Object>} User object
+ */
+async function verifyAppleToken(identityToken) {
+  // TODO: Implement real Apple token verification
+  // This will use:
+  // - APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_BUNDLE_ID
+  // - APPLE_PRIVATE_KEY_PATH (or private key from env var in production)
+  // - jwt library to verify the token
+  // - Apple's public keys to verify signature
+  
+  // For now, return a mock user (placeholder behavior)
+  console.warn('⚠️  Apple token verification not yet implemented, returning mock user');
+  return generateMockUser();
+}
+
+/**
+ * Generate a JWT session token for authenticated user
+ * 
+ * @param {Object} user - User object with id and other properties
+ * @param {string} authProvider - Authentication provider ('apple' or 'dev')
+ * @returns {Object} Session object with token and expiresAt
+ */
+function generateSessionToken(user, authProvider = 'apple') {
+  const payload = {
+    sub: user.id || user.user_id, // User identifier
+    auth_provider: authProvider, // 'apple' or 'dev' - enables multi-provider support
+    iat: Math.floor(Date.now() / 1000) // Issued at timestamp
+  };
+
+  const token = jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN,
+    issuer: 'synth-backend'
+  });
+
+  // Calculate expiration timestamp
+  const decoded = jwt.decode(token);
+  const expiresAt = new Date(decoded.exp * 1000).toISOString();
+
+  return {
+    token,
+    expiresAt
+  };
+}
+
+/**
+ * Authenticate user based on AUTH_MODE
+ * 
+ * @param {string} identityToken - Identity token (for APPLE mode) or any string (for DEV mode)
+ * @returns {Promise<Object>} User object
+ */
+async function authenticateUser(identityToken) {
+  if (AUTH_MODE === 'dev') {
+    // DEV mode: return mock user
+    console.log('🔧 DEV mode: returning mock user');
+    return generateMockUser();
+  } else if (AUTH_MODE === 'apple') {
+    // APPLE mode: verify token (stub for now)
+    console.log('🍎 APPLE mode: verifying token (stub)');
+    return await verifyAppleToken(identityToken);
+  } else {
+    throw new Error(`Invalid AUTH_MODE: ${AUTH_MODE}. Must be 'dev' or 'apple'`);
+  }
+}
+
+/**
+ * Create session for authenticated user
+ * 
+ * @param {Object} user - User object
+ * @param {string} authProvider - Authentication provider ('apple' or 'dev')
+ * @returns {Object} Session object with token, expiresAt, and user data
+ */
+function createSession(user, authProvider = null) {
+  // Determine auth provider from AUTH_MODE if not provided
+  const provider = authProvider || (AUTH_MODE === 'dev' ? 'dev' : 'apple');
+  
+  const session = generateSessionToken(user, provider);
+  
+  return {
+    ...session,
+    user: {
+      id: user.id || user.user_id,
+      apple_user_id: user.apple_user_id,
+      email: user.email,
+      name: user.name,
+      account_type: user.account_type,
+      created_at: user.created_at,
+      updated_at: user.updated_at
+    }
+  };
+}
+
+module.exports = {
+  authenticateUser,
+  createSession,
+  generateSessionToken,
+  generateMockUser,
+  verifyAppleToken // Exported for testing/future implementation
+};
+

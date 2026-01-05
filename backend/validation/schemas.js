@@ -231,6 +231,24 @@ const uuidParamSchema = Joi.string()
     'string.pattern.base': 'Parameter must be a valid UUID',
   });
 
+/**
+ * Apple Authentication Schema
+ * Used for POST /auth/apple
+ */
+const appleAuthSchema = Joi.object({
+  identityToken: Joi.string()
+    .required()
+    .min(10)
+    .max(5000)
+    .trim()
+    .messages({
+      'string.empty': 'Identity token is required',
+      'string.min': 'Identity token is too short',
+      'string.max': 'Identity token is too long',
+      'any.required': 'Identity token is required',
+    }),
+}).unknown(false); // Reject unexpected fields
+
 module.exports = {
   searchConcertSchema,
   streamingProfileUploadSchema,
@@ -241,6 +259,7 @@ module.exports = {
   concertSearchQuerySchema,
   serviceParamSchema,
   uuidParamSchema,
+  appleAuthSchema,
   
   // Common patterns for reuse
   UUID_PATTERN,
