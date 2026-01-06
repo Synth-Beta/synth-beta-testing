@@ -20,56 +20,67 @@ export const PageActions: React.FC<PageActionsProps> = ({
   onNavigateToChat,
   className,
 }) => {
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [hasUnread, setHasUnread] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadUnreadCount = async () => {
+    const loadUnreadStatus = async () => {
       try {
         const { data: chats, error } = await fetchUserChats(currentUserId);
 
         if (error || cancelled || !chats) return;
 
-        const readChats = JSON.parse(localStorage.getItem('read_chats') || '[]');
-        let total = 0;
+        // Get user's last_read_at for each chat
+        const { data: participantData } = await supabase
+          .from('chat_participants')
+          .select('chat_id, last_read_at')
+          .eq('user_id', currentUserId);
+        
+        const lastReadMap = new Map<string, string | null>();
+        participantData?.forEach(p => {
+          lastReadMap.set(p.chat_id, p.last_read_at);
+        });
 
+        // Check if ANY chat has unread messages
         for (const chat of chats) {
-          if (cancelled || readChats.includes(chat.id)) continue;
+          if (cancelled) break;
 
-          const { data: latest } = await supabase
+          const lastReadAt = lastReadMap.get(chat.id);
+          
+          const query = supabase
             .from('messages')
-            .select('sender_id')
+            .select('id')
             .eq('chat_id', chat.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .neq('sender_id', currentUserId)
+            .limit(1);
+          
+          if (lastReadAt) {
+            query.gt('created_at', lastReadAt);
+          }
 
-          if (!latest || latest.sender_id === currentUserId) continue;
-
-          const { count } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('chat_id', chat.id)
-            .neq('sender_id', currentUserId);
-
-          total += count || 0;
+          const { data: unreadMessage } = await query.maybeSingle();
+          
+          if (unreadMessage) {
+            if (!cancelled) setHasUnread(true);
+            return; // Found at least one unread, no need to check more
+          }
         }
 
-        if (!cancelled) setUnreadCount(total);
+        if (!cancelled) setHasUnread(false);
       } catch (error) {
-        console.error('Error loading unread count:', error);
+        console.error('Error loading unread status:', error);
       }
     };
 
-    loadUnreadCount();
+    loadUnreadStatus();
 
     const channel = supabase
       .channel('page-actions-unread')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'messages' },
-        loadUnreadCount,
+        loadUnreadStatus,
       )
       .subscribe();
 
@@ -93,13 +104,8 @@ export const PageActions: React.FC<PageActionsProps> = ({
         aria-label="Open chat"
       >
         <MessageCircle className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <Badge
-            variant="destructive"
-            className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-          >
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </Badge>
+        {hasUnread && (
+          <span className="absolute -top-1 -right-1 bg-synth-pink rounded-full h-3 w-3 shadow-lg shadow-synth-pink/30 animate-pulse" />
         )}
       </Button>
     </div>

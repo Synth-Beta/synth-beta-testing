@@ -53,7 +53,7 @@ type ChatPreview = {
   latest_message: string | null;
   latest_message_created_at: string | null;
   latest_message_sender_name: string | null;
-  unread_count?: number;
+  has_unread?: boolean;
 };
 
 type RecommendedUser = {
@@ -415,6 +415,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     let active = true;
 
     const loadChats = async () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/10d40767-d3ec-4e23-951e-9f34c12c3798',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ConnectView.tsx:417',message:'loadChats started',data:{currentUserId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       setChatsLoading(true);
       try {
         const { data, error } = await fetchUserChats(currentUserId);
@@ -422,73 +425,59 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         if (error) throw error;
         if (!active) return;
 
-        // Batch fetch unread counts for all chats efficiently
-        const readChats = JSON.parse(localStorage.getItem('read_chats') || '[]');
-        const chatIds = (data || []).map(chat => chat.id);
-        const unreadChatIds = chatIds.filter(id => !readChats.includes(id));
+        // Get user's last_read_at for each chat from chat_participants
+        const { data: participantData } = await supabase
+          .from('chat_participants')
+          .select('chat_id, last_read_at')
+          .eq('user_id', currentUserId);
         
-        // Batch fetch latest messages for all unread chats
-        const latestMessagesPromises = unreadChatIds.map(chatId =>
-          supabase
-            .from('messages')
-            .select('sender_id, chat_id')
-            .eq('chat_id', chatId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-        );
-        
-        const latestMessagesResults = await Promise.all(latestMessagesPromises);
-        const latestMessagesMap = new Map<string, any>();
-        latestMessagesResults.forEach((result, index) => {
-          if (result.data) {
-            latestMessagesMap.set(unreadChatIds[index], result.data);
-          }
+        const lastReadMap = new Map<string, string | null>();
+        participantData?.forEach(p => {
+          lastReadMap.set(p.chat_id, p.last_read_at);
         });
         
-        // Filter chats where latest message is from current user (no unread)
-        const chatsNeedingCount = unreadChatIds.filter(chatId => {
-          const latestMessage = latestMessagesMap.get(chatId);
-          return latestMessage && latestMessage.sender_id !== currentUserId;
-        });
-        
-        // Batch fetch unread counts for chats that need them
-        const unreadCountPromises = chatsNeedingCount.map(chatId =>
-          supabase
+        // Check for unread messages using simple existence queries (much faster than COUNT)
+        const hasUnreadPromises = (data || []).map(async (chat: any) => {
+          const lastReadAt = lastReadMap.get(chat.id);
+          
+          // If no last_read_at, check if there are any messages not from current user
+          const query = supabase
             .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('chat_id', chatId)
+            .select('id')
+            .eq('chat_id', chat.id)
             .neq('sender_id', currentUserId)
-        );
-        
-        const unreadCountResults = await Promise.all(unreadCountPromises);
-        const unreadCountMap = new Map<string, number>();
-        unreadCountResults.forEach((result, index) => {
-          unreadCountMap.set(chatsNeedingCount[index], result.count || 0);
-        });
-        
-        // Build final chat list with unread counts
-        const chatsWithUnread = (data || []).map((chat: any) => {
-          if (readChats.includes(chat.id)) {
-            return { ...chat, unread_count: 0 } as ChatPreview;
+            .limit(1);
+          
+          // If we have a last_read_at timestamp, only check for messages after that
+          if (lastReadAt) {
+            query.gt('created_at', lastReadAt);
           }
           
-          const latestMessage = latestMessagesMap.get(chat.id);
-          if (!latestMessage || latestMessage.sender_id === currentUserId) {
-            return { ...chat, unread_count: 0 } as ChatPreview;
-          }
+          const { data: unreadMessage } = await query.maybeSingle();
           
           return {
-            ...chat,
-            unread_count: unreadCountMap.get(chat.id) || 0
-          } as ChatPreview;
+            chatId: chat.id,
+            has_unread: !!unreadMessage
+          };
         });
+        
+        const unreadResults = await Promise.all(hasUnreadPromises);
+        const hasUnreadMap = new Map<string, boolean>();
+        unreadResults.forEach(result => {
+          hasUnreadMap.set(result.chatId, result.has_unread);
+        });
+        
+        // Build final chat list with has_unread boolean
+        const chatsWithUnread = (data || []).map((chat: any) => ({
+          ...chat,
+          has_unread: hasUnreadMap.get(chat.id) || false
+        } as ChatPreview));
 
         // Sort: unread messages first, then by latest message time
         const sortedChats = chatsWithUnread.sort((a, b) => {
-          // First sort by unread count (unread first)
-          if ((a.unread_count || 0) > 0 && (b.unread_count || 0) === 0) return -1;
-          if ((a.unread_count || 0) === 0 && (b.unread_count || 0) > 0) return 1;
+          // First sort by has_unread (unread first)
+          if (a.has_unread && !b.has_unread) return -1;
+          if (!a.has_unread && b.has_unread) return 1;
           
           // Then sort by latest message time
           const aTime = a.latest_message_created_at ? new Date(a.latest_message_created_at).getTime() : 0;
@@ -653,7 +642,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
   // Fetch recommended friends when all chats are read and connections are loaded
   useEffect(() => {
     if (!chatsLoading && !interestsLoading && chatPreviews.length >= 0) {
-      const hasUnread = chatPreviews.some(chat => (chat.unread_count || 0) > 0);
+      const hasUnread = chatPreviews.some(chat => chat.has_unread);
       if (!hasUnread && firstConnections.length > 0) {
         fetchRecommendedChatFriends();
       }

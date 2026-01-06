@@ -63,7 +63,8 @@ interface Chat {
   group_admin_id: string | null;
   created_at: string;
   updated_at: string;
-  unread_count?: number;
+  unread_count?: number; // Keep for backward compatibility during transition
+  has_unread?: boolean;
   // Verified chat fields
   entity_type?: 'event' | 'artist' | 'venue' | null;
   entity_id?: string | null;
@@ -472,64 +473,59 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         return;
       }
 
-      // Fetch unread counts for each chat
-      // We'll track read status by storing the last message ID the user has seen per chat
-      // For now, we'll use a simple approach: if user has selected the chat, it's read
-      // In a full implementation, you'd use a read_receipts table or last_read_message_id
+      // Get user's last_read_at for each chat from chat_participants
+      const { data: participantData } = await supabase
+        .from('chat_participants')
+        .select('chat_id, last_read_at')
+        .eq('user_id', currentUserId);
+      
+      const lastReadMap = new Map<string, string | null>();
+      participantData?.forEach(p => {
+        lastReadMap.set(p.chat_id, p.last_read_at);
+      });
+      
+      // Check for unread messages using simple existence queries (much faster than COUNT)
       const chatsWithUnread = await Promise.all((data || []).map(async (chat) => {
         try {
-          // Get the latest message in this chat
-          const { data: latestMessage } = await supabase
-            .from('messages')
-            .select('id, created_at, sender_id')
-            .eq('chat_id', chat.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          // If there's no latest message or it's from the current user, no unread
-          if (!latestMessage || latestMessage.sender_id === currentUserId) {
-            return {
-              ...chat,
-              unread_count: 0
-            };
-          }
-
-          // Check if user has a read receipt for this chat
-          // For now, we'll use localStorage to track which chats have been viewed
-          const readChats = JSON.parse(localStorage.getItem('read_chats') || '[]');
-          const isRead = readChats.includes(chat.id);
+          const lastReadAt = lastReadMap.get(chat.id);
           
-          // If chat has been read, no unread messages
-          if (isRead) {
-            return {
-              ...chat,
-              unread_count: 0
-            };
-          }
-
-          // Count messages not sent by current user (these are unread)
-          const { count } = await supabase
+          // If no last_read_at, check if there are any messages not from current user
+          const query = supabase
             .from('messages')
-            .select('*', { count: 'exact', head: true })
+            .select('id')
             .eq('chat_id', chat.id)
-            .neq('sender_id', currentUserId);
+            .neq('sender_id', currentUserId)
+            .limit(1);
+          
+          // If we have a last_read_at timestamp, only check for messages after that
+          if (lastReadAt) {
+            query.gt('created_at', lastReadAt);
+          }
+          
+          const { data: unreadMessage } = await query.maybeSingle();
           
           return {
             ...chat,
-            unread_count: count || 0
+            has_unread: !!unreadMessage,
+            unread_count: 0 // Keep for backward compatibility
           };
         } catch (error) {
-          console.error('Error fetching unread count for chat:', chat.id, error);
+          console.error('Error checking unread status for chat:', chat.id, error);
           return {
             ...chat,
+            has_unread: false,
             unread_count: 0
           };
         }
       }));
 
-      // Sort by latest_message_created_at descending (most recent first)
+      // Sort: unread messages first, then by latest message time
       const sortedChats = chatsWithUnread.sort((a, b) => {
+        // First sort by has_unread (unread first)
+        if (a.has_unread && !b.has_unread) return -1;
+        if (!a.has_unread && b.has_unread) return 1;
+        
+        // Then sort by latest message time
         const aTime = a.latest_message_created_at ? new Date(a.latest_message_created_at).getTime() : 0;
         const bTime = b.latest_message_created_at ? new Date(b.latest_message_created_at).getTime() : 0;
         return bTime - aTime; // Descending order
@@ -1099,16 +1095,17 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   // Mark chat messages as read when chat is opened
   const markChatAsRead = async (chatId: string) => {
     try {
-      // Store in localStorage that this chat has been read
-      const readChats = JSON.parse(localStorage.getItem('read_chats') || '[]');
-      if (!readChats.includes(chatId)) {
-        readChats.push(chatId);
-        localStorage.setItem('read_chats', JSON.stringify(readChats));
+      // Use RPC function to update last_read_at (avoids RLS recursion issues)
+      const { error } = await supabase
+        .rpc('mark_chat_as_read', { p_chat_id: chatId });
+      
+      if (error) {
+        console.error('Error updating last_read_at:', error);
       }
 
-      // Update unread count to 0 for this chat in local state
+      // Update has_unread to false for this chat in local state
       setChats(prev => prev.map(chat => 
-        chat.id === chatId ? { ...chat, unread_count: 0 } : chat
+        chat.id === chatId ? { ...chat, has_unread: false, unread_count: 0 } : chat
       ));
     } catch (error) {
       console.error('Error marking chat as read:', error);
@@ -1504,7 +1501,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       {/* Unread indicator - pink dot on far left, vertically centered */}
-                      {chat.unread_count && chat.unread_count > 0 ? (
+                      {chat.has_unread ? (
                         <div className="w-3 h-3 bg-gradient-to-br from-synth-pink to-synth-pink-light rounded-full flex-shrink-0 shadow-lg shadow-synth-pink/30 animate-pulse" />
                       ) : (
                         <div className="w-3 flex-shrink-0" />
