@@ -1,0 +1,179 @@
+/**
+ * SideMenu Styles
+ * 
+ * Styles for SideMenu component using design tokens.
+ * Drawer slides in from the right, overlay covers left 78px.
+ */
+
+.side-menu__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 78px;
+  height: 100vh;
+  height: 100dvh; /* Dynamic viewport height for mobile */
+  background-color: var(--color-off-black-50, rgba(14, 14, 14, 0.5));
+  z-index: 100;
+  /* Account for safe area */
+  padding-top: var(--safe-area-top, max(env(safe-area-inset-top, 0px), 15px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  cursor: pointer;
+}
+
+.side-menu__drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: calc(100vw - 78px);
+  max-width: calc(100vw - 78px);
+  height: 100vh;
+  height: 100dvh; /* Dynamic viewport height for mobile */
+  background-color: var(--color-off-white, #FCFCFC);
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 8px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Account for safe area at bottom */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Safe area spacer - seamless background behind notch */
+.side-menu__safe-area-spacer {
+  height: var(--safe-area-top, max(env(safe-area-inset-top, 0px), 15px));
+  background-color: var(--color-off-white, #FCFCFC);
+  flex-shrink: 0;
+  width: 100%;
+}
+
+/* Header bar - 44px height with X button */
+.side-menu__header-bar {
+  height: 44px;
+  position: relative;
+  width: 100%;
+  flex-shrink: 0;
+  background-color: var(--color-off-white, #FCFCFC);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.side-menu__close-button {
+  position: absolute;
+  right: var(--spacing-screen-margin-x, 20px);
+  width: var(--size-input-height, 44px);
+  height: var(--size-input-height, 44px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.2s ease;
+  line-height: 0;
+}
+
+.side-menu__close-button > * {
+  margin: 0;
+  padding: 0;
+  display: block;
+  flex-shrink: 0;
+}
+
+.side-menu__close-button:hover {
+  opacity: 0.8;
+}
+
+.side-menu__close-button:active {
+  opacity: 0.6;
+}
+
+.side-menu__close-button:focus-visible {
+  outline: 2px solid var(--color-synth-pink, #CC2486);
+  outline-offset: 2px;
+  border-radius: var(--radius-corner, 10px);
+}
+
+/* Menu Content - starts 20px after header bar */
+.side-menu__content {
+  flex: 1;
+  padding: var(--spacing-screen-margin-x, 20px) var(--spacing-screen-margin-x, 20px);
+  padding-bottom: calc(var(--spacing-screen-margin-x, 20px) + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* User Info Section - top of content, left-aligned */
+.side-menu__user-info-section {
+  width: 100%;
+  margin-bottom: var(--spacing-big-section, 60px);
+}
+
+/* Override UserInfo typography for drawer */
+/* "First Last" → h2 size (24px) with bold weight, OffBlack */
+.side-menu__user-info-section .user-info__name {
+  font-size: var(--typography-h2-size, 24px);
+  font-weight: var(--typography-h2-weight, 700);
+  line-height: var(--typography-h2-line-height, 1.3);
+  color: var(--color-off-black, #0E0E0E);
+}
+
+/* "@username" → meta (16px, medium, DarkGrey) */
+.side-menu__user-info-section .user-info__username {
+  font-size: var(--typography-meta-size, 16px);
+  font-weight: var(--typography-meta-weight, 500);
+  line-height: var(--typography-meta-line-height, 1.5);
+  color: var(--color-dark-grey, #5D646F);
+}
+
+/* List Groups - Primary and Secondary navigation */
+.side-menu__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* 0px spacing between rows */
+  margin-bottom: var(--spacing-big-section, 60px);
+}
+
+.side-menu__list:last-of-type {
+  margin-bottom: 0;
+}
+
+/* Logout Section - centered, matches MenuCategory width */
+.side-menu__logout-section {
+  width: calc(100vw - 118px);
+  margin: var(--spacing-big-section, 60px) auto 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Override SynthButton text to use meta typography (16px, medium, OffWhite) */
+.side-menu__logout-section .synth-button {
+  font-size: var(--typography-meta-size, 16px);
+  font-weight: var(--typography-meta-weight, 500);
+  line-height: var(--typography-meta-line-height, 1.5);
+  color: var(--color-off-white, #FCFCFC);
+}
+
+.side-menu__user-info-section {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.side-menu__user-info-section .user-info {
+  display: flex;
+  align-items: center;
+  text-align: left;
+}
+
+.side-menu__user-info-section .user-info__avatar {
+  display: flex;
+  width: 45px;
+  height: 45px;
+  margin-right: 12px;
+}
+

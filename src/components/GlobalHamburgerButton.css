@@ -1,0 +1,52 @@
+/**
+ * GlobalHamburgerButton Styles
+ * 
+ * Floating hamburger/X button that sits above page content.
+ */
+
+.global-hamburger-button {
+  position: fixed;
+  /* Respect iOS safe areas */
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  z-index: 10002; /* Above SideMenu drawer (101) and overlay (100), but below modals/dialogs (10000+) */
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-off-white, #FCFCFC);
+  border: none;
+  border-radius: var(--radius-corner, 10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  line-height: 0;
+}
+
+.global-hamburger-button > * {
+  margin: 0;
+  padding: 0;
+  display: block;
+  flex-shrink: 0;
+}
+
+.global-hamburger-button:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
+
+.global-hamburger-button:active {
+  opacity: 0.6;
+  transform: scale(0.95);
+}
+
+.global-hamburger-button:focus-visible {
+  outline: 2px solid var(--color-synth-pink, #CC2486);
+  outline-offset: 2px;
+  border-radius: var(--radius-corner, 10px);
+}
+

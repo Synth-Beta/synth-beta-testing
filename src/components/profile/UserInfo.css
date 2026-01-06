@@ -1,0 +1,98 @@
+/**
+ * UserInfo Styles
+ *
+ * Horizontal user info layout that composes ProfilePicture.
+ */
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-inline, 6px);
+  width: 100%;
+}
+
+.user-info__avatar {
+  flex-shrink: 0;
+}
+
+.user-info__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.user-info__name {
+  margin: 0;
+  color: var(--color-off-black, #0E0E0E);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-info__username {
+  margin: 0;
+  color: var(--color-dark-grey, #5D646F);
+  font-size: var(--typography-meta-size);
+  font-weight: var(--typography-meta-weight);
+  line-height: var(--typography-meta-line-height);
+}
+
+/* Variant-specific typography */
+.user-info--user .user-info__name,
+.user-info--artist .user-info__name {
+  font-size: var(--typography-body-size);
+  font-weight: var(--typography-accent-weight);
+  line-height: var(--typography-body-line-height);
+}
+
+.user-info--chat .user-info__name {
+  font-size: var(--typography-meta-size);
+  font-weight: var(--typography-body-weight);
+  line-height: var(--typography-meta-line-height);
+}
+
+.user-info--userProfile .user-info__name {
+  font-size: var(--typography-h2-size);
+  font-weight: var(--typography-h2-weight);
+  line-height: var(--typography-h2-line-height);
+}
+
+.user-info--userProfile .user-info__username {
+  margin-top: 2px;
+}
+
+/* Stats row for userProfile variant */
+.user-info__stats {
+  display: flex;
+  gap: var(--spacing-grouped, 24px);
+  margin-top: var(--spacing-small, 12px);
+}
+
+.user-info__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.user-info__stat-value {
+  font-size: var(--typography-body-size);
+  font-weight: var(--typography-body-weight);
+  line-height: var(--typography-body-line-height);
+  color: var(--color-off-black, #0E0E0E);
+}
+
+.user-info__stat-label {
+  font-size: var(--typography-meta-size);
+  font-weight: var(--typography-meta-weight);
+  line-height: var(--typography-meta-line-height);
+  color: var(--color-dark-grey, #5D646F);
+}
+
+/* Hamburger menu: emphasize user name only */
+.user-info--user .user-info__name {
+  font-weight: var(--typography-bold-weight);
+}
+
+
+

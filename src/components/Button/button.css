@@ -1,0 +1,155 @@
+/**
+ * SynthButton Styles
+ * 
+ * Styles for SynthButton component using design tokens.
+ * All values reference CSS variables from src/styles/tokens.css
+ */
+
+.synth-button {
+  /* Base button styles */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-inline, 6px);
+  border: none;
+  border-radius: var(--radius-corner, 10px);
+  font-family: var(--font-family);
+  font-size: var(--typography-meta-size, 16px);
+  font-weight: var(--typography-meta-weight, 500);
+  line-height: var(--typography-meta-line-height, 1.5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  
+  /* Remove default button styles */
+  background: none;
+  padding: 0;
+  margin: 0;
+  outline: none;
+}
+
+/* Focus styles for accessibility */
+.synth-button:focus-visible {
+  outline: 2px solid var(--color-synth-pink, #CC2486);
+  outline-offset: 2px;
+}
+
+/* Standard size (36px height) */
+.synth-button--standard {
+  height: var(--size-button-height, 36px);
+  padding-left: var(--spacing-grouped, 24px);
+  padding-right: var(--spacing-grouped, 24px);
+}
+
+/* Icon-only size (44px x 44px) */
+.synth-button--icon-only {
+  width: var(--size-input-height, 44px);
+  height: var(--size-input-height, 44px);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+/* Tertiary size (22px height) */
+.synth-button--tertiary {
+  height: 22px;
+  padding-left: var(--spacing-small, 12px);
+  padding-right: var(--spacing-small, 12px);
+}
+
+/* Full width with screen margins
+   When fullWidth is true, button automatically respects 20px screen margins
+   by using calc to account for margins on both sides
+ */
+.synth-button--full-width {
+  width: calc(100% - calc(var(--spacing-screen-margin-x, 20px) * 2));
+  margin-left: var(--spacing-screen-margin-x, 20px);
+  margin-right: var(--spacing-screen-margin-x, 20px);
+  box-sizing: border-box;
+}
+
+/* Primary variant: SynthPink background, OffWhite text/icons */
+.synth-button--primary {
+  background-color: var(--color-synth-pink, #CC2486);
+  color: var(--color-off-white, #FCFCFC);
+}
+
+.synth-button--primary:hover:not(:disabled) {
+  background-color: var(--color-dark-pink, #951A6D);
+}
+
+.synth-button--primary:active:not(:disabled) {
+  background-color: var(--color-medium-pink, #B00056);
+  transform: scale(0.98);
+}
+
+/* Outline variant: OffWhite background, SynthPink text/icons, border */
+.synth-button--outline {
+  background-color: var(--color-off-white, #FCFCFC);
+  color: var(--color-synth-pink, #CC2486);
+  border: 1px solid var(--color-synth-pink, #CC2486);
+}
+
+.synth-button--outline:hover:not(:disabled) {
+  background-color: var(--color-light-pink, #FDF2F7);
+  border-color: var(--color-dark-pink, #951A6D);
+}
+
+.synth-button--outline:active:not(:disabled) {
+  background-color: var(--color-light-pink, #FDF2F7);
+  border-color: var(--color-medium-pink, #B00056);
+  transform: scale(0.98);
+}
+
+/* Disabled variant: Grey50 background, DarkGrey text/icons */
+.synth-button--disabled,
+.synth-button:disabled {
+  background-color: var(--color-grey-50, rgba(201, 201, 201, 0.5));
+  color: var(--color-dark-grey, #5D646F);
+  cursor: not-allowed;
+  opacity: 1; /* Keep opacity at 1, colors handle the disabled state */
+}
+
+.synth-button--outline.synth-button--disabled,
+.synth-button--outline:disabled {
+  background-color: var(--color-off-white, #FCFCFC);
+  border-color: var(--color-grey-50, rgba(201, 201, 201, 0.5));
+  color: var(--color-dark-grey, #5D646F);
+}
+
+/* Button text */
+.synth-button__text {
+  display: inline-block;
+  line-height: inherit;
+}
+
+/* Icon styling */
+.synth-button__icon {
+  flex-shrink: 0;
+  display: block;
+}
+
+/* Ensure icons inherit button color for outline variant */
+.synth-button--outline .synth-button__icon {
+  /* SVG colors should be defined in the SVG itself, not via CSS filters */
+  /* If icon color needs to change, it should be handled via SVG fill/stroke */
+}
+
+/* Spacing adjustments for buttons with icons */
+.synth-button--standard:has(.synth-button__icon) {
+  /* Icon spacing is handled by gap property */
+}
+
+.synth-button--tertiary:has(.synth-button__icon) {
+  gap: var(--spacing-inline, 6px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .synth-button--full-width {
+    margin-left: var(--spacing-screen-margin-x, 20px);
+    margin-right: var(--spacing-screen-margin-x, 20px);
+  }
+}
+

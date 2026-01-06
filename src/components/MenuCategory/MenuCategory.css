@@ -1,0 +1,61 @@
+/**
+ * MenuCategory Styles
+ * 
+ * Styles for MenuCategory component using design tokens.
+ * Matches Figma design specifications.
+ */
+
+.menu-category {
+  /* Container: width = hamburger menu width minus 40px */
+  /* Hamburger menu width is calc(100vw - 78px), so this is calc(100vw - 78px - 40px) */
+  width: calc(100vw - 118px);
+  height: var(--spacing-menu-item-row-height, 48px);
+  padding: 11px 0 11px var(--spacing-screen-margin-x, 20px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+/* Ensure icons in MenuCategory are DarkGrey */
+.menu-category .icon-text__icon {
+  filter: brightness(0) saturate(100%) invert(36%) sepia(7%) saturate(1200%) hue-rotate(180deg) brightness(95%) contrast(85%);
+  /* Converts black (#0E0E0E) to DarkGrey (#5D646F) */
+}
+
+.menu-category__content {
+  /* IconText indented an additional 20px from container left padding */
+  /* Container has 20px left padding, so IconText starts at 40px from container edge */
+  margin-left: var(--spacing-screen-margin-x, 20px);
+  width: 100%;
+}
+
+.menu-category__icon-text {
+  /* IconText uses leftIcon variant by default */
+  width: 100%;
+}
+
+/* Clickable variant */
+.menu-category--clickable {
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.2s ease;
+}
+
+.menu-category--clickable:hover {
+  background-color: var(--color-light-pink, #FDF2F7);
+}
+
+.menu-category--clickable:active {
+  background-color: var(--color-light-pink, #FDF2F7);
+  opacity: 0.8;
+}
+
+.menu-category--clickable:focus-visible {
+  outline: 2px solid var(--color-synth-pink, #CC2486);
+  outline-offset: -2px;
+  border-radius: var(--radius-corner, 10px);
+}
+

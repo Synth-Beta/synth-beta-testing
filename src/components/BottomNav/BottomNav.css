@@ -1,0 +1,100 @@
+/**
+ * Bottom Navigation Styles
+ * 
+ * Styles for BottomNav component using design tokens.
+ */
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  /* Background spans full width */
+  background-color: var(--color-light-pink, #FDF2F7);
+  border-top: 2px solid var(--color-grey-50, rgba(201, 201, 201, 0.5));
+  border-top-left-radius: var(--radius-corner, 10px);
+  border-top-right-radius: var(--radius-corner, 10px);
+  /* Account for safe area on devices with home indicator */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.bottom-nav__container {
+  width: 100%;
+  /* 20px left/right margins for content */
+  padding: 20px var(--spacing-screen-margin-x, 20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 43px;
+  box-sizing: border-box;
+}
+
+.bottom-nav__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+/* All regular (non-selected) icons should be SynthPink */
+/* Selected icons are already SynthPink in the SVG, so they don't need the filter */
+.bottom-nav__item:not(.bottom-nav__item--cta):not(.bottom-nav__item--active) img {
+  filter: brightness(0) saturate(100%) invert(27%) sepia(89%) saturate(3000%) hue-rotate(300deg) brightness(0.8) contrast(1.1);
+  /* This filter converts black (#0E0E0E) to SynthPink (#CC2486) */
+}
+
+.bottom-nav__item:hover {
+  opacity: 0.8;
+}
+
+.bottom-nav__item:active {
+  opacity: 0.6;
+}
+
+.bottom-nav__item:focus-visible {
+  outline: 2px solid var(--color-synth-pink, #CC2486);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.bottom-nav__item--active {
+  /* Active state is handled by using Selected icon variants */
+}
+
+/* Center CTA button (Post) */
+.bottom-nav__item--cta {
+  width: 70px;
+  height: 40px;
+  background-color: var(--color-synth-pink, #CC2486);
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+
+/* Plus icon in CTA button should be OffWhite */
+.bottom-nav__item--cta img {
+  filter: brightness(0) saturate(100%) invert(100%);
+  /* This filter converts black to white/OffWhite */
+}
+
+.bottom-nav__item--cta:hover {
+  background-color: var(--color-dark-pink, #951A6D);
+  opacity: 1;
+}
+
+.bottom-nav__item--cta:active {
+  background-color: var(--color-medium-pink, #B00056);
+  opacity: 1;
+  transform: scale(0.98);
+}
+
+
