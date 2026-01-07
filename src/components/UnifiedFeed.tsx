@@ -53,7 +53,6 @@ import { CityService } from '@/services/cityService';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Navigation } from '@/components/Navigation';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { PageActions } from '@/components/PageActions';
 import { getEventStatus, isEventPast, getPastEvents, getUpcomingEvents } from '@/utils/eventStatusUtils';
@@ -3414,13 +3413,7 @@ export const UnifiedFeed = ({
         />
       )}
 
-      {/* Bottom Navigation - Hide when chat is open or when embedded (MainApp handles navigation) */}
-      {!showUnifiedChat && onViewChange && !isEmbedded && (
-        <Navigation 
-          currentView="feed" 
-          onViewChange={onViewChange} 
-        />
-      )}
+      {/* Bottom Navigation is handled by MainApp via BottomNavAdapter */}
 
       {/* Review Detail Modal - Instagram-style layout */}
       {showReviewDetailModal && selectedReviewDetail && (

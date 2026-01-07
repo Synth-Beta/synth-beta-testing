@@ -268,4 +268,3 @@ module.exports = {
   ZIP_CODE_PATTERN,
   ISO_DATE_PATTERN,
 };
-

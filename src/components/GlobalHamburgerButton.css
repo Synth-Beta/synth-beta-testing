@@ -25,6 +25,14 @@
   -webkit-tap-highlight-color: transparent;
   transition: opacity 0.2s ease, transform 0.2s ease;
   line-height: 0;
+  
+  /* Hide when modals/dialogs are open */
+  body:has([role="dialog"]:not([aria-hidden="true"])),
+  body:has([data-radix-dialog-content]:not([aria-hidden="true"])) {
+    .global-hamburger-button {
+      display: none;
+    }
+  }
 }
 
 .global-hamburger-button > * {

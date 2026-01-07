@@ -34,7 +34,6 @@ import { UnifiedChatView } from '@/components/UnifiedChatView';
 import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
 import { FriendProfileCard } from '@/components/FriendProfileCard';
-import { Navigation } from '@/components/Navigation';
 import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
 
 interface ConcertReview {
@@ -1397,13 +1396,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         />
       )}
 
-      {/* Bottom Navigation - Hide when chat is open */}
-      {!showUnifiedChat && onViewChange && (
-        <Navigation 
-          currentView="feed" 
-          onViewChange={onViewChange} 
-        />
-      )}
+      {/* Bottom Navigation is handled by MainApp via BottomNavAdapter */}
 
       {/* Review Modal */}
       <EventReviewModal
