@@ -40,44 +40,18 @@ export interface PhotoComment {
 export class EventPhotoService {
   /**
    * Upload event photo
+   * DISABLED: Photos are stored in reviews.photos array, not a separate event_photos table
+   * To add photos, users need to create/update a review with photos
    */
   static async uploadPhoto(request: UploadEventPhotoRequest): Promise<EventPhoto> {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('User not authenticated');
-
-      // Upload photo to storage
-      const uploadResult = await storageService.uploadPhoto(
-        request.photo_file,
-        'event-media',
-        user.id
-      );
-
-      // Create photo record
-      const { data, error } = await supabase
-        .from('event_photos')
-        .insert({
-          event_id: request.event_id,
-          user_id: user.id,
-          photo_url: uploadResult.url,
-          caption: request.caption || null,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Fetch full photo data
-      const photos = await this.getEventPhotos(request.event_id, 1);
-      return photos[0];
-    } catch (error) {
-      console.error('Error uploading event photo:', error);
-      throw error;
-    }
+    // Photos are stored in reviews, not a separate event_photos table
+    // Users should add photos when creating/editing reviews
+    throw new Error('Photo uploads are handled through reviews. Please add photos when creating or editing a review.');
   }
 
   /**
    * Get photos for an event
+   * Photos are stored in event_media table (synced from reviews)
    */
   static async getEventPhotos(
     eventId: string,
@@ -85,187 +59,112 @@ export class EventPhotoService {
     offset = 0
   ): Promise<EventPhoto[]> {
     try {
-      const { data, error } = await supabase.rpc('get_event_photos', {
-        p_event_id: eventId,
-        p_limit: limit,
-        p_offset: offset,
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Get photos from event_media table
+      const { data: mediaRecords, error } = await supabase
+        .from('event_media')
+        .select(`
+          id,
+          url,
+          review_id,
+          created_at,
+          review:reviews!event_media_review_id_fkey (
+            user_id,
+            user:users!reviews_user_id_fkey (
+              name,
+              avatar_url
+            )
+          )
+        `)
+        .eq('event_id', eventId)
+        .eq('media_type', 'photo')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.warn('Error getting event photos from event_media:', error);
+        return [];
+      }
+
+      // Convert to EventPhoto format
+      const photos: EventPhoto[] = (mediaRecords || []).map((media: any) => {
+        const review = media.review as any;
+        const reviewUser = review?.user as any;
+        
+        return {
+          id: media.id,
+          event_id: eventId,
+          photo_url: media.url,
+          caption: undefined,
+          likes_count: 0, // Photos in reviews don't have separate likes
+          comments_count: 0, // Photos in reviews don't have separate comments
+          is_featured: false,
+          user_id: review?.user_id || '',
+          user_name: reviewUser?.name || 'Unknown',
+          user_avatar_url: reviewUser?.avatar_url || null,
+          user_has_liked: false,
+          created_at: media.created_at,
+        };
       });
 
-      if (error) throw error;
-      return data || [];
+      return photos;
     } catch (error) {
       console.error('Error getting event photos:', error);
-      throw error;
+      return []; // Return empty array instead of throwing to prevent breaking UI
     }
   }
 
   /**
    * Like/unlike photo
+   * DISABLED: Photos in reviews don't have separate likes - they use review likes
    */
   static async togglePhotoLike(photoId: string, liked: boolean): Promise<void> {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('User not authenticated');
-
-      if (liked) {
-        // Add like
-        const { error } = await supabase
-          .from('event_photo_likes')
-          .insert({
-            photo_id: photoId,
-            user_id: user.id,
-          });
-
-        if (error && error.code !== '23505') throw error; // Ignore duplicate
-      } else {
-        // Remove like
-        const { error } = await supabase
-          .from('event_photo_likes')
-          .delete()
-          .eq('photo_id', photoId)
-          .eq('user_id', user.id);
-
-        if (error) throw error;
-      }
-    } catch (error) {
-      console.error('Error toggling photo like:', error);
-      throw error;
-    }
+    // Photos in reviews don't have separate likes
+    // Users can like the review instead
+    console.warn('Photo likes not supported - photos are part of reviews');
   }
 
   /**
    * Add comment to photo
+   * DISABLED: Photos in reviews don't have separate comments - they use review comments
    */
   static async addComment(photoId: string, comment: string): Promise<PhotoComment> {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('User not authenticated');
-
-      const { data, error } = await supabase
-        .from('event_photo_comments')
-        .insert({
-          photo_id: photoId,
-          user_id: user.id,
-          comment: comment.trim(),
-        })
-        .select(`
-          *,
-          user:users!event_photo_comments_user_id_fkey (
-            name,
-            avatar_url
-          )
-        `)
-        .single();
-
-      if (error) throw error;
-
-      return {
-        id: data.id,
-        photo_id: data.photo_id,
-        user_id: data.user_id,
-        user_name: (data.user as any).name,
-        user_avatar_url: (data.user as any).avatar_url,
-        comment: data.comment,
-        created_at: data.created_at,
-      };
-    } catch (error) {
-      console.error('Error adding comment:', error);
-      throw error;
-    }
+    // Photos in reviews don't have separate comments
+    // Users can comment on the review instead
+    throw new Error('Photo comments not supported - photos are part of reviews. Please comment on the review instead.');
   }
 
   /**
    * Get photo comments
+   * DISABLED: Photos in reviews don't have separate comments
    */
   static async getPhotoComments(photoId: string): Promise<PhotoComment[]> {
-    try {
-      const { data, error } = await supabase
-        .from('event_photo_comments')
-        .select(`
-          *,
-          user:users!event_photo_comments_user_id_fkey (
-            name,
-            avatar_url
-          )
-        `)
-        .eq('photo_id', photoId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-
-      return (data || []).map((item: any) => ({
-        id: item.id,
-        photo_id: item.photo_id,
-        user_id: item.user_id,
-        user_name: item.user?.name,
-        user_avatar_url: item.user?.avatar_url,
-        comment: item.comment,
-        created_at: item.created_at,
-      }));
-    } catch (error) {
-      console.error('Error getting photo comments:', error);
-      throw error;
-    }
+    // Photos in reviews don't have separate comments
+    return [];
   }
 
   /**
    * Delete photo
+   * DISABLED: Photos are stored in reviews - users should edit the review to remove photos
    */
   static async deletePhoto(photoId: string): Promise<void> {
-    try {
-      // Get photo to delete from storage
-      const { data: photo } = await supabase
-        .from('event_photos')
-        .select('photo_url, user_id')
-        .eq('id', photoId)
-        .single();
-
-      if (!photo) throw new Error('Photo not found');
-
-      // Check ownership
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.id !== photo.user_id) {
-        throw new Error('You can only delete your own photos');
-      }
-
-      // Delete from storage
-      const path = storageService.getPathFromUrl(photo.photo_url, 'event-media');
-      if (path) {
-        await storageService.deletePhoto('event-media', path);
-      }
-
-      // Delete from database
-      const { error } = await supabase
-        .from('event_photos')
-        .delete()
-        .eq('id', photoId);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error deleting photo:', error);
-      throw error;
-    }
+    // Photos are part of reviews - users should edit the review to remove photos
+    throw new Error('Photos are part of reviews. Please edit the review to remove photos.');
   }
 
   /**
    * Update photo caption
+   * DISABLED: Photos in reviews don't have separate captions
    */
   static async updateCaption(photoId: string, caption: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('event_photos')
-        .update({ caption: caption.trim() })
-        .eq('id', photoId);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error updating caption:', error);
-      throw error;
-    }
+    // Photos in reviews don't have separate captions
+    throw new Error('Photo captions not supported - photos are part of reviews.');
   }
 
   /**
    * Get user's uploaded photos
+   * Photos are stored in event_media table (synced from reviews)
    */
   static async getUserPhotos(userId?: string): Promise<EventPhoto[]> {
     try {
@@ -274,47 +173,86 @@ export class EventPhotoService {
 
       const targetUserId = userId || user.id;
 
-      const { data, error } = await supabase
-        .from('event_photos')
+      // First get review IDs for this user
+      const { data: reviews, error: reviewsError } = await supabase
+        .from('reviews')
+        .select('id')
+        .eq('user_id', targetUserId)
+        .eq('is_public', true)
+        .eq('is_draft', false);
+
+      if (reviewsError || !reviews || reviews.length === 0) {
+        return [];
+      }
+
+      const reviewIds = reviews.map(r => r.id);
+
+      // Get photos from event_media for these reviews
+      const { data: mediaRecords, error } = await supabase
+        .from('event_media')
         .select(`
-          *,
+          id,
+          url,
+          review_id,
+          event_id,
+          created_at,
+          review:reviews!event_media_review_id_fkey (
+            user:users!reviews_user_id_fkey (
+              name,
+              avatar_url
+            )
+          ),
           event:events (
             id,
             title,
             artist_name,
             event_date
-          ),
-          user:users!event_photos_user_id_fkey (
-            name,
-            avatar_url
           )
         `)
-        .eq('user_id', targetUserId)
+        .in('review_id', reviewIds)
+        .eq('media_type', 'photo')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data || [];
+      if (error) {
+        console.warn('Error getting user photos from event_media:', error);
+        return [];
+      }
+
+      // Convert to EventPhoto format
+      const photos: EventPhoto[] = (mediaRecords || []).map((media: any) => {
+        const review = media.review as any;
+        const reviewUser = review?.user as any;
+        
+        return {
+          id: media.id,
+          event_id: media.event_id || '',
+          photo_url: media.url,
+          caption: undefined,
+          likes_count: 0,
+          comments_count: 0,
+          is_featured: false,
+          user_id: review?.user_id || targetUserId,
+          user_name: reviewUser?.name || 'Unknown',
+          user_avatar_url: reviewUser?.avatar_url || null,
+          user_has_liked: false,
+          created_at: media.created_at,
+        };
+      });
+
+      return photos;
     } catch (error) {
       console.error('Error getting user photos:', error);
-      throw error;
+      return [];
     }
   }
 
   /**
    * Feature/unfeature photo (admin only)
+   * DISABLED: Photos in reviews don't have featured status
    */
   static async toggleFeatured(photoId: string, featured: boolean): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('event_photos')
-        .update({ is_featured: featured })
-        .eq('id', photoId);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error toggling featured status:', error);
-      throw error;
-    }
+    // Photos in reviews don't have featured status
+    throw new Error('Photo featuring not supported - photos are part of reviews.');
   }
 }
 

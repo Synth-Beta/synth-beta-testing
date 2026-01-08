@@ -17,7 +17,8 @@ import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
-import { Loader2, Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, MessageCircle, ChevronRight, ChevronDown, MapPin, Plus } from 'lucide-react';
+import { Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, MessageCircle, ChevronRight, ChevronDown, MapPin, Plus } from 'lucide-react';
+import { SynthLoadingInline, SynthLoader } from '@/components/ui/SynthLoader';
 import { FriendSuggestionsRail } from '@/components/feed/FriendSuggestionsRail';
 import { FriendsService } from '@/services/friendsService';
 import { Button } from '@/components/ui/button';
@@ -1274,9 +1275,7 @@ interface FriendEventInterest {
         {selectedFeedType === 'trending' && (
           <div className="space-y-4">
               {loadingTrending && trendingEvents.length === 0 ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
+                <SynthLoadingInline text="Loading trending events..." size="md" />
               ) : (
                 <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -1314,7 +1313,7 @@ interface FriendEventInterest {
                       >
                         {loadingTrending ? (
                           <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          <SynthLoader variant="spinner" size="sm" />
                             Loading...
                           </>
                         ) : (
@@ -1363,7 +1362,7 @@ interface FriendEventInterest {
                       >
                         {loadingNetwork ? (
                           <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          <SynthLoader variant="spinner" size="sm" />
                             Loading...
                           </>
                         ) : (
@@ -1465,7 +1464,7 @@ interface FriendEventInterest {
                           disabled={isJoining}
                         >
                           {isJoining ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <SynthLoader variant="spinner" size="sm" />
                           ) : (
                             <Plus className="h-4 w-4" />
                           )}

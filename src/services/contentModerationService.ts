@@ -74,21 +74,85 @@ export const FLAG_REASONS = {
 export class ContentModerationService {
   /**
    * Report content
+   * Uses direct insert to match the moderation_flags table schema:
+   * - status (not flag_status)
+   * - additional_details (not flag_details)
+   * - flag_category is optional and can be inferred from flag_reason
    */
   static async reportContent(request: ReportContentRequest): Promise<string> {
     try {
-      const { data, error } = await supabase.rpc('flag_content', {
-        p_content_type: request.content_type,
-        p_content_id: request.content_id,
-        p_flag_reason: request.flag_reason,
-        p_flag_details: request.flag_details || null,
-      });
+      // Get authenticated user
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        throw new Error('User must be authenticated to report content');
+      }
 
-      if (error) throw error;
-      return data; // Returns flag_id
+      // Map flag_reason to flag_category if possible
+      const flagCategoryMap: Record<FlagReason, string> = {
+        spam: 'spam',
+        inappropriate_content: 'inappropriate_content',
+        harassment: 'harassment',
+        misinformation: 'misinformation',
+        copyright_violation: 'copyright_violation',
+        fake_event: 'fake_content',
+        duplicate: 'spam', // Treat duplicates as spam
+        other: 'other',
+      };
+
+      const flag_category = flagCategoryMap[request.flag_reason] || 'other';
+
+      // Map content_type - only event, review, artist, venue are allowed
+      let contentType = request.content_type;
+      if (contentType === 'comment' || contentType === 'profile' || contentType === 'message') {
+        // Map unsupported types to supported ones or use 'other' category
+        if (contentType === 'comment') {
+          contentType = 'review'; // Treat comments as reviews for moderation
+        } else if (contentType === 'profile') {
+          contentType = 'artist'; // Treat profiles as artist content
+        } else {
+          throw new Error(`Content type ${contentType} is not supported for moderation flags`);
+        }
+      }
+
+      // Get user_id from users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const userId = userData?.user_id || user.id;
+
+      // Insert directly into moderation_flags table
+      const { data, error } = await supabase
+        .from('moderation_flags')
+        .insert({
+          flagged_by_user_id: userId,
+          content_type: contentType as 'event' | 'review' | 'artist' | 'venue',
+          content_id: request.content_id,
+          flag_reason: request.flag_reason,
+          flag_category: flag_category as any,
+          additional_details: request.flag_details?.trim() || null,
+          status: 'pending',
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        // Handle unique constraint violation (user already flagged this content)
+        if (error.code === '23505') {
+          throw new Error('You have already reported this content');
+        }
+        throw error;
+      }
+
+      return data.id; // Returns flag_id
     } catch (error) {
       console.error('Error reporting content:', error);
-      throw error;
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to report content');
     }
   }
 

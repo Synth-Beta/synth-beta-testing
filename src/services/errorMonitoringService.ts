@@ -49,6 +49,7 @@ export class ErrorMonitoringService {
 
   /**
    * Log an error with structured data
+   * DISABLED: system_errors table doesn't exist
    */
   static async logError(
     context: string,
@@ -57,40 +58,9 @@ export class ErrorMonitoringService {
     severity: 'low' | 'medium' | 'high' | 'critical' = 'medium',
     category: 'validation' | 'network' | 'database' | 'authentication' | 'business_logic' | 'unknown' = 'unknown'
   ): Promise<void> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const errorMessage = typeof error === 'string' ? error : error.message;
-      const errorStack = typeof error === 'string' ? undefined : error.stack;
-      
-      const systemError: Omit<SystemError, 'id'> = {
-        context,
-        error_message: errorMessage,
-        error_stack: errorStack,
-        metadata: metadata || {},
-        user_id: user?.id || null,
-        timestamp: new Date().toISOString(),
-        severity,
-        category,
-        resolved: false
-      };
-
-      const { error: insertError } = await supabase
-        .from('system_errors')
-        .insert([systemError]);
-
-      if (insertError) {
-        console.error('Failed to log error to system_errors:', insertError);
-        // Fallback to console logging
-        console.error(`[${severity.toUpperCase()}] ${context}:`, errorMessage, metadata);
-      } else {
-        console.log(`✅ Error logged: ${context} (${severity})`);
-      }
-    } catch (logError) {
-      console.error('Failed to log error to system_errors:', logError);
-      // Fallback to console logging
-      console.error(`[${severity.toUpperCase()}] ${context}:`, error, metadata);
-    }
+    // DISABLED: system_errors table doesn't exist - just log to console
+    const errorMessage = typeof error === 'string' ? error : error.message;
+    console.error(`[${severity.toUpperCase()}] ${context}:`, errorMessage, metadata);
   }
 
   /**
@@ -182,184 +152,63 @@ export class ErrorMonitoringService {
 
   /**
    * Get error statistics
+   * DISABLED: system_errors table doesn't exist
    */
   static async getErrorStats(hours: number = 24): Promise<ErrorStats> {
-    try {
-      const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-      
-      const { data: errors, error } = await supabase
-        .from('system_errors')
-        .select('*')
-        .gte('timestamp', since)
-        .order('timestamp', { ascending: false });
-
-      if (error) {
-        console.error('Failed to fetch error stats:', error);
-        return {
-          total_errors: 0,
-          errors_by_category: {},
-          errors_by_severity: {},
-          recent_errors: [],
-          error_rate: 0
-        };
-      }
-
-      const totalErrors = errors?.length || 0;
-      const errorRate = totalErrors / hours;
-
-      // Group by category
-      const errorsByCategory: Record<string, number> = {};
-      const errorsBySeverity: Record<string, number> = {};
-
-      errors?.forEach(error => {
-        errorsByCategory[error.category] = (errorsByCategory[error.category] || 0) + 1;
-        errorsBySeverity[error.severity] = (errorsBySeverity[error.severity] || 0) + 1;
-      });
-
-      return {
-        total_errors: totalErrors,
-        errors_by_category: errorsByCategory,
-        errors_by_severity: errorsBySeverity,
-        recent_errors: errors?.slice(0, 10) || [],
-        error_rate: Math.round(errorRate * 100) / 100
-      };
-    } catch (error) {
-      console.error('Error fetching error stats:', error);
-      return {
-        total_errors: 0,
-        errors_by_category: {},
-        errors_by_severity: {},
-        recent_errors: [],
-        error_rate: 0
-      };
-    }
+    // DISABLED: system_errors table doesn't exist
+    return {
+      total_errors: 0,
+      errors_by_category: {},
+      errors_by_severity: {},
+      recent_errors: [],
+      error_rate: 0
+    };
   }
 
   /**
    * Get errors by category
+   * DISABLED: system_errors table doesn't exist
    */
   static async getErrorsByCategory(
     category: string,
     limit: number = 50
   ): Promise<SystemError[]> {
-    try {
-      const { data: errors, error } = await supabase
-        .from('system_errors')
-        .select('*')
-        .eq('category', category)
-        .order('timestamp', { ascending: false })
-        .limit(limit);
-
-      if (error) {
-        console.error('Failed to fetch errors by category:', error);
-        return [];
-      }
-
-      return errors || [];
-    } catch (error) {
-      console.error('Error fetching errors by category:', error);
-      return [];
-    }
+    // DISABLED: system_errors table doesn't exist
+    return [];
   }
 
   /**
    * Get critical errors
+   * DISABLED: system_errors table doesn't exist
    */
   static async getCriticalErrors(limit: number = 20): Promise<SystemError[]> {
-    try {
-      const { data: errors, error } = await supabase
-        .from('system_errors')
-        .select('*')
-        .eq('severity', 'critical')
-        .eq('resolved', false)
-        .order('timestamp', { ascending: false })
-        .limit(limit);
-
-      if (error) {
-        console.error('Failed to fetch critical errors:', error);
-        return [];
-      }
-
-      return errors || [];
-    } catch (error) {
-      console.error('Error fetching critical errors:', error);
-      return [];
-    }
+    // DISABLED: system_errors table doesn't exist
+    return [];
   }
 
   /**
    * Mark error as resolved
+   * DISABLED: system_errors table doesn't exist
    */
   static async resolveError(
     errorId: string,
     resolvedBy: string
   ): Promise<boolean> {
-    try {
-      const { error } = await supabase
-        .from('system_errors')
-        .update({
-          resolved: true,
-          resolved_at: new Date().toISOString(),
-          resolved_by: resolvedBy
-        })
-        .eq('id', errorId);
-
-      if (error) {
-        console.error('Failed to resolve error:', error);
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error resolving error:', error);
-      return false;
-    }
+    // DISABLED: system_errors table doesn't exist
+    return false;
   }
 
   /**
    * Get error trends over time
+   * DISABLED: system_errors table doesn't exist
    */
   static async getErrorTrends(days: number = 7): Promise<{
     date: string;
     error_count: number;
     critical_count: number;
   }[]> {
-    try {
-      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-      
-      const { data: errors, error } = await supabase
-        .from('system_errors')
-        .select('timestamp, severity')
-        .gte('timestamp', since)
-        .order('timestamp', { ascending: true });
-
-      if (error) {
-        console.error('Failed to fetch error trends:', error);
-        return [];
-      }
-
-      // Group by date
-      const trends: Record<string, { error_count: number; critical_count: number }> = {};
-      
-      errors?.forEach(error => {
-        const date = new Date(error.timestamp).toISOString().split('T')[0];
-        if (!trends[date]) {
-          trends[date] = { error_count: 0, critical_count: 0 };
-        }
-        trends[date].error_count++;
-        if (error.severity === 'critical') {
-          trends[date].critical_count++;
-        }
-      });
-
-      return Object.entries(trends).map(([date, counts]) => ({
-        date,
-        ...counts
-      }));
-    } catch (error) {
-      console.error('Error fetching error trends:', error);
-      return [];
-    }
+    // DISABLED: system_errors table doesn't exist
+    return [];
   }
 
   /**

@@ -12,10 +12,14 @@
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
-        <integer>1</integer>
+        <integer>2</integer>
         <key>Minute</key>
         <integer>0</integer>
     </dict>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>KeepAlive</key>
+    <false/>
     <key>StandardOutPath</key>
     <string>/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/logs/launchd-sync.log</string>
     <key>StandardErrorPath</key>

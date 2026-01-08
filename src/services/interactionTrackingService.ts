@@ -225,22 +225,12 @@ class InteractionTrackingService {
 
   /**
    * Log error to structured error monitoring
+   * DISABLED: system_errors table doesn't exist
    */
   private async logError(context: string, error: any, metadata?: any): Promise<void> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      await supabase.from('system_errors').insert({
-        context,
-        error_message: error.message || error.toString(),
-        error_stack: error.stack || null,
-        metadata: metadata || {},
-        user_id: user?.id || null,
-        timestamp: new Date().toISOString()
-      });
-    } catch (logError) {
-      console.error('Failed to log error to system_errors:', logError);
-    }
+    // Disabled - system_errors table doesn't exist
+    // Just log to console instead
+    console.error(`[${context}]`, error, metadata);
   }
 
   /**
@@ -331,23 +321,27 @@ class InteractionTrackingService {
         return;
       }
       
-      const { error } = await supabase
-        .from('interactions')
-        .insert([{
-          user_id: user.id,
-          session_id: normalizedEvent.sessionId || this.sessionId,
-          event_type: normalizedEvent.eventType,
-          entity_type: normalizedEvent.entityType,
-          entity_id: normalizedEvent.entityId || null,
-          entity_uuid: normalizedEvent.entityUuid || null,
-          metadata: normalizedEvent.metadata || {}
-        }]);
+      // DISABLED: interactions table doesn't exist - just log to console
+      // const { error } = await supabase
+      //   .from('interactions')
+      //   .insert([{
+      //     user_id: user.id,
+      //     session_id: normalizedEvent.sessionId || this.sessionId,
+      //     event_type: normalizedEvent.eventType,
+      //     entity_type: normalizedEvent.entityType,
+      //     entity_id: normalizedEvent.entityId || null,
+      //     entity_uuid: normalizedEvent.entityUuid || null,
+      //     metadata: normalizedEvent.metadata || {}
+      //   }]);
 
-      if (error) {
-        await this.logError('interaction_logging_error', error, normalizedEvent);
-        console.error('Failed to log interaction:', error);
-        // Don't throw - logging failures shouldn't break the app
-      }
+      // if (error) {
+      //   await this.logError('interaction_logging_error', error, normalizedEvent);
+      //   console.error('Failed to log interaction:', error);
+      //   // Don't throw - logging failures shouldn't break the app
+      // }
+      
+      // Just log to console for now
+      console.debug('Interaction logged:', normalizedEvent);
     } catch (error) {
       await this.logError('interaction_logging_exception', error, normalizedEvent);
       console.error('Error logging interaction:', error);
@@ -465,22 +459,28 @@ class InteractionTrackingService {
         metadata: event.metadata || {}
       }));
 
-      // Use direct insert instead of RPC for better compatibility
-      const { error } = await supabase
-        .from('interactions')
-        .insert(dbBatch);
+      // DISABLED: interactions table doesn't exist - just log to console
+      // const { error } = await supabase
+      //   .from('interactions')
+      //   .insert(dbBatch);
 
-      if (error) {
-        console.error('Failed to log interaction batch:', error);
-        // Log error for each failed event
-        for (const event of validEvents) {
-          await this.logError('interaction_logging_error', error, event);
-        }
-      } else {
-        console.log(`✅ Logged ${dbBatch.length} interactions`);
-        if (invalidEvents.length > 0) {
-          console.warn(`⚠️ Skipped ${invalidEvents.length} invalid interactions`);
-        }
+      // if (error) {
+      //   console.error('Failed to log interaction batch:', error);
+      //   // Log error for each failed event
+      //   for (const event of validEvents) {
+      //     await this.logError('interaction_logging_error', error, event);
+      //   }
+      // } else {
+      //   console.log(`✅ Logged ${dbBatch.length} interactions`);
+      //   if (invalidEvents.length > 0) {
+      //     console.warn(`⚠️ Skipped ${invalidEvents.length} invalid interactions`);
+      //   }
+      // }
+      
+      // Just log to console for now
+      console.debug(`✅ Logged ${dbBatch.length} interactions (console only)`, dbBatch);
+      if (invalidEvents.length > 0) {
+        console.warn(`⚠️ Skipped ${invalidEvents.length} invalid interactions`);
       }
     } catch (error) {
       console.error('Error logging interaction batch:', error);

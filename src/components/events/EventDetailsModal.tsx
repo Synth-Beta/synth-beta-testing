@@ -750,7 +750,8 @@ export function EventDetailsModal({
       className="fixed inset-0 z-50 bg-[#fcfcfc] overflow-y-auto overflow-x-hidden w-full max-w-full"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
+        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
+        pointerEvents: 'auto'
       }}
     >
       {/* Header with X button */}
@@ -774,7 +775,9 @@ export function EventDetailsModal({
                   <Button
                     variant={localIsInterested ? "default" : "outline"}
                     size="sm"
+                    type="button"
                     onClick={async () => {
+                      console.log('Interest button clicked', { currentState: localIsInterested, eventId: actualEvent?.id });
                       const newInterestState = !localIsInterested;
                       
                       // Update local state immediately for instant UI feedback
@@ -808,20 +811,36 @@ export function EventDetailsModal({
                     ? "bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 h-7" 
                     : "hover:bg-red-50 hover:text-red-600 hover:border-red-300 text-xs px-3 py-1 h-7"
                     }
+                    style={{ pointerEvents: 'auto', zIndex: 10, position: 'relative' }}
                   >
                     <Heart className={`w-4 h-4 mr-1 ${localIsInterested ? 'fill-current' : ''}`} />
                     {localIsInterested ? 'Interested' : "I'm Interested"}
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setReportModalOpen(true)}
-              className="text-gray-600 hover:text-red-600 text-xs px-3 py-1 h-7"
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Report button clicked', { eventId: actualEvent?.id });
+                    if (actualEvent?.id) {
+                      console.log('Opening report modal, current state:', reportModalOpen);
+                      setReportModalOpen(true);
+                      console.log('Report modal should now be open');
+                    } else {
+                      toast({
+                        title: 'Error',
+                        description: 'Unable to report this content',
+                        variant: 'destructive',
+                      });
+                    }
+                  }}
+                  className="text-gray-600 hover:text-red-600 text-xs px-3 py-1 h-7 cursor-pointer flex items-center gap-1 rounded-md hover:bg-gray-100 transition-colors"
+                  style={{ pointerEvents: 'auto', zIndex: 100, position: 'relative' }}
                 >
-              <Flag className="w-3 h-3 mr-1" />
-              <span className="text-xs">Report</span>
-                </Button>
+                  <Flag className="w-3 h-3" />
+                  <span className="text-xs">Report</span>
+                </button>
               </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3 flex-wrap">
                 <Calendar className="w-4 h-4" />
@@ -870,8 +889,13 @@ export function EventDetailsModal({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onInterestToggle(actualEvent.id, false)}
-              className="text-gray-600 hover:text-red-600 hover:border-red-300"
+                type="button"
+                onClick={() => {
+                  console.log('Remove interest button clicked');
+                  onInterestToggle(actualEvent.id, false);
+                }}
+                className="text-gray-600 hover:text-red-600 hover:border-red-300"
+                style={{ pointerEvents: 'auto', zIndex: 10 }}
               >
                 <X className="w-4 h-4 mr-1" />
                 Remove Interest
@@ -1493,20 +1517,26 @@ export function EventDetailsModal({
         />
 
 
-        <ReportContentModal
-          open={reportModalOpen}
-          onClose={() => setReportModalOpen(false)}
-          contentType="event"
-          contentId={actualEvent.id}
-          contentTitle={actualEvent.title}
-          onReportSubmitted={() => {
-            setReportModalOpen(false);
-            toast({
-              title: 'Report Submitted',
-              description: 'Thank you for helping keep our community safe',
-            });
-          }}
-        />
+        {actualEvent?.id && (
+          <ReportContentModal
+            open={reportModalOpen}
+            onClose={() => {
+              console.log('Closing report modal');
+              setReportModalOpen(false);
+            }}
+            contentType="event"
+            contentId={actualEvent.id}
+            contentTitle={actualEvent.title || 'Event'}
+            onReportSubmitted={() => {
+              console.log('Report submitted, closing modal');
+              setReportModalOpen(false);
+              toast({
+                title: 'Report Submitted',
+                description: 'Thank you for helping keep our community safe',
+              });
+            }}
+          />
+        )}
 
         <CreateEventGroupModal
           open={showCreateGroup}

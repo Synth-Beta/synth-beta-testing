@@ -49,6 +49,7 @@ import { PassportModal } from '@/components/discover/PassportModal';
 import { PassportService } from '@/services/passportService';
 import { Sparkles } from 'lucide-react';
 import { TopRightMenu } from '@/components/TopRightMenu';
+import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -1550,33 +1551,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   // Session expiration is handled by MainApp, so we don't need to handle it here
 
-  // Show loading skeleton while loading or if profile hasn't loaded yet
+  // Show loading screen while loading or if profile hasn't loaded yet
   if (loading || !profile) {
-    return (
-      <div className="min-h-screen synth-gradient-card p-4 pb-20">
-        <div className="w-full max-w-[393px] mx-auto space-y-6 overflow-x-hidden">
-          {/* Header skeleton */}
-          <div className="flex items-center gap-4 mb-6">
-            <SynthSLogo size="md" className="animate-breathe" />
-            <div className="h-8 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse w-24"></div>
-          </div>
-
-          {/* Profile skeleton */}
-          <SkeletonProfileCard />
-
-          {/* Reviews grid skeleton */}
-          <div className="space-y-4">
-            <div className="h-6 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse w-32"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <SkeletonCard />
-              <SkeletonCard />
-              <SkeletonCard />
-              <SkeletonCard />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <SynthLoadingScreen text="Loading profile..." />;
   }
 
   // If loading is complete but no profile, show error (shouldn't happen with current logic)

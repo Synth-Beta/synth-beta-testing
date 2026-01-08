@@ -32,6 +32,8 @@ import { HomeFeed } from './home/HomeFeed';
 import { streamingSyncService } from '@/services/streamingSyncService';
 import { ToastAction } from '@/components/ui/toast';
 import { EventReviewModal } from './EventReviewModal';
+import { SynthLoadingScreen } from './ui/SynthLoader';
+import { PushTokenService } from '@/services/pushTokenService';
 
 type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events' | 'onboarding';
 
@@ -125,6 +127,25 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       checkOnboardingStatus();
     }
   }, [user, loading, currentView]);
+
+  // Initialize push notifications when user is authenticated
+  useEffect(() => {
+    if (!loading && user) {
+      // Initialize push notifications (only on native platforms)
+      PushTokenService.initialize().catch((error) => {
+        console.error('Failed to initialize push notifications:', error);
+      });
+    }
+
+    // Cleanup on unmount or logout
+    return () => {
+      if (!user) {
+        PushTokenService.cleanup().catch((error) => {
+          console.error('Failed to cleanup push notifications:', error);
+        });
+      }
+    };
+  }, [user, loading]);
 
   useEffect(() => {
     // MainApp useEffect starting
@@ -414,21 +435,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
-        <div className="text-center space-y-6">
-          <div className="w-32 h-32 mx-auto">
-            <img
-              src="/Logos/Main logo black background.png"
-              alt="Synth Logo"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <SynthLoadingScreen text="Loading Synth..." />;
   }
 
   // Show auth if no user, session expired, or auth requested

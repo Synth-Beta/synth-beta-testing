@@ -36,7 +36,7 @@ export class TourTrackerService {
       // First, get the artist from artists table by UUID
       const { data: artist, error: artistError } = await supabase
         .from('artists')
-        .select('id, name, jambase_artist_id')
+        .select('id, name, identifier')
         .eq('id', artistId)
         .single();
 
@@ -45,7 +45,7 @@ export class TourTrackerService {
         return [];
       }
 
-      console.log(`🎵 [TOUR_TRACKER] Found artist: ${artist.name} (UUID: ${artist.id}, JamBase ID: ${artist.jambase_artist_id})`);
+      console.log(`🎵 [TOUR_TRACKER] Found artist: ${artist.name} (UUID: ${artist.id}, Identifier: ${artist.identifier})`);
 
       // Query events filtered by artist_id (UUID FK to artists.id)
       // This ensures we only get events for this specific artist
@@ -128,7 +128,7 @@ export class TourTrackerService {
       // First get the artist from artists table by UUID
       const { data: artist } = await supabase
         .from('artists')
-        .select('id, name, jambase_artist_id')
+        .select('id, name, identifier')
         .eq('id', artistId)
         .single();
 
@@ -140,25 +140,23 @@ export class TourTrackerService {
       const artistName = artist.name;
 
       // Search chats by name containing artist name
+      // Note: chats table uses chat_name and is_group_chat columns
       const { data: chatsByName, error: chatsError } = await supabase
         .from('chats')
-        .select('id, name, metadata')
-        .ilike('name', `%${artistName}%`)
-        .eq('is_group', true);
+        .select('id, chat_name, users')
+        .ilike('chat_name', `%${artistName}%`)
+        .eq('is_group_chat', true);
 
       if (!chatsError && chatsByName) {
         for (const chat of chatsByName) {
-          // Get member count
-          const { count } = await supabase
-            .from('chat_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('chat_id', chat.id);
+          // Get member count from users array
+          const memberCount = Array.isArray(chat.users) ? chat.users.length : 0;
 
           chats.push({
             id: chat.id,
-            name: chat.name || 'Unnamed Chat',
+            name: chat.chat_name || 'Unnamed Chat',
             chat_id: chat.id,
-            member_count: count || 0,
+            member_count: memberCount,
           });
         }
       }
@@ -174,28 +172,27 @@ export class TourTrackerService {
 
       if (events) {
         // Search for chats that might mention these events
+        // Note: chats table uses chat_name and is_group_chat columns
         for (const event of events) {
           const { data: eventChats } = await supabase
             .from('chats')
-            .select('id, name, metadata')
-            .ilike('name', `%${event.title}%`)
-            .eq('is_group', true);
+            .select('id, chat_name, users')
+            .ilike('chat_name', `%${event.title}%`)
+            .eq('is_group_chat', true);
 
           if (eventChats) {
             for (const chat of eventChats) {
               // Avoid duplicates
               if (!chats.find(c => c.id === chat.id)) {
-                const { count } = await supabase
-                  .from('chat_members')
-                  .select('*', { count: 'exact', head: true })
-                  .eq('chat_id', chat.id);
+                // Get member count from users array
+                const memberCount = Array.isArray(chat.users) ? chat.users.length : 0;
 
                 chats.push({
                   id: chat.id,
-                  name: chat.name || 'Unnamed Chat',
+                  name: chat.chat_name || 'Unnamed Chat',
                   chat_id: chat.id,
                   event_id: event.id,
-                  member_count: count || 0,
+                  member_count: memberCount,
                 });
               }
             }

@@ -82,6 +82,14 @@ APPLE_BUNDLE_ID=[YOUR_APPLE_BUNDLE_ID]
 APPLE_PRIVATE_KEY_PATH=backend/secure/AuthKey_[YOUR_APPLE_KEY_ID].p8  # For local development only
 
 # ============================================
+# Apple Push Notifications (APNs)
+# ============================================
+# APNs Auth Key Configuration (Recommended)
+APNS_KEY_PATH=/Users/sloiterstein/.secrets/AuthKey_J764D4P5DU.p8
+APNS_KEY_ID=J764D4P5DU
+APNS_TEAM_ID=R6JXB945ND
+
+# ============================================
 # API Key Rotation (Optional)
 # ============================================
 # Uncomment during key rotation:

@@ -34,23 +34,39 @@ export interface CreateFlagInput {
 export class ModerationService {
   /**
    * Flag content (event, review, artist, or venue)
+   * Matches the moderation_flags table schema:
+   * - status (not flag_status)
+   * - flag_category (separate field)
+   * - additional_details (not flag_details)
    */
   static async flagContent(input: CreateFlagInput): Promise<ModerationFlag> {
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user?.user) {
+      // Get authenticated user
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
         throw new Error('User must be authenticated to flag content');
       }
+
+      // In Supabase, users.user_id typically equals auth.users.id
+      // Get the user_id from the users table to ensure we have the correct reference
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      // If user_id lookup fails, use auth.uid() directly (it's usually the same)
+      const userId = userData?.user_id || user.id;
 
       const { data, error } = await supabase
         .from('moderation_flags')
         .insert({
-          flagged_by_user_id: user.user.id,
+          flagged_by_user_id: userId,
           content_type: input.content_type,
           content_id: input.content_id,
-          flag_reason: input.flag_reason,
-          flag_category: input.flag_category || 'other',
-          additional_details: input.additional_details || null,
+          flag_reason: input.flag_reason.trim(),
+          flag_category: input.flag_category || null,
+          additional_details: input.additional_details?.trim() || null,
           status: 'pending',
         })
         .select()
@@ -61,13 +77,17 @@ export class ModerationService {
         if (error.code === '23505') {
           throw new Error('You have already flagged this content');
         }
+        console.error('Database error flagging content:', error);
         throw error;
       }
 
       return data as ModerationFlag;
     } catch (error) {
       console.error('Error flagging content:', error);
-      throw error;
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to flag content');
     }
   }
 

@@ -490,11 +490,6 @@ export class UnifiedVenueSearchService {
    */
   private static async getFuzzyMatchedResults(query: string, limit: number): Promise<VenueSearchResult[]> {
     try {
-      // #region agent log
-      const queryStartTime = Date.now();
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'unifiedVenueSearchService.ts:493',message:'BEFORE database query',data:{query,limit,queryLength:query.length,pattern:`%${query}%`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       // Query venues from database with name filtering first (more efficient than fetching all)
       // Use prefix matching for single-word queries (faster, can use regular index)
       // Use full wildcard for multi-word queries (requires trigram index but matches better)
@@ -504,22 +499,12 @@ export class UnifiedVenueSearchService {
         ? `${trimmedQuery}%`  // Prefix match for single words (faster)
         : `%${trimmedQuery}%`; // Full wildcard for multi-word queries (uses trigram index)
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'unifiedVenueSearchService.ts:499',message:'Query pattern selected',data:{originalQuery:query,searchPattern,isPrefixMatch:!searchPattern.startsWith('%')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       const { data: allVenues, error } = await supabase
         .from('venues' as any)
         .select('*')
         .ilike('name', searchPattern)
         .order('num_upcoming_events', { ascending: false, nullsFirst: false })
         .limit(Math.max(limit * 5, 100)); // Get more results than needed for better fuzzy matching
-
-      // #region agent log
-      const queryEndTime = Date.now();
-      const queryDuration = queryEndTime - queryStartTime;
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'unifiedVenueSearchService.ts:506',message:'AFTER database query',data:{queryDuration,error:error?.message,resultCount:allVenues?.length||0,hasError:!!error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
 
       if (error) {
         // Handle table not existing or other database errors

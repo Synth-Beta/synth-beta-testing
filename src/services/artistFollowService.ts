@@ -112,7 +112,6 @@ export class ArtistFollowService {
           .from('artists')
           .insert({
             name: artistName,
-            jambase_artist_id: jambaseArtistId || `manual:${artistName.toLowerCase().replace(/\s+/g, '-')}`,
             identifier: jambaseArtistId || `manual:${artistName.toLowerCase().replace(/\s+/g, '-')}`,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -300,7 +299,7 @@ export class ArtistFollowService {
       // Fetch artist details
       const { data: artists, error: artistsError } = await supabase
         .from('artists')
-        .select('id, name, image_url, jambase_artist_id')
+        .select('id, name, image_url, identifier')
         .in('id', artistIds);
 
       if (artistsError) {
@@ -321,7 +320,7 @@ export class ArtistFollowService {
           created_at: follow.created_at,
           artist_name: artist?.name || null,
           artist_image_url: artist?.image_url || null,
-          jambase_artist_id: artist?.jambase_artist_id || null,
+          jambase_artist_id: artist?.identifier || null,
           num_upcoming_events: null,
           genres: null,
           user_name: null,

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { PreferencesV4FeedService, type PreferencesV4FeedFilters } from '@/services/preferencesV4FeedService';
 import { CompactEventCard } from './CompactEventCard';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
+import { SynthLoadingInline, SynthLoader } from '@/components/ui/SynthLoader';
 import { Button } from '@/components/ui/button';
 import type { PersonalizedEvent } from '@/services/personalizedFeedService';
 import type { FilterState } from '@/components/search/EventFilters';
 import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
 import { EventShareModal } from '@/components/events/EventShareModal';
+import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { useToast } from '@/hooks/use-toast';
 
 interface PreferencesV4FeedSectionProps {
@@ -35,6 +37,8 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedEventForShare, setSelectedEventForShare] = useState<PersonalizedEvent | null>(null);
+  const [flagModalOpen, setFlagModalOpen] = useState(false);
+  const [flaggedEvent, setFlaggedEvent] = useState<PersonalizedEvent | null>(null);
   const { toast } = useToast();
 
   const pageSize = 20;
@@ -145,9 +149,21 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     setShareModalOpen(true);
   };
 
+  // Handle flag click
+  const handleFlagClick = (event: PersonalizedEvent, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    console.log('Flag button clicked for event:', event.id, event.title);
+    setFlaggedEvent(event);
+    setFlagModalOpen(true);
+    console.log('Opening flag modal');
+  };
+
   const loadEvents = async (pageNum: number = 0, append: boolean = false, skipFollowingParam?: boolean) => {
     try {
       if (pageNum === 0) {
+        // Clear events first when starting fresh load to prevent showing stale data
+        setEvents([]);
         setLoading(true);
       } else {
         setLoadingMore(true);
@@ -263,10 +279,20 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     loadEvents(0, false, true);
   };
 
+  // Show loading state - clear events first if starting fresh load
   if (loading && events.length === 0) {
     return (
-      <div className={`flex items-center justify-center py-6 ${className}`}>
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      <div className={className}>
+        <SynthLoadingInline text="Loading recommendations..." size="md" />
+      </div>
+    );
+  }
+
+  // Don't show stale events when starting a fresh load
+  if (loading && page === 0) {
+    return (
+      <div className={className}>
+        <SynthLoadingInline text="Loading recommendations..." size="md" />
       </div>
     );
   }
@@ -331,6 +357,7 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
                 isInterested={interestedEvents.has(event.id) || event.user_is_interested || false}
                 onInterestClick={(e) => handleInterestToggle(event.id, e)}
                 onShareClick={(e) => handleShareClick(event, e)}
+                onFlagClick={(e) => handleFlagClick(event, e)}
                 onClick={() => onEventClick?.(event.id)}
               />
             );
@@ -355,7 +382,7 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
           >
             {loadingMore ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <SynthLoader variant="spinner" size="sm" />
                 Loading...
               </>
             ) : (
@@ -374,6 +401,30 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
           onClose={() => {
             setShareModalOpen(false);
             setSelectedEventForShare(null);
+          }}
+        />
+      )}
+
+      {/* Flag/Report Modal */}
+      {flagModalOpen && flaggedEvent && (
+        <ReportContentModal
+          open={flagModalOpen}
+          onClose={() => {
+            console.log('Closing flag modal');
+            setFlagModalOpen(false);
+            setFlaggedEvent(null);
+          }}
+          contentType="event"
+          contentId={flaggedEvent.id}
+          contentTitle={flaggedEvent.title || 'Event'}
+          onReportSubmitted={() => {
+            console.log('Report submitted');
+            setFlagModalOpen(false);
+            setFlaggedEvent(null);
+            toast({
+              title: 'Report Submitted',
+              description: 'Thank you for helping keep our community safe',
+            });
           }}
         />
       )}

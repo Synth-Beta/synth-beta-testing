@@ -52,7 +52,7 @@ class JambaseSyncService {
   /**
    * Fetch events from Jambase API with pagination
    */
-  async fetchEventsPage(page = 1, perPage = 100, dateModifiedFrom = null) {
+  async fetchEventsPage(page = 1, perPage = 100, dateModifiedFrom = null, retryCount = 0) {
     const params = new URLSearchParams({
       apikey: this.jambaseApiKey,
       expandExternalIdentifiers: 'true', // CRITICAL: includes all artist/venue IDs
@@ -73,7 +73,9 @@ class JambaseSyncService {
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'Synth/1.0'
-        }
+        },
+        // Add timeout to prevent hanging
+        signal: AbortSignal.timeout(30000) // 30 second timeout
       });
 
       if (!response.ok) {
@@ -94,12 +96,14 @@ class JambaseSyncService {
         totalPages: data.pagination?.totalPages || 0
       };
     } catch (error) {
-      // Retry logic with exponential backoff
-      if (this.stats.apiCalls <= 3) {
-        const delay = Math.pow(2, this.stats.apiCalls) * 1000; // 2s, 4s, 8s
-        console.log(`Retrying API call after ${delay}ms...`);
+      // Retry logic with exponential backoff (max 3 retries)
+      if (retryCount < 3 && (error.name === 'TypeError' || error.message?.includes('fetch failed') || error.message?.includes('network'))) {
+        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        console.log(`Network error, retrying API call (attempt ${retryCount + 1}/3) after ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
-        return this.fetchEventsPage(page, perPage, dateModifiedFrom);
+        // Don't increment apiCalls on retry
+        this.stats.apiCalls--;
+        return this.fetchEventsPage(page, perPage, dateModifiedFrom, retryCount + 1);
       }
       throw error;
     }

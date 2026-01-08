@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar as CalendarIcon, Route, Loader2, Trophy, Music, MapPin, X } from 'lucide-react';
+import { Calendar as CalendarIcon, Route, Trophy, Music, MapPin, X } from 'lucide-react';
 import { TourTrackerService, type TourEvent, type ArtistGroupChat } from '@/services/tourTrackerService';
 import { ArtistSearchBox } from '@/components/ArtistSearchBox';
 import type { Artist } from '@/types/concertSearch';
@@ -18,7 +18,10 @@ import { supabase } from '@/integrations/supabase/client';
 import type { VibeFilters } from '@/services/discoverVibeService';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
+import { CompactEventCard } from '@/components/home/CompactEventCard';
 import { LocationService } from '@/services/locationService';
+import { UserEventService } from '@/services/userEventService';
+import { SynthLoadingInline } from '@/components/ui/SynthLoader';
 
 // Create numbered marker icon factory
 const createNumberedIcon = (number: number) => {
@@ -101,6 +104,8 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
   const [tourLoading, setTourLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<JamBaseEvent | null>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
+  const [eventInterestedCounts, setEventInterestedCounts] = useState<Map<string, number>>(new Map());
 
   // Track the last filter key to prevent unnecessary reloads
   const lastFilterKeyRef = useRef<string>('');
@@ -261,10 +266,59 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
       
       const chats = await TourTrackerService.getArtistGroupChats(selectedArtist.id, currentUserId);
       setGroupChats(chats);
+      
+      // Load interested events and counts
+      if (currentUserId && events.length > 0) {
+        await loadInterestedData(events.map(e => e.id));
+      }
     } catch (error) {
       console.error('Error loading tour data:', error);
     } finally {
       setTourLoading(false);
+    }
+  };
+
+  const loadInterestedData = async (eventIds: string[]) => {
+    if (!currentUserId || eventIds.length === 0) return;
+    
+    try {
+      // Load user's interested events
+      const { data: userInterests, error: interestsError } = await supabase
+        .from('user_event_relationships')
+        .select('event_id')
+        .eq('user_id', currentUserId)
+        .eq('relationship_type', 'interested')
+        .in('event_id', eventIds);
+      
+      if (!interestsError && userInterests) {
+        const interestedSet = new Set<string>();
+        userInterests.forEach((item: any) => {
+          if (item.event_id) {
+            interestedSet.add(String(item.event_id));
+          }
+        });
+        setInterestedEvents(interestedSet);
+      }
+      
+      // Load interested counts for all events
+      const { data: allInterests, error: countsError } = await supabase
+        .from('user_event_relationships')
+        .select('event_id')
+        .eq('relationship_type', 'interested')
+        .in('event_id', eventIds);
+      
+      if (!countsError && allInterests) {
+        const countsMap = new Map<string, number>();
+        allInterests.forEach((item: any) => {
+          if (item.event_id) {
+            const eventId = String(item.event_id);
+            countsMap.set(eventId, (countsMap.get(eventId) || 0) + 1);
+          }
+        });
+        setEventInterestedCounts(countsMap);
+      }
+    } catch (error) {
+      console.error('Error loading interested data:', error);
     }
   };
 
@@ -459,19 +513,17 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         {/* Calendar View */}
         <TabsContent value="calendar" className="mt-4">
           {calendarLoading ? (
-            <div className="flex items-center justify-center h-96">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
+            <SynthLoadingInline text="Loading calendar..." size="lg" />
           ) : (
-            <div className="space-y-4 flex flex-col items-center">
-              <div className="w-full max-w-2xl">
+            <div className="space-y-4 flex flex-col items-center justify-center">
+              <div className="flex justify-center w-full">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
                   onSelect={handleDateSelect}
                   month={calendarDate}
                   onMonthChange={setCalendarDate}
-                  className="rounded-md border mx-auto"
+                  className="rounded-md border"
                   numberOfMonths={1}
                   disabled={(date) => {
                     // Disable dates before today
@@ -649,9 +701,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
             )}
 
             {tourLoading ? (
-              <div className="flex items-center justify-center h-96">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              </div>
+              <SynthLoadingInline text="Loading tour data..." size="lg" />
             ) : selectedArtist && tourEvents.length > 0 ? (
               <>
                 <div className="h-96 rounded-lg overflow-hidden border relative z-0">
@@ -744,42 +794,73 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                 {/* Events Feed */}
                 <div className="mt-4">
                   <h3 className="font-semibold mb-3">Tour Dates ({sortedTourEvents.length})</h3>
-                  <div className="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-96 overflow-y-auto">
                     {sortedTourEvents.map((event) => {
-                      const venueNumber = eventToVenueNumber.get(event.id) || 0;
-                      const venueGroup = groupedVenues.find(g => g.events.some(e => e.id === event.id));
-                      const isFirstEventAtVenue = venueGroup?.events[0]?.id === event.id;
+                      const isInterested = interestedEvents.has(event.id);
+                      const interestedCount = eventInterestedCounts.get(event.id) || 0;
                       
                       return (
-                        <Card key={event.id} className="cursor-pointer hover:shadow-md" onClick={() => handleEventClick(event)}>
-                          <CardContent className="p-4">
-                            <div className="flex items-start gap-3">
-                              {isFirstEventAtVenue && (
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-synth-pink text-white flex items-center justify-center font-bold text-sm">
-                                  {venueNumber}
-                                </div>
-                              )}
-                              {!isFirstEventAtVenue && (
-                                <div className="flex-shrink-0 w-8 h-8" />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold">{event.title}</h4>
-                                <p className="text-sm text-muted-foreground">{event.venue_name}</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {event.venue_city}{event.venue_state ? `, ${event.venue_state}` : ''}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {format(new Date(event.event_date), 'MMMM d, yyyy • h:mm a')}
-                                </p>
-                                {venueGroup && venueGroup.events.length > 1 && isFirstEventAtVenue && (
-                                  <p className="text-xs text-muted-foreground mt-1 italic">
-                                    {venueGroup.events.length} {venueGroup.events.length === 1 ? 'show' : 'shows'} at this venue
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
+                        <CompactEventCard
+                          key={event.id}
+                          event={{
+                            id: event.id,
+                            title: event.title || '',
+                            artist_name: event.artist_name,
+                            venue_name: event.venue_name,
+                            event_date: event.event_date,
+                            venue_city: event.venue_city,
+                            image_url: event.image_url,
+                            poster_image_url: event.poster_image_url,
+                          }}
+                          interestedCount={interestedCount}
+                          isInterested={isInterested}
+                          onInterestClick={async (e) => {
+                            e.stopPropagation();
+                            if (!currentUserId) return;
+                            
+                            const newInterestState = !isInterested;
+                            
+                            // Optimistically update UI
+                            setInterestedEvents(prev => {
+                              const next = new Set(prev);
+                              if (newInterestState) {
+                                next.add(event.id);
+                              } else {
+                                next.delete(event.id);
+                              }
+                              return next;
+                            });
+                            
+                            try {
+                              await UserEventService.toggleEventInterest(
+                                currentUserId,
+                                event.id,
+                                newInterestState
+                              );
+                              
+                              // Update count
+                              setEventInterestedCounts(prev => {
+                                const next = new Map(prev);
+                                const currentCount = next.get(event.id) || 0;
+                                next.set(event.id, newInterestState ? currentCount + 1 : Math.max(0, currentCount - 1));
+                                return next;
+                              });
+                            } catch (error) {
+                              console.error('Error toggling interest:', error);
+                              // Revert optimistic update
+                              setInterestedEvents(prev => {
+                                const next = new Set(prev);
+                                if (isInterested) {
+                                  next.add(event.id);
+                                } else {
+                                  next.delete(event.id);
+                                }
+                                return next;
+                              });
+                            }
+                          }}
+                          onClick={() => handleEventClick(event)}
+                        />
                       );
                     })}
                   </div>

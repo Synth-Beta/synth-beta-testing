@@ -745,7 +745,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
         </div>
       </div>
     );
-  }
+    }
 
   if (!runTour) {
     return null;

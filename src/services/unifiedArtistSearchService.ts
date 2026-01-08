@@ -547,11 +547,6 @@ export class UnifiedArtistSearchService {
    */
   private static async getFuzzyMatchedResults(query: string, limit: number): Promise<ArtistSearchResult[]> {
     try {
-      // #region agent log
-      const queryStartTime = Date.now();
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'unifiedArtistSearchService.ts:497',message:'BEFORE database query',data:{query,limit,queryLength:query.length,pattern:`%${query}%`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       // Query artists from database with name filtering first (more efficient)
       // Use prefix matching for single-word queries (faster, can use regular index)
       // Use full wildcard for multi-word queries (requires trigram index but matches better)
@@ -561,21 +556,11 @@ export class UnifiedArtistSearchService {
         ? `${trimmedQuery}%`  // Prefix match for single words (faster)
         : `%${trimmedQuery}%`; // Full wildcard for multi-word queries (uses trigram index)
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'unifiedArtistSearchService.ts:503',message:'Query pattern selected',data:{originalQuery:query,searchPattern,isPrefixMatch:!searchPattern.startsWith('%')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       const { data: artistsFromTable, error: artistsError } = await supabase
         .from('artists')
         .select('id, name, identifier, image_url, genres')
         .ilike('name', searchPattern)
         .limit(Math.max(limit * 5, 100)); // Get more results than needed for better fuzzy matching
-
-      // #region agent log
-      const queryEndTime = Date.now();
-      const queryDuration = queryEndTime - queryStartTime;
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'unifiedArtistSearchService.ts:510',message:'AFTER database query',data:{queryDuration,error:artistsError?.message,resultCount:artistsFromTable?.length||0,hasError:!!artistsError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
 
       if (artistsError) {
         console.warn(`⚠️  Database error getting artists: ${artistsError.message}`);

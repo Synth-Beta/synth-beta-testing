@@ -32,12 +32,12 @@ import {
   Images,
   Play,
   Heart,
-  Loader2,
   ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { FriendsService } from '@/services/friendsService';
 import { useToast } from '@/hooks/use-toast';
+import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
 import { format, parseISO } from 'date-fns';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { EventMessageCard } from '@/components/chat/EventMessageCard';
@@ -1377,46 +1377,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-[calc(100vh-139px)] synth-gradient-card">
-        {/* Left Sidebar skeleton */}
-        <div className="w-1/3 border-r border-synth-black/10 bg-white/95 backdrop-blur-sm flex flex-col">
-          {/* Header skeleton */}
-          <div className="p-6 border-b border-synth-black/10 bg-gradient-to-r from-synth-beige to-synth-beige-light">
-            <div className="flex items-center gap-3 mb-4">
-              <SynthSLogo size="sm" className="animate-breathe" />
-              <div className="h-8 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse w-24"></div>
-            </div>
-          </div>
-          
-          {/* Chat list skeleton */}
-          <div className="flex-1 p-6 space-y-3">
-            <SkeletonNotificationCard />
-            <SkeletonNotificationCard />
-            <SkeletonNotificationCard />
-          </div>
-        </div>
-        
-        {/* Main chat area skeleton */}
-        <div className="flex-1 flex flex-col bg-white/95">
-          <div className="p-6 border-b border-synth-black/10 bg-gradient-to-r from-synth-beige to-synth-beige-light">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-pink-100 to-pink-200 rounded-full animate-pulse"></div>
-              <div className="space-y-2">
-                <div className="h-4 bg-gradient-to-r from-pink-100 to-white rounded animate-pulse w-24"></div>
-                <div className="h-3 bg-gradient-to-r from-pink-50 to-white rounded animate-pulse w-16"></div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-6 space-y-3">
-            <SkeletonChatMessage />
-            <SkeletonChatMessage />
-            <SkeletonChatMessage />
-          </div>
-        </div>
-      </div>
-    );
+    return <SynthLoadingScreen text="Loading messages..." />;
   }
 
   return (
@@ -1874,22 +1835,22 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
             {!selectedChat.is_group_chat && (
               <div className="px-5 pb-5 bg-white">
                 <div className="bg-[#fcfcfc] border-2 border-[#c9c9c9] rounded-[10px] flex items-center justify-between h-[44px] pl-5 pr-[1px]">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                     className="bg-transparent border-0 flex-1 h-full text-[16px] text-[#5d646f] placeholder:text-[#5d646f] focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
-                  />
-                  <Button 
-                    onClick={sendMessage} 
-                    disabled={!newMessage.trim()}
+                />
+                <Button 
+                  onClick={sendMessage} 
+                  disabled={!newMessage.trim()}
                     className="bg-[#cc2486] hover:bg-[#b01f75] text-white h-[44px] w-[44px] p-0 rounded-br-[10px] rounded-tr-[10px] rounded-bl-0 rounded-tl-0 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                  >
+                >
                     <Send className="w-[22px] h-[22px] text-[#fcfcfc]" />
-                  </Button>
-                </div>
+                </Button>
               </div>
+            </div>
             )}
           </>
           </div>
@@ -2010,8 +1971,8 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                 <h3 className="text-lg font-semibold">Coming Soon</h3>
                 <p className="text-sm text-muted-foreground">
                   Group chats are still in development
-                </p>
-              </div>
+                  </p>
+                </div>
             </div>
             
             <Button

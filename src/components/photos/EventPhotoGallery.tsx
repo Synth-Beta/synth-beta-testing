@@ -9,10 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Heart, MessageCircle, Trash2, Loader2, Image as ImageIcon, Upload } from 'lucide-react';
+import { Heart, MessageCircle, Trash2, Image as ImageIcon, Upload } from 'lucide-react';
+import { SynthLoadingInline } from '@/components/ui/SynthLoader';
 import EventPhotoService, { EventPhoto } from '@/services/eventPhotoService';
-import { UploadEventPhotoModal } from './UploadEventPhotoModal';
-import { PhotoCommentsModal } from './PhotoCommentsModal';
 
 interface EventPhotoGalleryProps {
   eventId: string;
@@ -25,9 +24,6 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
   const { toast } = useToast();
   const [photos, setPhotos] = useState<EventPhoto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<EventPhoto | null>(null);
-  const [showCommentsModal, setShowCommentsModal] = useState(false);
 
   useEffect(() => {
     loadPhotos();
@@ -38,62 +34,29 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
     try {
       const photosData = await EventPhotoService.getEventPhotos(eventId, 50);
       setPhotos(photosData);
+      // Don't show error if no photos found - that's expected if no reviews have photos
     } catch (error) {
       console.error('Error loading photos:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load event photos',
-        variant: 'destructive',
-      });
+      setPhotos([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
   };
 
   const handleLike = async (photo: EventPhoto) => {
-    try {
-      await EventPhotoService.togglePhotoLike(photo.id, !photo.user_has_liked);
-      
-      // Update local state
-      setPhotos((prev) =>
-        prev.map((p) =>
-          p.id === photo.id
-            ? {
-                ...p,
-                user_has_liked: !p.user_has_liked,
-                likes_count: p.user_has_liked ? p.likes_count - 1 : p.likes_count + 1,
-              }
-            : p
-        )
-      );
-    } catch (error) {
-      console.error('Error liking photo:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to like photo',
-        variant: 'destructive',
-      });
-    }
+    // Photos in reviews don't have separate likes - they use review likes
+    toast({
+      title: 'Info',
+      description: 'Photos are part of reviews. Like the review instead.',
+    });
   };
 
   const handleDelete = async (photo: EventPhoto) => {
-    if (!confirm('Are you sure you want to delete this photo?')) return;
-
-    try {
-      await EventPhotoService.deletePhoto(photo.id);
-      toast({
-        title: 'Photo Deleted',
-        description: 'Your photo has been removed',
-      });
-      setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
-    } catch (error) {
-      console.error('Error deleting photo:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete photo',
-        variant: 'destructive',
-      });
-    }
+    // Photos are part of reviews - users should edit the review to remove photos
+    toast({
+      title: 'Info',
+      description: 'Photos are part of reviews. Please edit the review to remove photos.',
+    });
   };
 
   const PhotoCard = ({ photo }: { photo: EventPhoto }) => (
@@ -154,8 +117,10 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
             variant="ghost"
             size="sm"
             onClick={() => {
-              setSelectedPhoto(photo);
-              setShowCommentsModal(true);
+              toast({
+                title: 'Info',
+                description: 'Photos are part of reviews. Comment on the review instead.',
+              });
             }}
             className="text-gray-600"
           >
@@ -199,7 +164,15 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
           </p>
         </div>
         {canUpload && (
-          <Button onClick={() => setShowUploadModal(true)} size="sm">
+          <Button 
+            onClick={() => {
+              toast({
+                title: 'Info',
+                description: 'Photos are added through reviews. Please create or edit a review to add photos.',
+              });
+            }} 
+            size="sm"
+          >
             <Upload className="h-4 w-4 mr-2" />
             Upload Photo
           </Button>
@@ -208,9 +181,7 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
 
       {/* Gallery Grid */}
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
-        </div>
+        <SynthLoadingInline text="Loading photos..." size="lg" />
       ) : photos.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
@@ -220,7 +191,12 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
               Be the first to share a photo from this event!
             </p>
             {canUpload && (
-              <Button onClick={() => setShowUploadModal(true)}>
+              <Button onClick={() => {
+                toast({
+                  title: 'Info',
+                  description: 'Photos are added through reviews. Please create or edit a review to add photos.',
+                });
+              }}>
                 <Upload className="h-4 w-4 mr-2" />
                 Upload First Photo
               </Button>
@@ -235,33 +211,6 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
         </div>
       )}
 
-      {/* Upload Modal */}
-      {user && (
-        <UploadEventPhotoModal
-          open={showUploadModal}
-          onClose={() => setShowUploadModal(false)}
-          eventId={eventId}
-          eventTitle={eventTitle}
-          userId={user.id}
-          onPhotoUploaded={() => {
-            setShowUploadModal(false);
-            loadPhotos();
-          }}
-        />
-      )}
-
-      {/* Comments Modal */}
-      {selectedPhoto && (
-        <PhotoCommentsModal
-          open={showCommentsModal}
-          onClose={() => {
-            setShowCommentsModal(false);
-            setSelectedPhoto(null);
-          }}
-          photo={selectedPhoto}
-          onCommentAdded={loadPhotos}
-        />
-      )}
     </div>
   );
 }
