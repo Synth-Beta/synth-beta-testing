@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Navigation } from './Navigation';
+import { GlobalHamburgerButton } from '@/components/GlobalHamburgerButton';
+import { SideMenu } from '@/components/SideMenu/SideMenu';
+import { BottomNavAdapter } from './BottomNavAdapter';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import { ConcertFeed } from './events/ConcertFeed';
 import { UnifiedFeed } from './UnifiedFeed';
 import { SearchMap } from './SearchMap';
@@ -247,6 +250,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [showAuth, setShowAuth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showEventReviewModal, setShowEventReviewModal] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Lock body scroll when menu is open
+  useLockBodyScroll(menuOpen);
 
   const handleForceLogin = () => {
     setShowAuth(true);
@@ -416,6 +423,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     setCurrentView('chat');
   };
 
+  const handleMenuToggle = () => {
+    setMenuOpen(!menuOpen);
+  };
+
+  const handleMenuClose = () => {
+    setMenuOpen(false);
+  };
+
   const handleOnboardingComplete = async () => {
     setCurrentView('feed');
     setShowOnboardingReminder(false);
@@ -581,6 +596,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         backgroundColor: 'transparent'
       }}
     >
+      {/* Global Hamburger Button - floating above page content */}
+      <GlobalHamburgerButton menuOpen={menuOpen} onMenuClick={handleMenuToggle} />
+
       {/* Onboarding Reminder Banner */}
       {showOnboardingReminder && (
         <OnboardingReminderBanner onComplete={() => setCurrentView('onboarding')} />
@@ -607,22 +625,29 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       <div className={showMainNav ? 'pb-[100px]' : 'pb-20'}>
         {renderCurrentView()}
       </div>
-      {/* Show bottom navigation for main pages (Discover, Connect, Share) */}
+
+      {/* New Bottom Navigation - replaces old Navigation */}
       {showMainNav && (
-        <Navigation 
-          currentView={currentView as 'feed' | 'search' | 'profile' | 'analytics' | 'events' | 'chat'} 
+        <BottomNavAdapter 
+          currentView={currentView}
           onViewChange={handleViewChange}
           onOpenEventReview={() => setShowEventReviewModal(true)}
         />
       )}
-      {/* Show bottom navigation for other pages (analytics, events, etc.) */}
       {!showMainNav && currentView !== 'profile-edit' && (
-        <Navigation 
-          currentView={currentView as 'search' | 'profile' | 'analytics' | 'events' | 'chat'} 
+        <BottomNavAdapter 
+          currentView={currentView}
           onViewChange={handleViewChange}
           onOpenEventReview={() => setShowEventReviewModal(true)}
         />
       )}
+
+      {/* New Side Menu */}
+      <SideMenu
+        isOpen={menuOpen}
+        onClose={handleMenuClose}
+        onToggle={handleMenuToggle}
+      />
 
       {/* Settings Modal */}
       <SettingsModal

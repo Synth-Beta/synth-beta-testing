@@ -1,0 +1,25 @@
+/**
+ * Mobile Page Styles
+ * 
+ * Shared styles for mobile preview placeholder pages.
+ * Uses typography tokens.
+ */
+
+.mobile-page {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-top: var(--spacing-grouped, 24px);
+}
+
+.mobile-page__title {
+  font-size: var(--typography-h1-size, 35px);
+  font-weight: var(--typography-h1-weight, 700);
+  line-height: var(--typography-h1-line-height, 1.2);
+  color: var(--color-off-black, #0E0E0E);
+  font-family: var(--font-family);
+  margin: 0;
+}
+

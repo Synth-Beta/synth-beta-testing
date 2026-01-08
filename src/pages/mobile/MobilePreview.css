@@ -1,0 +1,35 @@
+/**
+ * Mobile Preview Layout Styles
+ * 
+ * Styles for the mobile preview container and layout.
+ * Uses design tokens for spacing and colors.
+ */
+
+.mobile-preview {
+  min-height: 100vh;
+  background-color: var(--color-off-white, #FCFCFC);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  /* Safe area variable:
+     - Use device safe area when available (e.g., ~59px on iPhone 14 Pro with notch)
+     - Fallback: In desktop/mobile-preview, use 15px so total header = 59px (15px safe area + 44px bar)
+     - This matches the Figma frame where total header height is 59px */
+  --safe-area-top: max(env(safe-area-inset-top, 0px), 15px);
+}
+
+.mobile-preview__content {
+  flex: 1;
+  width: 100%;
+  /* Add padding top for header: safe area + 44px header bar */
+  padding-top: calc(var(--safe-area-top) + 44px);
+  /* Add padding bottom for bottom nav (100px + safe area) */
+  padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  /* Horizontal padding for screen margins */
+  padding-left: var(--spacing-screen-margin-x, 20px);
+  padding-right: var(--spacing-screen-margin-x, 20px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+

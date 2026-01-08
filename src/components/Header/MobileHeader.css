@@ -1,0 +1,80 @@
+/**
+ * Mobile Header Styles
+ * 
+ * Styles for MobileHeader component using design tokens.
+ */
+
+.mobile-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background-color: var(--color-off-white, #FCFCFC);
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+  /* Safe area support: header background starts at very top and includes notch/status bar */
+  /* Inherit --safe-area-top from parent (mobile-preview) or use env() directly */
+  /* Fallback: use 59px - 44px = 15px for desktop preview (matches iPhone 14 Pro safe area) */
+  padding-top: var(--safe-area-top, max(env(safe-area-inset-top, 0px), 15px));
+}
+
+.mobile-header__container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 44px visible header bar below the safe area */
+  height: 44px;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+}
+
+.mobile-header__center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* This ensures content is truly centered */
+}
+
+.mobile-header__menu-button {
+  position: absolute;
+  right: var(--spacing-screen-margin-x, 20px);
+  width: var(--size-input-height, 44px);
+  height: var(--size-input-height, 44px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.2s ease;
+  /* Ensure icon is perfectly centered regardless of SVG viewBox differences */
+  line-height: 0;
+}
+
+.mobile-header__menu-button > * {
+  /* Ensure the icon (img) is perfectly centered within the 44x44 button */
+  margin: 0;
+  padding: 0;
+  display: block;
+  flex-shrink: 0;
+}
+
+.mobile-header__menu-button:hover {
+  opacity: 0.8;
+}
+
+.mobile-header__menu-button:active {
+  opacity: 0.6;
+}
+
+.mobile-header__menu-button:focus-visible {
+  outline: 2px solid var(--color-synth-pink, #CC2486);
+  outline-offset: 2px;
+  border-radius: var(--radius-corner, 10px);
+}
+

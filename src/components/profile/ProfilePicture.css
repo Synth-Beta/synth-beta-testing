@@ -1,0 +1,91 @@
+/**
+ * ProfilePicture Styles
+ *
+ * Circular avatar component using Synth design tokens.
+ * - Uses brand profile gradient as background
+ * - Inset shadow to match Figma placeholder avatar
+ */
+
+.profile-picture {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  /* PinkPurple gradient – fallback matches Figma spec if token is missing */
+  background-image: var(
+    --gradient-pink-purple,
+    linear-gradient(
+      90deg,
+      var(--color-synth-pink, #CC2486) 0%,
+      var(--color-purple, #8D1FF4) 100%
+    )
+  );
+  /* Figma inset shadow for placeholder avatars */
+  box-shadow: 0 4px 4px 1px rgba(0, 0, 0, 0.25) inset;
+  overflow: hidden;
+}
+
+/* Size variants */
+.profile-picture--32 {
+  width: 32px;
+  height: 32px;
+}
+
+.profile-picture--45 {
+  width: 45px;
+  height: 45px;
+  aspect-ratio: 1 / 1;
+}
+
+.profile-picture--75 {
+  width: 75px;
+  height: 75px;
+}
+
+/* Image variant - full bleed circle */
+.profile-picture__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Initial variant - centered text */
+.profile-picture__initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  color: var(--color-off-white, #FCFCFC);
+  text-align: center;
+}
+
+/* Typography scales with size using existing tokens */
+.profile-picture--32 .profile-picture__initial {
+  font-size: var(--typography-meta-size);
+  font-weight: var(--typography-accent-weight);
+  line-height: 1;
+}
+
+.profile-picture--45 .profile-picture__initial {
+  font-size: var(--typography-body-size);
+  font-weight: var(--typography-accent-weight);
+  line-height: 1.1;
+}
+
+.profile-picture--75 .profile-picture__initial {
+  font-size: var(--typography-h2-size);
+  font-weight: var(--typography-h2-weight);
+  line-height: 1.1;
+}
+
+/* Music icon variant - center white music icon */
+.profile-picture__icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  /* Convert base icon color to OffWhite while preserving shape */
+  filter: brightness(0) saturate(100%) invert(100%);
+}
+
+

@@ -11,6 +11,7 @@ import VenueEvents from "./pages/VenueEvents";
 import { StreamingStatsPage } from "./pages/StreamingStatsPage";
 import { ArtistFollowingPage } from "./pages/ArtistFollowingPage";
 import Admin from "./pages/Admin";
+import MobilePreview from "./pages/mobile/MobilePreview";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,8 @@ const App = () => {
               <Route path="/following" element={<ArtistFollowingPage />} />
               <Route path="/following/:userId" element={<ArtistFollowingPage />} />
               <Route path="/auth/spotify/callback" element={<SpotifyCallback />} />
+              {/* Mobile preview route for beta testing */}
+              <Route path="/mobile-preview/*" element={<MobilePreview />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
