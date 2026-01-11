@@ -26,7 +26,6 @@ import { FlagContentModal } from '@/components/moderation/FlagContentModal';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { LocationService } from '@/services/locationService';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
-import { TopRightMenu } from '@/components/TopRightMenu';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -215,6 +214,55 @@ interface FriendEventInterest {
   useEffect(() => {
     loadUserCity();
     loadFeedLocation(); // Also load location for feed filtering
+  }, [currentUserId]);
+
+  // Check for selectedEvent in localStorage (from notification navigation)
+  useEffect(() => {
+    const checkForSelectedEvent = async () => {
+      try {
+        const storedEvent = localStorage.getItem('selectedEvent');
+        if (storedEvent) {
+          const eventData = JSON.parse(storedEvent);
+          
+          // Clear localStorage immediately to prevent re-opening
+          localStorage.removeItem('selectedEvent');
+          
+          // Set the event first
+          setSelectedEvent(eventData);
+          
+          // Check if user is interested in this event
+          if (eventData.id) {
+            const interested = await UserEventService.isUserInterested(currentUserId, eventData.id);
+            setSelectedEventInterested(interested);
+          }
+          
+          // Open the modal after a brief delay to ensure state is set
+          setTimeout(() => {
+            setEventDetailsOpen(true);
+          }, 50);
+        }
+      } catch (error) {
+        console.error('Error loading selectedEvent from localStorage:', error);
+        localStorage.removeItem('selectedEvent'); // Clear invalid data
+      }
+    };
+
+    // Check immediately on mount or when currentUserId changes
+    checkForSelectedEvent();
+    
+    // Also listen for the open-event-details custom event
+    const handleOpenEventDetails = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { event?: any; eventId?: string };
+      if (detail?.event) {
+        checkForSelectedEvent();
+      }
+    };
+    
+    window.addEventListener('open-event-details', handleOpenEventDetails);
+    
+    return () => {
+      window.removeEventListener('open-event-details', handleOpenEventDetails);
+    };
   }, [currentUserId]);
 
   // Note: Location filtering is now handled by loadFeedLocation which always uses lat/long + radius
@@ -1215,12 +1263,9 @@ interface FriendEventInterest {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-                            </div>
-          <div className="flex items-center gap-2">
-            <TopRightMenu />
-                      </div>
-                  </div>
-                </div>
+          </div>
+        </div>
+      </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
         {/* Location Filter - compact info section above feeds */}
         {feedLocation && (

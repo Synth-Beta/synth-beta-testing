@@ -48,7 +48,6 @@ import { ProfileStarBuckets } from './ProfileStarBuckets';
 import { PassportModal } from '@/components/discover/PassportModal';
 import { PassportService } from '@/services/passportService';
 import { Sparkles } from 'lucide-react';
-import { TopRightMenu } from '@/components/TopRightMenu';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
 
 interface ProfileViewProps {
@@ -252,8 +251,20 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     const hash = window.location.hash.substring(1);
     if (hash === 'spotify') {
       setActiveTab('spotify');
+      return; // Don't check sessionStorage if hash is present
     }
-  }, []);
+    
+    // Check for tab preference from sessionStorage (set by SideMenu navigation)
+    // Only read if we're viewing own profile to avoid conflicts
+    if (isViewingOwnProfile) {
+      const preferredTab = sessionStorage.getItem('profileTab');
+      if (preferredTab && ['timeline', 'interested', 'passport'].includes(preferredTab)) {
+        // Map 'timeline' to 'passport' for backward compatibility
+        setActiveTab(preferredTab === 'timeline' ? 'passport' : preferredTab);
+        sessionStorage.removeItem('profileTab'); // Clear after use
+      }
+    }
+  }, [isViewingOwnProfile]);
 
   useEffect(() => {
     // Show by default; optionally restrict later based on friends
@@ -1594,9 +1605,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           <h1 className="text-xl font-bold text-gray-900 truncate text-center">
             {profile.username ? `@${profile.username}` : profile.name}
           </h1>
-          <div className="absolute right-4">
-          <TopRightMenu />
-        </div>
       </div>
           </div>
       <div className="w-full max-w-full p-4 overflow-x-hidden">

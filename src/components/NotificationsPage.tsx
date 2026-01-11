@@ -26,9 +26,20 @@ import { SkeletonNotificationCard } from '@/components/skeleton/SkeletonNotifica
 interface NotificationsPageProps {
   currentUserId: string;
   onBack: () => void;
+  onNavigateToProfile?: (userId?: string, tab?: 'timeline' | 'interested') => void;
+  onNavigateToEvent?: (eventId: string) => void;
+  onNavigateToArtist?: (artistId: string) => void;
+  onNavigateToVenue?: (venueName: string) => void;
 }
 
-export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPageProps) => {
+export const NotificationsPage = ({ 
+  currentUserId, 
+  onBack,
+  onNavigateToProfile,
+  onNavigateToEvent,
+  onNavigateToArtist,
+  onNavigateToVenue,
+}: NotificationsPageProps) => {
   const [notifications, setNotifications] = useState<NotificationWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -515,6 +526,108 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   };
 
+  const handleNotificationClick = async (notification: NotificationWithDetails) => {
+    // Don't navigate for friend requests - they have Accept/Decline buttons
+    if (notification.type === 'friend_request') {
+      // Just mark as read, don't navigate
+      await markAsRead(notification.id);
+      return;
+    }
+
+    // Mark as read first (don't await, navigate immediately)
+    markAsRead(notification.id);
+
+    const data = notification.data as any;
+
+    // Navigate based on notification type and available data
+    switch (notification.type) {
+      case 'artist_new_event':
+      case 'artist_profile_updated':
+        // Prioritize navigating to event if available (more specific)
+        if (data?.event_id && onNavigateToEvent) {
+          onNavigateToEvent(data.event_id);
+        } else if (data?.artist_id && onNavigateToArtist) {
+          // Navigate to artist page
+          onNavigateToArtist(data.artist_id);
+        } else if (notification.artist_name && onNavigateToArtist) {
+          // Try to search for artist by name (fallback)
+          // For now, navigate using the name as ID (route will handle lookup)
+          onNavigateToArtist(notification.artist_name);
+        }
+        break;
+
+      case 'venue_new_event':
+      case 'venue_profile_updated':
+        // Navigate to venue if venue name is available
+        if (notification.venue_name && onNavigateToVenue) {
+          onNavigateToVenue(notification.venue_name);
+        } else if (data?.venue_name && onNavigateToVenue) {
+          onNavigateToVenue(data.venue_name);
+        }
+        // If event_id is available, navigate to event instead
+        if (data?.event_id && onNavigateToEvent) {
+          onNavigateToEvent(data.event_id);
+        }
+        break;
+
+      case 'event_interest':
+      case 'event_attendance_reminder':
+      case 'event_reminder':
+      case 'friend_rsvp_going':
+      case 'friend_rsvp_changed':
+      case 'friend_review_posted':
+      case 'friend_attended_same_event':
+        // Navigate to event
+        if (data?.event_id && onNavigateToEvent) {
+          onNavigateToEvent(data.event_id);
+        } else if (notification.event_title) {
+          // Try to find event by title or other identifier
+          console.log('Navigate to event:', notification.event_title);
+        }
+        break;
+
+      case 'friend_request':
+      case 'friend_accepted':
+        // Navigate to profile
+        if (data?.sender_id && onNavigateToProfile) {
+          onNavigateToProfile(data.sender_id);
+        } else if (data?.friend_id && onNavigateToProfile) {
+          onNavigateToProfile(data.friend_id);
+        } else if (notification.actor_user_id && onNavigateToProfile) {
+          onNavigateToProfile(notification.actor_user_id);
+        }
+        break;
+
+      case 'review_liked':
+      case 'review_commented':
+      case 'comment_replied':
+        // Navigate to event (reviews are associated with events)
+        if (data?.event_id && onNavigateToEvent) {
+          onNavigateToEvent(data.event_id);
+        } else if (notification.review_id) {
+          // Try to fetch review to get event_id
+          try {
+            const { data: reviewData } = await supabase
+              .from('reviews')
+              .select('event_id')
+              .eq('id', notification.review_id)
+              .single();
+            
+            if (reviewData?.event_id && onNavigateToEvent) {
+              onNavigateToEvent(reviewData.event_id);
+            }
+          } catch (error) {
+            console.error('Error fetching review event:', error);
+          }
+        }
+        break;
+
+      default:
+        // For other types, just mark as read (handled above)
+        break;
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen synth-gradient-card p-4 pb-20">
@@ -593,7 +706,7 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
                 className={`glass-card inner-glow hover-card cursor-pointer floating-shadow ${
                   !notification.is_read ? 'border-pink-300' : ''
                 }`}
-                onClick={() => markAsRead(notification.id)}
+                onClick={() => handleNotificationClick(notification)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
@@ -628,9 +741,10 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
                               size="sm" 
                               variant="default" 
                               className="hover-button gradient-button h-6 px-2"
-                              onClick={(e) => {
+                              onClick={async (e) => {
                                 e.stopPropagation();
-                                handleAcceptFriendRequest((notification.data as any)?.request_id);
+                                e.preventDefault();
+                                await handleAcceptFriendRequest((notification.data as any)?.request_id);
                               }}
                             >
                               <Check className="w-3 h-3 mr-1 hover-icon" />
@@ -640,9 +754,10 @@ export const NotificationsPage = ({ currentUserId, onBack }: NotificationsPagePr
                               size="sm" 
                               variant="outline" 
                               className="hover-button h-6 px-2 border-gray-200 hover:border-red-400 hover:text-red-500"
-                              onClick={(e) => {
+                              onClick={async (e) => {
                                 e.stopPropagation();
-                                handleDeclineFriendRequest((notification.data as any)?.request_id);
+                                e.preventDefault();
+                                await handleDeclineFriendRequest((notification.data as any)?.request_id);
                               }}
                             >
                               <X className="w-3 h-3 mr-1 hover-icon" />

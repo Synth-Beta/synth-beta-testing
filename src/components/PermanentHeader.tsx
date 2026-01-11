@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { cn } from '@/lib/utils';
 
 interface PermanentHeaderProps {
@@ -44,13 +45,12 @@ export const PermanentHeader: React.FC<PermanentHeaderProps> = ({
         </div>
 
         {/* Right side: Notification Bell Button */}
-        <Button
-          onClick={onNavigateToNotifications}
-          className="bg-[#cc2486] hover:bg-[#b01f75] p-3 rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] w-[44px] h-[44px] flex items-center justify-center transition-colors"
-          aria-label="Notifications"
-        >
-          <Bell className="w-6 h-6 text-white" strokeWidth={2} />
-        </Button>
+        <div className="relative">
+          <NotificationBell
+            onClick={onNavigateToNotifications}
+            className="bg-[#cc2486] hover:bg-[#b01f75] p-3 rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] w-[44px] h-[44px] flex items-center justify-center transition-colors border-0"
+          />
+        </div>
       </div>
     </header>
   );

@@ -5,14 +5,19 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { LogOut, User, Bell, Shield, HelpCircle, Info, Mail, Key, AtSign, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { LogOut, User, Bell, Shield, Mail, Key, AtSign, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-// import { EmailPreferencesSettings } from '@/components/EmailPreferencesSettings';
-// import { OnboardingPreferencesSettings } from '@/components/OnboardingPreferencesSettings';
+import { OnboardingPreferencesSettings } from '@/components/OnboardingPreferencesSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { UserVisibilityService } from '@/services/userVisibilityService';
 import { useAuth } from '@/hooks/useAuth';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
+import { 
+  getUserSettingsPreferences, 
+  updateUserSettingsPreferences,
+  getCurrentUserSettingsPreferences,
+  updateCurrentUserSettingsPreferences 
+} from '@/services/userSettingsPreferencesService';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -23,7 +28,7 @@ interface SettingsModalProps {
 
 export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: SettingsModalProps) => {
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [view, setView] = useState<'menu' | 'email-preferences' | 'onboarding-preferences' | 'security-actions' | 'verification'>('menu');
+  const [view, setView] = useState<'menu' | 'onboarding-preferences' | 'security-actions' | 'verification'>('menu');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState('');
@@ -32,6 +37,9 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
   const [hasProfilePicture, setHasProfilePicture] = useState(true);
   const [accountType, setAccountType] = useState<'user' | 'creator' | 'business' | 'admin'>('user');
   const [isVerified, setIsVerified] = useState(false);
+  const [enablePushNotifications, setEnablePushNotifications] = useState(true);
+  const [enableEmails, setEnableEmails] = useState(true);
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -176,9 +184,13 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
         }
       }
 
+      // Update both UserVisibilityService and user_settings_preferences
       const success = await UserVisibilityService.setProfileVisibility(user.id, checked);
       
       if (success) {
+        // Also update in user_settings_preferences
+        await updateCurrentUserSettingsPreferences({ is_public_profile: checked });
+        
         setIsPublicProfile(checked);
         toast({
           title: checked ? 'Profile is now public' : 'Profile is now private',
@@ -201,9 +213,74 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
     }
   };
 
-  // Load profile visibility settings and verification status when modal opens
+  const handleTogglePushNotifications = async (checked: boolean) => {
+    if (!user?.id) return;
+
+    setIsLoadingPreferences(true);
+    try {
+      const updated = await updateCurrentUserSettingsPreferences({
+        enable_push_notifications: checked,
+      });
+
+      if (updated) {
+        setEnablePushNotifications(checked);
+        toast({
+          title: checked ? 'Push notifications enabled' : 'Push notifications disabled',
+          description: checked 
+            ? 'You will receive push notifications.' 
+            : 'Push notifications are now disabled.',
+        });
+      } else {
+        throw new Error('Failed to update preferences');
+      }
+    } catch (error) {
+      console.error('Error toggling push notifications:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update push notification preferences. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingPreferences(false);
+    }
+  };
+
+  const handleToggleEmails = async (checked: boolean) => {
+    if (!user?.id) return;
+
+    setIsLoadingPreferences(true);
+    try {
+      const updated = await updateCurrentUserSettingsPreferences({
+        enable_emails: checked,
+      });
+
+      if (updated) {
+        setEnableEmails(checked);
+        toast({
+          title: checked ? 'Email notifications enabled' : 'Email notifications disabled',
+          description: checked 
+            ? 'You will receive email notifications.' 
+            : 'Email notifications are now disabled.',
+        });
+      } else {
+        throw new Error('Failed to update preferences');
+      }
+    } catch (error) {
+      console.error('Error toggling email notifications:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update email preferences. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingPreferences(false);
+    }
+  };
+
+  // Load profile visibility settings, verification status, and user preferences when modal opens
   useEffect(() => {
     if (isOpen && user?.id) {
+      // Load visibility settings
       UserVisibilityService.getUserVisibilitySettings(user.id).then(settings => {
         if (settings) {
           setIsPublicProfile(settings.is_public_profile);
@@ -214,6 +291,23 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
         // Set default values if loading fails
         setIsPublicProfile(true);
         setHasProfilePicture(true);
+      });
+
+      // Load user settings preferences
+      setIsLoadingPreferences(true);
+      getCurrentUserSettingsPreferences().then(preferences => {
+        if (preferences) {
+          setEnablePushNotifications(preferences.enable_push_notifications);
+          setEnableEmails(preferences.enable_emails);
+          // Also sync public profile from preferences if available
+          if (preferences.is_public_profile !== undefined) {
+            setIsPublicProfile(preferences.is_public_profile);
+          }
+        }
+      }).catch(error => {
+        console.error('Error loading user settings preferences:', error);
+      }).finally(() => {
+        setIsLoadingPreferences(false);
       });
 
       // Fetch verification status
@@ -236,7 +330,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
       <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {(view === 'email-preferences' || view === 'onboarding-preferences' || view === 'security-actions' || view === 'verification') && (
+            {(view !== 'menu') && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -248,7 +342,6 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
             )}
             {view === 'menu' && <Shield className="w-5 h-5" />}
             {view === 'menu' ? 'Settings' : 
-             view === 'email-preferences' ? 'Email Preferences' :
              view === 'onboarding-preferences' ? 'Profile & Preferences' :
              view === 'security-actions' ? 'Security Actions' :
              view === 'verification' ? 'Verification Status' : 'Settings'}
@@ -303,6 +396,53 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
 
             <Separator />
 
+            {/* Notification Preferences */}
+            <div className="space-y-4">
+              <div className="p-4 bg-muted/30 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-start gap-3 flex-1">
+                    <Bell className="w-5 h-5 text-primary mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-medium">Push Notifications</div>
+                      <div className="text-sm text-muted-foreground">
+                        {enablePushNotifications 
+                          ? 'You will receive push notifications' 
+                          : 'Push notifications are disabled'}
+                      </div>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={enablePushNotifications}
+                    onCheckedChange={handleTogglePushNotifications}
+                    disabled={isLoadingPreferences}
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-muted/30 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-start gap-3 flex-1">
+                    <Mail className="w-5 h-5 text-primary mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-medium">Email Notifications</div>
+                      <div className="text-sm text-muted-foreground">
+                        {enableEmails 
+                          ? 'You will receive email notifications' 
+                          : 'Email notifications are disabled'}
+                      </div>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={enableEmails}
+                    onCheckedChange={handleToggleEmails}
+                    disabled={isLoadingPreferences}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
             {/* Settings Options */}
             <div className="space-y-2">
               <Button
@@ -317,29 +457,6 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
                 </div>
               </Button>
 
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 h-12"
-                onClick={() => setView('email-preferences')}
-              >
-                <Mail className="w-5 h-5" />
-                <div className="text-left">
-                  <div className="font-medium">Email Preferences</div>
-                  <div className="text-sm text-muted-foreground">Control which emails you receive</div>
-                </div>
-              </Button>
-
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 h-12"
-                onClick={() => handleComingSoon('Notifications')}
-              >
-                <Bell className="w-5 h-5" />
-                <div className="text-left">
-                  <div className="font-medium">Push Notifications</div>
-                  <div className="text-sm text-muted-foreground">Control in-app notifications</div>
-                </div>
-              </Button>
 
               <Button
                 variant="ghost"
@@ -368,29 +485,6 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
                 </div>
               </Button>
 
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 h-12"
-                onClick={() => handleComingSoon('Help & Support')}
-              >
-                <HelpCircle className="w-5 h-5" />
-                <div className="text-left">
-                  <div className="font-medium">Help & Support</div>
-                  <div className="text-sm text-muted-foreground">Get help and contact support</div>
-                </div>
-              </Button>
-
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 h-12"
-                onClick={() => handleComingSoon('About')}
-              >
-                <Info className="w-5 h-5" />
-                <div className="text-left">
-                  <div className="font-medium">About</div>
-                  <div className="text-sm text-muted-foreground">App version and information</div>
-                </div>
-              </Button>
             </div>
 
             <Separator />
@@ -413,16 +507,8 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
               </div>
             </Button>
           </div>
-        ) : view === 'email-preferences' ? (
-          <div className="p-4">
-            <p className="text-sm text-muted-foreground mb-4">Email preferences coming soon!</p>
-            <Button onClick={handleBack} variant="outline">Back</Button>
-          </div>
         ) : view === 'onboarding-preferences' ? (
-          <div className="p-4">
-            <p className="text-sm text-muted-foreground mb-4">Profile preferences coming soon!</p>
-            <Button onClick={handleBack} variant="outline">Back</Button>
-          </div>
+          <OnboardingPreferencesSettings onClose={handleBack} />
         ) : view === 'verification' ? (
           <div className="p-4">
             {user?.id && (
