@@ -16,25 +16,31 @@ import { createClient } from '@supabase/supabase-js';
 class JambaseSyncService {
   constructor() {
     // Supabase client with service role for sync operations
-    // Use fallback values from repository if env vars not set
-    this.supabaseUrl = process.env.SUPABASE_URL || 'https://glpiolbrafqikqhnseto.supabase.co';
-    this.supabaseServiceKey = 
-      process.env.SUPABASE_SERVICE_ROLE_KEY || 
-      process.env.SUPABASE_SERVICE_KEY ||
-      process.env.SUPABASE_ANON_KEY ||
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjkzNzgyNCwiZXhwIjoyMDcyNTEzODI0fQ.cS0y6dQiw2VvGD7tKfKADKqM8whaopJ716G4dexBRGI';
+    // SECURITY: Never hardcode secrets - require environment variables
+    this.supabaseUrl = process.env.SUPABASE_URL;
+    this.supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
     
-    if (!this.supabaseUrl || !this.supabaseServiceKey) {
-      throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables');
+    if (!this.supabaseUrl) {
+      throw new Error('Missing SUPABASE_URL environment variable. This is required for sync operations.');
+    }
+    
+    if (!this.supabaseServiceKey) {
+      throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable. This is required for sync operations and must NEVER be exposed to the frontend.');
+    }
+    
+    // SECURITY: Never use anon key as fallback for service operations
+    if (this.supabaseServiceKey === process.env.SUPABASE_ANON_KEY) {
+      throw new Error('SECURITY ERROR: SUPABASE_SERVICE_ROLE_KEY cannot be the same as SUPABASE_ANON_KEY. Service role key must be kept secret.');
     }
     
     this.supabase = createClient(this.supabaseUrl, this.supabaseServiceKey);
     
     // Jambase API configuration
-    // Use fallback value if env var not set
-    this.jambaseApiKey = process.env.JAMBASE_API_KEY || process.env.VITE_JAMBASE_API_KEY || 'e7ed3a9b-e73a-446e-b7c6-a96d1c53a030';
+    // SECURITY: Never hardcode API keys - require environment variables
+    this.jambaseApiKey = process.env.JAMBASE_API_KEY;
+    
     if (!this.jambaseApiKey) {
-      throw new Error('Missing JAMBASE_API_KEY environment variable');
+      throw new Error('Missing JAMBASE_API_KEY environment variable. This is required for sync operations.');
     }
     
     this.baseUrl = 'https://www.jambase.com/jb-api/v1/events';

@@ -105,18 +105,85 @@ APNS_TEAM_ID=R6JXB945ND
 - Setlist.fm: https://www.setlist.fm/settings/api
 - Upstash: https://console.upstash.com/ (for distributed rate limiting)
 
-**Security Note:** 
-- `SUPABASE_ANON_KEY` and `VITE_SUPABASE_ANON_KEY` are safe to expose (by design)
-- `SUPABASE_SERVICE_ROLE_KEY` must NEVER be exposed client-side
-- All other API keys must be kept secret
-- `JWT_SECRET` must be kept secret and use a strong random string in production
-- `APPLE_PRIVATE_KEY_PATH` and Apple Sign In configuration values are backend-only secrets
-- **Private Key File (`.p8`)**: 
-  - Must be stored in `backend/secure/` directory (excluded from git)
-  - Must NEVER be committed to git or exposed client-side
-  - For production deployments (Vercel, Fly.io, Railway, etc.): Use platform secrets/environment variables instead of file paths
-  - Consider storing the private key content directly as an environment variable (base64 encoded) in production
-  - The `APPLE_PRIVATE_KEY_PATH` approach is acceptable for local development only
+## 🔒 Security Warnings - CRITICAL
+
+### ✅ Safe to Expose (Client-Side / VITE_* Variables)
+
+These variables are **designed** to be public and can be safely exposed in frontend code:
+
+- ✅ `VITE_SUPABASE_URL` - Supabase project URL (public)
+- ✅ `VITE_SUPABASE_ANON_KEY` - Supabase anonymous key (public by design)
+- ✅ `VITE_MAPBOX_TOKEN` - Mapbox public token (designed for client-side use)
+- ✅ `VITE_BACKEND_URL` - Backend API URL (public endpoint)
+
+**Why these are safe:**
+- Supabase anon key is designed to be public - security comes from RLS policies
+- Mapbox tokens are meant for client-side use
+- Backend URLs are public endpoints
+
+### ❌ NEVER Expose (Backend-Only / Server-Side Secrets)
+
+These variables **MUST NEVER** be exposed to the frontend or committed to git:
+
+- ❌ `SUPABASE_SERVICE_ROLE_KEY` - **CRITICAL:** Full database access, bypasses RLS
+- ❌ `JWT_SECRET` - **CRITICAL:** Used to sign authentication tokens
+- ❌ `JAMBASE_API_KEY` - **HIGH:** External API key with usage limits
+- ❌ `SETLIST_FM_API_KEY` - **HIGH:** External API key with usage limits
+- ❌ `UPSTASH_REDIS_REST_TOKEN` - **HIGH:** Redis access token
+- ❌ `APPLE_PRIVATE_KEY_PATH` / Apple Sign In keys - **CRITICAL:** Apple authentication
+- ❌ `APNS_KEY_PATH` / APNs keys - **CRITICAL:** Push notification authentication
+
+**Why these are dangerous:**
+- Service role key = Full database access, can bypass all RLS policies
+- JWT secret = Can forge authentication tokens
+- API keys = Can abuse external services, incur costs
+- Private keys = Can impersonate your app/service
+
+### 🚨 Security Rules
+
+1. **Never use `VITE_` prefix for secrets:**
+   ```env
+   # ❌ WRONG - Exposes secret to frontend
+   VITE_SUPABASE_SERVICE_ROLE_KEY=xxx
+   
+   # ✅ CORRECT - Backend only
+   SUPABASE_SERVICE_ROLE_KEY=xxx
+   ```
+
+2. **Never hardcode secrets in code:**
+   ```javascript
+   // ❌ WRONG - Hardcoded secret
+   const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+   
+   // ✅ CORRECT - Environment variable
+   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+   ```
+
+3. **Never commit `.env` files:**
+   - `.env.local` should be in `.gitignore`
+   - Use platform secrets (Vercel, Railway, etc.) for production
+
+4. **Verify before deployment:**
+   ```bash
+   # Run security audit
+   node scripts/security-audit.js
+   
+   # Check for exposed secrets in build
+   npm run build:verify
+   ```
+
+### 📋 Environment Variable Checklist
+
+Before deploying, verify:
+
+- [ ] No `VITE_SUPABASE_SERVICE_ROLE_KEY` exists
+- [ ] No `VITE_JWT_SECRET` exists
+- [ ] No hardcoded secrets in `src/` or `public/` folders
+- [ ] All secrets are in `.env.local` (not committed)
+- [ ] Production secrets are in platform environment variables (Vercel, etc.)
+- [ ] Security audit passes: `node scripts/security-audit.js`
+
+See [docs/SECURITY_AUDIT_CHECKLIST.md](docs/SECURITY_AUDIT_CHECKLIST.md) for complete security testing procedures.
 
 **Authentication Modes:**
 - `AUTH_MODE=dev`: Returns mock users for testing (no Apple credentials required)

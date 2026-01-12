@@ -13,8 +13,23 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 
 const AUTH_MODE = process.env.AUTH_MODE || 'dev';
-const JWT_SECRET = process.env.JWT_SECRET || 'development-secret-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
+// SECURITY: JWT_SECRET must be provided via environment variable
+// In production, this MUST be a strong random secret
+// In development, generate a random secret if not provided
+let JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SECURITY ERROR: JWT_SECRET environment variable is required in production. Generate a strong random secret (min 32 characters).');
+  }
+  // Development mode: Generate a random secret (not secure, but better than hardcoded)
+  const crypto = require('crypto');
+  JWT_SECRET = crypto.randomBytes(32).toString('hex');
+  console.warn('⚠️  WARNING: JWT_SECRET not set. Generated temporary secret for development only.');
+  console.warn('⚠️  Set JWT_SECRET environment variable for production use.');
+}
 
 // Apple Sign In configuration (for future token verification)
 const APPLE_TEAM_ID = process.env.APPLE_TEAM_ID;

@@ -1,11 +1,13 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import removeConsole from "vite-plugin-remove-console";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const ticketmasterProxyTarget = env.VITE_TICKETMASTER_PROXY_TARGET || 'http://localhost:3001';
+  const isProduction = mode === 'production';
 
   return {
     base: './', // Use relative paths for Capacitor
@@ -35,6 +37,10 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      // SECURITY: Remove console logs and debugger statements in production builds
+      // This prevents users from seeing internal logs in Chrome DevTools
+      // Using plugin instead of esbuild.drop since Vite may use Oxc/Rolldown for minification
+      ...(isProduction ? [removeConsole({ includes: ['log', 'warn', 'info', 'debug', 'trace'] })] : []),
     ],
     resolve: {
       alias: {
@@ -45,12 +51,16 @@ export default defineConfig(({ mode }) => {
       // Optimize for mobile
       target: 'es2015',
       cssCodeSplit: true,
+      // SECURITY: Source maps disabled to prevent users from reading original source code
       sourcemap: false,
       minify: 'esbuild',
       rollupOptions: {
         output: {
           manualChunks: undefined, // Let Vite handle chunking
         },
+        // Note: Capacitor plugins must be bundled normally
+        // They contain JavaScript code that needs to be included in the bundle
+        // The native bridge is handled separately by Capacitor's native runtime
       },
     },
   };
