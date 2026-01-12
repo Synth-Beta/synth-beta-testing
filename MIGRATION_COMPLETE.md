@@ -140,3 +140,6 @@ WHERE a.jambase_artist_id IS NOT NULL
 - The old `jambase_*_id` columns still exist until cleanup migration runs
 - All new inserts populate both old columns (for compatibility) and `external_entity_ids` (for normalization)
 
+
+
+

@@ -74,3 +74,6 @@ USING (auth.role() = 'service_role');
 -- After enabling RLS, verify with:
 -- SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public' AND rowsecurity = true;
 
+
+
+

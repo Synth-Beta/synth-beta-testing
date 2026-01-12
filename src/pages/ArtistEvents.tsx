@@ -1134,3 +1134,6 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
     </div>
   );
 }
+
+
+
