@@ -751,11 +751,11 @@ export class HomeFeedService {
       const secondDegreeIds = (secondDegreeResult.data || []).map((c: any) => c.connected_user_id);
       const allConnectionIds = [...firstDegreeIds, ...secondDegreeIds];
 
-      if (allConnectionIds.length === 0) return [];
+      if (allConnectionIds.length === 0) {
+        return [];
+      }
 
-      // Get reviews from connections
-      // Uses existing indexes: idx_reviews_user_id, idx_reviews_created_at
-      // Limit aggressively to prevent timeouts with deep joins
+      // Get reviews from connections (without events join to avoid schema issues)
       const { data: reviews, error: reviewsError } = await supabase
         .from('reviews')
         .select(`
@@ -770,40 +770,75 @@ export class HomeFeedService {
             user_id,
             name,
             avatar_url
-          ),
-          events:event_id (
-            id,
-            title,
-            event_date,
-            artist_id,
-            artists:artist_id (
-              name
-            ),
-            venue_id,
-            venues:venue_id (
-              name
-            )
           )
         `)
         .in('user_id', allConnectionIds)
         .eq('is_draft', false)
         .order('created_at', { ascending: false })
-        .limit(Math.min(limit + 5, 30)); // More aggressive limit to prevent timeout
+        .limit(Math.min(limit + 5, 30));
 
-      if (reviewsError) throw reviewsError;
-      if (!reviews || reviews.length === 0) return [];
+      if (reviewsError) {
+        throw reviewsError;
+      }
+      
+      if (!reviews || reviews.length === 0) {
+        return [];
+      }
+
+      // Filter out reviews without users
+      const reviewsWithUsers = reviews.filter((r: any) => r.users);
+      if (reviewsWithUsers.length === 0) {
+        return [];
+      }
+
+      // Get event IDs and fetch events separately
+      const eventIds = [...new Set(reviewsWithUsers.map((r: any) => r.event_id).filter(Boolean))];
+      let eventsMap = new Map();
+      
+      if (eventIds.length > 0) {
+        const { data: events, error: eventsError } = await supabase
+          .from('events')
+          .select('id, title, event_date, artist_id, artists(name), venue_id, venues(name)')
+          .in('id', eventIds);
+        
+        if (eventsError) {
+          throw eventsError;
+        }
+        
+        if (events && events.length > 0) {
+          eventsMap = new Map(events.map((e: any) => [e.id, e]));
+        }
+      }
 
       // Create a map for quick lookup of connection degree
       const firstDegreeMap = new Set(firstDegreeIds);
       
+      // Filter out reviews that have an event_id but no matching event (restore previous behavior)
+      const reviewsWithValidEvents = reviewsWithUsers.filter((review: any) => {
+        // Include reviews without event_id (they don't require events)
+        if (!review.event_id) {
+          return true;
+        }
+        // Include reviews where event_id exists and event is found in map
+        return eventsMap.has(review.event_id);
+      });
+      
       // Transform reviews to NetworkReview format
-      const networkReviews: NetworkReview[] = (reviews || [])
-        .filter((review: any) => review.users && review.events) // Filter out any with missing joins
+      const networkReviews: NetworkReview[] = reviewsWithValidEvents
         .map((review: any) => {
           const connectionDegree = firstDegreeMap.has(review.user_id) ? 1 : 2;
-          const event = review.events;
-          const artistName = event.artists?.name || null;
-          const venueName = event.venues?.name || null;
+          const event = eventsMap.get(review.event_id);
+          
+          // Handle nested join structure - artists and venues might be arrays or objects
+          const artistName = event?.artists?.name || (Array.isArray(event?.artists) && event?.artists[0]?.name) || undefined;
+          const venueName = event?.venues?.name || (Array.isArray(event?.venues) && event?.venues[0]?.name) || undefined;
+
+          // Always create event_info object to prevent crashes in components that access properties directly
+          const eventInfo = {
+            artist_name: artistName,
+            venue_name: venueName,
+            event_date: event?.event_date || undefined,
+          };
 
           return {
             id: review.id,
@@ -816,14 +851,10 @@ export class HomeFeedService {
             rating: review.rating || undefined,
             content: review.review_text || undefined,
             photos: review.photos || undefined,
-            event_info: {
-              artist_name: artistName || undefined,
-              venue_name: venueName || undefined,
-              event_date: event.event_date || undefined,
-            },
+            event_info: eventInfo,
             connection_degree: connectionDegree as 1 | 2,
           };
-        });
+        })
 
       // Sort by connection degree (first degree first) then by date
       networkReviews.sort((a, b) => {
