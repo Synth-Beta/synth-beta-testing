@@ -67,11 +67,6 @@ export function PublicReviewCard({ review, onOpen }: PublicReviewCardProps) {
           <p className="text-[15px] leading-6 text-gray-800">{review.review_text}</p>
         )}
 
-        {typeof review.ticket_price_paid === 'number' && review.ticket_price_paid > 0 && (
-          <div className="text-xs text-gray-600 bg-gray-100 inline-flex px-2 py-1 rounded">
-            Ticket price (private): ${review.ticket_price_paid.toFixed(2)}
-          </div>
-        )}
 
         {[
           {

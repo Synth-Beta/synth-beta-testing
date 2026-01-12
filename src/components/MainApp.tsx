@@ -477,7 +477,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       // Validate it's a UUID format
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (uuidRegex.test(userId)) {
-        setProfileUserId(userId);
+    setProfileUserId(userId);
       }
     }
     
