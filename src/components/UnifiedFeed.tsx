@@ -627,7 +627,7 @@ export const UnifiedFeed = ({
               }
             });
             
-            const items = rawItems.filter(function(item) {
+            const shouldIncludeItem = (item: any) => {
               if (item.type === 'review') {
                 if ((item as any).deleted_at || (item as any).is_deleted) {
                   return false;
@@ -641,7 +641,8 @@ export const UnifiedFeed = ({
                 }
               }
               return true;
-            });
+            };
+            const items = rawItems.filter(shouldIncludeItem);
             
             setFeedItems(items);
             const eventCount = items.filter(item => item.type === 'event').length;
