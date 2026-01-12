@@ -738,133 +738,152 @@ export class HomeFeedService {
     limit: number = 20
   ): Promise<NetworkReview[]> {
     try {
-      // Get first and second degree connections
-      const [firstDegreeResult, secondDegreeResult] = await Promise.all([
-        supabase.rpc('get_first_degree_connections', { target_user_id: userId }),
-        supabase.rpc('get_second_degree_connections', { target_user_id: userId }),
-      ]);
+      console.log('🔍 [NETWORK_REVIEWS] Fetching network reviews for user:', userId);
+      
+      // Get user's friends from user_relationships table (doesn't rely on RPC functions)
+      const { data: friends, error: friendsError } = await supabase
+        .from('user_relationships')
+        .select('user_id, related_user_id')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
 
-      if (firstDegreeResult.error) throw firstDegreeResult.error;
-      if (secondDegreeResult.error) throw secondDegreeResult.error;
-
-      const firstDegreeIds = (firstDegreeResult.data || []).map((c: any) => c.connected_user_id);
-      const secondDegreeIds = (secondDegreeResult.data || []).map((c: any) => c.connected_user_id);
-      const allConnectionIds = [...firstDegreeIds, ...secondDegreeIds];
-
-      if (allConnectionIds.length === 0) {
+      if (friendsError) {
+        console.error('❌ [NETWORK_REVIEWS] Error fetching friends:', friendsError);
+        throw friendsError;
+      }
+      
+      console.log('🔍 [NETWORK_REVIEWS] Found friends:', friends?.length || 0);
+      
+      if (!friends || friends.length === 0) {
+        console.log('⚠️ [NETWORK_REVIEWS] No friends found, returning empty array');
         return [];
       }
 
-      // Get reviews from connections (without events join to avoid schema issues)
+      // Extract friend user IDs
+      const friendIds = friends.map(f => 
+        f.user_id === userId ? f.related_user_id : f.user_id
+      );
+      
+      console.log('🔍 [NETWORK_REVIEWS] Friend IDs:', friendIds);
+
+      // Get reviews from friends (fetch users separately to avoid join issues)
       const { data: reviews, error: reviewsError } = await supabase
         .from('reviews')
         .select(`
           id,
           user_id,
           event_id,
+          artist_id,
+          venue_id,
           rating,
           review_text,
           photos,
           created_at,
-          users:user_id (
-            user_id,
-            name,
-            avatar_url
+          events (
+            id,
+            title,
+            event_date,
+            artist_id,
+            venue_id
           )
         `)
-        .in('user_id', allConnectionIds)
+        .in('user_id', friendIds)
+        .eq('is_public', true)
         .eq('is_draft', false)
+        .neq('review_text', 'ATTENDANCE_ONLY')
+        .not('review_text', 'is', null)
         .order('created_at', { ascending: false })
-        .limit(Math.min(limit + 5, 30));
+        .limit(limit);
 
       if (reviewsError) {
+        console.error('❌ [NETWORK_REVIEWS] Error fetching reviews:', reviewsError);
         throw reviewsError;
       }
       
+      console.log('🔍 [NETWORK_REVIEWS] Found reviews:', reviews?.length || 0);
+      
       if (!reviews || reviews.length === 0) {
+        console.log('⚠️ [NETWORK_REVIEWS] No reviews found, returning empty array');
         return [];
       }
 
-      // Filter out reviews without users
-      const reviewsWithUsers = reviews.filter((r: any) => r.users);
-      if (reviewsWithUsers.length === 0) {
-        return [];
+      // Fetch user data separately (avoiding PostgREST join issues)
+      const userIds = [...new Set(reviews.map((r: any) => r.user_id))];
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('user_id, name, avatar_url')
+        .in('user_id', userIds);
+
+      if (usersError) {
+        console.error('❌ [NETWORK_REVIEWS] Error fetching users:', usersError);
+        throw usersError;
       }
 
-      // Get event IDs and fetch events separately
-      const eventIds = [...new Set(reviewsWithUsers.map((r: any) => r.event_id).filter(Boolean))];
-      let eventsMap = new Map();
-      
-      if (eventIds.length > 0) {
-        const { data: events, error: eventsError } = await supabase
-          .from('events')
-          .select('id, title, event_date, artist_id, artists(name), venue_id, venues(name)')
-          .in('id', eventIds);
-        
-        if (eventsError) {
-          throw eventsError;
-        }
-        
-        if (events && events.length > 0) {
-          eventsMap = new Map(events.map((e: any) => [e.id, e]));
-        }
-      }
+      const usersMap = new Map<string, any>();
+      users?.forEach(u => usersMap.set(u.user_id, u));
 
-      // Create a map for quick lookup of connection degree
-      const firstDegreeMap = new Set(firstDegreeIds);
-      
-      // Filter out reviews that have an event_id but no matching event (restore previous behavior)
-      const reviewsWithValidEvents = reviewsWithUsers.filter((review: any) => {
-        // Include reviews without event_id (they don't require events)
-        if (!review.event_id) {
-          return true;
-        }
-        // Include reviews where event_id exists and event is found in map
-        return eventsMap.has(review.event_id);
+      // Get artist and venue IDs from reviews and events
+      const artistIds = new Set<string>();
+      const venueIds = new Set<string>();
+      reviews.forEach((review: any) => {
+        if (review.artist_id) artistIds.add(review.artist_id);
+        if (review.venue_id) venueIds.add(review.venue_id);
+        if (review.events?.artist_id) artistIds.add(review.events.artist_id);
+        if (review.events?.venue_id) venueIds.add(review.events.venue_id);
       });
-      
-      // Transform reviews to NetworkReview format
-      const networkReviews: NetworkReview[] = reviewsWithValidEvents
-        .map((review: any) => {
-          const connectionDegree = firstDegreeMap.has(review.user_id) ? 1 : 2;
-          const event = eventsMap.get(review.event_id);
-          
-          // Handle nested join structure - artists and venues might be arrays or objects
-          const artistName = event?.artists?.name || (Array.isArray(event?.artists) && event?.artists[0]?.name) || undefined;
-          const venueName = event?.venues?.name || (Array.isArray(event?.venues) && event?.venues[0]?.name) || undefined;
 
-          // Always create event_info object to prevent crashes in components that access properties directly
-          const eventInfo = {
-            artist_name: artistName,
-            venue_name: venueName,
-            event_date: event?.event_date || undefined,
-          };
+      // Fetch artist and venue names
+      const artistsMap = new Map<string, string>();
+      const venuesMap = new Map<string, string>();
+      
+      if (artistIds.size > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('id, name')
+          .in('id', Array.from(artistIds));
+        artists?.forEach(a => artistsMap.set(a.id, a.name));
+      }
+      
+      if (venueIds.size > 0) {
+        const { data: venues } = await supabase
+          .from('venues')
+          .select('id, name')
+          .in('id', Array.from(venueIds));
+        venues?.forEach(v => venuesMap.set(v.id, v.name));
+      }
+
+      // Transform reviews to NetworkReview format
+      const networkReviews: NetworkReview[] = reviews
+        .filter((review: any) => usersMap.has(review.user_id)) // Only include reviews with user data
+        .map((review: any) => {
+          const user = usersMap.get(review.user_id);
+          const artistId = review.artist_id || review.events?.artist_id;
+          const venueId = review.venue_id || review.events?.venue_id;
+          const artistName = artistId ? artistsMap.get(artistId) : undefined;
+          const venueName = venueId ? venuesMap.get(venueId) : undefined;
 
           return {
             id: review.id,
             author: {
-              id: review.users.user_id,
-              name: review.users.name || 'User',
-              avatar_url: review.users.avatar_url || undefined,
+              id: user.user_id,
+              name: user.name || 'User',
+              avatar_url: user.avatar_url || undefined,
             },
             created_at: review.created_at,
             rating: review.rating || undefined,
             content: review.review_text || undefined,
             photos: review.photos || undefined,
-            event_info: eventInfo,
-            connection_degree: connectionDegree as 1 | 2,
+            event_info: {
+              artist_name: artistName || undefined,
+              venue_name: venueName || undefined,
+              event_date: review.events?.event_date || undefined,
+            },
+            connection_degree: 1 as const, // Direct friends
           };
         })
 
-      // Sort by connection degree (first degree first) then by date
-      networkReviews.sort((a, b) => {
-        if (a.connection_degree !== b.connection_degree) {
-          return a.connection_degree - b.connection_degree;
-        }
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      });
-
-      return networkReviews.slice(0, limit);
+      return networkReviews;
     } catch (error) {
       console.error('Error fetching network reviews:', error);
       return [];

@@ -636,6 +636,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           id: item.review.id,
           user_id: item.review.user_id,
           event_id: item.review.event_id,
+          artist_id: item.review.artist_id,
+          venue_id: item.review.venue_id,
           rating: item.review.rating,
           rank_order: (item.review as any).rank_order,
           artist_performance_rating: (item.review as any).artist_performance_rating,
@@ -662,6 +664,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           // Store Event_date as Date object for easy access
           Event_date: reviewEventDate,
           event_date: reviewEventDate, // Also store as lowercase for compatibility (Date object)
+          // Add artist_name and venue_name directly for review cards
+          artist_name: item.event?.artist_name,
+          venue_name: item.event?.venue_name,
           // Add jambase_events data for the modal to access (keep full event object)
           jambase_events: item.event || null,
           event: {
@@ -670,6 +675,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 ? `${item.event.artist_name} at ${item.event.venue_name}`
                 : item.event?.event_name || 'Concert Review'),
             location: item.event?.venue_name || 'Unknown Venue',
+            artist_name: item.event?.artist_name,
+            venue_name: item.event?.venue_name,
             // Convert Event_date (Date) to string for event_date field, or use event.event_date, or fallback to created_at
             event_date: reviewEventDate 
               ? reviewEventDate.toISOString().split('T')[0] 
@@ -1605,8 +1612,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           <h1 className="text-xl font-bold text-gray-900 truncate text-center">
             {profile.username ? `@${profile.username}` : profile.name}
           </h1>
+        </div>
       </div>
-          </div>
       <div className="w-full max-w-full p-4 overflow-x-hidden">
         {/* Enhanced Profile Header */}
         <div className="mb-6 bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 rounded-2xl p-4 sm:p-6 border border-pink-100/50 shadow-sm relative overflow-hidden w-full max-w-full">

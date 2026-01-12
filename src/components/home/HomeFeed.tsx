@@ -14,7 +14,7 @@ import { FigmaEventCard } from '@/components/cards/FigmaEventCard';
 import { NetworkReviewCard } from './NetworkReviewCard';
 import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
 import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
 import { Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, MessageCircle, ChevronRight, ChevronDown, MapPin, Plus, Loader2 } from 'lucide-react';
@@ -1375,7 +1375,7 @@ interface FriendEventInterest {
           <div className="space-y-4">
               {loadingNetwork && firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                <SynthLoadingInline />
                 </div>
               ) : (
                 <>
@@ -1437,7 +1437,7 @@ interface FriendEventInterest {
           <div className="space-y-4">
             {loadingRecommendedGroupChats ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                <SynthLoadingInline />
               </div>
             ) : recommendedGroupChats.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
@@ -1656,7 +1656,7 @@ interface FriendEventInterest {
           <div className="space-y-4">
           {loadingReviews ? (
             <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    <SynthLoadingInline />
                   </div>
           ) : reviews.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -1736,6 +1736,10 @@ interface FriendEventInterest {
       {reviewDetailOpen && selectedReview && (
         <Dialog open={reviewDetailOpen} onOpenChange={setReviewDetailOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogTitle className="sr-only">Review Details</DialogTitle>
+            <DialogDescription className="sr-only">
+              Detailed view of {selectedReview.author.name}'s review
+            </DialogDescription>
             <BelliStyleReviewCard
               review={{
                 id: selectedReview.review_id || selectedReview.id,

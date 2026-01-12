@@ -47,7 +47,7 @@ export const PermanentHeader: React.FC<PermanentHeaderProps> = ({
         {/* Right side: Notification Bell Button */}
         <div className="relative">
           <NotificationBell
-            onClick={onNavigateToNotifications}
+          onClick={onNavigateToNotifications}
             className="bg-[#cc2486] hover:bg-[#b01f75] p-3 rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] w-[44px] h-[44px] flex items-center justify-center transition-colors border-0"
           />
         </div>
