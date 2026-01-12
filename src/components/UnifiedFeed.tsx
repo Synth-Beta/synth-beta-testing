@@ -627,10 +627,14 @@ export const UnifiedFeed = ({
               }
             });
             
-            const items = rawItems.filter(item => {
+            const items = rawItems.filter((item) => {
               if (item.type === 'review') {
-                if ((item as any).deleted_at || (item as any).is_deleted) return false;
-                if (!item.content && (!item.photos || item.photos.length === 0)) return false;
+                if ((item as any).deleted_at || (item as any).is_deleted) {
+                  return false;
+                }
+                if (!item.content && (!item.photos || item.photos.length === 0)) {
+                  return false;
+                }
                 if (
                   item.content === 'ATTENDANCE_ONLY' || 
                   item.content === '[deleted]' || 
