@@ -300,7 +300,7 @@ export class NotificationService {
         // Fetch actor details if actor_user_id exists
         if (notif.actor_user_id) {
           try {
-            // Try users table first, fallback to profiles
+            // Try users table first (new schema), fallback to profiles (old schema)
             let actorProfile = null;
             const { data: usersData, error: usersError } = await supabase
               .from('users')
@@ -311,7 +311,7 @@ export class NotificationService {
             if (!usersError && usersData) {
               actorProfile = usersData;
             } else {
-              // Fallback to profiles table
+              // Fallback to profiles table (old schema)
               const { data: profilesData, error: profilesError } = await supabase
                 .from('profiles')
                 .select('name, avatar_url')
@@ -385,7 +385,7 @@ export class NotificationService {
     // Fetch actor details if actor_user_id exists
     if (notif.actor_user_id) {
       try {
-        // Try users table first, fallback to profiles
+        // Try users table first (new schema), fallback to profiles (old schema)
         let actorProfile = null;
         const { data: usersData, error: usersError } = await supabase
           .from('users')
@@ -396,7 +396,7 @@ export class NotificationService {
         if (!usersError && usersData) {
           actorProfile = usersData;
         } else {
-          // Fallback to profiles table
+          // Fallback to profiles table (old schema)
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
             .select('name, avatar_url')
