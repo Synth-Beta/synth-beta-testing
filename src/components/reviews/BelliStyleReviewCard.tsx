@@ -30,7 +30,7 @@ import {
 import { cn } from '@/lib/utils';
 import { ReviewWithEngagement, ReviewService, CommentWithUser } from '@/services/reviewService';
 import { Textarea } from '@/components/ui/textarea';
-import { ShareService } from '@/services/shareService';
+import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
 import { formatDistanceToNow } from 'date-fns';
 import { SetlistDisplay } from './SetlistDisplay';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
@@ -145,6 +145,7 @@ export function BelliStyleReviewCard({
   const [imageIndex, setImageIndex] = useState(0);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const { toast } = useToast();
   
   // Connection degree and friend request state
@@ -227,8 +228,11 @@ export function BelliStyleReviewCard({
     }
   };
 
-  const handleShare = async () => {
-    await ShareService.shareReview(review.id, 'Concert Review', review.review_text || undefined);
+  const handleShare = () => {
+    if (onShare) {
+      onShare(review.id);
+    }
+    setShareModalOpen(true);
   };
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -1150,6 +1154,16 @@ export function BelliStyleReviewCard({
           onReport?.(review.id);
         }}
       />
+
+      {/* Review Share Modal */}
+      {shareModalOpen && currentUserId && (
+        <ReviewShareModal
+          review={review}
+          currentUserId={currentUserId}
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+        />
+      )}
     </Card>
   );
 }

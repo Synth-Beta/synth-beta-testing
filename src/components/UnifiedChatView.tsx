@@ -32,7 +32,8 @@ import {
   Images,
   Play,
   Heart,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { FriendsService } from '@/services/friendsService';
@@ -1160,7 +1161,6 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
             name,
             avatar_url,
             bio,
-            verified,
             account_type
           )
         `)
@@ -1177,11 +1177,31 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
         return;
       }
 
+      // Fetch verification status for all participants
+      const userIds = participantData.map(p => p.user_id).filter(Boolean);
+      const verificationMap = new Map<string, boolean>();
+      
+      if (userIds.length > 0) {
+        const { data: verifications } = await supabase
+          .from('user_verifications')
+          .select('user_id, verified')
+          .in('user_id', userIds);
+        
+        if (verifications) {
+          verifications.forEach(v => {
+            verificationMap.set(v.user_id, v.verified || false);
+          });
+        }
+      }
+
       // Map participant data with user info
       const participantList = participantData
         .map(p => {
           const user = p.users as any;
           if (!user) return null;
+          
+          // Get verified status from verification map
+          const verified = verificationMap.get(p.user_id) || false;
 
           return {
             id: p.id,
@@ -1189,7 +1209,7 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
             name: user.name || 'Unknown User',
             avatar_url: user.avatar_url || null,
             bio: user.bio || null,
-            verified: user.verified || false,
+            verified: verified,
             account_type: user.account_type || null,
             joined_at: p.joined_at,
             last_read_at: p.last_read_at,
@@ -1210,21 +1230,25 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
     // Check if chat has a shared_event_id in messages instead
     try {
       // Try to get event ID from messages table (for event shares)
+      // Check both shared_event_id and metadata.event_id (fallback for FK constraint issues)
       const { data: messageData, error: messageError } = await supabase
         .from('messages')
-        .select('shared_event_id')
+        .select('shared_event_id, metadata')
         .eq('chat_id', chatId)
-        .not('shared_event_id', 'is', null)
+        .eq('message_type', 'event_share')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (!messageError && messageData?.shared_event_id) {
+      // Get event ID from shared_event_id or metadata fallback
+      const eventId = messageData?.shared_event_id || (messageData?.metadata as any)?.event_id;
+
+      if (!messageError && eventId) {
         // Fetch full event data from helper view to get normalized artist/venue names
         const { data: eventData, error: eventError } = await supabase
           .from('events_with_artist_venue')
           .select('id, title, event_date, images, artist_name_normalized, venue_name_normalized')
-          .eq('id', messageData.shared_event_id)
+          .eq('id', eventId)
           .maybeSingle();
 
         if (!eventError && eventData) {
@@ -1726,10 +1750,10 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                           {group.length === 1 ? (
                             // Solo message - timestamp directly below
                             <div className="flex flex-col gap-[6px]">
-                              {firstMessage.message_type === 'review_share' && firstMessage.shared_review_id ? (
+                              {firstMessage.message_type === 'review_share' && (firstMessage.shared_review_id || firstMessage.metadata?.review_id) ? (
                                 <>
                                   <ReviewMessageCard
-                                    reviewId={firstMessage.shared_review_id}
+                                    reviewId={firstMessage.shared_review_id || firstMessage.metadata?.review_id}
                                     customMessage={firstMessage.metadata?.custom_message}
                                     onReviewClick={handleReviewClick}
                                     currentUserId={currentUserId}
@@ -1739,10 +1763,10 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                                     {format(parseISO(firstMessage.created_at), 'h:mm a')}
                                   </p>
                                 </>
-                              ) : firstMessage.message_type === 'event_share' && firstMessage.shared_event_id ? (
+                              ) : firstMessage.message_type === 'event_share' && (firstMessage.shared_event_id || firstMessage.metadata?.event_id) ? (
                                 <>
                                   <EventMessageCard
-                                    eventId={firstMessage.shared_event_id}
+                                    eventId={firstMessage.shared_event_id || firstMessage.metadata?.event_id}
                                     customMessage={firstMessage.metadata?.custom_message}
                                     onEventClick={handleEventClick}
                                     onInterestToggle={handleInterestToggle}
@@ -1781,17 +1805,17 @@ export const UnifiedChatView = ({ currentUserId, onBack }: UnifiedChatViewProps)
                                 
                                 return (
                                   <div key={message.id} className="flex flex-col gap-[6px]">
-                    {message.message_type === 'review_share' && message.shared_review_id ? (
+                    {message.message_type === 'review_share' && (message.shared_review_id || message.metadata?.review_id) ? (
                         <ReviewMessageCard
-                          reviewId={message.shared_review_id}
+                          reviewId={message.shared_review_id || message.metadata?.review_id}
                           customMessage={message.metadata?.custom_message}
                           onReviewClick={handleReviewClick}
                           currentUserId={currentUserId}
                           metadata={message.metadata}
                         />
-                    ) : message.message_type === 'event_share' && message.shared_event_id ? (
+                    ) : message.message_type === 'event_share' && (message.shared_event_id || message.metadata?.event_id) ? (
                         <EventMessageCard
-                          eventId={message.shared_event_id}
+                          eventId={message.shared_event_id || message.metadata?.event_id}
                           customMessage={message.metadata?.custom_message}
                           onEventClick={handleEventClick}
                           onInterestToggle={handleInterestToggle}
