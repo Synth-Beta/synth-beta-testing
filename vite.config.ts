@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import removeConsole from "vite-plugin-remove-console";
+import { preserveErrorLogs } from "./vite-plugin-preserve-error-logs";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -37,10 +37,9 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-      // SECURITY: Remove console logs and debugger statements in production builds
-      // This prevents users from seeing internal logs in Chrome DevTools
-      // Using plugin instead of esbuild.drop since Vite may use Oxc/Rolldown for minification
-      ...(isProduction ? [removeConsole({ includes: ['log', 'warn', 'info', 'debug', 'trace'] })] : []),
+      // SECURITY: Remove console logs in production while preserving console.error
+      // This allows production error logging while removing debug logs
+      ...(isProduction ? [preserveErrorLogs()] : []),
     ],
     resolve: {
       alias: {
@@ -54,6 +53,11 @@ export default defineConfig(({ mode }) => {
       // SECURITY: Source maps disabled to prevent users from reading original source code
       sourcemap: false,
       minify: 'esbuild',
+      // SECURITY: Remove debugger statements in production
+      // Console logs are removed via preserveErrorLogs plugin (preserves console.error)
+      esbuild: {
+        drop: isProduction ? ['debugger'] : [],
+      },
       rollupOptions: {
         output: {
           manualChunks: undefined, // Let Vite handle chunking
