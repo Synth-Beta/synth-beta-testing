@@ -575,9 +575,11 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
   const fetchRecentlyAddedFriends = async () => {
     try {
       const { data: friendsData } = await supabase
-        .from('friends')
-        .select('user1_id, user2_id, created_at')
-        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+        .from('user_relationships')
+        .select('user_id, related_user_id, created_at')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${currentUserId},related_user_id.eq.${currentUserId}`)
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -587,7 +589,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       }
 
       const friendIds = friendsData.map(f => 
-        f.user1_id === currentUserId ? f.user2_id : f.user1_id
+        f.user_id === currentUserId ? f.related_user_id : f.user_id
       );
 
       // Get existing chats to exclude
@@ -1236,9 +1238,11 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
       // Get friends who are also interested in these events
       const { data: friendsData } = await supabase
-        .from('friends')
-        .select('user1_id, user2_id, created_at')
-        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+        .from('user_relationships')
+        .select('user_id, related_user_id, created_at')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${currentUserId},related_user_id.eq.${currentUserId}`)
         .order('created_at', { ascending: false });
 
       if (!friendsData || friendsData.length === 0) {
@@ -1247,7 +1251,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       }
 
       const friendIds = friendsData.map(f => 
-        f.user1_id === currentUserId ? f.user2_id : f.user1_id
+        f.user_id === currentUserId ? f.related_user_id : f.user_id
       );
 
       // Get friends' interested events that match user's events

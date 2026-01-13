@@ -153,9 +153,9 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
 
           // Get other user's event interests
           const { data: userEvents, error: eventsError } = await supabase
-            .from('user_jambase_events')
+            .from('user_event_relationships')
             .select(`
-              jambase_events:jambase_events(
+              events:events!user_event_relationships_event_id_fkey(
                 id,
                 title,
                 venue_city,
@@ -164,10 +164,11 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
               )
             `)
             .eq('user_id', otherUserId)
+            .eq('relationship_type', 'interested')
             .order('created_at', { ascending: false })
             .limit(5); // Show up to 5 recent events
 
-          const otherUserEvents = userEvents?.map(item => item.jambase_events).filter(Boolean) || [];
+          const otherUserEvents = userEvents?.map(item => item.events).filter(Boolean) || [];
 
           // Get chats for this match
           const { data: chatsData, error: chatsError } = await supabase

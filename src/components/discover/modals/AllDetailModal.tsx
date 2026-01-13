@@ -66,15 +66,16 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
           setReviewCount(reviews.length);
         }
       } else if (result.type === 'artist') {
-        // Check if following artist
+        // Check if following artist (using consolidated follows table)
         const { data: following } = await supabase
-          .from('artist_follows')
+          .from('follows')
           .select('id')
           .eq('user_id', currentUserId)
-          .eq('artist_id', result.id)
+          .eq('followed_entity_type', 'artist')
+          .eq('followed_entity_id', result.id)
           .maybeSingle();
         
-        setIsFollowing(!!following?.data);
+        setIsFollowing(!!following);
       } else if (result.type === 'venue') {
         // Check if following venue
         const { data: following } = await supabase
@@ -121,17 +122,19 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
         if (result.type === 'artist') {
           if (newState) {
             await supabase
-              .from('artist_follows')
+              .from('follows')
               .insert({
                 user_id: currentUserId,
-                artist_id: result.id,
+                followed_entity_type: 'artist',
+                followed_entity_id: result.id,
               });
           } else {
             await supabase
-              .from('artist_follows')
+              .from('follows')
               .delete()
               .eq('user_id', currentUserId)
-              .eq('artist_id', result.id);
+              .eq('followed_entity_type', 'artist')
+              .eq('followed_entity_id', result.id);
           }
         } else if (result.type === 'venue') {
           if (newState) {

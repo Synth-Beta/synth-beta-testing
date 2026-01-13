@@ -143,9 +143,10 @@ export function JamBaseEventCard({
     const fetchInterestedCount = async () => {
       try {
         const { count, error } = await supabase
-          .from('user_jambase_events')
+          .from('user_event_relationships')
           .select('*', { count: 'exact', head: true })
-          .eq('jambase_event_id', event.id)
+          .eq('event_id', event.id)
+          .eq('relationship_type', 'interested')
           .neq('user_id', currentUserId || '');
         
         if (error) throw error;
