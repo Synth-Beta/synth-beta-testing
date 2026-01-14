@@ -40,12 +40,13 @@ export class ArtistFollowService {
         console.warn('⚠️ RPC function set_artist_follow not available, using direct table operations');
         
         if (following) {
-          // Insert follow record in artist_follows table (3NF compliant)
+          // Insert follow record in follows table (consolidated schema)
           const { error: insertError } = await supabase
-            .from('artist_follows')
+            .from('follows')
             .insert({
               user_id: userId,
-              artist_id: artistId
+              followed_entity_type: 'artist',
+              followed_entity_id: artistId
             });
 
           // Ignore unique constraint errors (already following)
@@ -53,12 +54,13 @@ export class ArtistFollowService {
             throw insertError;
           }
         } else {
-          // Delete follow record from artist_follows table
+          // Delete follow record from follows table
           const { error: deleteError } = await supabase
-            .from('artist_follows')
+            .from('follows')
             .delete()
             .eq('user_id', userId)
-            .eq('artist_id', artistId);
+            .eq('followed_entity_type', 'artist')
+            .eq('followed_entity_id', artistId);
 
           if (deleteError) throw deleteError;
         }
@@ -142,12 +144,13 @@ export class ArtistFollowService {
    */
   static async isFollowingArtist(artistId: string, userId: string): Promise<boolean> {
     try {
-      // Query artist_follows table directly (3NF compliant)
+      // Query follows table directly (consolidated schema)
       const { data, error } = await supabase
-        .from('artist_follows')
+        .from('follows')
         .select('id')
         .eq('user_id', userId)
-        .eq('artist_id', artistId)
+        .eq('followed_entity_type', 'artist')
+        .eq('followed_entity_id', artistId)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
@@ -168,11 +171,12 @@ export class ArtistFollowService {
    */
   static async getFollowerCount(artistId: string): Promise<number> {
     try {
-      // Query artist_follows table directly (3NF compliant)
+      // Query follows table directly (consolidated schema)
       const { count, error } = await supabase
-        .from('artist_follows')
+        .from('follows')
         .select('*', { count: 'exact', head: true })
-        .eq('artist_id', artistId);
+        .eq('followed_entity_type', 'artist')
+        .eq('followed_entity_id', artistId);
 
       if (error) {
         console.error('Error getting follower count:', error);
@@ -262,11 +266,12 @@ export class ArtistFollowService {
     try {
       console.log('🔍 Getting followed artists for user:', userId);
       
-      // Query artist_follows table (3NF compliant)
+      // Query follows table (consolidated schema)
       const { data: follows, error: followsError } = await supabase
-        .from('artist_follows')
-        .select('id, artist_id, user_id, created_at, updated_at')
+        .from('follows')
+        .select('id, followed_entity_id, user_id, created_at, updated_at')
         .eq('user_id', userId)
+        .eq('followed_entity_type', 'artist')
         .order('created_at', { ascending: false });
 
       console.log('🔍 ArtistFollowService query result:', {
@@ -288,8 +293,8 @@ export class ArtistFollowService {
 
       console.log(`✅ Found ${follows.length} artist follows`);
 
-      // Extract artist IDs
-      const artistIds = follows.map((follow: any) => follow.artist_id).filter(Boolean);
+      // Extract artist IDs (from followed_entity_id in consolidated schema)
+      const artistIds = follows.map((follow: any) => follow.followed_entity_id).filter(Boolean);
       console.log('Artist IDs to fetch:', artistIds.length);
 
       if (artistIds.length === 0) {
@@ -312,11 +317,11 @@ export class ArtistFollowService {
 
       // Transform to match expected format
       const result = follows.map((follow: any) => {
-        const artist = artistsMap.get(follow.artist_id);
+        const artist = artistsMap.get(follow.followed_entity_id);
         return {
           id: follow.id,
           user_id: userId,
-          artist_id: follow.artist_id,
+          artist_id: follow.followed_entity_id,
           created_at: follow.created_at,
           artist_name: artist?.name || null,
           artist_image_url: artist?.image_url || null,
@@ -343,15 +348,43 @@ export class ArtistFollowService {
    */
   static async getArtistFollowers(artistId: string): Promise<ArtistFollowWithDetails[]> {
     try {
-      const { data, error } = await (supabase as any)
-        .from('artist_follows_with_details')
-        .select('*')
-        .eq('artist_id', artistId)
+      // Query follows table with artist filter
+      const { data: follows, error: followsError } = await supabase
+        .from('follows')
+        .select('id, user_id, followed_entity_id, created_at, updated_at')
+        .eq('followed_entity_type', 'artist')
+        .eq('followed_entity_id', artistId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (followsError) throw followsError;
 
-      return (data as ArtistFollowWithDetails[]) || [];
+      if (!follows || follows.length === 0) {
+        return [];
+      }
+
+      // Fetch user and artist details
+      const userIds = follows.map(f => f.user_id);
+      const [usersData, artistData] = await Promise.all([
+        supabase.from('users').select('user_id, name, avatar_url').in('user_id', userIds),
+        supabase.from('artists').select('id, name, image_url, identifier').eq('id', artistId).maybeSingle()
+      ]);
+
+      const usersMap = new Map((usersData.data || []).map(u => [u.user_id, u]));
+
+      // Transform to match expected format
+      return follows.map(follow => ({
+        id: follow.id,
+        user_id: follow.user_id,
+        artist_id: follow.followed_entity_id,
+        created_at: follow.created_at,
+        artist_name: artistData.data?.name || null,
+        artist_image_url: artistData.data?.image_url || null,
+        jambase_artist_id: artistData.data?.identifier || null,
+        num_upcoming_events: null,
+        genres: null,
+        user_name: usersMap.get(follow.user_id)?.name || null,
+        user_avatar_url: usersMap.get(follow.user_id)?.avatar_url || null
+      } as ArtistFollowWithDetails));
     } catch (error) {
       console.error('Error getting artist followers:', error);
       throw new Error(`Failed to get artist followers: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -443,11 +476,18 @@ export class ArtistFollowService {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'artist_follows',  // Use existing artist_follows table
+          table: 'follows',  // Use consolidated follows table
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
-          onFollowChange(payload.new as ArtistFollow, 'INSERT');
+        (payload: any) => {
+          // Only process artist follows
+          if (payload.new?.followed_entity_type === 'artist') {
+            onFollowChange({
+              id: payload.new.id,
+              user_id: payload.new.user_id,
+              artist_id: payload.new.followed_entity_id
+            } as ArtistFollow, 'INSERT');
+          }
         }
       )
       .on(
@@ -455,11 +495,18 @@ export class ArtistFollowService {
         {
           event: 'DELETE',
           schema: 'public',
-          table: 'artist_follows',  // Use existing artist_follows table
+          table: 'follows',  // Use consolidated follows table
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
-          onFollowChange(payload.old as ArtistFollow, 'DELETE');
+        (payload: any) => {
+          // Only process artist follows
+          if (payload.old?.followed_entity_type === 'artist') {
+            onFollowChange({
+              id: payload.old.id,
+              user_id: payload.old.user_id,
+              artist_id: payload.old.followed_entity_id
+            } as ArtistFollow, 'DELETE');
+          }
         }
       )
       .subscribe();

@@ -14,10 +14,10 @@ import { FigmaEventCard } from '@/components/cards/FigmaEventCard';
 import { NetworkReviewCard } from './NetworkReviewCard';
 import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
 import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
-import { Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, MessageCircle, ChevronRight, ChevronDown, MapPin, Plus } from 'lucide-react';
+import { Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, MessageCircle, ChevronRight, ChevronDown, MapPin, Plus, Loader2 } from 'lucide-react';
 import { SynthLoadingInline, SynthLoader } from '@/components/ui/SynthLoader';
 import { FriendSuggestionsRail } from '@/components/feed/FriendSuggestionsRail';
 import { FriendsService } from '@/services/friendsService';
@@ -26,7 +26,6 @@ import { FlagContentModal } from '@/components/moderation/FlagContentModal';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { LocationService } from '@/services/locationService';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
-import { TopRightMenu } from '@/components/TopRightMenu';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -215,6 +214,55 @@ interface FriendEventInterest {
   useEffect(() => {
     loadUserCity();
     loadFeedLocation(); // Also load location for feed filtering
+  }, [currentUserId]);
+
+  // Check for selectedEvent in localStorage (from notification navigation)
+  useEffect(() => {
+    const checkForSelectedEvent = async () => {
+      try {
+        const storedEvent = localStorage.getItem('selectedEvent');
+        if (storedEvent) {
+          const eventData = JSON.parse(storedEvent);
+          
+          // Clear localStorage immediately to prevent re-opening
+          localStorage.removeItem('selectedEvent');
+          
+          // Set the event first
+          setSelectedEvent(eventData);
+          
+          // Check if user is interested in this event
+          if (eventData.id) {
+            const interested = await UserEventService.isUserInterested(currentUserId, eventData.id);
+            setSelectedEventInterested(interested);
+          }
+          
+          // Open the modal after a brief delay to ensure state is set
+          setTimeout(() => {
+            setEventDetailsOpen(true);
+          }, 50);
+        }
+      } catch (error) {
+        console.error('Error loading selectedEvent from localStorage:', error);
+        localStorage.removeItem('selectedEvent'); // Clear invalid data
+      }
+    };
+
+    // Check immediately on mount or when currentUserId changes
+    checkForSelectedEvent();
+    
+    // Also listen for the open-event-details custom event
+    const handleOpenEventDetails = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { event?: any; eventId?: string };
+      if (detail?.event) {
+        checkForSelectedEvent();
+      }
+    };
+    
+    window.addEventListener('open-event-details', handleOpenEventDetails);
+    
+    return () => {
+      window.removeEventListener('open-event-details', handleOpenEventDetails);
+    };
   }, [currentUserId]);
 
   // Note: Location filtering is now handled by loadFeedLocation which always uses lat/long + radius
@@ -1215,12 +1263,9 @@ interface FriendEventInterest {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-                            </div>
-          <div className="flex items-center gap-2">
-            <TopRightMenu />
-                      </div>
-                  </div>
-                </div>
+          </div>
+        </div>
+      </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
         {/* Location Filter - compact info section above feeds */}
         {feedLocation && (
@@ -1330,7 +1375,7 @@ interface FriendEventInterest {
           <div className="space-y-4">
               {loadingNetwork && firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                <SynthLoadingInline />
                 </div>
               ) : (
                 <>
@@ -1392,7 +1437,7 @@ interface FriendEventInterest {
           <div className="space-y-4">
             {loadingRecommendedGroupChats ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                <SynthLoadingInline />
               </div>
             ) : recommendedGroupChats.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
@@ -1611,7 +1656,7 @@ interface FriendEventInterest {
           <div className="space-y-4">
           {loadingReviews ? (
             <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    <SynthLoadingInline />
                   </div>
           ) : reviews.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -1691,6 +1736,10 @@ interface FriendEventInterest {
       {reviewDetailOpen && selectedReview && (
         <Dialog open={reviewDetailOpen} onOpenChange={setReviewDetailOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogTitle className="sr-only">Review Details</DialogTitle>
+            <DialogDescription className="sr-only">
+              Detailed view of {selectedReview.author.name}'s review
+            </DialogDescription>
             <BelliStyleReviewCard
               review={{
                 id: selectedReview.review_id || selectedReview.id,

@@ -183,3 +183,6 @@ COMMENT ON FUNCTION public.update_venue_upcoming_events_count() IS
 
 COMMIT;
 
+
+
+

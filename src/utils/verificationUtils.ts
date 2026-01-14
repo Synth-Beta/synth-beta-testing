@@ -30,6 +30,8 @@ export interface TrustScoreBreakdown {
   totalCriteria: number;
   criteria: TrustScoreCriteria;
   isVerified: boolean;
+  profile?: Profile;
+  friendCount?: number;
 }
 
 export interface Profile {
@@ -188,18 +190,46 @@ export function getVerificationStatus(
 }
 
 /**
+ * Calculate profile completion percentage (0-100)
+ */
+export function calculateProfileCompletionPercentage(profile: Profile): number {
+  const requiredFields = ['name', 'bio', 'avatar_url', 'birthday', 'gender'] as const;
+  let completedFields = 0;
+  
+  for (const field of requiredFields) {
+    if (profile[field]) {
+      completedFields++;
+    }
+  }
+  
+  return Math.round((completedFields / requiredFields.length) * 100);
+}
+
+/**
  * Get human-readable description for a trust criterion
  */
-export function getCriterionDescription(criterion: keyof TrustScoreCriteria): {
+export function getCriterionDescription(
+  criterion: keyof TrustScoreCriteria,
+  profile?: Profile,
+  friendCount?: number
+): {
   label: string;
   description: string;
   target: string;
 } {
+  // Calculate dynamic values if profile data is provided
+  let profileCompletionPercentage: number | undefined;
+  if (criterion === 'profileComplete' && profile) {
+    profileCompletionPercentage = calculateProfileCompletionPercentage(profile);
+  }
+  
   const descriptions: Record<keyof TrustScoreCriteria, { label: string; description: string; target: string }> = {
     profileComplete: {
       label: 'Complete Profile',
       description: 'Fill out your name, bio, avatar, birthday, and gender',
-      target: '100% complete',
+      target: profileCompletionPercentage !== undefined 
+        ? `${profileCompletionPercentage}% complete`
+        : '100% complete',
     },
     streamingConnected: {
       label: 'Streaming Account',
@@ -214,7 +244,9 @@ export function getCriterionDescription(criterion: keyof TrustScoreCriteria): {
     hasFriends: {
       label: 'Friend Network',
       description: 'Build your network by connecting with other users',
-      target: '10+ friends',
+      target: friendCount !== undefined 
+        ? `${friendCount}+ friends`
+        : '10+ friends',
     },
     hasEvents: {
       label: 'Event Interests',

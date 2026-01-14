@@ -151,7 +151,11 @@ export function VerificationStatusCard({
         <div className="space-y-3">
           <h4 className="font-semibold text-sm">Verification Criteria</h4>
           {Object.entries(breakdown.criteria).map(([key, met]) => {
-            const criterion = getCriterionDescription(key as keyof typeof breakdown.criteria);
+            const criterion = getCriterionDescription(
+              key as keyof typeof breakdown.criteria,
+              breakdown.profile,
+              breakdown.friendCount
+            );
             return (
               <div
                 key={key}

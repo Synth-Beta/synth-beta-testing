@@ -685,19 +685,21 @@ export class UserAnalyticsService {
     try {
       console.log(`🔍 Getting artist follows count for user: ${userId}`);
       
-      // First, try a direct count query
+      // First, try a direct count query (using consolidated follows table)
       const { count: countResult, error: countError } = await supabase
-        .from('artist_follows')
+        .from('follows')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('followed_entity_type', 'artist');
 
       console.log(`🔍 Count query result: count=${countResult}, error=`, countError);
 
       // Also fetch the actual data to see what we get
       const { data: followData, error: dataError } = await supabase
-        .from('artist_follows')
-        .select('id, artist_id, user_id, created_at')
-        .eq('user_id', userId);
+        .from('follows')
+        .select('id, followed_entity_id, user_id, created_at')
+        .eq('user_id', userId)
+        .eq('followed_entity_type', 'artist');
 
       console.log(`🔍 Data query result: data.length=${followData?.length || 0}, error=`, dataError);
       if (followData && followData.length > 0) {
@@ -723,7 +725,7 @@ export class UserAnalyticsService {
 
       // For debugging, fetch artist names if we have follows
       if (finalCount > 0 && followData && followData.length > 0) {
-        const artistIds = followData.map((follow: any) => follow.artist_id).filter(Boolean);
+        const artistIds = followData.map((follow: any) => follow.followed_entity_id).filter(Boolean);
         if (artistIds.length > 0) {
           const { data: artistsData, error: artistsError } = await supabase
             .from('artists')

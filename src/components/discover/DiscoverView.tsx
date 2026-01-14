@@ -15,7 +15,6 @@ import { LocationService } from '@/services/locationService';
 import { supabase } from '@/integrations/supabase/client';
 import type { VibeType } from '@/services/discoverVibeService';
 import type { VibeFilters } from '@/services/discoverVibeService';
-import { TopRightMenu } from '@/components/TopRightMenu';
 
 interface DiscoverViewProps {
   currentUserId: string;
@@ -272,7 +271,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             onNavigateToChat={onNavigateToChat}
           />
         </div>
-            <TopRightMenu />
           </div>
         </div>
       </div>

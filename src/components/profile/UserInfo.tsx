@@ -63,13 +63,14 @@ export const UserInfo: React.FC<UserInfoProps> = ({
     pictureVariant = 'musicIcon';
   } else if (variant === 'chat') {
     pictureSize = 32;
-    pictureVariant = 'initial';
+    pictureVariant = imageUrl ? 'image' : 'initial';
   } else if (variant === 'userProfile') {
     pictureSize = 75;
-    pictureVariant = 'initial';
+    pictureVariant = imageUrl ? 'image' : 'initial';
   } else {
     pictureSize = 45;
-    pictureVariant = 'initial';
+    // Use image variant if imageUrl is provided, otherwise use initial
+    pictureVariant = imageUrl ? 'image' : 'initial';
   }
 
   const rootClasses = ['user-info', `user-info--${variant}`, className]
@@ -94,7 +95,7 @@ export const UserInfo: React.FC<UserInfoProps> = ({
           size={pictureSize}
           variant={pictureVariant}
           initial={initial}
-          imageUrl={pictureVariant === 'image' ? imageUrl : undefined}
+          imageUrl={imageUrl}
           alt={name}
         />
       </div>

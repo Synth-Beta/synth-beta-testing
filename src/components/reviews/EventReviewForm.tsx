@@ -1280,9 +1280,34 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       // The setlist will be saved as part of the review submission below
       
       try {
-        const entityType = formData.reviewType === 'artist' ? 'artist' : (formData.reviewType === 'venue' ? 'venue' : 'event');
-        const entityId = entityType === 'artist' ? (formData.selectedArtist?.id || eventId) : (entityType === 'venue' ? (venueId || formData.selectedVenue?.id || eventId) : eventId);
-        trackInteraction.review(entityType, entityId, reviewData.rating as number, {
+        // Track review interaction - use review entity type with review ID
+        const reviewEntityId = review.id || 'unknown';
+        const reviewEntityUuid = isValidUUID(review.id) ? review.id : null;
+        
+        // Determine the entity being reviewed based on what IDs are actually available
+        // Only include reviewed entity metadata if we have a valid ID
+        let reviewedEntityType: string | undefined;
+        let reviewedEntityId: string | undefined;
+        let reviewedEntityUuid: string | null = null;
+        
+        // Check in priority order: artist, venue, event
+        // Only set if we have a valid ID for that entity type
+        if (safeArtistId) {
+          reviewedEntityType = 'artist';
+          reviewedEntityId = safeArtistId;
+          reviewedEntityUuid = safeArtistId;
+        } else if (safeVenueId) {
+          reviewedEntityType = 'venue';
+          reviewedEntityId = safeVenueId;
+          reviewedEntityUuid = safeVenueId;
+        } else if (safeEventId) {
+          reviewedEntityType = 'event';
+          reviewedEntityId = safeEventId;
+          reviewedEntityUuid = safeEventId;
+        }
+        
+        // Build metadata object, only including reviewed entity info if we have valid data
+        const reviewMetadata: Record<string, any> = {
           artist_performance_rating: reviewData.artist_performance_rating,
           production_rating: reviewData.production_rating,
           venue_rating: reviewData.venue_rating,
@@ -1291,9 +1316,31 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           is_public: reviewData.is_public,
           has_text: !!reviewData.review_text,
           text_length: reviewData.review_text?.length || 0,
-          reviewType: formData.reviewType
-        });
-        trackInteraction.formSubmit('event_review', entityId, true, { reviewType: formData.reviewType });
+          reviewType: formData.reviewType,
+        };
+        
+        // Only include reviewed entity metadata if we have valid entity type and ID
+        if (reviewedEntityType && reviewedEntityId) {
+          reviewMetadata.reviewed_entity_type = reviewedEntityType;
+          reviewMetadata.reviewed_entity_id = reviewedEntityId;
+        }
+        
+        // Track review creation with review entity type
+        trackInteraction.review('review', reviewEntityId, reviewData.rating as number, reviewMetadata, reviewEntityUuid);
+        
+        // Build form submit metadata
+        const formSubmitMetadata: Record<string, any> = {
+          reviewType: formData.reviewType,
+        };
+        
+        // Only include reviewed entity metadata if we have valid entity type and ID
+        if (reviewedEntityType && reviewedEntityId) {
+          formSubmitMetadata.reviewed_entity_type = reviewedEntityType;
+          formSubmitMetadata.reviewed_entity_id = reviewedEntityId;
+        }
+        
+        // Track form submission with review entity type
+        trackInteraction.formSubmit('review', reviewEntityId, true, formSubmitMetadata, reviewEntityUuid);
       } catch {}
       toast({ title: existingReview ? 'Review Updated' : 'Review Submitted! 🎉', description: existingReview ? 'Your review has been updated.' : 'Thanks for sharing your concert experience!' });
       
@@ -1354,20 +1401,23 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         
         console.log('  Effective rating for modal:', effectiveRating);
         console.log('  Opening ranking modal with review ID:', review.id);
-        console.log('  ⚠️ DELAYING onSubmitted callback until modal closes');
+        console.log('  ⚠️ Deferring onSubmitted callback until ranking modal closes to avoid unmounting component');
+        
+        // Store the review for when the ranking modal closes
+        setSubmittedReview(review);
         
         // Small delay to ensure review is fully saved before opening modal
         setTimeout(() => {
-          setSubmittedReview(review);
           setShowRankingModal(true);
           console.log('  ✅ Modal state updated:', { showRankingModal: true, submittedReview: review.id });
         }, 100);
         
         // Don't reset form yet - wait until after ranking modal closes
-        // DON'T call onSubmitted yet - will be called when modal closes
+        // Don't call onSubmitted yet - will be called when ranking modal closes
       } else {
-        // For edits, call onSubmitted immediately and await if async
+        // For edits, call onSubmitted immediately (no ranking modal, so safe to close)
         if (onSubmitted) {
+          console.log('📞 Calling onSubmitted callback immediately after edit');
           const result = onSubmitted(review);
           if (result instanceof Promise) {
             await result;
@@ -1393,10 +1443,10 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     resetForm();
     setIsReviewSubmitted(false); // Reset submission state for next review
     
-    // NOW call the onSubmitted callback (which triggers navigation)
-    // Await if it's async to ensure operations complete before proceeding
+    // NOW call the onSubmitted callback (which triggers refresh and closes modal)
+    // This was deferred for new reviews to avoid unmounting before ranking modal could show
     if (onSubmitted && reviewToSubmit) {
-      console.log('📞 Calling onSubmitted callback after modal close');
+      console.log('📞 Calling onSubmitted callback after ranking modal close');
       const result = onSubmitted(reviewToSubmit);
       if (result instanceof Promise) {
         await result;

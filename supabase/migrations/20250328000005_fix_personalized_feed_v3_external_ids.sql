@@ -346,3 +346,6 @@ GRANT EXECUTE ON FUNCTION public.get_personalized_feed_v3(UUID, INT, INT, NUMERI
 
 COMMIT;
 
+
+
+

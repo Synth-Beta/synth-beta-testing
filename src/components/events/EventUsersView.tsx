@@ -95,9 +95,10 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
 
       // Get all users interested in this event (excluding current user)
       const { data: interests, error: interestsError } = await supabase
-        .from('user_jambase_events')
+        .from('user_event_relationships')
         .select('user_id')
-        .eq('jambase_event_id', event.id)
+        .eq('event_id', event.id)
+        .eq('relationship_type', 'interested')
         .neq('user_id', currentUserId);
 
       if (interestsError) throw interestsError;
@@ -183,9 +184,9 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
   const fetchOtherEvents = async (userId: string) => {
     try {
       const { data: userEvents, error } = await supabase
-        .from('user_jambase_events')
+        .from('user_event_relationships')
         .select(`
-          jambase_events:jambase_events(
+          events:events!user_event_relationships_event_id_fkey(
             id,
             title,
             venue_city,
@@ -194,10 +195,11 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
           )
         `)
         .eq('user_id', userId)
+        .eq('relationship_type', 'interested')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      const events = userEvents?.map(item => item.jambase_events).filter(Boolean) || [];
+      const events = userEvents?.map(item => item.events).filter(Boolean) || [];
       setOtherEvents(events);
     } catch (error) {
       console.error('Error fetching other events:', error);

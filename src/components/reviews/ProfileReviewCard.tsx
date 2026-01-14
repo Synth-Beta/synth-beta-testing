@@ -4,11 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Star, Images, MessageCircle, Heart, Share2, Loader2, Send, Play, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ReviewService, type CommentWithUser } from '@/services/reviewService';
-import { ShareService } from '@/services/shareService';
+import { ReviewService, type CommentWithUser, type ReviewWithEngagement } from '@/services/reviewService';
 import { supabase } from '@/integrations/supabase/client';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
+import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
 
 interface ReviewEventMeta {
   event_name: string;
@@ -91,6 +91,8 @@ export function ProfileReviewCard({
   const [newComment, setNewComment] = React.useState<string>('');
   const [submitting, setSubmitting] = React.useState<boolean>(false);
   const [media, setMedia] = React.useState<{ photos: string[]; videos: string[] }>({ photos: initialPhotos || [], videos: initialVideos || [] });
+  const [shareModalOpen, setShareModalOpen] = React.useState<boolean>(false);
+  const [reviewEventId, setReviewEventId] = React.useState<string | null>(null);
   const [categoryRatings, setCategoryRatings] = React.useState<{
     artistPerformance?: number;
     production?: number;
@@ -130,24 +132,23 @@ export function ProfileReviewCard({
     } catch {}
   };
 
-  const share = async () => {
-    try {
-      console.log('🔍 ProfileReviewCard: Sharing review', { reviewId });
-      const url = await ShareService.shareReview(reviewId, 'PlusOne Review', reviewText || undefined);
-      
-      // Record the share in the database
-      if (currentUserId) {
-        try {
-          await ReviewService.shareReview(currentUserId, reviewId);
-          // Update local share count
-          setSharesCount(prev => prev + 1);
-        } catch (shareError) {
-          console.error('❌ ProfileReviewCard: Error recording share:', shareError);
+  const handleShare = async () => {
+    // Ensure event_id is fetched before opening modal
+    if (!reviewEventId) {
+      try {
+        const { data } = await (supabase as any)
+          .from('reviews')
+          .select('event_id')
+          .eq('id', reviewId)
+          .maybeSingle();
+        if (data?.event_id) {
+          setReviewEventId(data.event_id);
         }
+      } catch (error) {
+        console.error('Error fetching event_id for share:', error);
       }
-    } catch (error) {
-      console.error('❌ ProfileReviewCard: Error sharing review:', error);
     }
+    setShareModalOpen(true);
   };
 
   const addComment = async () => {
@@ -208,10 +209,10 @@ export function ProfileReviewCard({
   React.useEffect(() => {
     (async () => {
       try {
-        // fetch media and ratings
+        // fetch media, ratings, and event_id
         const { data } = await (supabase as any)
           .from('reviews')
-          .select('photos, videos, artist_performance_rating, production_rating, venue_rating, location_rating, value_rating')
+          .select('photos, videos, artist_performance_rating, production_rating, venue_rating, location_rating, value_rating, event_id')
           .eq('id', reviewId)
           .maybeSingle();
         if (data) {
@@ -219,6 +220,9 @@ export function ProfileReviewCard({
           const nextVideos = Array.isArray(data.videos) ? data.videos : [];
           if (nextPhotos.length || nextVideos.length) {
             setMedia({ photos: nextPhotos, videos: nextVideos });
+          }
+          if (data.event_id) {
+            setReviewEventId(data.event_id);
           }
           setCategoryRatings({
             artistPerformance: typeof data.artist_performance_rating === 'number' ? data.artist_performance_rating : undefined,
@@ -381,7 +385,7 @@ export function ProfileReviewCard({
               <MessageCircle className="w-4 h-4" />
               <span className="text-sm">{commentsCount}</span>
             </Button>
-            <Button variant="ghost" size="sm" onClick={share} className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={handleShare} className="flex items-center gap-1">
               <Share2 className="w-4 h-4" />
               <span className="text-sm">Share</span>
             </Button>
@@ -462,6 +466,43 @@ export function ProfileReviewCard({
           </div>
         )}
       </CardContent>
+
+      {/* Review Share Modal */}
+      {shareModalOpen && currentUserId && (
+        <ReviewShareModal
+          review={{
+            id: reviewId,
+            user_id: currentUserId,
+            event_id: reviewEventId || '', // Use fetched event_id from review data, or empty string if not available (required by type)
+            rating: normalizeRating(rating),
+            review_text: reviewText || null,
+            is_public: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            likes_count: likesCount,
+            comments_count: commentsCount,
+            shares_count: sharesCount,
+            is_liked_by_user: isLiked,
+            reaction_emoji: '',
+            photos: media.photos,
+            videos: media.videos,
+            mood_tags: [],
+            genre_tags: [],
+            context_tags: [],
+            artist_name: event.artist_name || null,
+            artist_id: event.artist_id || null,
+            venue_name: event.venue_name || null,
+            venue_id: event.venue_id || null,
+          } as ReviewWithEngagement}
+          currentUserId={currentUserId}
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+          onShareComplete={() => {
+            // Update local share count after successful share
+            setSharesCount(prev => prev + 1);
+          }}
+        />
+      )}
     </Card>
   );
 }

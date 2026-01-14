@@ -288,9 +288,11 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
     try {
       // First, get the friendship records
       const { data: friendships, error: friendsError } = await supabase
-        .from('friends')
-        .select('id, user1_id, user2_id, created_at')
-        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+        .from('user_relationships')
+        .select('id, user_id, related_user_id, created_at')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${currentUserId},related_user_id.eq.${currentUserId}`)
         .order('created_at', { ascending: false });
 
       if (friendsError) {
@@ -305,7 +307,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
 
       // Get all the user IDs we need to fetch
       const userIds = friendships.map(f => 
-        f.user1_id === currentUserId ? f.user2_id : f.user1_id
+        f.user_id === currentUserId ? f.related_user_id : f.user_id
       );
 
       // Fetch the profiles for those users
@@ -321,7 +323,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
 
       // Transform the data to get the other user's profile
       const friendsList = friendships.map(friendship => {
-        const otherUserId = friendship.user1_id === currentUserId ? friendship.user2_id : friendship.user1_id;
+        const otherUserId = friendship.user_id === currentUserId ? friendship.related_user_id : friendship.user_id;
         const profile = profiles?.find(p => p.user_id === otherUserId);
         
         return {

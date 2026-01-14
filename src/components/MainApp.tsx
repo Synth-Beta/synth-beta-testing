@@ -194,13 +194,29 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     };
     
     // Listen for event details navigation
-    const handleOpenEventDetails = (e: Event) => {
+    const handleOpenEventDetails = async (e: Event) => {
       const detail = (e as CustomEvent).detail as { event?: any; eventId?: string };
       if (detail?.event) {
         // Store the event data in localStorage for the feed to pick up
         localStorage.setItem('selectedEvent', JSON.stringify(detail.event));
         // Navigate to feed where the event modal will open
         setCurrentView('feed');
+      } else if (detail?.eventId) {
+        // If only eventId is provided, fetch the event first
+        try {
+          const { data: eventData, error } = await supabase
+            .from('events')
+            .select('*')
+            .eq('id', detail.eventId)
+            .single();
+
+          if (eventData && !error) {
+            localStorage.setItem('selectedEvent', JSON.stringify(eventData));
+            setCurrentView('feed');
+          }
+        } catch (error) {
+          console.error('Error fetching event:', error);
+        }
       }
     };
     
@@ -313,10 +329,11 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       if (direction === 'like') {
         // Add to user's interested events
         const { error } = await supabase
-          .from('user_jambase_events')
+          .from('user_event_relationships')
           .insert({
             user_id: user.id,
-            jambase_event_id: eventId
+            event_id: eventId,
+            relationship_type: 'interested'
           });
 
         if (error) throw error;
@@ -402,9 +419,79 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     setCurrentView('notifications');
   };
 
-  const handleNavigateToProfile = (userId: string) => {
+  const handleNavigateToEvent = async (eventId: string) => {
+    try {
+      // Fetch event data from database
+      const { data: eventData, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', eventId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching event:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load event details",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (eventData) {
+        // Store the event data in localStorage for the feed to pick up
+        localStorage.setItem('selectedEvent', JSON.stringify(eventData));
+        // Navigate to feed where the event modal will open
+        // The HomeFeed useEffect will detect this and open the modal
+        setCurrentView('feed');
+        // Also dispatch custom event as backup mechanism
+        window.dispatchEvent(new CustomEvent('open-event-details', { 
+          detail: { event: eventData } 
+        }));
+      }
+    } catch (error) {
+      console.error('Error navigating to event:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load event",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleNavigateToArtist = (artistId: string) => {
+    // Navigate to artist page
+    window.location.href = `/artist/${encodeURIComponent(artistId)}`;
+  };
+
+  const handleNavigateToVenue = (venueName: string) => {
+    // Navigate to venue page
+    window.location.href = `/venue/${encodeURIComponent(venueName)}`;
+  };
+
+  const handleNavigateToProfile = (userId?: string, tab?: 'timeline' | 'interested') => {
+    // Clear any existing profileUserId first
+    setProfileUserId(undefined);
+    
+    // Only set profileUserId if a valid userId is provided (not a tab name)
+    if (userId && userId !== 'timeline' && userId !== 'interested' && userId !== 'passport') {
+      // Validate it's a UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(userId)) {
     setProfileUserId(userId);
+      }
+    }
+    
     setCurrentView('profile');
+    
+    // Store tab preference in sessionStorage for ProfileView to read
+    if (tab) {
+      // Map 'timeline' to 'passport' since that's what ProfileView uses
+      sessionStorage.setItem('profileTab', tab === 'timeline' ? 'passport' : tab);
+    } else {
+      // Clear tab preference if no tab specified
+      sessionStorage.removeItem('profileTab');
+    }
   };
 
   const handleNavigateToChat = (userIdOrChatId: string) => {
@@ -516,6 +603,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           <NotificationsPage
             currentUserId={user.id}
             onBack={handleBack}
+            onNavigateToProfile={handleNavigateToProfile}
+            onNavigateToEvent={handleNavigateToEvent}
+            onNavigateToArtist={handleNavigateToArtist}
+            onNavigateToVenue={handleNavigateToVenue}
           />
         );
       case 'chat':

@@ -30,7 +30,7 @@ import {
 import { cn } from '@/lib/utils';
 import { ReviewWithEngagement, ReviewService, CommentWithUser } from '@/services/reviewService';
 import { Textarea } from '@/components/ui/textarea';
-import { ShareService } from '@/services/shareService';
+import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
 import { formatDistanceToNow } from 'date-fns';
 import { SetlistDisplay } from './SetlistDisplay';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
@@ -145,6 +145,7 @@ export function BelliStyleReviewCard({
   const [imageIndex, setImageIndex] = useState(0);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const { toast } = useToast();
   
   // Connection degree and friend request state
@@ -227,8 +228,11 @@ export function BelliStyleReviewCard({
     }
   };
 
-  const handleShare = async () => {
-    await ShareService.shareReview(review.id, 'Concert Review', review.review_text || undefined);
+  const handleShare = () => {
+    if (onShare) {
+      onShare(review.id);
+    }
+    setShareModalOpen(true);
   };
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -388,11 +392,13 @@ export function BelliStyleReviewCard({
           setConnectionInfo(null);
         }
 
-        // Check friend status
+        // Check friend status using user_relationships table
         const { data: friendData, error: friendError } = await supabase
-          .from('friends')
-          .select('id')
-          .or(`and(user1_id.eq.${currentUserId},user2_id.eq.${review.user_id}),and(user1_id.eq.${review.user_id},user2_id.eq.${currentUserId})`)
+          .from('user_relationships')
+          .select('id, user_id, related_user_id, status')
+          .eq('relationship_type', 'friend')
+          .eq('status', 'accepted')
+          .or(`and(user_id.eq.${currentUserId},related_user_id.eq.${review.user_id}),and(user_id.eq.${review.user_id},related_user_id.eq.${currentUserId})`)
           .maybeSingle();
 
         if (friendError && friendError.code !== 'PGRST116') {
@@ -600,10 +606,10 @@ export function BelliStyleReviewCard({
             
             {/* "Reviewed [Artist] at [Venue]" subtitle */}
             <p className="text-sm text-gray-600 font-medium">
-              Reviewed <span className="text-[#FF3399] font-semibold">{review.artist_name || 'Artist'}</span>
-              {review.venue_name && (
+              Reviewed <span className="text-[#FF3399] font-semibold">{review.artist_name || (review as any).event?.artist_name || 'Artist'}</span>
+              {(review.venue_name || (review as any).event?.venue_name) && (
                 <>
-                  {' '}at <span className="text-gray-800">{review.venue_name}</span>
+                  {' '}at <span className="text-gray-800">{review.venue_name || (review as any).event?.venue_name}</span>
                 </>
               )}
             </p>
@@ -658,13 +664,6 @@ export function BelliStyleReviewCard({
           </div>
         )}
 
-        {/* Ticket price (private) */}
-        {typeof review.ticket_price_paid === 'number' && review.ticket_price_paid > 0 && (
-          <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
-            <DollarSign className="w-4 h-4 text-gray-500" />
-            <span>Ticket price (kept private): ${review.ticket_price_paid.toFixed(2)}</span>
-          </div>
-        )}
 
         {/* Photo Gallery Grid */}
         {photos.length > 0 && (
@@ -1155,6 +1154,16 @@ export function BelliStyleReviewCard({
           onReport?.(review.id);
         }}
       />
+
+      {/* Review Share Modal */}
+      {shareModalOpen && currentUserId && (
+        <ReviewShareModal
+          review={review}
+          currentUserId={currentUserId}
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+        />
+      )}
     </Card>
   );
 }

@@ -738,79 +738,137 @@ export class HomeFeedService {
     limit: number = 20
   ): Promise<NetworkReview[]> {
     try {
-      // Get first and second degree connections
-      const [firstDegreeResult, secondDegreeResult] = await Promise.all([
-        supabase.rpc('get_first_degree_connections', { target_user_id: userId }),
-        supabase.rpc('get_second_degree_connections', { target_user_id: userId }),
-      ]);
+      console.log('🔍 [NETWORK_REVIEWS] Fetching network reviews for user:', userId);
+      
+      // Get user's friends from user_relationships table (doesn't rely on RPC functions)
+      const { data: friends, error: friendsError } = await supabase
+        .from('user_relationships')
+        .select('user_id, related_user_id')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
 
-      if (firstDegreeResult.error) throw firstDegreeResult.error;
-      if (secondDegreeResult.error) throw secondDegreeResult.error;
+      if (friendsError) {
+        console.error('❌ [NETWORK_REVIEWS] Error fetching friends:', friendsError);
+        throw friendsError;
+      }
+      
+      console.log('🔍 [NETWORK_REVIEWS] Found friends:', friends?.length || 0);
+      
+      if (!friends || friends.length === 0) {
+        console.log('⚠️ [NETWORK_REVIEWS] No friends found, returning empty array');
+        return [];
+      }
 
-      const firstDegreeIds = (firstDegreeResult.data || []).map((c: any) => c.connected_user_id);
-      const secondDegreeIds = (secondDegreeResult.data || []).map((c: any) => c.connected_user_id);
-      const allConnectionIds = [...firstDegreeIds, ...secondDegreeIds];
+      // Extract friend user IDs
+      const friendIds = friends.map(f => 
+        f.user_id === userId ? f.related_user_id : f.user_id
+      );
+      
+      console.log('🔍 [NETWORK_REVIEWS] Friend IDs:', friendIds);
 
-      if (allConnectionIds.length === 0) return [];
-
-      // Get reviews from connections
-      // Uses existing indexes: idx_reviews_user_id, idx_reviews_created_at
-      // Limit aggressively to prevent timeouts with deep joins
+      // Get reviews from friends (fetch users separately to avoid join issues)
       const { data: reviews, error: reviewsError } = await supabase
         .from('reviews')
         .select(`
           id,
           user_id,
           event_id,
+          artist_id,
+          venue_id,
           rating,
           review_text,
           photos,
           created_at,
-          users:user_id (
-            user_id,
-            name,
-            avatar_url
-          ),
-          events:event_id (
+          events (
             id,
             title,
             event_date,
             artist_id,
-            artists:artist_id (
-              name
-            ),
-            venue_id,
-            venues:venue_id (
-              name
-            )
+            venue_id
           )
         `)
-        .in('user_id', allConnectionIds)
+        .in('user_id', friendIds)
+        .eq('is_public', true)
         .eq('is_draft', false)
+        .neq('review_text', 'ATTENDANCE_ONLY')
+        .not('review_text', 'is', null)
         .order('created_at', { ascending: false })
-        .limit(Math.min(limit + 5, 30)); // More aggressive limit to prevent timeout
+        .limit(limit);
 
-      if (reviewsError) throw reviewsError;
-      if (!reviews || reviews.length === 0) return [];
-
-      // Create a map for quick lookup of connection degree
-      const firstDegreeMap = new Set(firstDegreeIds);
+      if (reviewsError) {
+        console.error('❌ [NETWORK_REVIEWS] Error fetching reviews:', reviewsError);
+        throw reviewsError;
+      }
       
+      console.log('🔍 [NETWORK_REVIEWS] Found reviews:', reviews?.length || 0);
+      
+      if (!reviews || reviews.length === 0) {
+        console.log('⚠️ [NETWORK_REVIEWS] No reviews found, returning empty array');
+        return [];
+      }
+
+      // Fetch user data separately (avoiding PostgREST join issues)
+      const userIds = [...new Set(reviews.map((r: any) => r.user_id))];
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('user_id, name, avatar_url')
+        .in('user_id', userIds);
+
+      if (usersError) {
+        console.error('❌ [NETWORK_REVIEWS] Error fetching users:', usersError);
+        throw usersError;
+      }
+
+      const usersMap = new Map<string, any>();
+      users?.forEach(u => usersMap.set(u.user_id, u));
+
+      // Get artist and venue IDs from reviews and events
+      const artistIds = new Set<string>();
+      const venueIds = new Set<string>();
+      reviews.forEach((review: any) => {
+        if (review.artist_id) artistIds.add(review.artist_id);
+        if (review.venue_id) venueIds.add(review.venue_id);
+        if (review.events?.artist_id) artistIds.add(review.events.artist_id);
+        if (review.events?.venue_id) venueIds.add(review.events.venue_id);
+      });
+
+      // Fetch artist and venue names
+      const artistsMap = new Map<string, string>();
+      const venuesMap = new Map<string, string>();
+      
+      if (artistIds.size > 0) {
+        const { data: artists } = await supabase
+          .from('artists')
+          .select('id, name')
+          .in('id', Array.from(artistIds));
+        artists?.forEach(a => artistsMap.set(a.id, a.name));
+      }
+      
+      if (venueIds.size > 0) {
+        const { data: venues } = await supabase
+          .from('venues')
+          .select('id, name')
+          .in('id', Array.from(venueIds));
+        venues?.forEach(v => venuesMap.set(v.id, v.name));
+      }
+
       // Transform reviews to NetworkReview format
-      const networkReviews: NetworkReview[] = (reviews || [])
-        .filter((review: any) => review.users && review.events) // Filter out any with missing joins
+      const networkReviews: NetworkReview[] = reviews
+        .filter((review: any) => usersMap.has(review.user_id)) // Only include reviews with user data
         .map((review: any) => {
-          const connectionDegree = firstDegreeMap.has(review.user_id) ? 1 : 2;
-          const event = review.events;
-          const artistName = event.artists?.name || null;
-          const venueName = event.venues?.name || null;
+          const user = usersMap.get(review.user_id);
+          const artistId = review.artist_id || review.events?.artist_id;
+          const venueId = review.venue_id || review.events?.venue_id;
+          const artistName = artistId ? artistsMap.get(artistId) : undefined;
+          const venueName = venueId ? venuesMap.get(venueId) : undefined;
 
           return {
             id: review.id,
             author: {
-              id: review.users.user_id,
-              name: review.users.name || 'User',
-              avatar_url: review.users.avatar_url || undefined,
+              id: user.user_id,
+              name: user.name || 'User',
+              avatar_url: user.avatar_url || undefined,
             },
             created_at: review.created_at,
             rating: review.rating || undefined,
@@ -819,21 +877,13 @@ export class HomeFeedService {
             event_info: {
               artist_name: artistName || undefined,
               venue_name: venueName || undefined,
-              event_date: event.event_date || undefined,
+              event_date: review.events?.event_date || undefined,
             },
-            connection_degree: connectionDegree as 1 | 2,
+            connection_degree: 1 as const, // Direct friends
           };
-        });
+        })
 
-      // Sort by connection degree (first degree first) then by date
-      networkReviews.sort((a, b) => {
-        if (a.connection_degree !== b.connection_degree) {
-          return a.connection_degree - b.connection_degree;
-        }
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      });
-
-      return networkReviews.slice(0, limit);
+      return networkReviews;
     } catch (error) {
       console.error('Error fetching network reviews:', error);
       return [];
