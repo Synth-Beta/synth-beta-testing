@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { EventShareModal } from '@/components/events/EventShareModal';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { useToast } from '@/hooks/use-toast';
+import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 
 interface PreferencesV4FeedSectionProps {
   userId: string;
@@ -48,26 +49,7 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     if (!userId) return;
     try {
       // Get ALL events user is interested in (not just the ones in current events list)
-      const { data, error } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
-        .eq('user_id', userId)
-        .eq('relationship_type', 'interested');
-      
-      if (error) {
-        console.error('Error loading all interested events:', error);
-        return;
-      }
-      
-      const interestedSet = new Set<string>();
-      if (data) {
-        data.forEach((row: any) => {
-          if (row.event_id) {
-            interestedSet.add(String(row.event_id));
-          }
-        });
-      }
-      
+      const interestedSet = await UserEventService.getUserInterestedEventIdSet(userId);
       setInterestedEvents(interestedSet);
       console.log('✅ PreferencesV4FeedSection: Loaded all interested events:', interestedSet.size);
     } catch (error) {
@@ -327,14 +309,55 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
             {events.map((event, index) => {
             // Resolve image URL with priority
             let imageUrl: string | undefined = undefined;
+            let isCommunityPhoto = false;
+            
+            // Check if there are any official images available (Ticketmaster/external sources)
+            const hasOfficialImages = event.images && Array.isArray(event.images) && event.images.length > 0;
             
             if (event.poster_image_url) {
-              imageUrl = event.poster_image_url;
-            } else if (event.images && Array.isArray(event.images) && event.images.length > 0) {
+              imageUrl = replaceJambasePlaceholder(event.poster_image_url);
+              
+              // Only show "Community Photo" tag if:
+              // 1. There are NO official images available (we're falling back to user content)
+              // 2. The image is from a Supabase storage URL (definitely user-uploaded)
+              // 3. It's not a placeholder or external source
+              
+              const isSupabaseStorageUrl = event.poster_image_url?.includes('/storage/v1/object/public/') || 
+                event.poster_image_url?.includes('review-photos') ||
+                event.poster_image_url?.includes('supabase.co/storage');
+              
+              // Check if poster_image_url matches event_media_url (from artist, not community)
+              const isEventMediaUrl = (event as any).event_media_url && 
+                event.poster_image_url === (event as any).event_media_url;
+              
+              // Check if it's a placeholder (fallback image)
+              const isPlaceholder = event.poster_image_url?.includes('/Generic Images/') ||
+                event.poster_image_url?.includes('placeholder') ||
+                event.poster_image_url?.includes('picsum.photos');
+              
+              // Check if it's in the official images array (external source)
+              const isInImagesArray = hasOfficialImages && 
+                event.images.some((img: any) => img?.url === event.poster_image_url);
+              
+              // Only mark as community photo if:
+              // - No official images available (falling back to user content)
+              // - It's a Supabase storage URL (user-uploaded)
+              // - Not a placeholder
+              // - Not from event_media_url (artist image)
+              // - Not in official images array
+              if (!hasOfficialImages && 
+                  isSupabaseStorageUrl && 
+                  !isPlaceholder && 
+                  !isEventMediaUrl && 
+                  !isInImagesArray) {
+                isCommunityPhoto = true;
+              }
+            } else if (hasOfficialImages) {
+              // Use official images if available
               const bestImage = event.images.find((img: any) => 
                 img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
               ) || event.images.find((img: any) => img?.url);
-              imageUrl = bestImage?.url;
+              imageUrl = bestImage?.url ? replaceJambasePlaceholder(bestImage.url) : undefined;
             }
             
             // Use index in key to ensure uniqueness even if IDs somehow duplicate
@@ -355,9 +378,9 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
                 }}
                 interestedCount={(event.interested_count || 0) + ((interestedEvents.has(event.id) || event.user_is_interested) ? 1 : 0)}
                 isInterested={interestedEvents.has(event.id) || event.user_is_interested || false}
+                isCommunityPhoto={isCommunityPhoto}
                 onInterestClick={(e) => handleInterestToggle(event.id, e)}
                 onShareClick={(e) => handleShareClick(event, e)}
-                onFlagClick={(e) => handleFlagClick(event, e)}
                 onClick={() => onEventClick?.(event.id)}
               />
             );

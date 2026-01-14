@@ -22,6 +22,7 @@ import type { JamBaseEvent, JamBaseEventResponse } from '@/types/eventTypes';
 import { EventMap } from '@/components/EventMap';
 import { formatPrice } from '@/utils/currencyUtils';
 import { supabase } from '@/integrations/supabase/client';
+import { UserEventService } from '@/services/userEventService';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { EventShareModal } from '@/components/events/EventShareModal';
 import { 
@@ -38,6 +39,7 @@ import { PromotedEventBadge } from '@/components/events/PromotedEventBadge';
 import { usePromotionImpression } from '@/hooks/usePromotionImpression';
 import { formatVenueName, formatVenueLocation, formatVenueAddress } from '@/utils/venueUtils';
 import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
+import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 
 interface JamBaseEventCardProps {
   event: JamBaseEvent | (JamBaseEventResponse & { images?: any[] });
@@ -142,14 +144,11 @@ export function JamBaseEventCard({
   useEffect(() => {
     const fetchInterestedCount = async () => {
       try {
-        const { count, error } = await supabase
-          .from('user_jambase_events')
-          .select('*', { count: 'exact', head: true })
-          .eq('jambase_event_id', event.id)
-          .neq('user_id', currentUserId || '');
-        
-        if (error) throw error;
-        setInterestedCount(count ?? 0);
+        const counts = await UserEventService.getInterestedCountsByEventId(
+          [event.id],
+          currentUserId || undefined
+        );
+        setInterestedCount(counts.get(event.id) ?? 0);
       } catch (error) {
         console.error('Error fetching interested count:', error);
         setInterestedCount(null);
@@ -175,7 +174,7 @@ export function JamBaseEventCard({
           ) || event.images.find((img: any) => img.url);
           
           if (bestImage?.url) {
-            setHeroImageUrl(bestImage.url);
+            setHeroImageUrl(replaceJambasePlaceholder(bestImage.url) || null);
             return;
           }
         }
@@ -190,7 +189,7 @@ export function JamBaseEventCard({
           .limit(1);
         const eventPhoto = Array.isArray(byEvent.data) && byEvent.data[0]?.photos?.[0];
         if (eventPhoto) { 
-          setHeroImageUrl(eventPhoto); 
+          setHeroImageUrl(replaceJambasePlaceholder(eventPhoto) || null); 
           return; 
         }
 
@@ -208,7 +207,7 @@ export function JamBaseEventCard({
           
           const artistImg = Array.isArray(artist.data) && artist.data[0]?.photos?.[0];
           if (artistImg) { 
-            setHeroImageUrl(artistImg); 
+            setHeroImageUrl(replaceJambasePlaceholder(artistImg) || null); 
             return; 
           }
         }

@@ -9,7 +9,6 @@ import {
   MapPin, 
   Clock, 
   Ticket, 
-  ExternalLink, 
   X,
   Star,
   Heart,
@@ -421,54 +420,11 @@ export function EventDetailsModal({
       }
       
       try {
-        // Use the event ID directly - no need to look it up
-        // The event.id should already be the UUID if it exists in the database
-        // This avoids 406 errors from RLS policies
-        const uuidId = actualEvent.id;
-        
-        // Use the UUID id to get the count, excluding current user
-        // Use user_event_relationships table (3NF compliant)
-        const { count, error } = await supabase
-          .from('user_event_relationships')
-          .select('*', { count: 'exact', head: true })
-          .eq('event_id', uuidId)
-          .eq('relationship_type', 'interested')
-          .neq('user_id', currentUserId);
-          
-        // Count query completed
-        // Querying user_event_relationships table
-        
-        // Also check what users are actually in the database for this event
-        const { data: allUsersCheck, error: allUsersCheckError } = await supabase
-          .from('user_event_relationships')
-          .select('user_id')
-          .eq('event_id', uuidId)
-          .eq('relationship_type', 'interested');
-        // Checking all users
-        
-        if (error) {
-          // Count query failed, trying alternative approach
-          // Try alternative approach - get all users and count manually
-          const { data: allUsers, error: allUsersError } = await supabase
-            .from('user_event_relationships')
-            .select('user_id')
-            .eq('event_id', uuidId)
-            .eq('relationship_type', 'interested');
-            
-          if (allUsersError) {
-            console.error('Alternative query also failed:', allUsersError);
-            throw allUsersError;
-          }
-          
-          // Setting interested count
-          const filteredUsers = allUsers?.filter(user => user && 'user_id' in user && user.user_id !== currentUserId) || [];
-          const dbCount = filteredUsers.length;
-          setInterestedCount(dbCount);
-        } else {
-          const dbCount = count ?? 0;
-          // Interested count set
-          setInterestedCount(dbCount);
-        }
+        const counts = await UserEventService.getInterestedCountsByEventId(
+          [actualEvent.id],
+          currentUserId
+        );
+        setInterestedCount(counts.get(actualEvent.id) ?? 0);
       } catch (error) {
         console.error('🔍 Error fetching interested count:', error);
         setInterestedCount(null);
@@ -706,18 +662,42 @@ export function EventDetailsModal({
       // The event.id should already be the UUID if it exists in the database
       const uuidId = actualEvent.id;
       
-      // Now query user_event_relationships table with the correct UUID (3NF compliant)
-      const { data: interestedUserIds, error: interestsError } = await supabase
+      let interestedUserIds: Array<{ user_id: string | null }> | null = null;
+      const { data: preferredIds, error: interestsError } = await supabase
         .from('user_event_relationships')
         .select('user_id')
         .eq('event_id', uuidId)
         .eq('relationship_type', 'interested')
         .neq('user_id', currentUserId)
         .range(from, to);
-          
-      if (interestsError) {
-        console.error('Error fetching interested user IDs:', interestsError);
-        throw interestsError;
+
+      if (!interestsError && preferredIds) {
+        interestedUserIds = preferredIds;
+      } else {
+        if (interestsError) {
+          console.error('Error fetching interested user IDs from user_event_relationships:', interestsError);
+        }
+
+        const { data: eventData } = await supabase
+          .from('events')
+          .select('jambase_event_id')
+          .eq('id', uuidId)
+          .maybeSingle();
+
+        const jambaseEventId = eventData?.jambase_event_id || uuidId;
+        const { data: fallbackIds, error: fallbackError } = await supabase
+          .from('user_jambase_events')
+          .select('user_id')
+          .eq('jambase_event_id', jambaseEventId)
+          .neq('user_id', currentUserId)
+          .range(from, to);
+
+        if (fallbackError) {
+          console.error('Error fetching interested user IDs from user_jambase_events:', fallbackError);
+          throw fallbackError;
+        }
+
+        interestedUserIds = fallbackIds || [];
       }
       
       if (!interestedUserIds || interestedUserIds.length === 0) {
@@ -756,26 +736,59 @@ export function EventDetailsModal({
     >
       {/* Header with X button */}
       <div className="bg-[#fcfcfc] border-b border-gray-200 w-full max-w-full">
-        <div className="px-4 py-3 flex items-start justify-between gap-2">
-          <h1 className="text-lg font-bold leading-tight flex-1 min-w-0 pr-2 break-words">
+        <div
+          style={{
+            paddingTop: 'var(--spacing-grouped, 24px)',
+            paddingBottom: 'var(--spacing-small, 12px)',
+            paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+            paddingRight: 'var(--spacing-screen-margin-x, 20px)'
+          }}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <h1 className="text-lg font-bold leading-tight flex-1 min-w-0 pr-2 break-words" style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-h2-size, 24px)',
+              fontWeight: 'var(--typography-h2-weight, 700)',
+              lineHeight: 'var(--typography-h2-line-height, 1.3)',
+              color: 'var(--neutral-900)'
+            }}>
                 {actualEvent.title}
           </h1>
           <button
             onClick={onClose}
             className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
             aria-label="Close"
+              style={{
+                width: '44px',
+                height: '44px'
+              }}
           >
-            <X className="w-5 h-5" />
+              <X size={24} />
           </button>
         </div>
-        <div className="px-4 pb-3">
+        </div>
+        <div
+          style={{
+            paddingBottom: 'var(--spacing-small, 12px)',
+            paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+            paddingRight: 'var(--spacing-screen-margin-x, 20px)'
+          }}
+        >
               {/* Interest button and Claim button placed directly under event name */}
           <div className="mb-2 flex gap-1.5 flex-wrap">
                 {isUpcomingEvent && onInterestToggle && (
                   <Button
                     variant={localIsInterested ? "default" : "outline"}
-                    size="sm"
                     type="button"
+                    style={{
+                      height: 'var(--size-button-height, 36px)',
+                      paddingLeft: 'var(--spacing-small, 12px)',
+                      paddingRight: 'var(--spacing-small, 12px)',
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                    }}
                     onClick={async () => {
                       console.log('Interest button clicked', { currentState: localIsInterested, eventId: actualEvent?.id });
                       const newInterestState = !localIsInterested;
@@ -806,19 +819,46 @@ export function EventDetailsModal({
                         setLocalIsInterested(!newInterestState);
                       }
                     }}
-                    className={
-                      localIsInterested 
-                    ? "bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 h-7" 
-                    : "hover:bg-red-50 hover:text-red-600 hover:border-red-300 text-xs px-3 py-1 h-7"
-                    }
+                    style={{
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                      paddingLeft: 'var(--spacing-small, 12px)',
+                      paddingRight: 'var(--spacing-small, 12px)',
+                      height: 'var(--size-button-height-sm, 28px)',
+                      borderRadius: 'var(--radius-corner, 10px)',
+                      border: localIsInterested ? 'none' : '2px solid var(--brand-pink-500)',
+                      backgroundColor: localIsInterested ? 'var(--brand-pink-500)' : 'var(--neutral-50)',
+                      color: localIsInterested ? 'var(--neutral-0)' : 'var(--brand-pink-500)',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!localIsInterested) {
+                        e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)';
+                        e.currentTarget.style.borderColor = 'var(--brand-pink-600)';
+                      } else {
+                        e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!localIsInterested) {
+                        e.currentTarget.style.backgroundColor = 'var(--neutral-50)';
+                        e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
+                      } else {
+                        e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
+                      }
+                    }}
                     style={{ pointerEvents: 'auto', zIndex: 10, position: 'relative' }}
                   >
-                    <Heart className={`w-4 h-4 mr-1 ${localIsInterested ? 'fill-current' : ''}`} />
+                    <Heart size={16} className={`mr-1 ${localIsInterested ? 'fill-current' : ''}`} />
                     {localIsInterested ? 'Interested' : "I'm Interested"}
                   </Button>
                 )}
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -835,18 +875,38 @@ export function EventDetailsModal({
                       });
                     }
                   }}
-                  className="text-gray-600 hover:text-red-600 text-xs px-3 py-1 h-7 cursor-pointer flex items-center gap-1 rounded-md hover:bg-gray-100 transition-colors"
-                  style={{ pointerEvents: 'auto', zIndex: 100, position: 'relative' }}
+                  style={{
+                    height: 'var(--size-button-height, 36px)',
+                    paddingLeft: 'var(--spacing-small, 12px)',
+                    paddingRight: 'var(--spacing-small, 12px)',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    pointerEvents: 'auto',
+                    zIndex: 100,
+                    position: 'relative'
+                  }}
                 >
-                  <Flag className="w-3 h-3" />
-                  <span className="text-xs">Report</span>
-                </button>
+                  <Flag size={16} style={{ color: 'var(--brand-pink-500)' }} />
+                  <span>Report</span>
+                </Button>
               </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3 flex-wrap">
-                <Calendar className="w-4 h-4" />
+          <div
+            className="flex items-center gap-1.5 mb-3 flex-wrap"
+            style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+              color: 'var(--neutral-600)'
+            }}
+          >
+                <Calendar size={16} style={{ color: 'var(--neutral-600)' }} />
                 <span>{formatDate(actualEvent.event_date)}</span>
                 <span>•</span>
-                <Clock className="w-4 h-4" />
+                <Clock size={16} style={{ color: 'var(--neutral-600)' }} />
                 <span>{formatTime(actualEvent.event_date)}</span>
                 {actualEvent.doors_time && (
                   <>
@@ -875,8 +935,8 @@ export function EventDetailsModal({
                     return (
                       <>
                         <span>•</span>
-                        <Ticket className="w-4 h-4" />
-                        <span className="font-medium text-gray-900">{priceDisplay}</span>
+                        <Ticket size={16} style={{ color: 'var(--neutral-600)' }} />
+                        <span style={{ fontWeight: 'var(--typography-meta-weight, 500)', color: 'var(--neutral-600)' }}>{priceDisplay}</span>
                       </>
                     );
                   }
@@ -887,35 +947,71 @@ export function EventDetailsModal({
           {/* Remove Interest Button for Past Events */}
             {isPastEvent && onInterestToggle && localIsInterested && (
               <Button
-                variant="outline"
-                size="sm"
+                variant="secondary"
                 type="button"
                 onClick={() => {
                   console.log('Remove interest button clicked');
                   onInterestToggle(actualEvent.id, false);
                 }}
-                className="text-gray-600 hover:text-red-600 hover:border-red-300"
                 style={{ pointerEvents: 'auto', zIndex: 10 }}
               >
-                <X className="w-4 h-4 mr-1" />
+                <X size={16} style={{ marginRight: 'var(--spacing-inline, 6px)' }} />
                 Remove Interest
               </Button>
             )}
           </div>
       </div>
 
-      <div className={`flex flex-col px-4 pb-28 w-full max-w-full overflow-x-hidden ${friendModalOpen ? 'pb-40' : ''}`} id="event-details-desc">
+      <div className={`flex flex-col px-4 pb-28 w-full max-w-full overflow-x-hidden ${friendModalOpen ? 'pb-40' : ''}`} id="event-details-desc" style={{
+        paddingTop: 'var(--spacing-small, 12px)'
+      }}>
           {/* Event Status Badges */}
-          <div className="flex flex-wrap gap-1.5 mb-3">
+          <div className="flex flex-wrap gap-1.5" style={{
+            marginBottom: 'var(--spacing-grouped, 24px)'
+          }}>
             {isPastEvent && (
-              <Badge variant="secondary" className="text-sm">
+              <div
+                style={{
+                  height: '22px',
+                  borderRadius: 'var(--radius-corner, 10px)',
+                  paddingLeft: 'var(--spacing-small, 12px)',
+                  paddingRight: 'var(--spacing-small, 12px)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  backgroundColor: 'var(--neutral-100)',
+                  border: '2px solid var(--neutral-200)',
+                  color: 'var(--neutral-900)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                }}
+              >
                 Past Event
-              </Badge>
+              </div>
             )}
             {isUpcomingEvent && (
-              <Badge variant="default" className="text-sm">
+              <div
+                style={{
+                  height: '22px',
+                  borderRadius: 'var(--radius-corner, 10px)',
+                  paddingLeft: 'var(--spacing-small, 12px)',
+                  paddingRight: 'var(--spacing-small, 12px)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  backgroundColor: 'var(--brand-pink-050)',
+                  border: '2px solid var(--brand-pink-500)',
+                  color: 'var(--brand-pink-500)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                }}
+              >
                 Upcoming
-              </Badge>
+              </div>
             )}
             <TrendingBadge eventId={actualEvent.id} />
             <FriendsInterestedBadge eventId={actualEvent.id} />
@@ -927,7 +1023,7 @@ export function EventDetailsModal({
             {/* Artist Info */}
             <div className="bg-gray-50 rounded-lg p-3 w-full">
               <h3 className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
-                <Music className="w-4 h-4 flex-shrink-0" />
+                <Music size={16} className="flex-shrink-0" />
                 <span>Artist</span>
               </h3>
               <div
@@ -940,9 +1036,27 @@ export function EventDetailsModal({
               {actualEvent.genres && actualEvent.genres.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1.5">
                   {actualEvent.genres.slice(0, 3).map((genre, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
+                    <div
+                      key={index}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        height: '22px',
+                        paddingLeft: 'var(--spacing-small, 12px)',
+                        paddingRight: 'var(--spacing-small, 12px)',
+                        borderRadius: 'var(--radius-corner, 10px)',
+                        backgroundColor: 'var(--neutral-100)',
+                        border: '2px solid var(--neutral-200)',
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        color: 'var(--neutral-900)',
+                        boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                      }}
+                    >
                       {genre}
-                    </Badge>
+                    </div>
                   ))}
                 </div>
               )}
@@ -951,7 +1065,7 @@ export function EventDetailsModal({
             {/* Venue Info */}
             <div className="bg-gray-50 rounded-lg p-3 w-full">
               <h3 className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 flex-shrink-0" />
+                <MapPin size={16} className="flex-shrink-0" />
                 <span>Venue</span>
               </h3>
               <div
@@ -986,42 +1100,68 @@ export function EventDetailsModal({
             <div className="flex gap-1 border-b pb-2 flex-wrap">
               <Button
                 variant={showPhotos ? 'default' : 'ghost'}
-                size="sm"
-                className="text-xs px-2 py-1 h-7"
+                style={{
+                  height: 'var(--size-button-height, 36px)',
+                  paddingLeft: 'var(--spacing-small, 12px)',
+                  paddingRight: 'var(--spacing-small, 12px)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  color: showPhotos ? 'var(--neutral-50)' : undefined
+                }}
                 onClick={() => {
                   setShowPhotos(!showPhotos);
                   setShowGroups(false);
                   setShowBuddyFinder(false);
                 }}
               >
-                <span className="text-xs">📸 Photos</span>
+                <span style={{ color: showPhotos ? 'var(--neutral-50)' : undefined }}>📸 Photos</span>
               </Button>
               <Button
                 variant={showGroups ? 'default' : 'ghost'}
-                size="sm"
-                className="text-xs px-2 py-1 h-7 whitespace-nowrap"
+                style={{
+                  height: 'var(--size-button-height, 36px)',
+                  paddingLeft: 'var(--spacing-small, 12px)',
+                  paddingRight: 'var(--spacing-small, 12px)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  whiteSpace: 'nowrap',
+                  color: showGroups ? 'var(--neutral-50)' : undefined
+                }}
                 onClick={() => {
                   setShowGroups(!showGroups);
                   setShowPhotos(false);
                   setShowBuddyFinder(false);
                 }}
               >
-                <Users className="h-3 w-3 mr-1 flex-shrink-0" />
-                <span className="text-xs">Groups ({eventGroups.length + (verifiedChatInfo?.chat_id ? 1 : 0)})</span>
+                <Users size={16} style={{ marginRight: 'var(--spacing-inline, 6px)', color: showGroups ? 'var(--neutral-50)' : undefined }} />
+                <span style={{ color: showGroups ? 'var(--neutral-50)' : undefined }}>Groups ({eventGroups.length + (verifiedChatInfo?.chat_id ? 1 : 0)})</span>
               </Button>
               {isUpcomingEvent && (
                 <Button
                   variant={showBuddyFinder ? 'default' : 'ghost'}
-                  size="sm"
-                  className="text-xs px-2 py-1 h-7 whitespace-nowrap"
+                  style={{
+                    height: 'var(--size-button-height, 36px)',
+                    paddingLeft: 'var(--spacing-small, 12px)',
+                    paddingRight: 'var(--spacing-small, 12px)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    whiteSpace: 'nowrap',
+                    color: showBuddyFinder ? 'var(--neutral-50)' : undefined
+                  }}
                   onClick={() => {
                     setShowBuddyFinder(!showBuddyFinder);
                     setShowPhotos(false);
                     setShowGroups(false);
                   }}
                 >
-                  <Heart className="h-3 w-3 mr-1 flex-shrink-0" />
-                  <span className="text-xs">Meet ({interestedCount !== null ? interestedCount : 0})</span>
+                  <Heart size={16} style={{ marginRight: 'var(--spacing-inline, 6px)', flexShrink: 0, color: showBuddyFinder ? 'var(--neutral-50)' : undefined }} />
+                  <span style={{ color: showBuddyFinder ? 'var(--neutral-50)' : undefined }}>Meet ({interestedCount !== null ? interestedCount : 0})</span>
                 </Button>
               )}
             </div>
@@ -1039,7 +1179,7 @@ export function EventDetailsModal({
             {showGroups && (
               <div className="flex items-center justify-center py-24">
                 <div className="text-center space-y-2">
-                  <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground" />
+                  <MessageCircle size={60} className="mx-auto text-muted-foreground" />
                   <h3 className="text-lg font-semibold">Coming Soon</h3>
                   <p className="text-sm text-muted-foreground">
                     Verified chats are coming soon!
@@ -1096,7 +1236,7 @@ export function EventDetailsModal({
                 <AccordionTrigger className="px-6 py-4 hover:no-underline">
                   <div className="flex items-center gap-3 w-full">
                     <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center">
-                      <Music className="w-5 h-5 text-white" />
+                      <Music size={24} className="text-white" />
                     </div>
                     <div className="flex-1 text-left">
                       <h3 className="text-lg font-bold text-purple-900">Setlist from this Show</h3>
@@ -1126,7 +1266,7 @@ export function EventDetailsModal({
                           className="flex items-center gap-1"
                         >
                           <span>View on setlist.fm</span>
-                          <ExternalLink className="w-3 h-3" />
+                          <ExternalLink size={16} />
                         </a>
                       </Button>
                     )}
@@ -1135,7 +1275,7 @@ export function EventDetailsModal({
                 <AccordionContent className="px-6 pb-6 max-h-96 overflow-y-auto">
                   {fetchingSetlist ? (
                     <div className="text-center py-8">
-                      <Music className="w-8 h-8 text-purple-500 mx-auto mb-3 animate-pulse" />
+                      <Music size={35} className="text-purple-500 mx-auto mb-3 animate-pulse" />
                       <p className="text-purple-700">Loading setlist from setlist.fm...</p>
                     </div>
                   ) : (() => {
@@ -1176,7 +1316,7 @@ export function EventDetailsModal({
                           return (
                             <div key={setNum} className="bg-white/70 rounded-lg p-4">
                               <h4 className="font-semibold text-purple-900 mb-3 flex items-center gap-2">
-                                <Music className="w-4 h-4" />
+                                <Music size={16} />
                                 {setName}
                               </h4>
                               <div className="space-y-1">
@@ -1191,9 +1331,26 @@ export function EventDetailsModal({
                                           {song.name || song.title || song.song || 'Unknown Song'}
                                         </span>
                                         {song.cover && (
-                                          <span className="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+                                          <div
+                                            style={{
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              height: '22px',
+                                              paddingLeft: 'var(--spacing-small, 12px)',
+                                              paddingRight: 'var(--spacing-small, 12px)',
+                                              borderRadius: 'var(--radius-corner, 10px)',
+                                              backgroundColor: 'var(--neutral-100)',
+                                              border: '2px solid var(--neutral-200)',
+                                              fontFamily: 'var(--font-family)',
+                                              fontSize: 'var(--typography-meta-size, 16px)',
+                                              fontWeight: 'var(--typography-meta-weight, 500)',
+                                              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                                              color: 'var(--neutral-900)',
+                                              boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                                            }}
+                                          >
                                             {song.cover.artist || song.cover} cover
-                                          </span>
+                                          </div>
                                         )}
                                       </div>
                                       {(song.info || song.notes) && (
@@ -1235,15 +1392,32 @@ export function EventDetailsModal({
 
           {/* Attendance Section for Past Events */}
           {isPastEvent && (
-            <div className="mb-6 rounded-md border p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <div
+              className="mb-6 rounded-md border p-4"
+              style={{
+                backgroundColor: 'var(--neutral-100)',
+                borderColor: 'var(--neutral-200)'
+              }}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                    <Users className="w-4 h-4 text-white" />
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: 'var(--neutral-200)' }}
+                  >
+                    <Users size={16} style={{ color: 'var(--neutral-900)' }} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-blue-900">Event Attendance</h3>
-                    <p className="text-sm text-blue-700">
+                    <h3
+                      className="font-semibold"
+                      style={{ color: 'var(--neutral-900)' }}
+                    >
+                      Event Attendance
+                    </h3>
+                    <p
+                      className="text-sm"
+                      style={{ color: 'var(--neutral-600)' }}
+                    >
                       {attendanceLoading ? 'Loading...' : 
                        attendanceCount === null ? 'Loading attendance...' :
                        attendanceCount === 0 ? 'No one has marked attendance yet' :
@@ -1252,25 +1426,31 @@ export function EventDetailsModal({
                   </div>
                 </div>
                 <Button
-                  size="sm"
-                  variant={userWasThere ? "default" : "outline"}
+                  size="default"
+                  variant="secondary"
                   onClick={handleAttendanceToggle}
                   disabled={attendanceLoading}
-                  className={userWasThere 
-                    ? "bg-blue-600 hover:bg-blue-700 text-white" 
-                    : "border-blue-300 text-blue-700 hover:bg-blue-100"
-                  }
+                  style={{
+                    height: 'var(--size-button-height, 36px)',
+                    paddingLeft: 'var(--spacing-small, 12px)',
+                    paddingRight: 'var(--spacing-small, 12px)',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                  }}
                 >
                   {attendanceLoading ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
                   ) : userWasThere ? (
                     <>
-                      <Users className="w-4 h-4 mr-2" />
+                      <Users size={16} className="mr-2" />
                       I was there
                     </>
                   ) : (
                     <>
-                      <Users className="w-4 h-4 mr-2" />
+                      <Users size={16} className="mr-2" />
                       I was there
                     </>
                   )}
@@ -1278,7 +1458,13 @@ export function EventDetailsModal({
               </div>
               
               {userWasThere && (
-                <div className="text-sm text-blue-700 bg-blue-100/50 rounded-lg p-2">
+                <div
+                  className="text-sm rounded-lg p-2"
+                  style={{
+                    color: 'var(--neutral-600)',
+                    backgroundColor: 'var(--neutral-100)'
+                  }}
+                >
                   ✅ You've marked that you attended this event
                 </div>
               )}
@@ -1302,7 +1488,7 @@ export function EventDetailsModal({
               ) : (
                 <div className="bg-gray-100 rounded-lg flex items-center justify-center h-[400px]">
                   <div className="text-center text-gray-500">
-                    <MapPin className="w-8 h-8 mx-auto mb-2" />
+                    <MapPin size={35} className="mx-auto mb-2" />
                     <p>Location not available</p>
                   </div>
                 </div>
@@ -1328,9 +1514,9 @@ export function EventDetailsModal({
                     }`}
                     >
                       {hasReviewed ? (
-                      <Star className="w-3 h-3 mr-1 fill-current" />
+                      <Star size={16} className="mr-1 fill-current" />
                       ) : (
-                      <Star className="w-3 h-3 mr-1" />
+                      <Star size={16} className="mr-1" />
                       )}
                     <span className="text-xs">{hasReviewed ? 'Reviewed' : 'I Was There!'}</span>
                     </Button>
@@ -1348,7 +1534,7 @@ export function EventDetailsModal({
                     onClick={() => setCommentsOpen(true)}
                     className="text-xs px-3 py-1 h-7"
                   >
-                    <MessageSquare className="w-3 h-3 mr-1 flex-shrink-0" />
+                    <MessageSquare size={16} className="mr-1 flex-shrink-0" />
                     <span className="text-xs">Comments</span>
                   </Button>
 
@@ -1409,7 +1595,30 @@ export function EventDetailsModal({
                     <Button
                       variant="default"
                       size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1 h-7"
+                      style={{
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        backgroundColor: 'var(--brand-pink-500)',
+                        color: 'var(--neutral-0)',
+                        paddingLeft: 'var(--spacing-small, 12px)',
+                        paddingRight: 'var(--spacing-small, 12px)',
+                        height: 'var(--size-button-height-sm, 28px)',
+                        borderRadius: 'var(--radius-corner, 10px)',
+                        border: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--spacing-inline, 6px)',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
+                      }}
                       onClick={() => {
                         // 🎯 TRACK: Ticket link click (CRITICAL FOR REVENUE!)
                         const ticketUrl = (actualEvent as any).ticket_urls?.[0] || (actualEvent as any).ticket_url;
@@ -1454,9 +1663,8 @@ export function EventDetailsModal({
                         window.open(urlWithUTM, '_blank', 'noopener,noreferrer');
                       }}
                     >
-                      <Ticket className="w-3 h-3 mr-1 flex-shrink-0" />
-                      <span className="text-xs">Get Tickets</span>
-                      <ExternalLink className="w-3 h-3 ml-1 flex-shrink-0" />
+                      <Ticket size={16} style={{ flexShrink: 0, color: 'var(--neutral-50)' }} />
+                      <span style={{ color: 'var(--neutral-50)' }}>Get Tickets</span>
                     </Button>
                   )}
                 </div>

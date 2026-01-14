@@ -13,10 +13,10 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:shadow-lg hover:shadow-destructive/25 hover:-translate-y-0.5",
         outline:
-          "border border-input bg-background/80 backdrop-blur-sm hover:bg-accent hover:text-accent-foreground hover:shadow-md hover:-translate-y-0.5",
+          "btn-synth-secondary", /* Use secondary button styling for outline variant */
         secondary:
           "btn-synth-secondary",
-        ghost: "hover:bg-accent hover:text-accent-foreground hover:shadow-sm hover:-translate-y-0.5",
+        ghost: "btn-ghost",
         link: "text-primary underline-offset-4 hover:underline",
         synth: "btn-synth-primary",
         "synth-secondary": "btn-synth-secondary",

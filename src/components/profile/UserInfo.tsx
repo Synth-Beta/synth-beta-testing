@@ -51,6 +51,9 @@ export const UserInfo: React.FC<UserInfoProps> = ({
   followers,
   following,
   events,
+  onFollowersClick,
+  onFollowingClick,
+  onEventsClick,
   imageUrl,
   className,
 }) => {
@@ -63,13 +66,13 @@ export const UserInfo: React.FC<UserInfoProps> = ({
     pictureVariant = 'musicIcon';
   } else if (variant === 'chat') {
     pictureSize = 32;
-    pictureVariant = 'initial';
+    pictureVariant = imageUrl ? 'image' : 'initial';
   } else if (variant === 'userProfile') {
     pictureSize = 75;
-    pictureVariant = 'initial';
+    pictureVariant = imageUrl ? 'image' : 'initial';
   } else {
     pictureSize = 45;
-    pictureVariant = 'initial';
+    pictureVariant = imageUrl ? 'image' : 'initial';
   }
 
   const rootClasses = ['user-info', `user-info--${variant}`, className]
@@ -94,7 +97,7 @@ export const UserInfo: React.FC<UserInfoProps> = ({
           size={pictureSize}
           variant={pictureVariant}
           initial={initial}
-          imageUrl={pictureVariant === 'image' ? imageUrl : undefined}
+          imageUrl={imageUrl}
           alt={name}
         />
       </div>
@@ -108,16 +111,34 @@ export const UserInfo: React.FC<UserInfoProps> = ({
 
         {showStats && (
           <div className="user-info__stats" aria-label="User statistics">
-            {stats.map((stat) => (
-              <div key={stat.key} className="user-info__stat">
-                <span className="user-info__stat-value">
-                  {stat.value ?? 0}
-                </span>
-                <span className="user-info__stat-label">
-                  {stat.label}
-                </span>
-              </div>
-            ))}
+            {stats.map((stat) => {
+              const handleClick = () => {
+                if (stat.key === 'followers' && onFollowersClick) {
+                  onFollowersClick();
+                } else if (stat.key === 'following' && onFollowingClick) {
+                  onFollowingClick();
+                } else if (stat.key === 'events' && onEventsClick) {
+                  onEventsClick();
+                }
+              };
+              
+              return (
+                <button
+                  key={stat.key}
+                  className="user-info__stat"
+                  type="button"
+                  onClick={handleClick}
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: onFollowersClick || onFollowingClick || onEventsClick ? 'pointer' : 'default', textAlign: 'center' }}
+                >
+                  <span className="user-info__stat-value">
+                    {stat.value ?? 0}
+                  </span>
+                  <span className="user-info__stat-label">
+                    {stat.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

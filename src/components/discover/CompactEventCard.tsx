@@ -1,10 +1,11 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { JamBaseEvent } from '@/types/eventTypes';
+import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 
 interface CompactEventCardProps {
   event: JamBaseEvent;
@@ -29,7 +30,8 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
     }
   };
 
-  const imageUrl = event.images?.[0]?.url || (event as any).event_media_url || (event as any).media_urls?.[0];
+  const rawImageUrl = event.images?.[0]?.url || (event as any).event_media_url || (event as any).media_urls?.[0];
+  const imageUrl = rawImageUrl ? replaceJambasePlaceholder(rawImageUrl) : null;
 
   return (
     <Card
@@ -58,13 +60,13 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 flex-wrap">
           {event.event_date && (
             <div className="flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
+              <Icon name="calendar" size={16} />
               <span>{formatDate(event.event_date)}</span>
             </div>
           )}
           {(event.venue_city || event.venue_state) && (
             <div className="flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
+              <Icon name="location" size={16} />
               <span className="line-clamp-1">
                 {event.venue_city 
                   ? (event.venue_state ? `${event.venue_city}, ${event.venue_state}` : event.venue_city)

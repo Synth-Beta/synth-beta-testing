@@ -90,30 +90,7 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
   const loadInterestedEvents = async () => {
     if (!currentUserId) return;
 
-    // Get current authenticated user - RPC uses auth.uid() so we should query with that
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    
-    // Check for auth errors
-    if (authError) {
-      console.warn('⚠️ Error getting auth user:', authError);
-    }
-    
-    const authUser = authData?.user;
-    const queryUserId = authUser?.id || currentUserId;
-    
-    // Use user_event_relationships table (where RPC writes)
-    const { data, error } = await supabase
-      .from('user_event_relationships')
-      .select('event_id')
-      .eq('relationship_type', 'interested')
-      .eq('user_id', queryUserId); // Use auth user ID since RPC uses auth.uid()
-
-    if (error) {
-      console.error('Error loading interested events:', error);
-      throw error; // Re-throw to allow caller to handle
-    }
-
-    const interestedSet = new Set(data?.map(item => item.event_id).filter(Boolean) || []);
+    const interestedSet = await UserEventService.getUserInterestedEventIdSet(currentUserId);
     setInterestedEvents(interestedSet);
   };
 

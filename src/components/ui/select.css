@@ -1,0 +1,26 @@
+/* Select dropdown styling */
+[data-radix-select-content] {
+  background-color: var(--neutral-50) !important;
+  border-color: var(--neutral-200) !important;
+}
+
+[data-radix-select-item] {
+  color: var(--neutral-900);
+}
+
+[data-radix-select-item][data-highlighted] {
+  background-color: var(--neutral-100) !important;
+}
+
+[data-radix-select-item][data-state="checked"] {
+  background-color: var(--brand-pink-500) !important;
+  color: var(--neutral-50) !important;
+}
+
+[data-radix-select-item][data-state="checked"] [data-radix-select-item-indicator] {
+  color: var(--neutral-50) !important;
+}
+
+[data-radix-select-item][data-state="checked"] svg {
+  color: var(--neutral-50) !important;
+}

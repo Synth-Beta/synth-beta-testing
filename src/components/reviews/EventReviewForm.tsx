@@ -1908,53 +1908,91 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         )}
 
         {!existingReview && (
-          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 w-full max-w-full overflow-x-hidden">
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-blue-700">
-              <div className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0" />
+          <div
+            className="p-3 rounded-lg w-full max-w-full overflow-x-hidden"
+            style={{
+              backgroundColor: 'var(--brand-pink-050)',
+              border: '1px solid var(--brand-pink-500)',
+              borderRadius: 'var(--radius-corner, 10px)'
+            }}
+          >
+            <div
+              className="flex items-center gap-2"
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--brand-pink-500)'
+              }}
+            >
+              <div
+                className="flex-shrink-0"
+                style={{
+                  width: 'var(--spacing-inline, 6px)',
+                  height: 'var(--spacing-inline, 6px)',
+                  backgroundColor: 'var(--brand-pink-500)',
+                  borderRadius: '999px'
+                }}
+              />
               <span className="break-words">Your progress is automatically saved locally</span>
             </div>
           </div>
         )}
 
         <div className="space-y-3 sm:space-y-4 w-full max-w-full overflow-x-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">
-                Step {currentStep} of {totalSteps || REVIEW_FORM_TOTAL_STEPS}
-              </p>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mt-1 break-words">
-                {getStepLabels(currentFlow || 'detailed')[currentStep - 1] || 'Review'}
-              </h3>
-            </div>
-            <div className="w-full sm:w-48 h-2 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
-              <div
-                className="h-full bg-pink-500 transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2 w-full max-w-full overflow-x-hidden">
-            {getStepLabels(currentFlow || 'detailed').map((label, index) => {
-              const stepNumber = index + 1;
-              const isActive = stepNumber === currentStep;
-              const isComplete = stepNumber < currentStep;
-              return (
-                <span
-                  key={`${label}-${index}`}
-                  className={cn(
-                    'px-2 sm:px-3 py-1 rounded-full text-xs font-medium transition-colors flex-shrink-0',
-                    isActive
-                      ? 'bg-pink-500 text-white shadow-sm'
-                      : isComplete
-                        ? 'bg-pink-100 text-pink-700'
-                        : 'bg-gray-100 text-gray-500'
-                  )}
+          {currentStep !== 1 && (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">
+                    Step {currentStep} of {totalSteps || REVIEW_FORM_TOTAL_STEPS}
+                  </p>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mt-1 break-words">
+                    {getStepLabels(currentFlow || 'detailed')[currentStep - 1] || 'Review'}
+                  </h3>
+                </div>
+                <div
+                  className="w-full sm:w-48 h-2 overflow-hidden flex-shrink-0"
+                  style={{
+                    backgroundColor: 'var(--neutral-100)',
+                    borderRadius: 'var(--radius-corner, 10px)'
+                  }}
                 >
-                  {stepNumber}. {label}
-                </span>
-              );
-            })}
-          </div>
+                  <div
+                    className="h-full transition-all duration-300"
+                    style={{
+                      width: `${progressPercent}%`,
+                      backgroundColor: 'var(--brand-pink-500)',
+                      borderRadius: 'var(--radius-corner, 10px)'
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 w-full max-w-full overflow-x-hidden">
+                {getStepLabels(currentFlow || 'detailed').map((label, index) => {
+                  const stepNumber = index + 1;
+                  const isActive = stepNumber === currentStep;
+                  const isComplete = stepNumber < currentStep;
+                  return (
+                    <span
+                      key={`${label}-${index}`}
+                      className={cn(
+                        'px-2 sm:px-3 py-1 rounded-full text-xs font-medium transition-colors flex-shrink-0',
+                        isActive
+                          ? 'bg-pink-500 text-white shadow-sm'
+                          : isComplete
+                            ? 'bg-pink-100 text-pink-700'
+                            : 'bg-gray-100 text-gray-500'
+                      )}
+                    >
+                      {stepNumber}. {label}
+                    </span>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="min-h-[420px] w-full max-w-full overflow-x-hidden">
@@ -1977,18 +2015,42 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               <div className="flex items-center gap-2 text-xs text-gray-500 flex-shrink-0">
               {isSaving ? (
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse flex-shrink-0" />
+                    <div
+                      className="animate-pulse flex-shrink-0"
+                      style={{
+                        width: 'var(--spacing-inline, 6px)',
+                        height: 'var(--spacing-inline, 6px)',
+                        backgroundColor: 'var(--rating-star)',
+                        borderRadius: '999px'
+                      }}
+                    />
                     <span className="whitespace-nowrap">Auto-saving…</span>
                 </div>
               ) : lastSaveTime ? (
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0" />
+                    <div
+                      className="flex-shrink-0"
+                      style={{
+                        width: 'var(--spacing-inline, 6px)',
+                        height: 'var(--spacing-inline, 6px)',
+                        backgroundColor: 'var(--status-success-500)',
+                        borderRadius: '999px'
+                      }}
+                    />
                     <span className="whitespace-nowrap hidden sm:inline">Auto-saved {lastSaveTime.toLocaleTimeString()}</span>
                     <span className="whitespace-nowrap sm:hidden">Saved</span>
                 </div>
               ) : (
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 bg-gray-300 rounded-full flex-shrink-0" />
+                    <div
+                      className="flex-shrink-0"
+                      style={{
+                        width: 'var(--spacing-inline, 6px)',
+                        height: 'var(--spacing-inline, 6px)',
+                        backgroundColor: 'var(--neutral-400)',
+                        borderRadius: '999px'
+                      }}
+                    />
                     <span className="whitespace-nowrap hidden sm:inline">Auto-save active</span>
                     <span className="whitespace-nowrap sm:hidden">Saved</span>
                 </div>

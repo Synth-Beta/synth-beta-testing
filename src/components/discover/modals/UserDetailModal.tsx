@@ -5,7 +5,7 @@ import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { BlockUserModal } from '@/components/moderation/BlockUserModal';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Flag, UserX } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
 
 interface UserDetailModalProps {
   isOpen: boolean;
@@ -42,7 +42,7 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({
                   size="sm"
                   onClick={() => setReportModalOpen(true)}
                 >
-                  <Flag className="w-4 h-4 mr-2" />
+                  <Icon name="flag" size={16} className="mr-2" color="var(--neutral-900)" />
                   Report
                 </Button>
                 {userId !== currentUserId && (
@@ -51,7 +51,7 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({
                     size="sm"
                     onClick={() => setBlockModalOpen(true)}
                   >
-                    <UserX className="w-4 h-4 mr-2" />
+                    <Icon name="ban" size={16} className="mr-2" color="var(--neutral-900)" />
                     Block
                   </Button>
                 )}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Loader2, Calendar as CalendarIcon, MapPin, Music, X } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -154,15 +154,8 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
 
   const loadInterestedEvents = async () => {
     try {
-      const { data } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
-        .eq('user_id', userId)
-        .eq('relationship_type', 'interested');
-
-      if (data) {
-        setInterestedEvents(new Set(data.map(r => r.event_id)));
-      }
+      const interestedSet = await UserEventService.getUserInterestedEventIdSet(userId);
+      setInterestedEvents(interestedSet);
     } catch (error) {
       console.error('Error loading interested events:', error);
     }
@@ -245,7 +238,7 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
             onClick={onBack}
             className="mb-4"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <Icon name="leftArrow" size={16} className="mr-2" color="var(--neutral-900)" />
             Back to Discover
           </Button>
           {results && (
@@ -262,7 +255,7 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
           <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="p-2 flex-shrink-0">
-                <CalendarIcon className="h-4 w-4 text-black" />
+                <Icon name="calendar" size={16} color="var(--neutral-900)" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 bg-white" align="start">
@@ -290,7 +283,7 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
           <Popover open={genresOpen} onOpenChange={setGenresOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="p-2 relative flex-shrink-0">
-                <Music className="h-4 w-4 text-black" />
+                <Icon name="music" size={16} color="var(--neutral-900)" />
                 {filters.genres && filters.genres.length > 0 && (
                   <Badge variant="secondary" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-xs flex items-center justify-center">
                     {filters.genres.length}
@@ -328,7 +321,7 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
           }}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="p-2 relative flex-shrink-0">
-                <MapPin className="h-4 w-4 text-black" />
+                <Icon name="location" size={16} color="var(--neutral-900)" />
                 {filters.cities && filters.cities.length > 0 && (
                   <Badge variant="secondary" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-xs flex items-center justify-center">
                     {filters.cities.length}
@@ -395,7 +388,7 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
               onClick={clearFilters}
               className="p-2 text-muted-foreground hover:text-foreground flex-shrink-0"
             >
-              <X className="h-4 w-4 text-black" />
+              <Icon name="x" size={16} color="var(--neutral-900)" />
             </Button>
           )}
         </div>
@@ -411,7 +404,7 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
                   onClick={() => setFilters({ ...filters, dateRange: undefined })}
                   className="ml-1 hover:text-destructive"
                 >
-                  <X className="h-3 w-3" />
+                  <Icon name="x" size={16} color="var(--neutral-900)" />
                 </button>
               </Badge>
             )}
@@ -422,7 +415,7 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
                   onClick={() => handleGenreToggle(genre)}
                   className="ml-1 hover:text-destructive"
                 >
-                  <X className="h-3 w-3" />
+                  <Icon name="x" size={16} color="var(--neutral-900)" />
                 </button>
               </Badge>
             ))}
@@ -438,7 +431,7 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
                   }}
                   className="ml-1 hover:text-destructive"
                 >
-                  <X className="h-3 w-3" />
+                  <Icon name="x" size={16} color="var(--neutral-900)" />
                 </button>
               </Badge>
             ))}
@@ -448,7 +441,7 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
         {/* Results */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            <Icon name="refresh" size={24} className="animate-spin" color="var(--neutral-600)" />
           </div>
         ) : results && results.events.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">

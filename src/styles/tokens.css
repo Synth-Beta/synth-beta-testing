@@ -7,53 +7,74 @@
 
 :root {
   /* ============================================
-     COLORS
+     COLORS - NEUTRALS
      ============================================ */
   
-  /* Base Colors */
-  --color-off-white: #FCFCFC;
-  --color-off-black: #0E0E0E;
-  --color-off-black-50: rgba(14, 14, 14, 0.5);
+  --neutral-0: #FFFFFF;   /* pure white */
+  --neutral-50: #FCFCFC;  /* base app background */
+  --neutral-100: #F5F5F5; /* subtle surfaces, cards */
+  --neutral-200: #E6E6E6; /* dividers, borders */
+  --neutral-400: #8A8F98; /* disabled text/icons */
+  --neutral-600: #5D646F; /* secondary text, metadata */
+  --neutral-900: #0E0E0E; /* primary text */
   
-  /* Greys */
-  --color-grey-50: rgba(201, 201, 201, 0.5);
-  --color-light-grey: #C9C9C9;
-  --color-dark-grey: #5D646F;
+  /* ============================================
+     COLORS - BRAND PINKS
+     ============================================ */
   
-  /* Pink Palette */
-  --color-synth-pink: #CC2486;
-  --color-dark-pink: #951A6D;
-  --color-medium-pink: #B00056;
-  --color-light-pink: #FDF2F7;
+  --brand-pink-050: #FDF2F7; /* subtle pink surface */
+  --brand-pink-500: #CC2486; /* primary brand */
+  --brand-pink-600: #951A6D; /* hover */
+  --brand-pink-700: #7B1559; /* active/pressed */
   
-  /* Purple Palette */
-  --color-purple: #8D1FF4;
-  --color-lilac: #D9D3E1;
+  /* ============================================
+     COLORS - STATUS
+     ============================================ */
   
-  /* Blue Palette */
-  --color-dark-blue: #1F66EA;
-  --color-light-blue: #F0F6FE;
+  --status-success-050: #E6F4ED;
+  --status-success-500: #2E8B63;
   
-  /* Green Palette */
-  --color-spotify: #1DB954;
-  --color-success-green: #429A6E;
-  --color-light-green: #DFF3E6;
+  --status-warning-050: #FFF6D6;
+  --status-warning-500: #B88900;
   
-  /* Accent Colors */
-  --color-yellow: #FCDC5F;
-  --color-red: #E51010;
+  --status-error-050: #FDECEA;
+  --status-error-500: #C62828;
+  
+  /* ============================================
+     COLORS - INFO
+     ============================================ */
+  
+  --info-blue-050: #F0F6FE;
+  --info-blue-500: #1F66EA;
+  
+  /* ============================================
+     COLORS - STATES / OVERLAYS
+     ============================================ */
+  
+  --state-disabled-bg: #E6E6E6;
+  --state-disabled-text: #5D646F;
+  
+  --overlay-50: rgba(14, 14, 14, 0.5);
+  --overlay-20: rgba(14, 14, 14, 0.2);
+  
+  /* ============================================
+     COLORS - RATING STAR
+     ============================================ */
+  
+  --rating-star: #FCDC5F;
+  
+  /* ============================================
+     SHADOWS
+     ============================================ */
+  
+  --shadow-color: rgba(0, 0, 0, 0.25);
   
   /* ============================================
      GRADIENTS
      ============================================ */
   
-  /* PinkPurple gradient: SynthPink to Purple
-     Direction: 135deg (diagonal from top-left to bottom-right) */
-  --gradient-pink-purple: linear-gradient(135deg, #CC2486 0%, #8D1FF4 100%);
-  
-  /* AppleMusic gradient: #FF4E6B to #FF0436
-     Direction: 135deg (diagonal from top-left to bottom-right) */
-  --gradient-apple-music: linear-gradient(135deg, #FF4E6B 0%, #FF0436 100%);
+  --gradient-brand: linear-gradient(135deg, #CC2486 0%, #8D1FF4 100%);
+  --gradient-soft: linear-gradient(180deg, #FFFFFF 0%, #FDF2F7 100%);
   
   /* ============================================
      TYPOGRAPHY
@@ -102,12 +123,20 @@
   --spacing-big-section: 60px;
   --spacing-screen-margin-x: 20px;
   --spacing-menu-item-row-height: 48px;
+  --spacing-bottom-nav: 112px; /* Space above bottom navigation and after page content */
+  
+  /* Pop-up/Layout Sizing */
+  /* Pop-up width: device width minus 40px (20px margins on each side) */
+  --size-popup-width: calc(100vw - calc(var(--spacing-screen-margin-x, 20px) * 2));
+  /* Content within pop-ups: pop-up width minus 40px (20px margins inside pop-up) */
+  --size-popup-content-width: calc(var(--size-popup-width) - calc(var(--spacing-screen-margin-x, 20px) * 2));
   
   /* ============================================
      SIZING
      ============================================ */
   
   --size-button-height: 36px;
+  --size-button-height-sm: 28px;
   --size-input-height: 44px;
   
   /* ============================================
@@ -118,15 +147,35 @@
   
   /* ============================================
      LEGACY COMPATIBILITY
-     (for existing code that uses old token names)
+     (DEPRECATED - Will be removed after migration)
      ============================================ */
   
-  /* Map old token names to new ones for backward compatibility */
-  --synth-pink: var(--color-synth-pink);
-  --off-white: var(--color-off-white);
-  --light-pink: var(--color-light-pink);
-  --grey50: var(--color-grey-50);
+  /* Map old token names to new ones for backward compatibility during migration */
+  --color-off-white: var(--neutral-50);
+  --color-off-black: var(--neutral-900);
+  --color-off-black-50: var(--overlay-50);
+  --color-grey-50: var(--state-disabled-bg);
+  --color-light-grey: var(--neutral-200);
+  --color-dark-grey: var(--neutral-600);
+  --color-synth-pink: var(--brand-pink-500);
+  --color-dark-pink: var(--brand-pink-600);
+  --color-medium-pink: var(--brand-pink-700);
+  --color-light-pink: var(--brand-pink-050);
+  --color-purple: #8D1FF4; /* Used in gradient only */
+  --color-dark-blue: var(--info-blue-500);
+  --color-light-blue: var(--info-blue-050);
+  --color-success-green: var(--status-success-500);
+  --color-light-green: var(--status-success-050);
+  --color-red: var(--status-error-500);
+  --color-yellow: var(--rating-star);
+  --synth-pink: var(--brand-pink-500);
+  --off-white: var(--neutral-50);
+  --light-pink: var(--brand-pink-050);
+  --grey50: var(--state-disabled-bg);
   --margin-horizontal: var(--spacing-screen-margin-x);
   --corner-radius: var(--radius-corner);
+  
+  /* Legacy gradient mappings */
+  --gradient-pink-purple: var(--gradient-brand);
 }
 

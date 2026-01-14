@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, MapPin, Music, Calendar, Users, TrendingUp, CheckCircle2, Sparkles } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
 import { SceneService, type SceneDetail } from '@/services/sceneService';
 import { CompactEventCard } from './CompactEventCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -63,15 +63,8 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
 
   const loadInterestedEvents = async () => {
     try {
-      const { data } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
-        .eq('user_id', userId)
-        .eq('relationship_type', 'interested');
-
-      if (data) {
-        setInterestedEvents(new Set(data.map(r => r.event_id)));
-      }
+      const interestedSet = await UserEventService.getUserInterestedEventIdSet(userId);
+      setInterestedEvents(interestedSet);
     } catch (error) {
       console.error('Error loading interested events:', error);
     }
@@ -454,7 +447,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <Icon name="refresh" size={24} className="animate-spin" color="var(--neutral-600)" />
       </div>
     );
   }
@@ -463,8 +456,23 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-6xl mx-auto px-4 pt-4 pb-6">
-          <Button variant="ghost" size="sm" onClick={onBack} className="mb-4">
-            <ArrowLeft className="w-4 h-4 mr-2" />
+          <Button variant="ghost" onClick={() => {
+            // Use browser history navigation if available, otherwise use onBack prop
+            if (window.history.length > 1) {
+              navigate(-1);
+            } else {
+              onBack();
+            }
+          }} className="mb-4" style={{
+            height: 'var(--size-button-height, 36px)',
+            paddingLeft: 'var(--spacing-small, 12px)',
+            paddingRight: 'var(--spacing-small, 12px)',
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-meta-size, 16px)',
+            fontWeight: 'var(--typography-meta-weight, 500)',
+            lineHeight: 'var(--typography-meta-line-height, 1.5)'
+          }}>
+            <Icon name="leftArrow" size={16} style={{ marginRight: 'var(--spacing-inline, 6px)' }} color="var(--neutral-900)" />
             Back to Discover
           </Button>
           <div className="text-center py-12 text-muted-foreground">
@@ -494,8 +502,15 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-12">
         {/* Back Button */}
-        <Button variant="ghost" size="sm" onClick={onBack} className="mb-6">
-          <ArrowLeft className="w-4 h-4 mr-2" />
+        <Button variant="ghost" size="sm" onClick={() => {
+          // Use browser history navigation if available, otherwise use onBack prop
+          if (window.history.length > 1) {
+            navigate(-1);
+          } else {
+            onBack();
+          }
+        }} className="mb-6">
+          <Icon name="leftArrow" size={16} className="mr-2" color="var(--neutral-900)" />
           Back to Discover
         </Button>
 
@@ -534,7 +549,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 rounded-lg bg-synth-pink/10">
-                  <TrendingUp className="w-5 h-5 text-synth-pink" />
+                  <Icon name="trendingUp" size={24} color="var(--brand-pink-500)" />
                 </div>
                 <div className="flex-1">
                   <h2 className="text-xl font-bold">Your Progress</h2>
@@ -554,10 +569,24 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                   <span className="text-sm font-medium text-muted-foreground">Overall Progress</span>
                   <span className="text-lg font-bold text-synth-pink">{progress.progress_percentage}%</span>
                 </div>
-                <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                <div 
+                  className="w-full overflow-hidden"
+                  style={{
+                    height: '12px',
+                    backgroundColor: 'var(--neutral-100)',
+                    borderRadius: 'var(--radius-corner, 10px)'
+                  }}
+                >
                   <div
-                    className="bg-gradient-to-r from-synth-pink to-purple-500 h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${progress.progress_percentage}%` }}
+                    className="h-full transition-all duration-500"
+                    style={{ 
+                      width: `${progress.progress_percentage}%`,
+                      background: 'var(--gradient-brand)',
+                      borderRadius: progress.progress_percentage >= 100 
+                        ? 'var(--radius-corner, 10px)' 
+                        : 'var(--radius-corner, 10px) 0 0 var(--radius-corner, 10px)',
+                      minWidth: progress.progress_percentage > 0 ? '4px' : '0'
+                    }}
                   />
                 </div>
               </div>
@@ -568,17 +597,31 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                   <div className="p-4 rounded-lg bg-muted/50 border">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <Music className="w-4 h-4 text-muted-foreground" />
+                        <Icon name="music" size={16} color="var(--neutral-600)" />
                         <span className="text-sm font-medium">Artists</span>
                       </div>
                       <span className="text-sm font-bold">
                         {progress.artists_experienced}/{totalArtists}
                       </span>
                     </div>
-                    <div className="w-full bg-background rounded-full h-2">
+                    <div 
+                      className="w-full overflow-hidden"
+                      style={{
+                        height: '8px',
+                        backgroundColor: 'var(--neutral-100)',
+                        borderRadius: 'var(--radius-corner, 10px)'
+                      }}
+                    >
                       <div
-                        className="bg-synth-pink h-2 rounded-full transition-all"
-                        style={{ width: `${totalArtists > 0 ? (progress.artists_experienced / totalArtists) * 100 : 0}%` }}
+                        className="h-full transition-all"
+                        style={{ 
+                          width: `${totalArtists > 0 ? (progress.artists_experienced / totalArtists) * 100 : 0}%`,
+                          backgroundColor: 'var(--brand-pink-500)',
+                          borderRadius: (progress.artists_experienced / totalArtists) >= 1 
+                            ? 'var(--radius-corner, 10px)' 
+                            : 'var(--radius-corner, 10px) 0 0 var(--radius-corner, 10px)',
+                          minWidth: (progress.artists_experienced / totalArtists) > 0 ? '4px' : '0'
+                        }}
                       />
                     </div>
                   </div>
@@ -588,17 +631,31 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                   <div className="p-4 rounded-lg bg-muted/50 border">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
+                        <Icon name="location" size={16} color="var(--neutral-600)" />
                         <span className="text-sm font-medium">Venues</span>
                       </div>
                       <span className="text-sm font-bold">
                         {progress.venues_experienced}/{totalVenues}
                       </span>
                     </div>
-                    <div className="w-full bg-background rounded-full h-2">
+                    <div 
+                      className="w-full overflow-hidden"
+                      style={{
+                        height: '8px',
+                        backgroundColor: 'var(--neutral-100)',
+                        borderRadius: 'var(--radius-corner, 10px)'
+                      }}
+                    >
                       <div
-                        className="bg-synth-pink h-2 rounded-full transition-all"
-                        style={{ width: `${totalVenues > 0 ? (progress.venues_experienced / totalVenues) * 100 : 0}%` }}
+                        className="h-full transition-all"
+                        style={{ 
+                          width: `${totalVenues > 0 ? (progress.venues_experienced / totalVenues) * 100 : 0}%`,
+                          backgroundColor: 'var(--brand-pink-500)',
+                          borderRadius: (progress.venues_experienced / totalVenues) >= 1 
+                            ? 'var(--radius-corner, 10px)' 
+                            : 'var(--radius-corner, 10px) 0 0 var(--radius-corner, 10px)',
+                          minWidth: (progress.venues_experienced / totalVenues) > 0 ? '4px' : '0'
+                        }}
                       />
                     </div>
                   </div>
@@ -608,17 +665,31 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                   <div className="p-4 rounded-lg bg-muted/50 border">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
+                        <Icon name="location" size={16} color="var(--neutral-600)" />
                         <span className="text-sm font-medium">Cities</span>
                       </div>
                       <span className="text-sm font-bold">
                         {progress.cities_experienced}/{totalCities}
                       </span>
                     </div>
-                    <div className="w-full bg-background rounded-full h-2">
+                    <div 
+                      className="w-full overflow-hidden"
+                      style={{
+                        height: '8px',
+                        backgroundColor: 'var(--neutral-100)',
+                        borderRadius: 'var(--radius-corner, 10px)'
+                      }}
+                    >
                       <div
-                        className="bg-synth-pink h-2 rounded-full transition-all"
-                        style={{ width: `${totalCities > 0 ? (progress.cities_experienced / totalCities) * 100 : 0}%` }}
+                        className="h-full transition-all"
+                        style={{ 
+                          width: `${totalCities > 0 ? (progress.cities_experienced / totalCities) * 100 : 0}%`,
+                          backgroundColor: 'var(--brand-pink-500)',
+                          borderRadius: (progress.cities_experienced / totalCities) >= 1 
+                            ? 'var(--radius-corner, 10px)' 
+                            : 'var(--radius-corner, 10px) 0 0 var(--radius-corner, 10px)',
+                          minWidth: (progress.cities_experienced / totalCities) > 0 ? '4px' : '0'
+                        }}
                       />
                     </div>
                   </div>
@@ -628,17 +699,31 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                   <div className="p-4 rounded-lg bg-muted/50 border">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-muted-foreground" />
+                        <Icon name="mediumShootingStar" size={16} color="var(--neutral-600)" />
                         <span className="text-sm font-medium">Genres</span>
                       </div>
                       <span className="text-sm font-bold">
                         {progress.genres_experienced}/{totalGenres}
                       </span>
                     </div>
-                    <div className="w-full bg-background rounded-full h-2">
+                    <div 
+                      className="w-full overflow-hidden"
+                      style={{
+                        height: '8px',
+                        backgroundColor: 'var(--neutral-100)',
+                        borderRadius: 'var(--radius-corner, 10px)'
+                      }}
+                    >
                       <div
-                        className="bg-synth-pink h-2 rounded-full transition-all"
-                        style={{ width: `${totalGenres > 0 ? (progress.genres_experienced / totalGenres) * 100 : 0}%` }}
+                        className="h-full transition-all"
+                        style={{ 
+                          width: `${totalGenres > 0 ? (progress.genres_experienced / totalGenres) * 100 : 0}%`,
+                          backgroundColor: 'var(--brand-pink-500)',
+                          borderRadius: (progress.genres_experienced / totalGenres) >= 1 
+                            ? 'var(--radius-corner, 10px)' 
+                            : 'var(--radius-corner, 10px) 0 0 var(--radius-corner, 10px)',
+                          minWidth: (progress.genres_experienced / totalGenres) > 0 ? '4px' : '0'
+                        }}
                       />
                     </div>
                   </div>
@@ -648,7 +733,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
               {/* Events Attended */}
               {progress.events_experienced > 0 && (
                 <div className="mt-4 p-3 rounded-lg bg-synth-pink/10 border border-synth-pink/20 flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-synth-pink flex-shrink-0" />
+                  <Icon name="circleCheck" size={24} className="flex-shrink-0" color="var(--brand-pink-500)" />
                   <div>
                     <p className="text-sm font-medium">
                       <span className="text-synth-pink font-bold">{progress.events_experienced}</span> events attended
@@ -664,7 +749,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
         {/* Participants Section */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-6">
-            <Sparkles className="w-5 h-5 text-synth-pink" />
+            <Icon name="mediumShootingStar" size={24} color="var(--brand-pink-500)" />
             <h2 className="text-2xl font-bold">Participants</h2>
           </div>
 
@@ -679,11 +764,10 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
               return (
                 <Card
                   key={p.id}
-                  className={`cursor-pointer transition-all hover:shadow-lg border-2 ${
-                    isExperienced 
-                      ? 'border-green-500 bg-green-50/50 hover:bg-green-50' 
-                      : 'border-red-500 bg-red-50/50 hover:bg-red-50'
-                  }`}
+                  className="cursor-pointer transition-all hover:shadow-lg"
+                  style={{
+                    border: '1px solid var(--neutral-200)'
+                  }}
                   onClick={() => handleParticipantClick({
                     type: 'venue',
                     name: p.venue_name || '',
@@ -703,7 +787,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                           />
                         ) : (
                           <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
-                            <MapPin className="w-8 h-8 text-muted-foreground" />
+                            <Icon name="location" size={35} color="var(--neutral-600)" />
                           </div>
                         )}
                       </div>
@@ -711,19 +795,48 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                       {/* Name and Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-lg font-semibold truncate">{p.venue_name}</h3>
+                          <h3 className="truncate" style={{
+                            fontFamily: 'var(--font-family)',
+                            fontSize: 'var(--typography-h3-size, 18px)',
+                            fontWeight: 'var(--typography-h3-weight, 600)',
+                            lineHeight: 'var(--typography-h3-line-height, 1.4)',
+                            color: 'var(--neutral-900)'
+                          }}>{p.venue_name}</h3>
                           {isExperienced && (
-                            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                            <Icon name="circleCheck" size={24} className="flex-shrink-0" color="var(--status-success-500)" />
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-4" style={{
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          color: 'var(--neutral-600)'
+                        }}>
                           <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
+                            <Icon name="calendar" size={24} color="var(--neutral-600)" />
                             {eventCount} {eventCount === 1 ? 'upcoming event' : 'upcoming events'}
                           </span>
-                          <Badge variant={isExperienced ? 'default' : 'destructive'} className="text-xs">
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              height: '22px',
+                              paddingLeft: 'var(--spacing-small, 12px)',
+                              paddingRight: 'var(--spacing-small, 12px)',
+                              borderRadius: 'var(--radius-corner, 10px)',
+                              backgroundColor: isExperienced ? 'var(--brand-pink-050)' : 'var(--neutral-100)',
+                              border: isExperienced ? '2px solid var(--brand-pink-500)' : '2px solid var(--neutral-200)',
+                              fontFamily: 'var(--font-family)',
+                              fontSize: 'var(--typography-meta-size, 16px)',
+                              fontWeight: 'var(--typography-meta-weight, 500)',
+                              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                              color: isExperienced ? 'var(--brand-pink-500)' : 'var(--neutral-900)',
+                              boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                            }}
+                          >
                             {isExperienced ? 'Experienced' : 'Not Experienced'}
-                          </Badge>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -742,11 +855,10 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
               return (
                 <Card
                   key={p.id}
-                  className={`cursor-pointer transition-all hover:shadow-lg border-2 ${
-                    isExperienced 
-                      ? 'border-green-500 bg-green-50/50 hover:bg-green-50' 
-                      : 'border-red-500 bg-red-50/50 hover:bg-red-50'
-                  }`}
+                  className="cursor-pointer transition-all hover:shadow-lg"
+                  style={{
+                    border: '1px solid var(--neutral-200)'
+                  }}
                   onClick={() => handleParticipantClick({
                     type: 'artist',
                     name: p.artist_name || '',
@@ -766,7 +878,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                           />
                         ) : (
                           <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
-                            <Music className="w-8 h-8 text-muted-foreground" />
+                            <Icon name="music" size={35} color="var(--neutral-600)" />
                           </div>
                         )}
                       </div>
@@ -774,19 +886,48 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                       {/* Name and Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-lg font-semibold truncate">{p.artist_name}</h3>
+                          <h3 className="truncate" style={{
+                            fontFamily: 'var(--font-family)',
+                            fontSize: 'var(--typography-h3-size, 18px)',
+                            fontWeight: 'var(--typography-h3-weight, 600)',
+                            lineHeight: 'var(--typography-h3-line-height, 1.4)',
+                            color: 'var(--neutral-900)'
+                          }}>{p.artist_name}</h3>
                           {isExperienced && (
-                            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                            <Icon name="circleCheck" size={24} className="flex-shrink-0" color="var(--status-success-500)" />
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-4" style={{
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          color: 'var(--neutral-600)'
+                        }}>
                           <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
+                            <Icon name="calendar" size={24} color="var(--neutral-600)" />
                             {eventCount} {eventCount === 1 ? 'upcoming event' : 'upcoming events'}
                           </span>
-                          <Badge variant={isExperienced ? 'default' : 'destructive'} className="text-xs">
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              height: '22px',
+                              paddingLeft: 'var(--spacing-small, 12px)',
+                              paddingRight: 'var(--spacing-small, 12px)',
+                              borderRadius: 'var(--radius-corner, 10px)',
+                              backgroundColor: isExperienced ? 'var(--brand-pink-050)' : 'var(--neutral-100)',
+                              border: isExperienced ? '2px solid var(--brand-pink-500)' : '2px solid var(--neutral-200)',
+                              fontFamily: 'var(--font-family)',
+                              fontSize: 'var(--typography-meta-size, 16px)',
+                              fontWeight: 'var(--typography-meta-weight, 500)',
+                              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                              color: isExperienced ? 'var(--brand-pink-500)' : 'var(--neutral-900)',
+                              boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                            }}
+                          >
                             {isExperienced ? 'Experienced' : 'Not Experienced'}
-                          </Badge>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -804,11 +945,10 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
               return (
                 <Card
                   key={p.id}
-                  className={`cursor-pointer transition-all hover:shadow-lg border-2 ${
-                    isExperienced 
-                      ? 'border-green-500 bg-green-50/50 hover:bg-green-50' 
-                      : 'border-red-500 bg-red-50/50 hover:bg-red-50'
-                  }`}
+                  className="cursor-pointer transition-all hover:shadow-lg"
+                  style={{
+                    border: '1px solid var(--neutral-200)'
+                  }}
                   onClick={() => handleParticipantClick({
                     type: 'city',
                     name: p.text_value || '',
@@ -821,26 +961,55 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                       {/* Icon */}
                       <div className="flex-shrink-0">
                         <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
-                          <MapPin className="w-8 h-8 text-muted-foreground" />
+                          <Icon name="location" size={35} color="var(--neutral-600)" />
                         </div>
                       </div>
 
                       {/* Name and Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-lg font-semibold truncate">{p.text_value}</h3>
+                          <h3 className="truncate" style={{
+                            fontFamily: 'var(--font-family)',
+                            fontSize: 'var(--typography-h3-size, 18px)',
+                            fontWeight: 'var(--typography-h3-weight, 600)',
+                            lineHeight: 'var(--typography-h3-line-height, 1.4)',
+                            color: 'var(--neutral-900)'
+                          }}>{p.text_value}</h3>
                           {isExperienced && (
-                            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                            <Icon name="circleCheck" size={24} className="flex-shrink-0" color="var(--status-success-500)" />
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-4" style={{
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          color: 'var(--neutral-600)'
+                        }}>
                           <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
+                            <Icon name="calendar" size={24} color="var(--neutral-600)" />
                             {eventCount} {eventCount === 1 ? 'upcoming event' : 'upcoming events'}
                           </span>
-                          <Badge variant={isExperienced ? 'default' : 'destructive'} className="text-xs">
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              height: '22px',
+                              paddingLeft: 'var(--spacing-small, 12px)',
+                              paddingRight: 'var(--spacing-small, 12px)',
+                              borderRadius: 'var(--radius-corner, 10px)',
+                              backgroundColor: isExperienced ? 'var(--brand-pink-050)' : 'var(--neutral-100)',
+                              border: isExperienced ? '2px solid var(--brand-pink-500)' : '2px solid var(--neutral-200)',
+                              fontFamily: 'var(--font-family)',
+                              fontSize: 'var(--typography-meta-size, 16px)',
+                              fontWeight: 'var(--typography-meta-weight, 500)',
+                              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                              color: isExperienced ? 'var(--brand-pink-500)' : 'var(--neutral-900)',
+                              boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                            }}
+                          >
                             {isExperienced ? 'Experienced' : 'Not Experienced'}
-                          </Badge>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -870,18 +1039,24 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                       {/* Icon */}
                       <div className="flex-shrink-0">
                         <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
-                          <Sparkles className="w-8 h-8 text-muted-foreground" />
+                          <Icon name="mediumShootingStar" size={35} color="var(--neutral-600)" />
                         </div>
                       </div>
 
                       {/* Name and Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-lg font-semibold truncate">{p.text_value}</h3>
+                          <h3 className="truncate" style={{
+                            fontFamily: 'var(--font-family)',
+                            fontSize: 'var(--typography-h3-size, 18px)',
+                            fontWeight: 'var(--typography-h3-weight, 600)',
+                            lineHeight: 'var(--typography-h3-line-height, 1.4)',
+                            color: 'var(--neutral-900)'
+                          }}>{p.text_value}</h3>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
+                            <Icon name="calendar" size={16} color="var(--neutral-900)" />
                             {eventCount} {eventCount === 1 ? 'upcoming event' : 'upcoming events'}
                           </span>
                           <Badge variant="secondary" className="text-xs">
@@ -901,7 +1076,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
         {scene.upcomingEvents.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
-              <Calendar className="w-5 h-5 text-synth-pink" />
+              <Icon name="calendar" size={24} color="var(--brand-pink-500)" />
               <h2 className="text-2xl font-bold">Upcoming Events ({scene.upcomingEvents.length})</h2>
             </div>
             <HorizontalCarousel
@@ -923,7 +1098,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
         {scene.activeReviewers.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
-              <Users className="w-5 h-5 text-synth-pink" />
+              <Icon name="twoUsers" size={24} color="var(--brand-pink-500)" />
               <h2 className="text-2xl font-bold">Active Reviewers ({scene.activeReviewers.length})</h2>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">

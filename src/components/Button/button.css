@@ -3,6 +3,13 @@
  * 
  * Styles for SynthButton component using design tokens.
  * All values reference CSS variables from src/styles/tokens.css
+ * 
+ * Shared Rules (ALL buttons):
+ * - Border radius: 10px
+ * - Height (default): 36px
+ * - Typography: Meta (16px, medium)
+ * - Box shadow: 0 4px 4px 0 rgba(0, 0, 0, 0.25)
+ * - Vertical margins: 12px top and bottom
  */
 
 .synth-button {
@@ -23,105 +30,151 @@
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   
+  /* Shared rules: box shadow and vertical margins */
+  box-shadow: 0 4px 4px 0 var(--shadow-color);
+  margin-top: var(--spacing-small, 12px);
+  margin-bottom: var(--spacing-small, 12px);
+  
   /* Remove default button styles */
   background: none;
   padding: 0;
-  margin: 0;
+  margin-left: 0;
+  margin-right: 0;
   outline: none;
+  box-sizing: border-box;
 }
 
 /* Focus styles for accessibility */
 .synth-button:focus-visible {
-  outline: 2px solid var(--color-synth-pink, #CC2486);
+  outline: 2px solid var(--brand-pink-500);
   outline-offset: 2px;
 }
 
 /* Standard size (36px height) */
+/* Content-hugging buttons: 12px left/right padding */
 .synth-button--standard {
   height: var(--size-button-height, 36px);
-  padding-left: var(--spacing-grouped, 24px);
-  padding-right: var(--spacing-grouped, 24px);
+  padding-left: var(--spacing-small, 12px);
+  padding-right: var(--spacing-small, 12px);
 }
 
 /* Icon-only size (44px x 44px) */
+/* Icon-only buttons: 12px margin on all sides, icon centered, normal size (24px) */
 .synth-button--icon-only {
   width: var(--size-input-height, 44px);
   height: var(--size-input-height, 44px);
   padding: 0;
   flex-shrink: 0;
+  /* 12px margin on all sides */
+  margin: var(--spacing-small, 12px);
+  /* Ensure icon is centered and doesn't spill */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Tertiary size (22px height) */
+/* Tertiary: 22px height, chip/pill label styling, labels only, small icons, no full-width */
 .synth-button--tertiary {
   height: 22px;
   padding-left: var(--spacing-small, 12px);
   padding-right: var(--spacing-small, 12px);
+  /* Note: border-radius is set in variant section to 999px for fully rounded pill */
 }
 
 /* Full width with screen margins
-   When fullWidth is true, button automatically respects 20px screen margins
-   by using calc to account for margins on both sides
+   When fullWidth is true, button spans container width minus 40px (20px margins on each side)
+   Uses 100% of container width, then subtracts 40px for margins, and centers itself
+   Note: Tertiary buttons cannot be full-width
  */
 .synth-button--full-width {
   width: calc(100% - calc(var(--spacing-screen-margin-x, 20px) * 2));
-  margin-left: var(--spacing-screen-margin-x, 20px);
-  margin-right: var(--spacing-screen-margin-x, 20px);
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: var(--spacing-small, 12px);
+  margin-bottom: var(--spacing-small, 12px);
   box-sizing: border-box;
+  /* Ensure button doesn't overflow container */
+  max-width: calc(100% - calc(var(--spacing-screen-margin-x, 20px) * 2));
 }
 
-/* Primary variant: SynthPink background, OffWhite text/icons */
+/* Primary variant: Brand Pink background, Neutral-50 text/icons */
 .synth-button--primary {
-  background-color: var(--color-synth-pink, #CC2486);
-  color: var(--color-off-white, #FCFCFC);
+  background-color: var(--brand-pink-500);
+  color: var(--neutral-50) !important; /* Override global button color */
 }
 
 .synth-button--primary:hover:not(:disabled) {
-  background-color: var(--color-dark-pink, #951A6D);
+  background-color: var(--brand-pink-600);
 }
 
 .synth-button--primary:active:not(:disabled) {
-  background-color: var(--color-medium-pink, #B00056);
+  background-color: var(--brand-pink-700);
   transform: scale(0.98);
 }
 
-/* Outline variant: OffWhite background, SynthPink text/icons, border */
-.synth-button--outline {
-  background-color: var(--color-off-white, #FCFCFC);
-  color: var(--color-synth-pink, #CC2486);
-  border: 1px solid var(--color-synth-pink, #CC2486);
+/* Secondary variant: Neutral-50 background, Brand Pink text/icons/border (2px) */
+.synth-button--secondary {
+  background-color: var(--neutral-50);
+  color: var(--brand-pink-500) !important; /* Override global button color */
+  border: 2px solid var(--brand-pink-500);
 }
 
-.synth-button--outline:hover:not(:disabled) {
-  background-color: var(--color-light-pink, #FDF2F7);
-  border-color: var(--color-dark-pink, #951A6D);
+.synth-button--secondary:hover:not(:disabled) {
+  background-color: var(--brand-pink-050);
+  border-color: var(--brand-pink-600);
 }
 
-.synth-button--outline:active:not(:disabled) {
-  background-color: var(--color-light-pink, #FDF2F7);
-  border-color: var(--color-medium-pink, #B00056);
+.synth-button--secondary:active:not(:disabled) {
+  background-color: var(--brand-pink-050);
+  border-color: var(--brand-pink-700);
   transform: scale(0.98);
 }
 
-/* Disabled variant: Grey50 background, DarkGrey text/icons */
+/* Tertiary variant: 22px height, chip/pill label styling */
+.synth-button--tertiary {
+  /* Chip/pill label styling per design system */
+  background-color: var(--brand-pink-050);
+  color: var(--brand-pink-500) !important; /* Override global button color */
+  border: 2px solid var(--brand-pink-500);
+  border-radius: 999px; /* Fully rounded pill shape */
+  box-shadow: none; /* No shadow by default - chips should feel lightweight */
+}
+
+.synth-button--tertiary:hover:not(:disabled) {
+  background-color: var(--brand-pink-050);
+  border-color: var(--brand-pink-600);
+}
+
+.synth-button--tertiary:active:not(:disabled) {
+  background-color: var(--brand-pink-050);
+  border-color: var(--brand-pink-700);
+  transform: scale(0.98);
+}
+
+/* Disabled variant: Disabled background, Disabled text/icons, not clickable */
+/* ACCESSIBILITY FIX: Using neutral-600 instead of state-disabled-text for better contrast (4.8:1 vs 2.6:1) */
 .synth-button--disabled,
 .synth-button:disabled {
-  background-color: var(--color-grey-50, rgba(201, 201, 201, 0.5));
-  color: var(--color-dark-grey, #5D646F);
+  background-color: var(--state-disabled-bg);
+  color: var(--neutral-600) !important; /* Override: Better contrast ratio (4.8:1) meets WCAG AA */
   cursor: not-allowed;
   opacity: 1; /* Keep opacity at 1, colors handle the disabled state */
+  pointer-events: none; /* Not clickable */
 }
 
-.synth-button--outline.synth-button--disabled,
-.synth-button--outline:disabled {
-  background-color: var(--color-off-white, #FCFCFC);
-  border-color: var(--color-grey-50, rgba(201, 201, 201, 0.5));
-  color: var(--color-dark-grey, #5D646F);
+.synth-button--secondary.synth-button--disabled,
+.synth-button--secondary:disabled {
+  background-color: var(--neutral-50);
+  border-color: var(--state-disabled-bg);
+  color: var(--neutral-600) !important; /* Override: Better contrast ratio (4.8:1) meets WCAG AA */
 }
 
 /* Button text */
 .synth-button__text {
   display: inline-block;
   line-height: inherit;
+  color: inherit; /* Inherit color from button variant */
 }
 
 /* Icon styling */
@@ -130,16 +183,63 @@
   display: block;
 }
 
-/* Ensure icons inherit button color for outline variant */
-.synth-button--outline .synth-button__icon {
-  /* SVG colors should be defined in the SVG itself, not via CSS filters */
-  /* If icon color needs to change, it should be handled via SVG fill/stroke */
+/* Icon-only buttons: ensure icon is properly sized and centered */
+.synth-button--icon-only .synth-button__icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  /* Ensure icon doesn't spill out of 44x44 container */
+  max-width: 24px;
+  max-height: 24px;
+}
+
+/* Icon colors must match button text color per spec */
+/* Using currentColor in SVGs - set color via CSS for exact color accuracy */
+
+/* Primary: Neutral-50 icons */
+.synth-button--primary .synth-button__icon,
+.synth-button--primary .synth-icon,
+.synth-button--primary svg {
+  color: var(--neutral-50) !important;
+}
+
+/* Secondary: Brand Pink icons */
+.synth-button--secondary .synth-button__icon,
+.synth-button--secondary .synth-icon,
+.synth-button--secondary svg {
+  color: var(--brand-pink-500) !important;
+}
+
+/* Tertiary: Brand Pink icons (matches text color) */
+.synth-button--tertiary .synth-button__icon,
+.synth-button--tertiary .synth-icon,
+.synth-button--tertiary svg {
+  color: var(--brand-pink-500) !important;
+}
+
+/* Disabled: Disabled text icons */
+/* Target all possible icon selectors for disabled buttons */
+.synth-button--disabled .synth-button__icon,
+.synth-button:disabled .synth-button__icon,
+.synth-button--disabled .synth-icon,
+.synth-button:disabled .synth-icon,
+.synth-button--disabled svg,
+.synth-button:disabled svg,
+.synth-button--disabled .synth-button__icon svg,
+.synth-button:disabled .synth-button__icon svg,
+.synth-button--disabled .synth-icon svg,
+.synth-button:disabled .synth-icon svg {
+  color: var(--state-disabled-text) !important;
+}
+
+/* Also ensure disabled button container sets color for inheritance */
+.synth-button--disabled,
+.synth-button:disabled {
+  color: var(--state-disabled-text) !important;
 }
 
 /* Spacing adjustments for buttons with icons */
-.synth-button--standard:has(.synth-button__icon) {
-  /* Icon spacing is handled by gap property */
-}
+/* Icon spacing is handled by gap property on .synth-button base class */
 
 .synth-button--tertiary:has(.synth-button__icon) {
   gap: var(--spacing-inline, 6px);

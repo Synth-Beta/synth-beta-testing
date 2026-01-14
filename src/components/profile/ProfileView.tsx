@@ -48,8 +48,11 @@ import { ProfileStarBuckets } from './ProfileStarBuckets';
 import { PassportModal } from '@/components/discover/PassportModal';
 import { PassportService } from '@/services/passportService';
 import { Sparkles } from 'lucide-react';
+import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
+import { UserInfo } from './UserInfo';
 import { TopRightMenu } from '@/components/TopRightMenu';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
+import { MobileHeader } from '@/components/Header/MobileHeader';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -61,6 +64,9 @@ interface ProfileViewProps {
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
   onNavigateToNotifications?: () => void;
+  menuOpen?: boolean;
+  onMenuClick?: () => void;
+  hideHeader?: boolean;
 }
 
 interface UserProfile {
@@ -131,7 +137,7 @@ interface ConcertReview {
   };
 }
 
-export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat, onNavigateToNotifications }: ProfileViewProps) => {
+export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat, onNavigateToNotifications, menuOpen = false, onMenuClick, hideHeader = false }: ProfileViewProps) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<JamBaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -254,6 +260,17 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       setActiveTab('spotify');
     }
   }, []);
+
+  useEffect(() => {
+    // Check for tab preference from sessionStorage (set by SideMenu navigation)
+    if (isViewingOwnProfile) {
+      const preferredTab = sessionStorage.getItem('profileTab');
+      if (preferredTab && ['timeline', 'interested', 'passport'].includes(preferredTab)) {
+        setActiveTab(preferredTab === 'timeline' ? 'passport' : preferredTab);
+        sessionStorage.removeItem('profileTab');
+      }
+    }
+  }, [isViewingOwnProfile]);
 
   useEffect(() => {
     // Show by default; optionally restrict later based on friends
@@ -419,24 +436,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       }
 
       console.log('🔍 ProfileView: Fetching user events from database...');
-      // Get user's interested events from user_event_relationships table
-      const { data: relationships } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
-        .eq('user_id', targetUserId)
-        .eq('relationship_type', 'interested');
-      
-      const eventIds = relationships?.map(r => r.event_id) || [];
-      
-      let data: JamBaseEvent[] = [];
-      if (eventIds.length > 0) {
-        const { data: events } = await supabase
-          .from('events')
-          .select('*')
-          .in('id', eventIds)
-          .order('event_date', { ascending: true });
-        data = (events || []) as JamBaseEvent[];
-      }
+      const interested = await UserEventService.getUserInterestedEvents(targetUserId);
+      let data: JamBaseEvent[] = interested.events
+        .map(item => item.event)
+        .filter(Boolean) as JamBaseEvent[];
       console.log('🔍 ProfileView: Database query returned:', data?.length, 'events');
       
       // Get events that user has attended to exclude them from interested events
@@ -1533,18 +1536,20 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   const getRatingColor = (rating: 'good' | 'okay' | 'bad') => {
     switch (rating) {
-      case 'good': return 'bg-green-100 text-green-800 border-green-200';
-      case 'okay': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'bad': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      // ACCESSIBILITY: Status colors converted to tokens with proper contrast
+      // Note: These should include text labels, not just color
+      case 'good': return ''; // Use status-success tokens with text label
+      case 'okay': return ''; // Use status-warning tokens with text label  
+      case 'bad': return ''; // Use status-error tokens with text label
+      default: return ''; // Use inline styles for colors
     }
   };
 
   const getRatingIcon = (rating: 'good' | 'okay' | 'bad') => {
     switch (rating) {
-      case 'good': return <ThumbsUp className="w-4 h-4" />;
-      case 'okay': return <Minus className="w-4 h-4" />;
-      case 'bad': return <ThumbsDown className="w-4 h-4" />;
+      case 'good': return <ThumbsUp size={16} />;
+      case 'okay': return <Minus size={16} />;
+      case 'bad': return <ThumbsDown size={16} />;
       default: return null;
     }
   };
@@ -1564,10 +1569,17 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-bold mb-4">Profile not found</h2>
-          <p className="text-muted-foreground mb-4">Unable to load profile data. Please try again.</p>
-          <Button onClick={onBack}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
+          <h2 className="font-bold mb-4" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-body-size, 20px)', fontWeight: 'var(--typography-body-weight, 500)', lineHeight: 'var(--typography-body-line-height, 1.5)' }}>Profile not found</h2>
+          <p className="mb-4" style={{ color: 'var(--neutral-600)' }}>Unable to load profile data. Please try again.</p>
+          <Button onClick={() => {
+            // Use browser history navigation if available, otherwise use onBack prop
+            if (window.history.length > 1) {
+              navigate(-1);
+            } else {
+              onBack();
+            }
+          }}>
+            <ArrowLeft size={16} className="mr-2" />
             Back
           </Button>
         </div>
@@ -1582,67 +1594,62 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   return (
     <div 
-      className="min-h-screen bg-[#fcfcfc] pb-48 w-full max-w-[393px] mx-auto overflow-x-hidden"
-      style={{
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
-      }}
+      className="min-h-screen w-full max-w-[393px] mx-auto overflow-x-hidden" style={{ backgroundColor: 'var(--neutral-50)' }}
     >
-      {/* Top bar with username and menu */}
-      <div className="bg-[#fcfcfc] border-b border-gray-200 w-full">
-        <div className="w-full max-w-full px-4 py-3 flex items-center justify-center relative">
-          <h1 className="text-xl font-bold text-gray-900 truncate text-center">
+      {/* Mobile Header with person's name */}
+      {!hideHeader && (
+      <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
+        <h1 className="font-bold truncate text-center" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
             {profile.username ? `@${profile.username}` : profile.name}
           </h1>
-          <div className="absolute right-4">
-          <TopRightMenu />
-        </div>
-      </div>
-          </div>
-      <div className="w-full max-w-full p-4 overflow-x-hidden">
-        {/* Enhanced Profile Header */}
-        <div className="mb-6 bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 rounded-2xl p-4 sm:p-6 border border-pink-100/50 shadow-sm relative overflow-hidden w-full max-w-full">
+      </MobileHeader>
+      )}
+      <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 112px)' }}>
+        {/* Profile Header */}
+        <div 
+          className="mb-6 relative w-full max-w-full" 
+          style={{ 
+            padding: 'var(--spacing-grouped, 24px) 0',
+            border: 'none'
+          }}
+        >
           {/* Main Profile Row */}
           <div className="flex flex-col items-center gap-4 mb-4 w-full max-w-full">
-            {/* Profile Picture and Name Row */}
-            <div className="flex items-center gap-3 w-full justify-center">
+            {/* UserInfo with userProfile variant */}
+            <div className="w-full flex justify-center">
+              <div className="relative" style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
             <div className="relative">
-                <Avatar className="w-20 h-20 sm:w-24 sm:h-24 ring-4 ring-white shadow-lg">
-                <AvatarImage 
-                  src={profile.avatar_url || undefined} 
-                  alt={`${profile.name}'s avatar`}
-                  onError={(e) => {
-                    console.log('🔍 Avatar image failed to load:', profile.avatar_url);
-                    // Hide the image element to show fallback
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                  onLoad={() => {
-                    console.log('🔍 Avatar image loaded successfully:', profile.avatar_url);
-                  }}
-                />
-                <AvatarFallback className="text-3xl font-bold bg-gradient-to-br from-pink-500 to-purple-600 text-white">
-                  {profile.name.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+                  <UserInfo
+                    variant="userProfile"
+                    name={profile.name}
+                    username={profile.username || undefined}
+                    initial={profile.name.charAt(0).toUpperCase()}
+                    imageUrl={profile.avatar_url}
+                    followers={friends.length}
+                    following={followedArtistsCount}
+                    events={reviewsCount}
+                    onFollowersClick={() => { setFollowersModalType('friends'); setShowFollowersModal(true); }}
+                    onFollowingClick={() => setShowFollowingModal(true)}
+                  />
               {/* Online status indicator */}
               {!isViewingOwnProfile && profile.last_active_at && (
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                    <div className="absolute bottom-0 left-0 w-6 h-6 rounded-full border-2" style={{ backgroundColor: 'var(--status-success-500)', borderColor: 'var(--neutral-50)' }}>
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--neutral-50)' }}></div>
                 </div>
-              )}
             </div>
-              
-              {/* Name and Verification Badge */}
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                    {profile.name}
-                  </h1>
+              )}
+
+            </div>
+                {/* Verification Badge - positioned next to name */}
                   {profile.verified && profile.account_type && (
+                  <div style={{ marginTop: '2px' }}>
                     <VerificationBadge
                       accountType={profile.account_type as AccountType}
                       verified={profile.verified}
                       size="lg"
                     />
+                  </div>
                   )}
               </div>
                 </div>
@@ -1650,8 +1657,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 {/* Status Badges */}
                 {!isViewingOwnProfile && profile.last_active_at && (
               <div className="w-full flex justify-center">
-                  <Badge variant="secondary" className="flex items-center gap-1 text-xs bg-green-100 text-green-700 border-green-200">
-                    <Clock className="w-3 h-3" />
+                <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-700 border-green-200" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                    <Clock size={16} />
                     {UserVisibilityService.formatLastActive(profile.last_active_at)}
                   </Badge>
               </div>
@@ -1659,59 +1666,90 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               
             {/* Profile Info */}
             <div className="w-full max-w-full">
-              {/* Stats Row - Centered */}
-              <div className="flex items-center justify-center gap-6 mb-4 w-full max-w-full">
-                <button
-                  className="text-center hover:scale-105 transition-transform group"
-                  onClick={() => { setFollowersModalType('friends'); setShowFollowersModal(true); }}
-                >
-                  <div className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent group-hover:from-pink-700 group-hover:to-purple-700">
-                    {friends.length}
-                  </div>
-                  <p className="text-sm text-gray-600 font-medium">Friends</p>
-                </button>
-                
-                <div className="text-center">
-                  <div className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                    {reviewsCount}
-                  </div>
-                  <p className="text-sm text-gray-600 font-medium">Reviews</p>
-                </div>
-                
-                <button
-                  className="text-center hover:scale-105 transition-transform group"
-                  onClick={() => setShowFollowingModal(true)}
-                >
-                  <div className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent group-hover:from-pink-700 group-hover:to-purple-700">
-                    {followedArtistsCount}
-                  </div>
-                  <p className="text-sm text-gray-600 font-medium">Following</p>
-                </button>
-              </div>
               
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-2 w-full max-w-full">
                 {isViewingOwnProfile ? (
                   <>
-                    <Button onClick={onEdit} variant="default" size="sm" className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-md">
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit Profile
+                    <Button 
+                      onClick={onEdit} 
+                      variant="default" 
+                      style={{ 
+                        height: 'var(--size-button-height, 36px)',
+                        paddingLeft: 'var(--spacing-small, 12px)',
+                        paddingRight: 'var(--spacing-small, 12px)',
+                        backgroundColor: 'var(--brand-pink-500)',
+                        color: 'var(--neutral-50)',
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                        border: 'none'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
+                      }}
+                    >
+                      <Edit size={16} style={{ marginRight: 'var(--spacing-inline, 6px)', color: 'var(--neutral-50)' }} />
+                      <span style={{ color: 'var(--neutral-50)' }}>Edit Profile</span>
                     </Button>
-                    <Button onClick={onSettings} variant="outline" size="sm" className="border-gray-200 hover:border-gray-300">
-                      <Settings className="w-4 h-4" />
+                    <Button 
+                      onClick={onSettings} 
+                      variant="secondary" 
+                      size="icon"
+                      style={{
+                        width: '44px',
+                        height: '44px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'var(--neutral-50)',
+                        border: '2px solid var(--neutral-200)',
+                        color: 'var(--neutral-900)'
+                      }}
+                      aria-label="Profile settings"
+                    >
+                      <Settings size={24} style={{ color: 'var(--neutral-900)' }} />
                     </Button>
                   </>
                 ) : (
                   <div className="flex items-center gap-2 flex-wrap">
                     {friendStatus === 'none' && (
-                      <Button onClick={sendFriendRequest} variant="default" size="sm" className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md">
-                        <Plus className="w-4 h-4 mr-2" />
+                      <Button 
+                        onClick={sendFriendRequest} 
+                        variant="default" 
+                        size="sm" 
+                        className="shadow-md" 
+                        style={{ 
+                          backgroundColor: 'var(--status-success-500)',
+                          color: 'var(--neutral-50)'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                        aria-label="Send friend request"
+                      >
+                        {/* ACCESSIBILITY: Status button - use status tokens instead of gradient */}
+                        <Plus size={16} className="mr-2" />
                         Add Friend
                       </Button>
                     )}
                     {friendStatus === 'pending_sent' && (
                       <div className="flex items-center gap-2">
-                        <Button disabled variant="outline" size="sm" className="border-orange-200 text-orange-600">
+                        <Button disabled variant="outline" style={{
+                          height: 'var(--size-button-height, 36px)',
+                          paddingLeft: 'var(--spacing-small, 12px)',
+                          paddingRight: 'var(--spacing-small, 12px)',
+                          borderColor: 'var(--neutral-200)',
+                          color: 'var(--neutral-600)',
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                        }}>
                           Friend Request Sent
                         </Button>
                         <Button 
@@ -1744,7 +1782,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                           disabled={!pendingRequestId}
                           variant="outline" 
                           size="sm" 
-                          className="border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderColor: 'var(--neutral-200)', color: 'var(--neutral-600)' }}
                           title={!pendingRequestId ? "Request ID not available" : "Cancel friend request"}
                         >
                           Cancel
@@ -1752,7 +1790,19 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                       </div>
                     )}
                     {friendStatus === 'pending_received' && (
-                      <Button disabled variant="outline" size="sm" className="border-blue-200 text-blue-600">
+                      <Button 
+                        disabled 
+                        variant="outline" 
+                        size="sm" 
+                        style={{ 
+                          borderColor: 'var(--info-blue-500)',
+                          color: 'var(--info-blue-500)',
+                          backgroundColor: 'var(--state-disabled-bg)',
+                          cursor: 'not-allowed'
+                        }}
+                        aria-label="Friend request already sent"
+                        aria-disabled="true"
+                      >
                         Respond to Request
                       </Button>
                     )}
@@ -1761,7 +1811,20 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                         onClick={() => unfriendUser(targetUserId)} 
                         variant="outline" 
                         size="sm"
-                        className="text-red-600 hover:text-red-700 hover:border-red-300 border-red-200"
+                        className="border"
+                        style={{ 
+                          color: 'var(--status-error-500)',
+                          borderColor: 'var(--status-error-500)'
+                        }}
+                        onMouseEnter={(e) => { 
+                          e.currentTarget.style.backgroundColor = 'var(--status-error-050)';
+                          e.currentTarget.style.color = 'var(--status-error-500)';
+                        }}
+                        onMouseLeave={(e) => { 
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = 'var(--status-error-500)';
+                        }}
+                        aria-label="Unfriend user"
                       >
                         Unfriend
                       </Button>
@@ -1771,17 +1834,37 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                         variant="ghost"
                         size="sm"
                         onClick={() => setBlockModalOpen(true)}
-                        className="text-gray-500 hover:text-red-600 hover:bg-red-50 p-2"
+                        className="p-2" 
+                        style={{ color: 'var(--neutral-600)' }}
+                        onMouseEnter={(e) => { 
+                          e.currentTarget.style.color = 'var(--status-error-500)';
+                          e.currentTarget.style.backgroundColor = 'var(--status-error-050)';
+                        }}
+                        onMouseLeave={(e) => { 
+                          e.currentTarget.style.color = 'var(--neutral-600)';
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                        aria-label="Block user"
                       >
-                        <Ban className="w-4 h-4" />
+                        <Ban size={16} />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setReportModalOpen(true)}
-                        className="text-gray-500 hover:text-red-600 hover:bg-red-50 p-2"
+                        className="p-2" 
+                        style={{ color: 'var(--neutral-600)' }}
+                        onMouseEnter={(e) => { 
+                          e.currentTarget.style.color = 'var(--status-error-500)';
+                          e.currentTarget.style.backgroundColor = 'var(--status-error-050)';
+                        }}
+                        onMouseLeave={(e) => { 
+                          e.currentTarget.style.color = 'var(--neutral-600)';
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                        aria-label="Block user"
                       >
-                        <Flag className="w-4 h-4" />
+                        <Flag size={16} />
                       </Button>
                     </div>
                   </div>
@@ -1791,26 +1874,28 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           </div>
           
           {/* Bio and Links */}
-          <div className="border-t border-pink-100/50 pt-6">
+          <div style={{ paddingTop: 'var(--spacing-grouped, 24px)' }}>
             {profile.bio && (
               <div className="mb-4">
-                <p className="text-gray-700 leading-relaxed">{profile.bio}</p>
+                <p className="leading-relaxed" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>{profile.bio}</p>
               </div>
             )}
 
             {/* Social Media Links and Streaming Stats */}
             <div className="flex flex-wrap gap-3">
               {profile.instagram_handle && (
-                <a
-                  href={`https://instagram.com/${profile.instagram_handle}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-pink-500/10 to-purple-500/10 hover:from-pink-500/20 hover:to-purple-500/20 rounded-lg border border-pink-200/50 text-pink-600 hover:text-pink-700 transition-all duration-200 text-sm font-medium"
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(`https://instagram.com/${profile.instagram_handle}`, '_blank')}
+                  style={{
+                    borderColor: 'var(--neutral-200)',
+                    color: 'var(--neutral-900)'
+                  }}
                 >
-                  <Instagram className="w-4 h-4" />
-                  <span>@{profile.instagram_handle}</span>
-                  <ExternalLink className="w-3 h-3 opacity-60" />
-                </a>
+                  <Instagram size={16} className="mr-2" />
+                  @{profile.instagram_handle}
+                </Button>
               )}
               
               {/* Show streaming profile link only if viewing someone else's profile */}
@@ -1821,39 +1906,50 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 
                 let href = profile.music_streaming_profile;
                 let displayText = profile.music_streaming_profile;
-                let bgClass = 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-200/50';
-                let textClass = 'text-blue-600 hover:text-blue-700';
                 
                 if (isSpotify) {
                   href = profile.music_streaming_profile.startsWith('http') 
                     ? profile.music_streaming_profile 
                     : `https://open.spotify.com/user/${profile.music_streaming_profile}`;
                   displayText = 'Spotify Profile';
-                  bgClass = 'bg-green-500/10 hover:bg-green-500/20 border-green-200/50';
-                  textClass = 'text-green-600 hover:text-green-700';
                 } else if (isAppleMusic) {
                   href = profile.music_streaming_profile.startsWith('http') 
                     ? profile.music_streaming_profile 
                     : profile.music_streaming_profile;
                   displayText = 'Apple Music Profile';
-                  bgClass = 'bg-red-500/10 hover:bg-red-500/20 border-red-200/50';
-                  textClass = 'text-red-600 hover:text-red-700';
                 }
                 
                 return (
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-center gap-2 px-3 py-2 ${bgClass} rounded-lg border ${textClass} transition-all duration-200 text-sm font-medium`}
+                  <Button
+                    variant="outline"
+                    onClick={() => window.open(href, '_blank')}
+                    style={{
+                      height: 'var(--size-button-height, 36px)',
+                      paddingLeft: 'var(--spacing-small, 12px)',
+                      paddingRight: 'var(--spacing-small, 12px)',
+                      borderColor: 'var(--neutral-200)',
+                      color: 'var(--neutral-900)',
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                    }}
                   >
-                    <Music className="w-4 h-4" />
-                    <span>{displayText}</span>
-                    <ExternalLink className="w-3 h-3 opacity-60" />
-                  </a>
+                    <Music size={16} style={{ marginRight: 'var(--spacing-inline, 6px)' }} />
+                    {displayText}
+                  </Button>
                 );
               })()}
             </div>
+            <div
+              aria-hidden="true"
+              style={{
+                height: '1px',
+                backgroundColor: 'var(--neutral-200)',
+                width: '100%',
+                marginTop: 'var(--spacing-grouped, 24px)'
+              }}
+            />
           </div>
         </div>
 
@@ -1876,12 +1972,12 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             </TabsTrigger>
             {canViewInterested && (
               <TabsTrigger value="interested" className="flex items-center gap-2">
-                <Heart className="w-4 h-4" />
+                <Heart size={16} />
                 Interested
               </TabsTrigger>
             )}
             <TabsTrigger value="passport" className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
+              <Sparkles size={16} />
               Passport
             </TabsTrigger>
           </TabsList>
@@ -1890,40 +1986,73 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           {/* My Events Tab - Show attended events with review/ranking toggle */}
           <TabsContent value="my-events" className="mt-4 mb-32 w-full max-w-full overflow-x-hidden">
             <div className="flex flex-col gap-3 mb-4 p-2 w-full max-w-full">
-              <h3 className="gradient-text text-lg font-semibold">
+              <h3 className="gradient-text font-semibold" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-body-size, 20px)', fontWeight: 'var(--typography-body-weight, 500)', lineHeight: 'var(--typography-body-line-height, 1.5)' }}>
                 {isViewingOwnProfile ? 'My Events' : `${profile?.name || 'User'}'s Events`}
               </h3>
               {isViewingOwnProfile && (
                 <div className="flex flex-col gap-2 w-full max-w-full">
-                  <span className="text-xs text-gray-600">View mode:</span>
-                  <div className="bg-gray-100 rounded-lg p-1 flex w-full max-w-full overflow-x-auto">
+                  <span style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>View mode:</span>
+                  <div
+                    className="flex w-full max-w-full overflow-x-auto"
+                    style={{
+                      padding: 'var(--spacing-inline, 6px)',
+                      gap: 'var(--spacing-inline, 6px)',
+                      borderRadius: 'var(--radius-corner, 10px)',
+                      backgroundColor: 'var(--neutral-100)',
+                      border: '1px solid var(--neutral-200)'
+                    }}
+                  >
                     <button
                       onClick={() => setRankingMode(false)}
-                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                        !rankingMode
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className="transition-colors"
+                      style={{
+                        paddingLeft: 'var(--spacing-small, 12px)',
+                        paddingRight: 'var(--spacing-small, 12px)',
+                        height: 'var(--size-button-height, 36px)',
+                        borderRadius: 'var(--radius-corner, 10px)',
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        backgroundColor: !rankingMode ? 'var(--neutral-50)' : 'transparent',
+                        color: !rankingMode ? 'var(--neutral-900)' : 'var(--neutral-600)'
+                      }}
                     >
                       Reviews
                     </button>
                     <button
                       onClick={() => setRankingMode(true)}
-                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                        rankingMode
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className="transition-colors"
+                      style={{ 
+                        paddingLeft: 'var(--spacing-small, 12px)',
+                        paddingRight: 'var(--spacing-small, 12px)',
+                        height: 'var(--size-button-height, 36px)',
+                        borderRadius: 'var(--radius-corner, 10px)',
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        backgroundColor: rankingMode ? 'var(--neutral-50)' : 'transparent',
+                        color: rankingMode ? 'var(--neutral-900)' : 'var(--neutral-600)'
+                      }}
                     >
                       Rankings
                     </button>
                     <button
                       onClick={() => setRankingMode('unreviewed')}
-                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                        rankingMode === 'unreviewed'
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className="transition-colors"
+                      style={{ 
+                        paddingLeft: 'var(--spacing-small, 12px)',
+                        paddingRight: 'var(--spacing-small, 12px)',
+                        height: 'var(--size-button-height, 36px)',
+                        borderRadius: 'var(--radius-corner, 10px)',
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        backgroundColor: rankingMode === 'unreviewed' ? 'var(--neutral-50)' : 'transparent',
+                        color: rankingMode === 'unreviewed' ? 'var(--neutral-900)' : 'var(--neutral-600)'
+                      }}
                     >
                       Unreviewed
                     </button>
@@ -1970,8 +2099,17 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     if (group.length === 0) return null as any;
                     return (
                       <div key={ratingGroup}>
-                        <div className="text-xs font-semibold text-muted-foreground mb-2">{ratingGroup.toFixed(1)}★</div>
-                      <ul className="glass-card inner-glow divide-y rounded-lg border p-2 floating-shadow">
+                        <div className="font-semibold mb-2" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>{ratingGroup.toFixed(1)}★</div>
+                      <div 
+                        className="divide-y" 
+                        style={{ 
+                          backgroundColor: 'var(--neutral-50)',
+                          border: '1px solid var(--neutral-200)',
+                          borderRadius: 'var(--radius-corner, 10px)',
+                          padding: 'var(--spacing-small, 12px)',
+                          boxShadow: '0 2px 4px 0 var(--shadow-color)'
+                        }}
+                      >
                         {group
                           .sort((a, b) => {
                             const ao = (a as any).rank_order ?? 9999;
@@ -1980,16 +2118,25 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                           })
                           .map((item, idx) => (
-                          <li
+                          <div
                             key={item.id}
-                            className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50"
+                            className="flex items-center justify-between px-3 py-2 cursor-pointer"
+                            style={{
+                              borderBottom: idx < group.length - 1 ? '1px solid var(--neutral-200)' : 'none'
+                            }}
                             onClick={() => { setSelectedReview(item as any); setViewReviewOpen(true); }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'var(--neutral-100)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
                           >
                             <div className="flex items-center gap-3">
-                              <div className="h-6 w-6 rounded-full bg-gray-100 text-xs flex items-center justify-center border">{idx + 1}</div>
+                              <div className="h-6 w-6 rounded-full flex items-center justify-center border" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', backgroundColor: 'var(--neutral-50)' }}>{idx + 1}</div>
                               <div>
-                                <div className="text-sm font-medium">{item.event.event_name}</div>
-                                <div className="text-xs text-muted-foreground">
+                                <div className="font-medium" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>{item.event.event_name}</div>
+                                <div style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>
                                   {(() => {
                                     // Event_date is a Date object, event_date might be Date or string, event.event_date is string
                                     const dateToShow = item.Event_date 
@@ -2038,9 +2185,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                 }}
                               >↓</Button>)}
                             </div>
-                          </li>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                     );
                   });
@@ -2053,7 +2200,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 {(attendedEventsLoading || draftReviewsLoading) ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
-                    <p className="text-sm text-gray-600">Loading unreviewed events and drafts...</p>
+                    <p style={{
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                      color: 'var(--neutral-600)'
+                    }}>Loading unreviewed events and drafts...</p>
                   </div>
                 ) : (
                   (() => {
@@ -2094,9 +2247,16 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     if (allUnreviewedItems.length === 0) {
                       return (
                         <div className="text-center py-12">
-                          <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
-                          <p className="text-gray-600 mb-4">
+                          <Calendar className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--neutral-200)' }} aria-hidden="true" />
+                          <h3 style={{
+                            fontFamily: 'var(--font-family)',
+                            fontSize: 'var(--typography-body-size, 20px)',
+                            fontWeight: 'var(--typography-body-weight, 500)',
+                            lineHeight: 'var(--typography-body-line-height, 1.5)',
+                            color: 'var(--neutral-900)',
+                            marginBottom: 'var(--spacing-small, 12px)'
+                          }}>All Caught Up!</h3>
+                          <p className="mb-4" style={{ color: 'var(--neutral-600)' }}>
                             You've reviewed all the events you've attended and have no draft reviews. Great job!
                           </p>
                         </div>
@@ -2141,10 +2301,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                 <CardContent className="p-6">
                                   <div className="flex items-start justify-between mb-4">
                                     <div className="flex-1">
-                                      <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                                      <h4 className="text-lg font-semibold mb-2" style={{ color: 'var(--neutral-900)' }}>
                                         {event.title}
                                       </h4>
-                                      <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                                      <div className="flex items-center gap-4 text-sm mb-3" style={{ color: 'var(--neutral-600)' }}>
                                         <div className="flex items-center gap-1">
                                           <Music className="w-4 h-4" />
                                           <span>{event.artist_name}</span>
@@ -2153,7 +2313,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                           <MapPin className="w-4 h-4" />
                                           <span>{event.venue_name}</span>
                                           {event.venue_city && (
-                                            <span className="text-gray-400">• {event.venue_city}, {event.venue_state}</span>
+                                            <span style={{ color: 'var(--neutral-400)' }}>• {event.venue_city}, {event.venue_state}</span>
                                           )}
                                         </div>
                                         <div className="flex items-center gap-1">
@@ -2171,7 +2331,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                   </div>
 
                                   <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-500">
+                                    <span className="text-xs" style={{ color: 'var(--neutral-600)' }}>
                                       Attended on {new Date(attendance.created_at).toLocaleDateString()}
                                     </span>
                                     <div className="flex items-center gap-2">
@@ -2246,10 +2406,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                 <CardContent className="p-6">
                                   <div className="flex items-start justify-between mb-4">
                                     <div className="flex-1">
-                                      <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                                      <h4 className="text-lg font-semibold mb-2" style={{ color: 'var(--neutral-900)' }}>
                                         {draft.event_title || 'Draft Review'}
                                       </h4>
-                                      <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                                      <div className="flex items-center gap-4 text-sm mb-3" style={{ color: 'var(--neutral-600)' }}>
                                         {draft.artist_name && (
                                           <div className="flex items-center gap-1">
                                             <Music className="w-4 h-4" />
@@ -2271,7 +2431,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                      <Badge variant="outline" className="text-blue-600 border-blue-300">
+                                      <Badge variant="outline" style={{ color: 'var(--info-blue-500)', borderColor: 'var(--info-blue-500)' }}>
                                         <Edit className="w-3 h-3 mr-1" />
                                         Draft
                                       </Badge>
@@ -2279,7 +2439,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                   </div>
 
                                   <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-500">
+                                    <span className="text-xs" style={{ color: 'var(--neutral-600)' }}>
                                       Last saved: {draft.last_saved_at ? new Date(draft.last_saved_at).toLocaleDateString() : 'Unknown'}
                                     </span>
                                     <div className="flex items-center gap-2">
@@ -2303,7 +2463,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                           setReviewModalEvent(draftEvent);
                                           setShowAddReview(true);
                                         }}
-                                        className="bg-blue-600 hover:bg-blue-700"
+                                        className=""
+                                        style={{ backgroundColor: 'var(--info-blue-500)', color: 'var(--neutral-50)' }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--info-blue-500)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--info-blue-500)'; }}
                                       >
                                         <Edit className="w-4 h-4 mr-2" />
                                         Continue Draft
@@ -2341,7 +2504,19 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                             }
                                           }
                                         }}
-                                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                                        className="border"
+                                        style={{ 
+                                          color: 'var(--status-error-500)', 
+                                          borderColor: 'var(--status-error-500)'
+                                        }}
+                                        onMouseEnter={(e) => { 
+                                          e.currentTarget.style.backgroundColor = 'var(--status-error-050)';
+                                          e.currentTarget.style.color = 'var(--status-error-500)';
+                                        }}
+                                        onMouseLeave={(e) => { 
+                                          e.currentTarget.style.backgroundColor = 'transparent';
+                                          e.currentTarget.style.color = 'var(--status-error-500)';
+                                        }}
                                       >
                                         <Trash2 className="w-4 h-4" />
                                       </Button>
@@ -2367,13 +2542,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               {/* Toggle between Upcoming and Past */}
               {userEvents.length > 0 && (
                 <div className="flex justify-center mb-4 w-full max-w-full">
-                  <div className="bg-gray-100 rounded-lg p-1 flex w-full max-w-full">
+                  <div className="p-1 flex w-full max-w-full" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-50)' }}>
                     <button
                       onClick={() => setShowPastEvents(false)}
                       className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                         !showPastEvents
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
+                          ? 'shadow-sm' 
+                          : ''
                       }`}
                     >
                       Upcoming
@@ -2382,8 +2557,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                       onClick={() => setShowPastEvents(true)}
                       className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                         showPastEvents
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
+                          ? 'shadow-sm' 
+                          : ''
                       }`}
                     >
                       Past
@@ -2393,15 +2568,40 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               )}
 
               {userEvents.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-lg">
-                  <Heart className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <h3 className="text-lg font-semibold">No Interested Events Yet</h3>
-                  <p className="text-sm text-muted-foreground">Tap the heart on events to add them here.</p>
+                <div className="flex flex-col items-center justify-center py-12" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-50)', gap: 'var(--spacing-inline, 6px)' }}>
+                  {/* Large icon (60px), dark grey */}
+                  <Heart className="w-[60px] h-[60px] mx-auto" style={{ color: 'var(--neutral-600)' }} />
+                  {/* Heading - Body typography, off black */}
+                  <h3 style={{ 
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-body-size, 20px)',
+                    fontWeight: 'var(--typography-body-weight, 500)',
+                    lineHeight: 'var(--typography-body-line-height, 1.5)',
+                    color: 'var(--neutral-900)',
+                    margin: 0,
+                    textAlign: 'center'
+                  }}>No Interested Events Yet</h3>
+                  {/* Description - Meta typography, dark grey */}
+                  <p style={{ 
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--neutral-600)',
+                    margin: 0,
+                    textAlign: 'center'
+                  }}>Tap the heart on events to add them here.</p>
                 </div>
               ) : filteredUserEvents.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-lg">
-                  <Heart className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <h3 className="text-lg font-semibold">
+                <div className="text-center py-12" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-100)' }}>
+                  <Heart className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--neutral-400)' }} />
+                  <h3 style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-body-size, 20px)',
+                    fontWeight: 'var(--typography-body-weight, 500)',
+                    lineHeight: 'var(--typography-body-line-height, 1.5)',
+                    color: 'var(--neutral-900)'
+                  }}>
                     {showPastEvents ? 'No Past Events' : 'No Upcoming Events'}
                   </h3>
                   <p className="text-sm text-muted-foreground">
@@ -2418,9 +2618,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     .map((ev) => (
                       <div
                         key={ev.id}
-                        className={`aspect-square cursor-pointer rounded-md overflow-hidden border bg-white hover:shadow-md transition-shadow relative ${
+                        className={`aspect-square cursor-pointer rounded-md overflow-hidden border hover:shadow-md transition-shadow relative ${
                           showPastEvents ? 'opacity-75' : ''
                         }`}
+                        style={{ backgroundColor: 'var(--neutral-50)' }}
                         onClick={() => { 
                           console.log('ProfileView: Event data being passed to modal from interested events:', ev);
                           // Ensure we have complete event data for the modal
@@ -2463,14 +2664,14 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                               
                               // First priority: poster_image_url (same as PreferencesV4FeedSection)
                               if (evAny?.poster_image_url) {
-                                imageUrl = evAny.poster_image_url;
+                                imageUrl = replaceJambasePlaceholder(evAny.poster_image_url);
                               } 
                               // Second priority: images JSONB array (same logic as PreferencesV4FeedSection)
                               else if (evAny?.images && Array.isArray(evAny.images) && evAny.images.length > 0) {
                                 const bestImage = evAny.images.find((img: any) => 
                                   img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
                                 ) || evAny.images.find((img: any) => img?.url);
-                                imageUrl = bestImage?.url;
+                                imageUrl = bestImage?.url ? replaceJambasePlaceholder(bestImage.url) : undefined;
                               }
                               // Third priority: media_urls array (fallback)
                               else if (evAny?.media_urls && Array.isArray(evAny.media_urls) && evAny.media_urls.length > 0) {
@@ -2501,13 +2702,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                             
                             {/* Interested badge - only show for upcoming events */}
                             {!showPastEvents && (
-                              <div className="absolute top-1 right-1 bg-white text-black text-[8px] px-1 py-0.5 rounded font-medium">
+                              <div className="absolute top-1 right-1 text-[8px] px-1 py-0.5 rounded font-medium" style={{ backgroundColor: 'var(--neutral-50)', color: 'var(--neutral-900)' }}>
                                 Interested
                               </div>
                             )}
                             {/* Past badge - only show for archive events */}
                             {showPastEvents && (
-                              <div className="absolute top-1 right-1 bg-white text-black text-[8px] px-1 py-0.5 rounded font-medium">
+                              <div className="absolute top-1 right-1 text-[8px] px-1 py-0.5 rounded font-medium" style={{ backgroundColor: 'var(--neutral-50)', color: 'var(--neutral-900)' }}>
                                 Past
                               </div>
                             )}
@@ -2674,6 +2875,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           userId={targetUserId}
           profileName={profile.name}
           isOwnProfile={isViewingOwnProfile}
+          onNavigateToProfile={onNavigateToProfile}
         />
       )}
 

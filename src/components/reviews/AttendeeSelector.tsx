@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Input } from '@/components/ui/input';
+import { SearchBar } from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -129,16 +129,12 @@ export function AttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnS
     <div className="space-y-3">
       {/* Search Input */}
       <div className="relative" ref={containerRef}>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search Synth users or invite by phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+        <SearchBar
+          value={searchQuery}
+          onChange={(value) => setSearchQuery(value)}
+          placeholder="Search Synth users or invite by phone..."
+          widthVariant="full"
+        />
       </div>
 
       {/* Search Results - Inline so they scroll with the page */}

@@ -15,6 +15,232 @@ export interface EventReview {
 }
 
 export class UserEventService {
+  static async getUserInterestedEventIdSet(
+    userId: string,
+    eventIds: string[] = []
+  ): Promise<Set<string>> {
+    const interestedSet = new Set<string>();
+    if (!userId) return interestedSet;
+
+    try {
+      let relationshipsQuery = supabase
+        .from('user_event_relationships')
+        .select('event_id')
+        .eq('user_id', userId)
+        .eq('relationship_type', 'interested');
+
+      if (eventIds.length > 0) {
+        relationshipsQuery = relationshipsQuery.in('event_id', eventIds);
+      }
+
+      const { data: relationships, error } = await relationshipsQuery;
+
+      if (!error && relationships && relationships.length > 0) {
+        relationships.forEach((item: any) => {
+          if (item.event_id) {
+            interestedSet.add(String(item.event_id));
+          }
+        });
+        return interestedSet;
+      }
+
+      if (error && !UserEventService.shouldFallbackToJambase(error)) {
+        console.error('Error loading interested events from user_event_relationships:', error);
+        return interestedSet;
+      }
+    } catch (error) {
+      console.error('Error loading interested events from user_event_relationships:', error);
+    }
+
+    try {
+      const { data: jambaseEvents, error } = await supabase
+        .from('user_jambase_events')
+        .select('jambase_event_id')
+        .eq('user_id', userId);
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading interested events from user_jambase_events:', error);
+        return interestedSet;
+      }
+
+      const jambaseIds = (jambaseEvents || [])
+        .map((item: any) => item.jambase_event_id)
+        .filter(Boolean);
+
+      if (jambaseIds.length === 0) {
+        return interestedSet;
+      }
+
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('id, jambase_event_id')
+        .in('jambase_event_id', jambaseIds);
+
+      if (!eventsError && eventsData) {
+        eventsData.forEach((event: any) => {
+          if (event.id) {
+            interestedSet.add(String(event.id));
+          }
+        });
+      }
+
+      jambaseIds.forEach((id: string) => interestedSet.add(String(id)));
+
+      if (eventIds.length > 0) {
+        const filtered = new Set<string>();
+        eventIds.forEach(id => {
+          if (interestedSet.has(String(id))) {
+            filtered.add(String(id));
+          }
+        });
+        return filtered;
+      }
+
+      return interestedSet;
+    } catch (error) {
+      console.error('Error loading interested events from user_jambase_events:', error);
+      return interestedSet;
+    }
+  }
+
+  static async getInterestedCountsByEventId(
+    eventIds: string[],
+    excludeUserId?: string
+  ): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    if (eventIds.length === 0) return counts;
+
+    try {
+      let relationshipsQuery = supabase
+        .from('user_event_relationships')
+        .select('event_id, user_id')
+        .eq('relationship_type', 'interested')
+        .in('event_id', eventIds);
+
+      if (excludeUserId) {
+        relationshipsQuery = relationshipsQuery.neq('user_id', excludeUserId);
+      }
+
+      const { data: relationships, error } = await relationshipsQuery;
+
+      if (!error && relationships && relationships.length > 0) {
+        relationships.forEach((item: any) => {
+          if (!item.event_id) return;
+          const key = String(item.event_id);
+          counts.set(key, (counts.get(key) || 0) + 1);
+        });
+        return counts;
+      }
+
+      if (error && !UserEventService.shouldFallbackToJambase(error)) {
+        console.error('Error loading interested counts from user_event_relationships:', error);
+        return counts;
+      }
+    } catch (error) {
+      console.error('Error loading interested counts from user_event_relationships:', error);
+    }
+
+    try {
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('id, jambase_event_id')
+        .in('id', eventIds);
+
+      if (eventsError) {
+        return counts;
+      }
+
+      const eventsList = eventsData || [];
+      const jambaseIds = eventsList
+        .map((event: any) => event.jambase_event_id)
+        .filter(Boolean);
+
+      if (jambaseIds.length === 0 && eventIds.length > 0) {
+        jambaseIds.push(...eventIds);
+      }
+
+      if (jambaseIds.length === 0) {
+        return counts;
+      }
+
+      let jambaseQuery = supabase
+        .from('user_jambase_events')
+        .select('jambase_event_id, user_id')
+        .in('jambase_event_id', jambaseIds);
+
+      if (excludeUserId) {
+        jambaseQuery = jambaseQuery.neq('user_id', excludeUserId);
+      }
+
+      const { data: jambaseInterests, error: jambaseError } = await jambaseQuery;
+
+      if (jambaseError && jambaseError.code !== 'PGRST116') {
+        console.error('Error loading interested counts from user_jambase_events:', jambaseError);
+        return counts;
+      }
+
+      const jambaseToEventId = new Map<string, string>();
+      eventsList.forEach((event: any) => {
+        if (event.jambase_event_id && event.id) {
+          jambaseToEventId.set(String(event.jambase_event_id), String(event.id));
+        }
+      });
+
+      (jambaseInterests || []).forEach((item: any) => {
+        const jambaseId = String(item.jambase_event_id);
+        const eventId = jambaseToEventId.get(jambaseId);
+        if (!eventId) return;
+        counts.set(eventId, (counts.get(eventId) || 0) + 1);
+      });
+
+      return counts;
+    } catch (error) {
+      console.error('Error loading interested counts from user_jambase_events:', error);
+      return counts;
+    }
+  }
+  private static shouldFallbackToJambase(error: any): boolean {
+    const code = error?.code;
+    return code === '42P01' || code === '23503' || code === '23505' || code === '42703';
+  }
+
+  private static async resolveEventIdentifiers(jambaseEventId: string): Promise<{
+    eventUuid: string | null;
+    jambaseEventId: string | null;
+  }> {
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId);
+    if (isUUID) {
+      const { data: event, error } = await supabase
+        .from('events')
+        .select('id, jambase_event_id')
+        .eq('id', jambaseEventId)
+        .maybeSingle();
+
+      if (error) {
+        return { eventUuid: jambaseEventId, jambaseEventId: null };
+      }
+
+      return {
+        eventUuid: event?.id || jambaseEventId,
+        jambaseEventId: event?.jambase_event_id || null,
+      };
+    }
+
+    const { data: event, error } = await supabase
+      .from('events')
+      .select('id, jambase_event_id')
+      .eq('jambase_event_id', jambaseEventId)
+      .maybeSingle();
+
+    if (error) {
+      return { eventUuid: null, jambaseEventId };
+    }
+
+    return {
+      eventUuid: event?.id || null,
+      jambaseEventId: jambaseEventId,
+    };
+  }
   /**
    * Add or update user interest in an event
    */
@@ -26,43 +252,10 @@ export class UserEventService {
     try {
       console.log('🔍 setEventInterest called with:', { userId, jambaseEventId, interested });
       
-      // Get event UUID from jambase_event_id if needed
-      // The RPC writes to user_event_relationships table which expects UUID in event_id
-      let eventUuid = jambaseEventId;
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId);
-      
-      // Always verify the event exists (even if it's a UUID) to ensure foreign key constraint will work
-      const { data: eventCheck, error: eventCheckError } = await supabase
-        .from('events')
-        .select('id')
-        .eq('id', jambaseEventId)
-        .maybeSingle();
-      
-      // Check for query errors first - if the query failed, throw the actual error
-      if (eventCheckError) {
-        throw new Error(`Failed to verify event existence: ${eventCheckError.message}`);
-      }
-      
-      if (!isUUID) {
-        const { data: event, error: eventError } = await supabase
-          .from('events')
-          .select('id')
-          .eq('jambase_event_id', jambaseEventId)
-          .maybeSingle();
-        
-        // Check for query errors first
-        if (eventError) {
-          throw new Error(`Failed to lookup event by jambase_event_id: ${eventError.message}`);
-        }
-        
-        if (event) {
-          eventUuid = event.id;
-        } else {
-          // Event not found - throw error
-          throw new Error(`Event not found: ${jambaseEventId}`);
-        }
-      } else if (!eventCheck) {
-        // UUID format but event doesn't exist - this will cause foreign key constraint violation
+      const { eventUuid, jambaseEventId: resolvedJambaseId } =
+        await UserEventService.resolveEventIdentifiers(jambaseEventId);
+
+      if (!eventUuid && !resolvedJambaseId) {
         throw new Error(`Event not found: ${jambaseEventId}`);
       }
       
@@ -81,34 +274,87 @@ export class UserEventService {
         console.warn('⚠️ User ID mismatch: auth.uid() =', authUser?.id, 'but userId param =', userId);
       }
       
-      // Presence-based interest model: if interested=true ensure row exists; if false, delete it
-      // Use SECURITY DEFINER function to avoid recursive RLS
-      // Pass UUID as string to match TEXT function signature (RPC will cast to UUID)
-      const { error, data: rpcData } = await supabase.rpc('set_user_interest', {
-        p_event_id: String(eventUuid), // Pass UUID as string (RPC stores in UUID column)
-        interested
-      });
-      
-      console.log('🔍 RPC call result:', { error, eventUuid, rpcData });
-      if (error) {
-        console.error('🔍 Detailed RPC error:', JSON.stringify(error, null, 2));
-        throw error;
+      let writeSucceeded = false;
+      let primaryWriteError: any = null;
+
+      if (eventUuid) {
+        if (interested) {
+          const { error } = await supabase
+            .from('user_event_relationships')
+            .upsert(
+              {
+                user_id: userId,
+                event_id: eventUuid,
+                relationship_type: 'interested',
+              },
+              { onConflict: 'user_id,event_id,relationship_type' }
+            );
+
+          if (!error) {
+            writeSucceeded = true;
+          } else {
+            primaryWriteError = error;
+          }
+        } else {
+          const { error } = await supabase
+            .from('user_event_relationships')
+            .delete()
+            .eq('user_id', userId)
+            .eq('event_id', eventUuid)
+            .eq('relationship_type', 'interested');
+
+          if (!error) {
+            writeSucceeded = true;
+          } else {
+            primaryWriteError = error;
+          }
+        }
+      }
+
+      if (!writeSucceeded) {
+        if (primaryWriteError) {
+          console.error('Interested write failed on user_event_relationships:', primaryWriteError);
+        }
+
+        if (UserEventService.shouldFallbackToJambase(primaryWriteError) || !eventUuid) {
+          const jambaseIdToWrite = resolvedJambaseId || jambaseEventId;
+          if (jambaseIdToWrite) {
+            if (interested) {
+              const { error } = await supabase
+                .from('user_jambase_events')
+                .upsert(
+                  {
+                    user_id: userId,
+                    jambase_event_id: jambaseIdToWrite,
+                  },
+                  { onConflict: 'user_id,jambase_event_id' }
+                );
+
+              if (error) {
+                console.error('Fallback write failed on user_jambase_events:', error);
+                throw error;
+              }
+            } else {
+              const { error } = await supabase
+                .from('user_jambase_events')
+                .delete()
+                .eq('user_id', userId)
+                .eq('jambase_event_id', jambaseIdToWrite);
+
+              if (error) {
+                console.error('Fallback delete failed on user_jambase_events:', error);
+                throw error;
+              }
+            }
+            writeSucceeded = true;
+          }
+        }
       }
       
       console.log('🔍 Checking if relationship was saved:', { userId, eventUuid, interested });
       
       // Wait a moment for the database write to complete
       await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Use RPC to check if relationship exists (bypasses RLS, uses same auth.uid() as insert)
-      const { data: rpcCheckResult, error: rpcCheckError } = await supabase.rpc('check_user_interest', {
-        p_event_id: String(eventUuid)
-      });
-      
-      // Log RPC check error if it occurs (non-fatal, just for debugging)
-      if (rpcCheckError) {
-        console.warn('⚠️ check_user_interest RPC error (non-fatal):', rpcCheckError);
-      }
       
       // Get current authenticated user - RPC uses auth.uid() so we should query with that
       const { data: authData2, error: authError2 } = await supabase.auth.getUser();
@@ -121,26 +367,25 @@ export class UserEventService {
       const currentAuthUser = authData2?.user;
       const queryUserId = currentAuthUser?.id || userId; // Use auth.uid() if available, fallback to userId
       
-      // Check user_event_relationships table
-      let { data, error: fetchError } = await supabase
-        .from('user_event_relationships')
-        .select('*')
-        .eq('user_id', queryUserId)
-        .eq('event_id', eventUuid)
-        .eq('relationship_type', 'interested')
-        .maybeSingle();
-      
-      console.log('🔍 Fresh state check result:', { 
-        found: !!data, 
-        error: fetchError,
-        eventUuid,
-        interested
-      });
-      
-      if (fetchError) throw fetchError;
+      let data: any = null;
+      if (eventUuid) {
+        const { data: relationship, error: fetchError } = await supabase
+          .from('user_event_relationships')
+          .select('*')
+          .eq('user_id', queryUserId)
+          .eq('event_id', eventUuid)
+          .eq('relationship_type', 'interested')
+          .maybeSingle();
+
+        if (!fetchError) {
+          data = relationship;
+        } else {
+          console.error('Error checking user_event_relationships after write:', fetchError);
+        }
+      }
       
       // If interested, automatically join the event's verified chat
-      if (interested) {
+      if (interested && eventUuid) {
         try {
           console.log('🟢 UserEventService: User expressed interest, joining verified chat...', {
             eventUuid,
@@ -157,12 +402,7 @@ export class UserEventService {
           
           const eventTitle = eventData?.title || 'Event';
           
-          await VerifiedChatService.joinOrOpenVerifiedChat(
-            'event',
-            eventUuid,
-            eventTitle,
-            userId
-          );
+          await VerifiedChatService.joinOrOpenVerifiedChat('event', eventUuid, eventTitle, userId);
           console.log('🟢 UserEventService: Successfully joined event verified chat');
         } catch (error) {
           // Don't fail the interest action if chat join fails
@@ -188,29 +428,7 @@ export class UserEventService {
    */
   static async removeEventInterest(userId: string, jambaseEventId: string): Promise<void> {
     try {
-      // Get event UUID from jambase_event_id if needed
-      let eventUuid = jambaseEventId;
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId);
-      if (!isUUID) {
-        const { data: event } = await supabase
-          .from('events')
-          .select('id')
-          .eq('jambase_event_id', jambaseEventId)
-          .maybeSingle();
-        if (event) {
-          eventUuid = event.id;
-        } else {
-          throw new Error(`Event not found: ${jambaseEventId}`);
-        }
-      }
-      
-      // Use RPC for consistency (it handles user_event_relationships table)
-      const { error } = await supabase.rpc('set_user_interest', {
-        p_event_id: String(eventUuid),
-        interested: false
-      });
-
-      if (error) throw error;
+      await UserEventService.setEventInterest(userId, jambaseEventId, false);
       try {
         trackInteraction.interest('event', jambaseEventId, false, { action: 'remove' });
       } catch {}
@@ -225,21 +443,8 @@ export class UserEventService {
    */
   static async isUserInterested(userId: string, jambaseEventId: string): Promise<boolean> {
     try {
-      // Get event UUID from jambase_event_id if needed
-      let eventUuid = jambaseEventId;
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId);
-      if (!isUUID) {
-        const { data: event } = await supabase
-          .from('events')
-          .select('id')
-          .eq('jambase_event_id', jambaseEventId)
-          .maybeSingle();
-        if (event) {
-          eventUuid = event.id;
-        } else {
-          return false; // Event doesn't exist
-        }
-      }
+      const { eventUuid, jambaseEventId: resolvedJambaseId } =
+        await UserEventService.resolveEventIdentifiers(jambaseEventId);
       
       // Get current authenticated user - RPC uses auth.uid() so we should query with that
       const { data: authData3, error: authError3 } = await supabase.auth.getUser();
@@ -252,18 +457,47 @@ export class UserEventService {
       const currentAuthUser = authData3?.user;
       const queryUserId = currentAuthUser?.id || userId; // Use auth.uid() if available, fallback to userId
       
-      // Check user_event_relationships table
-      const { data, error } = await supabase
-        .from('user_event_relationships')
-        .select('user_id, event_id')
+      let preferredData: any = null;
+      let preferredError: any = null;
+      if (eventUuid) {
+        const { data, error } = await supabase
+          .from('user_event_relationships')
+          .select('user_id, event_id')
+          .eq('user_id', queryUserId)
+          .eq('event_id', eventUuid)
+          .in('relationship_type', ['interested', 'going', 'maybe'])
+          .maybeSingle();
+
+        preferredData = data;
+        preferredError = error;
+      }
+
+      if (!preferredError && preferredData) {
+        return true;
+      }
+
+      if (preferredError && !UserEventService.shouldFallbackToJambase(preferredError)) {
+        throw preferredError;
+      }
+
+      const jambaseIdToCheck = resolvedJambaseId || jambaseEventId;
+      if (!jambaseIdToCheck) {
+        return false;
+      }
+
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('user_jambase_events')
+        .select('user_id, jambase_event_id')
         .eq('user_id', queryUserId)
-        .eq('event_id', eventUuid)
-        .in('relationship_type', ['interested', 'going', 'maybe'])
+        .eq('jambase_event_id', jambaseIdToCheck)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
-      
-      return Boolean(data);
+      if (fallbackError && fallbackError.code !== 'PGRST116') {
+        console.error('Error checking user_jambase_events:', fallbackError);
+        return false;
+      }
+
+      return Boolean(fallbackData);
     } catch (error) {
       console.error('Error checking event interest:', error);
       return false;
@@ -300,52 +534,99 @@ export class UserEventService {
         .in('relationship_type', ['interested', 'going', 'maybe'])
         .order('created_at', { ascending: false });
 
-      if (relationshipsError) throw relationshipsError;
+      if (relationshipsError && !UserEventService.shouldFallbackToJambase(relationshipsError)) {
+        throw relationshipsError;
+      }
 
-      if (!relationships || relationships.length === 0) {
+      if (relationships && relationships.length > 0) {
+        // Extract event UUIDs from event_id
+        const eventIds = relationships.map((r: any) => r.event_id).filter(Boolean);
+        if (eventIds.length === 0) {
+          return { events: [], total: 0 };
+        }
+
+        const { data: eventsData, error: eventsError } = await supabase
+          .from('events')
+          .select('*')
+          .in('id', eventIds);
+
+        if (eventsError) throw eventsError;
+
+        const events = eventsData || [];
+        const eventMap = new Map(events.map((e: any) => [e.id, e]));
+
+        const combinedEvents = relationships
+          .map((row: any) => {
+            const event = eventMap.get(row.event_id) || null;
+            return {
+              interest: {
+                id: row.id,
+                user_id: row.user_id,
+                jambase_event_id: event?.jambase_event_id || null,
+                created_at: row.created_at,
+              } as UserJamBaseEvent,
+              event: event,
+            };
+          })
+          .filter(item => item.event !== null);
+
+        return {
+          events: combinedEvents,
+          total: combinedEvents.length,
+        };
+      }
+
+      // Fallback to user_jambase_events if no rows or table missing
+      const { data: jambaseEvents, error: jambaseError } = await supabase
+        .from('user_jambase_events')
+        .select('*')
+        .eq('user_id', queryUserId)
+        .order('created_at', { ascending: false });
+
+      if (jambaseError && jambaseError.code !== 'PGRST116') {
+        throw jambaseError;
+      }
+
+      if (!jambaseEvents || jambaseEvents.length === 0) {
         return { events: [], total: 0 };
       }
 
-      // Extract event UUIDs from event_id
-      const eventIds = relationships.map((r: any) => r.event_id).filter(Boolean);
-      
-      if (eventIds.length === 0) {
+      const jambaseIds = jambaseEvents
+        .map((row: any) => row.jambase_event_id)
+        .filter(Boolean);
+
+      if (jambaseIds.length === 0) {
         return { events: [], total: 0 };
       }
 
-      // Query events using UUIDs
       const { data: eventsData, error: eventsError } = await supabase
         .from('events')
         .select('*')
-        .in('id', eventIds);
+        .in('jambase_event_id', jambaseIds);
 
       if (eventsError) throw eventsError;
 
       const events = eventsData || [];
+      const eventMap = new Map(events.map((e: any) => [e.jambase_event_id, e]));
 
-      // Create a map of event ID to event data for efficient lookup
-      const eventMap = new Map(events.map((e: any) => [e.id, e]));
-
-      // Combine relationships with events
-      const combinedEvents = relationships
+      const combinedEvents = jambaseEvents
         .map((row: any) => {
-          const event = eventMap.get(row.event_id) || null;
+          const event = eventMap.get(row.jambase_event_id) || null;
           return {
             interest: {
               id: row.id,
               user_id: row.user_id,
-              // Only use jambase_event_id from the event, never fallback to database UUID
-              jambase_event_id: event?.jambase_event_id || null,
+              jambase_event_id: row.jambase_event_id,
               created_at: row.created_at,
             } as UserJamBaseEvent,
             event: event,
           };
         })
-        .filter(item => item.event !== null); // Only include events that were found
+        .filter(item => item.event !== null);
 
       return {
         events: combinedEvents,
-        total: combinedEvents.length
+        total: combinedEvents.length,
       };
     } catch (error) {
       console.error('Error getting user interested events:', error);

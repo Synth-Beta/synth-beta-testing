@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, Search, MapPin, X } from 'lucide-react';
 import { UnifiedVenueSearchService } from '@/services/unifiedVenueSearchService';
@@ -27,7 +26,6 @@ export function VenueSearchBox({
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -115,7 +113,9 @@ export function VenueSearchBox({
     setIsOpen(false);
     setSelectedIndex(-1);
     onSearchStateChange?.(false);
-    inputRef.current?.blur();
+    // Blur the search input
+    const input = document.getElementById('venue-search-input') as HTMLInputElement;
+    input?.blur();
   };
 
   // Click outside to close dropdown
@@ -176,7 +176,9 @@ export function VenueSearchBox({
     setIsOpen(false);
     setSelectedIndex(-1);
     onSearchStateChange?.(false);
-    inputRef.current?.focus();
+    // Focus the search input after clearing
+    const input = document.getElementById('venue-search-input') as HTMLInputElement;
+    input?.focus();
   };
 
   const formatAddress = (venue: VenueSearchResult) => {
@@ -197,19 +199,15 @@ export function VenueSearchBox({
   return (
     <div ref={containerRef} className={cn("relative w-full", className)}>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-        <Input
+        <SearchBar
+          value={query}
+          onChange={(value) => setQuery(value)}
+          placeholder={placeholder}
+          widthVariant="full"
           id="venue-search-input"
           name="venueSearch"
-          ref={inputRef}
-          type="text"
-          placeholder={placeholder}
-          value={query}
-          onChange={handleInputChange}
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
-          className="pl-10 pr-20 border-2 border-synth-pink focus:border-synth-pink focus:ring-2 focus:ring-synth-pink/20 rounded-lg"
-          autoComplete="off"
         />
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
           {isLoading && (

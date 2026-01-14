@@ -182,51 +182,127 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-synth-pink" />
+      <div style={{ 
+        paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
+        paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+        paddingTop: 'var(--spacing-small, 12px)',
+        paddingBottom: 'var(--spacing-small, 12px)'
+      }}>
+        {/* Section Header */}
+        <div className="flex items-center gap-2" style={{ marginBottom: 'var(--spacing-small, 12px)' }}>
+          <MapPin size={24} style={{ color: 'var(--brand-pink-500)' }} />
+          <h2 style={{ 
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-h2-size, 24px)',
+            fontWeight: 'var(--typography-h2-weight, 700)',
+            lineHeight: 'var(--typography-h2-line-height, 1.3)',
+            color: 'var(--neutral-900)',
+            margin: 0
+          }}>
             Travel Tracker
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-96 w-full" />
-        </CardContent>
-      </Card>
+          </h2>
+        </div>
+        <Skeleton className="h-96 w-full" style={{ borderRadius: 'var(--radius-corner, 10px)' }} />
+      </div>
     );
   }
 
   if (reviews.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-synth-pink" />
+      <div style={{ 
+        paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
+        paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+        paddingTop: 'var(--spacing-small, 12px)',
+        paddingBottom: 'var(--spacing-small, 12px)'
+      }}>
+        {/* Section Header */}
+        <div className="flex items-center gap-2" style={{ marginBottom: 'var(--spacing-small, 12px)' }}>
+          <MapPin size={24} style={{ color: 'var(--brand-pink-500)' }} />
+          <h2 style={{ 
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-h2-size, 24px)',
+            fontWeight: 'var(--typography-h2-weight, 700)',
+            lineHeight: 'var(--typography-h2-line-height, 1.3)',
+            color: 'var(--neutral-900)',
+            margin: 0
+          }}>
             Travel Tracker
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-center py-12 text-muted-foreground">
-          <MapPin className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <p>No shows tracked yet</p>
-          <p className="text-xs mt-1">Start reviewing shows to see your travel map!</p>
-        </CardContent>
-      </Card>
+          </h2>
+        </div>
+        
+        {/* Empty State */}
+        <div className="flex flex-col items-center justify-center" style={{ 
+          gap: 'var(--spacing-inline, 6px)',
+          paddingTop: 'var(--spacing-big-section, 60px)',
+          paddingBottom: 'var(--spacing-big-section, 60px)'
+        }}>
+          {/* Large icon (60px), dark grey */}
+          <MapPin size={60} style={{ color: 'var(--neutral-600)' }} />
+          
+          {/* Heading - Body typography, off black */}
+          <h3 style={{ 
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-body-size, 20px)',
+            fontWeight: 'var(--typography-body-weight, 500)',
+            lineHeight: 'var(--typography-body-line-height, 1.5)',
+            color: 'var(--neutral-900)',
+            margin: 0,
+            textAlign: 'center'
+          }}>
+            No shows tracked yet
+          </h3>
+          
+          {/* Description - Meta typography, dark grey */}
+          <p style={{ 
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-meta-size, 16px)',
+            fontWeight: 'var(--typography-meta-weight, 500)',
+            lineHeight: 'var(--typography-meta-line-height, 1.5)',
+            color: 'var(--neutral-600)',
+            margin: 0,
+            textAlign: 'center'
+          }}>
+            Start reviewing shows to see your travel map!
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-synth-pink" />
-            Travel Tracker
-            <Badge variant="secondary" className="ml-auto">
-              {reviews.length} {reviews.length === 1 ? 'show' : 'shows'}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div style={{ 
+        paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
+        paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+        paddingTop: 'var(--spacing-small, 12px)',
+        paddingBottom: 'var(--spacing-small, 12px)'
+      }}>
+        {/* Section Header */}
+        <div className="flex items-center justify-between" style={{ marginBottom: 'var(--spacing-small, 12px)' }}>
+          <div className="flex items-center gap-2">
+            <MapPin size={24} style={{ color: 'var(--brand-pink-500)' }} />
+            <h2 style={{ 
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-h2-size, 24px)',
+              fontWeight: 'var(--typography-h2-weight, 700)',
+              lineHeight: 'var(--typography-h2-line-height, 1.3)',
+              color: 'var(--neutral-900)',
+              margin: 0
+            }}>
+              Travel Tracker
+            </h2>
+          </div>
+          <Badge variant="secondary" style={{
+            backgroundColor: 'var(--neutral-100)',
+            color: 'var(--neutral-900)',
+            border: '1px solid var(--neutral-200)'
+          }}>
+            {reviews.length} {reviews.length === 1 ? 'show' : 'shows'}
+          </Badge>
+        </div>
+        
+        {/* Map Content */}
+        <div>
           <div className="h-96 rounded-lg overflow-hidden border relative z-0">
             <MapContainer
               center={mapCenter}
@@ -281,8 +357,8 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
               ))}
             </MapContainer>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Review Detail Modal */}
       <Dialog open={!!selectedReview} onOpenChange={() => setSelectedReview(null)}>

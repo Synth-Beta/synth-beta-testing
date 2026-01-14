@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import HamburgerMenuIcon from '@/assets/icons/HamburgerMenu.svg';
-import BellIcon from '@/assets/icons/Bell.svg';
+import { Icon } from '@/components/Icon/Icon';
 
 interface MobileHeaderProps {
   currentUserId: string;
@@ -72,7 +71,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
               height: '24px',
             }}
           >
-            <img src={HamburgerMenuIcon} alt="Menu" className="w-6 h-6" />
+            <Icon name="hamburgerMenu" size={24} color="var(--neutral-900)" />
           </button>
 
           {/* Synth Logo and Text */}
@@ -119,7 +118,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
             boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25)',
           }}
         >
-          <img src={BellIcon} alt="Notifications" className="w-6 h-6" style={{ filter: 'brightness(0) invert(1)' }} />
+          <Icon name="bell" size={24} color="var(--neutral-50)" />
         </button>
       </div>
     </header>

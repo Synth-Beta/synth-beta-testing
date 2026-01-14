@@ -1,0 +1,255 @@
+/**
+ * Demo Discover Page - Same layout and components as production DiscoverView
+ * 
+ * Uses same UI components but with hardcoded mock data.
+ * NO API calls - all data is from mockData.ts
+ */
+
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MobileHeader } from '@/components/Header/MobileHeader';
+import { SearchBar } from '@/components/SearchBar/SearchBar';
+import { CompactEventCard } from '@/components/home/CompactEventCard';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar } from '@/components/ui/calendar';
+import { Calendar as CalendarIcon, Route, Trophy, Music, MapPin, Sparkles, X } from 'lucide-react';
+import { VibeSelectorModal } from '@/components/discover/VibeSelectorModal';
+import { DemoMapCalendarTourSection } from '../components/DemoMapCalendarTourSection';
+import { ScenesSection } from '@/components/discover/ScenesSection';
+import { HorizontalCarousel } from '@/components/discover/HorizontalCarousel';
+import { SceneCard } from '@/components/discover/SceneCard';
+import { DEMO_USER, DEMO_EVENTS, DEMO_SEARCH_RESULTS, DEMO_TOUR_ARTIST, DEMO_TOUR_EVENTS, DEMO_SCENES } from '../data/mockData';
+import type { VibeType } from '@/services/discoverVibeService';
+import type { VibeFilters } from '@/services/discoverVibeService';
+
+interface DemoDiscoverPageProps {
+  menuOpen?: boolean;
+  onMenuClick?: () => void;
+  onNavigate?: (page: 'home' | 'discover' | 'profile' | 'messages' | 'create-post') => void;
+}
+
+export const DemoDiscoverPage: React.FC<DemoDiscoverPageProps> = ({
+  menuOpen = false,
+  onMenuClick,
+  onNavigate,
+}) => {
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [vibeModalOpen, setVibeModalOpen] = useState(false);
+  const [selectedVibe, setSelectedVibe] = useState<VibeType | null>(null);
+
+  const handleBack = () => {
+    if (onNavigate) {
+      onNavigate('home');
+    } else {
+      navigate('/mobile-preview/component-view');
+    }
+  };
+
+  const handleSelectVibe = (vibeType: VibeType) => {
+    setSelectedVibe(vibeType);
+    // In demo mode, just show that vibe was selected (no actual search)
+    console.log('Demo: Vibe selected', vibeType);
+  };
+
+  // Always return the same demo results regardless of query - EXACT same as production structure
+  const searchResults = DEMO_SEARCH_RESULTS;
+
+  // Mock filters for MapCalendarTourSection
+  const mockFilters: VibeFilters = {
+    radiusMiles: 30,
+    latitude: 40.7128,
+    longitude: -74.0060,
+  };
+
+  return (
+    <div
+      className="min-h-screen bg-[#fcfcfc]"
+      style={{
+        paddingBottom: 'var(--spacing-bottom-nav, 112px)',
+      }}
+    >
+      {/* Mobile Header with SearchBar - EXACT same as production */}
+      <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '6px', 
+          width: '100%', 
+          maxWidth: '100%'
+        }}>
+          <SearchBar
+            value={searchQuery}
+            onChange={(value) => {
+              setSearchQuery(value);
+              setIsSearchActive(value.trim().length >= 2);
+            }}
+            placeholder='Try "Radiohead"'
+            widthVariant="flex"
+          />
+        </div>
+      </MobileHeader>
+
+      {/* Content - EXACT same structure as production */}
+      <div className="max-w-7xl mx-auto pb-6 space-y-2" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
+        {/* Browse Vibes and Location Filter - EXACT same as production */}
+        <div className="mb-2 flex items-center gap-2 flex-wrap overflow-x-auto pt-4">
+          <Button
+            className="bg-synth-pink hover:bg-synth-pink/90 text-white gap-2 flex-shrink-0"
+            size="sm"
+            onClick={() => setVibeModalOpen(true)}
+            data-tour="discover-vibes"
+          >
+            <Sparkles className="h-4 w-4" />
+            Browse Vibes
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2 flex-shrink-0">
+            <MapPin className="h-4 w-4" />
+            Location
+          </Button>
+        </div>
+
+        {/* Search Results - EXACT same structure as production */}
+        {isSearchActive && (
+          <div className="space-y-4 pt-4">
+            {/* Users */}
+            {searchResults.users.length > 0 && (
+              <div>
+                <h3 className="font-bold text-[#0e0e0e] mb-3" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-body-size, 20px)', fontWeight: 'var(--typography-body-weight, 500)', lineHeight: 'var(--typography-body-line-height, 1.5)' }}>Users</h3>
+                <div className="space-y-2">
+                  {searchResults.users.map((user) => (
+                    <Card key={user.id} className="cursor-pointer hover:bg-gray-50">
+                      <CardContent className="p-3 flex items-center gap-3">
+                        <Avatar className="w-10 h-10">
+                          <AvatarFallback className="bg-synth-beige/50">
+                            {user.name.split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold text-[#0e0e0e]">{user.name}</p>
+                          {user.username && (
+                            <p className="text-[#5d646f]" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>@{user.username}</p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Artists */}
+            {searchResults.artists.length > 0 && (
+              <div>
+                <h3 className="text-lg font-bold text-[#0e0e0e] mb-3">Artists</h3>
+                <div className="space-y-2">
+                  {searchResults.artists.map((artist) => (
+                    <Card key={artist.id} className="cursor-pointer hover:bg-gray-50">
+                      <CardContent className="p-3 flex items-center gap-3">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={artist.image_url || undefined} />
+                          <AvatarFallback className="bg-synth-beige/50">
+                            {artist.name.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold text-[#0e0e0e]">{artist.name}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Events */}
+            {searchResults.events.length > 0 && (
+              <div>
+                <h3 className="text-lg font-bold text-[#0e0e0e] mb-3">Events</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {searchResults.events.map((event) => (
+                    <CompactEventCard
+                      key={event.id}
+                      event={event}
+                      interestedCount={Math.floor(Math.random() * 50)}
+                      isInterested={false}
+                      onClick={() => console.log('Demo: Event clicked', event.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Venues */}
+            {searchResults.venues.length > 0 && (
+              <div>
+                <h3 className="text-lg font-bold text-[#0e0e0e] mb-3">Venues</h3>
+                <div className="space-y-2">
+                  {searchResults.venues.map((venue) => (
+                    <Card key={venue.id} className="cursor-pointer hover:bg-gray-50">
+                      <CardContent className="p-3 flex items-center gap-3">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={venue.image_url || undefined} />
+                          <AvatarFallback className="bg-synth-beige/50">
+                            {venue.name.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold text-[#0e0e0e]">{venue.name}</p>
+                          <p className="text-[#5d646f]" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>{venue.city}, {venue.state}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Main Content - EXACT same structure as production */}
+        {!isSearchActive && (
+          <>
+            {/* Section 1: Map/Calendar/Tour Section - EXACT same as production */}
+            <DemoMapCalendarTourSection
+              currentUserId={DEMO_USER.id}
+              filters={mockFilters}
+              onNavigateToProfile={(userId) => console.log('Demo: Navigate to profile', userId)}
+              onNavigateToChat={(userId) => console.log('Demo: Navigate to chat', userId)}
+            />
+
+            {/* Section 2: Scenes & Signals */}
+            <div className="mt-8">
+              <HorizontalCarousel
+                title="Scenes & Signals"
+                description="Music scenes defined by genre overlap, venue clusters, and co-attendance patterns"
+                items={DEMO_SCENES.map((scene) => (
+                  <SceneCard
+                    key={scene.id}
+                    scene={scene}
+                    onClick={() => console.log('Demo: Scene clicked', scene.id)}
+                  />
+                ))}
+                loading={false}
+                emptyMessage="No scenes found"
+                itemClassName="w-[320px]"
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Vibe Selector Modal - EXACT same as production */}
+      <VibeSelectorModal
+        isOpen={vibeModalOpen}
+        onClose={() => setVibeModalOpen(false)}
+        onSelectVibe={handleSelectVibe}
+        isMobile={true}
+      />
+    </div>
+  );
+};

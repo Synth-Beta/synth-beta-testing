@@ -3,10 +3,10 @@ import { HorizontalCarousel } from './HorizontalCarousel';
 import { CompactEventCard } from './CompactEventCard';
 import { BecauseYouLikeService, type BecauseYouLikeCarousel } from '@/services/becauseYouLikeService';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
-import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
+import { UserEventService } from '@/services/userEventService';
 import type { JamBaseEvent } from '@/types/eventTypes';
 
 interface BecauseYouLikeSectionProps {
@@ -36,15 +36,8 @@ export const BecauseYouLikeSection: React.FC<BecauseYouLikeSectionProps> = ({
 
   const loadInterestedEvents = async () => {
     try {
-      const { data } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
-        .eq('user_id', currentUserId)
-        .eq('relationship_type', 'interested');
-
-      if (data) {
-        setInterestedEvents(new Set(data.map(r => r.event_id)));
-      }
+      const interestedSet = await UserEventService.getUserInterestedEventIdSet(currentUserId);
+      setInterestedEvents(interestedSet);
     } catch (error) {
       console.error('Error loading interested events:', error);
     }
@@ -184,7 +177,7 @@ export const BecauseYouLikeSection: React.FC<BecauseYouLikeSectionProps> = ({
               className="absolute top-0 right-0"
               onClick={() => handleDismiss(carousel)}
             >
-              <X className="w-4 h-4" />
+              <Icon name="x" size={16} color="var(--neutral-900)" />
             </Button>
           </div>
         ))}

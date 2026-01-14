@@ -1,6 +1,6 @@
 import React from 'react';
 import { Icon } from '@/components/Icon';
-import { type IconName } from '@/config/icons';
+import { type IconName } from '@/config/iconMapping';
 import './IconText.css';
 
 export interface IconTextProps {
