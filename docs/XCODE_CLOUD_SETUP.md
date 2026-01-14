@@ -17,19 +17,27 @@ the package at '/path/to/node_modules/@capacitor/app' cannot be accessed
 
 ## Solution
 
-We use Xcode Cloud's pre-build script (`ci_scripts/ci_pre_xcodebuild.sh`) to install npm dependencies before Xcode builds.
+We use Xcode Cloud's **post-clone script** (`ci_scripts/ci_post_clone.sh`) to install npm dependencies **before** Swift Package Manager tries to resolve dependencies. This is critical because SPM resolves dependencies before the pre-build script runs.
 
 ## Xcode Cloud Scripts
 
 Xcode Cloud automatically looks for scripts in the `ci_scripts/` directory:
 
-### `ci_pre_xcodebuild.sh`
+### `ci_post_clone.sh` (CRITICAL - Use This One!)
 
-This script runs **before** Xcode builds. It:
+This script runs **immediately after the repository is cloned**, **BEFORE** Swift Package Manager resolves dependencies. It:
 1. Installs npm dependencies (`npm ci`)
 2. Verifies all Capacitor packages are present
-3. Syncs Capacitor (optional)
-4. Ensures `node_modules` exists before Xcode resolves dependencies
+3. Ensures `node_modules` exists before SPM tries to resolve package paths
+
+**Why this script is critical:** SPM resolves dependencies before `ci_pre_xcodebuild.sh` runs, so we must install npm packages in `ci_post_clone.sh`.
+
+### `ci_pre_xcodebuild.sh` (Optional - For Additional Setup)
+
+This script runs **before** Xcode builds, but **after** SPM has already resolved dependencies. Use this for:
+- Additional build-time configuration
+- Syncing Capacitor (if needed)
+- Other setup that doesn't affect package resolution
 
 ### Script Location
 
