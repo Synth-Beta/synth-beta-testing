@@ -114,7 +114,30 @@ If issues persist:
 
 If you're seeing this error in CI/CD (like `/Volumes/workspace/repository/`):
 
-### Ensure npm install runs first
+### Xcode Cloud
+
+If you're using **Xcode Cloud**, we have a pre-build script that automatically installs dependencies:
+
+**Location:** `ci_scripts/ci_pre_xcodebuild.sh`
+
+This script:
+- Automatically runs before Xcode builds
+- Installs npm dependencies
+- Verifies Capacitor packages
+- Ensures `node_modules` exists before package resolution
+
+**Setup:**
+1. The script is already in the repository
+2. Xcode Cloud automatically detects and runs it
+3. No additional configuration needed
+
+**Verify it's working:**
+- Check build logs for "🚀 Starting pre-build setup..."
+- Look for "✅ Pre-build setup complete!" in logs
+
+See [Xcode Cloud Setup Guide](./XCODE_CLOUD_SETUP.md) for details.
+
+### Other CI/CD (GitHub Actions, etc.)
 
 Add to your CI/CD pipeline:
 
@@ -145,15 +168,14 @@ The error path `/Volumes/workspace/repository/` suggests:
    ls -la node_modules/@capacitor/
    ```
 
-2. **Use absolute paths (if needed):**
-   Update `Package.swift` to use environment variables or absolute paths (not recommended, but can work)
-
-3. **Ensure build runs from project root:**
+2. **Ensure build runs from project root:**
    ```bash
    cd /path/to/project/root
    npm install
    npx cap sync ios
    ```
+
+3. **For Xcode Cloud:** The pre-build script handles this automatically
 
 ## Prevention
 
