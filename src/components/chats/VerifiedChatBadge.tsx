@@ -188,15 +188,39 @@ export function VerifiedChatBadge({
         </Button>
       ) : chatInfo?.chat_id ? (
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="flex items-center gap-1.5 px-2 py-1">
-            <MessageSquare className="h-3.5 w-3.5 text-synth-pink" />
-            <span className="text-xs font-medium">
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              height: '22px',
+              paddingLeft: 'var(--spacing-small, 12px)',
+              paddingRight: 'var(--spacing-small, 12px)',
+              borderRadius: 'var(--radius-corner, 10px)',
+              backgroundColor: 'var(--neutral-100)',
+              border: '2px solid var(--neutral-200)',
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+              color: 'var(--neutral-900)',
+              boxShadow: '0 4px 4px 0 var(--shadow-color)',
+              gap: 'var(--spacing-inline, 6px)'
+            }}
+          >
+            <MessageSquare size={16} style={{ color: 'var(--brand-pink-500)' }} />
+            <span>
               {chatInfo.member_count || 0} {chatInfo.member_count === 1 ? 'member' : 'members'}
             </span>
             {isActive() && (
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500" title="Active" />
+              <span style={{
+                height: '6px',
+                width: '6px',
+                borderRadius: '50%',
+                backgroundColor: '#2E8B63',
+                flexShrink: 0
+              }} title="Active" />
             )}
-          </Badge>
+          </div>
           <Button
             variant={chatInfo.is_user_member ? 'default' : 'outline'}
             size="sm"

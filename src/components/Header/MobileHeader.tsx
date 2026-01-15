@@ -12,6 +12,11 @@ export interface MobileHeaderProps {
    * Callback when hamburger/X menu button is clicked
    */
   onMenuClick?: () => void;
+  
+  /**
+   * Optional content to display in the center area
+   */
+  children?: React.ReactNode;
 }
 
 /**
@@ -33,13 +38,14 @@ export interface MobileHeaderProps {
 export const MobileHeader: React.FC<MobileHeaderProps> = ({
   menuOpen = false,
   onMenuClick,
+  children,
 }) => {
   return (
     <header className="mobile-header" role="banner">
       <div className="mobile-header__container">
-        {/* Centered content area - can be used for logo or title */}
+        {/* Centered content area - can be used for logo, title, or custom content */}
         <div className="mobile-header__center">
-          {/* Placeholder for centered content */}
+          {children}
         </div>
 
         {/* Hamburger/X button on the right - swaps icon based on menuOpen */}

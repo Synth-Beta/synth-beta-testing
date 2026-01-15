@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, MapPin, X, Loader2 } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -15,6 +15,8 @@ import { LocationService } from '@/services/locationService';
 import { supabase } from '@/integrations/supabase/client';
 import type { VibeType } from '@/services/discoverVibeService';
 import type { VibeFilters } from '@/services/discoverVibeService';
+import { MobileHeader } from '@/components/Header/MobileHeader';
+import { SearchBar } from '@/components/SearchBar/SearchBar';
 
 interface DiscoverViewProps {
   currentUserId: string;
@@ -23,6 +25,9 @@ interface DiscoverViewProps {
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
   onViewChange?: (view: 'feed' | 'search' | 'profile') => void;
+  menuOpen?: boolean;
+  onMenuClick?: () => void;
+  hideHeader?: boolean;
 }
 
 export const DiscoverView: React.FC<DiscoverViewProps> = ({
@@ -32,6 +37,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   onNavigateToProfile,
   onNavigateToChat,
   onViewChange,
+  menuOpen = false,
+  onMenuClick,
+  hideHeader = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -240,64 +248,81 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   return (
     <div 
-      className="min-h-screen bg-[#fcfcfc]"
-      style={{
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
+      className="min-h-screen" 
+      style={{ 
+        backgroundColor: 'var(--neutral-50)',
+        overflow: 'visible' // Ensure content is not clipped
       }}
     >
-      {/* Top bar with search and menu */}
-      <div className="bg-[#fcfcfc] border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-          <RedesignedSearchPage
-            userId={currentUserId}
-            allowedTabs={['artists', 'venues', 'users', 'events']}
-            showMap={false}
-            layout="compact"
-            mode="embedded"
-            headerTitle=""
-            headerDescription=""
-            showHelperText={false}
-            initialSearchQuery={searchQuery}
-            hideSearchInput={false}
-            showResults={false}
-            onSearchStateChange={({ query, debouncedQuery }) => {
-              setSearchQuery(query);
-              setIsSearchActive(debouncedQuery.trim().length >= 2);
+      {/* Mobile Header with SearchBar */}
+      {!hideHeader && (
+      <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '6px', 
+          width: '100%', 
+          maxWidth: '100%'
+        }}>
+          <SearchBar 
+            value={searchQuery}
+            onChange={(value) => {
+              setSearchQuery(value);
+              setIsSearchActive(value.trim().length >= 2);
             }}
-            onNavigateToProfile={onNavigateToProfile}
-            onNavigateToChat={onNavigateToChat}
+            placeholder='Try "Radiohead"'
+            widthVariant="flex"
           />
         </div>
-          </div>
-        </div>
-      </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6 space-y-2">
+      </MobileHeader>
+      )}
+      <div 
+        className="max-w-7xl mx-auto space-y-2" 
+        style={{ 
+          paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
+          paddingRight: 'var(--spacing-screen-margin-x, 20px)', 
+          paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, 
+          paddingBottom: 'var(--spacing-bottom-nav, 112px)',
+          overflow: 'visible', // Ensure content is not clipped
+          minHeight: 'auto' // Allow content to determine height
+        }}
+      >
 
         {/* Browse Vibes and Location Filter - Always Visible (Above Search Results) */}
-        <div className="mb-2 flex items-center gap-2 flex-wrap overflow-x-auto">
+        <div className="mb-2 flex items-center gap-2 flex-wrap">
           {/* Browse Vibes Button */}
           <Button
             onClick={() => setVibeModalOpen(true)}
-            className="bg-synth-pink hover:bg-synth-pink/90 text-white gap-2 flex-shrink-0"
+            className="gap-2 flex-shrink-0" 
+            style={{ backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)'; }}
             size="sm"
             data-tour="discover-vibes"
           >
-            <Sparkles className="h-4 w-4" />
+            <Icon name="mediumShootingStar" size={16} color="var(--neutral-50)" />
             Browse Vibes
           </Button>
 
           {/* Location Filter */}
           <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 flex-shrink-0">
-                <MapPin className="h-4 w-4" />
-                Location
+              <Button variant="outline" className="gap-2 flex-shrink-0" style={{
+                height: 'var(--size-button-height, 36px)',
+                paddingLeft: 'var(--spacing-small, 12px)',
+                paddingRight: 'var(--spacing-small, 12px)',
+                borderColor: 'var(--neutral-200)',
+                color: 'var(--neutral-900)',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)'
+              }}>
+                <Icon name="location" size={16} color="var(--neutral-900)" />
+                <span style={{ color: 'var(--neutral-900)' }}>Location</span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 bg-white" align="start">
+            <PopoverContent className="w-80" style={{ backgroundColor: 'var(--neutral-50)' }} align="start">
               <div className="space-y-4">
                 <div className="font-semibold text-sm">Set Location</div>
                 
@@ -311,18 +336,18 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 >
                   {isLoadingLocation ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Icon name="refresh" size={16} className="mr-2 animate-spin" color="var(--neutral-900)" />
                       Getting location...
                     </>
                   ) : (
                     <>
-                      <MapPin className="h-4 w-4 mr-2" />
+                      <Icon name="location" size={16} className="mr-2" color="var(--neutral-900)" />
                       Use Current Location
                     </>
                   )}
                 </Button>
 
-                <div className="text-sm text-muted-foreground text-center">or</div>
+                <div className="text-sm text-center" style={{ color: 'var(--neutral-600)' }}>or</div>
 
                 {/* City Input */}
               <div className="space-y-2">
@@ -351,7 +376,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                   <div className="space-y-2 pt-2 border-t">
                     <div className="flex items-center justify-between text-sm">
                       <span>Radius: {filters.radiusMiles || 30} miles</span>
-                      <span className="text-muted-foreground">Max: 50</span>
+                      <span style={{ color: 'var(--neutral-600)' }}>Max: 50</span>
               </div>
                     <Slider
                       value={[filters.radiusMiles || 30]}
@@ -383,17 +408,44 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         {/* Location Indicator Badge */}
         {hasActiveLocation && (
           <div className="mb-2">
-            <Badge variant="secondary" className="gap-1 bg-synth-pink/10 text-synth-pink border-synth-pink/30">
-              <MapPin className="h-3 w-3" />
-              {selectedLocationName || 'Location'} ({filters.radiusMiles || 30} mi radius)
-                <button
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                height: '22px',
+                paddingLeft: 'var(--spacing-small, 12px)',
+                paddingRight: 'var(--spacing-small, 12px)',
+                borderRadius: 'var(--radius-corner, 10px)',
+                backgroundColor: 'var(--brand-pink-050)',
+                border: '2px solid var(--brand-pink-500)',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--brand-pink-500)',
+                boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                gap: 'var(--spacing-inline, 6px)'
+              }}
+            >
+              <Icon name="location" size={16} color="var(--neutral-900)" />
+              <span>{selectedLocationName || 'Location'} ({filters.radiusMiles || 30} mi radius)</span>
+              <button
                 onClick={handleClearLocation}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginLeft: 'var(--spacing-inline, 6px)'
+                }}
                 className="ml-2 hover:text-destructive"
                 >
-                  <X className="h-3 w-3" />
+                  <Icon name="x" size={16} color="var(--neutral-900)" />
                 </button>
-              </Badge>
-        </div>
+            </div>
+          </div>
         )}
 
         {/* Search Results - Below Filters when searching */}

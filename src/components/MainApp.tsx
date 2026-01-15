@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { GlobalHamburgerButton } from '@/components/GlobalHamburgerButton';
 import { SideMenu } from '@/components/SideMenu/SideMenu';
 import { BottomNavAdapter } from './BottomNavAdapter';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
@@ -37,6 +36,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { EventReviewModal } from './EventReviewModal';
 import { SynthLoadingScreen } from './ui/SynthLoader';
 import { PushTokenService } from '@/services/pushTokenService';
+import { UserEventService } from '@/services/userEventService';
 
 type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events' | 'onboarding';
 
@@ -78,7 +78,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
                 window.location.href = '/streaming-stats';
                 localStorage.setItem('intendedView', 'profile');
               }}
-              className="bg-pink-500 hover:bg-pink-600 text-white"
+              className=""
+              style={{ backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)'; }}
             >
               View Stats
             </ToastAction>
@@ -328,15 +331,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     try {
       if (direction === 'like') {
         // Add to user's interested events
-        const { error } = await supabase
-          .from('user_event_relationships')
-          .insert({
-            user_id: user.id,
-            event_id: eventId,
-            relationship_type: 'interested'
-          });
-
-        if (error) throw error;
+        await UserEventService.setEventInterest(user.id, eventId, true);
 
         toast({
           title: "Event Added!",
@@ -410,9 +405,15 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   const handleBack = () => {
+    // Use browser history navigation if available, otherwise fallback to feed
+    // This allows back button to return to previous screen instead of always going to feed
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
     setCurrentView('feed');
     // Clear chatUserId when going back to feed
     setChatUserId(undefined);
+    }
   };
 
   const handleNavigateToNotifications = () => {
@@ -470,28 +471,13 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   const handleNavigateToProfile = (userId?: string, tab?: 'timeline' | 'interested') => {
-    // Clear any existing profileUserId first
-    setProfileUserId(undefined);
-    
-    // Only set profileUserId if a valid userId is provided (not a tab name)
-    if (userId && userId !== 'timeline' && userId !== 'interested' && userId !== 'passport') {
-      // Validate it's a UUID format
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (uuidRegex.test(userId)) {
-    setProfileUserId(userId);
-      }
-    }
-    
     setCurrentView('profile');
-    
-    // Store tab preference in sessionStorage for ProfileView to read
     if (tab) {
-      // Map 'timeline' to 'passport' since that's what ProfileView uses
-      sessionStorage.setItem('profileTab', tab === 'timeline' ? 'passport' : tab);
+      sessionStorage.setItem('profileTab', tab);
     } else {
-      // Clear tab preference if no tab specified
       sessionStorage.removeItem('profileTab');
     }
+    setProfileUserId(userId);
   };
 
   const handleNavigateToChat = (userIdOrChatId: string) => {
@@ -560,8 +546,13 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             currentUserId={user.id}
             onNavigateToNotifications={handleNavigateToNotifications}
             onNavigateToProfile={handleNavigateToProfile}
+            onNavigateToEvent={handleNavigateToEvent}
+            onNavigateToArtist={handleNavigateToArtist}
+            onNavigateToVenue={handleNavigateToVenue}
             onNavigateToChat={handleNavigateToChat}
             onViewChange={handleViewChange}
+            menuOpen={menuOpen}
+            onMenuClick={handleMenuToggle}
           />
         );
       case 'search':
@@ -573,6 +564,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onNavigateToChat={handleNavigateToChat}
             onNavigateToNotifications={handleNavigateToNotifications}
             onViewChange={handleViewChange}
+            menuOpen={menuOpen}
+            onMenuClick={handleMenuToggle}
           />
         );
       case 'profile':
@@ -587,7 +580,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onNavigateToProfile={handleNavigateToProfile}
             onNavigateToChat={handleNavigateToChat}
             onNavigateToNotifications={handleNavigateToNotifications}
-            onViewChange={handleViewChange}
+            menuOpen={menuOpen}
+            onMenuClick={handleMenuToggle}
           />
         );
       case 'profile-edit':
@@ -614,15 +608,18 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           <UnifiedChatView
             currentUserId={user.id}
             onBack={handleBack}
+            menuOpen={menuOpen}
+            onMenuClick={handleMenuToggle}
+            hideHeader={hideNavigation}
           />
         );
       case 'analytics':
         // Render the appropriate analytics dashboard based on account type
         if (!accountInfo) {
           return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-50)' }}>
               <div className="text-center">
-                <p className="text-gray-600">Loading account information...</p>
+                <p style={{ color: 'var(--neutral-600)' }}>Loading account information...</p>
               </div>
             </div>
           );
@@ -644,17 +641,24 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           default:
             console.log('🔍 MainApp: Unknown account type, showing not available message');
             return (
-              <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+              <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-50)' }}>
                 <div className="text-center">
-                  <p className="text-gray-600">Analytics not available for your account type.</p>
-                  <p className="text-sm text-gray-500 mt-2">Account type: {accountInfo.account_type}</p>
+                  <p style={{ color: 'var(--neutral-600)' }}>Analytics not available for your account type.</p>
+                  <p style={{ 
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--neutral-600)',
+                    marginTop: 'var(--spacing-small, 12px)'
+                  }}>Account type: {accountInfo.account_type}</p>
                 </div>
               </div>
             );
         }
       case 'events':
         return (
-          <div className="min-h-screen bg-gray-50 p-6">
+          <div className="min-h-screen p-6" style={{ backgroundColor: 'var(--neutral-50)' }}>
             <MyEventsManagementPanel />
           </div>
         );
@@ -678,26 +682,26 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   }
 
   const showMainNav = ['feed', 'search', 'profile', 'chat'].includes(currentView);
+  
+  // Hide header and bottom nav when review modal is open
+  const hideNavigation = showEventReviewModal;
 
   return (
     <div 
       className="min-h-screen"
       style={{
         paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
-        backgroundColor: 'transparent'
+        backgroundColor: 'var(--neutral-50)'
       }}
     >
-      {/* Global Hamburger Button - floating above page content */}
-      <GlobalHamburgerButton menuOpen={menuOpen} onMenuClick={handleMenuToggle} />
-
       {/* Onboarding Reminder Banner */}
-      {showOnboardingReminder && (
+      {showOnboardingReminder && !hideNavigation && (
         <OnboardingReminderBanner onComplete={() => setCurrentView('onboarding')} />
       )}
 
       {/* API Key Error Banner - Only show if there's actually an API key issue */}
-      {showApiKeyError && (
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
+      {showApiKeyError && !hideNavigation && (
+        <div className="border-l-4 p-4 mb-4" style={{ backgroundColor: 'var(--status-error-050)', borderColor: 'var(--status-error-500)', color: 'var(--status-error-500)' }}>
           <div className="flex items-center justify-between">
             <div>
               <p className="font-bold">API Key Error Detected</p>
@@ -705,7 +709,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             </div>
             <button 
               onClick={handleForceLogin}
-              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+              className="px-4 py-2 rounded"
+              style={{ backgroundColor: 'var(--status-error-500)', color: 'var(--neutral-50)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--status-error-500)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--status-error-500)'; }}
             >
               Go to Login
             </button>
@@ -713,19 +720,19 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         </div>
       )}
       
-      <div className={showMainNav ? 'pb-[100px]' : 'pb-20'}>
+      <div style={{ paddingBottom: hideNavigation ? '0' : 'var(--spacing-bottom-nav, 112px)' }}>
         {renderCurrentView()}
       </div>
 
       {/* New Bottom Navigation - replaces old Navigation */}
-      {showMainNav && (
+      {!hideNavigation && showMainNav && (
         <BottomNavAdapter 
           currentView={currentView}
           onViewChange={handleViewChange}
           onOpenEventReview={() => setShowEventReviewModal(true)}
         />
       )}
-      {!showMainNav && currentView !== 'profile-edit' && (
+      {!hideNavigation && !showMainNav && currentView !== 'profile-edit' && (
         <BottomNavAdapter 
           currentView={currentView}
           onViewChange={handleViewChange}
@@ -738,6 +745,13 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         isOpen={menuOpen}
         onClose={handleMenuClose}
         onToggle={handleMenuToggle}
+        onNavigateToNotifications={handleNavigateToNotifications}
+        onNavigateToProfile={handleNavigateToProfile}
+        onNavigateToSettings={() => setShowSettings(true)}
+        onNavigateToVerification={() => {
+          handleNavigateToProfile(undefined, 'timeline');
+        }}
+        onSignOut={handleSignOut}
       />
 
       {/* Settings Modal */}

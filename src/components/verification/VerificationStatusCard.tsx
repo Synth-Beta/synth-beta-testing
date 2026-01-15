@@ -24,7 +24,7 @@ export function VerificationStatusCard({
   const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
 
-  // Don't show for non-user accounts (they have different verification criteria)
+  // For non-user accounts, show verified card if applicable, otherwise show a placeholder card
   if (accountType !== 'user') {
     if (verified) {
       return (
@@ -46,7 +46,16 @@ export function VerificationStatusCard({
         </Card>
       );
     }
-    return null;
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Verification Status</CardTitle>
+          <CardDescription>
+            Verification details are not available for this account type.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
   }
 
   const handleRefresh = async () => {
@@ -83,8 +92,17 @@ export function VerificationStatusCard({
     );
   }
 
-  if (error || !breakdown) {
-    return null;
+  if (error || !breakdown || !userId) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Verification Status</CardTitle>
+          <CardDescription>
+            Verification details are currently unavailable.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
   }
 
   const progressPercentage = (breakdown.criteriaMet / breakdown.totalCriteria) * 100;

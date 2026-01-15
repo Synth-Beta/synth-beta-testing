@@ -1,0 +1,274 @@
+/**
+ * Demo Profile Page - Same layout and components as production ProfileView
+ * 
+ * Uses same UI components (PostsGrid, CompactEventCard, etc.) but with hardcoded mock data.
+ * NO API calls - all data is from mockData.ts
+ */
+
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MobileHeader } from '@/components/Header/MobileHeader';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PostsGrid } from '@/components/profile/PostsGrid';
+import { CompactEventCard } from '@/components/home/CompactEventCard';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { VerificationBadge } from '@/components/verification/VerificationBadge';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { 
+  DEMO_USER, 
+  DEMO_REVIEWS, 
+  DEMO_EVENTS, 
+  DEMO_INTERESTED_EVENTS,
+  DEMO_UPCOMING_INTERESTED_EVENTS,
+  DEMO_PASSPORT,
+  DEMO_PASSPORT_IDENTITY,
+  DEMO_PASSPORT_STAMPS,
+  DEMO_PASSPORT_ACHIEVEMENTS,
+  DEMO_PASSPORT_TIMELINE,
+  DEMO_BUCKET_LIST,
+} from '../data/mockData';
+import { format } from 'date-fns';
+import { Edit, Settings, Heart, Calendar, Clock } from 'lucide-react';
+import { DemoPassportModal } from '../components/DemoPassportModal';
+
+interface DemoProfilePageProps {
+  menuOpen?: boolean;
+  onMenuClick?: () => void;
+  onNavigate?: (page: 'home' | 'discover' | 'profile' | 'messages' | 'create-post') => void;
+}
+
+export const DemoProfilePage: React.FC<DemoProfilePageProps> = ({
+  menuOpen = false,
+  onMenuClick,
+  onNavigate,
+}) => {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('my-events');
+  const [showPastEvents, setShowPastEvents] = useState(false);
+
+  const handleBack = () => {
+    if (onNavigate) {
+      onNavigate('home');
+    } else {
+      navigate('/mobile-preview/component-view');
+    }
+  };
+
+  // Convert reviews to PostsGrid format - EXACT same as production
+  const postsGridItems = DEMO_REVIEWS.map(review => {
+    const event = DEMO_EVENTS.find(e => e.id === review.event_id);
+    const firstPhoto = review.photos && review.photos.length > 0 ? review.photos[0] : undefined;
+    
+    return {
+      id: review.id,
+      type: 'review' as const,
+      image: firstPhoto,
+      images: review.photos,
+      title: event?.title || 'Event Review',
+      subtitle: event ? `${event.artist_name} at ${event.venue_name}` : 'Concert Review',
+      rating: review.rating,
+      date: review.created_at,
+      location: event?.venue_city || undefined,
+      likes: review.likes_count,
+      comments: review.comments_count,
+    };
+  });
+
+  // Use upcoming events for upcoming tab, all interested events for past tab
+  const filteredInterestedEvents = showPastEvents 
+    ? DEMO_INTERESTED_EVENTS.filter(event => {
+        const eventDate = new Date(event.event_date);
+        const now = new Date();
+        return eventDate < now;
+      })
+    : DEMO_UPCOMING_INTERESTED_EVENTS;
+
+  return (
+    <div
+      className="min-h-screen w-full max-w-[393px] mx-auto overflow-x-hidden" style={{ backgroundColor: 'var(--neutral-50)' }}
+    >
+      {/* Mobile Header with profile name - EXACT same as production */}
+      <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
+        <h1 className="font-bold truncate text-center" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-body-size, 20px)', fontWeight: 'var(--typography-body-weight, 500)', lineHeight: 'var(--typography-body-line-height, 1.5)', color: 'var(--color-off-black, #0E0E0E)' }}>
+          {DEMO_USER.username ? `@${DEMO_USER.username}` : DEMO_USER.name}
+        </h1>
+      </MobileHeader>
+
+      {/* Profile Content - EXACT same structure as production */}
+      <div className="px-5" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px + 12px)', paddingBottom: 'var(--spacing-bottom-nav, 112px)' }}>
+        {/* Enhanced Profile Header - EXACT same as production */}
+        <div className="mb-6 bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 p-4 sm:p-6 border border-pink-100/50 shadow-sm relative overflow-hidden w-full max-w-full" style={{ borderRadius: '10px' }}>
+          <div className="flex flex-col items-center gap-4 mb-4 w-full max-w-full">
+            {/* Profile Picture and Name Row */}
+            <div className="flex items-center gap-3 w-full justify-center">
+              <div className="relative">
+                <Avatar className="w-20 h-20 sm:w-24 sm:h-24 ring-4 ring-white shadow-lg">
+                  <AvatarImage src={DEMO_USER.avatar_url || undefined} />
+                  <AvatarFallback className="text-3xl font-bold bg-gradient-to-br from-pink-500 to-purple-600" style={{ color: 'var(--color-off-white, #FCFCFC)' }}>
+                    {DEMO_USER.name.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+              
+              {/* Name and Verification Badge */}
+              <div className="flex items-center gap-2">
+                <h1 className="font-bold" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--color-off-black, #0E0E0E)' }}>
+                  {DEMO_USER.name}
+                </h1>
+                {DEMO_USER.verified && (
+                  <VerificationBadge
+                    accountType={DEMO_USER.account_type as any}
+                    verified={DEMO_USER.verified}
+                    size="lg"
+                  />
+                )}
+              </div>
+            </div>
+            
+            {/* Profile Info */}
+            <div className="w-full max-w-full">
+              {/* Stats Row - EXACT same as production */}
+              <div className="flex items-center justify-center gap-6 mb-4 w-full max-w-full">
+                <div className="text-center">
+                  <div className="font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)' }}>
+                    {DEMO_USER.followers_count}
+                  </div>
+                  <p className="font-medium" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--color-dark-grey, #5D646F)' }}>Friends</p>
+                </div>
+                
+                <div className="text-center">
+                  <div className="font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)' }}>
+                    {DEMO_USER.reviews_count}
+                  </div>
+                  <p className="text-gray-600 font-medium" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>Reviews</p>
+                </div>
+                
+                <div className="text-center">
+                  <div className="font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)' }}>
+                    {DEMO_USER.following_count}
+                  </div>
+                  <p className="text-gray-600 font-medium" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>Following</p>
+                </div>
+              </div>
+              
+              {/* Action Buttons - EXACT same as production */}
+              <div className="flex flex-wrap items-center gap-2 w-full max-w-full justify-center">
+                <Button variant="default" size="sm" className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 shadow-md" style={{ color: 'var(--color-off-white, #FCFCFC)' }}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Profile
+                </Button>
+                <Button variant="outline" size="sm" style={{ borderColor: 'var(--color-light-grey, #C9C9C9)' }}>
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs - EXACT same as production */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="my-events">My Events</TabsTrigger>
+            <TabsTrigger value="interested">Interested</TabsTrigger>
+            <TabsTrigger value="passport">Passport</TabsTrigger>
+          </TabsList>
+
+          {/* My Events Tab - EXACT same as production */}
+          <TabsContent value="my-events" className="mt-4 w-full max-w-full overflow-x-hidden">
+            <PostsGrid
+              posts={postsGridItems}
+              onPostClick={(post) => console.log('Demo: Post clicked', post.id)}
+            />
+          </TabsContent>
+
+          {/* Interested Events Tab - EXACT same as production */}
+          <TabsContent value="interested" className="mt-4 w-full max-w-full overflow-x-hidden">
+            {/* Toggle between Upcoming and Past - EXACT same as production */}
+            {DEMO_INTERESTED_EVENTS.length > 0 && (
+              <div className="flex justify-center mb-4 w-full max-w-full">
+                <div className="bg-gray-100 p-1 flex w-full max-w-full" style={{ borderRadius: '10px' }}>
+                  <button
+                    onClick={() => setShowPastEvents(false)}
+                    className={`px-4 py-2 font-medium transition-colors ${
+                      !showPastEvents
+                        ? 'shadow-sm' 
+                        : ''
+                    }`}
+                  >
+                    Upcoming
+                  </button>
+                  <button
+                    onClick={() => setShowPastEvents(true)}
+                    className={`px-4 py-2 font-medium transition-colors ${
+                      showPastEvents
+                        ? 'shadow-sm' 
+                        : ''
+                    }`} style={{ borderRadius: '10px' }}
+                  >
+                    Past
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {filteredInterestedEvents.length === 0 ? (
+              <div className="flex flex-col gap-[6px] items-center justify-center py-12" style={{ borderRadius: '10px', backgroundColor: 'var(--color-off-white, #FCFCFC)' }}>
+                {/* Large icon (60px), dark grey */}
+                <Heart className="w-[60px] h-[60px] mx-auto" style={{ color: 'var(--color-dark-grey, #5D646F)' }} />
+                {/* Heading - Body typography, off black */}
+                <h3 style={{ 
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-body-size, 20px)',
+                  fontWeight: 'var(--typography-body-weight, 500)',
+                  lineHeight: 'var(--typography-body-line-height, 1.5)',
+                  color: 'var(--neutral-900)',
+                  margin: 0,
+                  textAlign: 'center'
+                }}>No {showPastEvents ? 'Past' : 'Upcoming'} Events Yet</h3>
+                {/* Description - Meta typography, dark grey */}
+                <p style={{ 
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  color: 'var(--neutral-600)',
+                  margin: 0,
+                  textAlign: 'center'
+                }}>Tap the heart on events to add them here.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {filteredInterestedEvents.map((event) => (
+                  <CompactEventCard
+                    key={event.id}
+                    event={event}
+                    interestedCount={Math.floor(Math.random() * 50)}
+                    isInterested={true}
+                    onClick={() => console.log('Demo: Event clicked', event.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Passport Tab - EXACT same as production */}
+          <TabsContent value="passport" className="mt-4 mb-32 w-full max-w-full overflow-x-hidden">
+            <DemoPassportModal
+              isOpen={true}
+              onClose={() => setActiveTab('my-events')}
+              userId={DEMO_USER.id}
+              userName={DEMO_USER.name}
+              inline={true}
+              identity={DEMO_PASSPORT_IDENTITY}
+              stamps={DEMO_PASSPORT_STAMPS}
+              achievements={DEMO_PASSPORT_ACHIEVEMENTS}
+              timeline={DEMO_PASSPORT_TIMELINE}
+              bucketList={DEMO_BUCKET_LIST}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+};

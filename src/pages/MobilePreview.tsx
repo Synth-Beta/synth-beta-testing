@@ -81,7 +81,13 @@ const MobilePreview: React.FC = () => {
   };
 
   const handleBack = () => {
-    setCurrentView('feed');
+    // Use browser history navigation if available, otherwise fallback to feed
+    // This allows back button to return to previous screen instead of always going to feed
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      setCurrentView('feed');
+    }
   };
 
   const renderCurrentView = () => {

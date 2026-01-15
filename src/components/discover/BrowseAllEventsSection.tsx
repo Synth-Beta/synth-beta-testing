@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
-import { Loader2 } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
 import { UnifiedEventSearchService, type UnifiedEvent } from '@/services/unifiedEventSearchService';
 import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
@@ -103,15 +103,8 @@ export const BrowseAllEventsSection: React.FC<BrowseAllEventsSectionProps> = ({
 
   const loadInterestedEvents = async () => {
     try {
-      const { data } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
-        .eq('user_id', currentUserId)
-        .eq('relationship_type', 'interested');
-
-      if (data) {
-        setInterestedEvents(new Set(data.map(r => r.event_id)));
-      }
+      const interestedSet = await UserEventService.getUserInterestedEventIdSet(currentUserId);
+      setInterestedEvents(interestedSet);
     } catch (error) {
       console.error('Error loading interested events:', error);
     }
@@ -272,7 +265,7 @@ export const BrowseAllEventsSection: React.FC<BrowseAllEventsSectionProps> = ({
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            <Icon name="refresh" size={24} className="animate-spin" color="var(--neutral-600)" />
           </div>
         </CardContent>
       </Card>
@@ -309,7 +302,7 @@ export const BrowseAllEventsSection: React.FC<BrowseAllEventsSectionProps> = ({
                 {hasMore && (
                   <div ref={loadMoreRef} className="h-10 flex items-center justify-center py-4">
                     {loadingMore && (
-                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                      <Icon name="refresh" size={16} className="animate-spin" color="var(--neutral-600)" />
                     )}
                   </div>
                 )}

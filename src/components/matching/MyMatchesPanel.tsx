@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Heart, MessageCircle, Calendar, MapPin, Loader2, Users } from 'lucide-react';
 import MatchingService, { Match } from '@/services/matchingService';
+import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 
 interface MyMatchesPanelProps {
   onChatWithMatch?: (userId: string) => void;
@@ -98,7 +99,7 @@ export function MyMatchesPanel({ onChatWithMatch }: MyMatchesPanelProps) {
                 <div className="flex items-start gap-2">
                   {match.event.poster_image_url && (
                     <img
-                      src={match.event.poster_image_url}
+                      src={replaceJambasePlaceholder(match.event.poster_image_url) || undefined}
                       alt={match.event.title}
                       className="w-12 h-12 rounded object-cover"
                     />

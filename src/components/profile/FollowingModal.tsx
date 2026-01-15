@@ -5,6 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Music, MapPin, Loader2, User, X } from 'lucide-react';
 import { ArtistFollowService } from '@/services/artistFollowService';
 import { VenueFollowService } from '@/services/venueFollowService';
+import { supabase } from '@/integrations/supabase/client';
 import type { ArtistFollowWithDetails } from '@/types/artistFollow';
 import type { VenueFollowWithDetails } from '@/types/venueFollow';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -15,6 +16,16 @@ interface FollowingModalProps {
   userId: string;
   profileName: string;
   isOwnProfile?: boolean;
+  onNavigateToProfile?: (userId: string) => void;
+}
+
+interface FollowedUser {
+  id: string;
+  user_id: string;
+  name: string;
+  username: string | null;
+  avatar_url: string | null;
+  bio: string | null;
 }
 
 export function FollowingModal({
@@ -22,14 +33,16 @@ export function FollowingModal({
   onClose,
   userId,
   profileName,
-  isOwnProfile = false
+  isOwnProfile = false,
+  onNavigateToProfile
 }: FollowingModalProps) {
   const navigate = useNavigate();
+  const [followedUsers, setFollowedUsers] = useState<FollowedUser[]>([]);
   const [followedArtists, setFollowedArtists] = useState<ArtistFollowWithDetails[]>([]);
   const [followedVenues, setFollowedVenues] = useState<VenueFollowWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'artists' | 'venues'>('artists');
+  const [activeTab, setActiveTab] = useState<'users' | 'artists' | 'venues'>('users');
 
   useEffect(() => {
     if (isOpen && userId) {
@@ -37,6 +50,7 @@ export function FollowingModal({
       loadFollowing();
     } else {
       // Reset when modal closes
+      setFollowedUsers([]);
       setFollowedArtists([]);
       setFollowedVenues([]);
       setLoading(true);
@@ -48,13 +62,55 @@ export function FollowingModal({
       setLoading(true);
       setError(null);
 
-      console.log('📥 FollowingModal: Fetching artists and venues for user:', userId);
+      console.log('📥 FollowingModal: Fetching users, artists and venues for user:', userId);
 
-      // Fetch both artists and venues in parallel
-      const [artists, venues] = await Promise.all([
+      // Fetch users, artists and venues in parallel
+      const [usersResult, artists, venues] = await Promise.all([
+        // Fetch followed users from user_relationships where relationship_type='follow'
+        supabase
+          .from('user_relationships')
+          .select('related_user_id, created_at')
+          .eq('user_id', userId)
+          .eq('relationship_type', 'follow')
+          .order('created_at', { ascending: false }),
         ArtistFollowService.getUserFollowedArtists(userId),
         VenueFollowService.getUserFollowedVenues(userId)
       ]);
+
+      // Process followed users
+      if (usersResult.error) {
+        console.error('Error fetching followed users:', usersResult.error);
+      } else {
+        const followedUserIds = (usersResult.data || [])
+          .map((r: any) => r.related_user_id)
+          .filter(Boolean);
+        
+        if (followedUserIds.length > 0) {
+          // Fetch user profiles
+          const { data: userProfiles, error: profilesError } = await supabase
+            .from('users')
+            .select('id, user_id, name, username, avatar_url, bio')
+            .in('user_id', followedUserIds);
+
+          if (profilesError) {
+            console.error('Error fetching user profiles:', profilesError);
+          } else {
+            // Sort alphabetically by name
+            const sortedUsers = (userProfiles || []).sort((a, b) => 
+              (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+            ).map((profile: any) => ({
+              id: profile.id,
+              user_id: profile.user_id,
+              name: profile.name || 'Unknown User',
+              username: profile.username,
+              avatar_url: profile.avatar_url,
+              bio: profile.bio
+            }));
+            setFollowedUsers(sortedUsers);
+            console.log('✅ FollowingModal: Set users:', sortedUsers.length);
+          }
+        }
+      }
 
       console.log('📥 FollowingModal: Received artists:', artists.length, 'venues:', venues.length);
       console.log('📥 FollowingModal: Artist details:', artists.map(a => ({ name: a.artist_name, id: a.artist_id })));
@@ -103,7 +159,14 @@ export function FollowingModal({
     onClose(); // Close the modal after opening the card
   };
 
-  const totalCount = followedArtists.length + followedVenues.length;
+  const handleUserClick = (followedUser: FollowedUser) => {
+    if (onNavigateToProfile) {
+      onNavigateToProfile(followedUser.user_id);
+    }
+    onClose();
+  };
+
+  const totalCount = followedUsers.length + followedArtists.length + followedVenues.length;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -121,8 +184,11 @@ export function FollowingModal({
           </button>
         </DialogHeader>
         
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'artists' | 'venues')} className="flex-1 flex flex-col min-h-0">
-          <TabsList className="w-full grid grid-cols-2 rounded-none border-b">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'users' | 'artists' | 'venues')} className="flex-1 flex flex-col min-h-0">
+          <TabsList className="w-full grid grid-cols-3 rounded-none border-b">
+            <TabsTrigger value="users" className="rounded-none">
+              Users ({followedUsers.length})
+            </TabsTrigger>
             <TabsTrigger value="artists" className="rounded-none">
               Artists ({followedArtists.length})
             </TabsTrigger>
@@ -143,6 +209,43 @@ export function FollowingModal({
               </div>
             ) : (
               <>
+                {/* Users Tab */}
+                <TabsContent value="users" className="mt-0 space-y-2">
+                  {followedUsers.length === 0 ? (
+                    <div className="text-center py-8">
+                      <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        {isOwnProfile ? 'Not following any users yet' : `${profileName} is not following any users yet`}
+                      </p>
+                    </div>
+                  ) : (
+                    followedUsers.map((followedUser) => (
+                      <div
+                        key={followedUser.user_id}
+                        className="flex items-center gap-3 hover:bg-muted/40 rounded-lg p-3 transition-colors mx-2"
+                        onClick={() => handleUserClick(followedUser)}
+                      >
+                        <Avatar className="w-10 h-10 flex-shrink-0">
+                          <AvatarImage src={followedUser.avatar_url || undefined} />
+                          <AvatarFallback className="text-sm">
+                            {followedUser.name ? followedUser.name.split(' ').map(n => n[0]).join('') : 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="flex-1 min-w-0 mr-2">
+                          <p className="font-semibold text-sm truncate">{followedUser.name}</p>
+                          {followedUser.username ? (
+                            <p className="text-xs text-muted-foreground truncate">@{followedUser.username}</p>
+                          ) : null}
+                          {followedUser.bio && (
+                            <p className="text-xs text-muted-foreground truncate mt-1">{followedUser.bio}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </TabsContent>
+
                 {/* Artists Tab */}
                 <TabsContent value="artists" className="mt-0 space-y-2">
                   {followedArtists.length === 0 ? (

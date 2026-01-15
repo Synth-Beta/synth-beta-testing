@@ -76,7 +76,20 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
       key={review.id}
       type="button"
       onClick={() => onSelectReview?.(review)}
-      className="w-40 shrink-0 rounded-2xl bg-white border border-pink-100 shadow-sm hover:shadow-md transition-shadow text-left overflow-hidden flex flex-col h-auto min-h-0"
+      className="w-40 shrink-0 text-left overflow-hidden flex flex-col h-auto min-h-0"
+      style={{
+        backgroundColor: 'var(--neutral-50)',
+        border: '1px solid var(--neutral-200)',
+        borderRadius: 'var(--radius-corner, 10px)',
+        boxShadow: '0 2px 4px 0 var(--shadow-color)',
+        transition: 'all 0.2s ease'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = '0 4px 8px 0 var(--shadow-color)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = '0 2px 4px 0 var(--shadow-color)';
+      }}
     >
       {/* Image */}
       <div className="relative h-20 w-full overflow-hidden shrink-0">

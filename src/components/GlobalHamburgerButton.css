@@ -39,7 +39,6 @@
 .global-hamburger-button[aria-expanded="true"] {
   display: none;
 }
-
 .global-hamburger-button > * {
   margin: 0;
   padding: 0;

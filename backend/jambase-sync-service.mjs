@@ -133,7 +133,7 @@ class JambaseSyncService {
       name: performer.name || 'Unknown Artist',
       identifier: identifier,
       url: performer.url || null,
-      image_url: performer.image || null,
+      image_url: this.replaceJambasePlaceholder(performer.image) || null,
       date_published: performer.datePublished ? new Date(performer.datePublished).toISOString() : null,
       date_modified: performer.dateModified ? new Date(performer.dateModified).toISOString() : null,
       artist_type: performer['@type'] || null, // 'MusicGroup' or 'Person'
@@ -235,7 +235,7 @@ class JambaseSyncService {
       name: location.name,
       identifier: identifier,
       url: location.url || null,
-      image_url: location.image || null,
+      image_url: this.replaceJambasePlaceholder(location.image) || null,
       street_address: streetAddress,
       state: state,
       country: country,
@@ -252,6 +252,23 @@ class JambaseSyncService {
       verified: false,
       last_synced_at: new Date().toISOString()
     };
+  }
+
+  /**
+   * Replace JamBase placeholder image URL with Synth placeholder
+   */
+  replaceJambasePlaceholder(imageUrl) {
+    if (!imageUrl) {
+      return null;
+    }
+    
+    // Check if the URL matches the JamBase placeholder
+    if (imageUrl.includes('jambase-default-band-image-bw-1480x832.png') || 
+        imageUrl.includes('jambase.com/wp-content/uploads/2021/08/jambase-default-band-image-bw-1480x832.png')) {
+      return '/Synth_Placeholder.png';
+    }
+    
+    return imageUrl;
   }
 
   /**
@@ -311,9 +328,12 @@ class JambaseSyncService {
       priceRange = `$${priceSpec.price}`;
     }
 
-    // Handle images array
+    // Handle images array - replace JamBase placeholder URLs
     const images = Array.isArray(jambaseEvent.image) 
-      ? jambaseEvent.image.map(img => ({ url: img.url, caption: img.caption || null }))
+      ? jambaseEvent.image.map(img => ({ 
+          url: this.replaceJambasePlaceholder(img.url), 
+          caption: img.caption || null 
+        }))
       : null;
 
     // Extract external URL (first from sameAs array)
@@ -355,7 +375,7 @@ class JambaseSyncService {
       source: 'jambase',
       event_status: jambaseEvent.eventStatus || null,
       images: images,
-      event_media_url: headliner?.image || null, // Artist's image URL as event media
+      event_media_url: this.replaceJambasePlaceholder(headliner?.image) || null, // Artist's image URL as event media
       is_user_created: false,
       is_promoted: false,
       is_featured: false,

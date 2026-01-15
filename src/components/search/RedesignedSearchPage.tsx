@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Input } from '@/components/ui/input';
+import { SearchBar } from '@/components/SearchBar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -420,15 +420,13 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
           )}
           {!hideSearchInput && (
             <div className="flex items-center gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+              <div className="flex-1">
+                <SearchBar
                   value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onChange={(value) => setSearchQuery(value)}
                   placeholder='Try "Radiohead"'
-                  className={`pl-9 ${isCompact ? 'h-10 text-sm' : ''}`}
+                  widthVariant="flex"
                   id="global-search"
-                  autoComplete="off"
                 />
               </div>
               {headerAccessory && <div className="flex-shrink-0">{headerAccessory}</div>}
@@ -519,8 +517,19 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                    (activeTab === 'all' 
                      ? results.users.length === 0 && results.artists.length === 0 && results.events.length === 0 && results.venues.length === 0
                      : activeResults.length === 0) && (
-                    <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 p-12 text-center">
-                      <p className="text-muted-foreground">{emptyMessage}</p>
+                    <div className="flex flex-col gap-[6px] items-center justify-center p-12 text-center">
+                      {/* Large icon (60px), dark grey - using Search icon */}
+                      <Search className="w-[60px] h-[60px]" style={{ color: 'var(--color-dark-grey, #5D646F)' }} />
+                      {/* Description - Meta typography, dark grey */}
+                      <p style={{ 
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        color: 'var(--neutral-600)',
+                        margin: 0,
+                        textAlign: 'center'
+                      }}>{emptyMessage}</p>
                     </div>
                   )}
 

@@ -181,12 +181,12 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
     return (
       <>
         <div className="text-center py-12 text-muted-foreground">
-          <Sparkles className="w-12 h-12 mx-auto mb-4 text-synth-pink/30" />
+          <Sparkles className="w-12 h-12 mx-auto mb-4" style={{ color: 'var(--neutral-600)' }} />
           <p className="font-medium">No timeline highlights yet.</p>
           <p className="text-sm mt-2">Mark special moments in your music journey.</p>
           <Button onClick={handleAddMilestone} className="mt-4" variant="default">
-            <Plus className="w-4 h-4 mr-2" />
             Add Your First Milestone
+            <Plus className="w-4 h-4 ml-2" />
           </Button>
         </div>
         <TimelineEntryModal
@@ -207,8 +207,18 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
       <div className="relative">
         {/* Add Milestone Button */}
         <div className="mb-6 flex justify-end">
-          <Button onClick={handleAddMilestone} variant="outline" size="sm">
-            <Plus className="w-4 h-4 mr-2" />
+          <Button onClick={handleAddMilestone} variant="outline" style={{
+            height: 'var(--size-button-height, 36px)',
+            paddingLeft: 'var(--spacing-small, 12px)',
+            paddingRight: 'var(--spacing-small, 12px)',
+            borderColor: 'var(--neutral-200)',
+            color: 'var(--neutral-900)',
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-meta-size, 16px)',
+            fontWeight: 'var(--typography-meta-weight, 500)',
+            lineHeight: 'var(--typography-meta-line-height, 1.5)'
+          }}>
+            <Plus size={16} style={{ marginRight: 'var(--spacing-inline, 6px)' }} />
             Add Milestone
           </Button>
         </div>

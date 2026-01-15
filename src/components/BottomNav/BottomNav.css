@@ -11,8 +11,8 @@
   right: 0;
   z-index: 40;
   /* Background spans full width */
-  background-color: var(--color-light-pink, #FDF2F7);
-  border-top: 2px solid var(--color-grey-50, rgba(201, 201, 201, 0.5));
+  background-color: var(--brand-pink-050);
+  border-top: 2px solid var(--neutral-200);
   border-top-left-radius: var(--radius-corner, 10px);
   border-top-right-radius: var(--radius-corner, 10px);
   /* Account for safe area on devices with home indicator */
@@ -46,11 +46,15 @@
   flex-shrink: 0;
 }
 
-/* All regular (non-selected) icons should be SynthPink */
-/* Selected icons are already SynthPink in the SVG, so they don't need the filter */
-.bottom-nav__item:not(.bottom-nav__item--cta):not(.bottom-nav__item--active) img {
-  filter: brightness(0) saturate(100%) invert(27%) sepia(89%) saturate(3000%) hue-rotate(300deg) brightness(0.8) contrast(1.1);
-  /* This filter converts black (#0E0E0E) to SynthPink (#CC2486) */
+/* Bottom nav icons (home, discover, messages, profile) - Brand Pink */
+/* Icons use currentColor, so this applies to all child icons */
+.bottom-nav__item:not(.bottom-nav__item--cta) {
+  color: var(--brand-pink-500);
+}
+
+/* Ensure icons inside inherit the color */
+.bottom-nav__item:not(.bottom-nav__item--cta) .synth-icon {
+  color: var(--brand-pink-500);
 }
 
 .bottom-nav__item:hover {
@@ -62,37 +66,36 @@
 }
 
 .bottom-nav__item:focus-visible {
-  outline: 2px solid var(--color-synth-pink, #CC2486);
+  outline: 2px solid var(--brand-pink-500);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-.bottom-nav__item--active {
-  /* Active state is handled by using Selected icon variants */
-}
+/* Active state is handled by using Selected icon variants */
+/* Selected icons use currentColor and inherit the SynthPink color from their SVG */
 
 /* Center CTA button (Post) */
 .bottom-nav__item--cta {
   width: 70px;
   height: 40px;
-  background-color: var(--color-synth-pink, #CC2486);
+  background-color: var(--brand-pink-500);
   border-radius: 20px;
   flex-shrink: 0;
+  color: var(--neutral-50);
 }
 
-/* Plus icon in CTA button should be OffWhite */
-.bottom-nav__item--cta img {
-  filter: brightness(0) saturate(100%) invert(100%);
-  /* This filter converts black to white/OffWhite */
+/* Ensure plus icon inherits Neutral-50 color */
+.bottom-nav__item--cta .synth-icon {
+  color: var(--neutral-50);
 }
 
 .bottom-nav__item--cta:hover {
-  background-color: var(--color-dark-pink, #951A6D);
+  background-color: var(--brand-pink-600);
   opacity: 1;
 }
 
 .bottom-nav__item--cta:active {
-  background-color: var(--color-medium-pink, #B00056);
+  background-color: var(--brand-pink-700);
   opacity: 1;
   transform: scale(0.98);
 }

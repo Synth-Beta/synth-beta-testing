@@ -72,43 +72,70 @@ export const PassportIdentity: React.FC<PassportIdentityProps> = ({ userId, user
             {userName ? `${userName}'s` : 'Your'} Passport
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Fan Type Badge */}
-          <div className="flex items-center gap-3">
-            <Badge 
-              variant="secondary" 
-              className="text-base px-4 py-2 bg-synth-pink/10 text-synth-pink border-synth-pink/30"
+        <CardContent>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-small, 12px)' }}>
+            {/* Fan Type Badge - directly under title */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                height: '22px',
+                paddingLeft: 'var(--spacing-small, 12px)',
+                paddingRight: 'var(--spacing-small, 12px)',
+                borderRadius: 'var(--radius-corner, 10px)',
+                backgroundColor: 'var(--brand-pink-050)',
+                border: '2px solid var(--brand-pink-500)',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--brand-pink-500)',
+                boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                width: 'fit-content'
+              }}
             >
               {fanTypeDisplay.name}
-            </Badge>
-            <p className="text-sm text-muted-foreground flex-1">
+            </div>
+            
+            {/* Description - under the pill */}
+            <p style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+              color: 'var(--neutral-600)',
+              margin: 0
+            }}>
               {fanTypeDisplay.description}
             </p>
           </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-small, 12px)', marginTop: 'var(--spacing-small, 12px)' }}>
 
-          {/* Join Year */}
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <span className="font-medium">Live since {identity.join_year}</span>
-          </div>
-
-          {/* Home City */}
-          {identity.home_city && (
+            {/* Join Year */}
             <div className="flex items-center gap-2 text-sm">
-              <MapPin className="w-4 h-4 text-muted-foreground" />
-              <div className="flex-1">
-                <span className="font-medium">Home Scene: </span>
-                <span className="text-muted-foreground">{identity.home_city}</span>
-              </div>
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <span className="font-medium">Live since {identity.join_year}</span>
             </div>
-          )}
 
-          {!identity.home_city && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="w-4 h-4" />
-              <span>No location set</span>
-            </div>
-          )}
+            {/* Home City */}
+            {identity.home_city && (
+              <div className="flex items-center gap-2 text-sm">
+                <MapPin className="w-4 h-4 text-muted-foreground" />
+                <div className="flex-1">
+                  <span className="font-medium">Home Scene: </span>
+                  <span className="text-muted-foreground">{identity.home_city}</span>
+                </div>
+              </div>
+            )}
+
+            {!identity.home_city && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <MapPin className="w-4 h-4" />
+                <span>No location set</span>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
 import { SinglePhotoUpload } from '@/components/ui/photo-upload';
+import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
 
 interface ProfileEditProps {
   currentUserId: string;

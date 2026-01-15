@@ -1,0 +1,130 @@
+/**
+ * Component Showcase Styles
+ * 
+ * Styles for the component showcase page.
+ * Uses design tokens for spacing and typography.
+ */
+
+.component-showcase {
+  min-height: 100vh;
+  background-color: var(--color-off-white, #FCFCFC);
+  width: 100%;
+  position: relative;
+  /* Enable scrolling for trackpad/mouse - this is the scrollable container */
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* Enable smooth scrolling */
+  scroll-behavior: smooth;
+  /* Ensure proper scrolling on all devices */
+  overscroll-behavior: contain;
+}
+
+.component-showcase__content {
+  width: 100%;
+  padding: var(--spacing-grouped, 24px) var(--spacing-screen-margin-x, 20px);
+  padding-bottom: var(--spacing-bottom-nav, 112px);
+  box-sizing: border-box;
+  /* Content should not have overflow, parent handles scrolling */
+  min-height: calc(100vh - var(--spacing-bottom-nav, 112px));
+}
+
+.component-showcase__title {
+  font-size: var(--typography-h1-size, 35px);
+  font-weight: var(--typography-h1-weight, 700);
+  line-height: var(--typography-h1-line-height, 1.2);
+  color: var(--color-off-black, #0E0E0E);
+  font-family: var(--font-family);
+  margin: 0 0 var(--spacing-small, 12px) 0;
+}
+
+.component-showcase__subtitle {
+  font-size: var(--typography-body-size, 20px);
+  font-weight: var(--typography-body-weight, 500);
+  line-height: var(--typography-body-line-height, 1.5);
+  color: var(--color-dark-grey, #5D646F);
+  font-family: var(--font-family);
+  margin: 0 0 var(--spacing-grouped, 24px) 0;
+}
+
+.component-showcase__header {
+  margin-bottom: var(--spacing-big-section, 60px);
+}
+
+.component-showcase__actions {
+  margin-top: var(--spacing-grouped, 24px);
+}
+
+/* Component Group - 60px spacing between groups */
+.component-group {
+  margin-bottom: var(--spacing-big-section, 60px);
+}
+
+.component-group__title {
+  font-size: var(--typography-h2-size, 24px);
+  font-weight: var(--typography-h2-weight, 700);
+  line-height: var(--typography-h2-line-height, 1.3);
+  color: var(--color-off-black, #0E0E0E);
+  font-family: var(--font-family);
+  margin: 0 0 var(--spacing-grouped, 24px) 0;
+}
+
+/* Component Subgroup - for organizing variants within a component group */
+.component-subgroup {
+  margin-bottom: var(--spacing-grouped, 24px);
+}
+
+.component-subgroup__title {
+  font-size: var(--typography-body-size, 20px);
+  font-weight: var(--typography-accent-weight, 700);
+  line-height: var(--typography-body-line-height, 1.5);
+  color: var(--color-off-black, #0E0E0E);
+  font-family: var(--font-family);
+  margin: 0 0 var(--spacing-small, 12px) 0;
+}
+
+/* Component Variants - 6px spacing between variants */
+.component-variants {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-inline, 6px);
+}
+
+.component-variant {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-inline, 6px);
+  padding: var(--spacing-small, 12px);
+  background-color: var(--color-off-white, #FCFCFC);
+  border: 1px solid var(--color-light-grey, #C9C9C9);
+  border-radius: var(--radius-corner, 10px);
+  /* Ensure full-width buttons fit and are centered */
+  overflow-x: hidden;
+  align-items: center;
+}
+
+/* Special styling for SearchBar variants - allow them to be visible */
+.component-variant--search-bar {
+  align-items: stretch; /* Allow SearchBar to fill width */
+  overflow-x: visible; /* Allow SearchBar to be visible even if it extends */
+}
+
+.component-variant__label {
+  font-size: var(--typography-meta-size, 16px);
+  font-weight: var(--typography-meta-weight, 500);
+  line-height: var(--typography-meta-line-height, 1.5);
+  color: var(--color-dark-grey, #5D646F);
+  font-family: var(--font-family);
+  margin: 0;
+}
+
+.component-variant__note {
+  font-size: var(--typography-meta-size, 16px);
+  font-weight: var(--typography-meta-weight, 500);
+  line-height: var(--typography-meta-line-height, 1.5);
+  color: var(--color-dark-grey, #5D646F);
+  font-family: var(--font-family);
+  font-style: italic;
+  margin: 0;
+}
+

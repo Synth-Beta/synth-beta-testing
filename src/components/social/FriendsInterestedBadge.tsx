@@ -48,7 +48,7 @@ export function FriendsInterestedBadge({ eventId, onClick }: FriendsInterestedBa
         f.user_id === user.id ? f.related_user_id : f.user_id
       );
 
-      // Get how many friends are interested in this event
+      // Get how many friends are interested in this event (preferred table)
       const { data: interestedFriends, error } = await supabase
         .from('user_event_relationships')
         .select('user_id')
@@ -56,9 +56,34 @@ export function FriendsInterestedBadge({ eventId, onClick }: FriendsInterestedBa
         .eq('relationship_type', 'interested')
         .in('user_id', friendIds);
 
-      if (error) throw error;
+      if (!error && interestedFriends) {
+        setFriendCount(interestedFriends.length);
+        return;
+      }
 
-      setFriendCount(interestedFriends?.length || 0);
+      if (error) {
+        console.error('Error loading friends interested from user_event_relationships:', error);
+      }
+
+      const { data: eventData } = await supabase
+        .from('events')
+        .select('jambase_event_id')
+        .eq('id', eventId)
+        .maybeSingle();
+
+      const jambaseEventId = eventData?.jambase_event_id || eventId;
+      const { data: fallbackInterested, error: fallbackError } = await supabase
+        .from('user_jambase_events')
+        .select('user_id')
+        .eq('jambase_event_id', jambaseEventId)
+        .in('user_id', friendIds);
+
+      if (fallbackError) {
+        console.error('Error loading friends interested from user_jambase_events:', fallbackError);
+        return;
+      }
+
+      setFriendCount(fallbackInterested?.length || 0);
     } catch (error) {
       console.error('Error loading friends interested:', error);
     } finally {
@@ -71,14 +96,42 @@ export function FriendsInterestedBadge({ eventId, onClick }: FriendsInterestedBa
   }
 
   return (
-    <Badge
-      variant="secondary"
-      className="bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-pointer"
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        height: '22px',
+        paddingLeft: 'var(--spacing-small, 12px)',
+        paddingRight: 'var(--spacing-small, 12px)',
+        borderRadius: 'var(--radius-corner, 10px)',
+        backgroundColor: 'var(--info-blue-050)',
+        border: '2px solid var(--info-blue-500)',
+        fontFamily: 'var(--font-family)',
+        fontSize: 'var(--typography-meta-size, 16px)',
+        fontWeight: 'var(--typography-meta-weight, 500)',
+        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+        color: 'var(--info-blue-500)',
+        boxShadow: '0 4px 4px 0 var(--shadow-color)',
+        gap: 'var(--spacing-inline, 6px)',
+        cursor: onClick ? 'pointer' : 'default'
+      }}
       onClick={onClick}
+      onMouseEnter={(e) => {
+        if (onClick) {
+          e.currentTarget.style.backgroundColor = 'var(--info-blue-050)';
+          e.currentTarget.style.opacity = '0.9';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (onClick) {
+          e.currentTarget.style.backgroundColor = 'var(--info-blue-050)';
+          e.currentTarget.style.opacity = '1';
+        }
+      }}
     >
-      <Users className="h-3 w-3 mr-1" />
-      {friendCount} friend{friendCount !== 1 ? 's' : ''} interested
-    </Badge>
+      <Users size={16} />
+      <span>{friendCount} friend{friendCount !== 1 ? 's' : ''} interested</span>
+    </div>
   );
 }
 

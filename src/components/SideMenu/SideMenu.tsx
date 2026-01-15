@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Icon } from '@/components/Icon';
 import { UserInfo } from '@/components/profile/UserInfo';
 import { SynthButton } from '@/components/Button/SynthButton';
@@ -10,30 +11,56 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/types/database.types';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
 
+export interface SideMenuProps {
+  /**
+   * Whether the menu is open
+   */
+  isOpen: boolean;
+
+  /**
+   * Callback to close the menu
+   */
+  onClose: () => void;
+
+  /**
+   * Callback when hamburger/X button is clicked (for swapping icon)
+   */
+  onToggle?: () => void;
+
+  /**
+   * Navigation callbacks
+   */
+  onNavigateToNotifications?: () => void;
+  onNavigateToProfile?: (userId?: string, tab?: 'timeline' | 'interested') => void;
+  onNavigateToSettings?: () => void;
+  onNavigateToVerification?: () => void;
+
+  /**
+   * Optional callback for sign out action
+   * If not provided, will sign out and navigate to "/"
+   */
+  onSignOut?: () => void;
+}
 
 /**
  * SideMenu Component
- * 
+ *
  * Right-side drawer menu that slides in from the right.
- * 
+ *
  * Layout:
  * - Drawer width = screen width - 78px
  * - 78px overlay (OffBlack50) on the left
  * - Safe area spacer + 44px header bar with X button
  * - UserInfo component at top of content
- * - Menu items in order: Notifications, Event Timeline, Interested, Settings
- * - Logout button as primary SynthButton
+ *
+ * Menu order:
+ * Notifications
+ * Event Timeline
+ * Interested
+ * Settings
+ *
+ * Logout button is primary SynthButton
  */
-export interface SideMenuProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onToggle?: () => void;
-
-  onNavigateToNotifications?: () => void;
-  onNavigateToProfile?: (id?: string, tab?: 'timeline' | 'interested') => void;
-  onNavigateToSettings?: () => void;
-  onNavigateToVerification?: () => void;
-}
 
 export const SideMenu: React.FC<SideMenuProps> = ({
   isOpen,
@@ -43,102 +70,66 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   onNavigateToProfile,
   onNavigateToSettings,
   onNavigateToVerification,
+  onSignOut,
 }) => {
-
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { accountInfo } = useAccountType();
   const [userProfile, setUserProfile] = useState<Tables<'users'> | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // Fetch user profile data
+  // Fetch user profile data when menu opens
   useEffect(() => {
     const fetchUserProfile = async () => {
+      if (!isOpen) return;
+
       if (!user) {
-        console.log('SideMenu: No user, setting loading to false');
-        setLoading(false);
         setUserProfile(null);
         return;
       }
 
-      // Fetch when menu opens or when user becomes available
-      // (Don't block on menu state since we want data ready when menu opens)
-
       try {
-        console.log('SideMenu: Fetching user profile for user.id:', user.id);
-        setLoading(true);
-        
-        // Try fetching by user_id first (primary key relationship)
         const { data, error } = await supabase
           .from('users')
           .select('name, username, avatar_url')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        console.log('SideMenu: Query result by user_id:', { data, error });
-
-        if (error) {
-          if (error.code === 'PGRST116') {
-            // No rows found - try fallback
-            console.log('SideMenu: No user found by user_id, trying by id');
-            const { data: fallbackData, error: fallbackError } = await supabase
-              .from('users')
-              .select('name, username, avatar_url')
-              .eq('id', user.id)
-              .maybeSingle();
-            
-            console.log('SideMenu: Fallback query result by id:', { fallbackData, fallbackError });
-            
-            if (fallbackError && fallbackError.code !== 'PGRST116') {
-              console.error('SideMenu: Error in fallback query:', fallbackError);
-            }
-            
-            if (fallbackData) {
-              console.log('SideMenu: Setting profile from fallback:', fallbackData);
-              setUserProfile(fallbackData);
-            } else {
-              console.warn('SideMenu: No user profile found in database');
-              setUserProfile(null);
-            }
-          } else {
-            console.error('SideMenu: Error fetching user profile:', error);
-            setUserProfile(null);
-          }
-        } else if (data) {
-          console.log('SideMenu: Setting profile from primary query:', data);
-          setUserProfile(data);
+        if (error && error.code === 'PGRST116') {
+          const { data: fallbackData } = await supabase
+            .from('users')
+            .select('name, username, avatar_url')
+            .eq('id', user.id)
+            .maybeSingle();
+          setUserProfile(fallbackData || null);
+        } else if (!error) {
+          setUserProfile(data || null);
         } else {
-          console.warn('SideMenu: No data returned from query');
           setUserProfile(null);
         }
       } catch (error) {
-        console.error('SideMenu: Exception in fetchUserProfile:', error);
+        console.error('SideMenu: Error fetching user profile', error);
         setUserProfile(null);
-      } finally {
-        setLoading(false);
-        console.log('SideMenu: Loading set to false');
       }
     };
 
     fetchUserProfile();
   }, [isOpen, user]);
 
-  // Extract initial from name
   const getInitial = (name: string | null | undefined): string => {
     if (!name) return '?';
     const trimmed = name.trim();
-    if (trimmed.length === 0) return '?';
+    if (!trimmed) return '?';
     return trimmed[0].toUpperCase();
   };
 
-  // Handle overlay click (78px area on the left)
+  // Close when clicking overlay
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Only close if clicking directly on overlay, not on drawer
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
-  // Handle X button click
+  // Close via X button
   const handleCloseClick = () => {
     onClose();
     if (onToggle) {
@@ -146,15 +137,26 @@ export const SideMenu: React.FC<SideMenuProps> = ({
     }
   };
 
-  // Handle logout
+  // Logout handler
   const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Error signing out:', error);
+    onClose();
+
+    if (onSignOut) {
+      await onSignOut();
+    } else {
+      try {
+        await supabase.auth.signOut();
+      } catch (error) {
+        console.error('Error signing out:', error);
+      }
+      navigate('/');
     }
   };
+
+  // Hard unmount when closed
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <>
@@ -164,7 +166,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
         onClick={handleOverlayClick}
         aria-hidden="true"
       />
-      
+
       {/* Drawer (screen width - 78px) */}
       <aside
         className="side-menu__drawer"
@@ -172,10 +174,10 @@ export const SideMenu: React.FC<SideMenuProps> = ({
         aria-modal="true"
         aria-label="Navigation menu"
       >
-        {/* Safe area spacer - seamless background */}
+        {/* Safe area spacer */}
         <div className="side-menu__safe-area-spacer" />
-        
-        {/* Header bar - 44px height with X button */}
+
+        {/* Header bar */}
         <div className="side-menu__header-bar">
           <button
             className="side-menu__close-button"
@@ -187,96 +189,86 @@ export const SideMenu: React.FC<SideMenuProps> = ({
           </button>
         </div>
 
-        {/* Menu Content - starts 20px after header bar */}
+        {/* Content */}
         <div className="side-menu__content">
-          {/* User Info Section */}
+          {/* User Info */}
           <div className="side-menu__user-info-section">
-            {loading ? (
-              <div className="flex items-center gap-3">
-                <div className="w-[45px] h-[45px] rounded-full bg-gray-200 animate-pulse" />
-                <div className="flex-1">
-                  <div className="h-5 w-32 bg-gray-200 rounded animate-pulse mb-2" />
-                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
-                </div>
-              </div>
-            ) : (
-              <UserInfo
-                variant="user"
-                name={userProfile?.name || user?.email?.split('@')[0] || 'User'}
-                username={userProfile?.username || undefined}
-                initial={getInitial(userProfile?.name || user?.email)}
-                imageUrl={userProfile?.avatar_url || undefined}
-              />
-            )}
+            <UserInfo
+              variant="user"
+              name={userProfile?.name || user?.email?.split('@')[0] || 'User'}
+              username={userProfile?.username || undefined}
+              initial={getInitial(userProfile?.name || user?.email)}
+              imageUrl={userProfile?.avatar_url || undefined}
+            />
           </div>
 
-          {/* Primary Navigation Items */}
+          {/* Navigation */}
           <div className="side-menu__list">
             <MenuCategory
               label="Notifications"
               icon="bell"
               onPress={() => {
-                if (onNavigateToNotifications) {
-                  onNavigateToNotifications();
-                }
+                onNavigateToNotifications?.();
                 onClose();
               }}
             />
+
             <MenuCategory
               label="Event Timeline"
               icon="music"
               onPress={() => {
                 if (onNavigateToProfile) {
+                  sessionStorage.setItem('profileTab', 'timeline');
                   onNavigateToProfile(undefined, 'timeline');
                 }
                 onClose();
               }}
             />
+
             <MenuCategory
               label="Interested"
               icon="heart"
               onPress={() => {
                 if (onNavigateToProfile) {
+                  sessionStorage.setItem('profileTab', 'interested');
                   onNavigateToProfile(undefined, 'interested');
                 }
                 onClose();
               }}
             />
+
             <MenuCategory
               label="Settings"
               icon="settings"
               onPress={() => {
-                if (onNavigateToSettings) {
-                  onNavigateToSettings();
-                } else {
-                  console.log('Settings clicked');
-                }
+                onNavigateToSettings?.();
                 onClose();
               }}
             />
           </div>
 
-          {/* Verification Status Section */}
+          {/* Verification */}
           {user && accountInfo && (
-            <div className="side-menu__verification-section">
-              <VerificationStatusCard
-                userId={user.id}
-                accountType={accountInfo.account_type || 'user'}
-                verified={accountInfo.verified || false}
-              />
-            </div>
+            <>
+              <div className="side-menu__section-divider" aria-hidden="true" />
+              <div className="side-menu__verification-section">
+                <VerificationStatusCard
+                  userId={user.id}
+                  accountType={accountInfo.account_type || 'user'}
+                  verified={accountInfo.verified || false}
+                />
+              </div>
+              <div className="side-menu__verification-divider" aria-hidden="true" />
+            </>
           )}
 
-          {/* Logout Button - Primary SynthButton */}
+          {/* Logout */}
           <div className="side-menu__logout-section">
             <SynthButton
               variant="primary"
               size="standard"
               fullWidth
-              onClick={() => {
-                handleLogout();
-                onClose();
-              }}
+              onClick={handleLogout}
             >
               Log out
             </SynthButton>
@@ -288,4 +280,3 @@ export const SideMenu: React.FC<SideMenuProps> = ({
 };
 
 export default SideMenu;
-

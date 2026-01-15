@@ -1,3 +1,28 @@
+import synthPlaceholderImage from '@/assets/Synth_Placeholder.png';
+
+// JamBase placeholder image URL that should be replaced
+const JAMBASE_PLACEHOLDER_URL = 'https://www.jambase.com/wp-content/uploads/2021/08/jambase-default-band-image-bw-1480x832.png';
+const SYNTH_PLACEHOLDER_PATH = synthPlaceholderImage;
+
+/**
+ * Replace JamBase placeholder image URL with Synth placeholder
+ * This should be called on any image URL before displaying or storing
+ */
+export function replaceJambasePlaceholder(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) {
+    return null;
+  }
+  
+  // Check if the URL matches the JamBase placeholder (case-insensitive, with or without protocol)
+  if (imageUrl.includes('jambase-default-band-image-bw-1480x832.png') || 
+      imageUrl === JAMBASE_PLACEHOLDER_URL ||
+      imageUrl.includes('jambase.com/wp-content/uploads/2021/08/jambase-default-band-image-bw-1480x832.png')) {
+    return SYNTH_PLACEHOLDER_PATH;
+  }
+  
+  return imageUrl;
+}
+
 const EVENT_FALLBACK_IMAGES = [
   '/Generic Images/1.jpeg',
   '/Generic Images/2.jpeg',
@@ -34,7 +59,7 @@ function hashString(input: string): number {
 
 export function getFallbackEventImage(seed?: string): string {
   if (fallbackImageCount === 0) {
-    return '/placeholder.svg';
+    return SYNTH_PLACEHOLDER_PATH;
   }
 
   if (!seed) {

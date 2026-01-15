@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Input } from '@/components/ui/input';
+import { SearchBar } from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,7 +44,6 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);
   const [showManualArtistForm, setShowManualArtistForm] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -268,7 +267,9 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
     setIsOpen(false);
     setSelectedIndex(-1);
     setCurrentPage(1);
-    inputRef.current?.blur();
+    // Blur the search input
+    const input = document.getElementById('event-search-input') as HTMLInputElement;
+    input?.blur();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -299,7 +300,9 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
     setEvents(null);
     setIsOpen(false);
     setSelectedIndex(-1);
-    inputRef.current?.focus();
+    // Focus the search input after clearing
+    const input = document.getElementById('event-search-input') as HTMLInputElement;
+    input?.focus();
   };
 
   const handlePageChange = (newPage: number) => {
@@ -487,19 +490,15 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
           {/* Search Input */}
           <div className="relative">
             <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="Search for an artist..."
+              <div className="flex-1">
+                <SearchBar
                   value={query}
-                  onChange={handleInputChange}
+                  onChange={(value) => setQuery(value)}
+                  placeholder="Search for an artist..."
+                  widthVariant="full"
                   onFocus={handleInputFocus}
                   onBlur={handleInputBlur}
-                  onKeyPress={handleKeyPress}
-                  className="pl-10 pr-10"
-                  autoComplete="off"
+                  id="event-search-input"
                 />
                 {query && !isSearching && (
                   <Button

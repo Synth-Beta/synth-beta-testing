@@ -17,16 +17,31 @@
   box-sizing: border-box;
 }
 
-/* Ensure icons in MenuCategory are DarkGrey */
-.menu-category .icon-text__icon {
-  filter: brightness(0) saturate(100%) invert(36%) sepia(7%) saturate(1200%) hue-rotate(180deg) brightness(95%) contrast(85%);
-  /* Converts black (#0E0E0E) to DarkGrey (#5D646F) */
+/* Ensure ALL icons in MenuCategory are DarkGrey */
+/* Using currentColor in SVGs - set color via CSS for exact color accuracy */
+.menu-category .icon-text__icon,
+.menu-category .synth-icon,
+.menu-category svg,
+.menu-category .icon-text__icon svg,
+.menu-category .icon-text__icon .synth-icon {
+  color: var(--neutral-600) !important;
+}
+
+/* Also target icons directly within MenuCategory content */
+.menu-category__content .icon-text__icon,
+.menu-category__content .synth-icon,
+.menu-category__content svg {
+  color: var(--neutral-600) !important;
+}
+
+/* Target IconText component icons within MenuCategory */
+.menu-category .icon-text .icon-text__icon,
+.menu-category .icon-text .synth-icon,
+.menu-category .icon-text svg {
+  color: var(--neutral-600) !important;
 }
 
 .menu-category__content {
-  /* IconText indented an additional 20px from container left padding */
-  /* Container has 20px left padding, so IconText starts at 40px from container edge */
-  margin-left: var(--spacing-screen-margin-x, 20px);
   width: 100%;
 }
 
@@ -45,16 +60,16 @@
 }
 
 .menu-category--clickable:hover {
-  background-color: var(--color-light-pink, #FDF2F7);
+  background-color: var(--brand-pink-050);
 }
 
 .menu-category--clickable:active {
-  background-color: var(--color-light-pink, #FDF2F7);
+  background-color: var(--brand-pink-050);
   opacity: 0.8;
 }
 
 .menu-category--clickable:focus-visible {
-  outline: 2px solid var(--color-synth-pink, #CC2486);
+  outline: 2px solid var(--brand-pink-500);
   outline-offset: -2px;
   border-radius: var(--radius-corner, 10px);
 }

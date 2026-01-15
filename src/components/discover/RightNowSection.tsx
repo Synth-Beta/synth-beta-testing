@@ -36,15 +36,8 @@ export const RightNowSection: React.FC<RightNowSectionProps> = ({
 
   const loadInterestedEvents = async () => {
     try {
-      const { data } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
-        .eq('user_id', currentUserId)
-        .eq('relationship_type', 'interested');
-
-      if (data) {
-        setInterestedEvents(new Set(data.map(r => r.event_id)));
-      }
+      const interestedSet = await UserEventService.getUserInterestedEventIdSet(currentUserId);
+      setInterestedEvents(interestedSet);
     } catch (error) {
       console.error('Error loading interested events:', error);
     }

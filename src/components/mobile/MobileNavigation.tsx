@@ -1,13 +1,6 @@
 import React from 'react';
-import HouseIcon from '@/assets/icons/House.svg';
-import HouseSelectedIcon from '@/assets/icons/HouseSelected.svg';
-import DiscoverIcon from '@/assets/icons/Discover.svg';
-import DiscoverSelectedIcon from '@/assets/icons/DiscoverSelected.svg';
-import CircleCommentIcon from '@/assets/icons/CircleComment.svg';
-import CircleCommentSelectedIcon from '@/assets/icons/CircleCommentSelected.svg';
-import UserIcon from '@/assets/icons/User.svg';
-import UserSelectedIcon from '@/assets/icons/UserSelected.svg';
-import PlusIcon from '@/assets/icons/Plus.svg';
+import { Icon } from '@/components/Icon';
+import { Home, Compass, MessageCircle, User, Plus } from 'lucide-react';
 
 interface MobileNavigationProps {
   currentView: 'feed' | 'search' | 'profile' | 'chat';
@@ -88,9 +81,9 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
             }}
           >
             {currentView === 'feed' ? (
-              <img src={HouseSelectedIcon} alt="Home" className="w-6 h-6" />
+              <Icon name="houseSelected" size={24} alt="Home" />
             ) : (
-              <img src={HouseIcon} alt="Home" className="w-6 h-6" />
+              <Home size={24} strokeWidth={2} aria-hidden="true" />
             )}
           </button>
 
@@ -106,9 +99,9 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
             }}
           >
             {currentView === 'search' ? (
-              <img src={DiscoverSelectedIcon} alt="Discover" className="w-6 h-6" />
+              <Icon name="discoverSelected" size={24} alt="Discover" />
             ) : (
-              <img src={DiscoverIcon} alt="Discover" className="w-6 h-6" />
+              <Compass size={24} strokeWidth={2} aria-hidden="true" />
             )}
           </button>
 
@@ -124,7 +117,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
               borderRadius: '20px',
             }}
           >
-            <img src={PlusIcon} alt="Plus" className="w-6 h-6" style={{ filter: 'brightness(0) invert(1)' }} />
+            <Plus size={24} strokeWidth={2} style={{ color: 'var(--neutral-50)' }} aria-hidden="true" />
           </button>
 
           {/* Messages */}
@@ -139,9 +132,9 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
             }}
           >
             {currentView === 'chat' ? (
-              <img src={CircleCommentSelectedIcon} alt="Messages" className="w-6 h-6" />
+              <Icon name="circleCommentSelected" size={24} alt="Messages" />
             ) : (
-              <img src={CircleCommentIcon} alt="Messages" className="w-6 h-6" />
+              <MessageCircle size={24} strokeWidth={2} aria-hidden="true" />
             )}
           </button>
 
@@ -157,9 +150,9 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
             }}
           >
             {currentView === 'profile' ? (
-              <img src={UserSelectedIcon} alt="Profile" className="w-6 h-6" />
+              <Icon name="userSelected" size={24} alt="Profile" />
             ) : (
-              <img src={UserIcon} alt="Profile" className="w-6 h-6" />
+              <User size={24} strokeWidth={2} aria-hidden="true" />
             )}
           </button>
         </div>

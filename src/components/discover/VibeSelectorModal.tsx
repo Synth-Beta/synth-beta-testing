@@ -8,28 +8,14 @@ import {
 } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { VibeCard } from './VibeCard';
-import {
-  Music,
-  Calendar,
-  DollarSign,
-  Building2,
-  Clock,
-  TrendingUp,
-  Star,
-  MapPin,
-  Sparkles,
-  Users,
-  Award,
-  Zap,
-  type LucideIcon,
-} from 'lucide-react';
+import type { IconName } from '@/config/iconMapping';
 import type { VibeType } from '@/services/discoverVibeService';
 
 interface Vibe {
   id: VibeType;
   title: string;
   description: string;
-  icon: LucideIcon;
+  icon: IconName;
   category: 'taste' | 'context' | 'discovery' | 'opinion';
 }
 
@@ -39,21 +25,21 @@ const VIBES: Vibe[] = [
     id: 'similar-artists',
     title: 'Similar to Artists You Love',
     description: 'Events by artists similar to ones you\'ve seen',
-    icon: Music,
+    icon: 'music',
     category: 'taste',
   },
   {
     id: 'last-5-attended',
     title: 'Based on Your Last 5 Shows',
     description: 'Recommendations from your recent attendance',
-    icon: Calendar,
+    icon: 'calendar',
     category: 'taste',
   },
   {
     id: 'similar-taste-users',
     title: 'Highly Rated by Similar Tastes',
     description: 'Events loved by users with similar music taste',
-    icon: Users,
+    icon: 'twoUsers',
     category: 'taste',
   },
   // By Context
@@ -61,28 +47,28 @@ const VIBES: Vibe[] = [
     id: 'this-weekend',
     title: 'This Weekend',
     description: 'Shows happening this Saturday and Sunday',
-    icon: Calendar,
+    icon: 'calendar',
     category: 'context',
   },
   {
     id: 'under-25',
     title: 'Under $25',
     description: 'Affordable shows under $25',
-    icon: DollarSign,
+    icon: 'dollar',
     category: 'context',
   },
   {
     id: 'small-venues',
     title: 'Small Venues',
     description: 'Intimate shows at smaller venues',
-    icon: Building2,
+    icon: 'building',
     category: 'context',
   },
   {
     id: 'late-shows',
     title: 'Late Shows',
     description: 'Shows starting after 10 PM',
-    icon: Clock,
+    icon: 'clock',
     category: 'context',
   },
   // By Discovery Energy
@@ -90,14 +76,14 @@ const VIBES: Vibe[] = [
     id: 'up-and-coming',
     title: 'Up-and-Coming Artists',
     description: 'Artists with fewer than 10 reviews',
-    icon: TrendingUp,
+    icon: 'trendingUp',
     category: 'discovery',
   },
   {
     id: 'less-than-10-reviews',
     title: 'Events with <10 Reviews',
     description: 'Be among the first to review these shows',
-    icon: Sparkles,
+    icon: 'mediumShootingStar',
     category: 'discovery',
   },
   // By Opinion
@@ -105,21 +91,21 @@ const VIBES: Vibe[] = [
     id: 'highest-rated-month',
     title: 'Highest-Rated This Month',
     description: 'Events rated 4.5+ stars this month',
-    icon: Star,
+    icon: 'star',
     category: 'opinion',
   },
   {
     id: 'best-venues',
     title: 'Best Venues',
     description: 'Events at venues rated 4+ stars',
-    icon: Award,
+    icon: 'ribbonAward',
     category: 'opinion',
   },
   {
     id: 'best-value',
     title: 'Best Value',
     description: 'Events rated highly for value-for-price',
-    icon: Zap,
+    icon: 'target',
     category: 'opinion',
   },
 ];

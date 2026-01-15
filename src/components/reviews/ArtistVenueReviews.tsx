@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Star, Music, MapPin, ChevronDown, ChevronUp, User, Calendar } from 'lucide-react';
 import { ReviewService } from '@/services/reviewService';
 import { supabase } from '@/integrations/supabase/client';
+import SynthPlaceholder from '@/assets/Synth_Placeholder.png';
 
 interface ArtistVenueReviewsProps {
   artistName: string;
@@ -594,7 +595,7 @@ export function ArtistVenueReviews({
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3">
             <img 
-              src={review.reviewer_avatar || '/placeholder.svg'} 
+              src={review.reviewer_avatar || SynthPlaceholder} 
               alt={review.reviewer_name}
               className="w-8 h-8 rounded-full"
             />

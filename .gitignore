@@ -18,11 +18,6 @@ dist-ssr
 *.env
 !.env.example
 
-# Private keys and secrets - NEVER commit these!
-backend/secure/
-*.p8
-AuthKey_*.p8
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

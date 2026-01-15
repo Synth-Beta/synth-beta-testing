@@ -1131,16 +1131,14 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
           {/* Combined Search and Notifications - One Page */}
           <div className="p-4 space-y-6">
             {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
+            <div className="w-full">
+              <SearchBar
+                value={userSearchQuery}
+                onChange={(value) => handleUserSearch({ target: { value } } as React.ChangeEvent<HTMLInputElement>)}
+                placeholder="Search by email or username..."
+                widthVariant="full"
                 id="user-search-input"
                 name="userSearch"
-                type="text"
-                placeholder="Search by email or username..."
-                value={userSearchQuery}
-                onChange={handleUserSearch}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
               />
             </div>
 

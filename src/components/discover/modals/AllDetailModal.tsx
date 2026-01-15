@@ -3,8 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Star, Heart } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
+import { Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { UserEventService } from '@/services/userEventService';
 
 interface AllDetailModalProps {
   isOpen: boolean;
@@ -42,15 +44,8 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
   const loadDetails = async () => {
     try {
       if (result.type === 'event') {
-        const interested = await supabase
-          .from('user_event_relationships')
-          .select('id')
-          .eq('user_id', currentUserId)
-          .eq('event_id', result.id)
-          .eq('relationship_type', 'interested')
-          .maybeSingle();
-        
-        setIsInterested(!!interested.data);
+        const interested = await UserEventService.isUserInterested(currentUserId, result.id);
+        setIsInterested(interested);
 
         // Get review count and average rating
         const { data: reviews } = await supabase
@@ -98,22 +93,7 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
         const newState = !isInterested;
         setIsInterested(newState);
         
-        if (newState) {
-          await supabase
-            .from('user_event_relationships')
-            .insert({
-              user_id: currentUserId,
-              event_id: result.id,
-              relationship_type: 'interested',
-            });
-        } else {
-          await supabase
-            .from('user_event_relationships')
-            .delete()
-            .eq('user_id', currentUserId)
-            .eq('event_id', result.id)
-            .eq('relationship_type', 'interested');
-        }
+        await UserEventService.setEventInterest(currentUserId, result.id, newState);
       } else {
         // Follow/unfollow for artist or venue
         const newState = !isFollowing;
@@ -164,7 +144,7 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
         <DialogHeader>
           <div className="flex items-center gap-3 mb-4">
             <Button variant="ghost" size="icon" onClick={onClose}>
-              <ArrowLeft className="h-4 w-4" />
+              <Icon name="leftArrow" size={16} color="var(--neutral-900)" />
             </Button>
             <DialogTitle className="flex-1">{result.name}</DialogTitle>
           </div>
@@ -194,9 +174,11 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
                     {Array.from({ length: 5 }).map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-4 h-4 ${
-                          i < Math.floor(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-                        }`}
+                        size={16}
+                        style={{
+                          color: i < Math.floor(rating) ? 'var(--color-yellow)' : 'var(--neutral-300)',
+                          fill: i < Math.floor(rating) ? 'var(--color-yellow)' : 'none',
+                        }}
                       />
                     ))}
                   </div>
@@ -215,7 +197,12 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
               >
                 {result.type === 'event' ? (
                   <>
-                    <Heart className={`w-4 h-4 mr-2 ${isInterested ? 'fill-current' : ''}`} />
+                    <Icon
+                      name={isInterested ? 'largeHeart' : 'heart'}
+                      size={16}
+                      className="mr-2"
+                      color={isInterested ? 'var(--brand-pink-500)' : 'var(--neutral-900)'}
+                    />
                     {isInterested ? 'Interested' : "I'm Interested"}
                   </>
                 ) : (
