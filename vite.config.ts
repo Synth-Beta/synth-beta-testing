@@ -1,11 +1,13 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { preserveErrorLogs } from "./vite-plugin-preserve-error-logs";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const ticketmasterProxyTarget = env.VITE_TICKETMASTER_PROXY_TARGET || 'http://localhost:3001';
+  const isProduction = mode === 'production';
 
   return {
     base: './', // Use relative paths for Capacitor
@@ -35,6 +37,9 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      // SECURITY: Remove console logs in production while preserving console.error
+      // This allows production error logging while removing debug logs
+      ...(isProduction ? [preserveErrorLogs()] : []),
     ],
     resolve: {
       alias: {
@@ -45,12 +50,21 @@ export default defineConfig(({ mode }) => {
       // Optimize for mobile
       target: 'es2015',
       cssCodeSplit: true,
+      // SECURITY: Source maps disabled to prevent users from reading original source code
       sourcemap: false,
       minify: 'esbuild',
+      // SECURITY: Remove debugger statements in production
+      // Console logs are removed via preserveErrorLogs plugin (preserves console.error)
+      esbuild: {
+        drop: isProduction ? ['debugger'] : [],
+      },
       rollupOptions: {
         output: {
           manualChunks: undefined, // Let Vite handle chunking
         },
+        // Note: Capacitor plugins must be bundled normally
+        // They contain JavaScript code that needs to be included in the bundle
+        // The native bridge is handled separately by Capacitor's native runtime
       },
     },
   };

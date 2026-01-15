@@ -158,8 +158,10 @@ export class AnalyticsDataService {
   static async getAllFriendships(): Promise<any[]> {
     try {
       const { data, error } = await supabase
-        .from('friends')
-        .select('*');
+        .from('user_relationships')
+        .select('*')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted');
 
       if (error) {
         console.error('Error getting friendships for analytics:', error);

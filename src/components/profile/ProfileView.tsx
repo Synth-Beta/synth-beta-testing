@@ -48,7 +48,6 @@ import { ProfileStarBuckets } from './ProfileStarBuckets';
 import { PassportModal } from '@/components/discover/PassportModal';
 import { PassportService } from '@/services/passportService';
 import { Sparkles } from 'lucide-react';
-import { TopRightMenu } from '@/components/TopRightMenu';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
 
 interface ProfileViewProps {
@@ -252,8 +251,20 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     const hash = window.location.hash.substring(1);
     if (hash === 'spotify') {
       setActiveTab('spotify');
+      return; // Don't check sessionStorage if hash is present
     }
-  }, []);
+    
+    // Check for tab preference from sessionStorage (set by SideMenu navigation)
+    // Only read if we're viewing own profile to avoid conflicts
+    if (isViewingOwnProfile) {
+      const preferredTab = sessionStorage.getItem('profileTab');
+      if (preferredTab && ['timeline', 'interested', 'passport'].includes(preferredTab)) {
+        // Map 'timeline' to 'passport' for backward compatibility
+        setActiveTab(preferredTab === 'timeline' ? 'passport' : preferredTab);
+        sessionStorage.removeItem('profileTab'); // Clear after use
+      }
+    }
+  }, [isViewingOwnProfile]);
 
   useEffect(() => {
     // Show by default; optionally restrict later based on friends
@@ -625,6 +636,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           id: item.review.id,
           user_id: item.review.user_id,
           event_id: item.review.event_id,
+          artist_id: item.review.artist_id,
+          venue_id: item.review.venue_id,
           rating: item.review.rating,
           rank_order: (item.review as any).rank_order,
           artist_performance_rating: (item.review as any).artist_performance_rating,
@@ -651,6 +664,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           // Store Event_date as Date object for easy access
           Event_date: reviewEventDate,
           event_date: reviewEventDate, // Also store as lowercase for compatibility (Date object)
+          // Add artist_name and venue_name directly for review cards
+          artist_name: item.event?.artist_name,
+          venue_name: item.event?.venue_name,
           // Add jambase_events data for the modal to access (keep full event object)
           jambase_events: item.event || null,
           event: {
@@ -659,6 +675,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 ? `${item.event.artist_name} at ${item.event.venue_name}`
                 : item.event?.event_name || 'Concert Review'),
             location: item.event?.venue_name || 'Unknown Venue',
+            artist_name: item.event?.artist_name,
+            venue_name: item.event?.venue_name,
             // Convert Event_date (Date) to string for event_date field, or use event.event_date, or fallback to created_at
             event_date: reviewEventDate 
               ? reviewEventDate.toISOString().split('T')[0] 
@@ -1594,11 +1612,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           <h1 className="text-xl font-bold text-gray-900 truncate text-center">
             {profile.username ? `@${profile.username}` : profile.name}
           </h1>
-          <div className="absolute right-4">
-          <TopRightMenu />
         </div>
       </div>
-          </div>
       <div className="w-full max-w-full p-4 overflow-x-hidden">
         {/* Enhanced Profile Header */}
         <div className="mb-6 bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 rounded-2xl p-4 sm:p-6 border border-pink-100/50 shadow-sm relative overflow-hidden w-full max-w-full">

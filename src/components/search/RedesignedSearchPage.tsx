@@ -648,11 +648,17 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
 
 const fetchUsers = async (query: string, currentUserId: string, limit: number = 25, offset: number = 0): Promise<UserSearchResult[]> => {
   try {
-    const likeQuery = `%${query}%`;
+    // Use trigram index: prefix match for single words (faster), full wildcard for multi-word (uses trigram index)
+    const trimmedQuery = query.trim();
+    const isSingleWord = trimmedQuery.split(/\s+/).length === 1;
+    const searchPattern = isSingleWord && trimmedQuery.length > 0
+      ? `${trimmedQuery}%`  // Prefix match for single words (faster)
+      : `%${trimmedQuery}%`; // Full wildcard for multi-word queries (uses trigram index)
+    
     const { data, error } = await supabase
       .from('users')
-      .select('user_id, name, avatar_url, bio, verified, account_type')
-      .ilike('name', likeQuery)
+      .select('user_id, name, avatar_url, bio, account_type')
+      .ilike('name', searchPattern)
       .neq('user_id', currentUserId)
       .order('name', { ascending: true })
       .range(offset, offset + limit - 1);
@@ -668,7 +674,7 @@ const fetchUsers = async (query: string, currentUserId: string, limit: number = 
       username: profile.name, // Use name as username since username column doesn't exist
       avatar_url: profile.avatar_url,
       bio: profile.bio,
-      verified: profile.verified,
+      verified: false, // Verification status is stored in user_verifications table, not users table
       account_type: profile.account_type,
     }));
   } catch (error) {
@@ -679,14 +685,32 @@ const fetchUsers = async (query: string, currentUserId: string, limit: number = 
 
 const fetchEvents = async (query: string, limit: number = 25, offset: number = 0): Promise<EventSearchResult[]> => {
   try {
-    const likeQuery = `%${query}%`;
-    // Use helper view for normalized schema (artist_name and venue_name columns removed)
+    // Use trigram pattern: prefix match for single words (faster), full wildcard for multi-word
+    const trimmedQuery = query.trim();
+    const isSingleWord = trimmedQuery.split(/\s+/).length === 1;
+    const searchPattern = isSingleWord && trimmedQuery.length > 0
+      ? `${trimmedQuery}%`  // Prefix match for single words (faster)
+      : `%${trimmedQuery}%`; // Full wildcard for multi-word queries
+    
+    // Events table uses artist_id and venue_id (FKs), not artist_name/venue_name
+    // Join with artists and venues to get names
     const { data, error } = await supabase
-      .from('events_with_artist_venue')
-      .select('id, title, artist_name_normalized, venue_name_normalized, event_date, images')
-      .or(`title.ilike.${likeQuery},artist_name_normalized.ilike.${likeQuery},venue_name_normalized.ilike.${likeQuery}`)
+      .from('events')
+      .select(`
+        id,
+        title,
+        event_date,
+        images,
+        event_media_url,
+        media_urls,
+        artist_id,
+        venue_id,
+        artists(id, name),
+        venues(id, name)
+      `)
+      .ilike('title', searchPattern)
       .order('event_date', { ascending: true })
-      .limit(25);
+      .range(offset, offset + limit - 1);
 
     if (error) {
       console.error('Error searching events:', error);
@@ -707,11 +731,15 @@ const fetchEvents = async (query: string, limit: number = 25, offset: number = 0
         imageUrl = firstImage?.url ?? null;
       }
 
+      // Extract artist and venue names from joined data
+      const artistName = event.artists?.name || null;
+      const venueName = event.venues?.name || null;
+
       return {
         id: event.id,
         title: event.title,
-        artistName: event.artist_name_normalized || null,
-        venueName: event.venue_name_normalized || null,
+        artistName,
+        venueName,
         eventDate: event.event_date,
         imageUrl,
       };

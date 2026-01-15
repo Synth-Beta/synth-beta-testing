@@ -45,9 +45,11 @@ export function FriendActivityFeed({ limit = 10 }: { limit?: number }) {
 
       // Get user's friends
       const { data: friendsData } = await supabase
-        .from('friends')
-        .select('user1_id, user2_id')
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+        .from('user_relationships')
+        .select('user_id, related_user_id')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${user.id},related_user_id.eq.${user.id}`);
 
       if (!friendsData || friendsData.length === 0) {
         setLoading(false);
@@ -55,17 +57,17 @@ export function FriendActivityFeed({ limit = 10 }: { limit?: number }) {
       }
 
       const friendIds = friendsData.map((f) =>
-        f.user1_id === user.id ? f.user2_id : f.user1_id
+        f.user_id === user.id ? f.related_user_id : f.user_id
       );
 
       // Get friend event interests
       const { data: interestsData } = await supabase
-        .from('user_jambase_events')
+        .from('user_event_relationships')
         .select(`
           user_id,
-          jambase_event_id,
+          event_id,
           created_at,
-          jambase_events (
+          events:events!user_event_relationships_event_id_fkey (
             id,
             title,
             artist_name,
@@ -73,13 +75,14 @@ export function FriendActivityFeed({ limit = 10 }: { limit?: number }) {
             event_date,
             poster_image_url
           ),
-          profiles (
+          users:users!user_event_relationships_user_id_fkey (
             user_id,
             name,
             avatar_url
           )
         `)
         .in('user_id', friendIds)
+        .eq('relationship_type', 'interested')
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -89,16 +92,16 @@ export function FriendActivityFeed({ limit = 10 }: { limit?: number }) {
       }
 
       const formattedActivities: FriendActivity[] = interestsData.map((item: any) => ({
-        id: `${item.user_id}-${item.jambase_event_id}`,
+        id: `${item.user_id}-${item.event_id}`,
         friend_id: item.user_id,
-        friend_name: item.profiles?.name || 'Friend',
-        friend_avatar_url: item.profiles?.avatar_url,
-        event_id: item.jambase_event_id,
-        event_title: item.jambase_events?.title || '',
-        event_artist_name: item.jambase_events?.artist_name || '',
-        event_venue_name: item.jambase_events?.venue_name || '',
-        event_date: item.jambase_events?.event_date || '',
-        event_poster_image_url: item.jambase_events?.poster_image_url,
+        friend_name: item.users?.name || 'Friend',
+        friend_avatar_url: item.users?.avatar_url,
+        event_id: item.event_id,
+        event_title: item.events?.title || '',
+        event_artist_name: item.events?.artist_name || '',
+        event_venue_name: item.events?.venue_name || '',
+        event_date: item.events?.event_date || '',
+        event_poster_image_url: item.events?.poster_image_url,
         activity_type: 'interested',
         activity_date: item.created_at,
       }));

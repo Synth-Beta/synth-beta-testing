@@ -100,7 +100,7 @@ import { EventFilters, FilterState } from '@/components/search/EventFilters';
 import { parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { FriendSuggestionsRail } from '@/components/feed/FriendSuggestionsRail';
 import { FriendsService } from '@/services/friendsService';
-import { normalizeCityName } from '@/utils/cityNormalization';
+import { normalizeCityName, deduplicateCities } from '@/utils/cityNormalization';
 import { RadiusSearchService } from '@/services/radiusSearchService';
 import { useNavigate } from 'react-router-dom';
 import type { JamBaseEventResponse, JamBaseEvent } from '@/types/eventTypes';
@@ -570,7 +570,6 @@ export const UnifiedFeed = ({
           console.log('✅ Auto-applying city filter from profile:', cityName);
           
           // Deduplicate cities to ensure we don't add duplicates
-          const { deduplicateCities } = await import('@/utils/cityNormalization');
           const deduplicatedCities = deduplicateCities([cityName]);
           
           // Auto-apply city filter
@@ -589,63 +588,26 @@ export const UnifiedFeed = ({
           // Get city coordinates for location-based boosts
           if (cityName) {
             try {
-              const { RadiusSearchService } = await import('@/services/radiusSearchService');
-              const coords = await RadiusSearchService.getCityCoordinates(cityName);
-              if (coords) {
-                console.log('✅ Got city coordinates:', coords);
-                setUserLocation(coords);
-                setMapCenter([coords.lat, coords.lng]);
+              const cityCoords = await RadiusSearchService.getCityCoordinates(cityName);
+              if (cityCoords) {
+                console.log('Got city coordinates:', cityCoords);
+                setUserLocation(cityCoords);
+                setMapCenter([cityCoords.lat, cityCoords.lng]);
               }
             } catch (coordError) {
-              console.warn('⚠️ Could not get city coordinates:', coordError);
+              console.warn('Could not get city coordinates:', coordError);
             }
           }
           
           // Mark as applied so we don't do it again
           autoCityAppliedRef.current = true;
           
-          // Load feed data DIRECTLY with the filters we just set
-          // This ensures the city filter is applied immediately (no waiting for state to update)
+          // Load feed data using loadFeedData function with the new filters
+          // Pass newFilters directly to ensure city filter is applied immediately
+          // (React state updates are asynchronous, so we can't rely on filters state yet)
           console.log('🔄 Initial load with auto-applied city filter:', cityName);
-          
-          setLoading(true);
-          setFeedItems([]);
-          setHasMore(true);
-          
-          try {
-            const rawItems = await UnifiedFeedService.getFeedItems({
-              userId: currentUserId,
-              limit: 20,
-              offset: 0,
-              includePrivateReviews: true,
-              filters: {
-                genres: [],
-                selectedCities: deduplicatedCities, // Already deduplicated above
-                dateRange: undefined,
-                daysOfWeek: [],
-                filterByFollowing: undefined
-              }
-            });
-            
-            const items = rawItems.filter(item => {
-              if (item.type === 'review') {
-                if ((item as any).deleted_at || (item as any).is_deleted) return false;
-                if (!item.content && (!item.photos || item.photos.length === 0)) return false;
-                if (item.content === 'ATTENDANCE_ONLY' || item.content === '[deleted]' || item.content === 'DELETED') return false;
-              }
-              return true;
-            });
-            
-            setFeedItems(items);
-            const eventCount = items.filter(item => item.type === 'event').length;
-            const gotFullPage = items.length >= 20 || eventCount >= 20;
-            setHasMore(gotFullPage);
-            setLoading(false);
-            console.log('✅ Initial load complete:', items.length, 'items', eventCount, 'events');
-          } catch (error) {
-            console.error('Error in initial load:', error);
-            setLoading(false);
-          }
+          setRefreshOffset(0);
+          loadFeedData(0, false, false, newFilters);
           
           // Load other data in parallel (non-blocking)
           Promise.all([
@@ -3618,3 +3580,4 @@ export const UnifiedFeed = ({
     </div>
   );
 };
+

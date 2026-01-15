@@ -258,3 +258,6 @@ GRANT EXECUTE ON FUNCTION public.get_venue_events(TEXT, INTEGER) TO authenticate
 
 COMMIT;
 
+
+
+

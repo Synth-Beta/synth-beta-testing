@@ -35,6 +35,10 @@
   }
 }
 
+/* Hide hamburger button when menu is open (menuOpen=true shows X, but SideMenu has its own close button) */
+.global-hamburger-button[aria-expanded="true"] {
+  display: none;
+}
 .global-hamburger-button > * {
   margin: 0;
   padding: 0;

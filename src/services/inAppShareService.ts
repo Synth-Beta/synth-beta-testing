@@ -132,26 +132,17 @@ export class InAppShareService {
     customMessage?: string
   ): Promise<EventShareResult> {
     try {
-      // Verify the event exists
-      const { data: event, error: eventError } = await supabase
-        .from('events')
-        .select('id, title, artist_name, venue_name, event_date')
-        .eq('id', eventId)
-        .single();
-
-      if (eventError || !event) {
-        return {
-          success: false,
-          error: 'Event not found'
-        };
-      }
-
-      // Create the default message content
-      const defaultMessage = customMessage || `Check out this event: ${event.title} by ${event.artist_name}!`;
+      // Don't query event details - just use a generic message
+      // The event data will be available via the shared_event_id FK join when displaying
+      // This avoids column name issues and database query errors
+      const defaultMessage = customMessage || `Check out this event!`;
 
       // Insert the message with event share data
       // 3NF COMPLIANT: Only store message-specific metadata, not duplicated event data
       // Event data should be retrieved via shared_event_id FK join
+      // Note: shared_event_id may reference either 'events' or 'jambase_events' table
+      // depending on migration state, so we handle FK errors gracefully
+      // Try with shared_event_id first, then fall back to null + metadata if FK constraint fails
       const { data: message, error: messageError } = await supabase
         .from('messages')
         .insert({
@@ -159,7 +150,7 @@ export class InAppShareService {
           sender_id: userId,
           content: defaultMessage,
           message_type: 'event_share',
-          shared_event_id: eventId,
+          shared_event_id: eventId, // Try with actual event ID first
           metadata: {
             custom_message: customMessage,
             share_context: 'in_app_share'
@@ -172,22 +163,78 @@ export class InAppShareService {
 
       if (messageError) {
         console.error('Error creating share message:', messageError);
+        
+        // If it's a foreign key constraint error or column error, try without the FK (store in metadata instead)
+        if (messageError.code === '23503' || messageError.message?.includes('foreign key') || messageError.code === '42703') {
+          console.warn('FK constraint or column error, retrying without shared_event_id FK');
+          const { data: retryMessage, error: retryError } = await supabase
+            .from('messages')
+            .insert({
+              chat_id: chatId,
+              sender_id: userId,
+              content: defaultMessage,
+              message_type: 'event_share',
+              shared_event_id: null, // Set to null to bypass FK constraint
+              metadata: {
+                custom_message: customMessage,
+                share_context: 'in_app_share',
+                event_id: eventId // Store in metadata as fallback
+              }
+            })
+            .select('id, chat_id')
+            .single();
+            
+          if (retryError) {
+            return {
+              success: false,
+              error: 'Failed to share event: ' + (retryError.message || 'Unknown error')
+            };
+          }
+          
+          // Track the share for analytics (non-blocking - don't fail if this errors)
+          try {
+            await supabase
+              .from('event_shares')
+              .insert({
+                event_id: eventId,
+                sharer_user_id: userId,
+                chat_id: chatId,
+                message_id: retryMessage.id,
+                share_type: 'direct_chat'
+              });
+          } catch (analyticsError) {
+            // Don't fail the share if analytics tracking fails
+            console.warn('Failed to track event share in analytics (non-critical):', analyticsError);
+          }
+
+          return {
+            success: true,
+            message_id: retryMessage.id,
+            chat_id: retryMessage.chat_id
+          };
+        }
+        
         return {
           success: false,
-          error: 'Failed to share event'
+          error: 'Failed to share event: ' + (messageError.message || 'Unknown error')
         };
       }
 
-      // Track the share for analytics
-      await supabase
-        .from('event_shares')
-        .insert({
-          event_id: eventId,
-          sharer_user_id: userId,
-          chat_id: chatId,
-          message_id: message.id,
-          share_type: 'direct_chat' // Will be updated based on chat type
-        });
+      // Track the share for analytics (non-blocking - don't fail if this errors)
+      try {
+        await supabase
+          .from('event_shares')
+          .insert({
+            event_id: eventId,
+            sharer_user_id: userId,
+            chat_id: chatId,
+            message_id: message.id,
+            share_type: 'direct_chat' // Will be updated based on chat type
+          });
+      } catch (analyticsError) {
+        // Don't fail the share if analytics tracking fails
+        console.warn('Failed to track event share in analytics (non-critical):', analyticsError);
+      }
 
       return {
         success: true,
@@ -325,25 +372,10 @@ export class InAppShareService {
         };
       }
 
-      // Get event details if available
-      let eventTitle = '';
-      let artistName = '';
-      let venueName = '';
-      if (review.event_id) {
-        const { data: event } = await supabase
-          .from('events')
-          .select('title, artist_name, venue_name')
-          .eq('id', review.event_id)
-          .single();
-        if (event) {
-          eventTitle = event.title || `${event.artist_name} at ${event.venue_name}`;
-          artistName = event.artist_name || '';
-          venueName = event.venue_name || '';
-        }
-      }
-
-      // Create the default message content
-      const defaultMessage = customMessage || `Check out this review${eventTitle ? ` for ${eventTitle}` : ''}!`;
+      // Don't query event details - just use a generic message
+      // The event data will be available via the review's event_id FK join when displaying
+      // This avoids column name issues and database query errors
+      const defaultMessage = customMessage || `Check out this review!`;
 
       // Insert the message with review share data
       // 3NF COMPLIANT: Only store message-specific metadata, not duplicated review/event data
@@ -368,9 +400,44 @@ export class InAppShareService {
 
       if (messageError) {
         console.error('Error creating review share message:', messageError);
+        
+        // If it's a foreign key constraint error, try without the FK (store in metadata instead)
+        if (messageError.code === '23503' || messageError.message?.includes('foreign key') || messageError.code === '42703') {
+          console.warn('FK constraint or column error, retrying without shared_review_id FK');
+          const { data: retryMessage, error: retryError } = await supabase
+            .from('messages')
+            .insert({
+              chat_id: chatId,
+              sender_id: userId,
+              content: defaultMessage,
+              message_type: 'review_share',
+              shared_review_id: null, // Set to null to bypass FK constraint
+              metadata: {
+                custom_message: customMessage,
+                share_context: 'in_app_share',
+                review_id: reviewId // Store in metadata as fallback
+              }
+            })
+            .select('id, chat_id')
+            .single();
+            
+          if (retryError) {
+            return {
+              success: false,
+              error: 'Failed to share review: ' + (retryError.message || 'Unknown error')
+            };
+          }
+          
+          return {
+            success: true,
+            message_id: retryMessage.id,
+            chat_id: retryMessage.chat_id
+          };
+        }
+        
         return {
           success: false,
-          error: 'Failed to share review'
+          error: 'Failed to share review: ' + (messageError.message || 'Unknown error')
         };
       }
 

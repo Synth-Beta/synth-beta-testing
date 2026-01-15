@@ -32,9 +32,11 @@ export function FriendsInterestedBadge({ eventId, onClick }: FriendsInterestedBa
 
       // Get user's friends
       const { data: friendsData } = await supabase
-        .from('friends')
-        .select('user1_id, user2_id')
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+        .from('user_relationships')
+        .select('user_id, related_user_id')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${user.id},related_user_id.eq.${user.id}`);
 
       if (!friendsData || friendsData.length === 0) {
         setLoading(false);
@@ -43,7 +45,7 @@ export function FriendsInterestedBadge({ eventId, onClick }: FriendsInterestedBa
 
       // Extract friend IDs
       const friendIds = friendsData.map((f) =>
-        f.user1_id === user.id ? f.user2_id : f.user1_id
+        f.user_id === user.id ? f.related_user_id : f.user_id
       );
 
       // Get how many friends are interested in this event

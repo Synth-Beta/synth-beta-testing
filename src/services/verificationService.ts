@@ -168,13 +168,20 @@ export class VerificationService {
         .eq('user_id', userId)
         .eq('was_there', true);
 
-      return calculateUserTrustScore(
+      const breakdown = calculateUserTrustScore(
         profile as any, // Type cast for compatibility
         reviewCount || 0,
         friendCount || 0,
         eventCount || 0,
         attendedCount || 0
       );
+
+      // Include profile data and friend count for display purposes
+      return {
+        ...breakdown,
+        profile: profile as any,
+        friendCount: friendCount || 0,
+      };
     } catch (error) {
       console.error('Error getting trust score breakdown:', error);
       throw error;

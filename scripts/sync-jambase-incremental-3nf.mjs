@@ -641,6 +641,14 @@ async function main() {
   try {
     const dotenv = await import('dotenv');
     dotenv.default.config({ path: '.env.local' });
+    
+    // Map VITE_ prefixed variables to expected names if not already set
+    if (process.env.VITE_SUPABASE_URL && !process.env.SUPABASE_URL) {
+      process.env.SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+    }
+    if (process.env.VITE_SUPABASE_ANON_KEY && !process.env.SUPABASE_ANON_KEY) {
+      process.env.SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+    }
   } catch (e) {
     // dotenv not installed, assume env vars are already set
   }

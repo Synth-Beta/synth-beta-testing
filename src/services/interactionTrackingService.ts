@@ -593,11 +593,12 @@ export const trackInteraction = {
   },
 
   // Review interactions
-  review: (entityType: string, entityId: string, rating?: number, metadata?: Record<string, any>) => {
+  review: (entityType: string, entityId: string, rating?: number, metadata?: Record<string, any>, entityUuid?: string | null) => {
     interactionTracker.queueInteraction({
       eventType: 'review',
       entityType,
       entityId,
+      entityUuid: entityUuid || undefined,
       metadata: {
         rating,
         ...metadata
@@ -672,11 +673,12 @@ export const trackInteraction = {
   },
 
   // Form interactions
-  formSubmit: (formType: string, entityId: string, success: boolean, metadata?: Record<string, any>) => {
+  formSubmit: (formType: string, entityId: string, success: boolean, metadata?: Record<string, any>, entityUuid?: string | null) => {
     interactionTracker.queueInteraction({
       eventType: 'form_submit',
       entityType: formType,
       entityId,
+      entityUuid: entityUuid || undefined,
       metadata: {
         success,
         ...metadata

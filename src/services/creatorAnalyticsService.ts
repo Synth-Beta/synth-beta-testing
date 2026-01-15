@@ -54,11 +54,12 @@ export class CreatorAnalyticsService {
    */
   static async getCreatorStats(creatorId: string): Promise<CreatorStats> {
     try {
-      // Get follower count from artist_follows table (3NF compliant)
+      // Get follower count from follows table (consolidated schema)
       const { count: followerCount } = await supabase
-        .from('artist_follows')
+        .from('follows')
         .select('*', { count: 'exact', head: true })
-        .eq('artist_id', creatorId);
+        .eq('followed_entity_type', 'artist')
+        .eq('followed_entity_id', creatorId);
 
       // Get events created or claimed by this creator
       console.log('🔍 CreatorAnalyticsService: Searching for events with creatorId:', creatorId);

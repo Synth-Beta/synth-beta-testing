@@ -116,7 +116,6 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
           created_at,
           mood_tags,
           genre_tags,
-          reaction_emoji,
           photos,
           was_there,
           is_public,
@@ -211,7 +210,6 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
           artist_name: event?.artist_name || '',
           mood_tags: review.mood_tags || [],
           genre_tags: review.genre_tags || [],
-          reaction_emoji: review.reaction_emoji || null,
           photos: Array.isArray(review.photos) ? review.photos : [],
           category_average: review.rating // Use main rating as category average since detailed ratings don't exist
         };
@@ -992,9 +990,6 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                             </div>
                           )}
                           
-                          {review.reaction_emoji && (
-                            <div className="text-lg">{review.reaction_emoji}</div>
-                          )}
                         </div>
                       ))}
                     </div>

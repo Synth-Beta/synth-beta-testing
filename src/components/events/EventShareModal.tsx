@@ -44,6 +44,7 @@ export function EventShareModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [showChatSelection, setShowChatSelection] = useState(false);
   const { toast } = useToast();
 
   const handleExternalShare = async () => {
@@ -87,6 +88,8 @@ export function EventShareModal({
     if (isOpen) {
       loadShareTargets();
       loadFriends();
+      // Reset chat selection state when modal opens
+      setShowChatSelection(false);
     }
   }, [isOpen, currentUserId]);
 
@@ -330,55 +333,73 @@ export function EventShareModal({
           <p className="text-xs text-gray-600">{event.venue_name} • {new Date(event.event_date).toLocaleDateString()}</p>
         </div>
 
-        {/* External Share Options */}
-        <Button
-          onClick={handleExternalShare}
-          variant="outline"
-          className="w-full border-pink-200 hover:bg-pink-50"
-        >
-          <Share2 className="w-4 h-4 mr-2" />
-          Share Externally
-        </Button>
+        {/* Share Options - Side by Side */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* External Share Button */}
+          <Button
+            onClick={handleExternalShare}
+            variant="outline"
+            className="h-auto py-4 border-pink-200 hover:bg-pink-50 flex flex-col items-center gap-2"
+          >
+            <Share2 className="w-6 h-6 text-pink-500" />
+            <span className="text-sm font-medium">Share Externally</span>
+            <span className="text-xs text-gray-500">Phone, Apps, etc.</span>
+          </Button>
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-gray-500">Or share within Synth</span>
-          </div>
+          {/* Share in Chat Button - Toggles chat selection */}
+          <Button
+            onClick={() => {
+              setShowChatSelection(!showChatSelection);
+              if (!showChatSelection && chats.length === 0 && friends.length === 0 && !loading) {
+                loadShareTargets();
+                loadFriends();
+              }
+            }}
+            variant={showChatSelection ? "default" : "outline"}
+            className={`h-auto py-4 border-pink-200 flex flex-col items-center gap-2 ${
+              showChatSelection 
+                ? 'bg-pink-500 hover:bg-pink-600 text-white border-pink-500' 
+                : 'hover:bg-pink-50'
+            }`}
+          >
+            <MessageCircle className={`w-6 h-6 ${showChatSelection ? 'text-white' : 'text-pink-500'}`} />
+            <span className="text-sm font-medium">Share in Chat</span>
+            <span className={`text-xs ${showChatSelection ? 'text-pink-100' : 'text-gray-500'}`}>Within Synth</span>
+          </Button>
         </div>
 
-        {/* Custom Message */}
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-gray-600">
-            Add a message (optional)
-          </label>
-          <Textarea
-            placeholder="Let's go to this show together! 🎵"
-            value={customMessage}
-            onChange={(e) => setCustomMessage(e.target.value)}
-            rows={1}
-            className="resize-none text-sm"
-          />
-        </div>
+        {/* Chat Selection Section - Expandable */}
+        {showChatSelection && (
+          <>
+            {/* Custom Message */}
+            <div className="space-y-1 mt-4 border-t pt-4">
+              <label className="text-xs font-medium text-gray-600">
+                Add a message (optional)
+              </label>
+              <Textarea
+                placeholder="Let's go to this show together! 🎵"
+                value={customMessage}
+                onChange={(e) => setCustomMessage(e.target.value)}
+                rows={1}
+                className="resize-none text-sm"
+              />
+            </div>
 
-        {/* All Chats Section */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex items-center gap-2 mb-3">
-            <MessageCircle className="w-5 h-5 text-pink-500" />
-            <h3 className="font-semibold text-gray-900">Choose Chats</h3>
-          </div>
+            <div className="flex-1 flex flex-col overflow-hidden mt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <MessageCircle className="w-5 h-5 text-pink-500" />
+                <h3 className="font-semibold text-gray-900">Choose Chats</h3>
+              </div>
 
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search chats..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search chats..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
 
           <div className="flex-1 overflow-y-auto space-y-2 pr-2">
             {loading ? (
@@ -453,8 +474,10 @@ export function EventShareModal({
                 </>
               )}
             </Button>
+            </div>
           </div>
-        </div>
+          </>
+        )}
 
       </DialogContent>
     </Dialog>

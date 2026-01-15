@@ -88,13 +88,14 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
 
     try {
       const { data, error } = await supabase
-        .from('user_jambase_events')
-        .select('jambase_event_id')
-        .eq('user_id', currentUserId);
+        .from('user_event_relationships')
+        .select('event_id')
+        .eq('user_id', currentUserId)
+        .eq('relationship_type', 'interested');
 
       if (error) throw error;
 
-      const interestedSet = new Set(data?.map(item => item.jambase_event_id) || []);
+      const interestedSet = new Set(data?.map(item => item.event_id) || []);
       setInterestedEvents(interestedSet);
     } catch (error) {
       console.error('Error loading interested events:', error);
@@ -110,10 +111,11 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
       if (isCurrentlyInterested) {
         // Remove from interested
         const { error } = await supabase
-          .from('user_jambase_events')
+          .from('user_event_relationships')
           .delete()
           .eq('user_id', currentUserId)
-          .eq('jambase_event_id', eventId);
+          .eq('event_id', eventId)
+          .eq('relationship_type', 'interested');
 
         if (error) throw error;
 
@@ -130,10 +132,11 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
       } else {
         // Add to interested
         const { error } = await supabase
-          .from('user_jambase_events')
+          .from('user_event_relationships')
           .insert({
             user_id: currentUserId,
-            jambase_event_id: eventId
+            event_id: eventId,
+            relationship_type: 'interested'
           });
 
         if (error) throw error;
