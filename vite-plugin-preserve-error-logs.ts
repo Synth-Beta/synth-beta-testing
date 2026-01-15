@@ -1,8 +1,12 @@
 import type { Plugin } from 'vite';
 import { parse } from '@babel/parser';
-import traverse from '@babel/traverse';
 import generate from '@babel/generator';
 import type { Node } from '@babel/types';
+
+// Import traverse with proper handling for both CommonJS and ES modules
+// @babel/traverse exports differently in different environments
+import _traverse from '@babel/traverse';
+const traverse = (_traverse as any).default || _traverse;
 
 /**
  * Plugin to selectively remove console methods while preserving console.error
