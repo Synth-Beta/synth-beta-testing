@@ -24,20 +24,21 @@ set -o pipefail
 echo "🚀 Starting post-clone setup (BEFORE SPM dependency resolution)..."
 echo "=========================================="
 echo "Environment Variables:"
+echo "CI_PRIMARY_REPOSITORY_PATH: ${CI_PRIMARY_REPOSITORY_PATH:-not set}"
 echo "CI_WORKSPACE: ${CI_WORKSPACE:-not set}"
 echo "CI_PROJECT_DIR: ${CI_PROJECT_DIR:-not set}"
 echo "PWD: $(pwd)"
 echo "=========================================="
 
 # Get the project root directory
-# In Xcode Cloud, CI_WORKSPACE is typically /Volumes/workspace/repository
-PROJECT_ROOT="${CI_WORKSPACE:-${CI_PROJECT_DIR:-$(pwd)}}"
+# In Xcode Cloud, CI_PRIMARY_REPOSITORY_PATH is the most reliable path
+# Fallback to CI_WORKSPACE, CI_PROJECT_DIR, or current directory
+PROJECT_ROOT="${CI_PRIMARY_REPOSITORY_PATH:-${CI_WORKSPACE:-${CI_PROJECT_DIR:-$(pwd)}}}"
 
-# If CI_WORKSPACE is set but doesn't have package.json, try going up one level
-if [ -n "${CI_WORKSPACE}" ] && [ ! -f "${CI_WORKSPACE}/package.json" ]; then
-  # Sometimes CI_WORKSPACE points to a subdirectory
-  if [ -f "${CI_WORKSPACE}/../package.json" ]; then
-    PROJECT_ROOT="${CI_WORKSPACE}/.."
+# If the path doesn't have package.json, try going up one level
+if [ ! -f "${PROJECT_ROOT}/package.json" ]; then
+  if [ -f "${PROJECT_ROOT}/../package.json" ]; then
+    PROJECT_ROOT="${PROJECT_ROOT}/.."
   fi
 fi
 
@@ -284,6 +285,18 @@ if [ -d "$PACKAGE_SWIFT_DIR" ]; then
     fi
   done
   cd "$PROJECT_ROOT"
+fi
+
+# Sync Capacitor with iOS project
+echo "🔄 Syncing Capacitor with iOS project..."
+if command -v npx &> /dev/null; then
+  cd "$PROJECT_ROOT"
+  npx cap sync ios || {
+    echo "⚠️  Warning: cap sync ios failed, but continuing..."
+    echo "   This might be okay if Capacitor is already synced"
+  }
+else
+  echo "⚠️  Warning: npx not found, skipping cap sync"
 fi
 
 # Create a marker file to verify script ran
