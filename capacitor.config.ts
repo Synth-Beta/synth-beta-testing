@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.synth.app',
+  appId: 'com.tejpatel.synth',
   appName: 'Synth',
   webDir: 'dist',
   // Mapbox token is configured via VITE_MAPBOX_TOKEN environment variable
