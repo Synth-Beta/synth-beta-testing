@@ -405,15 +405,19 @@ export class UnifiedVenueSearchService {
           } else {
             savedVenue = data;
             // Ensure external_entity_ids is updated
-            await supabase
-              .from('external_entity_ids')
-              .upsert({
-                entity_type: 'venue',
-                entity_uuid: savedVenue.id,
-                source: 'jambase',
-                external_id: venueId
-              }, { onConflict: 'entity_uuid,source,entity_type' })
-              .catch(() => {}); // Ignore errors
+            try {
+              await supabase
+                .from('external_entity_ids')
+                .upsert({
+                  entity_type: 'venue',
+                  entity_uuid: savedVenue.id,
+                  source: 'jambase',
+                  external_id: venueId
+                }, { onConflict: 'entity_uuid,source,entity_type' })
+                .select();
+            } catch {
+              // Ignore errors
+            }
           }
         } else {
           // Insert new venue
@@ -429,15 +433,19 @@ export class UnifiedVenueSearchService {
           } else {
             savedVenue = data;
             // Insert into external_entity_ids for normalization
-            await supabase
-              .from('external_entity_ids')
-              .insert({
-                entity_type: 'venue',
-                entity_uuid: savedVenue.id,
-                source: 'jambase',
-                external_id: venueId
-              })
-              .catch(() => {}); // Ignore duplicate errors
+            try {
+              await supabase
+                .from('external_entity_ids')
+                .insert({
+                  entity_type: 'venue',
+                  entity_uuid: savedVenue.id,
+                  source: 'jambase',
+                  external_id: venueId
+                })
+                .select();
+            } catch {
+              // Ignore duplicate errors
+            }
           }
         }
 
