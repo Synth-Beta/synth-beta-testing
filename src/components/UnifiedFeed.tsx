@@ -212,6 +212,7 @@ export const UnifiedFeed = ({
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true); // Track if we're still checking for city/filters
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedReviewEvent, setSelectedReviewEvent] = useState<any>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | undefined>();
@@ -491,10 +492,12 @@ export const UnifiedFeed = ({
   useEffect(() => {
     if (sessionExpired) {
       setLoading(false);
+      setIsInitializing(false); // Mark initialization complete even when session expired
       return;
     }
     
     if (!currentUserId) {
+      setIsInitializing(false); // Mark initialization complete when no user ID
       return;
     }
     
@@ -607,6 +610,7 @@ export const UnifiedFeed = ({
           // (React state updates are asynchronous, so we can't rely on filters state yet)
           console.log('🔄 Initial load with auto-applied city filter:', cityName);
           setRefreshOffset(0);
+          setIsInitializing(false); // Mark initialization complete before loading feed
           loadFeedData(0, false, false, newFilters);
           
           // Load other data in parallel (non-blocking)
@@ -621,7 +625,8 @@ export const UnifiedFeed = ({
         console.warn('⚠️ Error loading user city from profile:', error);
       }
       
-      // If no city found, load data normally - parallelize independent operations
+      // If no city found or error occurred, load data normally - parallelize independent operations
+      setIsInitializing(false); // Mark initialization complete before loading feed
       Promise.all([
         Promise.resolve(loadFeedData(0, false)),
         loadUpcomingEvents(),
@@ -2361,8 +2366,8 @@ export const UnifiedFeed = ({
     );
   };
 
-  if (loading) {
-    console.log('🔍 Showing skeleton loading state');
+  if (loading || isInitializing) {
+    console.log('🔍 Showing skeleton loading state', { loading, isInitializing });
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="max-w-4xl mx-auto p-6 space-y-6 w-full">

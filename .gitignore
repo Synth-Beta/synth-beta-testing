@@ -18,6 +18,18 @@ dist-ssr
 *.env
 !.env.example
 
+# Security - API Keys and Authentication Files - NEVER commit these!
+*.p8
+*.p12
+*.pem
+*.cer
+*.key
+**/secure/**
+**/secrets/**
+AuthKey*.p8
+backend/secure/
+supabase/migrations/backend/secure/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
