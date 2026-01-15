@@ -1263,9 +1263,9 @@ interface FriendEventInterest {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </div>
-      </div>
+                      </div>
+                  </div>
+                </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
         {/* Location Filter - compact info section above feeds */}
         {feedLocation && (

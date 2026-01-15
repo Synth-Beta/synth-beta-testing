@@ -1,70 +1,51 @@
 #!/bin/bash
 
-# Xcode Cloud Pre-Build Script
-# This script runs before Xcode resolves package dependencies
-# It ensures npm dependencies are installed so Swift Package Manager can find Capacitor packages
+# Xcode Cloud Post-Clone Script
+# This script runs IMMEDIATELY after the repository is cloned, BEFORE Swift Package Manager
+# tries to resolve dependencies. This is critical for Capacitor apps where npm packages
+# need to exist before SPM can resolve the local package paths.
 #
-# Xcode Cloud automatically runs scripts in ci_scripts/ directory:
-# - ci_pre_xcodebuild.sh: Runs before xcodebuild
-# - ci_post_xcodebuild.sh: Runs after xcodebuild (optional)
+# Execution order in Xcode Cloud:
+# 1. Repository cloned
+# 2. ci_post_clone.sh runs (THIS SCRIPT) ← Install npm dependencies here
+# 3. Swift Package Manager resolves dependencies ← Needs node_modules to exist
+# 4. ci_pre_xcodebuild.sh runs
+# 5. xcodebuild runs
 
-set -e  # Exit on error
+# Don't use set -e initially, we want to see all errors
+# set -e  # Exit on error
 
 # Enable verbose output for debugging
 set -x
 
-echo "🚀 Starting pre-build setup..."
+# Exit on error for critical commands
+set -o pipefail
+
+echo "🚀 Starting post-clone setup (BEFORE SPM dependency resolution)..."
 echo "=========================================="
 echo "Environment Variables:"
 echo "CI_WORKSPACE: ${CI_WORKSPACE:-not set}"
 echo "CI_PROJECT_DIR: ${CI_PROJECT_DIR:-not set}"
-echo "CI_PRIMARY_REPOSITORY_PATH: ${CI_PRIMARY_REPOSITORY_PATH:-not set}"
-echo "SRCROOT: ${SRCROOT:-not set}"
 echo "PWD: $(pwd)"
 echo "=========================================="
 
-# Navigate to repository root
-# In Xcode Cloud, the workspace is at /Volumes/workspace/repository
-# Try multiple paths to find the repository root
-REPO_ROOT=""
+# Get the project root directory
+PROJECT_ROOT="${CI_WORKSPACE:-${CI_PROJECT_DIR:-$(pwd)}}"
 
-# Try Xcode Cloud environment variables first
-if [ -n "${CI_WORKSPACE}" ] && [ -f "${CI_WORKSPACE}/package.json" ]; then
-    REPO_ROOT="${CI_WORKSPACE}"
-elif [ -n "${CI_PRIMARY_REPOSITORY_PATH}" ] && [ -f "${CI_PRIMARY_REPOSITORY_PATH}/package.json" ]; then
-    REPO_ROOT="${CI_PRIMARY_REPOSITORY_PATH}"
-elif [ -n "${CI_PROJECT_DIR}" ] && [ -f "${CI_PROJECT_DIR}/package.json" ]; then
-    REPO_ROOT="${CI_PROJECT_DIR}"
-elif [ -n "${SRCROOT}" ] && [ -f "${SRCROOT}/../../package.json" ]; then
-    REPO_ROOT="${SRCROOT}/../.."
-else
-    # Try to find package.json by going up from current directory
-    CURRENT_DIR=$(pwd)
-    while [ "$CURRENT_DIR" != "/" ]; do
-        if [ -f "${CURRENT_DIR}/package.json" ]; then
-            REPO_ROOT="${CURRENT_DIR}"
-            break
-        fi
-        CURRENT_DIR=$(dirname "$CURRENT_DIR")
-    done
-fi
+echo "📁 Project root: $PROJECT_ROOT"
 
-if [ -z "$REPO_ROOT" ] || [ ! -f "${REPO_ROOT}/package.json" ]; then
-    echo "❌ Error: Could not find repository root (package.json not found)"
-    echo "   Tried: CI_WORKSPACE=${CI_WORKSPACE}"
-    echo "   Tried: CI_PRIMARY_REPOSITORY_PATH=${CI_PRIMARY_REPOSITORY_PATH}"
-    echo "   Tried: CI_PROJECT_DIR=${CI_PROJECT_DIR}"
-    echo "   Tried: SRCROOT=${SRCROOT}"
-    echo "   Current directory: $(pwd)"
-    exit 1
-fi
-
-echo "📁 Repository root: ${REPO_ROOT}"
-cd "${REPO_ROOT}"
+# Navigate to project root
+cd "$PROJECT_ROOT"
 
 # Verify we're in the right place
 echo "📂 Current directory contents:"
 ls -la | head -20
+
+# Check if package.json exists
+if [ ! -f "package.json" ]; then
+  echo "❌ Error: package.json not found at $PROJECT_ROOT"
+  exit 1
+fi
 
 # Check if Node.js is available
 if ! command -v node &> /dev/null; then
@@ -72,44 +53,62 @@ if ! command -v node &> /dev/null; then
   exit 1
 fi
 
-# Check if npm is available
-if ! command -v npm &> /dev/null; then
-  echo "❌ Error: npm not found. Xcode Cloud should have npm installed."
-  exit 1
-fi
-
 echo "✅ Node.js version: $(node --version)"
 echo "✅ npm version: $(npm --version)"
 
 # Install dependencies
-echo "📦 Installing npm dependencies..."
+echo "📦 Installing npm dependencies (CRITICAL: Must happen before SPM resolves dependencies)..."
 echo "Using npm ci for clean, reproducible installs..."
 
+# Ensure we're in the right directory
+echo "📍 Verifying location before npm install:"
+echo "   Current directory: $(pwd)"
+echo "   Full path: $(pwd -P)"
+echo "   package.json exists: $([ -f package.json ] && echo 'yes' || echo 'no')"
+
 # Try npm ci first, fall back to npm install if package-lock.json is missing
+INSTALL_SUCCESS=false
 if [ -f "package-lock.json" ]; then
-  npm ci --prefer-offline --no-audit || {
-    echo "⚠️  npm ci failed, trying npm install..."
-    npm install --prefer-offline --no-audit
+  echo "   package-lock.json found, using npm ci..."
+  npm ci --prefer-offline --no-audit && INSTALL_SUCCESS=true || {
+    echo "⚠️  npm ci failed (exit code: $?), trying npm install..."
+    npm install --no-audit && INSTALL_SUCCESS=true || {
+      echo "❌ npm install also failed (exit code: $?)"
+      INSTALL_SUCCESS=false
+    }
   }
 else
   echo "⚠️  package-lock.json not found, using npm install..."
-  npm install --prefer-offline --no-audit
+  npm install --no-audit && INSTALL_SUCCESS=true || {
+    echo "❌ npm install failed (exit code: $?)"
+    INSTALL_SUCCESS=false
+  }
 fi
 
-if [ $? -ne 0 ]; then
+if [ "$INSTALL_SUCCESS" = false ]; then
   echo "❌ Error: npm install failed"
   echo "Debug info:"
-  echo "  Node version: $(node --version)"
-  echo "  npm version: $(npm --version)"
+  echo "  Node version: $(node --version 2>&1)"
+  echo "  npm version: $(npm --version 2>&1)"
   echo "  Current dir: $(pwd)"
   echo "  package.json exists: $([ -f package.json ] && echo 'yes' || echo 'no')"
+  echo "  Listing current directory:"
+  ls -la | head -10
   exit 1
 fi
 
 echo "✅ npm install completed successfully"
+echo "📦 Verifying node_modules was created:"
+if [ -d "node_modules" ]; then
+  echo "   ✓ node_modules directory exists"
+  echo "   Number of packages: $(ls -d node_modules/* 2>/dev/null | wc -l)"
+else
+  echo "   ❌ node_modules directory does NOT exist!"
+  exit 1
+fi
 
 # Verify Capacitor packages are installed
-echo "🔍 Verifying Capacitor packages..."
+echo "🔍 Verifying Capacitor packages (must exist before SPM resolves dependencies)..."
 
 REQUIRED_PACKAGES=(
   "@capacitor/app"
@@ -141,14 +140,6 @@ if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
   fi
 fi
 
-# Sync Capacitor (optional, but recommended)
-echo "🔄 Syncing Capacitor..."
-if command -v npx &> /dev/null; then
-  npx cap sync ios || echo "⚠️  Warning: Capacitor sync failed, but continuing..."
-else
-  echo "⚠️  Warning: npx not found, skipping Capacitor sync"
-fi
-
 # Verify node_modules structure
 echo "📂 Verifying node_modules structure..."
 if [ ! -d "node_modules/@capacitor" ]; then
@@ -166,13 +157,11 @@ ls -la node_modules/@capacitor/ || echo "⚠️  Could not list Capacitor packag
 echo "🔍 Final verification of required packages..."
 for package in "${REQUIRED_PACKAGES[@]}"; do
   PACKAGE_PATH="node_modules/$package"
-  ABSOLUTE_PATH="$(cd "$(dirname "$PACKAGE_PATH")" 2>/dev/null && pwd)/$(basename "$PACKAGE_PATH")" || ABSOLUTE_PATH=""
+  ABSOLUTE_PATH="$(cd "$(dirname "$PACKAGE_PATH")" 2>/dev/null && pwd)/$(basename "$PACKAGE_PATH")" || ABSOLUTE_PATH="$PACKAGE_PATH"
   
   if [ -d "$PACKAGE_PATH" ]; then
     echo "✅ $package exists at: $PACKAGE_PATH"
-    if [ -n "$ABSOLUTE_PATH" ]; then
-      echo "   Absolute path: $ABSOLUTE_PATH"
-    fi
+    echo "   Absolute path: $ABSOLUTE_PATH"
     # Verify it's readable
     if [ -r "$PACKAGE_PATH" ]; then
       echo "   ✓ Package is readable"
@@ -190,9 +179,7 @@ for package in "${REQUIRED_PACKAGES[@]}"; do
         else
           echo "   ⚠️  Warning: Package.swift relative path might not resolve correctly"
           echo "      Expected from Package.swift: $EXPECTED_PATH"
-          if [ -n "$ABSOLUTE_PATH" ]; then
-            echo "      Actual location: $ABSOLUTE_PATH"
-          fi
+          echo "      Actual location: $ABSOLUTE_PATH"
         fi
       fi
     else
@@ -209,9 +196,10 @@ done
 
 # Create a marker file to verify script ran
 echo "📝 Creating verification marker..."
-echo "Pre-build script completed at $(date)" > .xcodecloud_prebuild_complete
+echo "Post-clone script completed at $(date)" > .xcodecloud_postclone_complete
 echo "Node modules installed: $(ls -d node_modules/@capacitor/* 2>/dev/null | wc -l) packages"
 
 echo "✅ All dependencies installed successfully!"
-echo "✅ Pre-build setup complete!"
+echo "✅ Post-clone setup complete!"
+echo "✅ node_modules is now available for Swift Package Manager to resolve dependencies"
 echo "=========================================="

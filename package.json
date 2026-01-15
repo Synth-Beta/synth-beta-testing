@@ -23,6 +23,10 @@
     "cap:open:ios": "npx cap open ios",
     "cap:open:android": "npx cap open android",
     "ios:build": "npm run build && npx cap sync ios",
+    "ios:fix-deps": "./scripts/fix-ios-dependencies.sh",
+    "ios:sync": "./scripts/build-and-sync-ios.sh",
+    "ios:archive": "./scripts/build-and-upload-ios.sh --skip-upload",
+    "ios:upload": "./scripts/build-and-upload-ios.sh",
     "android:build": "npm run build && npx cap sync android",
     "sync-admin": "./scripts/sync-admin-to-getsynth.sh",
     "push:worker": "node backend/push-notification-worker.js"
@@ -73,6 +77,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
+    "dotenv": "^17.2.3",
     "embla-carousel-react": "^8.6.0",
     "express-rate-limit": "^8.2.1",
     "input-otp": "^1.4.2",
