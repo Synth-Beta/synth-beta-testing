@@ -4,9 +4,10 @@ import { SkeletonNotificationCard } from '@/components/skeleton/SkeletonNotifica
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
 import { SearchBar } from '@/components/SearchBar';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
   MessageCircle, 
@@ -569,7 +570,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
           console.log('🔍 fetchChats: Events with artist_id:', events, 'Error:', eventsError);
           
           // Get unique artist_ids (UUIDs - direct foreign keys to artists.id)
-          const artistUuids = [...new Set(events?.map(e => e.artist_id).filter(Boolean) as string[])] || [];
+          const artistUuids = events ? [...new Set(events.map(e => e.artist_id).filter(Boolean) as string[])] : [];
           console.log('🔍 fetchChats: Artist UUIDs:', artistUuids);
           
           if (artistUuids.length > 0) {

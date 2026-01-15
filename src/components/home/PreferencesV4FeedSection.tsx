@@ -48,6 +48,24 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
   const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
   const CACHE_PREFIX = 'recommendations_';
 
+  // Sort events chronologically by event_date (earliest to latest)
+  // Events with missing or invalid dates are sorted to the end
+  const sortEventsByDate = (events: PersonalizedEvent[]): PersonalizedEvent[] => {
+    return [...events].sort((a, b) => {
+      // Helper to get timestamp, or a very large number for invalid/missing dates (pushes to end)
+      const getTimestamp = (event: PersonalizedEvent): number => {
+        if (!event.event_date) return Number.MAX_SAFE_INTEGER;
+        const date = new Date(event.event_date);
+        // Check if date is valid (not NaN)
+        return isNaN(date.getTime()) ? Number.MAX_SAFE_INTEGER : date.getTime();
+      };
+      
+      const dateA = getTimestamp(a);
+      const dateB = getTimestamp(b);
+      return dateA - dateB; // Earliest date first (ascending), invalid dates at end
+    });
+  };
+
   // Generate cache key from userId and filters
   const getCacheKey = (userId: string, filters?: PreferencesV4FeedFilters | FilterState): string => {
     if (!filters) {
@@ -304,9 +322,10 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
         cachedEvents = getCachedRecommendations(cacheKey);
         
         if (cachedEvents && cachedEvents.length > 0) {
-          // Show cached data immediately
+          // Show cached data immediately (sorted by date)
           console.log('✅ Loading cached recommendations:', cachedEvents.length, 'events');
-          setEvents(cachedEvents);
+          const sortedCached = sortEventsByDate(cachedEvents);
+          setEvents(sortedCached);
           setLoading(false); // Don't show loading spinner
           setError(null);
           showingCachedData = true;
@@ -340,17 +359,62 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
 
       // Update UI with fresh data
       if (append) {
-        // Deduplicate events by ID to prevent duplicate keys
+        // Deduplicate events and merge new events at correct chronological positions
+        // This preserves existing event positions while inserting new events correctly
         setEvents((prev) => {
           const existingIds = new Set(prev.map(e => e.id));
           const newEvents = result.events.filter(e => !existingIds.has(e.id));
-          return [...prev, ...newEvents];
+          
+          // Sort only the new events chronologically
+          const sortedNewEvents = sortEventsByDate(newEvents);
+          
+          // Helper to get timestamp for comparison
+          const getTimestamp = (event: PersonalizedEvent): number => {
+            if (!event.event_date) return Number.MAX_SAFE_INTEGER;
+            const date = new Date(event.event_date);
+            return isNaN(date.getTime()) ? Number.MAX_SAFE_INTEGER : date.getTime();
+          };
+          
+          // Merge new events into existing list at correct chronological positions
+          // This maintains stability: existing events keep their relative positions
+          const merged: PersonalizedEvent[] = [];
+          let newIdx = 0;
+          
+          for (const existingEvent of prev) {
+            const existingTimestamp = getTimestamp(existingEvent);
+            
+            // Insert all new events that should come before this existing event
+            // Use < instead of <= to maintain stable sort: events with equal timestamps
+            // should preserve append order (new events come after existing)
+            while (newIdx < sortedNewEvents.length) {
+              const newTimestamp = getTimestamp(sortedNewEvents[newIdx]);
+              if (newTimestamp < existingTimestamp) {
+                merged.push(sortedNewEvents[newIdx]);
+                newIdx++;
+              } else {
+                break;
+              }
+            }
+            
+            // Add the existing event
+            merged.push(existingEvent);
+          }
+          
+          // Append any remaining new events that come after all existing events
+          while (newIdx < sortedNewEvents.length) {
+            merged.push(sortedNewEvents[newIdx]);
+            newIdx++;
+          }
+          
+          return merged;
         });
       } else {
-        setEvents(result.events);
-        // Cache the fresh data for next time (only for initial page)
-        if (pageNum === 0 && result.events.length > 0) {
-          saveCachedRecommendations(cacheKey, result.events);
+        // Sort events chronologically before setting
+        const sortedEvents = sortEventsByDate(result.events);
+        setEvents(sortedEvents);
+        // Cache the sorted fresh data for next time (only for initial page)
+        if (pageNum === 0 && sortedEvents.length > 0) {
+          saveCachedRecommendations(cacheKey, sortedEvents);
         }
       }
 
