@@ -53,7 +53,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     // Handle notifications when app is in foreground
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         // Show notification even when app is in foreground
-        completionHandler([.alert, .sound, .badge])
+        // Using .banner and .list instead of deprecated .alert (iOS 14+)
+        completionHandler([.banner, .list, .sound, .badge])
     }
 
     // Handle notification tap
