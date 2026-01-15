@@ -11,8 +11,13 @@ interface BottomNavAdapterProps {
 /**
  * BottomNavAdapter
  * 
+ * TEMPORARY BETA SCAFFOLDING - Phase 2 Preparation
+ * 
  * Adapter component that bridges MainApp's view-based routing with BottomNav's route-based system.
  * Maps MainApp views to navigation actions using the new BottomNav styling.
+ * 
+ * TODO (Phase 2): Consider integrating directly into MainApp or replacing with route-based navigation
+ * This adapter exists to minimize changes to existing MainApp logic during beta.
  */
 export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
   currentView,

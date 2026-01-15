@@ -494,7 +494,7 @@
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     --transition-glow: all 0.3s ease-in-out;
     
-    --radius: 0.75rem;
+    --radius: 10px;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -545,8 +545,8 @@
     @apply antialiased;
     /* Use design tokens for font and colors */
     font-family: var(--font-family);
-    background-color: var(--color-off-white);
-    color: var(--color-off-black);
+    background-color: var(--neutral-50);
+    color: var(--neutral-900);
     min-height: 100vh;
   }
 
@@ -555,7 +555,7 @@
     font-size: var(--typography-h1-size);
     font-weight: var(--typography-h1-weight);
     line-height: var(--typography-h1-line-height);
-    color: var(--color-off-black);
+    color: var(--neutral-900);
     font-family: var(--font-family);
   }
 
@@ -563,14 +563,14 @@
     font-size: var(--typography-h2-size);
     font-weight: var(--typography-h2-weight);
     line-height: var(--typography-h2-line-height);
-    color: var(--color-off-black);
+    color: var(--neutral-900);
     font-family: var(--font-family);
   }
 
   /* Default text styles using design tokens */
   p, span, div, a, button, input, textarea, label {
     font-family: var(--font-family);
-    color: var(--color-off-black);
+    color: var(--neutral-900);
     font-size: var(--typography-body-size);
     font-weight: var(--typography-body-weight);
     line-height: var(--typography-body-line-height);
@@ -583,7 +583,7 @@
     font-size: var(--typography-h1-size);
     font-weight: var(--typography-h1-weight);
     line-height: var(--typography-h1-line-height);
-    color: var(--color-off-black);
+    color: var(--neutral-900);
     font-family: var(--font-family);
   }
 
@@ -591,7 +591,7 @@
     font-size: var(--typography-h2-size);
     font-weight: var(--typography-h2-weight);
     line-height: var(--typography-h2-line-height);
-    color: var(--color-off-black);
+    color: var(--neutral-900);
     font-family: var(--font-family);
   }
 
@@ -599,7 +599,7 @@
     font-size: var(--typography-body-size);
     font-weight: var(--typography-body-weight);
     line-height: var(--typography-body-line-height);
-    color: var(--color-off-black);
+    color: var(--neutral-900);
     font-family: var(--font-family);
   }
 
@@ -607,7 +607,7 @@
     font-size: var(--typography-accent-size);
     font-weight: var(--typography-accent-weight);
     line-height: var(--typography-accent-line-height);
-    color: var(--color-off-black);
+    color: var(--neutral-900);
     font-family: var(--font-family);
   }
 
@@ -616,7 +616,7 @@
     font-weight: var(--typography-steps-weight);
     line-height: var(--typography-steps-line-height);
     letter-spacing: var(--typography-steps-letter-spacing);
-    color: var(--color-off-black);
+    color: var(--neutral-900);
     font-family: var(--font-family);
   }
 
@@ -624,7 +624,7 @@
     font-size: var(--typography-meta-size);
     font-weight: var(--typography-meta-weight);
     line-height: var(--typography-meta-line-height);
-    color: var(--color-off-black);
+    color: var(--neutral-900);
     font-family: var(--font-family);
   }
 
@@ -632,13 +632,13 @@
   .synth-heading {
     @apply font-bold;
     font-family: var(--font-family);
-    color: var(--color-off-black);
+    color: var(--neutral-900);
     letter-spacing: -0.02em;
   }
   
   .synth-text {
     font-family: var(--font-family);
-    color: var(--color-off-black);
+    color: var(--neutral-900);
   }
   
   /* Synth Logo Styles */
@@ -708,54 +708,113 @@
     box-shadow: var(--shadow-glow);
   }
   
-  /* Enhanced Synth Button Variants */
+  /* Enhanced Synth Button Variants - Using Design System Tokens */
   .btn-synth-primary {
-    @apply bg-synth-pink text-white hover:bg-synth-pink-dark relative overflow-hidden;
-    transition: var(--transition-smooth);
-    box-shadow: 0 4px 14px 0 rgba(255, 51, 153, 0.3);
-    border: 1px solid transparent;
+    /* Primary button: Brand Pink background, Neutral-50 text/icons */
+    background-color: var(--brand-pink-500);
+    color: var(--neutral-50) !important;
+    border: none;
+    border-radius: var(--radius-corner, 10px);
+    box-shadow: 0 4px 4px 0 var(--shadow-color);
+    height: var(--size-button-height, 36px);
+    padding-left: var(--spacing-small, 12px);
+    padding-right: var(--spacing-small, 12px);
+    font-family: var(--font-family);
+    font-size: var(--typography-meta-size, 16px);
+    font-weight: var(--typography-meta-weight, 500);
+    line-height: var(--typography-meta-line-height, 1.5);
+    transition: all 0.2s ease;
+    cursor: pointer;
   }
   
-  .btn-synth-primary::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.5s ease;
+  .btn-synth-primary:hover:not(:disabled) {
+    background-color: var(--brand-pink-600);
   }
   
-  .btn-synth-primary:hover::before {
-    left: 100%;
+  .btn-synth-primary:active:not(:disabled) {
+    background-color: var(--brand-pink-700);
+    transform: scale(0.98);
   }
   
-  .btn-synth-primary:hover {
-    box-shadow: 0 6px 20px 0 rgba(255, 51, 153, 0.4);
-    transform: translateY(-2px);
+  .btn-synth-primary:disabled {
+    background-color: var(--state-disabled-bg);
+    color: var(--neutral-600) !important;
+    cursor: not-allowed;
+    opacity: 1;
+    pointer-events: none;
   }
   
   .btn-synth-secondary {
-    @apply bg-synth-beige text-synth-black hover:bg-synth-beige-dark border border-synth-beige-dark;
-    transition: var(--transition-smooth);
-    position: relative;
-    overflow: hidden;
+    /* Secondary button: Neutral-50 background, Brand Pink text/icons/border */
+    background-color: var(--neutral-50);
+    color: var(--brand-pink-500) !important;
+    border: 2px solid var(--brand-pink-500);
+    border-radius: var(--radius-corner, 10px);
+    box-shadow: 0 4px 4px 0 var(--shadow-color);
+    height: var(--size-button-height, 36px);
+    padding-left: var(--spacing-small, 12px);
+    padding-right: var(--spacing-small, 12px);
+    font-family: var(--font-family);
+    font-size: var(--typography-meta-size, 16px);
+    font-weight: var(--typography-meta-weight, 500);
+    line-height: var(--typography-meta-line-height, 1.5);
+    transition: all 0.2s ease;
+    cursor: pointer;
   }
   
-  .btn-synth-secondary::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
-    transition: left 0.5s ease;
+  .btn-synth-secondary:hover:not(:disabled) {
+    background-color: var(--brand-pink-050);
+    border-color: var(--brand-pink-600);
   }
   
-  .btn-synth-secondary:hover::before {
-    left: 100%;
+  .btn-synth-secondary:active:not(:disabled) {
+    background-color: var(--brand-pink-050);
+    border-color: var(--brand-pink-700);
+    transform: scale(0.98);
+  }
+  
+  .btn-synth-secondary:disabled {
+    background-color: var(--neutral-50);
+    border-color: var(--state-disabled-bg);
+    color: var(--neutral-600) !important;
+    cursor: not-allowed;
+    opacity: 1;
+    pointer-events: none;
+  }
+  
+  /* Ghost button variant - transparent with hover state */
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--neutral-600) !important;
+    border: none;
+    border-radius: var(--radius-corner, 10px);
+    height: var(--size-button-height, 36px);
+    padding-left: var(--spacing-small, 12px);
+    padding-right: var(--spacing-small, 12px);
+    font-family: var(--font-family);
+    font-size: var(--typography-meta-size, 16px);
+    font-weight: var(--typography-meta-weight, 500);
+    line-height: var(--typography-meta-line-height, 1.5);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    box-shadow: none;
+  }
+  
+  .btn-ghost:hover:not(:disabled) {
+    background-color: var(--brand-pink-050);
+    color: var(--brand-pink-500) !important;
+  }
+  
+  .btn-ghost:active:not(:disabled) {
+    background-color: var(--brand-pink-050);
+    transform: scale(0.98);
+  }
+  
+  .btn-ghost:disabled {
+    color: var(--neutral-400) !important;
+    cursor: not-allowed;
+    opacity: 1;
+    pointer-events: none;
   }
   
   .btn-swipe-like {
@@ -1021,6 +1080,41 @@
   .safe-area-right {
     padding-right: env(safe-area-inset-right);
   }
+
+      /* Page Container Utility - Standard layout for page content */
+      /* Provides consistent horizontal margins (20px) and bottom spacing (112px) for bottom nav */
+      .page-container {
+        padding-left: var(--spacing-screen-margin-x, 20px);
+        padding-right: var(--spacing-screen-margin-x, 20px);
+        padding-bottom: var(--spacing-bottom-nav, 112px);
+        box-sizing: border-box;
+        width: 100%;
+      }
+
+      /* Page container without bottom padding (for pages without bottom nav) */
+      .page-container--no-bottom-nav {
+        padding-left: var(--spacing-screen-margin-x, 20px);
+        padding-right: var(--spacing-screen-margin-x, 20px);
+        box-sizing: border-box;
+        width: 100%;
+      }
+
+      /* Pop-up/Layout Utilities */
+      /* Pop-up container: width = device width - 40px (20px margins on each side) */
+      .popup-container {
+        width: var(--size-popup-width, calc(100vw - 40px));
+        max-width: var(--size-popup-width, calc(100vw - 40px));
+        box-sizing: border-box;
+      }
+
+      /* Content within pop-ups: width = pop-up width - 40px (20px margins inside pop-up) */
+      .popup-content {
+        width: var(--size-popup-content-width, calc(calc(100vw - 40px) - 40px));
+        max-width: var(--size-popup-content-width, calc(calc(100vw - 40px) - 40px));
+        padding-left: var(--spacing-screen-margin-x, 20px);
+        padding-right: var(--spacing-screen-margin-x, 20px);
+        box-sizing: border-box;
+      }
 
   /* Leaflet map styles */
   .leaflet-popup-content {

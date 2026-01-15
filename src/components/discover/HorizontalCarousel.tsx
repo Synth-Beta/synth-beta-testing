@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
 import { cn } from '@/lib/utils';
 
 interface HorizontalCarouselProps {
@@ -28,12 +28,34 @@ export const HorizontalCarousel: React.FC<HorizontalCarouselProps> = ({
       <div className={cn('space-y-2', className)}>
         {showTitle && title && (
           <div>
-            <h3 className="text-lg font-bold">{title}</h3>
-            {description && <p className="text-sm text-muted-foreground">{description}</p>}
+            <h3
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-h2-size, 24px)',
+                fontWeight: 'var(--typography-h2-weight, 700)',
+                lineHeight: 'var(--typography-h2-line-height, 1.3)',
+                color: 'var(--neutral-900)'
+              }}
+            >
+              {title}
+            </h3>
+            {description && (
+              <p
+                style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  color: 'var(--neutral-600)'
+                }}
+              >
+                {description}
+              </p>
+            )}
           </div>
         )}
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <Icon name="refresh" size={24} className="animate-spin" color="var(--neutral-600)" />
         </div>
       </div>
     );
@@ -44,11 +66,43 @@ export const HorizontalCarousel: React.FC<HorizontalCarouselProps> = ({
       <div className={cn('space-y-2', className)}>
         {showTitle && title && (
           <div>
-            <h3 className="text-lg font-bold">{title}</h3>
-            {description && <p className="text-sm text-muted-foreground">{description}</p>}
+            <h3
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-h2-size, 24px)',
+                fontWeight: 'var(--typography-h2-weight, 700)',
+                lineHeight: 'var(--typography-h2-line-height, 1.3)',
+                color: 'var(--neutral-900)'
+              }}
+            >
+              {title}
+            </h3>
+            {description && (
+              <p
+                style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  color: 'var(--neutral-600)'
+                }}
+              >
+                {description}
+              </p>
+            )}
           </div>
         )}
-        <div className="text-center py-8 text-muted-foreground">
+        <div
+          className="py-8"
+          style={{
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-meta-size, 16px)',
+            fontWeight: 'var(--typography-meta-weight, 500)',
+            lineHeight: 'var(--typography-meta-line-height, 1.5)',
+            color: 'var(--neutral-600)',
+            textAlign: 'center'
+          }}
+        >
           <p>{emptyMessage}</p>
         </div>
       </div>
@@ -59,8 +113,30 @@ export const HorizontalCarousel: React.FC<HorizontalCarouselProps> = ({
     <div className={cn('space-y-2', className)}>
       {showTitle && title && (
         <div>
-          <h3 className="text-lg font-bold">{title}</h3>
-          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+          <h3
+            style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-h2-size, 24px)',
+              fontWeight: 'var(--typography-h2-weight, 700)',
+              lineHeight: 'var(--typography-h2-line-height, 1.3)',
+              color: 'var(--neutral-900)'
+            }}
+          >
+            {title}
+          </h3>
+          {description && (
+            <p
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--neutral-600)'
+              }}
+            >
+              {description}
+            </p>
+          )}
         </div>
       )}
       <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">

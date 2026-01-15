@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Input } from '@/components/ui/input';
+import { SearchBar } from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, Music, X, Star } from 'lucide-react';
+import { Loader2, Music, X, Star } from 'lucide-react';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import type { Artist, ArtistSearchResult } from '@/types/concertSearch';
 import { cn } from '@/lib/utils';
@@ -28,7 +28,6 @@ export function ArtistSearchBox({
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Debounced search
@@ -138,7 +137,9 @@ export function ArtistSearchBox({
     setIsOpen(false);
     setSelectedIndex(-1);
     onSearchStateChange?.(false);
-    inputRef.current?.blur();
+    // Blur the search input
+    const input = document.getElementById('artist-search-input') as HTMLInputElement;
+    input?.blur();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -166,7 +167,9 @@ export function ArtistSearchBox({
     setIsOpen(false);
     setSelectedIndex(-1);
     onSearchStateChange?.(false);
-    inputRef.current?.focus();
+    // Focus the search input after clearing
+    const input = document.getElementById('artist-search-input') as HTMLInputElement;
+    input?.focus();
   };
 
   const formatGenres = (genres: string[] = []) => {
@@ -176,19 +179,15 @@ export function ArtistSearchBox({
   return (
     <div className={cn("relative w-full", className)}>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-        <Input
+        <SearchBar
           id="artist-search-input"
           name="artistSearch"
-          ref={inputRef}
-          type="text"
           placeholder={placeholder}
           value={query}
-          onChange={handleInputChange}
+          onChange={(value) => setQuery(value)}
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
-          className="pl-10 pr-20 border-2 border-synth-pink focus:border-synth-pink focus:ring-2 focus:ring-synth-pink/20 rounded-lg"
-          autoComplete="off"
+          widthVariant="full"
         />
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
           {isLoading && (

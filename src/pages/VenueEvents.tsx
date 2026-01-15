@@ -722,19 +722,17 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
           <Button 
             variant="ghost" 
             onClick={() => {
-              // Check if we have state indicating where we came from
-              const fromFeed = location.state?.fromFeed;
+              // Store eventId in localStorage if present (for reopening event modal)
               const eventId = location.state?.eventId;
-              
               if (eventId) {
-                // Store the event ID in localStorage so UnifiedFeed can re-open it
                 localStorage.setItem('reopenEventId', eventId);
               }
               
-              if (fromFeed) {
-                navigate(fromFeed);
+              // Use browser history navigation - go back to previous page
+              // Fallback to home only if there's no history (e.g., direct link)
+              if (window.history.length > 1) {
+                navigate(-1);
               } else {
-                // Fallback to main feed
                 navigate('/');
               }
             }}
@@ -776,9 +774,24 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
               )}
 
           <div className="flex items-center gap-2 text-sm">
-              <Badge variant="default" className="bg-green-100 text-green-800">
+              <div
+                style={{
+                  height: '22px',
+                  borderRadius: '999px',
+                  paddingLeft: 'var(--spacing-small, 12px)',
+                  paddingRight: 'var(--spacing-small, 12px)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  backgroundColor: 'var(--brand-pink-050)',
+                  color: 'var(--brand-pink-500)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                }}
+              >
                 {upcomingEvents.length} Upcoming
-              </Badge>
+              </div>
           </div>
         </div>
 
@@ -834,11 +847,19 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                   </div>
                   <Button
                     variant="ghost"
-                    size="sm"
                     onClick={() => setShowReviews(!showReviews)}
                     className="flex items-center gap-1"
+                    style={{
+                      height: 'var(--size-button-height, 36px)',
+                      paddingLeft: 'var(--spacing-small, 12px)',
+                      paddingRight: 'var(--spacing-small, 12px)',
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                    }}
                   >
-                    {showReviews ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    {showReviews ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     {showReviews ? 'Hide' : 'View'} Reviews
                   </Button>
                 </div>
@@ -861,7 +882,31 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                         <Filter className="w-4 h-4 text-gray-500" />
                         <span className="text-sm font-medium">Filter by rating:</span>
                         <Select value={reviewFilterBy} onValueChange={(value: 'all' | '5_star' | '4_star' | '3_star' | '2_star' | '1_star') => setReviewFilterBy(value)}>
-                          <SelectTrigger className="w-32">
+                          <SelectTrigger 
+                            className="w-32"
+                            style={{
+                              backgroundColor: 'var(--neutral-50)',
+                              borderColor: 'var(--neutral-200)',
+                              color: 'var(--neutral-900)',
+                              fontFamily: 'var(--font-family)',
+                              fontSize: 'var(--typography-meta-size, 16px)',
+                              fontWeight: 'var(--typography-meta-weight, 500)',
+                              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                              borderRadius: 'var(--radius-corner, 10px)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                            }}
+                            onFocus={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
+                            }}
+                            onBlur={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                            }}
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -878,7 +923,31 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">Sort by:</span>
                         <Select value={reviewSortBy} onValueChange={(value: 'newest' | 'oldest' | 'highest_rating' | 'lowest_rating') => setReviewSortBy(value)}>
-                          <SelectTrigger className="w-40">
+                          <SelectTrigger 
+                            className="w-40"
+                            style={{
+                              backgroundColor: 'var(--neutral-50)',
+                              borderColor: 'var(--neutral-200)',
+                              color: 'var(--neutral-900)',
+                              fontFamily: 'var(--font-family)',
+                              fontSize: 'var(--typography-meta-size, 16px)',
+                              fontWeight: 'var(--typography-meta-weight, 500)',
+                              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                              borderRadius: 'var(--radius-corner, 10px)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                            }}
+                            onFocus={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
+                            }}
+                            onBlur={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                            }}
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -983,9 +1052,25 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                           {(review.mood_tags && review.mood_tags.length > 0) && (
                             <div className="flex flex-wrap gap-1">
                               {review.mood_tags.map((tag: string, index: number) => (
-                                <Badge key={index} variant="secondary" className="text-xs">
+                                <div
+                                  key={index}
+                                  style={{
+                                    height: '22px',
+                                    borderRadius: '999px',
+                                    paddingLeft: 'var(--spacing-small, 12px)',
+                                    paddingRight: 'var(--spacing-small, 12px)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    backgroundColor: 'var(--neutral-100)',
+                                    color: 'var(--neutral-900)',
+                                    fontFamily: 'var(--font-family)',
+                                    fontSize: 'var(--typography-meta-size, 16px)',
+                                    fontWeight: 'var(--typography-meta-weight, 500)',
+                                    lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                                  }}
+                                >
                                   {tag}
-                                </Badge>
+                                </div>
                               ))}
                             </div>
                           )}
@@ -1006,7 +1091,31 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-semibold gradient-text">Upcoming Events</h2>
               <Select value={upcomingSortBy} onValueChange={(value: 'date' | 'artist' | 'price') => setUpcomingSortBy(value)}>
-                <SelectTrigger className="w-24 h-8 text-xs">
+                <SelectTrigger 
+                  className="w-24 h-8 text-xs"
+                  style={{
+                    backgroundColor: 'var(--neutral-50)',
+                    borderColor: 'var(--neutral-200)',
+                    color: 'var(--neutral-900)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    borderRadius: 'var(--radius-corner, 10px)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                  }}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1024,31 +1133,72 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                   onClick={() => handleEventClick(event)}
                 >
                   <div className="p-2 w-full max-w-full overflow-x-hidden">
-                    <h3 className="font-semibold text-xs mb-1 line-clamp-2 break-words min-h-[32px]">
-                          {event.title}
-                        </h3>
+                    <h3 className="mb-1 line-clamp-2 break-words" style={{
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-body-size, 20px)',
+                      fontWeight: 'var(--typography-body-weight, 500)',
+                      lineHeight: 'var(--typography-body-line-height, 1.5)',
+                      color: 'var(--neutral-900)',
+                      minHeight: '40px'
+                    }}>
+                      {event.title}
+                    </h3>
                     <div className="space-y-1 mb-2">
-                      <div className="flex items-center gap-1 text-xs">
-                        <Calendar className="w-3 h-3 text-pink-500 flex-shrink-0" />
+                      <div className="flex items-center gap-1" style={{
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        color: 'var(--neutral-600)'
+                      }}>
+                        <Calendar size={16} style={{ color: 'var(--neutral-600)' }} />
                         <span className="truncate">{formatDate(event.event_date)}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-xs">
-                        <Clock className="w-3 h-3 text-pink-500 flex-shrink-0" />
+                      <div className="flex items-center gap-1" style={{
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        color: 'var(--neutral-600)'
+                      }}>
+                        <Clock size={16} style={{ color: 'var(--neutral-600)' }} />
                         <span className="truncate">{formatTime(event.event_date)}</span>
-                    </div>
-                      <div className="flex items-center gap-1 text-xs">
-                        <MapPin className="w-3 h-3 text-pink-500 flex-shrink-0" />
-                        <span className="truncate text-muted-foreground">
+                      </div>
+                      <div className="flex items-center gap-1" style={{
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        color: 'var(--neutral-600)'
+                      }}>
+                        <MapPin size={16} style={{ color: 'var(--neutral-600)' }} />
+                        <span className="truncate">
                           {getLocationString(event)}
-                          </span>
+                        </span>
                       </div>
-                      </div>
+                    </div>
                     {event.genres && event.genres.length > 0 && (
                       <div className="flex flex-wrap gap-0.5">
                         {event.genres.slice(0, 2).map((genre, index) => (
-                          <Badge key={index} variant="secondary" className="text-[10px] px-1 py-0 h-4">
+                          <div
+                            key={index}
+                            style={{
+                              height: '22px',
+                              borderRadius: '999px',
+                              paddingLeft: 'var(--spacing-small, 12px)',
+                              paddingRight: 'var(--spacing-small, 12px)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              backgroundColor: 'var(--neutral-100)',
+                              color: 'var(--neutral-900)',
+                              fontFamily: 'var(--font-family)',
+                              fontSize: 'var(--typography-meta-size, 16px)',
+                              fontWeight: 'var(--typography-meta-weight, 500)',
+                              lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                            }}
+                          >
                             {genre}
-                          </Badge>
+                          </div>
                         ))}
                       </div>
                     )}

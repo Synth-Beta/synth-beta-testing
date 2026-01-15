@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Icon } from '@/components/Icon';
+import { Home, Compass, MessageCircle, User } from 'lucide-react';
 import './BottomNav.css';
 
 /**
@@ -41,6 +42,8 @@ export const BottomNav: React.FC = () => {
       icon: isHome ? 'houseSelected' : 'house',
       path: '/mobile-preview/home',
       isActive: isHome,
+      useLucideForUnselected: true,
+      lucideIcon: Home,
     },
     {
       id: 'discover',
@@ -48,6 +51,8 @@ export const BottomNav: React.FC = () => {
       icon: isDiscover ? 'discoverSelected' : 'discover',
       path: '/mobile-preview/discover',
       isActive: isDiscover,
+      useLucideForUnselected: true,
+      lucideIcon: Compass,
     },
     {
       id: 'post',
@@ -63,6 +68,8 @@ export const BottomNav: React.FC = () => {
       icon: isMessages ? 'circleCommentSelected' : 'circleComment',
       path: '/mobile-preview/messages',
       isActive: isMessages,
+      useLucideForUnselected: true,
+      lucideIcon: MessageCircle,
     },
     {
       id: 'profile',
@@ -70,6 +77,8 @@ export const BottomNav: React.FC = () => {
       icon: isProfile ? 'userSelected' : 'user',
       path: '/mobile-preview/profile',
       isActive: isProfile,
+      useLucideForUnselected: true,
+      lucideIcon: User,
     },
   ];
 
@@ -97,6 +106,41 @@ export const BottomNav: React.FC = () => {
             );
           }
 
+          // For messages and profile: use lucide-react for both selected and unselected
+          if (item.useLucideForBoth && item.lucideIcon) {
+            const LucideIcon = item.lucideIcon;
+            return (
+              <button
+                key={item.id}
+                className={`bottom-nav__item ${item.isActive ? 'bottom-nav__item--active' : ''}`}
+                onClick={() => handleNavClick(item.path)}
+                aria-label={item.label}
+                aria-current={item.isActive ? 'page' : undefined}
+                type="button"
+              >
+                <LucideIcon size={24} strokeWidth={2} aria-hidden="true" />
+              </button>
+            );
+          }
+
+          // For home and discover: use lucide-react for unselected, SVG for selected
+          if (item.useLucideForUnselected && item.lucideIcon && !item.isActive) {
+            const LucideIcon = item.lucideIcon;
+            return (
+              <button
+                key={item.id}
+                className={`bottom-nav__item ${item.isActive ? 'bottom-nav__item--active' : ''}`}
+                onClick={() => handleNavClick(item.path)}
+                aria-label={item.label}
+                aria-current={item.isActive ? 'page' : undefined}
+                type="button"
+              >
+                <LucideIcon size={24} strokeWidth={2} aria-hidden="true" />
+              </button>
+            );
+          }
+
+          // Default: use Icon component (for selected states of home/discover, or fallback)
           return (
             <button
               key={item.id}

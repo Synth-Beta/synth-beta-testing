@@ -7,6 +7,7 @@ import { SimpleEventRecommendationService } from '@/services/simpleEventRecommen
 import { UserVisibilityService } from '@/services/userVisibilityService';
 import { supabase } from '@/integrations/supabase/client';
 import { HomeFeedHeader, type DateWindow } from './HomeFeedHeader';
+import { MobileHeader } from '@/components/Header/MobileHeader';
 import { NetworkEventsSection } from './NetworkEventsSection';
 import { EventListsCarousel } from './EventListsCarousel';
 import { CompactEventCard } from './CompactEventCard';
@@ -18,6 +19,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
 import { Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, MessageCircle, ChevronRight, ChevronDown, MapPin, Plus, Loader2 } from 'lucide-react';
+import { Icon } from '@/components/Icon';
 import { SynthLoadingInline, SynthLoader } from '@/components/ui/SynthLoader';
 import { FriendSuggestionsRail } from '@/components/feed/FriendSuggestionsRail';
 import { FriendsService } from '@/services/friendsService';
@@ -25,7 +27,7 @@ import { Button } from '@/components/ui/button';
 import { FlagContentModal } from '@/components/moderation/FlagContentModal';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { LocationService } from '@/services/locationService';
-import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
+import { getFallbackEventImage, replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,16 +76,28 @@ interface HomeFeedProps {
   currentUserId: string;
   onNavigateToNotifications?: () => void;
   onNavigateToProfile?: (userId: string) => void;
+  onNavigateToEvent?: (eventId: string) => void;
+  onNavigateToArtist?: (artistId: string) => void;
+  onNavigateToVenue?: (venueName: string) => void;
   onNavigateToChat?: (userId: string) => void;
   onViewChange?: (view: 'feed' | 'search' | 'profile') => void;
+  menuOpen?: boolean;
+  onMenuClick?: () => void;
+  hideHeader?: boolean;
 }
 
 export const HomeFeed: React.FC<HomeFeedProps> = ({
   currentUserId,
   onNavigateToProfile,
+  onNavigateToEvent,
+  onNavigateToArtist,
+  onNavigateToVenue,
   onNavigateToChat,
   onNavigateToNotifications,
   onViewChange,
+  menuOpen = false,
+  onMenuClick,
+  hideHeader = false,
 }) => {
   // Header state
   const [activeCity, setActiveCity] = useState<string | null>(null);
@@ -174,6 +188,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 
   // Feed type selection
   const [selectedFeedType, setSelectedFeedType] = useState<string>('recommended');
+  const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
 
   // Location state for feed filtering
   const [feedLocation, setFeedLocation] = useState<{
@@ -249,7 +264,7 @@ interface FriendEventInterest {
 
     // Check immediately on mount or when currentUserId changes
     checkForSelectedEvent();
-    
+
     // Also listen for the open-event-details custom event
     const handleOpenEventDetails = (e: Event) => {
       const detail = (e as CustomEvent).detail as { event?: any; eventId?: string };
@@ -257,9 +272,9 @@ interface FriendEventInterest {
         checkForSelectedEvent();
       }
     };
-    
+
     window.addEventListener('open-event-details', handleOpenEventDetails);
-    
+
     return () => {
       window.removeEventListener('open-event-details', handleOpenEventDetails);
     };
@@ -302,6 +317,14 @@ interface FriendEventInterest {
     }
   }, [selectedFeedType]);
 
+  // Update dropdown button border when open state changes
+  useEffect(() => {
+    const trigger = document.querySelector('[data-tour="feed-toggle"]') as HTMLElement;
+    if (trigger) {
+      trigger.style.borderColor = dropdownOpen ? 'var(--brand-pink-500)' : 'var(--neutral-200)';
+    }
+  }, [dropdownOpen]);
+
   // Reload sections when filters change (but NOT for friends feed - no filters on friends feed)
   useEffect(() => {
     if (selectedFeedType === 'trending') {
@@ -315,7 +338,7 @@ interface FriendEventInterest {
     try {
       // Always get current location from geolocation first
       let currentLocation: { latitude: number; longitude: number } | null = null;
-      let currentLocationName = 'Current Location';
+      let currentLocationName: string | null = null;
 
       try {
         currentLocation = await LocationService.getCurrentLocation();
@@ -328,6 +351,7 @@ interface FriendEventInterest {
         }
       } catch (geoError) {
         console.error('Error getting current location:', geoError);
+        // If geolocation fails, currentLocationName stays null (will show "Not found")
       }
 
       // Get user's specified location from database/profile
@@ -1235,59 +1259,135 @@ interface FriendEventInterest {
                       
                       return (
     <div 
-      className="min-h-screen bg-[#fcfcfc]"
-      style={{
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
-      }}
+      className="min-h-screen" style={{ backgroundColor: 'var(--neutral-50)' }}
     >
-      {/* Top bar with feed type dropdown and menu */}
-      <div className="bg-[#fcfcfc] border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex-1 flex justify-center">
-            <DropdownMenu>
+      {/* Mobile Header with dropdown aligned to left content edge */}
+      {!hideHeader && (
+      <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
+        <div style={{ 
+          width: '100%',
+          paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+          display: 'flex',
+          justifyContent: 'flex-start'
+        }}>
+            <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 bg-white" data-tour="feed-toggle">
-                  {feedTypes.find(ft => ft.value === selectedFeedType)?.label || 'Hand Picked Events'}
-                  <ChevronDown className="h-4 w-4" />
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2" 
+      style={{
+                  backgroundColor: 'var(--neutral-50)',
+                  borderColor: dropdownOpen ? 'var(--brand-pink-500)' : 'var(--neutral-200)',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
+                  color: 'var(--neutral-900)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  transition: 'border-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
+                }}
+                onMouseLeave={(e) => {
+                  // Only reset if not focused or open
+                  if (!e.currentTarget.matches(':focus-visible') && !dropdownOpen) {
+                    e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                  }
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
+                  e.currentTarget.style.outline = '2px solid var(--brand-pink-500)';
+                  e.currentTarget.style.outlineOffset = '2px';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.outline = 'none';
+                  if (!dropdownOpen) {
+                    e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                  }
+                }}
+                data-tour="feed-toggle"
+              >
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                      color: 'var(--neutral-900)'
+                    }}
+                  >
+                    {feedTypes.find(ft => ft.value === selectedFeedType)?.label || 'Hand Picked Events'}
+                  </span>
+                  <ChevronDown className="h-4 w-4" style={{ color: 'var(--neutral-900)' }} />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-white">
+            <DropdownMenuContent 
+              className="" 
+              style={{ 
+                backgroundColor: 'var(--neutral-50)',
+                border: '2px solid var(--neutral-200)',
+                borderRadius: 'var(--radius-corner, 10px)',
+                boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                padding: 'var(--spacing-inline, 6px)',
+                minWidth: '200px'
+              }}
+            >
                 {feedTypes.map((feedType) => (
                   <DropdownMenuItem
                     key={feedType.value}
                     onClick={() => setSelectedFeedType(feedType.value)}
+                    style={{
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                      color: 'var(--neutral-900)',
+                      padding: 'var(--spacing-small, 12px)',
+                      borderRadius: 'var(--radius-corner, 10px)',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
                   >
                     {feedType.label}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </div>
-      </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-6">
+                            </div>
+      </MobileHeader>
+      )}
+      <div className="max-w-7xl mx-auto" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 112px)' }}>
         {/* Location Filter - compact info section above feeds */}
         {feedLocation && (
-          <div className="mb-3 flex items-center justify-between gap-4 text-xs text-gray-600 bg-white rounded-md px-3 py-2 border border-gray-200">
-            <div className="flex items-center gap-4 flex-1 min-w-0">
+          <>
+            <div className="flex flex-col" style={{ marginBottom: 'var(--spacing-small, 12px)', marginLeft: 'var(--spacing-screen-margin-x, 20px)', marginRight: 'var(--spacing-screen-margin-x, 20px)', gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-inline, 6px)', paddingBottom: 'var(--spacing-inline, 6px)', paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', borderRadius: 'var(--radius-corner, 10px)', color: 'var(--neutral-600)', backgroundColor: 'var(--neutral-50)', border: '2px solid var(--neutral-200)' }}>
+              {/* First line: Location */}
               <div className="flex items-center gap-2 min-w-0">
-                <span className="font-medium text-gray-700">Location:</span>
-                <span className="truncate">
-                  {feedLocation.locationName || 'Not set'}
+                <span style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-bold-weight, 700)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-900)' }}>Location:</span>
+                <span className="truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                  {feedLocation.locationName || 'Not found'}
                 </span>
               </div>
+              {/* Second line: Specified (if available) */}
               {feedLocation.specifiedLocationName && (
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-medium text-gray-700">Specified:</span>
-                  <span className="truncate">
+                  <span style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-bold-weight, 700)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-900)' }}>Specified:</span>
+                  <span className="truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     {feedLocation.specifiedLocationName}
                   </span>
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="font-medium text-gray-700">Radius:</span>
+            {/* Radius selector - below box, right-aligned */}
+            <div className="flex items-center justify-end gap-2" style={{ marginBottom: 'var(--spacing-small, 12px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
+              <span style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-bold-weight, 700)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-900)' }}>Radius:</span>
               <select
                 value={feedLocation.radiusMiles}
                 onChange={(e) => {
@@ -1298,16 +1398,16 @@ interface FriendEventInterest {
                     radiusMiles: newRadius,
                   }));
                 }}
-                className="text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                className="rounded px-2 py-1 focus:outline-none focus:ring-1" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', border: '1px solid var(--neutral-200)', backgroundColor: 'var(--neutral-50)', color: 'var(--neutral-900)' }}
               >
                 {[1, 5, 10, 15, 20, 25, 30, 40, 50].map((radius) => (
-                  <option key={radius} value={radius}>
+                  <option key={radius} value={radius} style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     {radius} mi
                   </option>
                 ))}
               </select>
             </div>
-          </div>
+          </>
         )}
         {/* Feed content based on selection */}
         {selectedFeedType === 'recommended' && (
@@ -1335,13 +1435,9 @@ interface FriendEventInterest {
                           venue_name: event.venue_name,
                           event_date: event.event_date,
                           venue_city: event.venue_city || undefined,
-                          image_url: event.event_media_url || undefined,
+                          image_url: replaceJambasePlaceholder(event.event_media_url) || undefined,
                         }}
                         onClick={() => handleEventClick(event.event_id)}
-                        onFlagClick={() => {
-                          setFlaggedEvent({ id: event.event_id, title: event.title });
-                          setFlagModalOpen(true);
-                        }}
                       />
                       );
                     })}
@@ -1373,10 +1469,10 @@ interface FriendEventInterest {
         )}
         {selectedFeedType === 'friends' && (
           <div className="space-y-4">
-              {loadingNetwork && firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
+            {loadingNetwork && firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
               <div className="flex items-center justify-center py-12">
                 <SynthLoadingInline />
-                </div>
+              </div>
               ) : (
                 <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -1423,9 +1519,9 @@ interface FriendEventInterest {
         {selectedFeedType === 'group-chats' && (
           <div className="flex items-center justify-center py-24">
             <div className="text-center space-y-2">
-              <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground" />
-              <h3 className="text-lg font-semibold">Coming Soon</h3>
-              <p className="text-sm text-muted-foreground">
+              <MessageCircle className="w-12 h-12 mx-auto" style={{ color: 'var(--neutral-600)' }} />
+              <h3 className="font-semibold" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-body-size, 20px)', fontWeight: 'var(--typography-body-weight, 500)', lineHeight: 'var(--typography-body-line-height, 1.5)' }}>Coming Soon</h3>
+              <p className="text-muted-foreground" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 Group chats are still in development
               </p>
             </div>
@@ -1440,7 +1536,7 @@ interface FriendEventInterest {
                 <SynthLoadingInline />
               </div>
             ) : recommendedGroupChats.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
+              <div className="text-center py-12" style={{ color: 'var(--neutral-600)' }}>
                 <p>No recommended chats at this time.</p>
               </div>
             ) : (
@@ -1454,7 +1550,7 @@ interface FriendEventInterest {
                       {/* First 3 group chats */}
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                         {firstThreeChats.map((chat) => {
-                  const imageUrl = chat.entity_image_url || '';
+                  const imageUrl = replaceJambasePlaceholder(chat.entity_image_url) || '';
                   const hasImage = imageUrl && imageUrl.trim() !== '';
                   const isJoining = joiningGroupChats.has(chat.id);
                   const isJoined = joinedGroupChats.has(chat.id);
@@ -1492,19 +1588,32 @@ interface FriendEventInterest {
                   return (
                     <div
                       key={chat.id}
-                      className="relative flex flex-col items-center gap-2 p-4 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:border-synth-pink/30 hover:shadow-md transition-all"
+                      className="relative flex flex-col items-center gap-2 p-4 cursor-pointer hover:shadow-md transition-all" 
+                      style={{ borderRadius: '10px', backgroundColor: 'var(--neutral-50)', border: '2px solid var(--neutral-200)' }}
                       onClick={() => {
                         if (isJoined) {
                           // Only navigate if already joined
                           onNavigateToChat?.(chat.id);
                         }
                       }}
+                      onKeyDown={(e) => {
+                        if ((e.key === 'Enter' || e.key === ' ') && isJoined) {
+                          e.preventDefault();
+                          onNavigateToChat?.(chat.id);
+                        }
+                      }}
+                      tabIndex={isJoined ? 0 : -1}
+                      role={isJoined ? "button" : undefined}
+                      aria-label={isJoined ? `Open chat: ${chat.chat_name || chat.entity_name}` : undefined}
                     >
                       {!isJoined && (
                         <Button
                           size="sm"
                           variant="default"
-                          className="absolute top-2 right-2 z-10 h-7 w-7 p-0 rounded-full bg-synth-pink hover:bg-synth-pink/90 text-white"
+                          className="absolute top-2 right-2 z-10 h-7 w-7 p-0 rounded-full" 
+                          style={{ backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)'; }}
                           onClick={(e) => handleJoinGroupChat(chat.id, e)}
                           disabled={isJoining}
                         >
@@ -1519,7 +1628,7 @@ interface FriendEventInterest {
                         <img
                           src={imageUrl}
                           alt={chat.entity_name || chat.chat_name}
-                          className="w-full aspect-square object-cover rounded-lg"
+                          className="w-full aspect-square object-cover" style={{ borderRadius: '10px' }}
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.src = getFallbackEventImage(chat.id);
@@ -1527,16 +1636,17 @@ interface FriendEventInterest {
                           }}
                         />
                       ) : (
-                        <div className="w-full aspect-square flex flex-col items-center justify-center p-2 bg-gradient-to-br from-synth-pink/20 to-synth-pink/40 rounded-lg">
-                          <MessageSquare className="w-8 h-8 text-synth-pink mb-1" />
-                          <p className="text-[10px] font-semibold text-synth-pink text-center line-clamp-2">
+                        <div className="w-full aspect-square flex flex-col items-center justify-center p-2" style={{ borderRadius: '10px', backgroundColor: 'var(--neutral-100)' }}>
+                          {/* TODO: Replace gradient with approved gradient token or neutral background */}
+                          <MessageSquare className="w-8 h-8 mb-1" style={{ color: 'var(--brand-pink-500)' }} />
+                          <p className="text-[10px] font-semibold text-center line-clamp-2" style={{ color: 'var(--brand-pink-500)' }}>
                             {chat.chat_name}
                           </p>
                         </div>
                       )}
                       <div className="w-full text-center">
-                        <p className="text-sm font-semibold line-clamp-1 mb-1">{chat.chat_name}</p>
-                        <p className="text-xs text-gray-600">
+                        <p className="font-semibold line-clamp-1 mb-1" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>{chat.chat_name}</p>
+                        <p style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>
                           {/* Render ONLY memberCountText - create single string to avoid multiple children */}
                           {(() => {
                             const baseText = String(memberCountText || '0 members');
@@ -1565,7 +1675,7 @@ interface FriendEventInterest {
                       {remainingChats.length > 0 && (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                           {remainingChats.map((chat) => {
-                            const imageUrl = chat.entity_image_url || '';
+                            const imageUrl = replaceJambasePlaceholder(chat.entity_image_url) || '';
                             const hasImage = imageUrl && imageUrl.trim() !== '';
                             const isJoining = joiningGroupChats.has(chat.id);
                             const isJoined = joinedGroupChats.has(chat.id);
@@ -1587,7 +1697,7 @@ interface FriendEventInterest {
                             return (
                               <div
                                 key={chat.id}
-                                className="relative flex flex-col items-center gap-2 p-4 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:border-synth-pink/30 hover:shadow-md transition-all"
+                                className="relative flex flex-col items-center gap-2 p-4 cursor-pointer hover:shadow-md transition-all" style={{ borderRadius: '10px', backgroundColor: 'var(--neutral-50)', border: '2px solid var(--neutral-200)' }}
                                 onClick={() => {
                                   if (isJoined) {
                                     onNavigateToChat?.(chat.id);
@@ -1598,7 +1708,10 @@ interface FriendEventInterest {
                                   <Button
                                     size="sm"
                                     variant="default"
-                                    className="absolute top-2 right-2 z-10 h-7 w-7 p-0 rounded-full bg-synth-pink hover:bg-synth-pink/90 text-white"
+                                    className="absolute top-2 right-2 z-10 h-7 w-7 p-0 rounded-full" 
+                          style={{ backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)'; }}
                                     onClick={(e) => handleJoinGroupChat(chat.id, e)}
                                     disabled={isJoining}
                                   >
@@ -1613,7 +1726,7 @@ interface FriendEventInterest {
                                   <img
                                     src={imageUrl}
                                     alt={chat.entity_name || chat.chat_name}
-                                    className="w-full aspect-square object-cover rounded-lg"
+                                    className="w-full aspect-square object-cover" style={{ borderRadius: '10px' }}
                                     onError={(e) => {
                                       const target = e.target as HTMLImageElement;
                                       target.src = getFallbackEventImage(chat.id);
@@ -1621,7 +1734,7 @@ interface FriendEventInterest {
                                     }}
                                   />
                                 ) : (
-                                  <div className="w-full aspect-square flex flex-col items-center justify-center p-2 bg-gradient-to-br from-synth-pink/20 to-synth-pink/40 rounded-lg">
+                                  <div className="w-full aspect-square flex flex-col items-center justify-center p-2 bg-gradient-to-br from-synth-pink/20 to-synth-pink/40" style={{ borderRadius: '10px' }}>
                                     <MessageSquare className="w-8 h-8 text-synth-pink mb-1" />
                                     <p className="text-[10px] font-semibold text-synth-pink text-center line-clamp-2">
                                       {chat.chat_name}
@@ -1630,7 +1743,7 @@ interface FriendEventInterest {
                                 )}
                                 <div className="w-full text-center">
                                   <p className="text-sm font-semibold line-clamp-1 mb-1">{chat.chat_name}</p>
-                                  <p className="text-xs text-gray-600">
+                                  <p className="text-xs" style={{ color: 'var(--neutral-600)' }}>
                                     {(() => {
                                       const baseText = String(memberCountText || '0 members');
                                       const friendsText = chat.friends_in_chat_count && chat.friends_in_chat_count > 0
@@ -1656,11 +1769,32 @@ interface FriendEventInterest {
           <div className="space-y-4">
           {loadingReviews ? (
             <div className="flex items-center justify-center py-12">
-                    <SynthLoadingInline />
-                  </div>
+              <SynthLoadingInline />
+            </div>
           ) : reviews.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>No reviews yet. Be the first to review an event!</p>
+            <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
+              {/* Large icon (60px), dark grey - using MessageSquare for reviews */}
+              <Icon name="squareComment" size={60} alt="" style={{ color: 'var(--neutral-600)' }} />
+              {/* Heading - Body typography, off black */}
+              <p style={{ 
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-body-size, 20px)',
+                fontWeight: 'var(--typography-body-weight, 500)',
+                lineHeight: 'var(--typography-body-line-height, 1.5)',
+                color: 'var(--neutral-900)',
+                margin: 0,
+                textAlign: 'center'
+              }}>No reviews yet</p>
+              {/* Description - Meta typography, dark grey */}
+              <p style={{ 
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--neutral-600)',
+                margin: 0,
+                textAlign: 'center'
+              }}>Be the first to review an event!</p>
                   </div>
                 ) : (
               <div className="space-y-3">

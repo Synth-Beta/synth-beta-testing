@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Icon } from '@/components/Icon';
 import { UserInfo } from '@/components/profile/UserInfo';
 import { SynthButton } from '@/components/Button/SynthButton';
@@ -30,9 +31,15 @@ export interface SideMenuProps {
    * Navigation callbacks
    */
   onNavigateToNotifications?: () => void;
-  onNavigateToProfile?: (tab?: 'timeline' | 'interested') => void;
+  onNavigateToProfile?: (userId?: string, tab?: 'timeline' | 'interested') => void;
   onNavigateToSettings?: () => void;
   onNavigateToVerification?: () => void;
+  
+  /**
+   * Optional callback for sign out action
+   * If not provided, will sign out and navigate to "/"
+   */
+  onSignOut?: () => void;
 }
 
 /**
@@ -56,89 +63,53 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   onNavigateToProfile,
   onNavigateToSettings,
   onNavigateToVerification,
+  onSignOut,
 }) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { accountInfo } = useAccountType();
   const [userProfile, setUserProfile] = useState<Tables<'users'> | null>(null);
-  const [loading, setLoading] = useState(true);
 
   // Fetch user profile data
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!user) {
-        console.log('SideMenu: No user, setting loading to false');
-        setLoading(false);
         setUserProfile(null);
         return;
       }
 
-      // Fetch when menu opens or when user becomes available
-      // (Don't block on menu state since we want data ready when menu opens)
-
       try {
-        console.log('SideMenu: Fetching user profile for user.id:', user.id);
-        setLoading(true);
-        
-        // Try fetching by user_id first (primary key relationship)
         const { data, error } = await supabase
           .from('users')
           .select('name, username, avatar_url')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        console.log('SideMenu: Query result by user_id:', { data, error });
-
-        if (error) {
-          if (error.code === 'PGRST116') {
-            // No rows found - try fallback
-            console.log('SideMenu: No user found by user_id, trying by id');
-            const { data: fallbackData, error: fallbackError } = await supabase
-              .from('users')
-              .select('name, username, avatar_url')
-              .eq('id', user.id)
-              .maybeSingle();
-            
-            console.log('SideMenu: Fallback query result by id:', { fallbackData, fallbackError });
-            
-            if (fallbackError && fallbackError.code !== 'PGRST116') {
-              console.error('SideMenu: Error in fallback query:', fallbackError);
-            }
-            
-            if (fallbackData) {
-              console.log('SideMenu: Setting profile from fallback:', fallbackData);
-              setUserProfile(fallbackData);
-            } else {
-              console.warn('SideMenu: No user profile found in database');
-              setUserProfile(null);
-            }
-          } else {
-            console.error('SideMenu: Error fetching user profile:', error);
-            setUserProfile(null);
-          }
-        } else if (data) {
-          console.log('SideMenu: Setting profile from primary query:', data);
-          setUserProfile(data);
+        if (error && error.code === 'PGRST116') {
+          const { data: fallbackData } = await supabase
+            .from('users')
+            .select('name, username, avatar_url')
+            .eq('id', user.id)
+            .maybeSingle();
+          setUserProfile(fallbackData || null);
+        } else if (!error) {
+          setUserProfile(data || null);
         } else {
-          console.warn('SideMenu: No data returned from query');
           setUserProfile(null);
         }
       } catch (error) {
-        console.error('SideMenu: Exception in fetchUserProfile:', error);
+        console.error('SideMenu: Error fetching user profile', error);
         setUserProfile(null);
-      } finally {
-        setLoading(false);
-        console.log('SideMenu: Loading set to false');
       }
     };
 
     fetchUserProfile();
   }, [isOpen, user]);
 
-  // Extract initial from name
   const getInitial = (name: string | null | undefined): string => {
     if (!name) return '?';
     const trimmed = name.trim();
-    if (trimmed.length === 0) return '?';
+    if (!trimmed) return '?';
     return trimmed[0].toUpperCase();
   };
   // Handle overlay click (78px area on the left)
@@ -157,13 +128,20 @@ export const SideMenu: React.FC<SideMenuProps> = ({
     }
   };
 
-  // Handle logout
+  // Handle logout button click
   const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Error signing out:', error);
+    onClose(); // Close the menu first
+    
+    if (onSignOut) {
+      // Use provided sign out handler (e.g., from MainApp)
+      await onSignOut();
+    } else {
+      try {
+        await supabase.auth.signOut();
+      } catch (error) {
+        console.error('Error signing out:', error);
+      }
+      navigate('/');
     }
   };
   if (!isOpen) {
@@ -205,23 +183,13 @@ export const SideMenu: React.FC<SideMenuProps> = ({
         <div className="side-menu__content">
           {/* User Info Section */}
           <div className="side-menu__user-info-section">
-            {loading ? (
-              <div className="flex items-center gap-3">
-                <div className="w-[45px] h-[45px] rounded-full bg-gray-200 animate-pulse" />
-                <div className="flex-1">
-                  <div className="h-5 w-32 bg-gray-200 rounded animate-pulse mb-2" />
-                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
-                </div>
-              </div>
-            ) : (
-              <UserInfo
-                variant="user"
-                name={userProfile?.name || user?.email?.split('@')[0] || 'User'}
-                username={userProfile?.username || undefined}
-                initial={getInitial(userProfile?.name || user?.email)}
-                imageUrl={userProfile?.avatar_url || undefined}
-              />
-            )}
+            <UserInfo
+              variant="user"
+              name={userProfile?.name || user?.email?.split('@')[0] || 'User'}
+              username={userProfile?.username || undefined}
+              initial={getInitial(userProfile?.name || user?.email)}
+              imageUrl={userProfile?.avatar_url || undefined}
+            />
           </div>
 
           {/* Primary Navigation Items */}
@@ -241,7 +209,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({
               icon="music"
               onPress={() => {
                 if (onNavigateToProfile) {
-                  onNavigateToProfile('timeline');
+                  sessionStorage.setItem('profileTab', 'timeline');
+                  onNavigateToProfile(undefined, 'timeline');
                 }
                 onClose();
               }}
@@ -251,7 +220,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({
               icon="heart"
               onPress={() => {
                 if (onNavigateToProfile) {
-                  onNavigateToProfile('interested');
+                  sessionStorage.setItem('profileTab', 'interested');
+                  onNavigateToProfile(undefined, 'interested');
                 }
                 onClose();
               }}
@@ -272,13 +242,17 @@ export const SideMenu: React.FC<SideMenuProps> = ({
 
           {/* Verification Status Section */}
           {user && accountInfo && (
-            <div className="side-menu__verification-section">
-              <VerificationStatusCard
-                userId={user.id}
-                accountType={accountInfo.account_type || 'user'}
-                verified={accountInfo.verified || false}
-              />
-            </div>
+            <>
+              <div className="side-menu__section-divider" aria-hidden="true" />
+              <div className="side-menu__verification-section">
+                <VerificationStatusCard
+                  userId={user.id}
+                  accountType={accountInfo.account_type || 'user'}
+                  verified={accountInfo.verified || false}
+                />
+              </div>
+              <div className="side-menu__verification-divider" aria-hidden="true" />
+            </>
           )}
           {/* Logout Button - Primary SynthButton */}
           <div className="side-menu__logout-section">
@@ -286,10 +260,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
               variant="primary"
               size="standard"
               fullWidth
-              onClick={() => {
-                handleLogout();
-                onClose();
-              }}
+              onClick={handleLogout}
             >
               Log out
             </SynthButton>

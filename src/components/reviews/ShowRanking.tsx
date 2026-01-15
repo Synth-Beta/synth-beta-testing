@@ -150,12 +150,30 @@ export function ShowRanking({ shows, onChange }: ShowRankingProps) {
                     <div className="mt-3 flex items-center justify-between bg-gray-50 border rounded p-2">
                       <p className="text-xs text-gray-600">Tied at {s.rating}★. Order within tie:</p>
                       <div className="flex items-center gap-2">
-                        <Button type="button" variant="outline" size="sm" onClick={() => moveWithinTie(s.rating, s.id, 'up')} className="h-7 px-2">
-                          <ArrowUp className="w-3.5 h-3.5" />
+                        <Button type="button" variant="outline" onClick={() => moveWithinTie(s.rating, s.id, 'up')} style={{
+                          width: 'var(--size-input-height, 44px)',
+                          height: 'var(--size-input-height, 44px)',
+                          padding: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderColor: 'var(--neutral-200)',
+                          color: 'var(--neutral-900)'
+                        }}>
+                          <ArrowUp size={24} />
                         </Button>
                         <span className="text-xs text-gray-700">#{s.order}</span>
-                        <Button type="button" variant="outline" size="sm" onClick={() => moveWithinTie(s.rating, s.id, 'down')} className="h-7 px-2">
-                          <ArrowDown className="w-3.5 h-3.5" />
+                        <Button type="button" variant="outline" onClick={() => moveWithinTie(s.rating, s.id, 'down')} style={{
+                          width: 'var(--size-input-height, 44px)',
+                          height: 'var(--size-input-height, 44px)',
+                          padding: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderColor: 'var(--neutral-200)',
+                          color: 'var(--neutral-900)'
+                        }}>
+                          <ArrowDown size={24} />
                         </Button>
                       </div>
                     </div>

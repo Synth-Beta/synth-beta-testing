@@ -43,7 +43,8 @@ export function preserveErrorLogs(): Plugin {
         let hasChanges = false;
 
         // Traverse AST and remove console calls (except console.error)
-        traverse(ast, {
+        const traverseFn = (traverse as unknown as { default?: typeof traverse }).default || traverse;
+        traverseFn(ast, {
           CallExpression(path) {
             const { node } = path;
             
@@ -80,7 +81,8 @@ export function preserveErrorLogs(): Plugin {
 
         // If we made changes, generate new code
         if (hasChanges) {
-          const output = generate(ast, {
+          const generateFn = (generate as unknown as { default?: typeof generate }).default || generate;
+          const output = generateFn(ast, {
             retainLines: false,
             compact: false,
           }, code);

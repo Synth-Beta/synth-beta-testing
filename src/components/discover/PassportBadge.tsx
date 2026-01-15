@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Check, Lock, Star, Sparkles, Award } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { PassportEntry } from '@/services/passportService';
@@ -23,21 +23,21 @@ const getRarityStyles = (rarity?: string) => {
         border: 'border-purple-400',
         bg: 'bg-gradient-to-br from-purple-50/90 to-pink-50/90',
         badge: 'bg-purple-100 text-purple-800 border-purple-300',
-        icon: <Award className="w-3 h-3" />,
+        icon: <Icon name="ribbonAward" size={16} />,
       };
     case 'uncommon':
       return {
         border: 'border-blue-400',
         bg: 'bg-gradient-to-br from-blue-50/90 to-cyan-50/90',
         badge: 'bg-blue-100 text-blue-800 border-blue-300',
-        icon: <Sparkles className="w-3 h-3" />,
+        icon: <Icon name="mediumShootingStar" size={16} />,
       };
     default:
       return {
         border: 'border-yellow-300',
         bg: 'bg-gradient-to-br from-yellow-50/80 to-amber-50/80',
         badge: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-        icon: <Check className="w-3 h-3" />,
+        icon: <Icon name="check" size={16} />,
       };
   }
 };
@@ -114,12 +114,12 @@ export const PassportBadge: React.FC<PassportBadgeProps> = ({
               )}
               {isUnlocked && !entry.rarity && (
                 <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs">
-                  <Check className="w-3 h-3 mr-1" />
+                  <Icon name="check" size={16} className="mr-1" />
                   Unlocked
                 </Badge>
               )}
               {!isUnlocked && (
-                <Lock className="w-4 h-4 text-gray-400" />
+                <Icon name="lock" size={16} color="var(--neutral-400)" />
               )}
             </div>
             {renderMetadata()}

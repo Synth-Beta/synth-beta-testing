@@ -1266,27 +1266,7 @@ export const UnifiedFeed = ({
     if (!currentUserId) return;
     
     try {
-      // Query user_event_relationships table to get ALL events user is interested in
-      const { data, error } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
-        .eq('user_id', currentUserId)
-        .eq('relationship_type', 'interested');
-      
-      if (error) {
-        console.error('Error loading all interested events:', error);
-        return;
-      }
-      
-      // Extract event IDs into a Set
-      const allInterestedIds = new Set<string>();
-      if (data) {
-        data.forEach((row: any) => {
-          if (row.event_id) {
-            allInterestedIds.add(String(row.event_id));
-          }
-        });
-      }
+      const allInterestedIds = await UserEventService.getUserInterestedEventIdSet(currentUserId);
       
       // Set all interested events immediately
       setInterestedEvents(allInterestedIds);
@@ -1450,9 +1430,9 @@ export const UnifiedFeed = ({
   };
 
   const getRatingColor = (rating: number) => {
-    if (rating >= 4) return 'bg-green-100 text-green-800 border-green-200';
-    if (rating >= 2) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    return 'bg-red-100 text-red-800 border-red-200';
+    if (rating >= 4) return 'bg-[var(--status-success-050)] text-[var(--status-success-500)] border-[var(--status-success-500)]';
+    if (rating >= 2) return 'bg-[var(--status-warning-050)] text-[var(--status-warning-500)] border-[var(--status-warning-500)]';
+    return 'bg-[var(--status-error-050)] text-[var(--status-error-500)] border-[var(--status-error-500)]';
   };
 
   const getRatingIcon = (rating: number) => {
@@ -1473,11 +1453,11 @@ export const UnifiedFeed = ({
 
   const getItemTypeBadgeColor = (type: string) => {
     switch (type) {
-      case 'review': return 'bg-purple-100 text-purple-800';
-      case 'event': return 'bg-blue-100 text-blue-800';
-      case 'friend_activity': return 'bg-green-100 text-green-800';
-      case 'system_news': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'review': return 'bg-[var(--gradient-brand)] text-[var(--neutral-900)]'; // NEEDS DECISION: Purple only in gradient
+      case 'event': return 'bg-[var(--info-blue-050)] text-[var(--info-blue-500)]';
+      case 'friend_activity': return 'bg-[var(--status-success-050)] text-[var(--status-success-500)]';
+      case 'system_news': return 'bg-[var(--status-warning-050)] text-[var(--status-warning-500)]'; // NEEDS DECISION: Orange may map to warning
+      default: return 'bg-[var(--neutral-100)] text-[var(--neutral-900)]';
     }
   };
 
@@ -2246,12 +2226,29 @@ export const UnifiedFeed = ({
     if (reviews.length === 0) {
       return (
         <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Star className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No reviews yet</h3>
-            <p className="text-gray-500">Be the first to share a concert review!</p>
+          <div className="flex flex-col gap-[6px] items-center justify-center">
+            {/* Large icon (60px), dark grey */}
+            <Star className="w-[60px] h-[60px]" style={{ color: 'var(--neutral-600)' }} />
+            {/* Heading - Body typography, off black */}
+            <h3 style={{ 
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-body-size, 20px)',
+              fontWeight: 'var(--typography-body-weight, 500)',
+              lineHeight: 'var(--typography-body-line-height, 1.5)',
+              color: 'var(--neutral-900)',
+              margin: 0,
+              textAlign: 'center'
+            }}>No reviews yet</h3>
+            {/* Description - Meta typography, dark grey */}
+            <p style={{ 
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+              color: 'var(--neutral-600)',
+              margin: 0,
+              textAlign: 'center'
+            }}>Be the first to share a concert review!</p>
           </div>
         </div>
       );
@@ -2348,7 +2345,7 @@ export const UnifiedFeed = ({
     if (!newsLoading && newsArticles.length === 0) {
       return (
         <EmptyState
-          icon={<Newspaper className="w-12 h-12 text-gray-400" />}
+          icon={<Newspaper className="w-[60px] h-[60px]" style={{ color: 'var(--neutral-600)' }} />}
           title="No news articles found"
           description="Check back later for the latest music news and updates!"
         />
@@ -2718,12 +2715,29 @@ export const UnifiedFeed = ({
             {/* Reviews feed */}
             {feedItems.filter(item => item.type === 'review' && !(item as any).deleted_at && !(item as any).is_deleted).length === 0 ? (
               <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Star className="w-8 h-8 text-gray-400" />
-                    </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No reviews yet</h3>
-                  <p className="text-gray-500">Be the first to share a concert review!</p>
+                <div className="flex flex-col gap-[6px] items-center justify-center">
+                  {/* Large icon (60px), dark grey */}
+                  <Star className="w-[60px] h-[60px]" style={{ color: 'var(--neutral-600)' }} />
+                  {/* Heading - Body typography, off black */}
+                  <h3 style={{ 
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-body-size, 20px)',
+                    fontWeight: 'var(--typography-body-weight, 500)',
+                    lineHeight: 'var(--typography-body-line-height, 1.5)',
+                    color: 'var(--neutral-900)',
+                    margin: 0,
+                    textAlign: 'center'
+                  }}>No reviews yet</h3>
+                  {/* Description - Meta typography, dark grey */}
+                  <p style={{ 
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--neutral-600)',
+                    margin: 0,
+                    textAlign: 'center'
+                  }}>Be the first to share a concert review!</p>
                     </div>
                   </div>
             ) : (
@@ -3184,7 +3198,7 @@ export const UnifiedFeed = ({
             {/* Empty State */}
             {!newsLoading && newsArticles.length === 0 && (
                 <EmptyState
-                icon={<Newspaper className="w-12 h-12 text-gray-400" />}
+                icon={<Newspaper className="w-[60px] h-[60px]" style={{ color: 'var(--neutral-600)' }} />}
                 title="No news articles found"
                 description="Check back later for the latest music news and updates!"
               />

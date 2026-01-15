@@ -1,0 +1,161 @@
+/**
+ * SearchBar Component Styles
+ * 
+ * Styles for SearchBar component using design tokens.
+ * All values reference CSS variables from src/styles/tokens.css
+ * 
+ * Base Specs:
+ * - Fixed height: 44px
+ * - Border radius: 10px
+ * - Background: OffWhite
+ * - Border: 2px inside stroke, LightGrey
+ * - Margins: 20px left and right
+ */
+
+.synth-search-bar {
+  /* Base container */
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--size-input-height, 44px);
+  background-color: var(--neutral-50);
+  /* 2px inside stroke - using border with box-sizing: border-box makes it appear inside */
+  border: 2px solid var(--neutral-200);
+  border-radius: var(--radius-corner, 10px);
+  box-sizing: border-box;
+}
+
+/* Width Variants */
+
+/* Full-width: device width - 40px (20px margins on each side) */
+/* When inside a container, use 100% of container width minus margins */
+.synth-search-bar--full {
+  width: calc(100vw - calc(var(--spacing-screen-margin-x, 20px) * 2));
+  max-width: 100%; /* Prevent overflow in containers */
+  margin-left: auto; /* Center when in container */
+  margin-right: auto; /* Center when in container */
+}
+
+/* When inside component-variant container, use container width */
+.component-variant .synth-search-bar--full {
+  width: 100%;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Popup variant: popup width - 40px (20px margins inside popup) */
+.synth-search-bar--popup {
+  width: var(--size-popup-content-width, calc(calc(100vw - 40px) - 40px));
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Flex variant: expands to fill available space (for Discover header) */
+.synth-search-bar--flex {
+  flex: 1;
+  min-width: 0; /* Allow flex item to shrink below content size */
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Left icon (search icon) */
+.synth-search-bar__icon-left {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding-left: var(--spacing-small, 12px);
+  /* Search icon color: neutral-600 */
+  color: var(--neutral-600);
+}
+
+/* Search icon color: neutral-600 - target all icon elements */
+.synth-search-bar__icon-left .synth-icon,
+.synth-search-bar__icon-left svg,
+.synth-search-bar__icon-left .synth-icon svg {
+  color: var(--neutral-600) !important;
+}
+
+/* Input field */
+.synth-search-bar__input {
+  flex: 1;
+  min-width: 0; /* Allow input to shrink */
+  height: 100%;
+  border: none;
+  background: none;
+  outline: none;
+  padding: 0 var(--spacing-inline, 6px); /* 6px gap between icon and text */
+  font-family: var(--font-family);
+  font-size: var(--typography-meta-size, 16px);
+  font-weight: var(--typography-meta-weight, 500);
+  line-height: var(--typography-meta-line-height, 1.5);
+  color: var(--neutral-900); /* Text color when typing */
+  box-sizing: border-box;
+}
+
+/* Placeholder styling */
+.synth-search-bar__input::placeholder {
+  color: var(--neutral-600); /* Placeholder color: neutral-600 */
+  opacity: 1; /* Ensure full opacity */
+}
+
+/* Focus state */
+.synth-search-bar__input:focus {
+  outline: none;
+}
+
+.synth-search-bar:focus-within {
+  border-color: var(--brand-pink-500);
+  box-shadow: inset 0 0 0 0 var(--brand-pink-500);
+}
+
+/* Disabled state */
+.synth-search-bar:has(.synth-search-bar__input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.synth-search-bar__input:disabled {
+  cursor: not-allowed;
+}
+
+/* Clear (X) button */
+.synth-search-bar__clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px; /* 44x44px touch target */
+  height: 44px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  /* Icon color: neutral-900 */
+  color: var(--neutral-900);
+  transition: opacity 0.2s ease;
+}
+
+.synth-search-bar__clear:hover {
+  opacity: 0.7;
+}
+
+.synth-search-bar__clear:active {
+  opacity: 0.5;
+}
+
+.synth-search-bar__clear:focus-visible {
+  outline: 2px solid var(--brand-pink-500);
+  outline-offset: -2px;
+  border-radius: var(--radius-corner, 10px);
+}
+
+/* Ensure clear icon is properly sized */
+.synth-search-bar__clear .synth-icon {
+  width: 16px;
+  height: 16px;
+}
+

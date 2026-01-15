@@ -1,0 +1,51 @@
+/**
+ * Event Review Modal - Full Screen Styles
+ */
+
+.event-review-modal-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+}
+
+.event-review-modal__close-button {
+  position: absolute;
+  right: var(--spacing-screen-margin-x, 20px);
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  width: var(--size-input-height, 44px);
+  height: var(--size-input-height, 44px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 10000;
+  line-height: 0;
+}
+
+.event-review-modal__close-button > * {
+  margin: 0;
+  padding: 0;
+  display: block;
+  flex-shrink: 0;
+}
+
+.event-review-modal__close-button:focus-visible {
+  outline: 2px solid var(--brand-pink-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-corner, 10px);
+}
+
+.event-review-modal__content {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 68px + 12px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  padding-left: var(--spacing-screen-margin-x, 20px);
+  padding-right: var(--spacing-screen-margin-x, 20px);
+}

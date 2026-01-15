@@ -91,7 +91,16 @@ export class PushTokenService {
 
     try {
       // Try to use Capacitor Push Notifications plugin
-      const { PushNotifications } = await import('@capacitor/push-notifications');
+      // Use dynamic import with error handling for optional dependency
+      // @ts-ignore - Optional dependency, may not be available in web/desktop
+      const pushModule = await import('@capacitor/push-notifications').catch(() => null);
+      
+      if (!pushModule || !pushModule.PushNotifications) {
+        console.log('⚠️ Capacitor push notifications plugin not available (this is normal in web/desktop)');
+        return;
+      }
+      
+      const { PushNotifications } = pushModule;
       
       // Request permission
       const permission = await PushNotifications.requestPermissions();
@@ -180,11 +189,9 @@ export class PushTokenService {
   private static async handleNotificationNavigation(data: any): Promise<void> {
     try {
       const { type, chat_id, event_id, sender_id } = data;
-
-      // Import router dynamically to avoid circular dependencies
-      const { useRouter } = await import('react-router-dom');
       
-      // Navigate based on notification type
+      // Navigate based on notification type using window.location
+      // (useNavigate requires React context, so we use window.location instead)
       switch (type) {
         case 'friend_request':
           // Navigate to friend requests or profile

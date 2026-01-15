@@ -4,11 +4,12 @@ import { MobileHeader } from '@/components/Header/MobileHeader';
 import { BottomNav } from '@/components/BottomNav/BottomNav';
 import { SideMenu } from '@/components/SideMenu/SideMenu';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
-import HomePage from './HomePage';
-import DiscoverPage from './DiscoverPage';
-import PostPage from './PostPage';
-import MessagesPage from './MessagesPage';
-import ProfilePage from './ProfilePage';
+import ComponentShowcase from './ComponentShowcase';
+import { DemoHomePage } from '@/demo/pages/DemoHomePage';
+import { DemoDiscoverPage } from '@/demo/pages/DemoDiscoverPage';
+import { DemoProfilePage } from '@/demo/pages/DemoProfilePage';
+import { DemoMessagesPage } from '@/demo/pages/DemoMessagesPage';
+import { DemoCreatePostPage } from '@/demo/pages/DemoCreatePostPage';
 import './MobilePreview.css';
 
 /**
@@ -42,12 +43,14 @@ const MobilePreview: React.FC = () => {
       
       <main className="mobile-preview__content">
         <Routes>
-          <Route index element={<Navigate to="home" replace />} />
-          <Route path="home" element={<HomePage />} />
-          <Route path="discover" element={<DiscoverPage />} />
-          <Route path="post" element={<PostPage />} />
-          <Route path="messages" element={<MessagesPage />} />
-          <Route path="profile" element={<ProfilePage />} />
+          <Route index element={<Navigate to="component-view" replace />} />
+          <Route path="component-view" element={<ComponentShowcase />} />
+          {/* Demo Mode Routes */}
+          <Route path="demo/home" element={<DemoHomePage menuOpen={menuOpen} onMenuClick={handleMenuToggle} />} />
+          <Route path="demo/discover" element={<DemoDiscoverPage menuOpen={menuOpen} onMenuClick={handleMenuToggle} />} />
+          <Route path="demo/profile" element={<DemoProfilePage menuOpen={menuOpen} onMenuClick={handleMenuToggle} />} />
+          <Route path="demo/messages" element={<DemoMessagesPage menuOpen={menuOpen} onMenuClick={handleMenuToggle} />} />
+          <Route path="demo/create-post" element={<DemoCreatePostPage menuOpen={menuOpen} onMenuClick={handleMenuToggle} />} />
         </Routes>
       </main>
 

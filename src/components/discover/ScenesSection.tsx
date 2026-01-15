@@ -3,7 +3,6 @@ import { HorizontalCarousel } from './HorizontalCarousel';
 import { SceneCard } from './SceneCard';
 import { SceneService, type Scene } from '@/services/sceneService';
 import { SceneDetailView } from './SceneDetailView';
-import { Loader2 } from 'lucide-react';
 
 interface ScenesSectionProps {
   currentUserId: string;

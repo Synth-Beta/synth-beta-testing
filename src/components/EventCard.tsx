@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { isEventPast, getEventStatus } from "@/utils/eventStatusUtils"
 import { useSetlist } from "@/hooks/useSetlist"
-import { getFallbackEventImage } from "@/utils/eventImageFallbacks"
+import { getFallbackEventImage, replaceJambasePlaceholder } from "@/utils/eventImageFallbacks"
 
 export interface Event {
   id: string
@@ -45,7 +45,7 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
     () => getFallbackEventImage(`${event.id}-${event.title}`),
     [event.id, event.title]
   )
-  const eventImage = event.image || fallbackImage
+  const eventImage = replaceJambasePlaceholder(event.image) || fallbackImage
 
   const handleSwipe = (direction: "like" | "pass") => {
     setSwipeDirection(direction)

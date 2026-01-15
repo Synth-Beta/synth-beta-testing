@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Star, MapPin, Calendar, X } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
+import { Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 import { ArtistVenueReviews } from '@/components/reviews/ArtistVenueReviews';
@@ -159,7 +160,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
             className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
             aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <Icon name="x" size={24} color="var(--neutral-900)" />
           </button>
         </div>
           </div>
@@ -175,13 +176,13 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
             {/* Header Section */}
             <div className="flex items-start gap-3 w-full">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-8 h-8 text-muted-foreground" />
+                <Icon name="location" size={35} color="var(--neutral-600)" />
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg font-bold mb-2 break-words">{venueName}</h2>
                 {(venueCity || venueState) && (
                   <div className="flex items-center gap-1 text-muted-foreground mb-2">
-                    <MapPin className="w-4 h-4" />
+                    <Icon name="location" size={16} color="var(--neutral-600)" />
                     <span>{[venueCity, venueState].filter(Boolean).join(', ')}</span>
                   </div>
                 )}
@@ -191,9 +192,11 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star
                           key={i}
-                          className={`w-4 h-4 ${
-                            i < Math.floor(averageRating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-                          }`}
+                          size={16}
+                          style={{
+                            color: i < Math.floor(averageRating) ? 'var(--color-yellow)' : 'var(--neutral-300)',
+                            fill: i < Math.floor(averageRating) ? 'var(--color-yellow)' : 'none',
+                          }}
                         />
                       ))}
                     </div>

@@ -12,16 +12,9 @@
   justify-content: center;
   border-radius: 50%;
   /* PinkPurple gradient – fallback matches Figma spec if token is missing */
-  background-image: var(
-    --gradient-pink-purple,
-    linear-gradient(
-      90deg,
-      var(--color-synth-pink, #CC2486) 0%,
-      var(--color-purple, #8D1FF4) 100%
-    )
-  );
+  background-image: var(--gradient-brand);
   /* Figma inset shadow for placeholder avatars */
-  box-shadow: 0 4px 4px 1px rgba(0, 0, 0, 0.25) inset;
+  box-shadow: 0 4px 4px 1px var(--shadow-color) inset;
   overflow: hidden;
 }
 
@@ -56,36 +49,41 @@
   align-items: center;
   justify-content: center;
   text-transform: uppercase;
-  color: var(--color-off-white, #FCFCFC);
+  color: var(--neutral-50);
   text-align: center;
 }
 
 /* Typography scales with size using existing tokens */
+/* 32px: meta typography but bolded (for chat) */
 .profile-picture--32 .profile-picture__initial {
-  font-size: var(--typography-meta-size);
-  font-weight: var(--typography-accent-weight);
+  font-size: var(--typography-meta-size, 16px);
+  font-weight: var(--typography-accent-weight, 700); /* bolded */
   line-height: 1;
 }
 
+/* 45px: body typography but bolded */
 .profile-picture--45 .profile-picture__initial {
-  font-size: var(--typography-body-size);
-  font-weight: var(--typography-accent-weight);
+  font-size: var(--typography-body-size, 20px);
+  font-weight: var(--typography-accent-weight, 700); /* bolded */
   line-height: 1.1;
 }
 
+/* 75px: h1 typography (for user profile) */
 .profile-picture--75 .profile-picture__initial {
-  font-size: var(--typography-h2-size);
-  font-weight: var(--typography-h2-weight);
-  line-height: 1.1;
+  font-size: var(--typography-h1-size, 35px);
+  font-weight: var(--typography-h1-weight, 700);
+  line-height: var(--typography-h1-line-height, 1.2);
 }
 
 /* Music icon variant - center white music icon */
-.profile-picture__icon {
+/* Using currentColor in SVGs - set color via CSS for exact color accuracy */
+.profile-picture__icon,
+.profile-picture .synth-icon,
+.profile-picture svg {
   display: block;
   width: 24px;
   height: 24px;
-  /* Convert base icon color to OffWhite while preserving shape */
-  filter: brightness(0) saturate(100%) invert(100%);
+  color: var(--neutral-50) !important;
 }
 
 

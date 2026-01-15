@@ -14,7 +14,7 @@ import { PassportStampsView } from '@/components/passport/PassportStampsView';
 import { PassportTimelineView } from '@/components/passport/PassportTimelineView';
 import { PassportBucketListView } from '@/components/passport/PassportBucketListView';
 import { PassportAchievementService, type AchievementDisplay } from '@/services/passportAchievementService';
-import { Loader2, MapPin, Building2, Music, Sparkles, User, Clock, Award, ListChecks } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -102,33 +102,33 @@ export const PassportModal: React.FC<PassportModalProps> = ({
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <Icon name="refresh" size={24} className="animate-spin" color="var(--neutral-600)" />
         </div>
       ) : (
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className={`${inline ? '' : 'mt-4'} w-full max-w-full overflow-x-hidden`}>
           <TabsList className="grid w-full max-w-full grid-cols-5 gap-0.5 p-0.5 overflow-x-hidden">
             <TabsTrigger value="identity" className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] sm:text-xs flex-shrink-0 min-w-0">
-              <User className="w-3 h-3 flex-shrink-0" />
+              <Icon name="user" size={16} className="flex-shrink-0" color="var(--neutral-900)" />
               <span className="truncate w-full text-center leading-tight">Identity</span>
             </TabsTrigger>
             <TabsTrigger value="stamps" className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] sm:text-xs flex-shrink-0 min-w-0">
-              <Sparkles className="w-3 h-3 flex-shrink-0" />
+              <Icon name="mediumShootingStar" size={16} className="flex-shrink-0" color="var(--neutral-900)" />
               <span className="truncate w-full text-center leading-tight">
                 Stamps
               </span>
             </TabsTrigger>
             <TabsTrigger value="achievements" className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] sm:text-xs flex-shrink-0 min-w-0">
-              <Award className="w-3 h-3 flex-shrink-0" />
+              <Icon name="ribbonAward" size={16} className="flex-shrink-0" color="var(--neutral-900)" />
               <span className="truncate w-full text-center leading-tight">
                 Achievements
               </span>
             </TabsTrigger>
             <TabsTrigger value="timeline" className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] sm:text-xs flex-shrink-0 min-w-0">
-              <Clock className="w-3 h-3 flex-shrink-0" />
+              <Icon name="clock" size={16} className="flex-shrink-0" color="var(--neutral-900)" />
               <span className="truncate w-full text-center leading-tight">Timeline</span>
             </TabsTrigger>
             <TabsTrigger value="bucket" className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] sm:text-xs flex-shrink-0 min-w-0">
-              <ListChecks className="w-3 h-3 flex-shrink-0" />
+              <Icon name="checkMark" size={16} className="flex-shrink-0" color="var(--neutral-900)" />
               <span className="truncate w-full text-center leading-tight">Bucket List</span>
             </TabsTrigger>
           </TabsList>

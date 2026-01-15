@@ -58,10 +58,29 @@ export function TrendingBadge({ eventId, className }: TrendingBadgeProps) {
   }
 
   return (
-    <Badge variant="default" className={`bg-gradient-to-r from-orange-500 to-pink-500 ${className}`}>
-      <Flame className="h-3 w-3 mr-1 fill-current" />
-      Trending
-    </Badge>
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        height: '22px',
+        paddingLeft: 'var(--spacing-small, 12px)',
+        paddingRight: 'var(--spacing-small, 12px)',
+        borderRadius: 'var(--radius-corner, 10px)',
+        background: 'linear-gradient(135deg, #f97316 0%, #ec4899 100%)',
+        border: '2px solid var(--brand-pink-500)',
+        fontFamily: 'var(--font-family)',
+        fontSize: 'var(--typography-meta-size, 16px)',
+        fontWeight: 'var(--typography-meta-weight, 500)',
+        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+        color: 'var(--neutral-50)',
+        boxShadow: '0 4px 4px 0 var(--shadow-color)',
+        gap: 'var(--spacing-inline, 6px)'
+      }}
+      className={className}
+    >
+      <Flame size={16} style={{ fill: 'currentColor' }} />
+      <span>Trending</span>
+    </div>
   );
 }
 

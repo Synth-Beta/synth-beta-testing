@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { SearchBar } from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
@@ -11,7 +12,6 @@ import {
   Music,
   ChevronDown,
   Clock,
-  Search,
   Loader2,
   Users
 } from 'lucide-react';
@@ -524,9 +524,27 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
               <Music className="h-4 w-4 mr-1" />
               Genres
               {filters.genres.length > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 rounded-full px-2 bg-synth-pink/20 text-synth-pink border-synth-pink/30">
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    height: '22px',
+                    paddingLeft: 'var(--spacing-small, 12px)',
+                    paddingRight: 'var(--spacing-small, 12px)',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    backgroundColor: 'var(--brand-pink-050)',
+                    border: '2px solid var(--brand-pink-500)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--brand-pink-500)',
+                    boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                    marginLeft: 'var(--spacing-inline, 6px)'
+                  }}
+                >
                   {filters.genres.length}
-                </Badge>
+                </div>
               )}
             </Button>
           </PopoverTrigger>
@@ -581,9 +599,27 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
               <MapPin className="h-4 w-4 mr-1" />
               Locations
               {(filters.selectedCities?.length || 0) > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 rounded-full px-2 bg-synth-pink/20 text-synth-pink border-synth-pink/30">
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    height: '22px',
+                    paddingLeft: 'var(--spacing-small, 12px)',
+                    paddingRight: 'var(--spacing-small, 12px)',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    backgroundColor: 'var(--brand-pink-050)',
+                    border: '2px solid var(--brand-pink-500)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--brand-pink-500)',
+                    boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                    marginLeft: 'var(--spacing-inline, 6px)'
+                  }}
+                >
                   {filters.selectedCities.length}
-                </Badge>
+                </div>
               )}
             </Button>
           </PopoverTrigger>
@@ -591,14 +627,13 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             <div className="space-y-4 p-2">
               {/* Search Input */}
               <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    type="text"
-                    placeholder="Search cities..."
+                <div className="flex-1">
+                  <SearchBar
                     value={cityQuery}
-                    onChange={(e) => setCityQuery(e.target.value)}
-                    className="synth-input w-full pl-10 h-9 text-sm"
+                    onChange={(value) => setCityQuery(value)}
+                    placeholder="Search cities..."
+                    widthVariant="full"
+                    className="h-9"
                   />
                 </div>
                 <Button size="sm" onClick={handleCitiesApply} disabled={tempSelectedCities.length === (filters.selectedCities?.length || 0) && tempSelectedCities.every(c => filters.selectedCities.includes(c))}>
@@ -732,9 +767,27 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
               <CalendarIcon className="h-4 w-4 mr-1" />
               Days
               {filters.daysOfWeek.length > 0 && (
-                <Badge variant="secondary" className="ml-2 h-5 rounded-full px-2 bg-synth-pink/20 text-synth-pink border-synth-pink/30">
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    height: '22px',
+                    paddingLeft: 'var(--spacing-small, 12px)',
+                    paddingRight: 'var(--spacing-small, 12px)',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    backgroundColor: 'var(--brand-pink-050)',
+                    border: '2px solid var(--brand-pink-500)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--brand-pink-500)',
+                    boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                    marginLeft: 'var(--spacing-inline, 6px)'
+                  }}
+                >
                   {filters.daysOfWeek.length}
-                </Badge>
+                </div>
               )}
             </Button>
           </PopoverTrigger>
@@ -825,9 +878,28 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                   : (filters.dateRange.from || filters.dateRange.to ? getDateRangeText() : 'Calendar')}
               </span>
               {(filters.dateRange.from || filters.dateRange.to) && (
-                <Badge variant="secondary" className="ml-2 h-5 rounded-full px-2 bg-synth-pink/20 text-synth-pink border-synth-pink/30 flex-shrink-0">
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    height: '22px',
+                    paddingLeft: 'var(--spacing-small, 12px)',
+                    paddingRight: 'var(--spacing-small, 12px)',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    backgroundColor: 'var(--brand-pink-050)',
+                    border: '2px solid var(--brand-pink-500)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--brand-pink-500)',
+                    boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                    marginLeft: 'var(--spacing-inline, 6px)',
+                    flexShrink: 0
+                  }}
+                >
                   {getActiveTimeRange() ? 'Range' : 'Custom'}
-                </Badge>
+                </div>
               )}
             </Button>
           </PopoverTrigger>

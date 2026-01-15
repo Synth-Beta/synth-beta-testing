@@ -1,0 +1,49 @@
+/**
+ * StarRating Component Styles
+ * 
+ * Styles for StarRating component using design tokens.
+ * Supports both display-only and interactive modes.
+ */
+
+.star-rating {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-inline, 6px);
+}
+
+/* Display-only star */
+.star-rating__star--display {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Interactive star - 44x44 touch target */
+.star-rating__star--interactive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.star-rating__star--interactive:hover {
+  opacity: 0.8;
+}
+
+.star-rating__star--interactive:active {
+  opacity: 0.6;
+}
+
+.star-rating__star--interactive:focus-visible {
+  outline: 2px solid var(--brand-pink-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-corner, 10px);
+}
+

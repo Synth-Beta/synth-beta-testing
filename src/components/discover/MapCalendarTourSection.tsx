@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar as CalendarIcon, Route, Trophy, Music, MapPin, X } from 'lucide-react';
+import { Icon } from '@/components/Icon/Icon';
 import { TourTrackerService, type TourEvent, type ArtistGroupChat } from '@/services/tourTrackerService';
 import { ArtistSearchBox } from '@/components/ArtistSearchBox';
 import type { Artist } from '@/types/concertSearch';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
-import { Icon, divIcon, latLngBounds } from 'leaflet';
+import { divIcon, latLngBounds } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -282,41 +282,11 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
     if (!currentUserId || eventIds.length === 0) return;
     
     try {
-      // Load user's interested events
-      const { data: userInterests, error: interestsError } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
-        .eq('user_id', currentUserId)
-        .eq('relationship_type', 'interested')
-        .in('event_id', eventIds);
-      
-      if (!interestsError && userInterests) {
-        const interestedSet = new Set<string>();
-        userInterests.forEach((item: any) => {
-          if (item.event_id) {
-            interestedSet.add(String(item.event_id));
-          }
-        });
-        setInterestedEvents(interestedSet);
-      }
-      
-      // Load interested counts for all events
-      const { data: allInterests, error: countsError } = await supabase
-        .from('user_event_relationships')
-        .select('event_id')
-        .eq('relationship_type', 'interested')
-        .in('event_id', eventIds);
-      
-      if (!countsError && allInterests) {
-        const countsMap = new Map<string, number>();
-        allInterests.forEach((item: any) => {
-          if (item.event_id) {
-            const eventId = String(item.event_id);
-            countsMap.set(eventId, (countsMap.get(eventId) || 0) + 1);
-          }
-        });
-        setEventInterestedCounts(countsMap);
-      }
+      const interestedSet = await UserEventService.getUserInterestedEventIdSet(currentUserId, eventIds);
+      setInterestedEvents(interestedSet);
+
+      const countsMap = await UserEventService.getInterestedCountsByEventId(eventIds);
+      setEventInterestedCounts(countsMap);
     } catch (error) {
       console.error('Error loading interested data:', error);
     }
@@ -497,15 +467,15 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="calendar" className="flex items-center gap-2">
-            <CalendarIcon className="w-4 h-4" />
+            <Icon name="calendar" size={16} />
             Calendar
           </TabsTrigger>
           <TabsTrigger value="leaderboards" className="flex items-center gap-2">
-            <Trophy className="w-4 h-4" />
+            <Icon name="ribbonAward" size={16} />
             Leaderboards
           </TabsTrigger>
           <TabsTrigger value="tour" className="flex items-center gap-2">
-            <Route className="w-4 h-4" />
+            <Icon name="route" size={16} />
             Tour Tracker
           </TabsTrigger>
         </TabsList>
@@ -578,7 +548,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         <TabsContent value="leaderboards" className="mt-4">
           <div className="flex items-center justify-center h-96">
             <div className="text-center space-y-2">
-              <Trophy className="w-12 h-12 mx-auto text-muted-foreground" />
+              <Icon name="ribbonAward" size={60} className="mx-auto" color="var(--neutral-600)" />
               <h3 className="text-lg font-semibold">Coming Soon</h3>
               <p className="text-sm text-muted-foreground">
                 Leaderboards are still in development
@@ -631,7 +601,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                       ) : null}
                       {!selectedArtist.image_url && (
                         <div className="w-24 h-24 rounded-full bg-gradient-to-br from-synth-pink to-purple-500 flex items-center justify-center border-4 border-white shadow-lg">
-                          <Music className="w-12 h-12 text-white" />
+                          <Icon name="music" size={60} color="var(--neutral-50)" />
                         </div>
                       )}
                     </div>
@@ -648,7 +618,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                           <div className="flex items-center gap-4 flex-wrap">
                             {tourEvents.length > 0 && (
                               <div className="flex items-center gap-2">
-                                <CalendarIcon className="w-4 h-4 text-synth-pink" />
+                                <Icon name="calendar" size={16} color="var(--brand-pink-500)" />
                                 <span className="text-sm font-medium text-foreground">
                                   {tourEvents.length} {tourEvents.length === 1 ? 'Tour Date' : 'Tour Dates'}
                                 </span>
@@ -656,7 +626,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                             )}
                             {selectedArtist.genres && selectedArtist.genres.length > 0 && (
                               <div className="flex items-center gap-2">
-                                <Music className="w-4 h-4 text-synth-pink" />
+                                <Icon name="music" size={16} color="var(--brand-pink-500)" />
                                 <div className="flex items-center gap-1 flex-wrap">
                                   {selectedArtist.genres.slice(0, 3).map((genre, idx) => (
                                     <Badge 
@@ -691,7 +661,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                           }}
                           className="flex-shrink-0 text-muted-foreground hover:text-foreground"
                         >
-                          <X className="w-4 h-4" />
+                          <Icon name="x" size={16} color="var(--neutral-600)" />
                         </Button>
                       </div>
                     </div>

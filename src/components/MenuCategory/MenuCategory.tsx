@@ -1,6 +1,6 @@
 import React from 'react';
 import { IconText } from '@/components/IconText';
-import { type IconName } from '@/config/icons';
+import { type IconName } from '@/config/iconMapping';
 import './MenuCategory.css';
 
 export interface MenuCategoryProps {

@@ -67,7 +67,8 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-// Custom marker icon for events
+// Custom marker icon for events with brand-pink color
+// Using CSS filter to change the default blue marker to brand-pink-500 (#EC4899)
 const eventIcon = new Icon({
   iconUrl: markerIcon,
   iconRetinaUrl: markerIcon2x,
@@ -75,7 +76,8 @@ const eventIcon = new Icon({
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+  shadowSize: [41, 41],
+  className: 'brand-pink-marker'
 });
 
 interface EventMapProps {
@@ -181,6 +183,10 @@ export const EventMap: React.FC<EventMapProps> = ({
           border-radius: 12px;
           overflow: hidden;
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        /* Brand pink marker styling - using brand-pink-500 color */
+        .brand-pink-marker img {
+          filter: brightness(0) saturate(100%) invert(27%) sepia(93%) saturate(1352%) hue-rotate(300deg) brightness(0.85) contrast(0.9);
         }
       `}</style>
       <MapContainer

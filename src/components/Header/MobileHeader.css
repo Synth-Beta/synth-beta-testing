@@ -10,23 +10,26 @@
   left: 0;
   right: 0;
   z-index: 50;
-  background-color: var(--color-off-white, #FCFCFC);
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
-  /* Safe area support: header background starts at very top and includes notch/status bar */
-  /* Inherit --safe-area-top from parent (mobile-preview) or use env() directly */
-  /* Fallback: use 59px - 44px = 15px for desktop preview (matches iPhone 14 Pro safe area) */
-  padding-top: var(--safe-area-top, max(env(safe-area-inset-top, 0px), 15px));
+  background-color: var(--neutral-50);
+  box-shadow: 0 4px 4px 0 var(--shadow-color);
+  /* Safe area support: add safe-area padding ABOVE the header, not baked into header height */
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .mobile-header__container {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* 44px visible header bar below the safe area */
-  height: 44px;
+  /* Header: 68px total height (44px content + 12px padding top + 12px padding bottom) */
+  height: 68px;
+  padding-top: 12px;
+  padding-bottom: 12px;
   position: relative;
   width: 100%;
   max-width: 100%;
+  /* Use border-box so padding is included in the 68px height */
+  box-sizing: border-box;
+  /* Content (search bar, hamburger) is 44px tall and vertically centered within the 44px content area */
 }
 
 .mobile-header__center {
@@ -34,6 +37,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Respect 20px left margin for content */
+  padding-left: var(--spacing-screen-margin-x, 20px);
+  /* Right padding accounts for hamburger menu (44px) + 20px margin */
+  padding-right: calc(var(--size-input-height, 44px) + var(--spacing-screen-margin-x, 20px));
   /* This ensures content is truly centered */
 }
 
@@ -51,29 +58,21 @@
   padding: 0;
   margin: 0;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity 0.2s ease;
+  /* No hover/active effects - just the icon */
   /* Ensure icon is perfectly centered regardless of SVG viewBox differences */
   line-height: 0;
 }
 
 .mobile-header__menu-button > * {
-  /* Ensure the icon (img) is perfectly centered within the 44x44 button */
+  /* Ensure the icon (img) is perfectly centered within the 44x44 touch target */
   margin: 0;
   padding: 0;
   display: block;
   flex-shrink: 0;
 }
 
-.mobile-header__menu-button:hover {
-  opacity: 0.8;
-}
-
-.mobile-header__menu-button:active {
-  opacity: 0.6;
-}
-
 .mobile-header__menu-button:focus-visible {
-  outline: 2px solid var(--color-synth-pink, #CC2486);
+  outline: 2px solid var(--brand-pink-500);
   outline-offset: 2px;
   border-radius: var(--radius-corner, 10px);
 }
