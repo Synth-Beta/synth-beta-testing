@@ -1375,6 +1375,8 @@ interface FriendEventInterest {
           paddingBottom: 'var(--spacing-bottom-nav, 112px)',
         }}
       >
+        {feedLocation && (
+          <>
             {/* Radius selector - below box, right-aligned */}
             <div className="flex items-center justify-end gap-2" style={{ marginBottom: 'var(--spacing-small, 12px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
               <span style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-bold-weight, 700)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-900)' }}>Radius:</span>
