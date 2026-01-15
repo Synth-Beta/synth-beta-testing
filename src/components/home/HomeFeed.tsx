@@ -1362,7 +1362,6 @@ interface FriendEventInterest {
             </DropdownMenu>
                       </div>
                     </div>
-                  </div>
                 </div>
       </MobileHeader>
       )}
