@@ -30,12 +30,25 @@ echo "PWD: $(pwd)"
 echo "=========================================="
 
 # Get the project root directory
+# In Xcode Cloud, CI_WORKSPACE is typically /Volumes/workspace/repository
 PROJECT_ROOT="${CI_WORKSPACE:-${CI_PROJECT_DIR:-$(pwd)}}"
+
+# If CI_WORKSPACE is set but doesn't have package.json, try going up one level
+if [ -n "${CI_WORKSPACE}" ] && [ ! -f "${CI_WORKSPACE}/package.json" ]; then
+  # Sometimes CI_WORKSPACE points to a subdirectory
+  if [ -f "${CI_WORKSPACE}/../package.json" ]; then
+    PROJECT_ROOT="${CI_WORKSPACE}/.."
+  fi
+fi
 
 echo "📁 Project root: $PROJECT_ROOT"
 
 # Navigate to project root
-cd "$PROJECT_ROOT"
+cd "$PROJECT_ROOT" || {
+  echo "❌ Error: Could not cd to $PROJECT_ROOT"
+  echo "   Current directory: $(pwd)"
+  exit 1
+}
 
 # Verify we're in the right place
 echo "📂 Current directory contents:"
@@ -203,3 +216,13 @@ echo "✅ All dependencies installed successfully!"
 echo "✅ Post-clone setup complete!"
 echo "✅ node_modules is now available for Swift Package Manager to resolve dependencies"
 echo "=========================================="
+
+# Final verification - list what was installed
+echo ""
+echo "📋 Final verification - Capacitor packages:"
+ls -la node_modules/@capacitor/ 2>/dev/null | grep "^d" | awk '{print $9}' || echo "⚠️  Could not list packages"
+
+# Create a marker file that persists
+echo "Post-clone script completed successfully at $(date)" > .xcodecloud_postclone_success
+echo "Repository root: $(pwd)" >> .xcodecloud_postclone_success
+echo "Node modules path: $(pwd)/node_modules" >> .xcodecloud_postclone_success
