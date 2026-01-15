@@ -1,3 +1,6 @@
+/* Import Design Tokens */
+@import './styles/tokens.css';
+
 /* stylelint-disable */
 @tailwind base;
 @tailwind components;
@@ -539,32 +542,103 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-    background: var(--gradient-card);
+    @apply antialiased;
+    /* Use design tokens for font and colors */
+    font-family: var(--font-family);
+    background-color: var(--color-off-white);
+    color: var(--color-off-black);
     min-height: 100vh;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    @apply synth-heading;
+  /* Typography using design tokens */
+  h1 {
+    font-size: var(--typography-h1-size);
+    font-weight: var(--typography-h1-weight);
+    line-height: var(--typography-h1-line-height);
+    color: var(--color-off-black);
+    font-family: var(--font-family);
   }
 
+  h2 {
+    font-size: var(--typography-h2-size);
+    font-weight: var(--typography-h2-weight);
+    line-height: var(--typography-h2-line-height);
+    color: var(--color-off-black);
+    font-family: var(--font-family);
+  }
+
+  /* Default text styles using design tokens */
   p, span, div, a, button, input, textarea, label {
-    @apply synth-text;
+    font-family: var(--font-family);
+    color: var(--color-off-black);
+    font-size: var(--typography-body-size);
+    font-weight: var(--typography-body-weight);
+    line-height: var(--typography-body-line-height);
   }
 }
 
 @layer components {
-  /* Synth Typography */
+  /* Typography Utility Classes using Design Tokens */
+  .text-h1 {
+    font-size: var(--typography-h1-size);
+    font-weight: var(--typography-h1-weight);
+    line-height: var(--typography-h1-line-height);
+    color: var(--color-off-black);
+    font-family: var(--font-family);
+  }
+
+  .text-h2 {
+    font-size: var(--typography-h2-size);
+    font-weight: var(--typography-h2-weight);
+    line-height: var(--typography-h2-line-height);
+    color: var(--color-off-black);
+    font-family: var(--font-family);
+  }
+
+  .text-body {
+    font-size: var(--typography-body-size);
+    font-weight: var(--typography-body-weight);
+    line-height: var(--typography-body-line-height);
+    color: var(--color-off-black);
+    font-family: var(--font-family);
+  }
+
+  .text-accent {
+    font-size: var(--typography-accent-size);
+    font-weight: var(--typography-accent-weight);
+    line-height: var(--typography-accent-line-height);
+    color: var(--color-off-black);
+    font-family: var(--font-family);
+  }
+
+  .text-steps {
+    font-size: var(--typography-steps-size);
+    font-weight: var(--typography-steps-weight);
+    line-height: var(--typography-steps-line-height);
+    letter-spacing: var(--typography-steps-letter-spacing);
+    color: var(--color-off-black);
+    font-family: var(--font-family);
+  }
+
+  .text-meta {
+    font-size: var(--typography-meta-size);
+    font-weight: var(--typography-meta-weight);
+    line-height: var(--typography-meta-line-height);
+    color: var(--color-off-black);
+    font-family: var(--font-family);
+  }
+
+  /* Legacy Typography Classes (for backward compatibility) */
   .synth-heading {
-    @apply font-bold text-foreground;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    @apply font-bold;
+    font-family: var(--font-family);
+    color: var(--color-off-black);
     letter-spacing: -0.02em;
   }
   
   .synth-text {
-    @apply text-foreground;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-family);
+    color: var(--color-off-black);
   }
   
   /* Synth Logo Styles */

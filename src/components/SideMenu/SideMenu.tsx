@@ -3,37 +3,13 @@ import { Icon } from '@/components/Icon';
 import { UserInfo } from '@/components/profile/UserInfo';
 import { SynthButton } from '@/components/Button/SynthButton';
 import { MenuCategory } from '@/components/MenuCategory';
+import './SideMenu.css';
 import { useAuth } from '@/hooks/useAuth';
 import { useAccountType } from '@/hooks/useAccountType';
 import { supabase } from '@/integrations/supabase/client';
-import { Tables } from '@/types/database.types';
+import type { Tables } from '@/types/database.types';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
-import './SideMenu.css';
 
-export interface SideMenuProps {
-  /**
-   * Whether the menu is open
-   */
-  isOpen: boolean;
-  
-  /**
-   * Callback to close the menu
-   */
-  onClose: () => void;
-  
-  /**
-   * Callback when hamburger/X button is clicked (for swapping icon)
-   */
-  onToggle?: () => void;
-  
-  /**
-   * Navigation callbacks
-   */
-  onNavigateToNotifications?: () => void;
-  onNavigateToProfile?: (tab?: 'timeline' | 'interested') => void;
-  onNavigateToSettings?: () => void;
-  onNavigateToVerification?: () => void;
-}
 
 /**
  * SideMenu Component
@@ -45,9 +21,20 @@ export interface SideMenuProps {
  * - 78px overlay (OffBlack50) on the left
  * - Safe area spacer + 44px header bar with X button
  * - UserInfo component at top of content
- * - Menu items in exact order: Activity, Profile & Preferences, Event Timeline, Settings
+ * - Menu items in order: Notifications, Event Timeline, Interested, Settings
  * - Logout button as primary SynthButton
  */
+export interface SideMenuProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onToggle?: () => void;
+
+  onNavigateToNotifications?: () => void;
+  onNavigateToProfile?: (id?: string, tab?: 'timeline' | 'interested') => void;
+  onNavigateToSettings?: () => void;
+  onNavigateToVerification?: () => void;
+}
+
 export const SideMenu: React.FC<SideMenuProps> = ({
   isOpen,
   onClose,
@@ -57,6 +44,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   onNavigateToSettings,
   onNavigateToVerification,
 }) => {
+
   const { user } = useAuth();
   const { accountInfo } = useAccountType();
   const [userProfile, setUserProfile] = useState<Tables<'users'> | null>(null);
@@ -167,10 +155,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({
       console.error('Error signing out:', error);
     }
   };
-
-  if (!isOpen) {
-    return null;
-  }
 
   return (
     <>

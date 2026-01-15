@@ -738,14 +738,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         isOpen={menuOpen}
         onClose={handleMenuClose}
         onToggle={handleMenuToggle}
-        onNavigateToNotifications={handleNavigateToNotifications}
-        onNavigateToProfile={handleNavigateToProfile}
-        onNavigateToSettings={() => setShowSettings(true)}
-        onNavigateToVerification={() => {
-          // Navigate to profile with verification focus
-          handleNavigateToProfile();
-          // Could add a specific verification tab in the future
-        }}
       />
 
       {/* Settings Modal */}
