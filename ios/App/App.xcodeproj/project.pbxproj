@@ -84,6 +84,7 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				974646682F189B740037AAD7 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -150,6 +151,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		974646682F189B740037AAD7 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "#!/bin/bash\nset -e\n\n# Get project root (3 levels up from SRCROOT)\nPROJECT_ROOT=\"${SRCROOT}/../../..\"\n\necho \"📦 Checking npm dependencies...\"\n\n# Only run if node_modules doesn't exist\nif [ ! -d \"${PROJECT_ROOT}/node_modules\" ]; then\n  echo \"📦 Installing npm dependencies (required for SPM resolution)...\"\n  cd \"${PROJECT_ROOT}\"\n  \n  # Check if package.json exists\n  if [ -f \"package.json\" ]; then\n    if [ -f \"package-lock.json\" ]; then\n      npm ci --prefer-offline --no-audit\n    else\n      npm install --no-audit\n    fi\n    \n    # Verify Capacitor packages exist\n    if [ ! -d \"node_modules/@capacitor/app\" ]; then\n      echo \"❌ Error: Capacitor packages not installed\"\n      exit 1\n    fi\n    \n    echo \"✅ npm dependencies installed successfully\"\n  else\n    echo \"⚠️  Warning: package.json not found at ${PROJECT_ROOT}\"\n  fi\nelse\n  echo \"✅ node_modules already exists\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		504EC3001FED79650016851F /* Sources */ = {
