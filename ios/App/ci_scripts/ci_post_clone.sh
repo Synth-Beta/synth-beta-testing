@@ -175,7 +175,20 @@ for pkg in app push-notifications splash-screen status-bar; do
   fi
 done
 
-# Run Capacitor sync
+# Build web assets (required for cap sync to copy to ios/App/App/public)
+echo "🔨 Building web assets..."
+npm run build 2>&1 || {
+  echo "⚠️  npm run build failed, but continuing..."
+}
+
+# Verify dist directory was created
+if [ -d "dist" ]; then
+  echo "✅ dist directory created with $(ls dist | wc -l | tr -d ' ') items"
+else
+  echo "⚠️  dist directory not created, cap sync may fail"
+fi
+
+# Run Capacitor sync (copies dist/ to ios/App/App/public/)
 echo "🔄 Running Capacitor sync..."
 npx cap sync ios 2>&1 || {
   echo "⚠️  cap sync failed, but continuing (might be already synced)"
