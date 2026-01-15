@@ -115,7 +115,8 @@ export class SupabaseService {
     const { data, error } = await supabase
       .from('user_event_relationships')
       .select(`
-        id,
+        user_id,
+        event_id,
         created_at,
         relationship_type,
         events:events!user_event_relationships_event_id_fkey(
@@ -379,7 +380,7 @@ export class SupabaseService {
   static async isUserInterestedInEvent(userId: string, eventId: string) {
     const { data, error } = await supabase
       .from('user_event_relationships')
-      .select('id')
+      .select('user_id') // user_event_relationships has composite PK, no id column
       .eq('user_id', userId)
       .eq('event_id', eventId)
       .in('relationship_type', ['interested', 'going', 'maybe'])

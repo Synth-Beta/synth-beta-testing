@@ -85,10 +85,10 @@ export class HomeFeedService {
 
       // Get events where friends are interested, going, or maybe going (3NF: user_event_relationships)
       // NO FILTERS - show all events that any friend is going to
+      // Note: user_event_relationships has composite PK (user_id, event_id), no id column
       const { data: relationships, error: relError } = await supabase
         .from('user_event_relationships')
         .select(`
-          id,
           user_id,
           event_id,
           relationship_type,
