@@ -1261,79 +1261,80 @@ interface FriendEventInterest {
     <div 
       className="min-h-screen" style={{ backgroundColor: 'var(--neutral-50)' }}
     >
-      {/* Mobile Header with dropdown aligned to left content edge */}
+            {/* Mobile Header with dropdown aligned to left content edge */}
       {!hideHeader && (
-      <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
-        <div style={{ 
-          width: '100%',
-          paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
-          display: 'flex',
-          justifyContent: 'flex-start'
-        }}>
+        <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
+          <div
+            style={{
+              width: '100%',
+              paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+              display: 'flex',
+              justifyContent: 'flex-start',
+            }}
+          >
             <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
               <DropdownMenuTrigger asChild>
-              <Button 
-                variant="outline" 
-                className="flex items-center gap-2" 
-      style={{
-                  backgroundColor: 'var(--neutral-50)',
-                  borderColor: dropdownOpen ? 'var(--brand-pink-500)' : 'var(--neutral-200)',
-                  borderWidth: '2px',
-                  borderStyle: 'solid',
-                  color: 'var(--neutral-900)',
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-meta-size, 16px)',
-                  fontWeight: 'var(--typography-meta-weight, 500)',
-                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                  transition: 'border-color 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
-                }}
-                onMouseLeave={(e) => {
-                  // Only reset if not focused or open
-                  if (!e.currentTarget.matches(':focus-visible') && !dropdownOpen) {
-                    e.currentTarget.style.borderColor = 'var(--neutral-200)';
-                  }
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
-                  e.currentTarget.style.outline = '2px solid var(--brand-pink-500)';
-                  e.currentTarget.style.outlineOffset = '2px';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.outline = 'none';
-                  if (!dropdownOpen) {
-                    e.currentTarget.style.borderColor = 'var(--neutral-200)';
-                  }
-                }}
-                data-tour="feed-toggle"
-              >
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  style={{
+                    backgroundColor: 'var(--neutral-50)',
+                    borderColor: dropdownOpen ? 'var(--brand-pink-500)' : 'var(--neutral-200)',
+                    borderWidth: '2px',
+                    borderStyle: 'solid',
+                    color: 'var(--neutral-900)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    transition: 'border-color 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!e.currentTarget.matches(':focus-visible') && !dropdownOpen) {
+                      e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                    }
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
+                    e.currentTarget.style.outline = '2px solid var(--brand-pink-500)';
+                    e.currentTarget.style.outlineOffset = '2px';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.outline = 'none';
+                    if (!dropdownOpen) {
+                      e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                    }
+                  }}
+                  data-tour="feed-toggle"
+                >
                   <span
                     style={{
                       fontFamily: 'var(--font-family)',
                       fontSize: 'var(--typography-meta-size, 16px)',
                       fontWeight: 'var(--typography-meta-weight, 500)',
                       lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                      color: 'var(--neutral-900)'
+                      color: 'var(--neutral-900)',
                     }}
                   >
-                    {feedTypes.find(ft => ft.value === selectedFeedType)?.label || 'Hand Picked Events'}
+                    {feedTypes.find((ft) => ft.value === selectedFeedType)?.label || 'Hand Picked Events'}
                   </span>
                   <ChevronDown className="h-4 w-4" style={{ color: 'var(--neutral-900)' }} />
                 </Button>
               </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              className="" 
-              style={{ 
-                backgroundColor: 'var(--neutral-50)',
-                border: '2px solid var(--neutral-200)',
-                borderRadius: 'var(--radius-corner, 10px)',
-                boxShadow: '0 4px 4px 0 var(--shadow-color)',
-                padding: 'var(--spacing-inline, 6px)',
-                minWidth: '200px'
-              }}
-            >
+
+              <DropdownMenuContent
+                style={{
+                  backgroundColor: 'var(--neutral-50)',
+                  border: '2px solid var(--neutral-200)',
+                  borderRadius: 'var(--radius-corner, 10px)',
+                  boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                  padding: 'var(--spacing-inline, 6px)',
+                  minWidth: '200px',
+                }}
+              >
                 {feedTypes.map((feedType) => (
                   <DropdownMenuItem
                     key={feedType.value}
@@ -1346,7 +1347,7 @@ interface FriendEventInterest {
                       color: 'var(--neutral-900)',
                       padding: 'var(--spacing-small, 12px)',
                       borderRadius: 'var(--radius-corner, 10px)',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)';
@@ -1360,11 +1361,9 @@ interface FriendEventInterest {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-                      </div>
-      </div>
-      </MobileHeader>
+          </div>
+        </MobileHeader>
       )}
-            )}
       <div
         className="max-w-7xl mx-auto"
         style={{
