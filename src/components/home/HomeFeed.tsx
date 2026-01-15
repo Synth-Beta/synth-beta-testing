@@ -1360,31 +1360,24 @@ interface FriendEventInterest {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-                            </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
       </MobileHeader>
       )}
-      <div className="max-w-7xl mx-auto" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 112px)' }}>
-        {/* Location Filter - compact info section above feeds */}
-        {feedLocation && (
-          <>
-            <div className="flex flex-col" style={{ marginBottom: 'var(--spacing-small, 12px)', marginLeft: 'var(--spacing-screen-margin-x, 20px)', marginRight: 'var(--spacing-screen-margin-x, 20px)', gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-inline, 6px)', paddingBottom: 'var(--spacing-inline, 6px)', paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', borderRadius: 'var(--radius-corner, 10px)', color: 'var(--neutral-600)', backgroundColor: 'var(--neutral-50)', border: '2px solid var(--neutral-200)' }}>
-              {/* First line: Location */}
-              <div className="flex items-center gap-2 min-w-0">
-                <span style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-bold-weight, 700)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-900)' }}>Location:</span>
-                <span className="truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-                  {feedLocation.locationName || 'Not found'}
-                </span>
-              </div>
-              {/* Second line: Specified (if available) */}
-              {feedLocation.specifiedLocationName && (
-                <div className="flex items-center gap-2 min-w-0">
-                  <span style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-bold-weight, 700)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-900)' }}>Specified:</span>
-                  <span className="truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-                    {feedLocation.specifiedLocationName}
-                  </span>
-                </div>
-              )}
-            </div>
+            )}
+      <div
+        className="max-w-7xl mx-auto"
+        style={{
+          paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+          paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+          paddingTop: hideHeader
+            ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))`
+            : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`,
+          paddingBottom: 'var(--spacing-bottom-nav, 112px)',
+        }}
+      >
             {/* Radius selector - below box, right-aligned */}
             <div className="flex items-center justify-end gap-2" style={{ marginBottom: 'var(--spacing-small, 12px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
               <span style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-bold-weight, 700)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-900)' }}>Radius:</span>

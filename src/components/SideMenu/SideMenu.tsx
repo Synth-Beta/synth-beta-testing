@@ -4,29 +4,29 @@ import { Icon } from '@/components/Icon';
 import { UserInfo } from '@/components/profile/UserInfo';
 import { SynthButton } from '@/components/Button/SynthButton';
 import { MenuCategory } from '@/components/MenuCategory';
+import './SideMenu.css';
 import { useAuth } from '@/hooks/useAuth';
 import { useAccountType } from '@/hooks/useAccountType';
 import { supabase } from '@/integrations/supabase/client';
-import { Tables } from '@/types/database.types';
+import type { Tables } from '@/types/database.types';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
-import './SideMenu.css';
 
 export interface SideMenuProps {
   /**
    * Whether the menu is open
    */
   isOpen: boolean;
-  
+
   /**
    * Callback to close the menu
    */
   onClose: () => void;
-  
+
   /**
    * Callback when hamburger/X button is clicked (for swapping icon)
    */
   onToggle?: () => void;
-  
+
   /**
    * Navigation callbacks
    */
@@ -34,7 +34,7 @@ export interface SideMenuProps {
   onNavigateToProfile?: (userId?: string, tab?: 'timeline' | 'interested') => void;
   onNavigateToSettings?: () => void;
   onNavigateToVerification?: () => void;
-  
+
   /**
    * Optional callback for sign out action
    * If not provided, will sign out and navigate to "/"
@@ -44,17 +44,24 @@ export interface SideMenuProps {
 
 /**
  * SideMenu Component
- * 
+ *
  * Right-side drawer menu that slides in from the right.
- * 
+ *
  * Layout:
  * - Drawer width = screen width - 78px
  * - 78px overlay (OffBlack50) on the left
  * - Safe area spacer + 44px header bar with X button
  * - UserInfo component at top of content
- * - Menu items in exact order: Notifications, Timeline, Interested, Settings
- * - Logout button as primary SynthButton
+ *
+ * Menu order:
+ * Notifications
+ * Event Timeline
+ * Interested
+ * Settings
+ *
+ * Logout button is primary SynthButton
  */
+
 export const SideMenu: React.FC<SideMenuProps> = ({
   isOpen,
   onClose,
@@ -70,9 +77,11 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   const { accountInfo } = useAccountType();
   const [userProfile, setUserProfile] = useState<Tables<'users'> | null>(null);
 
-  // Fetch user profile data
+  // Fetch user profile data when menu opens
   useEffect(() => {
     const fetchUserProfile = async () => {
+      if (!isOpen) return;
+
       if (!user) {
         setUserProfile(null);
         return;
@@ -112,15 +121,15 @@ export const SideMenu: React.FC<SideMenuProps> = ({
     if (!trimmed) return '?';
     return trimmed[0].toUpperCase();
   };
-  // Handle overlay click (78px area on the left)
+
+  // Close when clicking overlay
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Only close if clicking directly on overlay, not on drawer
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
-  // Handle X button click
+  // Close via X button
   const handleCloseClick = () => {
     onClose();
     if (onToggle) {
@@ -128,12 +137,11 @@ export const SideMenu: React.FC<SideMenuProps> = ({
     }
   };
 
-  // Handle logout button click
+  // Logout handler
   const handleLogout = async () => {
-    onClose(); // Close the menu first
-    
+    onClose();
+
     if (onSignOut) {
-      // Use provided sign out handler (e.g., from MainApp)
       await onSignOut();
     } else {
       try {
@@ -144,6 +152,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({
       navigate('/');
     }
   };
+
+  // Hard unmount when closed
   if (!isOpen) {
     return null;
   }
@@ -156,7 +166,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
         onClick={handleOverlayClick}
         aria-hidden="true"
       />
-      
+
       {/* Drawer (screen width - 78px) */}
       <aside
         className="side-menu__drawer"
@@ -164,10 +174,10 @@ export const SideMenu: React.FC<SideMenuProps> = ({
         aria-modal="true"
         aria-label="Navigation menu"
       >
-        {/* Safe area spacer - seamless background */}
+        {/* Safe area spacer */}
         <div className="side-menu__safe-area-spacer" />
-        
-        {/* Header bar - 44px height with X button */}
+
+        {/* Header bar */}
         <div className="side-menu__header-bar">
           <button
             className="side-menu__close-button"
@@ -179,9 +189,9 @@ export const SideMenu: React.FC<SideMenuProps> = ({
           </button>
         </div>
 
-        {/* Menu Content - starts 20px after header bar */}
+        {/* Content */}
         <div className="side-menu__content">
-          {/* User Info Section */}
+          {/* User Info */}
           <div className="side-menu__user-info-section">
             <UserInfo
               variant="user"
@@ -192,18 +202,17 @@ export const SideMenu: React.FC<SideMenuProps> = ({
             />
           </div>
 
-          {/* Primary Navigation Items */}
+          {/* Navigation */}
           <div className="side-menu__list">
             <MenuCategory
               label="Notifications"
               icon="bell"
               onPress={() => {
-                if (onNavigateToNotifications) {
-                  onNavigateToNotifications();
-                }
+                onNavigateToNotifications?.();
                 onClose();
               }}
             />
+
             <MenuCategory
               label="Event Timeline"
               icon="music"
@@ -215,6 +224,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
                 onClose();
               }}
             />
+
             <MenuCategory
               label="Interested"
               icon="heart"
@@ -226,21 +236,18 @@ export const SideMenu: React.FC<SideMenuProps> = ({
                 onClose();
               }}
             />
+
             <MenuCategory
               label="Settings"
               icon="settings"
               onPress={() => {
-                if (onNavigateToSettings) {
-                  onNavigateToSettings();
-                } else {
-                  console.log('Settings clicked');
-                }
+                onNavigateToSettings?.();
                 onClose();
               }}
             />
           </div>
 
-          {/* Verification Status Section */}
+          {/* Verification */}
           {user && accountInfo && (
             <>
               <div className="side-menu__section-divider" aria-hidden="true" />
@@ -254,7 +261,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({
               <div className="side-menu__verification-divider" aria-hidden="true" />
             </>
           )}
-          {/* Logout Button - Primary SynthButton */}
+
+          {/* Logout */}
           <div className="side-menu__logout-section">
             <SynthButton
               variant="primary"
@@ -272,4 +280,3 @@ export const SideMenu: React.FC<SideMenuProps> = ({
 };
 
 export default SideMenu;
-

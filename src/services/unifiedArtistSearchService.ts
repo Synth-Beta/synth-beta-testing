@@ -463,15 +463,19 @@ export class UnifiedArtistSearchService {
           } else {
             savedArtist = data;
             // Ensure external_entity_ids is updated
-            await supabase
-              .from('external_entity_ids')
-              .upsert({
-                entity_type: 'artist',
-                entity_uuid: savedArtist.id,
-                source: 'jambase',
-                external_id: artistId
-              }, { onConflict: 'entity_uuid,source,entity_type' })
-              .catch(() => {}); // Ignore errors
+            try {
+              await supabase
+                .from('external_entity_ids')
+                .upsert({
+                  entity_type: 'artist',
+                  entity_uuid: savedArtist.id,
+                  source: 'jambase',
+                  external_id: artistId
+                }, { onConflict: 'entity_uuid,source,entity_type' })
+                .select();
+            } catch {
+              // Ignore errors
+            }
           }
         } else {
           // Insert new artist
@@ -487,15 +491,19 @@ export class UnifiedArtistSearchService {
           } else {
             savedArtist = data;
             // Insert into external_entity_ids for normalization
-            await supabase
-              .from('external_entity_ids')
-              .insert({
-                entity_type: 'artist',
-                entity_uuid: savedArtist.id,
-                source: 'jambase',
-                external_id: artistId
-              })
-              .catch(() => {}); // Ignore duplicate errors
+            try {
+              await supabase
+                .from('external_entity_ids')
+                .insert({
+                  entity_type: 'artist',
+                  entity_uuid: savedArtist.id,
+                  source: 'jambase',
+                  external_id: artistId
+                })
+                .select();
+            } catch {
+              // Ignore duplicate errors
+            }
           }
         }
 

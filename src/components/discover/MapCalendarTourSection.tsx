@@ -779,8 +779,8 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                             venue_name: event.venue_name,
                             event_date: event.event_date,
                             venue_city: event.venue_city,
-                            image_url: event.image_url,
-                            poster_image_url: event.poster_image_url,
+                            image_url: event.images?.[0]?.url,
+                            poster_image_url: event.images?.[0]?.url,
                           }}
                           interestedCount={interestedCount}
                           isInterested={isInterested}
@@ -802,7 +802,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                             });
                             
                             try {
-                              await UserEventService.toggleEventInterest(
+                              await UserEventService.setEventInterest(
                                 currentUserId,
                                 event.id,
                                 newInterestState

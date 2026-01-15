@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Xcode Cloud Pre-Build Script
-# This script runs before Xcode builds to ensure all dependencies are installed
+# This script runs before Xcode resolves package dependencies
+# It ensures npm dependencies are installed so Swift Package Manager can find Capacitor packages
 #
 # Xcode Cloud automatically runs scripts in ci_scripts/ directory:
 # - ci_pre_xcodebuild.sh: Runs before xcodebuild
@@ -17,32 +18,63 @@ echo "=========================================="
 echo "Environment Variables:"
 echo "CI_WORKSPACE: ${CI_WORKSPACE:-not set}"
 echo "CI_PROJECT_DIR: ${CI_PROJECT_DIR:-not set}"
+echo "CI_PRIMARY_REPOSITORY_PATH: ${CI_PRIMARY_REPOSITORY_PATH:-not set}"
+echo "SRCROOT: ${SRCROOT:-not set}"
 echo "PWD: $(pwd)"
 echo "=========================================="
 
-# Get the project root directory
-# In Xcode Cloud, CI_WORKSPACE is set to the workspace path
-# CI_PROJECT_DIR is set to the project directory
-PROJECT_ROOT="${CI_WORKSPACE:-${CI_PROJECT_DIR:-$(pwd)}}"
+# Navigate to repository root
+# In Xcode Cloud, the workspace is at /Volumes/workspace/repository
+# Try multiple paths to find the repository root
+REPO_ROOT=""
 
-echo "📁 Project root: $PROJECT_ROOT"
+# Try Xcode Cloud environment variables first
+if [ -n "${CI_WORKSPACE}" ] && [ -f "${CI_WORKSPACE}/package.json" ]; then
+    REPO_ROOT="${CI_WORKSPACE}"
+elif [ -n "${CI_PRIMARY_REPOSITORY_PATH}" ] && [ -f "${CI_PRIMARY_REPOSITORY_PATH}/package.json" ]; then
+    REPO_ROOT="${CI_PRIMARY_REPOSITORY_PATH}"
+elif [ -n "${CI_PROJECT_DIR}" ] && [ -f "${CI_PROJECT_DIR}/package.json" ]; then
+    REPO_ROOT="${CI_PROJECT_DIR}"
+elif [ -n "${SRCROOT}" ] && [ -f "${SRCROOT}/../../package.json" ]; then
+    REPO_ROOT="${SRCROOT}/../.."
+else
+    # Try to find package.json by going up from current directory
+    CURRENT_DIR=$(pwd)
+    while [ "$CURRENT_DIR" != "/" ]; do
+        if [ -f "${CURRENT_DIR}/package.json" ]; then
+            REPO_ROOT="${CURRENT_DIR}"
+            break
+        fi
+        CURRENT_DIR=$(dirname "$CURRENT_DIR")
+    done
+fi
 
-# Navigate to project root
-cd "$PROJECT_ROOT"
+if [ -z "$REPO_ROOT" ] || [ ! -f "${REPO_ROOT}/package.json" ]; then
+    echo "❌ Error: Could not find repository root (package.json not found)"
+    echo "   Tried: CI_WORKSPACE=${CI_WORKSPACE}"
+    echo "   Tried: CI_PRIMARY_REPOSITORY_PATH=${CI_PRIMARY_REPOSITORY_PATH}"
+    echo "   Tried: CI_PROJECT_DIR=${CI_PROJECT_DIR}"
+    echo "   Tried: SRCROOT=${SRCROOT}"
+    echo "   Current directory: $(pwd)"
+    exit 1
+fi
+
+echo "📁 Repository root: ${REPO_ROOT}"
+cd "${REPO_ROOT}"
 
 # Verify we're in the right place
 echo "📂 Current directory contents:"
 ls -la | head -20
 
-# Check if package.json exists
-if [ ! -f "package.json" ]; then
-  echo "❌ Error: package.json not found at $PROJECT_ROOT"
-  exit 1
-fi
-
 # Check if Node.js is available
 if ! command -v node &> /dev/null; then
   echo "❌ Error: Node.js not found. Xcode Cloud should have Node.js installed."
+  exit 1
+fi
+
+# Check if npm is available
+if ! command -v npm &> /dev/null; then
+  echo "❌ Error: npm not found. Xcode Cloud should have npm installed."
   exit 1
 fi
 
@@ -57,11 +89,11 @@ echo "Using npm ci for clean, reproducible installs..."
 if [ -f "package-lock.json" ]; then
   npm ci --prefer-offline --no-audit || {
     echo "⚠️  npm ci failed, trying npm install..."
-    npm install --no-audit
+    npm install --prefer-offline --no-audit
   }
 else
   echo "⚠️  package-lock.json not found, using npm install..."
-  npm install --no-audit
+  npm install --prefer-offline --no-audit
 fi
 
 if [ $? -ne 0 ]; then
@@ -134,11 +166,13 @@ ls -la node_modules/@capacitor/ || echo "⚠️  Could not list Capacitor packag
 echo "🔍 Final verification of required packages..."
 for package in "${REQUIRED_PACKAGES[@]}"; do
   PACKAGE_PATH="node_modules/$package"
-  ABSOLUTE_PATH="$(cd "$(dirname "$PACKAGE_PATH")" && pwd)/$(basename "$PACKAGE_PATH")"
+  ABSOLUTE_PATH="$(cd "$(dirname "$PACKAGE_PATH")" 2>/dev/null && pwd)/$(basename "$PACKAGE_PATH")" || ABSOLUTE_PATH=""
   
   if [ -d "$PACKAGE_PATH" ]; then
     echo "✅ $package exists at: $PACKAGE_PATH"
-    echo "   Absolute path: $ABSOLUTE_PATH"
+    if [ -n "$ABSOLUTE_PATH" ]; then
+      echo "   Absolute path: $ABSOLUTE_PATH"
+    fi
     # Verify it's readable
     if [ -r "$PACKAGE_PATH" ]; then
       echo "   ✓ Package is readable"
@@ -156,7 +190,9 @@ for package in "${REQUIRED_PACKAGES[@]}"; do
         else
           echo "   ⚠️  Warning: Package.swift relative path might not resolve correctly"
           echo "      Expected from Package.swift: $EXPECTED_PATH"
-          echo "      Actual location: $ABSOLUTE_PATH"
+          if [ -n "$ABSOLUTE_PATH" ]; then
+            echo "      Actual location: $ABSOLUTE_PATH"
+          fi
         fi
       fi
     else

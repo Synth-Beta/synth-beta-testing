@@ -545,10 +545,11 @@
     @apply antialiased;
     /* Use design tokens for font and colors */
     font-family: var(--font-family);
-    background-color: var(--neutral-50);
-    color: var(--neutral-900);
-    min-height: 100vh;
-  }
+  background-color: var(--neutral-50);
+  color: var(--neutral-900);
+  min-height: 100vh;
+}
+
 
   /* Typography using design tokens */
   h1 {
