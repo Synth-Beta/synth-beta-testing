@@ -195,6 +195,7 @@ export class LocationService {
 
   /**
    * Get user's current location (requires browser permission)
+   * Returns a rejected promise with a specific error code for permission denials
    */
   static async getCurrentLocation(): Promise<{ latitude: number; longitude: number }> {
     return new Promise((resolve, reject) => {
@@ -211,7 +212,10 @@ export class LocationService {
           });
         },
         (error) => {
-          reject(new Error(`Failed to get location: ${error.message}`));
+          // Create error with code property for easier handling
+          const geoError = new Error(`Failed to get location: ${error.message}`) as Error & { code?: number };
+          geoError.code = error.code;
+          reject(geoError);
         },
         {
           enableHighAccuracy: true,
@@ -220,6 +224,60 @@ export class LocationService {
         }
       );
     });
+  }
+
+  /**
+   * Check if geolocation permission is likely denied or unavailable
+   * Returns true if permission is denied or cannot be determined
+   */
+  static isGeolocationDenied(): boolean {
+    // Note: There's no direct API to check geolocation permission status
+    // This is a best-effort check that tries to detect if permission was denied
+    // by checking if geolocation API exists
+    if (!navigator.geolocation) {
+      return true;
+    }
+    // Permission status can't be checked directly, but we'll handle errors gracefully
+    return false;
+  }
+
+  /**
+   * Get user-friendly error message and title for geolocation errors
+   * Returns an object with title and description for toast notifications
+   */
+  static getLocationErrorMessage(error: any): { title: string; description: string } {
+    // Check if geolocation is not supported
+    if (error?.message?.includes('not supported') || !navigator.geolocation) {
+      return {
+        title: "Location Not Supported",
+        description: "Your browser doesn't support location services. Showing general events instead."
+      };
+    }
+
+    // Handle different error codes
+    switch (error?.code) {
+      case 1: // PERMISSION_DENIED
+        return {
+          title: "Location Access Denied",
+          description: "Location access was denied. Showing general events instead."
+        };
+      case 2: // POSITION_UNAVAILABLE
+        return {
+          title: "Location Unavailable",
+          description: "Could not determine your location. Showing general events instead."
+        };
+      case 3: // TIMEOUT
+        return {
+          title: "Location Timeout",
+          description: "Location request timed out. Showing general events instead."
+        };
+      default:
+        // Generic error message for unknown errors
+        return {
+          title: "Location Error",
+          description: "Could not access your location. Showing general events instead."
+        };
+    }
   }
 
   /**

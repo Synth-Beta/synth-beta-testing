@@ -114,12 +114,21 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               currentLocation.longitude
             );
             setSelectedLocationName(cityName || 'Current Location');
-          } catch (geoError) {
-            console.error('Error reverse geocoding:', geoError);
+          } catch (geoError: any) {
+            // Only log unexpected errors, not permission denials
+            if (geoError?.code !== 1) { // 1 = PERMISSION_DENIED
+              console.error('Error reverse geocoding:', geoError);
+            }
             setSelectedLocationName('Current Location');
           }
-        } catch (geoError) {
-          console.error('Error getting current location:', geoError);
+        } catch (geoError: any) {
+          // Only log unexpected errors, not permission denials
+          if (geoError?.code !== 1) { // 1 = PERMISSION_DENIED
+            console.error('Error getting current location:', geoError);
+          }
+          // Set fallback values when geolocation fails
+          // Don't set userLocation or filters - let user manually select location
+          setSelectedLocationName('');
         }
       }
     } catch (error) {
@@ -143,11 +152,17 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           );
           setSelectedLocationName(cityName || 'Current Location');
         } catch (geoError) {
-          console.error('Error reverse geocoding:', geoError);
+          // Only log unexpected errors, not permission denials
+          if ((geoError as any)?.code !== 1) { // 1 = PERMISSION_DENIED
+            console.error('Error reverse geocoding:', geoError);
+          }
           setSelectedLocationName('Current Location');
         }
-      } catch (geoError) {
-        console.error('Error getting current location:', geoError);
+      } catch (geoError: any) {
+        // Only log unexpected errors, not permission denials
+        if (geoError?.code !== 1) { // 1 = PERMISSION_DENIED
+          console.error('Error getting current location:', geoError);
+        }
       }
     }
   };

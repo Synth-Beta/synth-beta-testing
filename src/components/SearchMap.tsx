@@ -108,17 +108,25 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
           });
         }
       })
-      .catch(error => {
-        console.log('Could not get user location:', error);
+      .catch((error: any) => {
+        // Only log unexpected errors, not permission denials (code 1)
+        if (error?.code !== 1) {
+          console.log('Could not get user location:', error);
+        }
         // Set initial map center to default (US center)
         setInitialMapCenter([39.8283, -98.5795]);
         // Continue without location - load events from database
         loadUpcomingEvents();
-        toast({
-          title: "Location Access Denied",
-          description: "Could not access your location. Showing general events instead.",
-          variant: "default",
-        });
+        // Only show toast for unexpected errors, not permission denials
+        // Permission denials are silent since user intentionally denied access
+        if (error?.code !== 1) {
+          const errorMessage = LocationService.getLocationErrorMessage(error);
+          toast({
+            title: errorMessage.title,
+            description: errorMessage.description,
+            variant: "default",
+          });
+        }
       });
   }, [userId]);
 

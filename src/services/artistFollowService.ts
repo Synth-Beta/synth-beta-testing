@@ -631,11 +631,11 @@ export class ArtistFollowService {
         },
         (payload: any) => {
           // Process artist follow insert
-          onFollowChange({
-            id: payload.new.id,
-            user_id: payload.new.user_id,
+            onFollowChange({
+              id: payload.new.id,
+              user_id: payload.new.user_id,
             artist_id: payload.new.artist_id
-          } as ArtistFollow, 'INSERT');
+            } as ArtistFollow, 'INSERT');
         }
       )
       .on(
@@ -648,11 +648,11 @@ export class ArtistFollowService {
         },
         (payload: any) => {
           // Process artist follow delete
-          onFollowChange({
-            id: payload.old.id,
-            user_id: payload.old.user_id,
+            onFollowChange({
+              id: payload.old.id,
+              user_id: payload.old.user_id,
             artist_id: payload.old.artist_id
-          } as ArtistFollow, 'DELETE');
+            } as ArtistFollow, 'DELETE');
         }
       )
       .subscribe();

@@ -349,8 +349,11 @@ interface FriendEventInterest {
         if (cityName) {
           currentLocationName = cityName;
         }
-      } catch (geoError) {
-        console.error('Error getting current location:', geoError);
+      } catch (geoError: any) {
+        // Only log unexpected errors, not permission denials
+        if (geoError?.code !== 1) { // 1 = PERMISSION_DENIED
+          console.error('Error getting current location:', geoError);
+        }
         // If geolocation fails, currentLocationName stays null (will show "Not found")
       }
 
