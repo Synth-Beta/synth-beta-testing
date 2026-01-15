@@ -447,7 +447,7 @@ export class UserAnalyticsService {
   }
 
   /**
-   * Get actual interested events count from user_jambase_events
+   * Get actual interested events count from user_event_relationships (3NF schema)
    */
   static async getActualInterestedEventsCount(userId: string): Promise<number> {
     try {
@@ -488,7 +488,7 @@ export class UserAnalyticsService {
       const actualUniqueVenues = await this.getActualUniqueVenuesCount(userId);
       console.log('🎯 Actual unique venues count:', actualUniqueVenues);
 
-      // 🎯 FIXED: Get actual interested events count from user_jambase_events
+      // 🎯 FIXED: Get actual interested events count from user_event_relationships (3NF schema)
       const actualInterestedEvents = await this.getActualInterestedEventsCount(userId);
       console.log('🎯 Actual interested events count:', actualInterestedEvents);
 
@@ -685,21 +685,19 @@ export class UserAnalyticsService {
     try {
       console.log(`🔍 Getting artist follows count for user: ${userId}`);
       
-      // First, try a direct count query (using consolidated follows table)
+      // First, try a direct count query (using artist_follows table - 3NF schema)
       const { count: countResult, error: countError } = await supabase
-        .from('follows')
+        .from('artist_follows')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('followed_entity_type', 'artist');
+        .eq('user_id', userId);
 
       console.log(`🔍 Count query result: count=${countResult}, error=`, countError);
 
       // Also fetch the actual data to see what we get
       const { data: followData, error: dataError } = await supabase
-        .from('follows')
-        .select('id, followed_entity_id, user_id, created_at')
-        .eq('user_id', userId)
-        .eq('followed_entity_type', 'artist');
+        .from('artist_follows')
+        .select('id, artist_id, user_id, created_at')
+        .eq('user_id', userId);
 
       console.log(`🔍 Data query result: data.length=${followData?.length || 0}, error=`, dataError);
       if (followData && followData.length > 0) {

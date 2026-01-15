@@ -63,27 +63,12 @@ export function FriendsInterestedBadge({ eventId, onClick }: FriendsInterestedBa
 
       if (error) {
         console.error('Error loading friends interested from user_event_relationships:', error);
-      }
-
-      const { data: eventData } = await supabase
-        .from('events')
-        .select('jambase_event_id')
-        .eq('id', eventId)
-        .maybeSingle();
-
-      const jambaseEventId = eventData?.jambase_event_id || eventId;
-      const { data: fallbackInterested, error: fallbackError } = await supabase
-        .from('user_jambase_events')
-        .select('user_id')
-        .eq('jambase_event_id', jambaseEventId)
-        .in('user_id', friendIds);
-
-      if (fallbackError) {
-        console.error('Error loading friends interested from user_jambase_events:', fallbackError);
+        setFriendCount(0);
         return;
       }
 
-      setFriendCount(fallbackInterested?.length || 0);
+      // If no data found, set count to 0
+      setFriendCount(0);
     } catch (error) {
       console.error('Error loading friends interested:', error);
     } finally {

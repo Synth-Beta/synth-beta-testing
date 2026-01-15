@@ -115,8 +115,15 @@ export function FollowingModal({
       console.log('📥 FollowingModal: Received artists:', artists.length, 'venues:', venues.length);
       console.log('📥 FollowingModal: Artist details:', artists.map(a => ({ name: a.artist_name, id: a.artist_id })));
 
+      // Filter out artists without names (orphaned follows should be handled by service)
+      const validArtists = artists.filter(a => a.artist_name && a.artist_name.trim() !== '');
+      
+      if (validArtists.length < artists.length) {
+        console.warn(`⚠️ Filtered out ${artists.length - validArtists.length} artists without names`);
+      }
+
       // Sort alphabetically by name
-      const sortedArtists = [...artists].sort((a, b) => 
+      const sortedArtists = [...validArtists].sort((a, b) => 
         (a.artist_name || '').localeCompare(b.artist_name || '', undefined, { sensitivity: 'base' })
       );
       const sortedVenues = [...venues].sort((a, b) => 

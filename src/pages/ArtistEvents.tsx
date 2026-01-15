@@ -78,6 +78,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
     try {
       let artistUuid: string | null = null;
       let decodedArtistId = artistIdOrName ? decodeURIComponent(artistIdOrName) : '';
+      let artistDataFound: { name: string; image_url?: string | null } | null = null;
       
       // Step 1: Determine if it's a UUID or a name
       if (artistIdOrName && isValidUUID(artistIdOrName)) {
@@ -92,9 +93,35 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
           .maybeSingle();
         
         if (artistData) {
+          artistDataFound = { name: artistData.name, image_url: artistData.image_url };
           setArtistName(artistData.name);
           if (artistData.image_url) {
             setArtistImage(artistData.image_url);
+          }
+        } else {
+          // Artist not found in artists table, try fallback lookups
+          // Try events table
+          const { data: eventData } = await supabase
+            .from('events')
+            .select('artist_name, artist_id')
+            .eq('artist_id', artistUuid)
+            .limit(1)
+            .maybeSingle();
+          
+          if (eventData?.artist_name) {
+            setArtistName(eventData.artist_name);
+          } else {
+            // Try artists_with_external_ids view
+            const { data: externalIdArtist } = await supabase
+              .from('artists_with_external_ids')
+              .select('name')
+              .eq('id', artistUuid)
+              .limit(1)
+              .maybeSingle();
+            
+            if (externalIdArtist?.name) {
+              setArtistName(externalIdArtist.name);
+            }
           }
         }
       } else {
@@ -108,11 +135,13 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
         
         if (artistData) {
           artistUuid = artistData.id;
+          artistDataFound = { name: artistData.name, image_url: artistData.image_url };
           setArtistName(artistData.name);
           if (artistData.image_url) {
             setArtistImage(artistData.image_url);
           }
         } else {
+          // Use the decoded ID as the name if no artist found
           setArtistName(decodedArtistId);
         }
       }
@@ -168,12 +197,12 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       
       // Even if no events found, still try to fetch artist image and other data
       if (eventIdList.length === 0) {
-        // Artist image already set above if artistDataForEvents was found
+        // Artist image already set above if artistDataFound was found
         // If not found yet, try one more time
-        if (!artistImage && !artistDataForEvents) {
+        if (!artistImage && artistName && !artistDataFound?.image_url) {
           const { data: fallbackArtistData } = await (supabase as any)
             .from('artists')
-            .select('id, name, jambase_artist_id, image_url')
+            .select('id, name, identifier, image_url')
             .ilike('name', artistName)
             .maybeSingle();
 
@@ -220,6 +249,8 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       // Fetch events separately (can't join directly in 3NF schema)
       const reviewEventIds = reviewsData?.map((r: any) => r.event_id).filter(Boolean) || [];
       const eventMap = new Map();
+      const artistMap = new Map(); // Declare at function scope so it's accessible later
+      
       if (reviewEventIds.length > 0) {
         const { data: eventsData } = await supabase
           .from('events')
@@ -228,7 +259,6 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
         
         // Fetch artist names separately
         const artistIds = [...new Set(eventsData?.map((e: any) => e.artist_id).filter(Boolean) || [])];
-        const artistMap = new Map();
         if (artistIds.length > 0) {
           const { data: artistsData } = await supabase
             .from('artists')
@@ -295,12 +325,12 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
 
       setArtistReviews(transformedReviews);
 
-      // Artist image should already be set from artistDataForEvents above
+      // Artist image should already be set from artistDataFound above
       // If not, try to fetch artist data from database
-      if (!artistImage && !artistDataForEvents) {
+      if (!artistImage && artistName && !artistDataFound?.image_url) {
         const { data: fallbackArtistData } = await (supabase as any)
           .from('artists')
-          .select('id, name, jambase_artist_id, image_url')
+          .select('id, name, identifier, image_url')
           .ilike('name', artistName)
           .maybeSingle();
 
@@ -315,10 +345,10 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       }
       
       // If still no image, try exact match as fallback
-      if (!artistImage && !artistDataForEvents) {
+      if (!artistImage && artistName && !artistDataFound?.image_url) {
         const { data: exactMatch } = await (supabase as any)
           .from('artists')
-          .select('id, name, jambase_artist_id, image_url')
+          .select('id, name, identifier, image_url')
           .eq('name', artistName)
           .maybeSingle();
           
@@ -499,12 +529,42 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
         }
       }
       
-      // If still no name, use Unknown Artist instead of UUID
+      // If still no name, try additional fallback lookups before giving up
       if (!finalArtistName || finalArtistName === decodedArtistId || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(finalArtistName)) {
-        finalArtistName = 'Unknown Artist';
+        // Try to find artist name from events table
+        if (decodedArtistId) {
+          const { data: eventWithArtist } = await supabase
+            .from('events')
+            .select('artist_name, artist_id')
+            .or(`artist_id.eq.${decodedArtistId},artist_name.ilike.%${decodedArtistId}%`)
+            .limit(1)
+            .maybeSingle();
+          
+          if (eventWithArtist?.artist_name) {
+            finalArtistName = eventWithArtist.artist_name;
+          } else if (isUUID && decodedArtistId) {
+            // Last resort: try artists_with_external_ids view
+            const { data: externalIdArtist } = await supabase
+              .from('artists_with_external_ids')
+              .select('name')
+              .eq('id', decodedArtistId)
+              .limit(1)
+              .maybeSingle();
+            
+            if (externalIdArtist?.name) {
+              finalArtistName = externalIdArtist.name;
+            }
+          }
+        }
       }
       
-      setArtistName(finalArtistName);
+      // Only set artist name if we found a valid name (not UUID or empty)
+      if (finalArtistName && finalArtistName !== decodedArtistId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(finalArtistName)) {
+        setArtistName(finalArtistName);
+      } else if (decodedArtistId && !isUUID) {
+        // If it's not a UUID, use the decoded ID as the name
+        setArtistName(decodedArtistId);
+      }
       
       // Fetch artist profile data (image, description, etc.) even if no events found
       let foundImage = false;
@@ -805,7 +865,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
             </div>
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold gradient-text break-words truncate">
-                    {artistName || 'Unknown Artist'}
+                    {artistName || (artistId ? decodeURIComponent(artistId) : 'Artist')}
                   </h1>
             </div>
             {user?.id && (

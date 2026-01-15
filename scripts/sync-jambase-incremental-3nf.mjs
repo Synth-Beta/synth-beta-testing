@@ -187,15 +187,67 @@ class IncrementalSync3NF {
     // Update existing artists
     for (const { uuid, data } of updateArtists) {
       // Remove jambase_artist_id and artist_data_source from data (they're not columns)
-      const { jambase_artist_id, artist_data_source, ...artistData } = data;
+      const { jambase_artist_id, artist_data_source, genres: newGenres, ...artistData } = data;
+      
+      // Merge genres: fetch existing genres and merge with new ones if provided
+      let updateData = {
+        ...artistData,
+        updated_at: new Date().toISOString(),
+        last_synced_at: new Date().toISOString()
+      };
+      
+      // Only merge genres if new genres are provided and non-empty
+      const hasNewGenres = newGenres && (
+        (Array.isArray(newGenres) && newGenres.length > 0) ||
+        (!Array.isArray(newGenres) && newGenres)
+      );
+      
+      if (hasNewGenres) {
+        // Fetch existing artist to get current genres
+        const { data: existingArtist, error: fetchError } = await this.syncService.supabase
+          .from('artists')
+          .select('genres')
+          .eq('id', uuid)
+          .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          throw fetchError;
+        }
+
+        // Merge existing and new genres
+        const existingGenres = existingArtist?.genres || [];
+        const existingArray = Array.isArray(existingGenres) ? existingGenres : (existingGenres ? [existingGenres] : []);
+        const newGenresArray = Array.isArray(newGenres) ? newGenres : [newGenres];
+        
+        // Combine and deduplicate (case-insensitive)
+        const genreMap = new Map(); // Use Map to preserve case preference
+        
+        // Add existing genres first
+        for (const genre of existingArray) {
+          if (genre) {
+            const key = String(genre).toLowerCase().trim();
+            if (!genreMap.has(key)) {
+              genreMap.set(key, String(genre).trim());
+            }
+          }
+        }
+        
+        // Add new genres (will overwrite case but keep the genre)
+        for (const genre of newGenresArray) {
+          if (genre) {
+            const key = String(genre).toLowerCase().trim();
+            genreMap.set(key, String(genre).trim()); // Prefer new genre case
+          }
+        }
+        
+        // Convert map values to array
+        updateData.genres = Array.from(genreMap.values());
+      }
+      // If no new genres provided, don't include genres in update (preserves existing)
       
       const { error } = await this.syncService.supabase
         .from('artists')
-        .update({
-          ...artistData,
-          updated_at: new Date().toISOString(),
-          last_synced_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', uuid);
 
       if (error) {

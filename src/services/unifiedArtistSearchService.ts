@@ -566,7 +566,7 @@ export class UnifiedArtistSearchService {
       
       const { data: artistsFromTable, error: artistsError } = await supabase
         .from('artists')
-        .select('id, name, identifier, image_url, genres')
+        .select('id, name, identifier, image_url, genres, num_upcoming_events')
         .ilike('name', searchPattern)
         .limit(Math.max(limit * 5, 100)); // Get more results than needed for better fuzzy matching
 
@@ -588,6 +588,7 @@ export class UnifiedArtistSearchService {
           identifier: string | null;
           image_url: string | null;
           genres: string[] | null;
+          num_upcoming_events: number | null;
         } =>
           typeof artist === 'object' &&
           artist !== null &&
@@ -595,18 +596,51 @@ export class UnifiedArtistSearchService {
           typeof artist.name === 'string'
       );
 
+      // Get artist IDs to calculate upcoming events count if needed
+      const artistIds = artists.map(a => a.id);
+      
+      // Calculate upcoming events count for artists where num_upcoming_events is null or 0
+      const artistsNeedingCount = artists.filter(a => !a.num_upcoming_events || a.num_upcoming_events === 0);
+      const upcomingCountsMap = new Map<string, number>();
+      
+      if (artistsNeedingCount.length > 0) {
+        const now = new Date().toISOString();
+        const { data: upcomingEvents, error: eventsError } = await supabase
+          .from('events')
+          .select('artist_id')
+          .in('artist_id', artistsNeedingCount.map(a => a.id))
+          .gte('event_date', now);
+        
+        if (!eventsError && upcomingEvents) {
+          upcomingEvents.forEach((event: any) => {
+            if (event.artist_id) {
+              const currentCount = upcomingCountsMap.get(event.artist_id) || 0;
+              upcomingCountsMap.set(event.artist_id, currentCount + 1);
+            }
+          });
+        }
+      }
+
       // Calculate fuzzy match scores for all artists
-      const scoredArtists = artists.map(artist => ({
-        id: artist.id, // Use UUID from artists table
-        name: artist.name,
-        identifier: artist.identifier || `manual:${artist.id}`,
-        image_url: artist.image_url || undefined,
-        genres: artist.genres || [],
-        band_or_musician: 'band' as 'band' | 'musician',
-        num_upcoming_events: 0,
-        match_score: this.calculateFuzzyMatchScore(query, artist.name),
-        is_from_database: true,
-      }));
+      const scoredArtists = artists.map(artist => {
+        // Use num_upcoming_events from database, or calculate if missing
+        let numUpcoming = artist.num_upcoming_events || 0;
+        if (numUpcoming === 0 && upcomingCountsMap.has(artist.id)) {
+          numUpcoming = upcomingCountsMap.get(artist.id) || 0;
+        }
+        
+        return {
+          id: artist.id, // Use UUID from artists table
+          name: artist.name,
+          identifier: artist.identifier || `manual:${artist.id}`,
+          image_url: artist.image_url || undefined,
+          genres: artist.genres || [],
+          band_or_musician: 'band' as 'band' | 'musician',
+          num_upcoming_events: numUpcoming,
+          match_score: this.calculateFuzzyMatchScore(query, artist.name),
+          is_from_database: true,
+        };
+      });
 
       // Sort by match score (higher is better) and filter out very low matches
       // Lower threshold (5%) to catch more partial matches like "oe russo's" matching "Joe Russo's Almost Dead"

@@ -157,8 +157,18 @@ export function ArtistFollowButton({
       const newIsFollowing = !isFollowing;
       
       if (resolvedArtistId) {
-        // We have a resolved artist ID, use the normal method
-        await ArtistFollowService.setArtistFollow(userId, resolvedArtistId, newIsFollowing);
+        // We have a resolved artist ID, but verify it exists before using it
+        try {
+          await ArtistFollowService.setArtistFollow(userId, resolvedArtistId, newIsFollowing);
+        } catch (error: any) {
+          // If artist doesn't exist, fall back to creating it by name
+          if (error.message?.includes('does not exist') && artistName) {
+            console.warn('Resolved artist ID does not exist, falling back to setArtistFollowByName');
+            await ArtistFollowService.setArtistFollowByName(userId, artistName, jambaseArtistId, newIsFollowing);
+          } else {
+            throw error;
+          }
+        }
       } else if (artistName) {
         // We don't have an artist ID, but we have a name - create/find artist and follow
         await ArtistFollowService.setArtistFollowByName(userId, artistName, jambaseArtistId, newIsFollowing);

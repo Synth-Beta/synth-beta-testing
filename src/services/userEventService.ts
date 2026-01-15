@@ -44,63 +44,16 @@ export class UserEventService {
         return interestedSet;
       }
 
-      if (error && !UserEventService.shouldFallbackToJambase(error)) {
+      if (error) {
         console.error('Error loading interested events from user_event_relationships:', error);
         return interestedSet;
       }
     } catch (error) {
       console.error('Error loading interested events from user_event_relationships:', error);
-    }
-
-    try {
-      const { data: jambaseEvents, error } = await supabase
-        .from('user_jambase_events')
-        .select('jambase_event_id')
-        .eq('user_id', userId);
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading interested events from user_jambase_events:', error);
-        return interestedSet;
-      }
-
-      const jambaseIds = (jambaseEvents || [])
-        .map((item: any) => item.jambase_event_id)
-        .filter(Boolean);
-
-      if (jambaseIds.length === 0) {
-        return interestedSet;
-      }
-
-      const { data: eventsData, error: eventsError } = await supabase
-        .from('events')
-        .select('id, jambase_event_id')
-        .in('jambase_event_id', jambaseIds);
-
-      if (!eventsError && eventsData) {
-        eventsData.forEach((event: any) => {
-          if (event.id) {
-            interestedSet.add(String(event.id));
-          }
-        });
-      }
-
-      jambaseIds.forEach((id: string) => interestedSet.add(String(id)));
-
-      if (eventIds.length > 0) {
-        const filtered = new Set<string>();
-        eventIds.forEach(id => {
-          if (interestedSet.has(String(id))) {
-            filtered.add(String(id));
-          }
-        });
-        return filtered;
-      }
-
-      return interestedSet;
-    } catch (error) {
-      console.error('Error loading interested events from user_jambase_events:', error);
       return interestedSet;
     }
+
+    return interestedSet;
   }
 
   static async getInterestedCountsByEventId(
@@ -132,7 +85,7 @@ export class UserEventService {
         return counts;
       }
 
-      if (error && !UserEventService.shouldFallbackToJambase(error)) {
+      if (error) {
         console.error('Error loading interested counts from user_event_relationships:', error);
         return counts;
       }
@@ -140,68 +93,9 @@ export class UserEventService {
       console.error('Error loading interested counts from user_event_relationships:', error);
     }
 
-    try {
-      const { data: eventsData, error: eventsError } = await supabase
-        .from('events')
-        .select('id, jambase_event_id')
-        .in('id', eventIds);
-
-      if (eventsError) {
-        return counts;
-      }
-
-      const eventsList = eventsData || [];
-      const jambaseIds = eventsList
-        .map((event: any) => event.jambase_event_id)
-        .filter(Boolean);
-
-      if (jambaseIds.length === 0 && eventIds.length > 0) {
-        jambaseIds.push(...eventIds);
-      }
-
-      if (jambaseIds.length === 0) {
-        return counts;
-      }
-
-      let jambaseQuery = supabase
-        .from('user_jambase_events')
-        .select('jambase_event_id, user_id')
-        .in('jambase_event_id', jambaseIds);
-
-      if (excludeUserId) {
-        jambaseQuery = jambaseQuery.neq('user_id', excludeUserId);
-      }
-
-      const { data: jambaseInterests, error: jambaseError } = await jambaseQuery;
-
-      if (jambaseError && jambaseError.code !== 'PGRST116') {
-        console.error('Error loading interested counts from user_jambase_events:', jambaseError);
-        return counts;
-      }
-
-      const jambaseToEventId = new Map<string, string>();
-      eventsList.forEach((event: any) => {
-        if (event.jambase_event_id && event.id) {
-          jambaseToEventId.set(String(event.jambase_event_id), String(event.id));
-        }
-      });
-
-      (jambaseInterests || []).forEach((item: any) => {
-        const jambaseId = String(item.jambase_event_id);
-        const eventId = jambaseToEventId.get(jambaseId);
-        if (!eventId) return;
-        counts.set(eventId, (counts.get(eventId) || 0) + 1);
-      });
-
-      return counts;
-    } catch (error) {
-      console.error('Error loading interested counts from user_jambase_events:', error);
-      return counts;
-    }
-  }
-  private static shouldFallbackToJambase(error: any): boolean {
-    const code = error?.code;
-    return code === '42P01' || code === '23503' || code === '23505' || code === '42703';
+    // Return counts (empty if no relationships found or error occurred)
+    // Note: No fallback to legacy schema - we're using 3NF user_event_relationships exclusively
+    return counts;
   }
 
   private static async resolveEventIdentifiers(jambaseEventId: string): Promise<{
@@ -314,40 +208,10 @@ export class UserEventService {
       if (!writeSucceeded) {
         if (primaryWriteError) {
           console.error('Interested write failed on user_event_relationships:', primaryWriteError);
+          throw new Error(`Failed to set event interest: ${primaryWriteError.message || 'Unknown error'}`);
         }
-
-        if (UserEventService.shouldFallbackToJambase(primaryWriteError) || !eventUuid) {
-          const jambaseIdToWrite = resolvedJambaseId || jambaseEventId;
-          if (jambaseIdToWrite) {
-            if (interested) {
-              const { error } = await supabase
-                .from('user_jambase_events')
-                .upsert(
-                  {
-                    user_id: userId,
-                    jambase_event_id: jambaseIdToWrite,
-                  },
-                  { onConflict: 'user_id,jambase_event_id' }
-                );
-
-              if (error) {
-                console.error('Fallback write failed on user_jambase_events:', error);
-                throw error;
-              }
-            } else {
-              const { error } = await supabase
-                .from('user_jambase_events')
-                .delete()
-                .eq('user_id', userId)
-                .eq('jambase_event_id', jambaseIdToWrite);
-
-              if (error) {
-                console.error('Fallback delete failed on user_jambase_events:', error);
-                throw error;
-              }
-            }
-            writeSucceeded = true;
-          }
+        if (!eventUuid) {
+          throw new Error('Cannot set event interest: event UUID not found');
         }
       }
       
@@ -476,28 +340,13 @@ export class UserEventService {
         return true;
       }
 
-      if (preferredError && !UserEventService.shouldFallbackToJambase(preferredError)) {
-        throw preferredError;
-      }
-
-      const jambaseIdToCheck = resolvedJambaseId || jambaseEventId;
-      if (!jambaseIdToCheck) {
+      if (preferredError) {
+        console.error('Error checking event interest:', preferredError);
         return false;
       }
 
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from('user_jambase_events')
-        .select('user_id, jambase_event_id')
-        .eq('user_id', queryUserId)
-        .eq('jambase_event_id', jambaseIdToCheck)
-        .maybeSingle();
-
-      if (fallbackError && fallbackError.code !== 'PGRST116') {
-        console.error('Error checking user_jambase_events:', fallbackError);
-        return false;
-      }
-
-      return Boolean(fallbackData);
+      // If eventUuid is not found, user is not interested
+      return false;
     } catch (error) {
       console.error('Error checking event interest:', error);
       return false;
@@ -534,7 +383,8 @@ export class UserEventService {
         .in('relationship_type', ['interested', 'going', 'maybe'])
         .order('created_at', { ascending: false });
 
-      if (relationshipsError && !UserEventService.shouldFallbackToJambase(relationshipsError)) {
+      if (relationshipsError) {
+        console.error('Error loading user interested events from user_event_relationships:', relationshipsError);
         throw relationshipsError;
       }
 
@@ -576,58 +426,8 @@ export class UserEventService {
         };
       }
 
-      // Fallback to user_jambase_events if no rows or table missing
-      const { data: jambaseEvents, error: jambaseError } = await supabase
-        .from('user_jambase_events')
-        .select('*')
-        .eq('user_id', queryUserId)
-        .order('created_at', { ascending: false });
-
-      if (jambaseError && jambaseError.code !== 'PGRST116') {
-        throw jambaseError;
-      }
-
-      if (!jambaseEvents || jambaseEvents.length === 0) {
-        return { events: [], total: 0 };
-      }
-
-      const jambaseIds = jambaseEvents
-        .map((row: any) => row.jambase_event_id)
-        .filter(Boolean);
-
-      if (jambaseIds.length === 0) {
-        return { events: [], total: 0 };
-      }
-
-      const { data: eventsData, error: eventsError } = await supabase
-        .from('events')
-        .select('*')
-        .in('jambase_event_id', jambaseIds);
-
-      if (eventsError) throw eventsError;
-
-      const events = eventsData || [];
-      const eventMap = new Map(events.map((e: any) => [e.jambase_event_id, e]));
-
-      const combinedEvents = jambaseEvents
-        .map((row: any) => {
-          const event = eventMap.get(row.jambase_event_id) || null;
-          return {
-            interest: {
-              id: row.id,
-              user_id: row.user_id,
-              jambase_event_id: row.jambase_event_id,
-              created_at: row.created_at,
-            } as UserJamBaseEvent,
-            event: event,
-          };
-        })
-        .filter(item => item.event !== null);
-
-      return {
-        events: combinedEvents,
-        total: combinedEvents.length,
-      };
+      // No fallback - return empty if no relationships found
+      return { events: [], total: 0 };
     } catch (error) {
       console.error('Error getting user interested events:', error);
       throw new Error(`Failed to get user interested events: ${error instanceof Error ? error.message : 'Unknown error'}`);

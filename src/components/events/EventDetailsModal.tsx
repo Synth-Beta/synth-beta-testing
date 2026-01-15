@@ -671,34 +671,12 @@ export function EventDetailsModal({
         .neq('user_id', currentUserId)
         .range(from, to);
 
-      if (!interestsError && preferredIds) {
-        interestedUserIds = preferredIds;
-      } else {
-        if (interestsError) {
-          console.error('Error fetching interested user IDs from user_event_relationships:', interestsError);
-        }
-
-        const { data: eventData } = await supabase
-          .from('events')
-          .select('jambase_event_id')
-          .eq('id', uuidId)
-          .maybeSingle();
-
-        const jambaseEventId = eventData?.jambase_event_id || uuidId;
-        const { data: fallbackIds, error: fallbackError } = await supabase
-          .from('user_jambase_events')
-          .select('user_id')
-          .eq('jambase_event_id', jambaseEventId)
-          .neq('user_id', currentUserId)
-          .range(from, to);
-
-        if (fallbackError) {
-          console.error('Error fetching interested user IDs from user_jambase_events:', fallbackError);
-          throw fallbackError;
-        }
-
-        interestedUserIds = fallbackIds || [];
+      if (interestsError) {
+        console.error('Error fetching interested user IDs from user_event_relationships:', interestsError);
+        throw interestsError;
       }
+
+      interestedUserIds = preferredIds || [];
       
       if (!interestedUserIds || interestedUserIds.length === 0) {
         setInterestedUsers([]);

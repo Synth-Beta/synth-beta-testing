@@ -61,13 +61,12 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
           setReviewCount(reviews.length);
         }
       } else if (result.type === 'artist') {
-        // Check if following artist (using consolidated follows table)
+        // Check if following artist (using artist_follows table - 3NF schema)
         const { data: following } = await supabase
-          .from('follows')
+          .from('artist_follows')
           .select('id')
           .eq('user_id', currentUserId)
-          .eq('followed_entity_type', 'artist')
-          .eq('followed_entity_id', result.id)
+          .eq('artist_id', result.id)
           .maybeSingle();
         
         setIsFollowing(!!following);
@@ -102,19 +101,17 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
         if (result.type === 'artist') {
           if (newState) {
             await supabase
-              .from('follows')
+              .from('artist_follows')
               .insert({
                 user_id: currentUserId,
-                followed_entity_type: 'artist',
-                followed_entity_id: result.id,
+                artist_id: result.id,
               });
           } else {
             await supabase
-              .from('follows')
+              .from('artist_follows')
               .delete()
               .eq('user_id', currentUserId)
-              .eq('followed_entity_type', 'artist')
-              .eq('followed_entity_id', result.id);
+              .eq('artist_id', result.id);
           }
         } else if (result.type === 'venue') {
           if (newState) {

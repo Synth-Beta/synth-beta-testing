@@ -39,14 +39,29 @@ export class ArtistFollowService {
       if (isRpcNotFound) {
         console.warn('⚠️ RPC function set_artist_follow not available, using direct table operations');
         
+        // Validate that the artist exists before following
         if (following) {
-          // Insert follow record in follows table (consolidated schema)
+          const { data: artistExists, error: checkError } = await supabase
+            .from('artists')
+            .select('id, name')
+            .eq('id', artistId)
+            .maybeSingle();
+
+          if (checkError && checkError.code !== 'PGRST116') {
+            console.error('Error checking if artist exists:', checkError);
+            throw new Error(`Failed to verify artist: ${checkError.message}`);
+          }
+
+          if (!artistExists) {
+            throw new Error(`Artist with ID ${artistId} does not exist. Please use setArtistFollowByName to create the artist first.`);
+          }
+
+          // Insert follow record in artist_follows table (3NF schema)
           const { error: insertError } = await supabase
-            .from('follows')
+            .from('artist_follows')
             .insert({
               user_id: userId,
-              followed_entity_type: 'artist',
-              followed_entity_id: artistId
+              artist_id: artistId
             });
 
           // Ignore unique constraint errors (already following)
@@ -54,13 +69,12 @@ export class ArtistFollowService {
             throw insertError;
           }
         } else {
-          // Delete follow record from follows table
+          // Delete follow record from artist_follows table
           const { error: deleteError } = await supabase
-            .from('follows')
+            .from('artist_follows')
             .delete()
             .eq('user_id', userId)
-            .eq('followed_entity_type', 'artist')
-            .eq('followed_entity_id', artistId);
+            .eq('artist_id', artistId);
 
           if (deleteError) throw deleteError;
         }
@@ -93,11 +107,18 @@ export class ArtistFollowService {
       // First, try to find or create the artist
       let artistId: string | null = null;
 
+      // Validate artist name
+      if (!artistName || artistName.trim() === '') {
+        throw new Error('Cannot follow artist without a name');
+      }
+
+      const trimmedName = artistName.trim();
+
       // Try to find existing artist by name
       const { data: existingArtist, error: searchError } = await supabase
         .from('artists')
-        .select('id')
-        .ilike('name', artistName)
+        .select('id, name')
+        .ilike('name', trimmedName)
         .limit(1)
         .maybeSingle();
 
@@ -108,21 +129,44 @@ export class ArtistFollowService {
 
       if (existingArtist) {
         artistId = existingArtist.id;
+        
+        // Ensure the artist has a name (in case it was created without one)
+        if (!existingArtist.name) {
+          const { error: updateError } = await supabase
+            .from('artists')
+            .update({ name: trimmedName, updated_at: new Date().toISOString() })
+            .eq('id', artistId);
+          
+          if (updateError) {
+            console.warn('Failed to update artist name:', updateError);
+          } else {
+            console.log(`✅ Updated artist name to: ${trimmedName}`);
+          }
+        }
       } else {
-        // Create a new artist entry
+        // Create a new artist entry - MUST have a name
         const { data: newArtist, error: createError } = await supabase
           .from('artists')
           .insert({
-            name: artistName,
-            identifier: jambaseArtistId || `manual:${artistName.toLowerCase().replace(/\s+/g, '-')}`,
+            name: trimmedName,
+            identifier: jambaseArtistId || `manual:${trimmedName.toLowerCase().replace(/\s+/g, '-')}`,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
-          .select('id')
+          .select('id, name')
           .single();
 
-        if (createError) throw createError;
+        if (createError) {
+          console.error('Error creating artist:', createError);
+          throw createError;
+        }
+        
+        if (!newArtist || !newArtist.name) {
+          throw new Error('Failed to create artist - artist was created without a name');
+        }
+        
         artistId = newArtist.id;
+        console.log(`✅ Created artist: ${newArtist.name} (ID: ${artistId})`);
       }
 
       if (!artistId) {
@@ -144,13 +188,12 @@ export class ArtistFollowService {
    */
   static async isFollowingArtist(artistId: string, userId: string): Promise<boolean> {
     try {
-      // Query follows table directly (consolidated schema)
+      // Query artist_follows table directly (3NF schema)
       const { data, error } = await supabase
-        .from('follows')
+        .from('artist_follows')
         .select('id')
         .eq('user_id', userId)
-        .eq('followed_entity_type', 'artist')
-        .eq('followed_entity_id', artistId)
+        .eq('artist_id', artistId)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
@@ -171,12 +214,11 @@ export class ArtistFollowService {
    */
   static async getFollowerCount(artistId: string): Promise<number> {
     try {
-      // Query follows table directly (consolidated schema)
+      // Query artist_follows table directly (3NF schema)
       const { count, error } = await supabase
-        .from('follows')
+        .from('artist_follows')
         .select('*', { count: 'exact', head: true })
-        .eq('followed_entity_type', 'artist')
-        .eq('followed_entity_id', artistId);
+        .eq('artist_id', artistId);
 
       if (error) {
         console.error('Error getting follower count:', error);
@@ -266,12 +308,11 @@ export class ArtistFollowService {
     try {
       console.log('🔍 Getting followed artists for user:', userId);
       
-      // Query follows table (consolidated schema)
+      // Query artist_follows table (3NF schema)
       const { data: follows, error: followsError } = await supabase
-        .from('follows')
-        .select('id, followed_entity_id, user_id, created_at, updated_at')
+        .from('artist_follows')
+        .select('id, artist_id, user_id, created_at, updated_at')
         .eq('user_id', userId)
-        .eq('followed_entity_type', 'artist')
         .order('created_at', { ascending: false });
 
       console.log('🔍 ArtistFollowService query result:', {
@@ -293,8 +334,8 @@ export class ArtistFollowService {
 
       console.log(`✅ Found ${follows.length} artist follows`);
 
-      // Extract artist IDs (from followed_entity_id in consolidated schema)
-      const artistIds = follows.map((follow: any) => follow.followed_entity_id).filter(Boolean);
+      // Extract artist IDs (from artist_id in 3NF schema)
+      const artistIds = follows.map((follow: any) => follow.artist_id).filter(Boolean);
       console.log('Artist IDs to fetch:', artistIds.length);
 
       if (artistIds.length === 0) {
@@ -315,13 +356,22 @@ export class ArtistFollowService {
       // Create a map of artist_id -> artist data
       const artistsMap = new Map((artists || []).map((a: any) => [a.id, a]));
 
+      // Track missing artist IDs for fallback lookup
+      const missingArtistIds: string[] = [];
+
       // Transform to match expected format
       const result = follows.map((follow: any) => {
-        const artist = artistsMap.get(follow.followed_entity_id);
+        const artist = artistsMap.get(follow.artist_id);
+        
+        // If artist not found, mark for fallback lookup
+        if (!artist) {
+          missingArtistIds.push(follow.artist_id);
+        }
+        
         return {
           id: follow.id,
           user_id: userId,
-          artist_id: follow.followed_entity_id,
+          artist_id: follow.artist_id,
           created_at: follow.created_at,
           artist_name: artist?.name || null,
           artist_image_url: artist?.image_url || null,
@@ -333,8 +383,109 @@ export class ArtistFollowService {
         } as ArtistFollowWithDetails;
       });
 
-      console.log('✅ Followed artists fetched:', result.length);
-      return result;
+      // If we have missing artists, try to find them via multiple sources
+      if (missingArtistIds.length > 0) {
+        console.warn(`⚠️ Found ${missingArtistIds.length} followed artists not in artists table, attempting fallback lookup...`);
+        
+        // Try to find artist names from multiple sources
+        for (const missingId of missingArtistIds) {
+          let foundName: string | null = null;
+          
+          try {
+            // Method 1: Try to find artist name from events table
+            const { data: eventData } = await supabase
+              .from('events')
+              .select('artist_name, artist_id')
+              .eq('artist_id', missingId)
+              .limit(1)
+              .maybeSingle();
+            
+            if (eventData?.artist_name) {
+              foundName = eventData.artist_name;
+            }
+            
+            // Method 2: If not found, try events_with_artist_venue view
+            if (!foundName) {
+              const { data: viewData } = await supabase
+                .from('events_with_artist_venue')
+                .select('artist_name_normalized, artist_id')
+                .eq('artist_id', missingId)
+                .limit(1)
+                .maybeSingle();
+              
+              if (viewData?.artist_name_normalized) {
+                foundName = viewData.artist_name_normalized;
+              }
+            }
+            
+            // Method 3: Try artists_with_external_ids view (in case artist exists but not in main table)
+            if (!foundName) {
+              const { data: externalData } = await supabase
+                .from('artists_with_external_ids')
+                .select('name, id')
+                .eq('id', missingId)
+                .maybeSingle();
+              
+              if (externalData?.name) {
+                foundName = externalData.name;
+              }
+            }
+            
+            // If we found a name, update the result
+            if (foundName) {
+              const followIndex = result.findIndex(r => r.artist_id === missingId);
+              if (followIndex >= 0) {
+                result[followIndex].artist_name = foundName;
+                console.log(`✅ Found artist name: ${foundName} for ID: ${missingId}`);
+                
+                // Also try to create/update the artist record so it exists next time
+                try {
+                  await supabase
+                    .from('artists')
+                    .upsert({
+                      id: missingId,
+                      name: foundName,
+                      updated_at: new Date().toISOString()
+                    }, {
+                      onConflict: 'id'
+                    });
+                  console.log(`✅ Created/updated artist record for: ${foundName}`);
+                } catch (upsertError) {
+                  console.warn(`⚠️ Failed to upsert artist record:`, upsertError);
+                }
+              }
+            } else {
+              console.error(`❌ Could not find artist name for ID: ${missingId} - this follow should be removed`);
+            }
+          } catch (error) {
+            console.warn(`⚠️ Fallback lookup failed for artist ID ${missingId}:`, error);
+          }
+        }
+      }
+
+      // Filter out follows where we still don't have an artist name (orphaned follows)
+      const validResults = result.filter(r => r.artist_name !== null && r.artist_name !== '');
+      
+      if (validResults.length < result.length) {
+        const orphanedCount = result.length - validResults.length;
+        console.warn(`⚠️ Filtered out ${orphanedCount} follows with missing artist data - these should be cleaned up`);
+        
+        // Optionally clean up orphaned follows (commented out for safety - uncomment if desired)
+        // for (const orphaned of result.filter(r => !r.artist_name || r.artist_name === '')) {
+        //   try {
+        //     await supabase
+        //       .from('artist_follows')
+        //       .delete()
+        //       .eq('id', orphaned.id);
+        //     console.log(`🧹 Cleaned up orphaned follow: ${orphaned.id}`);
+        //   } catch (error) {
+        //     console.error(`Failed to clean up orphaned follow:`, error);
+        //   }
+        // }
+      }
+
+      console.log('✅ Followed artists fetched:', validResults.length);
+      return validResults;
     } catch (error) {
       console.error('Error getting followed artists:', error);
       // Return empty array instead of throwing to prevent blocking the UI
@@ -348,12 +499,11 @@ export class ArtistFollowService {
    */
   static async getArtistFollowers(artistId: string): Promise<ArtistFollowWithDetails[]> {
     try {
-      // Query follows table with artist filter
+      // Query artist_follows table with artist filter (3NF schema)
       const { data: follows, error: followsError } = await supabase
-        .from('follows')
-        .select('id, user_id, followed_entity_id, created_at, updated_at')
-        .eq('followed_entity_type', 'artist')
-        .eq('followed_entity_id', artistId)
+        .from('artist_follows')
+        .select('id, user_id, artist_id, created_at, updated_at')
+        .eq('artist_id', artistId)
         .order('created_at', { ascending: false });
 
       if (followsError) throw followsError;
@@ -375,7 +525,7 @@ export class ArtistFollowService {
       return follows.map(follow => ({
         id: follow.id,
         user_id: follow.user_id,
-        artist_id: follow.followed_entity_id,
+        artist_id: follow.artist_id,
         created_at: follow.created_at,
         artist_name: artistData.data?.name || null,
         artist_image_url: artistData.data?.image_url || null,
@@ -476,18 +626,16 @@ export class ArtistFollowService {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'follows',  // Use consolidated follows table
+          table: 'artist_follows',  // Use artist_follows table (3NF schema)
           filter: `user_id=eq.${userId}`
         },
         (payload: any) => {
-          // Only process artist follows
-          if (payload.new?.followed_entity_type === 'artist') {
-            onFollowChange({
-              id: payload.new.id,
-              user_id: payload.new.user_id,
-              artist_id: payload.new.followed_entity_id
-            } as ArtistFollow, 'INSERT');
-          }
+          // Process artist follow insert
+          onFollowChange({
+            id: payload.new.id,
+            user_id: payload.new.user_id,
+            artist_id: payload.new.artist_id
+          } as ArtistFollow, 'INSERT');
         }
       )
       .on(
@@ -495,18 +643,16 @@ export class ArtistFollowService {
         {
           event: 'DELETE',
           schema: 'public',
-          table: 'follows',  // Use consolidated follows table
+          table: 'artist_follows',  // Use artist_follows table (3NF schema)
           filter: `user_id=eq.${userId}`
         },
         (payload: any) => {
-          // Only process artist follows
-          if (payload.old?.followed_entity_type === 'artist') {
-            onFollowChange({
-              id: payload.old.id,
-              user_id: payload.old.user_id,
-              artist_id: payload.old.followed_entity_id
-            } as ArtistFollow, 'DELETE');
-          }
+          // Process artist follow delete
+          onFollowChange({
+            id: payload.old.id,
+            user_id: payload.old.user_id,
+            artist_id: payload.old.artist_id
+          } as ArtistFollow, 'DELETE');
         }
       )
       .subscribe();

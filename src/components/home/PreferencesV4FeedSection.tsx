@@ -44,6 +44,100 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
 
   const pageSize = 20;
 
+  // Cache configuration
+  const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+  const CACHE_PREFIX = 'recommendations_';
+
+  // Generate cache key from userId and filters
+  const getCacheKey = (userId: string, filters?: PreferencesV4FeedFilters | FilterState): string => {
+    if (!filters) {
+      return `${CACHE_PREFIX}${userId}_default`;
+    }
+
+    // Extract filter values, handling both FilterState and PreferencesV4FeedFilters
+    const filterState = 'selectedCities' in filters ? filters as FilterState : null;
+    const prefFilters = filterState ? null : filters as PreferencesV4FeedFilters;
+    
+    // Convert dateRange dates to ISO strings for consistent hashing
+    let dateRangeHash: { from?: string; to?: string } | undefined;
+    if (filterState?.dateRange) {
+      dateRangeHash = {
+        from: filterState.dateRange.from?.toISOString(),
+        to: filterState.dateRange.to?.toISOString(),
+      };
+    } else if (prefFilters?.dateRange) {
+      dateRangeHash = {
+        from: prefFilters.dateRange.from?.toISOString(),
+        to: prefFilters.dateRange.to?.toISOString(),
+      };
+    }
+
+    const filterHash = JSON.stringify({
+      city: filterState?.selectedCities?.[0] ?? prefFilters?.city,
+      latitude: filterState?.latitude ?? prefFilters?.latitude,
+      longitude: filterState?.longitude ?? prefFilters?.longitude,
+      genres: filterState?.genres ?? prefFilters?.genres,
+      radiusMiles: filterState?.radiusMiles ?? prefFilters?.radiusMiles,
+      dateRange: dateRangeHash,
+      includePast: prefFilters?.includePast,
+      maxDaysAhead: prefFilters?.maxDaysAhead,
+    });
+    
+    return `${CACHE_PREFIX}${userId}_${filterHash}`;
+  };
+
+  // Get cached recommendations
+  const getCachedRecommendations = (cacheKey: string): PersonalizedEvent[] | null => {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (!cached) return null;
+
+      const { events, timestamp } = JSON.parse(cached);
+      const now = Date.now();
+      
+      // Check if cache is expired
+      if (now - timestamp > CACHE_EXPIRY_MS) {
+        localStorage.removeItem(cacheKey);
+        return null;
+      }
+
+      return events as PersonalizedEvent[];
+    } catch (error) {
+      console.warn('Error reading cache:', error);
+      return null;
+    }
+  };
+
+  // Save recommendations to cache
+  const saveCachedRecommendations = (cacheKey: string, events: PersonalizedEvent[]): void => {
+    const cacheData = {
+      events,
+      timestamp: Date.now(),
+    };
+    
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+    } catch (error) {
+      console.warn('Error saving cache:', error);
+      // If storage is full, try to clear old cache entries
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith(CACHE_PREFIX)) {
+            keysToRemove.push(key);
+          }
+        }
+        // Remove oldest entries first
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        // Try saving again
+        localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+      } catch (clearError) {
+        console.warn('Could not clear cache:', clearError);
+      }
+    }
+  };
+
   // Load ALL interested events immediately on mount
   const loadAllInterestedEvents = async () => {
     if (!userId) return;
@@ -141,17 +235,11 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     console.log('Opening flag modal');
   };
 
-  const loadEvents = async (pageNum: number = 0, append: boolean = false, skipFollowingParam?: boolean) => {
+  const loadEvents = async (pageNum: number = 0, append: boolean = false, skipFollowingParam?: boolean, skipCache: boolean = false) => {
+    // Declare at function scope so it's accessible in catch/finally blocks
+    let showingCachedData = false;
+    
     try {
-      if (pageNum === 0) {
-        // Clear events first when starting fresh load to prevent showing stale data
-        setEvents([]);
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
-      setError(null);
-
       // Convert FilterState to PreferencesV4FeedFilters if needed
       let feedFilters: PreferencesV4FeedFilters | undefined;
       if (filters) {
@@ -208,6 +296,40 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
         }
       }
 
+      // Check cache only for initial load (pageNum === 0) and when not skipping cache
+      const cacheKey = getCacheKey(userId, feedFilters || filters);
+      let cachedEvents: PersonalizedEvent[] | null = null;
+      
+      if (pageNum === 0 && !skipCache && !append) {
+        cachedEvents = getCachedRecommendations(cacheKey);
+        
+        if (cachedEvents && cachedEvents.length > 0) {
+          // Show cached data immediately
+          console.log('✅ Loading cached recommendations:', cachedEvents.length, 'events');
+          setEvents(cachedEvents);
+          setLoading(false); // Don't show loading spinner
+          setError(null);
+          showingCachedData = true;
+          
+          // Fetch fresh data in background
+          // Continue below to fetch fresh data
+        } else {
+          // No cache, show loading spinner
+          setEvents([]);
+          setLoading(true);
+        }
+      } else if (pageNum === 0 && !append) {
+        // Starting fresh load (skipCache is true or no cache)
+        setEvents([]);
+        setLoading(true);
+      } else if (pageNum > 0) {
+        // Loading more (pagination)
+        setLoadingMore(true);
+      }
+      
+      setError(null);
+
+      // Fetch fresh data
       const result = await PreferencesV4FeedService.getFeedPaginated(
         userId,
         pageNum,
@@ -216,6 +338,7 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
         skipFollowingParam !== undefined ? skipFollowingParam : skipFollowing
       );
 
+      // Update UI with fresh data
       if (append) {
         // Deduplicate events by ID to prevent duplicate keys
         setEvents((prev) => {
@@ -225,15 +348,32 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
         });
       } else {
         setEvents(result.events);
+        // Cache the fresh data for next time (only for initial page)
+        if (pageNum === 0 && result.events.length > 0) {
+          saveCachedRecommendations(cacheKey, result.events);
+        }
       }
 
       setHasMore(result.hasMore);
       setPage(pageNum);
     } catch (err) {
       console.error('Error loading Preferences V4 feed:', err);
-      setError('Failed to load recommendations');
+      
+      // If we had cached data, keep showing it even if fresh fetch failed
+      if (showingCachedData) {
+        // Silently fail - user already sees cached data
+        console.log('⚠️ Background fetch failed, keeping cached data');
+        setError(null); // Don't show error if we have cached data
+      } else {
+        // No cached data, show error
+        setError('Failed to load recommendations');
+        setLoading(false);
+      }
     } finally {
-      setLoading(false);
+      // Only update loading state if we weren't showing cached data
+      if (!showingCachedData || pageNum > 0) {
+        setLoading(false);
+      }
       setLoadingMore(false);
     }
   };
@@ -256,22 +396,17 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
   const handleRefresh = () => {
     // Clear following-first events and load completely new set
     setSkipFollowing(true);
+    // Clear cache for current filter combination
+    const cacheKey = getCacheKey(userId, filters);
+    localStorage.removeItem(cacheKey);
     setEvents([]);
     setPage(0);
-    loadEvents(0, false, true);
+    loadEvents(0, false, true, true); // skipCache = true to force fresh fetch
   };
 
-  // Show loading state - clear events first if starting fresh load
-  if (loading && events.length === 0) {
-    return (
-      <div className={className}>
-        <SynthLoadingInline text="Loading recommendations..." size="md" />
-      </div>
-    );
-  }
-
-  // Don't show stale events when starting a fresh load
-  if (loading && page === 0) {
+  // Show loading state only if we have no cached data and no events
+  // If we have events (from cache), don't show loading spinner
+  if (loading && events.length === 0 && page === 0) {
     return (
       <div className={className}>
         <SynthLoadingInline text="Loading recommendations..." size="md" />
