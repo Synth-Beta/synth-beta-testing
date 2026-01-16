@@ -177,22 +177,38 @@ done
 
 # Build web assets (required for cap sync to copy to ios/App/App/public)
 echo "🔨 Building web assets..."
-npm run build 2>&1 || {
-  echo "⚠️  npm run build failed, but continuing..."
-}
+if ! npm run build; then
+  echo "❌ Error: npm run build failed"
+  echo "   This means the latest code changes were not built into dist/"
+  echo "   The iOS app will be built with outdated web assets"
+  exit 1
+fi
 
 # Verify dist directory was created
-if [ -d "dist" ]; then
-  echo "✅ dist directory created with $(ls dist | wc -l | tr -d ' ') items"
-else
-  echo "⚠️  dist directory not created, cap sync may fail"
+if [ ! -d "dist" ]; then
+  echo "❌ Error: dist directory not created after npm run build"
+  exit 1
 fi
+
+echo "✅ dist directory created with $(ls dist | wc -l | tr -d ' ') items"
 
 # Run Capacitor sync (copies dist/ to ios/App/App/public/)
 echo "🔄 Running Capacitor sync..."
-npx cap sync ios 2>&1 || {
-  echo "⚠️  cap sync failed, but continuing (might be already synced)"
-}
+if ! npx cap sync ios; then
+  echo "❌ Error: npx cap sync ios failed"
+  echo "   This means dist/ files were not copied to ios/App/App/public/"
+  echo "   The iOS app will be built with outdated web assets"
+  exit 1
+fi
+
+# Verify sync worked - check that public directory has files
+if [ ! -f "ios/App/App/public/index.html" ]; then
+  echo "❌ Error: ios/App/App/public/index.html not found after cap sync"
+  echo "   The sync may have failed silently"
+  exit 1
+fi
+
+echo "✅ Capacitor sync completed - latest files are in ios/App/App/public/"
 
 echo "=========================================="
 echo "✅ Post-clone setup complete!"

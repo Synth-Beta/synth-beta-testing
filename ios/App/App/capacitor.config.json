@@ -1,21 +1,27 @@
 {
-  "appId": "com.tejpatel.synth",
-  "appName": "Synth",
-  "webDir": "public",
-  "plugins": {
-    "SplashScreen": {
-      "launchShowDuration": 3000,
-      "launchAutoHide": false,
-      "backgroundColor": "#FF3399",
-      "androidSplashResourceName": "splash",
-      "androidScaleType": "CENTER_CROP",
-      "showSpinner": false,
-      "iosSpinnerStyle": "small",
-      "spinnerColor": "#ffffff"
-    },
-    "StatusBar": {
-      "style": "dark",
-      "backgroundColor": "#FF3399"
-    }
-  }
+	"appId": "com.tejpatel.synth",
+	"appName": "Synth",
+	"webDir": "dist",
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 3000,
+			"launchAutoHide": false,
+			"backgroundColor": "#FF3399",
+			"androidSplashResourceName": "splash",
+			"androidScaleType": "CENTER_CROP",
+			"showSpinner": false,
+			"iosSpinnerStyle": "small",
+			"spinnerColor": "#ffffff"
+		},
+		"StatusBar": {
+			"style": "dark",
+			"backgroundColor": "#FF3399"
+		}
+	},
+	"packageClassList": [
+		"AppPlugin",
+		"PushNotificationsPlugin",
+		"SplashScreenPlugin",
+		"StatusBarPlugin"
+	]
 }
