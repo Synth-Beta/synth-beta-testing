@@ -66,6 +66,7 @@ interface ProfileViewProps {
   menuOpen?: boolean;
   onMenuClick?: () => void;
   hideHeader?: boolean;
+  refreshTrigger?: number; // Trigger to refresh reviews when incremented
 }
 
 interface UserProfile {
@@ -136,7 +137,7 @@ interface ConcertReview {
   };
 }
 
-export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat, onNavigateToNotifications, menuOpen = false, onMenuClick, hideHeader = false }: ProfileViewProps) => {
+export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat, onNavigateToNotifications, menuOpen = false, onMenuClick, hideHeader = false, refreshTrigger = 0 }: ProfileViewProps) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<JamBaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,6 +252,15 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       fetchUserEvents();
     }
   }, [activeTab, targetUserId]);
+
+  // Refresh reviews when refreshTrigger changes (triggered when review is submitted)
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0 && user && !sessionExpired) {
+      console.log('🔄 ProfileView: Refresh trigger changed, refetching reviews...');
+      fetchReviews();
+      fetchReviewsCount();
+    }
+  }, [refreshTrigger]);
 
   useEffect(() => {
     // Check for hash in URL to determine active tab

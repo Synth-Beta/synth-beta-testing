@@ -84,6 +84,7 @@ interface HomeFeedProps {
   menuOpen?: boolean;
   onMenuClick?: () => void;
   hideHeader?: boolean;
+  refreshTrigger?: number; // Trigger to refresh reviews when incremented
 }
 
 export const HomeFeed: React.FC<HomeFeedProps> = ({
@@ -98,6 +99,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   menuOpen = false,
   onMenuClick,
   hideHeader = false,
+  refreshTrigger = 0,
 }) => {
   // Header state
   const [activeCity, setActiveCity] = useState<string | null>(null);
@@ -316,6 +318,17 @@ interface FriendEventInterest {
       loadReviews();
     }
   }, [selectedFeedType]);
+
+  // Refresh reviews when refreshTrigger changes (triggered when review is submitted)
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      console.log('🔄 [HOME FEED] Refresh trigger changed, refetching reviews...');
+      // Only reload if reviews tab is active
+      if (selectedFeedType === 'reviews') {
+        loadReviews();
+      }
+    }
+  }, [refreshTrigger, selectedFeedType]);
 
   // Update dropdown button border when open state changes
   useEffect(() => {

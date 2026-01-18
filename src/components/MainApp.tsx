@@ -52,6 +52,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [chatId, setChatId] = useState<string | undefined>(undefined);
   const [showOnboardingReminder, setShowOnboardingReminder] = useState(false);
   const [runTour, setRunTour] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger to refresh views when review is submitted
   const { toast } = useToast();
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
   const { accountInfo } = useAccountType();
@@ -553,6 +554,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onViewChange={handleViewChange}
             menuOpen={menuOpen}
             onMenuClick={handleMenuToggle}
+            refreshTrigger={refreshTrigger}
           />
         );
       case 'search':
@@ -582,6 +584,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onNavigateToNotifications={handleNavigateToNotifications}
             menuOpen={menuOpen}
             onMenuClick={handleMenuToggle}
+            refreshTrigger={refreshTrigger}
           />
         );
       case 'profile-edit':
@@ -771,7 +774,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           userId={user.id}
           onReviewSubmitted={() => {
             setShowEventReviewModal(false);
-            // Optionally refresh the current view
+            // Trigger refresh of profile and feed views
+            setRefreshTrigger(prev => prev + 1);
           }}
         />
       )}
