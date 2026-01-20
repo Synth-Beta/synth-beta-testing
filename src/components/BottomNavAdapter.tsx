@@ -30,6 +30,16 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
   const isMessages = currentView === 'chat';
   const isProfile = currentView === 'profile';
 
+  const handleNavClick = (onClick: () => void, isActive: boolean) => {
+    if (isActive) {
+      // If clicking the currently active icon, scroll to top and refresh
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.location.reload();
+    } else {
+      onClick();
+    }
+  };
+
   const navItems = [
     {
       id: 'home',
@@ -83,7 +93,7 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
               <button
                 key={item.id}
                 className="bottom-nav__item bottom-nav__item--cta"
-                onClick={item.onClick}
+                onClick={() => handleNavClick(item.onClick, item.isActive)}
                 aria-label={item.label}
                 aria-current={item.isActive ? 'page' : undefined}
                 type="button"
@@ -97,7 +107,7 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
             <button
               key={item.id}
               className={`bottom-nav__item ${item.isActive ? 'bottom-nav__item--active' : ''}`}
-              onClick={item.onClick}
+              onClick={() => handleNavClick(item.onClick, item.isActive)}
               aria-label={item.label}
               aria-current={item.isActive ? 'page' : undefined}
               type="button"

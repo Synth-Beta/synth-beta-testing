@@ -654,10 +654,17 @@ export const NotificationsPage = ({
   }
 
   return (
-    <div className="min-h-screen synth-gradient-card p-4 pb-20">
+    <div 
+      className="min-h-screen synth-gradient-card pb-20"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+        paddingRight: 'var(--spacing-screen-margin-x, 20px)'
+      }}
+    >
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="glass-card inner-glow text-center space-y-3 p-4 mb-6 floating-shadow">
+        <div className="glass-card inner-glow text-center space-y-3 p-4 mb-6 floating-shadow" style={{ marginTop: 'var(--spacing-small, 12px)' }}>
           <div className="flex items-center justify-center gap-4">
             <Button variant="ghost" size="sm" onClick={onBack} className="hover-button absolute left-4">
               <ArrowLeft className="w-4 h-4 hover-icon" />

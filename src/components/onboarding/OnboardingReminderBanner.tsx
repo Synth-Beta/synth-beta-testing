@@ -42,7 +42,12 @@ export const OnboardingReminderBanner = ({ onComplete }: OnboardingReminderBanne
   if (!visible) return null;
 
   return (
-    <Alert className="rounded-none border-x-0 border-t-0 bg-gradient-to-r from-primary/10 to-accent/10">
+    <Alert 
+      className="rounded-none border-x-0 border-t-0 bg-gradient-to-r from-primary/10 to-accent/10"
+      style={{
+        marginTop: 'env(safe-area-inset-top, 0px)'
+      }}
+    >
       <div className="flex items-center justify-between gap-4">
         <AlertDescription className="flex-1 text-sm">
           <strong className="font-semibold">Complete your profile</strong> to get

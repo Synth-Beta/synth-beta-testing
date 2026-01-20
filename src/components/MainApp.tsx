@@ -349,6 +349,11 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     }
   };
 
+  // Scroll to top whenever the view changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [currentView]);
+
   const handleViewChange = (view: ViewType) => {
     // View changing
     setCurrentView(view);
@@ -710,7 +715,15 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
       {/* API Key Error Banner - Only show if there's actually an API key issue */}
       {showApiKeyError && !hideNavigation && (
-        <div className="border-l-4 p-4 mb-4" style={{ backgroundColor: 'var(--status-error-050)', borderColor: 'var(--status-error-500)', color: 'var(--status-error-500)' }}>
+        <div 
+          className="border-l-4 p-4 mb-4" 
+          style={{ 
+            backgroundColor: 'var(--status-error-050)', 
+            borderColor: 'var(--status-error-500)', 
+            color: 'var(--status-error-500)',
+            marginTop: 'env(safe-area-inset-top, 0px)'
+          }}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="font-bold">API Key Error Detected</p>
