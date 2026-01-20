@@ -11,7 +11,8 @@ import {
   Clock,
   ExternalLink,
   Star,
-  Ticket
+  Ticket,
+  ArrowLeft
 } from 'lucide-react';
 import type { Artist } from '@/types/concertSearch';
 import type { JamBaseEvent } from '@/types/eventTypes';
@@ -19,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { supabase } from '@/integrations/supabase/client';
 import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 
 interface ArtistCardProps {
   artist: Artist;
@@ -100,34 +102,94 @@ export function ArtistCard({
   };
 
   return (
-    <div className={cn("w-full max-w-4xl mx-auto space-y-6 overflow-x-hidden", className)}>
-      {/* Back Button */}
+    <div className={cn("w-full max-w-4xl mx-auto space-y-6 overflow-x-hidden px-4 pb-6", className)}>
+      {/* Back Button - SwiftUI Style */}
       {onBack && (
-        <Button
-          variant="ghost"
+        <button
           onClick={onBack}
-          className="mb-4"
+          className="mb-4 flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            color: 'var(--neutral-700)',
+            fontFamily: 'var(--font-family)',
+            fontSize: '15px',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+            e.currentTarget.style.transform = 'translateX(-2px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
+            e.currentTarget.style.transform = 'translateX(0)';
+          }}
         >
-          ← Back to Search
-        </Button>
+          <ArrowLeft size={18} />
+          <span>Back</span>
+        </button>
       )}
 
-      {/* Artist Header Card */}
-      <Card>
-        <CardHeader>
+      {/* Artist Header Card - SwiftUI Liquid Glass */}
+      <div
+        className="rounded-3xl overflow-hidden relative"
+        style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.1), 0 2px 8px 0 rgba(0, 0, 0, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.6)',
+          padding: '24px',
+        }}
+      >
+        {/* Glass overlay gradient */}
+        <div
+          className="absolute inset-0 pointer-events-none rounded-3xl"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(236, 72, 153, 0.02) 100%)',
+          }}
+        />
+
+        <div className="relative z-10">
           <div className="flex items-start gap-4">
-            <Avatar className="w-20 h-20">
-              <AvatarImage src={artist.image_url || undefined} />
-              <AvatarFallback className="text-2xl">
-                <Music className="w-10 h-10" />
-              </AvatarFallback>
-            </Avatar>
+            <div
+              className="flex-shrink-0 rounded-2xl overflow-hidden"
+              style={{
+                width: '80px',
+                height: '80px',
+                backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                border: '1px solid rgba(236, 72, 153, 0.2)',
+                boxShadow: '0 4px 16px rgba(236, 72, 153, 0.15)',
+              }}
+            >
+              {artist.image_url ? (
+                <img
+                  src={artist.image_url}
+                  alt={artist.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Music className="w-10 h-10" style={{ color: 'var(--brand-pink-500)' }} />
+                </div>
+              )}
+            </div>
             
             <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <CardTitle className="text-3xl">{artist.name}</CardTitle>
-                <div className="flex items-center gap-2">
-                {currentUserId && (
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <h1
+                  className="font-bold leading-tight"
+                  style={{
+                    fontSize: '28px',
+                    fontFamily: 'var(--font-family)',
+                    color: 'var(--neutral-900)',
+                  }}
+                >
+                  {artist.name}
+                </h1>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {currentUserId && (
                     <>
                       <VerifiedChatBadge
                         entityType="artist"
@@ -139,70 +201,137 @@ export function ArtistCard({
                         }}
                         variant="compact"
                       />
-                  <ArtistFollowButton
-                    artistName={artist.name}
-                    jambaseArtistId={artist.jambase_artist_id}
-                    userId={currentUserId}
-                    variant="outline"
-                    size="default"
-                    showFollowerCount={true}
-                  />
+                      <ArtistFollowButton
+                        artistName={artist.name}
+                        jambaseArtistId={artist.jambase_artist_id}
+                        userId={currentUserId}
+                        variant="outline"
+                        size="default"
+                        showFollowerCount={true}
+                      />
                     </>
-                )}
+                  )}
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
                 {artist.jambase_artist_id && (
-                  <Badge variant="outline" className="flex items-center gap-1">
-                    <ExternalLink className="w-3 h-3" />
-                    JamBase Verified
-                  </Badge>
+                  <span
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold text-xs"
+                    style={{
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      border: '1px solid rgba(59, 130, 246, 0.2)',
+                      color: 'var(--brand-blue-600)',
+                      fontFamily: 'var(--font-family)',
+                    }}
+                  >
+                    <ExternalLink size={12} />
+                    Verified
+                  </span>
                 )}
-                <Badge variant="secondary">
+                <span
+                  className="inline-flex items-center px-3 py-1 rounded-lg font-medium text-xs"
+                  style={{
+                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                    color: 'var(--neutral-600)',
+                    fontFamily: 'var(--font-family)',
+                  }}
+                >
                   {source === 'api' ? 'Live Data' : 'Cached Data'}
-                </Badge>
+                </span>
               </div>
               
               {artist.description && (
-                <p className="text-muted-foreground leading-relaxed mb-4">
+                <p
+                  className="leading-relaxed mb-4"
+                  style={{
+                    fontSize: '15px',
+                    fontFamily: 'var(--font-family)',
+                    color: 'var(--neutral-700)',
+                    lineHeight: '1.6',
+                  }}
+                >
                   {artist.description}
                 </p>
               )}
               
               {artist.genres && artist.genres.length > 0 && (
                 <div className="mb-4">
-                  <div className="text-sm font-medium text-muted-foreground mb-2">Genres</div>
-                  <div className="flex flex-wrap gap-1">
+                  <div
+                    className="font-semibold mb-2 text-xs uppercase tracking-wide"
+                    style={{
+                      fontFamily: 'var(--font-family)',
+                      color: 'var(--neutral-600)',
+                    }}
+                  >
+                    Genres
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
                     {artist.genres.map((genre, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-2.5 py-1 rounded-lg font-semibold text-xs"
+                        style={{
+                          backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                          border: '1px solid rgba(236, 72, 153, 0.2)',
+                          color: 'var(--brand-pink-600)',
+                          fontFamily: 'var(--font-family)',
+                        }}
+                      >
                         {genre}
-                      </Badge>
+                      </span>
                     ))}
                   </div>
                 </div>
               )}
               
-              <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  <span>{totalEvents} total events</span>
+              <div className="flex items-center gap-6 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} style={{ color: 'var(--brand-pink-500)' }} />
+                  <span
+                    className="font-medium"
+                    style={{
+                      fontSize: '14px',
+                      fontFamily: 'var(--font-family)',
+                      color: 'var(--neutral-700)',
+                    }}
+                  >
+                    {totalEvents} total events
+                  </span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  <span>{upcomingEvents.length} upcoming</span>
+                <div className="flex items-center gap-2">
+                  <Clock size={16} style={{ color: 'var(--brand-pink-500)' }} />
+                  <span
+                    className="font-medium"
+                    style={{
+                      fontSize: '14px',
+                      fontFamily: 'var(--font-family)',
+                      color: 'var(--neutral-700)',
+                    }}
+                  >
+                    {upcomingEvents.length} upcoming
+                  </span>
                 </div>
                 {artist.popularity_score && (
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span>Score: {artist.popularity_score}</span>
+                  <div className="flex items-center gap-2">
+                    <Star size={16} className="text-yellow-400 fill-current" />
+                    <span
+                      className="font-medium"
+                      style={{
+                        fontSize: '14px',
+                        fontFamily: 'var(--font-family)',
+                        color: 'var(--neutral-700)',
+                      }}
+                    >
+                      Score: {artist.popularity_score}
+                    </span>
                   </div>
                 )}
               </div>
             </div>
           </div>
-        </CardHeader>
-      </Card>
+        </div>
+      </div>
 
       {/* Events Section */}
       <div className="space-y-4">
@@ -215,78 +344,104 @@ export function ArtistCard({
           )}
         </div>
 
-        {/* Upcoming Events Grid */}
+        {/* Upcoming Events Grid - Optimized for iPhone */}
         {upcomingEvents.length > 0 && (
           <div className="w-full overflow-x-hidden">
-            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              Upcoming Events ({upcomingEvents.length})
+            <h3
+              className="font-bold mb-4 flex items-center gap-2"
+              style={{
+                fontSize: '20px',
+                fontFamily: 'var(--font-family)',
+                color: 'var(--neutral-900)',
+              }}
+            >
+              <Calendar size={20} style={{ color: 'var(--brand-pink-500)' }} />
+              <span>Upcoming Events ({upcomingEvents.length})</span>
             </h3>
-            <div className="grid grid-cols-3 gap-2 w-full max-w-full overflow-x-hidden">
-                    {displayedUpcomingEvents.map((event) => (
-                <Card key={event.jambase_event_id} className="hover:bg-muted/50 cursor-pointer w-full max-w-full min-w-0 overflow-hidden">
-                  <CardContent className="p-2">
-                          <div className="space-y-1">
-                      <div className="font-medium text-xs break-words">{formatDate(event.event_date)}</div>
-                      <div className="text-xs text-muted-foreground break-words">
-                              {formatTime(event.event_date)}
-                              {event.doors_time && (
-                          <span className="ml-1 block">
-                            Doors: {formatDoorsTime(event.doors_time)}
-                                </span>
-                              )}
-                            </div>
-                      <div className="font-medium text-xs truncate min-w-0" title={event.venue_name}>
-                        {event.venue_name || 'Venue TBD'}
-                          </div>
-                      <div className="text-xs text-muted-foreground truncate min-w-0">
-                        {getLocationString(event)}
-                            </div>
-                          {event.price_range ? (
-                        <div className="font-medium text-xs">${event.price_range}</div>
-                          ) : (
-                        <div className="text-muted-foreground text-xs">Price TBD</div>
-                          )}
-                          {event.ticket_available && event.ticket_urls && event.ticket_urls.length > 0 ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
-                          className="text-blue-600 hover:text-blue-700 text-xs px-1.5 py-0.5 h-5 mt-1 w-full"
-                            >
-                              <a 
-                                href={event.ticket_urls[0]} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-1"
-                              >
-                            <Ticket className="w-2.5 h-2.5" />
-                            <span className="text-xs">Buy</span>
-                              </a>
-                            </Button>
-                      ) : null}
-                      <Badge variant="default" className="text-xs mt-1 w-full text-center">
-                            Upcoming
-                          </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-                    ))}
+            {/* Responsive grid: 1 column on mobile, 2 on tablet, 3 on desktop */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
+              {displayedUpcomingEvents.map((event) => (
+                <SwiftUIEventCard
+                  key={event.jambase_event_id || event.id}
+                  event={{
+                    id: event.id || event.jambase_event_id || '',
+                    title: event.title || 'Event',
+                    event_date: event.event_date,
+                    venue_name: event.venue_name,
+                    venue_city: event.venue_city,
+                    venue_state: event.venue_state,
+                    doors_time: event.doors_time,
+                    price_range: event.price_range,
+                    ticket_urls: event.ticket_urls,
+                    ticket_available: event.ticket_available,
+                    genres: event.genres,
+                  }}
+                  onClick={() => {
+                    // Event click handling - could be extended to open event details modal
+                    if (onViewAllEvents) {
+                      // Navigate to full events page or open modal
+                      window.location.href = `/artist/${encodeURIComponent(artist.name)}/events`;
+                    }
+                  }}
+                />
+              ))}
+            </div>
+            {!showAllEvents && upcomingEvents.length > 10 && (
+              <div className="mt-4">
+                <button
+                  onClick={onViewAllEvents}
+                  className="w-full py-3 rounded-2xl font-semibold transition-all"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    color: 'var(--brand-pink-600)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: '15px',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  Show {upcomingEvents.length - 10} More Upcoming Events
+                </button>
               </div>
-              {!showAllEvents && upcomingEvents.length > 10 && (
-              <div className="mt-2">
-                  <Button variant="outline" onClick={onViewAllEvents} className="w-full">
-                    Show {upcomingEvents.length - 10} More Upcoming Events
-                  </Button>
-                </div>
-              )}
-              {showAllEvents && upcomingEvents.length > 10 && (
-              <div className="mt-2">
-                  <Button variant="outline" onClick={() => onViewAllEvents?.()} className="w-full">
-                    Show Less (Back to 10 events)
-                  </Button>
-                </div>
-              )}
+            )}
+            {showAllEvents && upcomingEvents.length > 10 && (
+              <div className="mt-4">
+                <button
+                  onClick={() => onViewAllEvents?.()}
+                  className="w-full py-3 rounded-2xl font-semibold transition-all"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    color: 'var(--brand-pink-600)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: '15px',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  Show Less (Back to 10 events)
+                </button>
+              </div>
+            )}
           </div>
         )}
 

@@ -2640,17 +2640,31 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-1 w-full max-w-full">
+                <div className="grid grid-cols-3 gap-2.5 w-full max-w-full">
                   {filteredUserEvents
                     .sort((a,b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
                     .slice(0, 9)
                     .map((ev) => (
                       <div
                         key={ev.id}
-                        className={`aspect-square cursor-pointer rounded-md overflow-hidden border hover:shadow-md transition-shadow relative ${
+                        className={`aspect-square cursor-pointer rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 relative ${
                           showPastEvents ? 'opacity-75' : ''
                         }`}
-                        style={{ backgroundColor: 'var(--neutral-50)' }}
+                        style={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                          backdropFilter: 'blur(20px)',
+                          WebkitBackdropFilter: 'blur(20px)',
+                          border: '1px solid rgba(255, 255, 255, 0.5)',
+                          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6)';
+                        }}
                         onClick={() => { 
                           console.log('ProfileView: Event data being passed to modal from interested events:', ev);
                           // Ensure we have complete event data for the modal
@@ -2684,7 +2698,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                         }}
                       >
                         <div className="h-full flex flex-col">
-                          <div className="h-2/3 w-full relative overflow-hidden bg-gradient-to-br from-pink-400 to-pink-600">
+                          <div className="h-2/3 w-full relative overflow-hidden bg-gradient-to-br from-pink-400 to-pink-600 rounded-t-xl">
                             {/* Event image - use same resolution logic as home feed (PreferencesV4FeedSection) */}
                             {(() => {
                               // Resolve image URL with same priority as PreferencesV4FeedSection
@@ -2724,32 +2738,89 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                               // Fallback to gradient with heart icon if no image
                               return (
                                 <div className="w-full h-full flex items-center justify-center">
-                            <Heart className="w-1/3 h-1/3 text-white" />
+                                  <Heart className="w-1/3 h-1/3 text-white" />
                                 </div>
                               );
                             })()}
                             
                             {/* Interested badge - only show for upcoming events */}
                             {!showPastEvents && (
-                              <div className="absolute top-1 right-1 text-[8px] px-1 py-0.5 rounded font-medium" style={{ backgroundColor: 'var(--neutral-50)', color: 'var(--neutral-900)' }}>
+                              <div 
+                                className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md font-semibold text-[10px] leading-tight uppercase tracking-wide"
+                                style={{ 
+                                  backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                                  backdropFilter: 'blur(10px)',
+                                  WebkitBackdropFilter: 'blur(10px)',
+                                  color: 'rgba(255, 255, 255, 0.95)',
+                                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                                }}
+                              >
                                 Interested
                               </div>
                             )}
                             {/* Past badge - only show for archive events */}
                             {showPastEvents && (
-                              <div className="absolute top-1 right-1 text-[8px] px-1 py-0.5 rounded font-medium" style={{ backgroundColor: 'var(--neutral-50)', color: 'var(--neutral-900)' }}>
+                              <div 
+                                className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md font-semibold text-[10px] leading-tight uppercase tracking-wide"
+                                style={{ 
+                                  backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                                  backdropFilter: 'blur(10px)',
+                                  WebkitBackdropFilter: 'blur(10px)',
+                                  color: 'rgba(255, 255, 255, 0.95)',
+                                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                                }}
+                              >
                                 Past
                               </div>
                             )}
                           </div>
-                          <div className="p-2 flex-1 flex flex-col justify-between">
-                            <div>
-                              <h4 className="font-semibold text-xs truncate">{ev.title}</h4>
-                              <p className="text-xs text-muted-foreground truncate">{ev.venue_name}</p>
+                          <div className="px-2.5 pt-2.5 pb-2.5 flex-1 flex flex-col justify-between min-h-0">
+                            <div className="min-w-0 flex-shrink">
+                              <h4 
+                                className="font-semibold truncate mb-0.5 leading-tight"
+                                style={{ 
+                                  fontSize: '11px',
+                                  fontFamily: 'var(--font-family)',
+                                  color: 'var(--neutral-900)'
+                                }}
+                              >
+                                {ev.title}
+                              </h4>
+                              <p 
+                                className="truncate leading-tight"
+                                style={{ 
+                                  fontSize: '10px',
+                                  fontFamily: 'var(--font-family)',
+                                  color: 'var(--neutral-600)',
+                                  marginTop: '2px'
+                                }}
+                              >
+                                {ev.venue_name}
+                              </p>
                             </div>
-                            <div className="text-[10px] text-muted-foreground flex items-center justify-between">
-                              <span>{new Date(ev.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                              <span className="truncate">{[ev.venue_city, ev.venue_state].filter(Boolean).join(', ')}</span>
+                            <div className="mt-1.5 pt-1.5 border-t border-solid" style={{ borderColor: 'rgba(0, 0, 0, 0.08)' }}>
+                              <div 
+                                className="font-medium leading-tight mb-0.5"
+                                style={{ 
+                                  fontSize: '11px',
+                                  fontFamily: 'var(--font-family)',
+                                  color: 'var(--neutral-900)'
+                                }}
+                              >
+                                {new Date(ev.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                              </div>
+                              {[ev.venue_city, ev.venue_state].filter(Boolean).length > 0 && (
+                                <p 
+                                  className="truncate leading-tight"
+                                  style={{ 
+                                    fontSize: '10px',
+                                    fontFamily: 'var(--font-family)',
+                                    color: 'var(--neutral-600)'
+                                  }}
+                                >
+                                  {[ev.venue_city, ev.venue_state].filter(Boolean).join(', ')}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>

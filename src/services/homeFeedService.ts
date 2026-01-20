@@ -126,9 +126,11 @@ export class HomeFeedService {
 
       if (eventIds.length === 0) return [];
 
+      // Use events_with_artist_venue view to get normalized artist/venue names via foreign keys
+      // Note: Query events table directly with JOINs since view may be missing some columns
       const { data: events, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, venue_city, event_date, images, event_media_url, media_urls, artist_id, artists(name), venue_id, venues(name)')
+        .select('id, title, venue_city, event_date, images, event_media_url, media_urls, artist_id, venue_id, artists(name), venues(name)')
         .in('id', eventIds);
 
       if (eventsError) throw eventsError;
@@ -255,6 +257,7 @@ export class HomeFeedService {
 
       if (topEventIds.length === 0) return [];
 
+      // Query events table directly with JOINs since view may be missing some columns
       const { data: events, error: eventsError } = await supabase
         .from('events')
         .select('id, title, venue_city, event_date, images, event_media_url, media_urls, artist_id, artists(name), venue_id, venues(name)')
@@ -445,6 +448,7 @@ export class HomeFeedService {
         
         // Fallback: Get recent upcoming events if no trending data exists
         // Use two-stage filtering for performance: bounding box first with limit, then exact distance
+        // Query events table directly with JOINs since view may be missing some columns
         let fallbackQuery = supabase
           .from('events')
           .select('id, title, venue_city, venue_state, event_date, event_media_url, latitude, longitude, genres, artist_id, artists(name), venue_id, venues(name)')
@@ -520,6 +524,7 @@ export class HomeFeedService {
       const now = new Date().toISOString();
       console.log('🔥 [TRENDING SERVICE] Filtering for events after:', now);
       
+      // Query events table directly with JOINs since view may be missing some columns
       let eventsQuery = supabase
         .from('events')
         .select('id, title, venue_city, venue_state, event_date, event_media_url, latitude, longitude, genres, artist_id, artists(name), venue_id, venues(name)')
