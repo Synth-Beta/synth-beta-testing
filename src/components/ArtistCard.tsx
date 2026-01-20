@@ -21,6 +21,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { useNavigate } from 'react-router-dom';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { getArtistUuid, getArtistMetadata } from '@/utils/entityUuidResolver';
+import { useViewTracking } from '@/hooks/useViewTracking';
 
 interface ArtistCardProps {
   artist: Artist;
@@ -47,6 +50,11 @@ export function ArtistCard({
 }: ArtistCardProps) {
   const navigate = useNavigate();
   const [currentUserId, setCurrentUserId] = React.useState<string | undefined>(userId);
+
+  // Track artist view
+  const artistUuid = React.useMemo(() => getArtistUuid(artist), [artist?.id]);
+  const artistMetadata = React.useMemo(() => getArtistMetadata(artist), [artist?.name, artist?.genres]);
+  useViewTracking('artist', artistUuid || artist?.id || artist?.name || 'unknown', artistMetadata, artistUuid || undefined);
 
   // Get current user if not provided
   React.useEffect(() => {
@@ -108,13 +116,37 @@ export function ArtistCard({
       {/* When events are clicked, component navigates to /feed using React Router */}
       {/* If onBack is provided, it will be used instead of router navigation for back button */}
       {onBack && (
-        <Button
-          variant="ghost"
-          onClick={onBack}
-          className="mb-4"
+        <button
+          onClick={() => {
+            try {
+              const artistUuid = getArtistUuid(artist);
+              trackInteraction.click('artist', artist.id || artist.name || 'unknown', { action: 'back', source: 'artist_card' }, artistUuid || undefined);
+            } catch (error) {
+              console.error('Error tracking back click:', error);
+            }
+            onBack();
+          }}
+          className="mb-4 flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            color: 'var(--neutral-700)',
+            fontFamily: 'var(--font-family)',
+            fontSize: '15px',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+            e.currentTarget.style.transform = 'translateX(-2px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
+            e.currentTarget.style.transform = 'translateX(0)';
+          }}
         >
           ← Back to Search
-        </Button>
+        </button>
       )}
 
       {/* Artist Header Card */}
@@ -214,7 +246,15 @@ export function ArtistCard({
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Events</h2>
           {onViewAllEvents && totalEvents > events.length && (
-            <Button variant="outline" onClick={onViewAllEvents}>
+            <Button variant="outline" onClick={() => {
+              try {
+                const artistUuid = getArtistUuid(artist);
+                trackInteraction.click('artist', artist.id || artist.name || 'unknown', { action: 'view_all_events' }, artistUuid || undefined);
+              } catch (error) {
+                console.error('Error tracking view all events:', error);
+              }
+              onViewAllEvents?.();
+            }}>
               View All {totalEvents} Events
             </Button>
           )}
@@ -267,20 +307,42 @@ export function ArtistCard({
                 />
                     ))}
               </div>
-              {!showAllEvents && upcomingEvents.length > 10 && (
-              <div className="mt-2">
-                  <Button variant="outline" onClick={onViewAllEvents} className="w-full">
-                    Show {upcomingEvents.length - 10} More Upcoming Events
-                  </Button>
-                </div>
-              )}
-              {showAllEvents && upcomingEvents.length > 10 && (
-              <div className="mt-2">
-                  <Button variant="outline" onClick={() => onViewAllEvents?.()} className="w-full">
-                    Show Less (Back to 10 events)
-                  </Button>
-                </div>
-              )}
+            {showAllEvents && upcomingEvents.length > 10 && (
+              <div className="mt-4">
+                <button
+                  onClick={() => {
+                    try {
+                      const artistUuid = getArtistUuid(artist);
+                      trackInteraction.click('artist', artist.id || artist.name || 'unknown', { action: 'view_all_events' }, artistUuid || undefined);
+                    } catch (error) {
+                      console.error('Error tracking view all events:', error);
+                    }
+                    onViewAllEvents?.();
+                  }}
+                  className="w-full py-3 rounded-2xl font-semibold transition-all"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    color: 'var(--brand-pink-600)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: '15px',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  Show Less (Back to 10 events)
+                </button>
+              </div>
+            )}
           </div>
         )}
 

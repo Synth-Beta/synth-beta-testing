@@ -11,6 +11,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     var appleSignInHandler: AppleSignInHandler?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Clear WKWebView cache on launch to ensure fresh content
+        let dataStore = WKWebsiteDataStore.default()
+        let websiteDataTypes = WKWebsiteDataStore.allWebsiteDataTypes()
+        let date = Date(timeIntervalSince1970: 0)
+        dataStore.removeData(ofTypes: websiteDataTypes, modifiedSince: date) {
+            print("✅ Cleared WKWebView cache")
+        }
+        
         // Set up push notification delegate
         UNUserNotificationCenter.current().delegate = self
         

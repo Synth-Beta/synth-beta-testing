@@ -30,8 +30,12 @@ import {
   Calendar,
   Globe
 } from 'lucide-react';
+import { useViewTracking } from '@/hooks/useViewTracking';
 
 export default function CreatorAnalyticsDashboard() {
+  // Track analytics dashboard view
+  useViewTracking('view', 'analytics_creator', { dashboard_type: 'creator' });
+
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<CreatorStats | null>(null);
@@ -40,6 +44,21 @@ export default function CreatorAnalyticsDashboard() {
   const [contentPerformance, setContentPerformance] = useState<ContentPerformance[]>([]);
   const [achievements, setAchievements] = useState<CreatorAchievement[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'fans' | 'content' | 'achievements' | 'promotions'>('overview');
+  
+  // Track tab switches
+  const handleTabChange = (tab: 'overview' | 'fans' | 'content' | 'achievements' | 'promotions') => {
+    try {
+      import('@/services/interactionTrackingService').then(({ trackInteraction }) => {
+        trackInteraction.click('view', `analytics_tab_${tab}`, { 
+          tab, 
+          dashboard_type: 'creator' 
+        });
+      });
+    } catch (error) {
+      console.error('Error tracking tab switch:', error);
+    }
+    setActiveTab(tab);
+  };
   const [promotionLoading, setPromotionLoading] = useState(false);
 
   // Load promotion data when promotions tab is activated
@@ -307,7 +326,7 @@ export default function CreatorAnalyticsDashboard() {
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => handleTabChange(tab.id as any)}
                   className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab.id
                       ? 'border-purple-500 text-purple-600'

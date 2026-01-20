@@ -8,6 +8,8 @@ import { CompactEventCard, type EventReason } from './CompactEventCard';
 import { SynthLoadingInline, SynthLoader } from '@/components/ui/SynthLoader';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import type { PersonalizedFeedFilters } from '@/services/personalizedFeedService';
+import { useIntersectionTrackingList } from '@/hooks/useIntersectionTracking';
+import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 
 interface UnifiedEventItem {
   event_id: string;
@@ -52,6 +54,19 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
   const [followingArtists, setFollowingArtists] = useState<Set<string>>(new Set());
   const [followingVenues, setFollowingVenues] = useState<Set<string>>(new Set());
+
+  // Track event impressions using intersection observer
+  const attachObserver = useIntersectionTrackingList(
+    'event',
+    events.map(e => ({
+      id: e.event_id,
+      metadata: {
+        ...getEventMetadata(e),
+        source: 'feed',
+        position: events.indexOf(e)
+      }
+    }))
+  );
 
   // Load following artists and venues
   useEffect(() => {
@@ -409,6 +424,25 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
 
   // Handle interest toggle
   const handleInterestToggle = async (eventId: string, e: React.MouseEvent) => {
+    // Tracking is handled in UserEventService.setEventInterest, but add feed-specific metadata
+    const event = events.find(e => e.event_id === eventId);
+    if (event) {
+      try {
+        const eventUuid = getEventUuid(event);
+        trackInteraction.interest(
+          'event',
+          eventId,
+          !interestedEvents.has(eventId),
+          {
+            ...getEventMetadata(event),
+            source: 'feed'
+          },
+          eventUuid || undefined
+        );
+      } catch (error) {
+        console.error('Error tracking interest toggle:', error);
+      }
+    }
     e.stopPropagation();
     const isCurrentlyInterested = interestedEvents.has(eventId);
     const newInterestedState = !isCurrentlyInterested;
@@ -562,7 +596,11 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
           const interestedCount = (event.interested_count || 0) + (isInterested ? 1 : 0);
 
           return (
-            <div key={`${event.event_id}-${index}`} className="swift-ui-feed-item">
+            <div 
+              key={`${event.event_id}-${index}`} 
+              className="swift-ui-feed-item"
+              ref={(el) => attachObserver(el, event.event_id)}
+            >
               <CompactEventCard
                 event={{
                   id: event.event_id,

@@ -36,6 +36,8 @@ import L from 'leaflet';
 import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 import { UnifiedEventSearchService, type UnifiedEvent } from '@/services/unifiedEventSearchService';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
+import { getVenueUuid, getVenueMetadata } from '@/utils/entityUuidResolver';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -83,6 +85,16 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
   // Sorting state
   const [upcomingSortBy, setUpcomingSortBy] = useState<'date' | 'artist' | 'price'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Store venue UUID for tracking
+  const [venueUuidForTracking, setVenueUuidForTracking] = useState<string | null>(null);
+
+  // Track venue events page view
+  useEffect(() => {
+    if (venueUuidForTracking && venueName) {
+      trackInteraction.view('venue', venueUuidForTracking, undefined, getVenueMetadata({ id: venueUuidForTracking, name: venueName, city: venueCity, state: venueState }), venueUuidForTracking);
+    }
+  }, [venueUuidForTracking, venueName, venueCity, venueState]);
 
   const computeCategoryAverage = (review: any) => {
     // In 3NF schema, only the main rating column exists
@@ -430,6 +442,7 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
         
         if (venueData) {
           venueUuid = venueData.id;
+          setVenueUuidForTracking(venueData.id);
           venueNameToSearch = venueData.name;
           const locationParts = [venueData.street_address, venueData.state].filter(Boolean);
           venueLocation = locationParts.length > 0 ? locationParts.join(', ') : 'Location TBD';

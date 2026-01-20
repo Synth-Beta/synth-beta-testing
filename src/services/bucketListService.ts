@@ -27,41 +27,131 @@ export class BucketListService {
    */
   static async getBucketList(userId: string): Promise<BucketListItem[]> {
     try {
+      // Query bucket_list - entity_name has everything we need
       const { data, error } = await supabase
         .from('bucket_list')
-        .select('*')
+        .select('id, user_id, entity_id, entity_name, added_at, metadata')
         .eq('user_id', userId)
         .order('added_at', { ascending: false });
 
       if (error) throw error;
 
-      // Enrich with artist/venue details
+      // Enrich with entity_type from entities table and artist/venue details
       const enrichedItems = await Promise.all(
-        (data || []).map(async (item) => {
-          if (item.entity_type === 'artist') {
+        (data || []).map(async (item: any) => {
+          // Get entity_type from entities table for display
+          let entityType: 'artist' | 'venue' | undefined;
+          let entityUuid: string | undefined;
+          
+          if (item.entity_id) {
+            const { data: entity } = await supabase
+              .from('entities')
+              .select('entity_type, entity_uuid')
+              .eq('id', item.entity_id)
+              .single();
+            
+            if (entity) {
+              entityType = entity.entity_type as 'artist' | 'venue';
+              entityUuid = entity.entity_uuid || undefined;
+            }
+          }
+          
+          // Always try to fetch artist/venue data with image_url when we have entityUuid
+          if (entityUuid) {
+            // Try artist first
             const { data: artist } = await supabase
               .from('artists')
               .select('id, name, image_url')
-              .eq('id', item.entity_id)
-              .single();
+              .eq('id', entityUuid)
+              .maybeSingle();
             
-            return {
-              ...item,
-              artist: artist || undefined,
-            } as BucketListItem;
-          } else if (item.entity_type === 'venue') {
+            if (artist) {
+              return {
+                id: item.id,
+                user_id: item.user_id,
+                entity_type: 'artist',
+                entity_id: entityUuid,
+                entity_name: item.entity_name,
+                added_at: item.added_at,
+                metadata: item.metadata || {},
+                artist: artist,
+              } as BucketListItem;
+            }
+            
+            // Try venue if not an artist
             const { data: venue } = await supabase
               .from('venues')
               .select('id, name, image_url')
-              .eq('id', item.entity_id)
-              .single();
+              .eq('id', entityUuid)
+              .maybeSingle();
             
-            return {
-              ...item,
-              venue: venue || undefined,
-            } as BucketListItem;
+            if (venue) {
+              return {
+                id: item.id,
+                user_id: item.user_id,
+                entity_type: 'venue',
+                entity_id: entityUuid,
+                entity_name: item.entity_name,
+                added_at: item.added_at,
+                metadata: item.metadata || {},
+                venue: venue,
+              } as BucketListItem;
+            }
           }
-          return item as BucketListItem;
+          
+          // Fallback: If we couldn't get entity_type from entities, try to determine from artists/venues by name
+          if (!entityType) {
+            const { data: artistByName } = await supabase
+              .from('artists')
+              .select('id, name, image_url')
+              .ilike('name', item.entity_name)
+              .limit(1)
+              .maybeSingle();
+            
+            if (artistByName) {
+              return {
+                id: item.id,
+                user_id: item.user_id,
+                entity_type: 'artist',
+                entity_id: artistByName.id,
+                entity_name: item.entity_name,
+                added_at: item.added_at,
+                metadata: item.metadata || {},
+                artist: artistByName,
+              } as BucketListItem;
+            }
+            
+            const { data: venueByName } = await supabase
+              .from('venues')
+              .select('id, name, image_url')
+              .ilike('name', item.entity_name)
+              .limit(1)
+              .maybeSingle();
+            
+            if (venueByName) {
+              return {
+                id: item.id,
+                user_id: item.user_id,
+                entity_type: 'venue',
+                entity_id: venueByName.id,
+                entity_name: item.entity_name,
+                added_at: item.added_at,
+                metadata: item.metadata || {},
+                venue: venueByName,
+              } as BucketListItem;
+            }
+          }
+          
+          // Return with entity_name - fallback if we can't find artist/venue
+          return {
+            id: item.id,
+            user_id: item.user_id,
+            entity_type: entityType || 'artist', // Default for display
+            entity_id: entityUuid || item.entity_id,
+            entity_name: item.entity_name,
+            added_at: item.added_at,
+            metadata: item.metadata || {},
+          } as BucketListItem;
         })
       );
 

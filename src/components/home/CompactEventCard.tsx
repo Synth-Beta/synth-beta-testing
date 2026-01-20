@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Calendar, MapPin, Send, Check, Heart } from 'lucide-react';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 
 export type EventReason = 'recommended' | 'trending' | 'friend_interested' | 'following';
 
@@ -80,6 +82,65 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
     );
   };
 
+  const handleClick = () => {
+    if (onClick) {
+      // Track event card click
+      try {
+        const eventUuid = getEventUuid(event);
+        const metadata = getEventMetadata(event);
+        trackInteraction.click(
+          'event',
+          event.id,
+          { ...metadata, source: 'feed', reason: reason || 'unknown' },
+          eventUuid || undefined
+        );
+      } catch (error) {
+        console.error('Error tracking event card click:', error);
+      }
+      onClick();
+    }
+  };
+
+  const handleInterestClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onInterestClick) {
+      // Track interest toggle
+      try {
+        const eventUuid = getEventUuid(event);
+        trackInteraction.interest(
+          'event',
+          event.id,
+          !isInterested,
+          { source: 'event_card', reason: reason || 'unknown' },
+          eventUuid || undefined
+        );
+      } catch (error) {
+        console.error('Error tracking interest toggle:', error);
+      }
+      onInterestClick(e);
+    }
+  };
+
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onShareClick) {
+      // Track share click
+      try {
+        const eventUuid = getEventUuid(event);
+        trackInteraction.share(
+          'event',
+          event.id,
+          'native',
+          { source: 'event_card' },
+          eventUuid || undefined
+        );
+      } catch (error) {
+        console.error('Error tracking share click:', error);
+      }
+      onShareClick(e);
+    }
+  };
+
   return (
     <div
       className={cn(
@@ -88,11 +149,11 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
         'w-full h-full max-h-[85vh]',
         className
       )}
-      onClick={onClick}
+      onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onClick?.();
+          handleClick();
         }
       }}
       tabIndex={0}
@@ -217,32 +278,35 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
             </div>
           )}
 
-          <div className="flex items-center" style={{ gap: 'var(--spacing-small, 12px)' }}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onInterestClick?.(e);
-            }}
+          {/* Actions */}
+          <div className="flex items-center gap-3 pt-2">
+            {/* Interested toggle button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleInterestClick(e);
+              }}
               className={cn(
                 'swift-ui-button',
                 isInterested ? 'swift-ui-button-primary' : 'swift-ui-button-secondary'
               )}
-            aria-label={isInterested ? 'Remove interest' : 'Mark as interested'}
-          >
+              aria-label={isInterested ? 'Remove interest' : 'Mark as interested'}
+            >
               <span style={{ color: isInterested ? 'var(--neutral-50)' : 'var(--brand-pink-500)' }}>Interested</span>
               <Heart size={24} strokeWidth={2.5} style={{ color: isInterested ? 'var(--neutral-50)' : 'var(--brand-pink-500)' }} aria-hidden="true" />
-          </button>
+            </button>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onShareClick?.(e);
-            }}
-              className="swift-ui-button swift-ui-button-secondary swift-ui-button-icon"
-            aria-label="Share event"
-          >
-              <Send size={24} strokeWidth={2.5} />
-          </button>
+            {/* Share button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleShareClick(e);
+              }}
+              className="swift-ui-button swift-ui-button-secondary w-14 h-14"
+              aria-label="Share event"
+            >
+              <Send size={20} strokeWidth={2.5} />
+            </button>
           </div>
         </div>
       </div>

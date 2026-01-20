@@ -13,6 +13,7 @@ import { UnifiedArtistSearchService, ArtistSearchResult } from '@/services/unifi
 import { UnifiedVenueSearchService, VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import { format, parseISO } from 'date-fns';
 import { EventMap } from '@/components/events/EventMap';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface RedesignedSearchPageProps {
   userId: string;
@@ -196,6 +197,16 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
   // Reset pagination when query changes
   useEffect(() => {
     if (debouncedQuery.length >= MIN_QUERY_LENGTH) {
+      // Track search query
+      try {
+        trackInteraction.search(debouncedQuery, 'search', 'search_query', {
+          query_length: debouncedQuery.length,
+          source: 'search_page'
+        });
+      } catch (error) {
+        console.error('Error tracking search query:', error);
+      }
+
       setPagination({
         all: { page: 1, hasMore: false },
         users: { page: 1, hasMore: false },
@@ -486,7 +497,15 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
         )}
 
         {shouldShowResults && debouncedQuery.length >= MIN_QUERY_LENGTH && filteredTabConfig.length > 0 && (
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabKey)}>
+        <Tabs value={activeTab} onValueChange={(value) => {
+          // Track tab switch
+          try {
+            trackInteraction.click('search', `search_tab_${value}`, { tab: value, query: debouncedQuery });
+          } catch (error) {
+            console.error('Error tracking tab switch:', error);
+          }
+          setActiveTab(value as TabKey);
+        }}>
             <TabsList className={`grid w-full md:w-auto md:inline-flex bg-muted/60 ${tabGridClass}`}>
               {filteredTabConfig.map(({ key, label, icon: Icon }) => (
               <TabsTrigger key={key} value={key} className="flex items-center gap-2">
@@ -768,7 +787,19 @@ const UserResults: React.FC<{
       <Card 
         key={user.id} 
         className="hover:shadow-sm transition-shadow cursor-pointer"
-        onClick={() => onNavigateToProfile?.(user.id)}
+        onClick={() => {
+          // Track user search result click
+          try {
+            trackInteraction.click('user', user.id, { 
+              source: 'search',
+              query: debouncedQuery,
+              result_type: 'user'
+            }, user.id);
+          } catch (error) {
+            console.error('Error tracking user search click:', error);
+          }
+          onNavigateToProfile?.(user.id);
+        }}
       >
         <CardContent className="p-4 flex items-center gap-4">
           <Avatar className="h-12 w-12">
@@ -893,6 +924,17 @@ const EventResults: React.FC<{ results: EventSearchResult[]; onEventClick?: (eve
           className="hover:shadow-sm transition-shadow cursor-pointer"
           onClick={() => {
             if (onEventClick) {
+              // Track search result click
+              try {
+                trackInteraction.click('event', event.id, { 
+                  source: 'search',
+                  query: debouncedQuery,
+                  result_type: 'event',
+                  position: results.events.indexOf(event)
+                }, event.id);
+              } catch (error) {
+                console.error('Error tracking search result click:', error);
+              }
               onEventClick(event);
             } else {
               // Fallback: navigate to event if we have the ID
@@ -1055,7 +1097,19 @@ const AllResults: React.FC<{
               <Card 
                 key={user.id} 
                 className="hover:shadow-sm transition-shadow cursor-pointer"
-                onClick={() => onNavigateToProfile?.(user.id)}
+                onClick={() => {
+          // Track user search result click
+          try {
+            trackInteraction.click('user', user.id, { 
+              source: 'search',
+              query: debouncedQuery,
+              result_type: 'user'
+            }, user.id);
+          } catch (error) {
+            console.error('Error tracking user search click:', error);
+          }
+          onNavigateToProfile?.(user.id);
+        }}
               >
                 <CardContent className="p-3 flex items-center gap-3">
                   <Avatar className="h-10 w-10">

@@ -36,6 +36,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
+import { useViewTracking } from '@/hooks/useViewTracking';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 
 // Helper function to format member count - guaranteed to return clean string
 const formatMemberCount = (count: number | string | null | undefined): string => {
@@ -261,6 +264,9 @@ interface FriendEventInterest {
   created_at: string;
 }
   const [friendEventInterests, setFriendEventInterests] = useState<FriendEventInterest[]>([]);
+
+  // Track home feed view
+  useViewTracking('view', 'home_feed', { source: 'home' });
 
   // Load user's active city and apply to filters
   useEffect(() => {
@@ -1605,7 +1611,21 @@ interface FriendEventInterest {
   };
 
   const handleEventClick = async (eventId: string) => {
+    // Track event click from feed
     try {
+      const eventUuid = getEventUuid({ id: eventId });
+      trackInteraction.click(
+        'event',
+        eventId,
+        { source: 'home_feed' },
+        eventUuid || undefined
+      );
+    } catch (error) {
+      console.error('Error tracking event click:', error);
+    }
+
+    try {
+      // Query events table with JOINs to get artist and venue names via foreign keys
       const { data, error } = await supabase
         .from('events')
         .select('*, artists(name), venues(name)')
@@ -1619,7 +1639,7 @@ interface FriendEventInterest {
 
       if (data) {
         // Normalize the event data to include artist_name and venue_name from JOINed data
-        // Properly handle null/undefined cases from JOIN operations
+        // Properly handle null/undefined cases from JOIN operations (bug fix)
         const artistName = Array.isArray(data.artists) && data.artists.length > 0
           ? data.artists[0]?.name
           : (data.artists as any)?.name || data.artist_name || null;
@@ -2287,6 +2307,7 @@ interface FriendEventInterest {
           currentUserId={currentUserId}
           isInterested={selectedEventInterested}
           onInterestToggle={async (eventId, interested) => {
+            // Tracking is handled in UserEventService.setEventInterest
             try {
               await UserEventService.setEventInterest(currentUserId, eventId, interested);
               setSelectedEventInterested(interested);

@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Loader2, Lock, Globe, Calendar } from 'lucide-react';
 import EventGroupService from '@/services/eventGroupService';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface CreateEventGroupModalProps {
   open: boolean;
@@ -76,6 +77,17 @@ export function CreateEventGroupModal({
         is_public: formData.is_public,
         max_members: formData.max_members ? parseInt(formData.max_members) : undefined,
       });
+
+      // Track group creation
+      try {
+        trackInteraction.click('view', 'create_event_group', {
+          event_id: event.id,
+          artist_name: event.artist_name,
+          group_name: formData.name
+        }, event.id);
+      } catch (error) {
+        console.error('Error tracking group creation:', error);
+      }
 
       toast({
         title: 'Group Created! 🎉',

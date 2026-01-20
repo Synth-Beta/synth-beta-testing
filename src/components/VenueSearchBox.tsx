@@ -108,7 +108,15 @@ export function VenueSearchBox({
   };
 
   const handleVenueSelect = (venue: VenueSearchResult) => {
-    try { trackInteraction.click('venue', (venue as any).id || (venue as any).identifier || venue.name, { source: 'venue_search_box', name: venue.name, city: venue.address?.addressLocality, state: venue.address?.addressRegion }); } catch {}
+    try {
+      const venueUuid = (venue as any).id || null;
+      trackInteraction.click(
+        'venue',
+        venueUuid || (venue as any).identifier || venue.name,
+        { source: 'venue_search_box', name: venue.name, city: venue.address?.addressLocality, state: venue.address?.addressRegion },
+        venueUuid || undefined
+      );
+    } catch {}
     onVenueSelect(venue);
     setQuery(venue.name);
     setIsOpen(false);

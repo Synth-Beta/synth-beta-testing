@@ -5,6 +5,8 @@ import { MapPin, Calendar, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ReviewService } from '@/services/reviewService';
 import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
+import { useViewTracking } from '@/hooks/useViewTracking';
+import { getVenueUuid, getVenueMetadata } from '@/utils/entityUuidResolver';
 
 interface VenueCardProps {
   venueId?: string | null;
@@ -13,6 +15,10 @@ interface VenueCardProps {
 }
 
 export function VenueCard({ venueId, venueName, onClose }: VenueCardProps) {
+  // Track venue card view
+  const venueUuid = venueId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(venueId) ? venueId : null;
+  useViewTracking('venue', venueUuid || venueId || venueName || 'unknown', getVenueMetadata({ id: venueUuid || venueId || undefined, name: venueName }), venueUuid || undefined);
+
   const [geo, setGeo] = useState<{ lat?: number; lng?: number } | null>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);

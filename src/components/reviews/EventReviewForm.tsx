@@ -1176,13 +1176,13 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         console.log('🗑️ EventReviewForm: Starting NUCLEAR draft deletion:', { eventId: safeEventId, artistId: safeArtistId, venueId: safeVenueId });
         
         // First, delete drafts for this specific event (if eventId exists) or artist+venue (if no eventId)
-        let deleteQuery = supabase
+        let deleteQuery: any = supabase
           .from('reviews')
           .delete()
           .eq('user_id', userId)
-          .eq('is_draft', true)
-          .select('id');
+          .eq('is_draft', true);
         
+        // Chain filters before executing
         if (safeEventId) {
           deleteQuery = deleteQuery.eq('event_id', safeEventId);
         } else if (safeArtistId && safeVenueId) {
@@ -1191,6 +1191,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             .eq('venue_id', safeVenueId)
             .is('event_id', null);
         }
+        
+        // Add select after all filters
+        deleteQuery = deleteQuery.select('id');
         
         const { error: deleteError, data: deletedData } = await deleteQuery;
         
@@ -1325,7 +1328,13 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           reviewMetadata.reviewed_entity_id = reviewedEntityId;
         }
         
-        // Track review creation with review entity type
+        // Track review creation with review entity type and enhanced metadata
+        // Add event/artist/venue metadata if available using metadata extraction
+        if (event) {
+          const { getEventMetadata } = await import('@/utils/entityUuidResolver');
+          const eventMetadata = getEventMetadata(event);
+          Object.assign(reviewMetadata, eventMetadata);
+        }
         trackInteraction.review('review', reviewEntityId, reviewData.rating as number, reviewMetadata, reviewEntityUuid);
         
         // Build form submit metadata
@@ -2134,7 +2143,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                     console.log('✅ Review deleted successfully');
 
                     try {
-                      trackInteraction.click('review', event.id, { action: 'delete', source: 'event_review_form' });
+                      trackInteraction.click('review', event.id, { action: 'delete', source: 'event_review_form' }, event.id);
                     } catch {}
 
                     toast({

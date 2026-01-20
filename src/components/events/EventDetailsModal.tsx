@@ -38,6 +38,8 @@ import { formatPrice } from '@/utils/currencyUtils';
 import { EventReviewsSection } from '@/components/reviews/EventReviewsSection';
 import { ArtistVenueReviews } from '@/components/reviews/ArtistVenueReviews';
 import { EventMap } from '@/components/EventMap';
+import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
+import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { trackInteraction } from '@/services/interactionTrackingService';
@@ -111,6 +113,8 @@ export function EventDetailsModal({
   const [showGroups, setShowGroups] = useState(false);
   const [showPhotos, setShowPhotos] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [artistModalOpen, setArtistModalOpen] = useState(false);
+  const [venueModalOpen, setVenueModalOpen] = useState(false);
   const [eventGroups, setEventGroups] = useState<any[]>([]);
   const [verifiedChatInfo, setVerifiedChatInfo] = useState<any>(null);
   const [verifiedChatLoading, setVerifiedChatLoading] = useState(false);
@@ -218,7 +222,7 @@ export function EventDetailsModal({
         days_until_event: actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined
       });
 
-      trackInteraction.view('event', actualEvent.id, undefined, eventMetadata);
+      trackInteraction.view('event', actualEvent.id, undefined, eventMetadata, actualEvent.id);
     }
 
     // Cleanup: Track modal close on unmount or when modal closes
@@ -230,7 +234,7 @@ export function EventDetailsModal({
           source: 'event_modal_close',
           duration_seconds: duration,
           interacted: hasInteracted.current
-        });
+        }, actualEvent.id);
         
         viewStartTime.current = null;
       }
@@ -252,7 +256,7 @@ export function EventDetailsModal({
         days_until_event: actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined
       });
 
-      trackInteraction.view('event', actualEvent.id, undefined, eventMetadata);
+      trackInteraction.view('event', actualEvent.id, undefined, eventMetadata, actualEvent.id);
     }
 
     // Cleanup: Track modal close on unmount or when modal closes
@@ -264,93 +268,147 @@ export function EventDetailsModal({
           source: 'event_modal_close',
           duration_seconds: duration,
           interacted: hasInteracted.current
-        });
+        }, actualEvent.id);
         
         viewStartTime.current = null;
       }
     };
   }, [isOpen, actualEvent?.id]);
 
-  // Use the event data directly - no need to fetch from database
-  // The event data is already complete from the map/feed
+  // Fetch event with foreign keys when modal opens to ensure we have artist_id and venue_id
   useEffect(() => {
-    if (isOpen && event) {
-      // Normalize the event data to handle both legacy and normalized schema
-      const normalizedEvent = {
-        ...event,
-        artist_name: event.artist_name || (event as any).artist_name_normalized || null,
-        venue_name: event.venue_name || (event as any).venue_name_normalized || null,
+    if (isOpen && event?.id) {
+      const fetchEventWithForeignKeys = async () => {
+        try {
+          setLoading(true);
+          // Query events table directly with JOINs to get artist_id, venue_id, and names
+          const { data: eventData, error } = await supabase
+            .from('events')
+            .select('*, artists(name), venues(name)')
+            .eq('id', event.id)
+            .single();
+
+          if (error) {
+            console.error('Error fetching event:', error);
+            // Fallback to using passed event data
+            setActualEvent(event);
+            setLoading(false);
+            return;
+          }
+
+          if (eventData) {
+            // Normalize the event data with artist/venue names from JOINs
+            const normalizedEvent = {
+              ...event,
+              ...eventData,
+              artist_id: eventData.artist_id || event.artist_id || null,
+              venue_id: eventData.venue_id || event.venue_id || null,
+              artist_name: (eventData.artists?.name) || event.artist_name || null,
+              venue_name: (eventData.venues?.name) || event.venue_name || null,
+            };
+
+            setActualEvent(normalizedEvent);
+          } else {
+            // Fallback to using passed event data
+            setActualEvent(event);
+          }
+        } catch (error) {
+          console.error('Error fetching event with foreign keys:', error);
+          // Fallback to using passed event data
+          setActualEvent(event);
+        } finally {
+          setLoading(false);
+        }
       };
 
-      // Always use the passed event data directly
-      // This avoids 406 errors from RLS policies and unnecessary database calls
-      setActualEvent(normalizedEvent);
+      fetchEventWithForeignKeys();
+    } else if (isOpen && event) {
+      // If no event ID, just use the passed event data
+      setActualEvent(event);
       setLoading(false);
     }
-  }, [isOpen, event]);
+  }, [isOpen, event?.id]);
 
-  // Fetch artist and venue names if missing (for normalized schema)
+  // Fetch artist and venue names if still missing after initial fetch
   useEffect(() => {
     if (isOpen && actualEvent && (!actualEvent.artist_name || !actualEvent.venue_name)) {
       const fetchArtistVenueNames = async () => {
         try {
-          const { data: eventData, error } = await supabase
-            .from('events_with_artist_venue')
-            .select('artist_name_normalized, venue_name_normalized, artist_id, venue_id')
-            .eq('id', actualEvent.id)
-            .single();
+          const promises: Promise<{ type: string; data: any; error: any }>[] = [];
 
-          if (eventData && !error) {
-            setActualEvent(prev => ({
-              ...prev,
-              artist_name: prev.artist_name || eventData.artist_name_normalized || null,
-              venue_name: prev.venue_name || eventData.venue_name_normalized || null,
-              artist_id: prev.artist_id || eventData.artist_id || null,
-              venue_id: prev.venue_id || eventData.venue_id || null,
-            }));
-          } else if (actualEvent.artist_id || actualEvent.venue_id) {
-            const promises: Promise<{ type: string; data: any; error: any }>[] = [];
+          // Always try to fetch using foreign keys if we have them
+          if (actualEvent.artist_id && !actualEvent.artist_name) {
+            promises.push(
+              Promise.resolve(
+                supabase
+                  .from('artists')
+                  .select('name')
+                  .eq('id', actualEvent.artist_id)
+                  .single()
+              ).then(({ data, error }) => ({ type: 'artist', data, error }))
+            );
+          }
 
-            if (actualEvent.artist_id && !actualEvent.artist_name) {
-              promises.push(
-                Promise.resolve(
-                  supabase
-                    .from('artists')
-                    .select('name')
-                    .eq('id', actualEvent.artist_id)
-                    .single()
-                ).then(({ data, error }) => ({ type: 'artist', data, error }))
-              );
-            }
+          if (actualEvent.venue_id && !actualEvent.venue_name) {
+            promises.push(
+              Promise.resolve(
+                supabase
+                  .from('venues')
+                  .select('name')
+                  .eq('id', actualEvent.venue_id)
+                  .single()
+              ).then(({ data, error }) => ({ type: 'venue', data, error }))
+            );
+          }
 
-            if (actualEvent.venue_id && !actualEvent.venue_name) {
-              promises.push(
-                Promise.resolve(
-                  supabase
-                    .from('venues')
-                    .select('name')
-                    .eq('id', actualEvent.venue_id)
-                    .single()
-                ).then(({ data, error }) => ({ type: 'venue', data, error }))
-              );
-            }
+          // If we don't have foreign keys, try to find them by name (fallback)
+          if (!actualEvent.artist_id && actualEvent.artist_name) {
+            promises.push(
+              Promise.resolve(
+                supabase
+                  .from('artists')
+                  .select('id, name')
+                  .ilike('name', `%${actualEvent.artist_name}%`)
+                  .limit(1)
+                  .maybeSingle()
+              ).then(({ data, error }) => ({ type: 'artist_lookup', data, error }))
+            );
+          }
 
-            const results = await Promise.all(promises);
-            const updates: any = {};
+          if (!actualEvent.venue_id && actualEvent.venue_name) {
+            promises.push(
+              Promise.resolve(
+                supabase
+                  .from('venues')
+                  .select('id, name')
+                  .ilike('name', `%${actualEvent.venue_name}%`)
+                  .limit(1)
+                  .maybeSingle()
+              ).then(({ data, error }) => ({ type: 'venue_lookup', data, error }))
+            );
+          }
 
-            results.forEach(result => {
-              if (result.data && !result.error) {
-                if (result.type === 'artist') {
-                  updates.artist_name = result.data.name;
-                } else if (result.type === 'venue') {
-                  updates.venue_name = result.data.name;
-                }
+          const results = await Promise.all(promises);
+          const updates: any = {};
+
+          results.forEach(result => {
+            if (result.data && !result.error) {
+              if (result.type === 'artist') {
+                updates.artist_name = result.data.name;
+              } else if (result.type === 'venue') {
+                updates.venue_name = result.data.name;
+              } else if (result.type === 'artist_lookup') {
+                updates.artist_id = result.data.id;
+                updates.artist_name = result.data.name;
+              } else if (result.type === 'venue_lookup') {
+                updates.venue_id = result.data.id;
+                updates.venue_name = result.data.name;
               }
-            });
-
-            if (Object.keys(updates).length > 0) {
-              setActualEvent(prev => ({ ...prev, ...updates }));
             }
+          });
+
+          if (Object.keys(updates).length > 0) {
+            setActualEvent(prev => ({ ...prev, ...updates }));
           }
         } catch (error) {
           console.error('Error fetching artist/venue names:', error);
@@ -359,7 +417,7 @@ export function EventDetailsModal({
 
       fetchArtistVenueNames();
     }
-  }, [isOpen, actualEvent?.id, actualEvent?.artist_id, actualEvent?.venue_id]);
+  }, [isOpen, actualEvent?.id, actualEvent?.artist_id, actualEvent?.venue_id, actualEvent?.artist_name, actualEvent?.venue_name]);
 
   // Load attendance data for past events
   useEffect(() => {
@@ -635,27 +693,52 @@ export function EventDetailsModal({
     }
   };
 
-  // Navigation click handlers for artist and venue names
-  const handleArtistClick = () => {
-    if (actualEvent.artist_name) {
+  // Click handlers for artist and venue - open modals using foreign keys
+  const handleArtistClick = async () => {
+    if (!actualEvent.artist_id) {
+      console.warn('No artist_id available for event:', actualEvent.id);
+      return;
+    }
+
+    // Fetch artist name using foreign key if not available
+    let artistId = actualEvent.artist_id;
+    let artistName = actualEvent.artist_name;
+
+    if (!artistName && artistId) {
+      try {
+        const { data: artistData } = await supabase
+          .from('artists')
+          .select('id, name')
+          .eq('id', artistId)
+          .single();
+        
+        if (artistData) {
+          artistName = artistData.name;
+        }
+      } catch (error) {
+        console.error('Error fetching artist name:', error);
+      }
+    }
+
+    if (artistId && artistName) {
       // 🎯 TRACK: Artist click from event modal
-      trackInteraction.click('artist', actualEvent.artist_name, {
+      trackInteraction.click('artist', artistId, {
         source: 'event_modal',
         event_id: actualEvent.id,
-        artist_name: actualEvent.artist_name,
+        artist_name: artistName,
         from_view: window.location.pathname
-      });
+      }, artistId);
       
       // 🎯 TRACK: Event click (for promotion analytics)
       trackInteraction.click('event', actualEvent.id, {
         source: 'event_modal_artist_click',
-        artist_name: actualEvent.artist_name,
+        artist_name: artistName,
         venue_name: actualEvent.venue_name,
         event_date: actualEvent.event_date,
         genres: actualEvent.genres,
         price_range: actualEvent.price_range,
         days_until_event: actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined
-      });
+      }, actualEvent.id);
       
       // 🎯 TRACK: Promotion interaction if this event is promoted
       PromotionTrackingService.trackPromotionInteraction(
@@ -664,7 +747,7 @@ export function EventDetailsModal({
         'click',
         {
           source: 'event_modal_artist_click',
-          artist_name: actualEvent.artist_name,
+          artist_name: artistName,
           venue_name: actualEvent.venue_name
         }
       );
@@ -672,39 +755,58 @@ export function EventDetailsModal({
       // Mark interaction for duration tracking
       hasInteracted.current = true;
       
-      // Close modal and navigate
-      onClose();
-      navigate(`/artist/${encodeURIComponent(actualEvent.artist_name)}`, {
-        state: { 
-          fromFeed: window.location.pathname,
-          eventId: actualEvent.id // Pass the event ID so we can re-open this modal
-        }
-      });
+      // Open the existing ArtistDetailModal
+      setArtistModalOpen(true);
     }
   };
 
-  const handleVenueClick = () => {
-    if (actualEvent.venue_name) {
+  const handleVenueClick = async () => {
+    if (!actualEvent.venue_id) {
+      console.warn('No venue_id available for event:', actualEvent.id);
+      return;
+    }
+
+    // Fetch venue name using foreign key if not available
+    let venueId = actualEvent.venue_id;
+    let venueName = actualEvent.venue_name;
+
+    if (!venueName && venueId) {
+      try {
+        const { data: venueData } = await supabase
+          .from('venues')
+          .select('id, name')
+          .eq('id', venueId)
+          .single();
+        
+        if (venueData) {
+          venueName = venueData.name;
+        }
+      } catch (error) {
+        console.error('Error fetching venue name:', error);
+      }
+    }
+
+    if (venueId && venueName) {
       // 🎯 TRACK: Venue click from event modal
-      trackInteraction.click('venue', actualEvent.venue_name, {
+      trackInteraction.click('venue', venueId, {
         source: 'event_modal',
         event_id: actualEvent.id,
-        venue_name: actualEvent.venue_name,
+        venue_name: venueName,
         venue_city: actualEvent.venue_city,
         venue_state: actualEvent.venue_state,
         from_view: window.location.pathname
-      });
+      }, venueId);
       
       // 🎯 TRACK: Event click (for promotion analytics)
       trackInteraction.click('event', actualEvent.id, {
         source: 'event_modal_venue_click',
         artist_name: actualEvent.artist_name,
-        venue_name: actualEvent.venue_name,
+        venue_name: venueName,
         event_date: actualEvent.event_date,
         genres: actualEvent.genres,
         price_range: actualEvent.price_range,
         days_until_event: actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined
-      });
+      }, actualEvent.id);
       
       // 🎯 TRACK: Promotion interaction if this event is promoted
       PromotionTrackingService.trackPromotionInteraction(
@@ -714,21 +816,15 @@ export function EventDetailsModal({
         {
           source: 'event_modal_venue_click',
           artist_name: actualEvent.artist_name,
-          venue_name: actualEvent.venue_name
+          venue_name: venueName
         }
       );
       
       // Mark interaction for duration tracking
       hasInteracted.current = true;
       
-      // Close modal and navigate
-      onClose();
-      navigate(`/venue/${encodeURIComponent(actualEvent.venue_name)}`, {
-        state: { 
-          fromFeed: window.location.pathname,
-          eventId: actualEvent.id // Pass the event ID so we can re-open this modal
-        }
-      });
+      // Open the existing VenueDetailModal
+      setVenueModalOpen(true);
     }
   };
 
@@ -784,6 +880,7 @@ export function EventDetailsModal({
   if (!isOpen) return null;
 
   return (
+    <>
     <div 
       className="fixed inset-0 z-50 bg-[#fcfcfc] overflow-y-auto overflow-x-hidden w-full max-w-full"
       style={{
@@ -845,6 +942,23 @@ export function EventDetailsModal({
                       // Update local state immediately for instant UI feedback
                       setLocalIsInterested(newInterestState);
                       
+                      // 🎯 TRACK: Interest toggle with event metadata
+                      try {
+                        const { getEventMetadata } = await import('@/utils/entityUuidResolver');
+                        trackInteraction.interest(
+                          'event',
+                          actualEvent.id,
+                          newInterestState,
+                          {
+                            ...getEventMetadata(actualEvent),
+                            source: 'event_modal_interest_button'
+                          },
+                          actualEvent.id
+                        );
+                      } catch (error) {
+                        console.error('Error tracking interest toggle:', error);
+                      }
+
                       // 🎯 TRACK: Promotion interaction for interest toggle
                       if (newInterestState) {
                         // User is expressing interest - this is a conversion
@@ -1000,8 +1114,25 @@ export function EventDetailsModal({
               <Button
                 variant="secondary"
                 type="button"
-                onClick={() => {
+                  onClick={async () => {
                   console.log('Remove interest button clicked');
+                  // Track interest removal
+                  try {
+                    const { getEventMetadata } = await import('@/utils/entityUuidResolver');
+                    trackInteraction.interest(
+                      'event',
+                      actualEvent.id,
+                      false,
+                      {
+                        ...getEventMetadata(actualEvent),
+                        source: 'event_modal_remove_interest',
+                        action: 'remove'
+                      },
+                      actualEvent.id
+                    );
+                  } catch (error) {
+                    console.error('Error tracking interest removal:', error);
+                  }
                   onInterestToggle(actualEvent.id, false);
                 }}
                 style={{ pointerEvents: 'auto', zIndex: 10 }}
@@ -1069,26 +1200,53 @@ export function EventDetailsModal({
             <PopularityIndicator interestedCount={interestedCount || 0} attendanceCount={attendanceCount || 0} />
           </div>
 
-          {/* Artist and Venue Info */}
+          {/* Artist and Venue Info - Swift-style buttons */}
           <div className="flex flex-col gap-3 mb-3">
-            {/* Artist Info - Only render if artist_name exists */}
-            {actualEvent.artist_name && (
-              <div className="bg-gray-50 rounded-lg p-3 w-full">
-                <h3 className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
-                  <Music size={16} className="flex-shrink-0" />
-                  <span>Artist</span>
-                </h3>
-                <div
-                  className="font-medium text-sm cursor-pointer hover:text-pink-600 transition-colors break-words"
-                  onClick={handleArtistClick}
-                  title="Click to view all events for this artist"
+            {/* Artist Info - Swift button style - Only render if artist_name exists (bug fix) */}
+            {actualEvent.artist_name && actualEvent.artist_id && (
+              <button
+                onClick={handleArtistClick}
+                className="w-full text-left"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  borderRadius: 'var(--radius-corner, 10px)',
+                  border: '1px solid rgba(0, 0, 0, 0.1)',
+                  padding: 'var(--spacing-small, 12px)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
+                }}
+                title="Click to view all events for this artist"
+              >
+                <div 
+                  className="font-semibold break-words"
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-body-size, 20px)',
+                    fontWeight: 'var(--typography-body-weight, 600)',
+                    lineHeight: 'var(--typography-body-line-height, 1.4)',
+                    color: 'var(--neutral-900)',
+                    marginBottom: actualEvent.genres && actualEvent.genres.length > 0 ? '8px' : '0'
+                  }}
                 >
                   {actualEvent.artist_name}
                 </div>
                 {actualEvent.genres && actualEvent.genres.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
+                  <div className="flex flex-wrap gap-1.5">
                     {actualEvent.genres.slice(0, 3).map((genre, index) => (
-                      <div
+                      <span
                         key={index}
                         style={{
                           display: 'inline-flex',
@@ -1108,36 +1266,77 @@ export function EventDetailsModal({
                         }}
                       >
                         {genre}
-                      </div>
+                      </span>
                     ))}
                   </div>
                 )}
-              </div>
+              </button>
             )}
 
-            {/* Venue Info - Only render if venue_name exists */}
-            {actualEvent.venue_name && (
-              <div className="bg-gray-50 rounded-lg p-3 w-full">
-                <h3 className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
-                  <MapPin size={16} className="flex-shrink-0" />
-                  <span>Venue</span>
-                </h3>
-                <div
-                  className="font-medium text-sm mb-1 cursor-pointer hover:text-pink-600 transition-colors break-words"
-                  onClick={handleVenueClick}
-                  title="Click to view all events at this venue"
+            {/* Venue Info - Swift button style - Only render if venue_name exists (bug fix) */}
+            {actualEvent.venue_name && actualEvent.venue_id && (
+              <button
+                onClick={handleVenueClick}
+                className="w-full text-left"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  borderRadius: 'var(--radius-corner, 10px)',
+                  border: '1px solid rgba(0, 0, 0, 0.1)',
+                  padding: 'var(--spacing-small, 12px)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
+                }}
+                title="Click to view all events at this venue"
+              >
+                <div 
+                  className="font-semibold break-words mb-1"
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-body-size, 20px)',
+                    fontWeight: 'var(--typography-body-weight, 600)',
+                    lineHeight: 'var(--typography-body-line-height, 1.4)',
+                    color: 'var(--neutral-900)'
+                  }}
                 >
                   {actualEvent.venue_name}
                 </div>
-                <div className="text-muted-foreground text-xs break-words">
+                <div 
+                  className="break-words"
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: '14px',
+                    color: 'var(--neutral-600)',
+                    lineHeight: '1.4'
+                  }}
+                >
                   {getVenueAddress()}
                 </div>
                 {actualEvent.venue_zip && (
-                  <div className="text-xs text-muted-foreground mt-1">
+                  <div 
+                    style={{
+                      fontFamily: 'var(--font-family)',
+                      fontSize: '13px',
+                      color: 'var(--neutral-500)',
+                      marginTop: '4px'
+                    }}
+                  >
                     ZIP: {actualEvent.venue_zip}
                   </div>
                 )}
-              </div>
+              </button>
             )}
           </div>
 
@@ -1171,6 +1370,10 @@ export function EventDetailsModal({
                   color: showPhotos ? 'var(--neutral-50)' : undefined
                 }}
                 onClick={() => {
+                  // Track tab click
+                  if (!showPhotos && actualEvent?.id) {
+                    trackInteraction.click('view', 'event_photos_tab', { event_id: actualEvent.id, source: 'event_modal' }, actualEvent.id);
+                  }
                   setShowPhotos(!showPhotos);
                   setShowGroups(false);
                   setShowBuddyFinder(false);
@@ -1192,6 +1395,10 @@ export function EventDetailsModal({
                   color: showGroups ? 'var(--neutral-50)' : undefined
                 }}
                 onClick={() => {
+                  // Track tab click
+                  if (!showGroups && actualEvent?.id) {
+                    trackInteraction.click('view', 'event_groups_tab', { event_id: actualEvent.id, source: 'event_modal' }, actualEvent.id);
+                  }
                   setShowGroups(!showGroups);
                   setShowPhotos(false);
                   setShowBuddyFinder(false);
@@ -1215,6 +1422,10 @@ export function EventDetailsModal({
                     color: showBuddyFinder ? 'var(--neutral-50)' : undefined
                   }}
                   onClick={() => {
+                    // Track tab click
+                    if (!showBuddyFinder && actualEvent?.id) {
+                      trackInteraction.click('view', 'event_buddies_tab', { event_id: actualEvent.id, source: 'event_modal' }, actualEvent.id);
+                    }
                     setShowBuddyFinder(!showBuddyFinder);
                     setShowPhotos(false);
                     setShowGroups(false);
@@ -1695,7 +1906,7 @@ export function EventDetailsModal({
                           days_until_event: daysUntilEvent,
                           source: 'event_modal',
                           user_interested: localIsInterested
-                        });
+                        }, actualEvent.id);
                         
                         // 🎯 TRACK: Promotion interaction for ticket click
                         PromotionTrackingService.trackPromotionInteraction(
@@ -1825,5 +2036,28 @@ export function EventDetailsModal({
           }}
         />
     </div>
+
+    {/* Artist Detail Modal */}
+    {actualEvent?.artist_id && actualEvent?.artist_name && (
+      <ArtistDetailModal
+        isOpen={artistModalOpen}
+        onClose={() => setArtistModalOpen(false)}
+        artistId={actualEvent.artist_id}
+        artistName={actualEvent.artist_name}
+        currentUserId={currentUserId}
+      />
+    )}
+
+    {/* Venue Detail Modal */}
+    {actualEvent?.venue_id && actualEvent?.venue_name && (
+      <VenueDetailModal
+        isOpen={venueModalOpen}
+        onClose={() => setVenueModalOpen(false)}
+        venueId={actualEvent.venue_id}
+        venueName={actualEvent.venue_name}
+        currentUserId={currentUserId}
+      />
+    )}
+    </>
   );
 }
