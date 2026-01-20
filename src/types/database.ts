@@ -312,13 +312,24 @@ export interface Review {
 export interface UserReview extends Review {}
 
 // ============================================
-// 7. COMMENTS TABLE (unified comments table)
+// 7. ENTITIES TABLE (unified entities table for polymorphic references)
+// ============================================
+export interface Entity {
+  id: string; // UUID - primary key
+  entity_type: 'review' | 'event' | 'artist' | 'venue' | 'comment' | 'user' | 'city' | 'scene';
+  entity_uuid: string | null; // UUID - for UUID-based entities
+  entity_text_id: string | null; // TEXT - for text-based entities (cities, scenes)
+  created_at: string; // TIMESTAMPTZ
+}
+
+// ============================================
+// 8. COMMENTS TABLE (unified comments table)
 // ============================================
 export interface Comment {
   id: string; // UUID
   user_id: string; // UUID - references users(user_id)
-  entity_type: 'review' | 'event' | 'artist' | 'venue';
-  entity_id: string; // UUID
+  entity_id: string; // UUID - FK to entities.id (replaces entity_type + entity_id)
+  // Note: To get entity_type, join with entities table: JOIN entities ON entities.id = comments.entity_id
   parent_comment_id: string | null; // UUID - references comments(id)
   comment_text: string;
   likes_count: number;
@@ -327,13 +338,13 @@ export interface Comment {
 }
 
 // ============================================
-// 8. ENGAGEMENTS TABLE (unified engagements table)
+// 9. ENGAGEMENTS TABLE (unified engagements table)
 // ============================================
 export interface Engagement {
   id: string; // UUID
   user_id: string; // UUID - references users(user_id)
-  entity_type: 'review' | 'event' | 'comment' | 'user';
-  entity_id: string; // UUID
+  entity_id: string; // UUID - FK to entities.id (replaces entity_type + entity_id)
+  // Note: To get entity_type, join with entities table: JOIN entities ON entities.id = engagements.entity_id
   engagement_type: 'like' | 'share' | 'swipe';
   engagement_value: string | null; // 'left', 'right' for swipes; platform for shares
   metadata: Record<string, any>; // JSONB
@@ -341,7 +352,7 @@ export interface Engagement {
 }
 
 // ============================================
-// 9. INTERACTIONS TABLE (from user_interactions)
+// 10. INTERACTIONS TABLE (from user_interactions)
 // ============================================
 export interface Interaction {
   id: string; // UUID
@@ -351,9 +362,10 @@ export interface Interaction {
   global_user_id: string | null;
   session_id: string | null; // UUID
   event_type: string;
-  entity_type: string;
+  entity_type: string; // Kept for analytics purposes
   entity_id: string | null; // Legacy external ID (kept as metadata)
   entity_uuid: string | null; // UUID foreign key (primary identity for UUID-based entities)
+  entity_id_fk: string | null; // UUID - FK to entities.id (optional, for referential integrity)
   occurred_at: string; // TIMESTAMPTZ
   metadata: Record<string, any>; // JSONB
   created_at: string; // TIMESTAMPTZ
@@ -404,7 +416,8 @@ export interface Chat {
   id: string;
   chat_name: string; // NOT NULL, default 'Chat'
   is_group_chat: boolean; // NOT NULL, default false
-  users: string[]; // UUID[] NOT NULL, default '{}'
+  // Note: users array and member_count removed - use chat_participants table as source of truth
+  // Query chat_participants table directly or use get_user_chats() RPC function which computes member_count
   latest_message_id?: string | null; // UUID - references messages(id)
   group_admin_id?: string | null; // UUID - references users(user_id)
   created_at?: string | null; // TIMESTAMPTZ, default now()
@@ -414,9 +427,7 @@ export interface Chat {
   entity_id?: string | null; // TEXT - can be UUID or text ID (jambase_artist_id, venue_name)
   entity_uuid?: string | null; // UUID - references actual entity table (events.id, artists.id, venues.id)
   is_verified?: boolean | null; // default false
-  member_count?: number | null; // INTEGER - cached count from chat_participants (maintained by trigger)
   last_activity_at?: string | null; // TIMESTAMPTZ
-  // Note: For 3NF compliance, prefer querying chat_participants table directly instead of using users array
 }
 
 export interface ChatParticipant {

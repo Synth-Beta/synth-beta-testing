@@ -40,6 +40,7 @@ type PersonalizedFeedRow = {
   distance_miles: number | string | null;
   poster_image_url: string | null;
   images?: any | null; // JSONB array of images from Ticketmaster/events
+  event_media_url?: string | null; // Direct media URL from event_media_url field
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -51,6 +52,7 @@ export interface PersonalizedEvent extends JamBaseEvent {
   friends_interested_count?: number;
   distance_miles?: number | null;
   poster_image_url?: string | null;
+  event_media_url?: string | null;
   recommendation_reason?: string;  // 'just_released', 'because_you_follow_artist', 'because_you_follow_venue', 'because_you_love_genre'
   recommendation_context?: string; // Additional context (artist name, genre name, etc.)
 }
@@ -313,6 +315,7 @@ export class PersonalizedFeedService {
             promotion_tier: payload.promotion_tier ?? null,
             distance_miles: payload.distance_miles ?? null,
             poster_image_url: payload.poster_image_url ?? null,
+            event_media_url: payload.event_media_url ?? null,
             images: payload.images ?? null,
             created_at: row.created_at ?? null,
             updated_at: payload.updated_at ?? null,
@@ -831,6 +834,7 @@ export class PersonalizedFeedService {
       active_promotion_id: null,
       distance_miles: distanceMiles,
       poster_image_url: row.poster_image_url ?? null,
+      event_media_url: row.event_media_url ?? (row as any).event_media_url ?? null,
       images: row.images ?? null,
     } as PersonalizedEvent;
   }

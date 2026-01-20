@@ -60,7 +60,7 @@ interface Chat {
   id: string;
   chat_name: string;
   is_group_chat: boolean;
-  users: string[];
+  users: string[]; // Populated by get_user_chats RPC from chat_participants (backward compatibility)
   latest_message_id: string | null;
   latest_message: string | null;
   latest_message_created_at: string | null;
@@ -75,7 +75,7 @@ interface Chat {
   entity_id?: string | null;
   entity_uuid?: string | null;
   is_verified?: boolean;
-  member_count?: number;
+  member_count?: number; // Computed by get_user_chats RPC from chat_participants
   last_activity_at?: string | null;
   // Event image URL (for group chats)
   event_image_url?: string | null;

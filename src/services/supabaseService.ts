@@ -268,12 +268,20 @@ export class SupabaseService {
   }
 
   static async createSwipe(swiperUserId: string, swipedUserId: string, eventId: string, isInterested: boolean) {
+    // Get or create entity for this user
+    const { data: entityId, error: entityError } = await supabase.rpc('get_or_create_entity', {
+      p_entity_type: 'user',
+      p_entity_uuid: swipedUserId,
+      p_entity_text_id: null,
+    });
+
+    if (entityError) throw entityError;
+
     const { data, error } = await supabase
       .from('engagements')
       .insert({
         user_id: swiperUserId,
-        entity_type: 'user',
-        entity_id: swipedUserId,
+        entity_id: entityId, // FK to entities.id (replaces entity_type + entity_id)
         engagement_type: 'swipe',
         engagement_value: isInterested ? 'right' : 'left',
         metadata: { event_id: eventId, is_interested: isInterested }

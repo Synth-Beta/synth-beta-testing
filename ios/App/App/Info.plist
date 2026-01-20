@@ -54,13 +54,11 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Synth needs access to your camera to upload photos for events and your profile.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Synth needs your location to find events and friends near you.</string>
+	<string>Synth needs your location to find events near you.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Synth needs your location to find events and friends near you.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Synth needs access to save photos to your library.</string>
+	<string>Synth needs your location to find events near you.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Synth needs access to your photo library to upload photos for events and your profile.</string>
+	<string>Synth needs access to your photo library to upload photos for your profile.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

@@ -17,6 +17,7 @@ export interface NetworkEvent {
   rating?: number;
   created_at: string;
   images?: any;
+  event_media_url?: string;
   interested_count?: number;
 }
 
@@ -56,6 +57,8 @@ export interface NetworkReview {
   rating?: number;
   content?: string;
   photos?: string[];
+  artist_id?: string;
+  artist_image_url?: string;
   event_info?: {
     artist_name?: string;
     venue_name?: string;
@@ -73,15 +76,24 @@ export class HomeFeedService {
     limit: number = 20
   ): Promise<NetworkEvent[]> {
     try {
-      // Get direct friends
-      const { data: friends, error: friendsError } = await supabase.rpc('get_first_degree_connections', {
-        target_user_id: userId,
-      });
+      // Get direct friends from user_relationships table
+      const { data: friends, error: friendsError } = await supabase
+        .from('user_relationships')
+        .select('user_id, related_user_id')
+        .eq('relationship_type', 'friend')
+        .eq('status', 'accepted')
+        .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
 
-      if (friendsError) throw friendsError;
+      if (friendsError) {
+        console.error('Error fetching friends:', friendsError);
+        throw friendsError;
+      }
       if (!friends || friends.length === 0) return [];
 
-      const friendIds = friends.map((f: any) => f.connected_user_id);
+      // Extract friend IDs (the other user in each relationship)
+      const friendIds = friends.map((f: any) => 
+        f.user_id === userId ? f.related_user_id : f.user_id
+      );
 
       // Get events where friends are interested, going, or maybe going (3NF: user_event_relationships)
       // NO FILTERS - show all events that any friend is going to
@@ -99,11 +111,14 @@ export class HomeFeedService {
           )
         `)
         .in('user_id', friendIds)
-        .in('relationship_type', ['interest', 'going', 'maybe'])
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .order('created_at', { ascending: false })
         .limit(limit * 10); // Increased limit to get more events
 
-      if (relError) throw relError;
+      if (relError) {
+        console.error('Error fetching user_event_relationships:', relError);
+        throw relError;
+      }
       if (!relationships || relationships.length === 0) return [];
 
       // Get event details (3NF: events table) with images
@@ -111,9 +126,11 @@ export class HomeFeedService {
 
       if (eventIds.length === 0) return [];
 
+      // Use events_with_artist_venue view to get normalized artist/venue names via foreign keys
+      // Note: Query events table directly with JOINs since view may be missing some columns
       const { data: events, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, venue_city, event_date, images, artist_id, artists(name), venue_id, venues(name)')
+        .select('id, title, venue_city, event_date, images, event_media_url, media_urls, artist_id, venue_id, artists(name), venues(name)')
         .in('id', eventIds);
 
       if (eventsError) throw eventsError;
@@ -139,6 +156,19 @@ export class HomeFeedService {
         const primaryFriend = friends[0];
         const user = primaryFriend.users;
 
+        // Extract image URL from images JSONB array, event_media_url, or media_urls
+        let imageUrl: string | undefined = undefined;
+        if (event.images && Array.isArray(event.images) && event.images.length > 0) {
+          const bestImage = event.images.find((img: any) => 
+            img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
+          ) || event.images.find((img: any) => img?.url);
+          imageUrl = bestImage?.url;
+        } else if (event.event_media_url) {
+          imageUrl = event.event_media_url;
+        } else if (event.media_urls && Array.isArray(event.media_urls) && event.media_urls.length > 0) {
+          imageUrl = event.media_urls[0];
+        }
+
         networkEvents.push({
           event_id: event.id,
           title: event.title || (event.artists?.name) || 'Event',
@@ -153,6 +183,7 @@ export class HomeFeedService {
           connection_degree: 1,
           created_at: primaryFriend.created_at,
           images: event.images,
+          event_media_url: imageUrl,
           interested_count: friends.length,
         });
       });
@@ -202,7 +233,7 @@ export class HomeFeedService {
           )
         `)
         .in('user_id', secondDegreeIds)
-        .in('relationship_type', ['interest', 'going', 'maybe']);
+        .in('relationship_type', ['interested', 'going', 'maybe']);
 
       if (relError) throw relError;
       if (!relationships || relationships.length === 0) return [];
@@ -226,9 +257,10 @@ export class HomeFeedService {
 
       if (topEventIds.length === 0) return [];
 
+      // Query events table directly with JOINs since view may be missing some columns
       const { data: events, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, venue_city, event_date, images, artist_id, artists(name), venue_id, venues(name)')
+        .select('id, title, venue_city, event_date, images, event_media_url, media_urls, artist_id, artists(name), venue_id, venues(name)')
         .in('id', topEventIds);
 
       if (eventsError) throw eventsError;
@@ -236,6 +268,19 @@ export class HomeFeedService {
       return (events || []).map((event: any) => {
         const eventData = eventCounts.get(event.id);
         const primaryUser = eventData?.users?.[0];
+
+        // Extract image URL from images JSONB array, event_media_url, or media_urls
+        let imageUrl: string | undefined = undefined;
+        if (event.images && Array.isArray(event.images) && event.images.length > 0) {
+          const bestImage = event.images.find((img: any) => 
+            img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
+          ) || event.images.find((img: any) => img?.url);
+          imageUrl = bestImage?.url;
+        } else if (event.event_media_url) {
+          imageUrl = event.event_media_url;
+        } else if (event.media_urls && Array.isArray(event.media_urls) && event.media_urls.length > 0) {
+          imageUrl = event.media_urls[0];
+        }
 
         return {
           event_id: event.id,
@@ -251,6 +296,7 @@ export class HomeFeedService {
           connection_degree: 2 as const,
           created_at: new Date().toISOString(),
           images: event.images,
+          event_media_url: imageUrl,
           interested_count: eventData?.count || 0,
         };
       });
@@ -286,7 +332,7 @@ export class HomeFeedService {
       const { data: allInterests, error: interestsError } = await supabase
         .from('user_event_relationships')
         .select('event_id')
-        .eq('relationship_type', 'interest');
+        .eq('relationship_type', 'interested');
 
       if (interestsError) {
         console.error('❌ [TRENDING SERVICE] Error fetching interests:', interestsError);
@@ -402,6 +448,7 @@ export class HomeFeedService {
         
         // Fallback: Get recent upcoming events if no trending data exists
         // Use two-stage filtering for performance: bounding box first with limit, then exact distance
+        // Query events table directly with JOINs since view may be missing some columns
         let fallbackQuery = supabase
           .from('events')
           .select('id, title, venue_city, venue_state, event_date, event_media_url, latitude, longitude, genres, artist_id, artists(name), venue_id, venues(name)')
@@ -477,6 +524,7 @@ export class HomeFeedService {
       const now = new Date().toISOString();
       console.log('🔥 [TRENDING SERVICE] Filtering for events after:', now);
       
+      // Query events table directly with JOINs since view may be missing some columns
       let eventsQuery = supabase
         .from('events')
         .select('id, title, venue_city, venue_state, event_date, event_media_url, latitude, longitude, genres, artist_id, artists(name), venue_id, venues(name)')
@@ -832,16 +880,16 @@ export class HomeFeedService {
         if (review.events?.venue_id) venueIds.add(review.events.venue_id);
       });
 
-      // Fetch artist and venue names
-      const artistsMap = new Map<string, string>();
+      // Fetch artist and venue names and image_url
+      const artistsMap = new Map<string, { name: string; image_url: string | null }>();
       const venuesMap = new Map<string, string>();
       
       if (artistIds.size > 0) {
         const { data: artists } = await supabase
           .from('artists')
-          .select('id, name')
+          .select('id, name, image_url')
           .in('id', Array.from(artistIds));
-        artists?.forEach(a => artistsMap.set(a.id, a.name));
+        artists?.forEach(a => artistsMap.set(a.id, { name: a.name, image_url: a.image_url }));
       }
       
       if (venueIds.size > 0) {
@@ -859,7 +907,9 @@ export class HomeFeedService {
           const user = usersMap.get(review.user_id);
           const artistId = review.artist_id || review.events?.artist_id;
           const venueId = review.venue_id || review.events?.venue_id;
-          const artistName = artistId ? artistsMap.get(artistId) : undefined;
+          const artistData = artistId ? artistsMap.get(artistId) : undefined;
+          const artistName = artistData?.name;
+          const artistImageUrl = artistData?.image_url || undefined;
           const venueName = venueId ? venuesMap.get(venueId) : undefined;
 
           return {
@@ -873,6 +923,8 @@ export class HomeFeedService {
             rating: review.rating || undefined,
             content: review.review_text || undefined,
             photos: review.photos || undefined,
+            artist_id: artistId || undefined,
+            artist_image_url: artistImageUrl,
             event_info: {
               artist_name: artistName || undefined,
               venue_name: venueName || undefined,

@@ -41,6 +41,13 @@ export interface UserInfoProps {
    * Optional additional classes for root container.
    */
   className?: string;
+
+  /**
+   * Optional click handlers for stats (userProfile variant).
+   */
+  onFollowersClick?: () => void;
+  onFollowingClick?: () => void;
+  onEventsClick?: () => void;
 }
 
 export const UserInfo: React.FC<UserInfoProps> = ({
@@ -104,8 +111,10 @@ export const UserInfo: React.FC<UserInfoProps> = ({
       </div>
 
       <div className="user-info__content">
+        {/* Show only the name - username is shown in header */}
         <p className="user-info__name">{name}</p>
 
+        {/* Conditionally show username if showUsername is true (for backwards compatibility) */}
         {showUsername && (
           <p className="user-info__username">@{username}</p>
         )}

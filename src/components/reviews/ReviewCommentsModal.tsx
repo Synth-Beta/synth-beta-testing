@@ -30,11 +30,16 @@ export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId, 
   }, [isOpen, reviewId]);
 
   const loadComments = async () => {
-    if (!reviewId) return;
+    if (!reviewId) {
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);
+      
       const result = await ReviewService.getReviewComments(reviewId);
+      
       setComments(result);
       if (onCommentsLoaded) onCommentsLoaded(result.length);
     } catch (err) {
@@ -50,6 +55,7 @@ export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId, 
     try {
       setSubmitting(true);
       setError(null);
+      
       const created = await ReviewService.addComment(currentUserId, reviewId, newComment.trim());
       
       // Add the new comment to the list with user info
@@ -83,7 +89,19 @@ export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId, 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col">
+      <DialogContent 
+        className="fixed inset-0 z-[100] max-w-none w-full h-full m-0 p-0 overflow-hidden flex flex-col bg-white rounded-none"
+        style={{
+          left: 0,
+          top: 0,
+          transform: 'none',
+          width: '100vw',
+          height: '100vh',
+          maxWidth: '100vw',
+          maxHeight: '100vh',
+          borderRadius: 0,
+        }}
+      >
         <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
           <DialogTitle>Review Comments</DialogTitle>
           <DialogDescription>

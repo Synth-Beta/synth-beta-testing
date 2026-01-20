@@ -1,7 +1,10 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { preserveErrorLogs } from "./vite-plugin-preserve-error-logs";
+import { fileURLToPath } from "url";
+// import { preserveErrorLogs } from "./vite-plugin-preserve-error-logs";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -14,6 +17,11 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "localhost",
       port: 5174,
+      // Reduce memory usage in dev mode
+      watch: {
+        usePolling: false,
+        ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
+      },
       proxy: {
         // REMOVED: /api/jambase proxy - frontend no longer has direct Jambase API access
         // All Jambase data now comes from backend sync service
@@ -39,7 +47,7 @@ export default defineConfig(({ mode }) => {
       react(),
       // SECURITY: Remove console logs in production while preserving console.error
       // This allows production error logging while removing debug logs
-      ...(isProduction ? [preserveErrorLogs()] : []),
+      // ...(isProduction ? [preserveErrorLogs()] : []),
     ],
     resolve: {
       alias: {
@@ -66,6 +74,15 @@ export default defineConfig(({ mode }) => {
         // They contain JavaScript code that needs to be included in the bundle
         // The native bridge is handled separately by Capacitor's native runtime
       },
+      // Reduce memory usage during build
+      chunkSizeWarningLimit: 1000,
+    },
+    // Optimize dev server memory usage
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react-router-dom'],
+      exclude: [],
+      // Force re-optimization to avoid hanging
+      force: false,
     },
   };
 });

@@ -1,8 +1,10 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Send, Check } from 'lucide-react';
+import { Calendar, MapPin, Send, Check, Heart } from 'lucide-react';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
+
+export type EventReason = 'recommended' | 'trending' | 'friend_interested' | 'following';
 
 interface CompactEventCardProps {
   event: {
@@ -18,6 +20,7 @@ interface CompactEventCardProps {
   interestedCount?: number;
   isInterested?: boolean;
   isCommunityPhoto?: boolean; // Indicates if image is from a user review photo
+  reason?: EventReason; // Why this event is shown: recommended, trending, friend_interested, following
   onInterestClick?: (e: React.MouseEvent) => void;
   onShareClick?: (e: React.MouseEvent) => void;
   onClick?: () => void;
@@ -29,27 +32,63 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
   interestedCount = 0,
   isInterested = false,
   isCommunityPhoto = false,
+  reason,
   onInterestClick,
   onShareClick,
   onClick,
   className,
 }) => {
+  // Get badge text and styling based on reason
+  const getReasonBadge = () => {
+    if (!reason) return null;
+    
+    const badgeConfig = {
+      recommended: { text: 'Recommended', bgColor: 'rgba(255, 51, 153, 0.9)', textColor: '#ffffff' },
+      trending: { text: 'Trending', bgColor: 'rgba(255, 102, 179, 0.9)', textColor: '#ffffff' },
+      friend_interested: { text: 'Friend Interested', bgColor: 'rgba(255, 51, 153, 0.85)', textColor: '#ffffff' },
+      following: { text: 'Following', bgColor: 'rgba(255, 51, 153, 0.9)', textColor: '#ffffff' },
+    };
+    
+    const config = badgeConfig[reason];
+    if (!config) return null;
+    
+    return (
+      <div
+        className="absolute left-4 px-3 py-1.5 rounded-lg backdrop-blur-sm"
+        style={{
+          top: '20px', // Fixed position from top for consistency across all cards
+          backgroundColor: config.bgColor,
+          color: config.textColor,
+          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.3)',
+          fontSize: '11px',
+          fontWeight: 700,
+          letterSpacing: '0.5px',
+          textTransform: 'uppercase',
+          zIndex: 50,
+        }}
+        aria-label={`Event shown because: ${config.text}`}
+      >
+        {config.text}
+      </div>
+    );
+  };
   const rawImageUrl = event.poster_image_url || event.image_url;
   const imageUrl = rawImageUrl ? replaceJambasePlaceholder(rawImageUrl) : null;
   const eventDate = event.event_date ? new Date(event.event_date) : null;
+  
+  const formatDate = (date: Date | null) => {
+    if (!date) return '';
+    return format(date, 'EEE, MMM d, yyyy');
+  };
 
   return (
     <div
       className={cn(
-        'flex flex-col rounded-lg overflow-hidden',
-        'hover:shadow-lg transition-all duration-200',
+        'swift-ui-card flex flex-col rounded-3xl overflow-hidden',
         'relative group cursor-pointer',
+        'w-full h-full max-h-[85vh]',
         className
       )}
-      style={{ 
-        backgroundColor: 'var(--neutral-100)',
-        border: '1px solid var(--neutral-200)'
-      }}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -61,9 +100,9 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       role="button"
       aria-label={`View event: ${event.title}`}
     >
-      {/* Event Image */}
+      {/* Event Image - Full height hero image */}
       <div
-        className="relative w-full aspect-square"
+        className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden"
         style={{ outline: 'none' }}
       >
       {imageUrl ? (
@@ -73,43 +112,28 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
             alt={event.title}
             className="w-full h-full object-cover"
           />
+          {/* Gradient overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+          
+          {/* Reason Badge - Bottom Left - Positioned on image */}
+          {reason && getReasonBadge()}
+          
           {/* Community Photo Tag - ACCESSIBILITY: Decorative, hide from screen readers */}
           {isCommunityPhoto && (
             <div
-              className="absolute top-2 right-2 flex items-center"
+              className="absolute top-4 right-4 flex items-center swift-ui-badge z-50"
               aria-hidden="true"
-              style={{
-                display: 'flex',
-                height: '22px',
-                paddingLeft: 'var(--spacing-small, 12px)',
-                paddingRight: 'var(--spacing-small, 12px)',
-                alignItems: 'center',
-                gap: 'var(--spacing-small, 12px)',
-                borderRadius: '10px',
-                background: 'var(--neutral-50)',
-                boxShadow: '0 4px 4px 0 var(--shadow-color)',
-              }}
             >
-              <span
-                style={{
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-meta-size, 16px)',
-                  fontWeight: 'var(--typography-medium-weight, 500)',
-                  color: 'var(--neutral-900)',
-                  lineHeight: '1',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+              <span className="swift-ui-badge-text">
                 Community Photo
               </span>
             </div>
           )}
         </>
       ) : (
-        <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-100)' }}>
-          {/* TODO: Replace gradient with approved gradient token or neutral background */}
-          <div className="text-center px-2">
-            <p className="text-xs font-semibold line-clamp-2" style={{ color: 'var(--brand-pink-500)' }}>
+        <div className="w-full h-full flex items-center justify-center swift-ui-gradient-bg">
+          <div className="text-center px-4">
+            <p className="text-xl font-semibold line-clamp-2 text-white">
               {event.title}
             </p>
           </div>
@@ -117,134 +141,94 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       )}
       </div>
 
-      <div
-        className="px-2"
-        style={{
-          backgroundColor: 'var(--neutral-50)',
-          paddingTop: 'var(--spacing-small, 12px)',
-          paddingBottom: 'var(--spacing-small, 12px)',
-          display: 'flex',
-          flexDirection: 'column',
-          flexGrow: 1
-        }}
-      >
-        {/* Event title */}
-        <p className="text-sm font-semibold line-clamp-2 leading-tight" style={{ 
-          fontFamily: 'var(--font-family)',
-          fontSize: 'var(--typography-body-size, 20px)',
-          fontWeight: 'var(--typography-body-weight, 500)',
-          lineHeight: 'var(--typography-body-line-height, 1.5)',
-          color: 'var(--neutral-900)',
-          marginBottom: 'var(--spacing-inline, 6px)'
-        }}>
-          {event.title}
-        </p>
+      {/* Content overlay - positioned absolutely over image */}
+      <div className="absolute bottom-0 left-0 right-0 swift-ui-card-content" style={{ zIndex: 40 }}>
+        {/* Gradient background for content */}
+        <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/90 to-white/70 backdrop-blur-xl" />
+        
+        {/* Content */}
+        <div className="relative p-6 flex flex-col gap-4">
+          {/* Event title */}
+          <h2 className="text-2xl font-bold leading-tight text-neutral-900 line-clamp-2">
+            {event.title}
+          </h2>
 
-        {/* Interested count */}
-        <div style={{
-          fontFamily: 'var(--font-family)',
-          fontSize: 'var(--typography-meta-size, 16px)',
-          fontWeight: 'var(--typography-meta-weight, 500)',
-          lineHeight: 'var(--typography-meta-line-height, 1.5)',
-          color: 'var(--neutral-600)'
-        }}>
-          {interestedCount} interested
-        </div>
+          {/* Event details */}
+          <div className="flex flex-col gap-2">
+            {event.venue_name && (
+              <div className="flex items-center gap-2 text-neutral-700">
+                <MapPin 
+                  className="w-5 h-5 flex-shrink-0" 
+                  style={{ color: 'var(--brand-pink-500)' }}
+                />
+                <span className="text-base">
+                  {event.venue_name}
+                  {event.venue_city && ` · ${event.venue_city}`}
+                </span>
+              </div>
+            )}
+            {eventDate && (
+              <div className="flex items-center gap-2 text-neutral-700">
+                <Calendar 
+                  className="w-5 h-5 flex-shrink-0" 
+                  style={{ color: 'var(--brand-pink-500)' }}
+                />
+                <span className="text-base">{formatDate(eventDate)}</span>
+              </div>
+            )}
+          </div>
 
-        {/* Actions (Interested left, Share right) */}
-        <div
-          className="flex items-center justify-between"
-          style={{
-            width: '100%',
-            marginTop: 'auto',
-            paddingTop: 'var(--spacing-small, 12px)'
-          }}
-        >
-          {/* Interested toggle button (left-aligned) */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onInterestClick?.(e);
-            }}
-            style={{
-              height: 'var(--size-button-height, 36px)',
-              paddingLeft: 'var(--spacing-small, 12px)',
-              paddingRight: 'var(--spacing-small, 12px)',
-              borderRadius: 'var(--radius-corner, 10px)',
-              fontFamily: 'var(--font-family)',
-              fontSize: 'var(--typography-meta-size, 16px)',
-              fontWeight: 'var(--typography-meta-weight, 500)',
-              lineHeight: 'var(--typography-meta-line-height, 1.5)',
-              border: isInterested ? 'none' : '2px solid var(--brand-pink-500)',
-              backgroundColor: isInterested ? 'var(--brand-pink-500)' : 'var(--neutral-50)',
-              color: isInterested ? 'var(--neutral-50)' : 'var(--brand-pink-500)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 4px 4px 0 var(--shadow-color)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-inline, 6px)'
-            }}
-            onMouseEnter={(e) => {
-              if (!isInterested) {
-                e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)';
-                e.currentTarget.style.borderColor = 'var(--brand-pink-600)';
-              } else {
-                e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isInterested) {
-                e.currentTarget.style.backgroundColor = 'var(--neutral-50)';
-                e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
-              } else {
-                e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
-              }
-            }}
-            aria-label={isInterested ? 'Remove interest' : 'Mark as interested'}
-          >
-            Interested
-            {isInterested && (
-              <Check 
-                size={16} 
-                style={{ 
-                  color: 'var(--neutral-50)',
-                  flexShrink: 0
-                }} 
+          {/* Interested count */}
+          {interestedCount > 0 && (
+            <div className="text-base text-neutral-600 font-medium">
+              {interestedCount} {interestedCount === 1 ? 'person' : 'people'} interested
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex items-center gap-3 pt-2">
+            {/* Interested toggle button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onInterestClick?.(e);
+              }}
+              className={cn(
+                'swift-ui-button swift-ui-button-primary flex-1',
+                isInterested && 'swift-ui-button-active'
+              )}
+              aria-label={isInterested ? 'Remove interest' : 'Mark as interested'}
+            >
+              <Heart 
+                size={18} 
+                className={cn(
+                  isInterested ? 'fill-white' : 'stroke-current'
+                )} 
+                strokeWidth={2.5}
                 aria-hidden="true"
               />
-            )}
-          </button>
+              <span>{isInterested ? 'Interested' : 'Interested'}</span>
+              {isInterested && (
+                <Check 
+                  size={18} 
+                  className="ml-auto" 
+                  aria-hidden="true"
+                />
+              )}
+            </button>
 
-          {/* Share button (right-aligned, secondary) */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onShareClick?.(e);
-            }}
-            style={{
-              width: '44px',
-              height: '44px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              borderRadius: 'var(--radius-corner, 10px)',
-              color: 'var(--neutral-900)',
-              transition: 'background-color 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-            aria-label="Share event"
-          >
-            <Send size={24} strokeWidth={2} />
-          </button>
+            {/* Share button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onShareClick?.(e);
+              }}
+              className="swift-ui-button swift-ui-button-secondary w-14 h-14"
+              aria-label="Share event"
+            >
+              <Send size={20} strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

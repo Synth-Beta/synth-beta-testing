@@ -44,13 +44,21 @@ export class MatchingService {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('User not authenticated');
 
+      // Get or create entity for this user
+      const { data: entityId, error: entityError } = await supabase.rpc('get_or_create_entity', {
+        p_entity_type: 'user',
+        p_entity_uuid: action.swiped_user_id,
+        p_entity_text_id: null,
+      });
+
+      if (entityError) throw entityError;
+
       // Record swipe in engagements table
       const { error } = await supabase
         .from('engagements')
         .insert({
           user_id: user.id,
-          entity_type: 'user',
-          entity_id: action.swiped_user_id,
+          entity_id: entityId, // FK to entities.id (replaces entity_type + entity_id)
           engagement_type: 'swipe',
           engagement_value: action.is_interested ? 'right' : 'left',
           metadata: {

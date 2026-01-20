@@ -105,43 +105,147 @@ export const PassportModal: React.FC<PassportModalProps> = ({
           <Icon name="refresh" size={24} className="animate-spin" color="var(--neutral-600)" />
         </div>
       ) : (
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className={`${inline ? '' : 'mt-4'} w-full max-w-full overflow-x-hidden`}>
-          <TabsList className="grid w-full max-w-full grid-cols-5 gap-0.5 p-0.5 overflow-x-hidden">
-            <TabsTrigger value="identity" className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] sm:text-xs flex-shrink-0 min-w-0">
-              <Icon name="user" size={16} className="flex-shrink-0" color="var(--neutral-900)" />
-              <span className="truncate w-full text-center leading-tight">Identity</span>
-            </TabsTrigger>
-            <TabsTrigger value="stamps" className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] sm:text-xs flex-shrink-0 min-w-0">
-              <Icon name="mediumShootingStar" size={16} className="flex-shrink-0" color="var(--neutral-900)" />
-              <span className="truncate w-full text-center leading-tight">
-                Stamps
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="achievements" className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] sm:text-xs flex-shrink-0 min-w-0">
-              <Icon name="ribbonAward" size={16} className="flex-shrink-0" color="var(--neutral-900)" />
-              <span className="truncate w-full text-center leading-tight">
-                Achievements
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="timeline" className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] sm:text-xs flex-shrink-0 min-w-0">
-              <Icon name="clock" size={16} className="flex-shrink-0" color="var(--neutral-900)" />
-              <span className="truncate w-full text-center leading-tight">Timeline</span>
-            </TabsTrigger>
-            <TabsTrigger value="bucket" className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] sm:text-xs flex-shrink-0 min-w-0">
-              <Icon name="checkMark" size={16} className="flex-shrink-0" color="var(--neutral-900)" />
-              <span className="truncate w-full text-center leading-tight">Bucket List</span>
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className={`${inline ? '' : 'mt-4'} w-full max-w-full`}>
+          {/* Scrollable tab bar optimized for iPhone */}
+          <div className="w-full overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1">
+            <TabsList className="inline-flex w-auto min-w-full h-auto gap-1.5 p-1.5 bg-transparent">
+              <TabsTrigger 
+                value="identity" 
+                className="flex flex-col items-center justify-center gap-1 px-2 py-2.5 flex-shrink-0 w-[calc(20%-6px)] min-w-[65px] rounded-xl transition-all"
+                style={{
+                  backgroundColor: activeTab === 'identity' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.6)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: activeTab === 'identity' 
+                    ? '0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6)'
+                    : '0 2px 8px rgba(0, 0, 0, 0.05)',
+                }}
+              >
+                <Icon name="user" size={18} className="flex-shrink-0" color="var(--neutral-900)" />
+                <span 
+                  className="text-center leading-tight font-medium whitespace-nowrap"
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-family)',
+                    color: 'var(--neutral-900)',
+                  }}
+                >
+                  Identity
+                </span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="stamps" 
+                className="flex flex-col items-center justify-center gap-1 px-2 py-2.5 flex-shrink-0 w-[calc(20%-6px)] min-w-[65px] rounded-xl transition-all"
+                style={{
+                  backgroundColor: activeTab === 'stamps' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.6)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: activeTab === 'stamps' 
+                    ? '0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6)'
+                    : '0 2px 8px rgba(0, 0, 0, 0.05)',
+                }}
+              >
+                <Icon name="mediumShootingStar" size={18} className="flex-shrink-0" color="var(--neutral-900)" />
+                <span 
+                  className="text-center leading-tight font-medium whitespace-nowrap"
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-family)',
+                    color: 'var(--neutral-900)',
+                  }}
+                >
+                  Stamps
+                </span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="achievements" 
+                className="flex flex-col items-center justify-center gap-1 px-2 py-2.5 flex-shrink-0 w-[calc(20%-6px)] min-w-[65px] rounded-xl transition-all"
+                style={{
+                  backgroundColor: activeTab === 'achievements' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.6)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: activeTab === 'achievements' 
+                    ? '0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6)'
+                    : '0 2px 8px rgba(0, 0, 0, 0.05)',
+                }}
+              >
+                <Icon name="ribbonAward" size={18} className="flex-shrink-0" color="var(--neutral-900)" />
+                <span 
+                  className="text-center leading-tight font-medium whitespace-nowrap"
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-family)',
+                    color: 'var(--neutral-900)',
+                  }}
+                >
+                  Achievements
+                </span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="timeline" 
+                className="flex flex-col items-center justify-center gap-1 px-2 py-2.5 flex-shrink-0 w-[calc(20%-6px)] min-w-[65px] rounded-xl transition-all"
+                style={{
+                  backgroundColor: activeTab === 'timeline' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.6)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: activeTab === 'timeline' 
+                    ? '0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6)'
+                    : '0 2px 8px rgba(0, 0, 0, 0.05)',
+                }}
+              >
+                <Icon name="clock" size={18} className="flex-shrink-0" color="var(--neutral-900)" />
+                <span 
+                  className="text-center leading-tight font-medium whitespace-nowrap"
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-family)',
+                    color: 'var(--neutral-900)',
+                  }}
+                >
+                  Timeline
+                </span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="bucket" 
+                className="flex flex-col items-center justify-center gap-1 px-2 py-2.5 flex-shrink-0 w-[calc(20%-6px)] min-w-[65px] rounded-xl transition-all"
+                style={{
+                  backgroundColor: activeTab === 'bucket' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.6)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: activeTab === 'bucket' 
+                    ? '0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6)'
+                    : '0 2px 8px rgba(0, 0, 0, 0.05)',
+                }}
+              >
+                <Icon name="checkMark" size={18} className="flex-shrink-0" color="var(--neutral-900)" />
+                <span 
+                  className="text-center leading-tight font-medium whitespace-nowrap"
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-family)',
+                    color: 'var(--neutral-900)',
+                  }}
+                >
+                  Bucket List
+                </span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value="identity" className="mt-4">
+          <TabsContent value="identity" className="mt-4 w-full max-w-full overflow-x-hidden px-1">
             <PassportIdentity userId={userId} userName={userName} />
           </TabsContent>
 
-          <TabsContent value="stamps" className="mt-4">
+          <TabsContent value="stamps" className="mt-4 w-full max-w-full overflow-x-hidden px-1">
             <PassportStampsView stamps={allStamps} achievements={achievements} loading={loading} />
           </TabsContent>
 
-            <TabsContent value="achievements" className="mt-4 w-full max-w-full overflow-x-hidden">
+            <TabsContent value="achievements" className="mt-4 w-full max-w-full overflow-x-hidden px-1">
               {achievements.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No achievements unlocked yet.</p>
@@ -226,11 +330,11 @@ export const PassportModal: React.FC<PassportModalProps> = ({
               )}
             </TabsContent>
 
-          <TabsContent value="timeline" className="mt-4">
+          <TabsContent value="timeline" className="mt-4 w-full max-w-full overflow-x-hidden px-1">
             <PassportTimelineView userId={userId} />
           </TabsContent>
 
-          <TabsContent value="bucket" className="mt-4 relative overflow-visible">
+          <TabsContent value="bucket" className="mt-4 w-full max-w-full overflow-x-hidden px-1">
             <PassportBucketListView userId={userId} />
           </TabsContent>
         </Tabs>

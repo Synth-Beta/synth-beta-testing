@@ -1,0 +1,625 @@
+import React, { useEffect, useState } from 'react';
+import { ArrowLeft, Star, ThumbsUp, MessageCircle, Share2, Edit, Trash2 } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { SetlistDisplay } from './SetlistDisplay';
+import { supabase } from '@/integrations/supabase/client';
+import { ReviewService, type ReviewWithEngagement } from '@/services/reviewService';
+import { ReviewCommentsModal } from './ReviewCommentsModal';
+import { ReviewShareModal } from './ReviewShareModal';
+import { useToast } from '@/hooks/use-toast';
+
+interface ReviewDetailViewProps {
+  reviewId: string;
+  currentUserId?: string;
+  onBack: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}
+
+interface FullReviewData {
+  id: string;
+  user_id: string;
+  review_text: string | null;
+  rating: number | null;
+  photos: string[] | null;
+  created_at: string;
+  artist_performance_rating?: number | null;
+  production_rating?: number | null;
+  venue_rating?: number | null;
+  location_rating?: number | null;
+  value_rating?: number | null;
+  artist_performance_feedback?: string | null;
+  production_feedback?: string | null;
+  venue_feedback?: string | null;
+  location_feedback?: string | null;
+  value_feedback?: string | null;
+  setlist?: any;
+  likes_count?: number;
+  comments_count?: number;
+  author?: {
+    id: string;
+    name: string;
+    avatar_url?: string | null;
+  };
+  event_info?: {
+    artist_name?: string;
+    venue_name?: string;
+    event_date?: string;
+  };
+}
+
+export function ReviewDetailView({
+  reviewId,
+  currentUserId,
+  onBack,
+  onEdit,
+  onDelete,
+}: ReviewDetailViewProps) {
+  const [reviewData, setReviewData] = useState<FullReviewData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
+  const [isLiking, setIsLiking] = useState(false);
+  const [commentsModalOpen, setCommentsModalOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [commentsCount, setCommentsCount] = useState(0);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchReviewData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch review with all details
+        const { data: review, error: reviewError } = await supabase
+          .from('reviews')
+          .select(`
+            id,
+            user_id,
+            review_text,
+            rating,
+            photos,
+            created_at,
+            artist_performance_rating,
+            production_rating,
+            venue_rating,
+            location_rating,
+            value_rating,
+            artist_performance_feedback,
+            production_feedback,
+            venue_feedback,
+            location_feedback,
+            value_feedback,
+            setlist,
+            likes_count,
+            comments_count,
+            event_id,
+            artist_id,
+            venue_id
+          `)
+          .eq('id', reviewId)
+          .single();
+
+        if (reviewError) throw reviewError;
+
+        // Fetch author info
+        const { data: author } = await supabase
+          .from('users')
+          .select('user_id, name, avatar_url')
+          .eq('user_id', review.user_id)
+          .single();
+
+        // Fetch event/artist/venue info
+        let eventInfo: any = {};
+        if (review.event_id) {
+          const { data: event } = await supabase
+            .from('events')
+            .select(`
+              id,
+              title,
+              event_date,
+              artist_id,
+              venue_id,
+              artists(name),
+              venues(name)
+            `)
+            .eq('id', review.event_id)
+            .single();
+
+          if (event) {
+            eventInfo = {
+              artist_name: (event.artists as any)?.name,
+              venue_name: (event.venues as any)?.name,
+              event_date: event.event_date,
+            };
+          }
+        } else if (review.artist_id && review.venue_id) {
+          const [artistRes, venueRes] = await Promise.all([
+            supabase.from('artists').select('name').eq('id', review.artist_id).single(),
+            supabase.from('venues').select('name').eq('id', review.venue_id).single(),
+          ]);
+
+          eventInfo = {
+            artist_name: artistRes.data?.name,
+            venue_name: venueRes.data?.name,
+          };
+        }
+
+        const finalReviewData = {
+          ...review,
+          author: author ? {
+            id: author.user_id,
+            name: author.name,
+            avatar_url: author.avatar_url,
+          } : undefined,
+          event_info: eventInfo,
+        };
+        
+        setReviewData(finalReviewData);
+        setLikesCount(review.likes_count || 0);
+        setCommentsCount(review.comments_count || 0);
+
+        // Check if user has liked this review
+        if (currentUserId) {
+          try {
+            // Get entity_id for this review first (entity_id is FK to entities.id, not reviewId)
+            const { data: entityData, error: entityError } = await supabase
+              .from('entities')
+              .select('id')
+              .eq('entity_type', 'review')
+              .eq('entity_uuid', reviewId)
+              .single();
+            
+            let isLiked = false;
+            
+            if (entityError) {
+              // Only ignore "not found" errors (PGRST116), log others
+              if ((entityError as any).code !== 'PGRST116') {
+                console.error('Error fetching entity for review like check:', entityError);
+              }
+              
+              // Entity not found - check old format as fallback (for migration compatibility)
+              // Old format: entity_id directly stores reviewId, or metadata->>review_id
+              const [oldFormatResult, metadataResult] = await Promise.all([
+                supabase
+                  .from('engagements')
+                  .select('id')
+                  .eq('user_id', currentUserId)
+                  .eq('entity_id', reviewId)
+                  .eq('engagement_type', 'like')
+                  .maybeSingle(),
+                supabase
+                  .from('engagements')
+                  .select('id')
+                  .eq('user_id', currentUserId)
+                  .is('entity_id', null)
+                  .eq('engagement_type', 'like')
+                  .eq('metadata->>review_id', reviewId)
+                  .maybeSingle()
+              ]);
+              
+              isLiked = !!(oldFormatResult.data || metadataResult.data);
+            } else if (entityData?.id) {
+              // Query engagements using the entity_id from entities table (new format)
+              const { data: likeData, error: likeError } = await supabase
+                .from('engagements')
+                .select('id')
+                .eq('user_id', currentUserId)
+                .eq('entity_id', entityData.id)
+                .eq('engagement_type', 'like')
+                .maybeSingle();
+              
+              isLiked = !!likeData;
+              
+              if (likeError) {
+                console.error('Error checking if review is liked:', likeError);
+              }
+            }
+            
+            setIsLiked(isLiked);
+          } catch (likeCheckError) {
+            // If like check fails, just set to false and continue - don't block review display
+            console.error('Error checking if review is liked:', likeCheckError);
+            setIsLiked(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching review data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (reviewId) {
+      fetchReviewData();
+    }
+  }, [reviewId, currentUserId]);
+
+  const handleLike = async () => {
+    if (!currentUserId || isLiking || !reviewData) return;
+
+    setIsLiking(true);
+    try {
+      if (isLiked) {
+        await ReviewService.unlikeReview(currentUserId, reviewId);
+        setLikesCount(prev => Math.max(0, prev - 1));
+        setIsLiked(false);
+      } else {
+        await ReviewService.likeReview(currentUserId, reviewId);
+        setLikesCount(prev => prev + 1);
+        setIsLiked(true);
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update like",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLiking(false);
+    }
+  };
+
+  const handleComment = () => {
+    setCommentsModalOpen(true);
+  };
+
+  const handleShare = () => {
+    setShareModalOpen(true);
+  };
+
+  const handleCommentAdded = () => {
+    setCommentsCount(prev => prev + 1);
+  };
+
+  const handleCommentsLoaded = (count: number) => {
+    setCommentsCount(count);
+  };
+
+  if (loading || !reviewData) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-50, #fcfcfc)' }}>
+        <div className="text-center">
+          <p className="text-lg" style={{ color: 'var(--neutral-600)' }}>Loading review...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const timeAgo = formatDistanceToNow(new Date(reviewData.created_at), { addSuffix: true });
+  const isOwner = currentUserId === reviewData.user_id;
+  
+  const ratingCategories = [
+    {
+      name: 'Artist Performance',
+      rating: reviewData.artist_performance_rating || 0,
+      feedback: reviewData.artist_performance_feedback,
+    },
+    {
+      name: 'Production Quality',
+      rating: reviewData.production_rating || 0,
+      feedback: reviewData.production_feedback,
+    },
+    {
+      name: 'Venue Experience',
+      rating: reviewData.venue_rating || 0,
+      feedback: reviewData.venue_feedback,
+    },
+    {
+      name: 'Location & Logistics',
+      rating: reviewData.location_rating || 0,
+      feedback: reviewData.location_feedback,
+    },
+    {
+      name: 'Value for Ticket',
+      rating: reviewData.value_rating || 0,
+      feedback: reviewData.value_feedback,
+    },
+  ].filter(cat => cat.rating > 0);
+
+  const mainImage = reviewData.photos && reviewData.photos.length > 0 ? reviewData.photos[0] : null;
+
+  return (
+    <div 
+      className="fixed inset-0 z-50 overflow-y-auto"
+      style={{ 
+        backgroundColor: '#ffffff',
+        WebkitOverflowScrolling: 'touch',
+        zIndex: 100,
+      }}
+    >
+      {/* Header with liquid glass effect */}
+      <div 
+        className="sticky top-0 z-10"
+        style={{
+          background: 'rgba(252, 252, 252, 0.85)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
+          boxShadow: '0 4px 4px rgba(0, 0, 0, 0.25)',
+        }}
+      >
+        <div className="max-w-2xl mx-auto px-5 pt-20 pb-4">
+          <div className="flex items-start justify-between gap-6">
+            {/* Left: Back Button and User Info */}
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <Button
+                size="icon"
+                className="h-6 w-6 rounded-full shrink-0"
+                style={{ backgroundColor: '#FF3399' }}
+                onClick={onBack}
+              >
+                <ArrowLeft className="h-4 w-4 text-white" />
+              </Button>
+              
+              <Avatar className="w-14 h-14 shrink-0">
+                <AvatarImage src={reviewData.author?.avatar_url || undefined} alt={reviewData.author?.name} />
+                <AvatarFallback className="text-white font-bold text-lg" style={{ backgroundColor: '#FF3399' }}>
+                  {reviewData.author?.name?.charAt(0).toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-xl mb-1" style={{ color: 'var(--neutral-900)' }}>
+                  {reviewData.author?.name || 'User'}
+                </p>
+                <p className="text-base mb-1" style={{ color: 'var(--neutral-700)' }}>
+                  Reviewed{' '}
+                  {reviewData.event_info?.artist_name && (
+                    <>
+                      <strong style={{ color: '#FF3399', textDecoration: 'underline' }}>{reviewData.event_info.artist_name}</strong>
+                    </>
+                  )}
+                  {reviewData.event_info?.venue_name && (
+                    <>
+                      {' at '}
+                      <strong style={{ color: '#FF3399', textDecoration: 'underline' }}>{reviewData.event_info.venue_name}</strong>
+                    </>
+                  )}
+                </p>
+                <p className="text-base" style={{ color: 'var(--neutral-600, #5d646f)' }}>
+                  {timeAgo}
+                </p>
+              </div>
+            </div>
+
+            {/* Right: Edit/Delete Buttons */}
+            {isOwner && (
+              <div className="flex items-center gap-3 shrink-0">
+                {onEdit && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={onEdit}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-2xl mx-auto px-5 py-6 space-y-12">
+        {/* Caption and Image */}
+        {(reviewData.review_text || mainImage) && (
+          <div className="space-y-3">
+            {reviewData.review_text && (
+              <p className="text-xl font-medium" style={{ color: 'var(--neutral-600, #5d646f)' }}>
+                {reviewData.review_text}
+              </p>
+            )}
+            {mainImage && (
+              <div 
+                className="rounded-xl overflow-hidden shadow-md"
+                style={{ aspectRatio: '353/250' }}
+              >
+                <img
+                  src={mainImage}
+                  alt="Review"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Rating Details */}
+        {ratingCategories.length > 0 && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+              View Rating Details
+            </h2>
+            
+            <div className="space-y-6">
+              {ratingCategories.map((category) => (
+                <div
+                  key={category.name}
+                  className="flex gap-6 items-center p-3 rounded-xl border-2"
+                  style={{
+                    borderColor: 'var(--neutral-300, #c9c9c9)',
+                    backgroundColor: 'white',
+                  }}
+                >
+                  {/* Category Info */}
+                  <div className="flex flex-col gap-6 flex-1 min-w-0">
+                    <p className="text-xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+                      {category.name}
+                    </p>
+                    {category.feedback && (
+                      <p className="text-base" style={{ color: 'var(--neutral-600, #5d646f)' }}>
+                        "{category.feedback}"
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Rating */}
+                  <div className="flex flex-col gap-3 items-end shrink-0 w-[120px]">
+                    <p className="text-xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+                      {category.rating.toFixed(1)}
+                    </p>
+                    <div className="flex gap-0">
+                      {Array.from({ length: 5 }).map((_, i) => {
+                        const starValue = i + 1;
+                        const isFilled = starValue <= Math.floor(category.rating);
+                        const isHalf = !isFilled && starValue <= category.rating;
+                        
+                        return (
+                          <Star
+                            key={i}
+                            className={cn(
+                              'w-6 h-6',
+                              isFilled || isHalf
+                                ? 'fill-[#FCDC5F] text-[#FCDC5F]'
+                                : 'text-neutral-300 fill-transparent'
+                            )}
+                            strokeWidth={isFilled || isHalf ? 0 : 1.5}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Set List */}
+        {reviewData.setlist && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+              Set List
+            </h2>
+            <div
+              className="p-6 rounded-lg border-2"
+              style={{
+                borderColor: 'var(--neutral-600, #5d646f)',
+                backgroundColor: 'var(--neutral-50, #fcfcfc)',
+                boxShadow: '0 4px 4px rgba(0, 0, 0, 0.25)',
+              }}
+            >
+              <SetlistDisplay
+                setlist={reviewData.setlist}
+                type="api"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 pb-24">
+          {/* Helpful Button */}
+          <Button
+            variant="outline"
+            className="flex items-center gap-3 h-11 px-3 rounded-lg border-2 shadow-sm flex-1"
+            style={{
+              backgroundColor: 'var(--brand-pink-050, #fdf2f7)',
+              borderColor: 'var(--brand-pink-050, #fdf2f7)',
+              color: 'var(--neutral-900)',
+            }}
+            onClick={handleLike}
+            disabled={isLiking || !currentUserId}
+          >
+            <ThumbsUp 
+              className={cn('h-6 w-6', isLiked && 'fill-current')} 
+              style={{ color: '#FF3399' }} 
+            />
+            <span className="font-bold">{likesCount}</span>
+            <span>Helpful</span>
+          </Button>
+
+          {/* Comments Button */}
+          <Button
+            variant="outline"
+            className="flex items-center gap-3 h-11 px-3 rounded-lg border-2 shadow-sm flex-1"
+            style={{
+              backgroundColor: 'var(--brand-pink-050, #fdf2f7)',
+              borderColor: 'var(--brand-pink-500, #FF3399)',
+              color: 'var(--neutral-900)',
+            }}
+            onClick={handleComment}
+          >
+            <MessageCircle className="h-6 w-6" style={{ color: '#FF3399' }} />
+            <span className="font-bold">{commentsCount}</span>
+            <span>Comments</span>
+          </Button>
+
+          {/* Share Button */}
+          <Button
+            className="flex items-center justify-center h-11 w-11 rounded-lg shadow-sm shrink-0"
+            style={{ backgroundColor: 'var(--brand-pink-500, #FF3399)' }}
+            onClick={handleShare}
+          >
+            <Share2 className="h-5 w-5 text-white" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Comments Modal */}
+      {commentsModalOpen && (
+        <ReviewCommentsModal
+          reviewId={reviewId}
+          isOpen={commentsModalOpen}
+          onClose={() => setCommentsModalOpen(false)}
+          currentUserId={currentUserId}
+          onCommentAdded={handleCommentAdded}
+          onCommentsLoaded={handleCommentsLoaded}
+        />
+      )}
+
+      {/* Share Modal */}
+      {shareModalOpen && reviewData && (
+        <ReviewShareModal
+          review={{
+            id: reviewData.id,
+            user_id: reviewData.user_id,
+            event_id: (reviewData as any).event_id || '',
+            rating: reviewData.rating || 0,
+            review_text: reviewData.review_text || '',
+            is_public: true,
+            created_at: reviewData.created_at,
+            updated_at: reviewData.created_at,
+            likes_count: likesCount,
+            comments_count: commentsCount,
+            shares_count: 0,
+            is_liked_by_user: isLiked,
+            reaction_emoji: '',
+            photos: reviewData.photos || [],
+            videos: [],
+            mood_tags: [],
+            genre_tags: [],
+            context_tags: [],
+            artist_name: reviewData.event_info?.artist_name,
+            artist_id: (reviewData as any).artist_id,
+            venue_name: reviewData.event_info?.venue_name,
+            venue_id: (reviewData as any).venue_id,
+          } as ReviewWithEngagement}
+          currentUserId={currentUserId || ''}
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
