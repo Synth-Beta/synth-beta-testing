@@ -66,6 +66,7 @@ interface ProfileViewProps {
   menuOpen?: boolean;
   onMenuClick?: () => void;
   hideHeader?: boolean;
+  refreshTrigger?: number; // Trigger to refresh reviews when incremented
 }
 
 interface UserProfile {
@@ -116,6 +117,7 @@ interface ConcertReview {
   genre_tags?: string[];
   reaction_emoji?: string | null;
   category_average?: number;
+  event_date?: Date | string; // Date object or string for compatibility
   event: {
     event_name: string;
     location: string;
@@ -136,7 +138,7 @@ interface ConcertReview {
   };
 }
 
-export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat, onNavigateToNotifications, menuOpen = false, onMenuClick, hideHeader = false }: ProfileViewProps) => {
+export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat, onNavigateToNotifications, menuOpen = false, onMenuClick, hideHeader = false, refreshTrigger = 0 }: ProfileViewProps) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<JamBaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,6 +253,15 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       fetchUserEvents();
     }
   }, [activeTab, targetUserId]);
+
+  // Refresh reviews when refreshTrigger changes (triggered when review is submitted)
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0 && user && !sessionExpired) {
+      console.log('🔄 ProfileView: Refresh trigger changed, refetching reviews...');
+      fetchReviews();
+      fetchReviewsCount();
+    }
+  }, [refreshTrigger]);
 
   useEffect(() => {
     // Check for hash in URL to determine active tab
@@ -407,6 +418,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           id: 'temp',
           user_id: currentUserId,
           name: userName,
+          username: null,
           avatar_url: null,
           bio: 'Music lover looking to connect at events!',
           instagram_handle: null,
@@ -425,6 +437,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         id: 'temp',
         user_id: currentUserId,
         name: 'New User',
+        username: null,
         avatar_url: null,
         bio: null,
         instagram_handle: null,
@@ -494,10 +507,12 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           id: jambaseEvent?.id ?? '',
           jambase_event_id: jambaseEvent?.jambase_event_id ?? jambaseEvent?.id ?? '',
           title: jambaseEvent?.title ?? '',
-          artist_name: jambaseEvent?.artist_name ?? '',
-          artist_id: jambaseEvent?.artist_id ?? null,
-          venue_name: jambaseEvent?.venue_name ?? '',
-          venue_id: jambaseEvent?.venue_id ?? null,
+          // Use normalized artist_name and venue_name from JOINs (already populated by getUserInterestedEvents)
+          // Preserve null instead of empty string so EventDetailsModal fallback can fetch names
+          artist_name: jambaseEvent?.artist_name || (jambaseEvent as any)?.artist_name || null,
+          artist_id: jambaseEvent?.artist_id ?? (jambaseEvent as any)?.artist_id ?? null,
+          venue_name: jambaseEvent?.venue_name || (jambaseEvent as any)?.venue_name || null,
+          venue_id: jambaseEvent?.venue_id ?? (jambaseEvent as any)?.venue_id ?? null,
           venue_address: jambaseEvent?.venue_address ?? null,
           venue_city: jambaseEvent?.venue_city ?? null,
           venue_state: jambaseEvent?.venue_state ?? null,
@@ -615,10 +630,11 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           return true;
         })
         .map((item: any) => {
-          // Get Event_date from review - it's a Date object from getUserReviewHistory
+          // Get event_date from review - it's a Date object from getUserReviewHistory
           // If it's a string (from database), convert to Date; if already Date, use as-is
+          // Handle both lowercase (event_date) and capitalized (Event_date) for migration compatibility
           let reviewEventDate: Date | undefined = undefined;
-          const eventDateValue = (item.review as any).Event_date || (item.review as any).event_date;
+          const eventDateValue = (item.review as any).event_date || (item.review as any).Event_date;
           if (eventDateValue) {
             if (eventDateValue instanceof Date) {
               reviewEventDate = eventDateValue;
@@ -664,9 +680,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           created_at: item.review.created_at,
           ticket_price_paid: item.review.ticket_price_paid,
           category_average: calculateCategoryAverage(item.review),
-          // Store Event_date as Date object for easy access
-          Event_date: reviewEventDate,
-          event_date: reviewEventDate, // Also store as lowercase for compatibility (Date object)
+          // Store event_date as Date object for easy access
+          event_date: reviewEventDate,
           // Add artist_name and venue_name directly for review cards
           artist_name: item.event?.artist_name,
           venue_name: item.event?.venue_name,
@@ -680,7 +695,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             location: item.event?.venue_name || 'Unknown Venue',
             artist_name: item.event?.artist_name,
             venue_name: item.event?.venue_name,
-            // Convert Event_date (Date) to string for event_date field, or use event.event_date, or fallback to created_at
+            // Convert event_date (Date) to string for event_date field, or use event.event_date, or fallback to created_at
             event_date: reviewEventDate 
               ? reviewEventDate.toISOString().split('T')[0] 
               : (item.event?.event_date || item.review.created_at),
@@ -1489,11 +1504,23 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   const handleEditReview = (review: any) => {
     // Open edit with prefilled data for non-destructive updates
+    // Normalize event_date to string format for consistent type handling
+    let eventDate: string;
+    if (review.event_date instanceof Date) {
+      // Convert Date object to ISO string and extract date part
+      eventDate = review.event_date.toISOString().split('T')[0];
+    } else if (typeof review.event_date === 'string') {
+      eventDate = review.event_date;
+    } else {
+      // Fallback to event.event_date or created_at
+      eventDate = review.event?.event_date || review.created_at;
+    }
+    
     setReviewModalEvent({
       id: review.event_id,
       title: review.event?.event_name || 'Concert Review',
       venue_name: review.event?.venue_name || review.event?.location || 'Unknown Venue',
-      event_date: review.Event_date || review.event_date || review.event?.event_date || review.created_at,
+      event_date: eventDate,
       artist_name: review.event?.artist_name || 'Unknown Artist',
       existing_review_id: review.id,
       // pass through existing ratings/texts where the form can read them from context if needed
@@ -1514,7 +1541,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         reaction_emoji: review.reaction_emoji,
         is_public: review.is_public,
         review_type: review.review_type,
-        event_date: review.Event_date || review.event_date || review.event?.event_date || review.created_at,
+        event_date: review.event_date || review.event?.event_date || review.created_at,
         artist_name: review.event?.artist_name,
         venue_name: review.event?.venue_name,
         venue_id: review.venue_id
@@ -1618,7 +1645,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       {!hideHeader && (
       <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
         <h1 className="font-bold truncate text-center" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
-            {profile.username ? `@${profile.username}` : profile.name}
+            {profile.username ? `@${profile.username}` : profile.name || 'Profile'}
           </h1>
       </MobileHeader>
       )}
@@ -2156,9 +2183,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                 <div className="font-medium" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>{item.event.event_name}</div>
                                 <div style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>
                                   {(() => {
-                                    // Event_date is a Date object, event_date might be Date or string, event.event_date is string
-                                    const dateToShow = item.Event_date 
-                                      || (item.event_date instanceof Date ? item.event_date : (item.event_date ? new Date(item.event_date) : null))
+                                    // event_date might be Date or string, event.event_date is string
+                                    const dateToShow = (item.event_date instanceof Date ? item.event_date : (item.event_date ? new Date(item.event_date) : null))
                                       || (item.event.event_date ? new Date(item.event.event_date) : null);
                                     return dateToShow ? dateToShow.toLocaleDateString() : '';
                                   })()}
@@ -2629,17 +2655,31 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-1 w-full max-w-full">
+                <div className="grid grid-cols-3 gap-2.5 w-full max-w-full">
                   {filteredUserEvents
                     .sort((a,b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
                     .slice(0, 9)
                     .map((ev) => (
                       <div
                         key={ev.id}
-                        className={`aspect-square cursor-pointer rounded-md overflow-hidden border hover:shadow-md transition-shadow relative ${
+                        className={`aspect-square cursor-pointer rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 relative ${
                           showPastEvents ? 'opacity-75' : ''
                         }`}
-                        style={{ backgroundColor: 'var(--neutral-50)' }}
+                        style={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                          backdropFilter: 'blur(20px)',
+                          WebkitBackdropFilter: 'blur(20px)',
+                          border: '1px solid rgba(255, 255, 255, 0.5)',
+                          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6)';
+                        }}
                         onClick={() => { 
                           console.log('ProfileView: Event data being passed to modal from interested events:', ev);
                           // Ensure we have complete event data for the modal
@@ -2673,7 +2713,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                         }}
                       >
                         <div className="h-full flex flex-col">
-                          <div className="h-2/3 w-full relative overflow-hidden bg-gradient-to-br from-pink-400 to-pink-600">
+                          <div className="h-2/3 w-full relative overflow-hidden bg-gradient-to-br from-pink-400 to-pink-600 rounded-t-xl">
                             {/* Event image - use same resolution logic as home feed (PreferencesV4FeedSection) */}
                             {(() => {
                               // Resolve image URL with same priority as PreferencesV4FeedSection
@@ -2713,32 +2753,89 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                               // Fallback to gradient with heart icon if no image
                               return (
                                 <div className="w-full h-full flex items-center justify-center">
-                            <Heart className="w-1/3 h-1/3 text-white" />
+                                  <Heart className="w-1/3 h-1/3 text-white" />
                                 </div>
                               );
                             })()}
                             
                             {/* Interested badge - only show for upcoming events */}
                             {!showPastEvents && (
-                              <div className="absolute top-1 right-1 text-[8px] px-1 py-0.5 rounded font-medium" style={{ backgroundColor: 'var(--neutral-50)', color: 'var(--neutral-900)' }}>
+                              <div 
+                                className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md font-semibold text-[10px] leading-tight uppercase tracking-wide"
+                                style={{ 
+                                  backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                                  backdropFilter: 'blur(10px)',
+                                  WebkitBackdropFilter: 'blur(10px)',
+                                  color: 'rgba(255, 255, 255, 0.95)',
+                                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                                }}
+                              >
                                 Interested
                               </div>
                             )}
                             {/* Past badge - only show for archive events */}
                             {showPastEvents && (
-                              <div className="absolute top-1 right-1 text-[8px] px-1 py-0.5 rounded font-medium" style={{ backgroundColor: 'var(--neutral-50)', color: 'var(--neutral-900)' }}>
+                              <div 
+                                className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md font-semibold text-[10px] leading-tight uppercase tracking-wide"
+                                style={{ 
+                                  backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                                  backdropFilter: 'blur(10px)',
+                                  WebkitBackdropFilter: 'blur(10px)',
+                                  color: 'rgba(255, 255, 255, 0.95)',
+                                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                                }}
+                              >
                                 Past
                               </div>
                             )}
                           </div>
-                          <div className="p-2 flex-1 flex flex-col justify-between">
-                            <div>
-                              <h4 className="font-semibold text-xs truncate">{ev.title}</h4>
-                              <p className="text-xs text-muted-foreground truncate">{ev.venue_name}</p>
+                          <div className="px-2.5 pt-2.5 pb-2.5 flex-1 flex flex-col justify-between min-h-0">
+                            <div className="min-w-0 flex-shrink">
+                              <h4 
+                                className="font-semibold truncate mb-0.5 leading-tight"
+                                style={{ 
+                                  fontSize: '11px',
+                                  fontFamily: 'var(--font-family)',
+                                  color: 'var(--neutral-900)'
+                                }}
+                              >
+                                {ev.title}
+                              </h4>
+                              <p 
+                                className="truncate leading-tight"
+                                style={{ 
+                                  fontSize: '10px',
+                                  fontFamily: 'var(--font-family)',
+                                  color: 'var(--neutral-600)',
+                                  marginTop: '2px'
+                                }}
+                              >
+                                {ev.venue_name}
+                              </p>
                             </div>
-                            <div className="text-[10px] text-muted-foreground flex items-center justify-between">
-                              <span>{new Date(ev.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                              <span className="truncate">{[ev.venue_city, ev.venue_state].filter(Boolean).join(', ')}</span>
+                            <div className="mt-1.5 pt-1.5 border-t border-solid" style={{ borderColor: 'rgba(0, 0, 0, 0.08)' }}>
+                              <div 
+                                className="font-medium leading-tight mb-0.5"
+                                style={{ 
+                                  fontSize: '11px',
+                                  fontFamily: 'var(--font-family)',
+                                  color: 'var(--neutral-900)'
+                                }}
+                              >
+                                {new Date(ev.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                              </div>
+                              {[ev.venue_city, ev.venue_state].filter(Boolean).length > 0 && (
+                                <p 
+                                  className="truncate leading-tight"
+                                  style={{ 
+                                    fontSize: '10px',
+                                    fontFamily: 'var(--font-family)',
+                                    color: 'var(--neutral-600)'
+                                  }}
+                                >
+                                  {[ev.venue_city, ev.venue_state].filter(Boolean).join(', ')}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>

@@ -380,15 +380,102 @@ export class UserEventService {
           return { events: [], total: 0 };
         }
 
+        // Query events table with JOINs to get normalized artist/venue names via foreign keys
         const { data: eventsData, error: eventsError } = await supabase
           .from('events')
-          .select('*')
+          .select('*, artists(name), venues(name)')
           .in('id', eventIds);
 
         if (eventsError) throw eventsError;
 
         const events = eventsData || [];
-        const eventMap = new Map(events.map((e: any) => [e.id, e]));
+        
+        console.log('🔍 getUserInterestedEvents: Fetched events with JOINs:', {
+          count: events.length,
+          sample: events[0] ? {
+            id: events[0].id,
+            title: events[0].title,
+            artist_id: events[0].artist_id,
+            artist_name_from_join: events[0].artists?.name,
+            venue_id: events[0].venue_id,
+            venue_name_from_join: events[0].venues?.name,
+          } : null,
+        });
+        
+        // Get unique artist and venue IDs that need names fetched
+        const artistIdsToFetch = new Set<string>();
+        const venueIdsToFetch = new Set<string>();
+        
+        events.forEach((e: any) => {
+          if (!e.artists?.name && e.artist_id) {
+            artistIdsToFetch.add(e.artist_id);
+          }
+          if (!e.venues?.name && e.venue_id) {
+            venueIdsToFetch.add(e.venue_id);
+          }
+        });
+        
+        if (artistIdsToFetch.size > 0 || venueIdsToFetch.size > 0) {
+          console.log('🔍 getUserInterestedEvents: Need to fetch names for:', {
+            artists: Array.from(artistIdsToFetch),
+            venues: Array.from(venueIdsToFetch),
+          });
+        }
+        
+        // Fetch missing artist and venue names in parallel
+        const [artistsData, venuesData] = await Promise.all([
+          artistIdsToFetch.size > 0
+            ? supabase
+                .from('artists')
+                .select('id, name')
+                .in('id', Array.from(artistIdsToFetch))
+            : Promise.resolve({ data: [], error: null }),
+          venueIdsToFetch.size > 0
+            ? supabase
+                .from('venues')
+                .select('id, name')
+                .in('id', Array.from(venueIdsToFetch))
+            : Promise.resolve({ data: [], error: null }),
+        ]);
+        
+        // Create maps for quick lookup
+        const artistMap = new Map((artistsData.data || []).map((a: any) => [a.id, a.name]));
+        const venueMap = new Map((venuesData.data || []).map((v: any) => [v.id, v.name]));
+        
+        if (artistIdsToFetch.size > 0 || venueIdsToFetch.size > 0) {
+          console.log('🔍 getUserInterestedEvents: Fetched names:', {
+            artists: Object.fromEntries(artistMap),
+            venues: Object.fromEntries(venueMap),
+          });
+        }
+        
+        // Normalize events to include artist_name and venue_name from JOINed data or fallback lookup
+        const normalizedEvents = events.map((e: any) => {
+          const artistName = (e.artists?.name) || (e.artist_id ? artistMap.get(e.artist_id) : null) || null;
+          const venueName = (e.venues?.name) || (e.venue_id ? venueMap.get(e.venue_id) : null) || null;
+          
+          // Log if names are still missing after all attempts
+          if (!artistName && e.artist_id) {
+            console.warn('⚠️ getUserInterestedEvents: Could not fetch artist name for artist_id:', e.artist_id, 'event:', e.id, 'title:', e.title);
+          }
+          if (!venueName && e.venue_id) {
+            console.warn('⚠️ getUserInterestedEvents: Could not fetch venue name for venue_id:', e.venue_id, 'event:', e.id, 'title:', e.title);
+          }
+          
+          return {
+            ...e,
+            artist_name: artistName,
+            venue_name: venueName,
+          };
+        });
+        
+        console.log('🔍 getUserInterestedEvents: Normalized events sample:', normalizedEvents[0] ? {
+          id: normalizedEvents[0].id,
+          title: normalizedEvents[0].title,
+          artist_name: normalizedEvents[0].artist_name,
+          venue_name: normalizedEvents[0].venue_name,
+        } : null);
+        const eventMap = new Map(normalizedEvents.map((e: any) => [e.id, e]));
 
         const combinedEvents = relationships
           .map((row: any) => {

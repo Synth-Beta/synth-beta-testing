@@ -103,7 +103,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         profileData = fallbackData as Tables<'users'> | null;
       }
 
-      if (!profileData) {
+        if (!profileData) {
           console.log('No profile found, will create one when user saves');
           setFormData({
             name: '',

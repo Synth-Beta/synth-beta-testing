@@ -5,6 +5,7 @@ import { UnifiedVenueSearchService } from '@/services/unifiedVenueSearchService'
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import { cn } from '@/lib/utils';
 import { trackInteraction } from '@/services/interactionTrackingService';
+import { SearchBar } from '@/components/SearchBar';
 
 interface VenueSearchBoxProps {
   onVenueSelect: (venue: VenueSearchResult) => void;
