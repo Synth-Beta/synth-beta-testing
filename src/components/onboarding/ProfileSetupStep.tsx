@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,6 +51,29 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Auto-suggest username from name when component mounts or name changes
+  // Only run when user name changes, not on every username keystroke
+  useEffect(() => {
+    const generateSuggestedUsername = async () => {
+      // Only suggest if username is empty (to avoid re-suggesting when user clears it)
+      if (!formData.username && user?.user_metadata?.name) {
+        try {
+          const { generateAvailableUsername } = await import('@/services/usernameService');
+          const suggested = await generateAvailableUsername(user.user_metadata.name);
+          if (suggested) {
+            setFormData(prev => ({ ...prev, username: suggested }));
+          }
+        } catch (error) {
+          console.error('Error generating suggested username:', error);
+        }
+      }
+    };
+    
+    generateSuggestedUsername();
+    // Only depend on user name, not formData.username to avoid re-running on every keystroke
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.user_metadata?.name]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -122,49 +145,73 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
     if (!username.trim()) return false;
     
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username', username.toLowerCase().trim())
-        .limit(1);
-
-      if (error && error.code !== 'PGRST116') {
-        // Column might not exist, allow it
-        console.warn('Error checking username:', error);
-        return true; // Allow if column doesn't exist
-      }
-
-      // Username is available if no results found
-      return !data || data.length === 0;
+      // Use the shared username service for consistency
+      const { checkUsernameAvailability: checkAvailability } = await import('@/services/usernameService');
+      const result = await checkAvailability(username);
+      return result.available;
     } catch (error) {
       console.error('Error checking username availability:', error);
-      return true; // Allow on error to not block onboarding
+      // Fallback to direct query if service fails
+      // Use same sanitization as primary path to ensure consistency
+      try {
+        const { sanitizeUsername } = await import('@/utils/usernameUtils');
+        const sanitized = sanitizeUsername(username);
+        
+        if (!sanitized) {
+          return false; // Invalid username after sanitization
+        }
+        
+        const { data, error } = await supabase
+          .from('users')
+          .select('username')
+          .eq('username', sanitized) // Use sanitized username to match primary path behavior
+          .limit(1);
+
+        if (error && error.code !== 'PGRST116') {
+          console.warn('Error checking username:', error);
+          return true; // Allow if column doesn't exist
+        }
+
+        return !data || data.length === 0;
+      } catch (fallbackError) {
+        console.error('Fallback username check failed:', fallbackError);
+        return true; // Allow on error to not block onboarding
+      }
     }
   };
 
   const handleUsernameBlur = async () => {
     const username = formData.username.trim();
     if (!username) {
-      setErrors({ ...errors, username: '' });
+      setErrors({ ...errors, username: 'Username is required' });
       return;
     }
 
-    // Validate format
-    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-    if (!usernameRegex.test(username)) {
-      setErrors({ ...errors, username: 'Username must be 3-20 characters, letters, numbers, and underscores only' });
-      return;
-    }
+    // Use shared validation utilities
+    try {
+      const { validateUsernameFormat, sanitizeUsername } = await import('@/utils/usernameUtils');
+      const sanitized = sanitizeUsername(username);
+      const formatCheck = validateUsernameFormat(sanitized);
+      
+      if (!formatCheck.valid) {
+        setErrors({ ...errors, username: formatCheck.error || 'Invalid username format' });
+        return;
+      }
 
-    // Check availability
-    setIsCheckingUsername(true);
-    const isAvailable = await checkUsernameAvailability(username);
-    setIsCheckingUsername(false);
+      // Check availability
+      setIsCheckingUsername(true);
+      const isAvailable = await checkUsernameAvailability(sanitized);
+      setIsCheckingUsername(false);
 
-    if (!isAvailable) {
-      setErrors({ ...errors, username: 'This username is already taken' });
-    } else {
-      setErrors({ ...errors, username: '' });
+      if (!isAvailable) {
+        setErrors({ ...errors, username: 'This username is already taken' });
+      } else {
+        setErrors({ ...errors, username: '' });
+      }
+    } catch (error) {
+      console.error('Error validating username:', error);
+      setIsCheckingUsername(false);
+      setErrors({ ...errors, username: 'Error validating username' });
     }
   };
 
@@ -173,22 +220,34 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
     
     const newErrors: Record<string, string> = {};
 
-    // Validate username
-    const username = formData.username.trim();
-    if (!username) {
+    // Validate username (required)
+    let finalUsername = formData.username.trim();
+    if (!finalUsername) {
       newErrors.username = 'Username is required';
     } else {
-      const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-      if (!usernameRegex.test(username)) {
-        newErrors.username = 'Username must be 3-20 characters, letters, numbers, and underscores only';
-      } else {
-        // Check availability one more time
-        setIsCheckingUsername(true);
-        const isAvailable = await checkUsernameAvailability(username);
-        setIsCheckingUsername(false);
-        if (!isAvailable) {
-          newErrors.username = 'This username is already taken';
+      // Use shared validation utilities
+      try {
+        const { validateUsernameFormat, sanitizeUsername } = await import('@/utils/usernameUtils');
+        const sanitized = sanitizeUsername(finalUsername);
+        const formatCheck = validateUsernameFormat(sanitized);
+        
+        if (!formatCheck.valid) {
+          newErrors.username = formatCheck.error || 'Invalid username format';
+        } else {
+          // Check availability one more time
+          setIsCheckingUsername(true);
+          const isAvailable = await checkUsernameAvailability(sanitized);
+          setIsCheckingUsername(false);
+          if (!isAvailable) {
+            newErrors.username = 'This username is already taken';
+          } else {
+            // Store sanitized username to use when passing to onNext
+            finalUsername = sanitized;
+          }
         }
+      } catch (error) {
+        console.error('Error validating username:', error);
+        newErrors.username = 'Error validating username';
       }
     }
 
@@ -224,7 +283,11 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
       return;
     }
 
-    onNext(formData);
+    // Pass formData with sanitized username
+    onNext({
+      ...formData,
+      username: finalUsername, // Use the sanitized username
+    });
   };
 
   return (
@@ -243,22 +306,34 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
             Username <span className="text-destructive">*</span>
           </Label>
           <div className="relative">
-            <Input
-              id="username"
-              placeholder="e.g., musiclover123"
-              value={formData.username}
-              onChange={(e) => {
-                const value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
-                setFormData({ ...formData, username: value });
-                // Clear error when user starts typing
-                if (errors.username) {
-                  setErrors({ ...errors, username: '' });
-                }
-              }}
-              onBlur={handleUsernameBlur}
-              maxLength={20}
-              className={`bg-white ${errors.username ? 'border-destructive' : ''}`}
-            />
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+                @
+              </div>
+              <Input
+                id="username"
+                placeholder="username"
+                value={formData.username}
+                onChange={(e) => {
+                  // Sanitize input inline to match sanitizeUsername utility exactly
+                  let value = e.target.value.toLowerCase().trim();
+                  // Allow alphanumeric, underscore, period only
+                  value = value.replace(/[^a-z0-9_.]/g, '');
+                  // Remove leading/trailing periods/underscores
+                  value = value.replace(/^[_.]+|[_.]+$/g, '');
+                  // Replace multiple consecutive periods or underscores with single (matches sanitizeUsername)
+                  value = value.replace(/[_.]{2,}/g, (match) => match[0]);
+                  setFormData({ ...formData, username: value });
+                  // Clear error when user starts typing
+                  if (errors.username) {
+                    setErrors({ ...errors, username: '' });
+                  }
+                }}
+                onBlur={handleUsernameBlur}
+                maxLength={30}
+                className={`bg-white pl-8 ${errors.username ? 'border-destructive' : ''}`}
+              />
+            </div>
             {isCheckingUsername && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
                 <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
@@ -268,8 +343,13 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
           {errors.username && (
             <p className="text-sm text-destructive">{errors.username}</p>
           )}
+          {formData.username && (
+            <p className="text-xs text-muted-foreground">
+              Preview: <span className="font-medium">@{formData.username}</span>
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
-            Your unique username (3-20 characters, letters, numbers, and underscores only)
+            Your unique username (3-30 characters, lowercase letters, numbers, underscores, and periods only)
           </p>
         </div>
 

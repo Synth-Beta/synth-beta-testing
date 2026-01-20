@@ -23,11 +23,6 @@ export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId, 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // #region agent log
-    console.log('🔍 ReviewCommentsModal useEffect', { isOpen, reviewId });
-    fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewCommentsModal.tsx:26',message:'Modal useEffect',data:{isOpen,reviewId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch((err)=>{console.error('Log fetch error:',err);});
-    // #endregion
-    
     if (isOpen && reviewId) {
       loadComments();
     }
@@ -36,41 +31,18 @@ export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId, 
 
   const loadComments = async () => {
     if (!reviewId) {
-      // #region agent log
-      console.log('⚠️ loadComments: no reviewId');
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewCommentsModal.tsx:36',message:'loadComments: no reviewId, returning early',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch((err)=>{console.error('Log fetch error:',err);});
-      // #endregion
       return;
     }
-    
-    // #region agent log
-    console.log('🔍 loadComments called with reviewId:', reviewId);
-    fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewCommentsModal.tsx:43',message:'loadComments called',data:{reviewId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch((err)=>{console.error('Log fetch error:',err);});
-    // #endregion
     
     try {
       setLoading(true);
       setError(null);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewCommentsModal.tsx:51',message:'About to call getReviewComments',data:{reviewId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch((err)=>{console.error('Log fetch error:',err);});
-      // #endregion
-      
       const result = await ReviewService.getReviewComments(reviewId);
-      
-      // #region agent log
-      console.log('✅ getReviewComments returned', result.length, 'comments');
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewCommentsModal.tsx:58',message:'getReviewComments returned',data:{reviewId,resultCount:result?.length || 0,commentIds:result?.map((c:any)=>c.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch((err)=>{console.error('Log fetch error:',err);});
-      // #endregion
       
       setComments(result);
       if (onCommentsLoaded) onCommentsLoaded(result.length);
     } catch (err) {
-      // #region agent log
-      console.error('❌ getReviewComments error:', err);
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewCommentsModal.tsx:66',message:'getReviewComments error',data:{reviewId,error:(err as Error)?.message,errorStack:(err as Error)?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch((logErr)=>{console.error('Log fetch error:',logErr);});
-      // #endregion
-      
       console.error('Failed to load review comments', err);
       setError('Failed to load comments');
     } finally {
@@ -84,15 +56,7 @@ export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId, 
       setSubmitting(true);
       setError(null);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewCommentsModal.tsx:51',message:'handleAddComment calling addComment',data:{userId:currentUserId,reviewId,commentText:newComment.trim().substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
-      
       const created = await ReviewService.addComment(currentUserId, reviewId, newComment.trim());
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewCommentsModal.tsx:58',message:'addComment returned successfully',data:{commentId:created?.id,hasCreated:!!created},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
       
       // Add the new comment to the list with user info
       const newCommentWithUser: CommentWithUser = {

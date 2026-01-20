@@ -415,9 +415,6 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     let active = true;
 
     const loadChats = async () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/10d40767-d3ec-4e23-951e-9f34c12c3798',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ConnectView.tsx:417',message:'loadChats started',data:{currentUserId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       setChatsLoading(true);
       try {
         const { data, error } = await fetchUserChats(currentUserId);

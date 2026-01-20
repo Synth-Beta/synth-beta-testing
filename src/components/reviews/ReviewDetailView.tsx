@@ -164,41 +164,32 @@ export function ReviewDetailView({
 
         // Check if user has liked this review
         if (currentUserId) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewDetailView.tsx:167',message:'Checking if review is liked',data:{userId:currentUserId,reviewId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-          // #endregion
+          // Get entity_id for this review first (entity_id is FK to entities.id, not reviewId)
+          const { data: entityData } = await supabase
+            .from('entities')
+            .select('id')
+            .eq('entity_type', 'review')
+            .eq('entity_uuid', reviewId)
+            .single();
           
-          // Check for existing like - query both entity_id and metadata->>review_id
-          // (for old format with entity_id and new format with NULL entity_id + metadata)
-          const [byEntityResult, byMetadataResult] = await Promise.all([
-            supabase
+          if (entityData?.id) {
+            // Query engagements using the entity_id from entities table
+            const { data: likeData, error: likeError } = await supabase
               .from('engagements')
               .select('id')
               .eq('user_id', currentUserId)
-              .eq('entity_id', reviewId)
+              .eq('entity_id', entityData.id)
               .eq('engagement_type', 'like')
-              .maybeSingle(),
-            supabase
-              .from('engagements')
-              .select('id')
-              .eq('user_id', currentUserId)
-              .is('entity_id', null)
-              .eq('engagement_type', 'like')
-              .eq('metadata->>review_id', reviewId)
-              .maybeSingle()
-          ]);
-          
-          const existingLike = byEntityResult.data || byMetadataResult.data;
-          const likeError = byEntityResult.error || byMetadataResult.error;
-
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewDetailView.tsx:177',message:'Like check result',data:{hasLike:!!existingLike,error:likeError?.message,errorCode:likeError?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-          // #endregion
-
-          setIsLiked(!!existingLike);
-          
-          if (likeError) {
-            console.error('Error checking if review is liked:', likeError);
+              .maybeSingle();
+            
+            setIsLiked(!!likeData);
+            
+            if (likeError) {
+              console.error('Error checking if review is liked:', likeError);
+            }
+          } else {
+            // Entity not found, user hasn't liked this review
+            setIsLiked(false);
           }
         }
       } catch (error) {

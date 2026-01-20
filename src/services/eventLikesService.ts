@@ -32,25 +32,45 @@ export class EventLikesService {
     
     // First check if the user has already liked this event
     const existingLike = await this.isLikedByUser(userId, eventId);
+    // Get or create entity for this event
+    const { data: entityId, error: entityError } = await supabase.rpc('get_or_create_entity', {
+      p_entity_type: 'event',
+      p_entity_uuid: internalEventId,
+      p_entity_text_id: null,
+    });
+
+    if (entityError) throw entityError;
+
     if (existingLike) {
       // User already liked this event, return the existing like
-      const { data } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('engagements')
         .select('*')
         .eq('user_id', userId)
-        .eq('entity_type', 'event')
-        .eq('entity_id', internalEventId)
+        .eq('entity_id', entityId)
         .eq('engagement_type', 'like')
         .single();
-      return data as unknown as EventLike;
+      
+      if (fetchError || !data) {
+        console.error('Error fetching existing like:', fetchError);
+        // Return null if fetch fails rather than returning invalid data
+        return null;
+      }
+      
+      // Transform engagements table result to EventLike interface
+      return {
+        id: data.id,
+        user_id: data.user_id,
+        event_id: internalEventId, // Add event_id for EventLike interface compatibility
+        created_at: data.created_at,
+      } as EventLike;
     }
     
     const { data, error } = await supabase
       .from('engagements')
       .insert({ 
         user_id: userId, 
-        entity_type: 'event',
-        entity_id: internalEventId,
+        entity_id: entityId, // FK to entities.id (replaces entity_type + entity_id)
         engagement_type: 'like'
       })
       .select('*')
@@ -58,33 +78,65 @@ export class EventLikesService {
     if (error) {
       // PGRST205: table not found in schema cache (migration missing)
       if ((error as any).code === 'PGRST205') {
-        console.warn('event_likes table not found. Add migration to enable event likes.');
+        console.warn('engagements table not found. Add migration to enable event likes.');
         return null;
       }
       // Handle duplicate key constraint (409 Conflict)
       if ((error as any).code === '23505' || (error as any).status === 409) {
-        // Try to get the existing like
-        const { data: existingData } = await (supabase as any)
-          .from('event_likes')
+        // Try to get the existing like from engagements table
+        const { data: existingData, error: fetchError } = await supabase
+          .from('engagements')
           .select('*')
           .eq('user_id', userId)
-          .eq('event_id', internalEventId)
+          .eq('entity_id', entityId) // Use entity_id instead of event_id
+          .eq('engagement_type', 'like')
           .single();
-        return existingData as EventLike;
+        
+        if (fetchError) {
+          console.error('Error fetching existing like after duplicate key error:', fetchError);
+          throw error; // Re-throw original error if fetch fails
+        }
+        
+        // Transform engagements table result to EventLike interface
+        return {
+          id: existingData.id,
+          user_id: existingData.user_id,
+          event_id: internalEventId, // Add event_id for EventLike interface compatibility
+          created_at: existingData.created_at,
+        } as EventLike;
       }
       throw error;
     }
-    return data as EventLike;
+    
+    // Transform engagements table result to EventLike interface (add event_id for compatibility)
+    return {
+      id: data.id,
+      user_id: data.user_id,
+      event_id: internalEventId, // Add event_id field required by EventLike interface
+      created_at: data.created_at,
+    } as EventLike;
   }
 
   static async unlikeEvent(userId: string, eventId: string): Promise<void> {
     const internalEventId = await this.resolveInternalEventId(eventId);
+    
+    // Get entity_id for this event
+    const { data: entityData } = await supabase
+      .from('entities')
+      .select('id')
+      .eq('entity_type', 'event')
+      .eq('entity_uuid', internalEventId)
+      .single();
+
+    if (!entityData?.id) {
+      return; // Entity not found, nothing to delete
+    }
+
     const { error } = await supabase
       .from('engagements')
       .delete()
       .eq('user_id', userId)
-      .eq('entity_type', 'event')
-      .eq('entity_id', internalEventId)
+      .eq('entity_id', entityData.id)
       .eq('engagement_type', 'like');
     if (error) {
       if ((error as any).code === 'PGRST205') return; // silent if table missing
@@ -94,11 +146,23 @@ export class EventLikesService {
 
   static async getEventLikers(eventId: string): Promise<LikerProfile[]> {
     const internalEventId = await this.resolveInternalEventId(eventId);
+    
+    // Get entity_id for this event
+    const { data: entityData } = await supabase
+      .from('entities')
+      .select('id')
+      .eq('entity_type', 'event')
+      .eq('entity_uuid', internalEventId)
+      .single();
+
+    if (!entityData?.id) {
+      return []; // Entity not found, return empty array
+    }
+
     const { data, error } = await supabase
       .from('engagements')
       .select('user_id')
-      .eq('entity_type', 'event')
-      .eq('entity_id', internalEventId)
+      .eq('entity_id', entityData.id)
       .eq('engagement_type', 'like');
     if (error) {
       if ((error as any).code === 'PGRST205') return [];
@@ -117,12 +181,24 @@ export class EventLikesService {
   static async isLikedByUser(userId: string, eventId: string): Promise<boolean> {
     try {
       const internalEventId = await this.resolveInternalEventId(eventId);
+      
+      // Get entity_id for this event
+      const { data: entityData } = await supabase
+        .from('entities')
+        .select('id')
+        .eq('entity_type', 'event')
+        .eq('entity_uuid', internalEventId)
+        .single();
+
+      if (!entityData?.id) {
+        return false; // Entity not found, so like doesn't exist
+      }
+
       const { data, error } = await supabase
         .from('engagements')
         .select('id')
         .eq('user_id', userId)
-        .eq('entity_type', 'event')
-        .eq('entity_id', internalEventId)
+        .eq('entity_id', entityData.id)
         .eq('engagement_type', 'like')
         .limit(1)
         .maybeSingle();

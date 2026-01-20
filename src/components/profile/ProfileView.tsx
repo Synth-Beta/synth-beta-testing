@@ -117,6 +117,7 @@ interface ConcertReview {
   genre_tags?: string[];
   reaction_emoji?: string | null;
   category_average?: number;
+  event_date?: Date | string; // Date object or string for compatibility
   event: {
     event_name: string;
     location: string;
@@ -417,6 +418,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           id: 'temp',
           user_id: currentUserId,
           name: userName,
+          username: null,
           avatar_url: null,
           bio: 'Music lover looking to connect at events!',
           instagram_handle: null,
@@ -435,6 +437,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         id: 'temp',
         user_id: currentUserId,
         name: 'New User',
+        username: null,
         avatar_url: null,
         bio: null,
         instagram_handle: null,
@@ -625,10 +628,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           return true;
         })
         .map((item: any) => {
-          // Get Event_date from review - it's a Date object from getUserReviewHistory
+          // Get event_date from review - it's a Date object from getUserReviewHistory
           // If it's a string (from database), convert to Date; if already Date, use as-is
           let reviewEventDate: Date | undefined = undefined;
-          const eventDateValue = (item.review as any).Event_date || (item.review as any).event_date;
+          const eventDateValue = (item.review as any).event_date;
           if (eventDateValue) {
             if (eventDateValue instanceof Date) {
               reviewEventDate = eventDateValue;
@@ -674,9 +677,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           created_at: item.review.created_at,
           ticket_price_paid: item.review.ticket_price_paid,
           category_average: calculateCategoryAverage(item.review),
-          // Store Event_date as Date object for easy access
-          Event_date: reviewEventDate,
-          event_date: reviewEventDate, // Also store as lowercase for compatibility (Date object)
+          // Store event_date as Date object for easy access
+          event_date: reviewEventDate,
           // Add artist_name and venue_name directly for review cards
           artist_name: item.event?.artist_name,
           venue_name: item.event?.venue_name,
@@ -690,7 +692,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             location: item.event?.venue_name || 'Unknown Venue',
             artist_name: item.event?.artist_name,
             venue_name: item.event?.venue_name,
-            // Convert Event_date (Date) to string for event_date field, or use event.event_date, or fallback to created_at
+            // Convert event_date (Date) to string for event_date field, or use event.event_date, or fallback to created_at
             event_date: reviewEventDate 
               ? reviewEventDate.toISOString().split('T')[0] 
               : (item.event?.event_date || item.review.created_at),
@@ -1503,7 +1505,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       id: review.event_id,
       title: review.event?.event_name || 'Concert Review',
       venue_name: review.event?.venue_name || review.event?.location || 'Unknown Venue',
-      event_date: review.Event_date || review.event_date || review.event?.event_date || review.created_at,
+      event_date: review.event_date || review.event?.event_date || review.created_at,
       artist_name: review.event?.artist_name || 'Unknown Artist',
       existing_review_id: review.id,
       // pass through existing ratings/texts where the form can read them from context if needed
@@ -1524,7 +1526,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         reaction_emoji: review.reaction_emoji,
         is_public: review.is_public,
         review_type: review.review_type,
-        event_date: review.Event_date || review.event_date || review.event?.event_date || review.created_at,
+        event_date: review.event_date || review.event?.event_date || review.created_at,
         artist_name: review.event?.artist_name,
         venue_name: review.event?.venue_name,
         venue_id: review.venue_id
@@ -1628,7 +1630,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       {!hideHeader && (
       <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
         <h1 className="font-bold truncate text-center" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
-            {profile.username ? `@${profile.username}` : profile.name}
+            {profile.username ? `@${profile.username}` : profile.name || 'Profile'}
           </h1>
       </MobileHeader>
       )}
@@ -2166,9 +2168,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                 <div className="font-medium" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>{item.event.event_name}</div>
                                 <div style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>
                                   {(() => {
-                                    // Event_date is a Date object, event_date might be Date or string, event.event_date is string
-                                    const dateToShow = item.Event_date 
-                                      || (item.event_date instanceof Date ? item.event_date : (item.event_date ? new Date(item.event_date) : null))
+                                    // event_date might be Date or string, event.event_date is string
+                                    const dateToShow = (item.event_date instanceof Date ? item.event_date : (item.event_date ? new Date(item.event_date) : null))
                                       || (item.event.event_date ? new Date(item.event.event_date) : null);
                                     return dateToShow ? dateToShow.toLocaleDateString() : '';
                                   })()}
