@@ -465,7 +465,18 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList 
+          className="grid w-full grid-cols-3" 
+          style={{ 
+            marginBottom: 0,
+            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(236, 72, 153, 0.2)',
+            borderRadius: 'var(--radius-corner, 10px)',
+            padding: '4px'
+          }}
+        >
           <TabsTrigger value="calendar" className="flex items-center gap-2">
             <Icon name="calendar" size={16} />
             Calendar
@@ -481,7 +492,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         </TabsList>
 
         {/* Calendar View */}
-        <TabsContent value="calendar" className="mt-4">
+        <TabsContent value="calendar" className="mt-8">
           {calendarLoading ? (
             <SynthLoadingInline text="Loading calendar..." size="lg" />
           ) : (
@@ -551,7 +562,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         </TabsContent>
 
         {/* Leaderboards View */}
-        <TabsContent value="leaderboards" className="mt-4">
+        <TabsContent value="leaderboards" className="mt-8">
           <div className="flex items-center justify-center h-96">
             <div className="text-center space-y-2">
               <Icon name="ribbonAward" size={60} className="mx-auto" color="var(--neutral-600)" />
@@ -564,7 +575,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         </TabsContent>
 
         {/* Tour Tracker View */}
-        <TabsContent value="tour" className="mt-4">
+        <TabsContent value="tour" className="mt-8">
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Search for an Artist</label>

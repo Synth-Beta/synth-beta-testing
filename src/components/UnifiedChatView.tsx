@@ -1925,10 +1925,27 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
 
       {/* Right Side - Messages */}
       {selectedChat && (
-        <div className="w-full flex flex-col min-h-0" style={{ backgroundColor: 'var(--neutral-50)' }}>
+        <div className="w-full flex flex-col" style={{ backgroundColor: 'var(--neutral-50)', minHeight: '100dvh', position: 'relative' }}>
           <>
-            {/* Chat Header */}
-            <div className="h-[44px] flex items-center justify-between" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', backgroundColor: 'var(--neutral-50)', boxShadow: '0px 4px 4px 0px var(--shadow-color)' }}>
+            {/* Chat Header - Fixed below MobileHeader */}
+            <div 
+              className="h-[44px] flex items-center justify-between flex-shrink-0" 
+              style={{ 
+                position: 'fixed',
+                top: hideHeader 
+                  ? `calc(env(safe-area-inset-top, 0px))` 
+                  : `calc(env(safe-area-inset-top, 0px) + 68px)`,
+                left: 0,
+                right: 0,
+                maxWidth: '393px',
+                margin: '0 auto',
+                paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
+                paddingRight: 'var(--spacing-screen-margin-x, 20px)', 
+                backgroundColor: 'var(--neutral-50)', 
+                boxShadow: '0px 4px 4px 0px var(--shadow-color)',
+                zIndex: 40
+              }}
+            >
               <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
                 <button
                   onClick={() => setSelectedChat(null)}
@@ -1965,7 +1982,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                     <MoreVertical size={24} style={{ color: 'var(--neutral-900)' }} />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuContent align="end" className="w-56" style={{ zIndex: 50 }}>
                     {selectedChat.is_group_chat && (
                       <>
                         <DropdownMenuItem onClick={handleViewUsers}>
@@ -2018,7 +2035,20 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
             </div>
 
             {/* Messages */}
-              <div style={{ maxWidth: '353px', width: '100%', margin: '0 auto', paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 112px)', position: 'relative' }}>
+              <div 
+                className="flex-1 overflow-y-auto"
+                style={{ 
+                  maxWidth: '353px', 
+                  width: '100%', 
+                  margin: '0 auto', 
+                  paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
+                  paddingRight: 'var(--spacing-screen-margin-x, 20px)', 
+                  paddingTop: hideHeader 
+                    ? `calc(env(safe-area-inset-top, 0px) + 44px + var(--spacing-small, 12px))` 
+                    : `calc(env(safe-area-inset-top, 0px) + 68px + 44px + var(--spacing-small, 12px))`, 
+                  paddingBottom: `calc(44px + var(--spacing-screen-margin-x, 20px) + env(safe-area-inset-bottom, 0px) + var(--spacing-bottom-nav, 112px))`
+                }}
+              >
               {selectedChat.is_group_chat ? (
                 <>
                   {/* Back Button - 12px below header, 20px from left */}
@@ -2104,10 +2134,36 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
               )}
             </div>
 
-            {/* Message Input - Hide for group chats */}
+            {/* Message Input - Fixed at bottom above nav bar */}
             {!selectedChat.is_group_chat && (
-              <div style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingBottom: 'var(--spacing-screen-margin-x, 20px)', backgroundColor: 'var(--neutral-50)' }}>
-                <div className="border-2 rounded-[10px] flex items-center justify-between h-[44px] pl-5 pr-[1px]" style={{ backgroundColor: 'var(--neutral-50)', borderColor: 'var(--neutral-200)' }}>
+              <div 
+                style={{ 
+                  position: 'fixed',
+                  bottom: `calc(var(--spacing-bottom-nav, 112px) + env(safe-area-inset-bottom, 0px))`,
+                  left: 0,
+                  right: 0,
+                  maxWidth: '393px',
+                  margin: '0 auto',
+                  paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
+                  paddingRight: 'var(--spacing-screen-margin-x, 20px)', 
+                  paddingTop: 'var(--spacing-grouped, 24px)',
+                  paddingBottom: 'var(--spacing-screen-margin-x, 20px)', 
+                  backgroundColor: 'rgba(250, 250, 250, 0.95)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  zIndex: 40
+                }}
+              >
+                <div 
+                  className="border-2 rounded-[10px] flex items-center justify-between h-[44px] pl-5 pr-[1px]" 
+                  style={{ 
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    borderColor: 'rgba(236, 72, 153, 0.2)',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+                  }}
+                >
                   <Input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
