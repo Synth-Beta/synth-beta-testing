@@ -9,7 +9,7 @@ export interface SynthButtonProps extends React.ButtonHTMLAttributes<HTMLButtonE
    * Button role/variant
    * - primary: SynthPink background with OffWhite text/icons
    * - secondary: OffWhite background with SynthPink text/icons and 2px border
-   * - tertiary: 22px height, matches Primary styling, labels only, small icons, no full-width
+   * - tertiary: 25px height, matches Primary styling, labels only, small icons, no full-width
    * - disabled: Grey50 background with DarkGrey text/icons, not clickable
    */
   variant?: 'primary' | 'secondary' | 'tertiary' | 'disabled';
@@ -18,7 +18,7 @@ export interface SynthButtonProps extends React.ButtonHTMLAttributes<HTMLButtonE
    * Button size
    * - standard: 36px height (default)
    * - iconOnly: 44px x 44px square for icon-only buttons (12px margin all sides)
-   * - tertiary: 22px height for tertiary buttons (automatically set when variant="tertiary")
+   * - tertiary: 25px height for tertiary buttons (automatically set when variant="tertiary")
    */
   size?: 'standard' | 'iconOnly' | 'tertiary';
   
@@ -57,7 +57,7 @@ export interface SynthButtonProps extends React.ButtonHTMLAttributes<HTMLButtonE
  * Button Roles:
  * - primary: SynthPink background, OffWhite text/icons
  * - secondary: OffWhite background, SynthPink text/icons/border (2px)
- * - tertiary: 22px height, matches Primary styling, labels only, small icons, no full-width
+ * - tertiary: 25px height, matches Primary styling, labels only, small icons, no full-width
  * - disabled: Grey50 background, DarkGrey text/icons, not clickable
  * 
  * Shared Rules (ALL buttons):
@@ -137,7 +137,7 @@ export const SynthButton: React.FC<SynthButtonProps> = ({
       case 'iconOnly':
         return 24; // Standard icon size in 44x44 button
       case 'tertiary':
-        return 16; // Smaller icon for tertiary buttons (as per spec)
+        return 19; // Smaller icon for tertiary buttons (as per spec)
       case 'standard':
       default:
         return 24; // Standard icon size

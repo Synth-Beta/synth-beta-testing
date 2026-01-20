@@ -43,11 +43,12 @@ export const SceneCard: React.FC<SceneCardProps> = ({
   return (
     <Card
       className={cn(
-        'cursor-pointer transition-all hover:shadow-lg flex flex-col h-full min-h-[400px] w-[320px] flex-shrink-0',
+        'cursor-pointer transition-all hover:shadow-lg flex flex-col h-full min-h-[400px] w-[320px] flex-shrink-0 swift-ui-card',
         className
       )}
       onClick={onClick}
     >
+      <div className="swift-ui-card-content flex flex-col h-full">
       <CardHeader className="pb-2">
         <CardTitle
           style={{
@@ -325,6 +326,7 @@ export const SceneCard: React.FC<SceneCardProps> = ({
           </div>
         </div>
       </CardContent>
+      </div>
     </Card>
   );
 };

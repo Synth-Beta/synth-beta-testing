@@ -487,29 +487,33 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
           ) : (
             <div className="space-y-4 flex flex-col items-center justify-center">
               <div className="flex justify-center w-full">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={handleDateSelect}
-                  month={calendarDate}
-                  onMonthChange={setCalendarDate}
-                  className="rounded-md border"
-                  numberOfMonths={1}
-                  disabled={(date) => {
-                    // Disable dates before today
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const dateToCheck = new Date(date);
-                    dateToCheck.setHours(0, 0, 0, 0);
-                    return dateToCheck < today;
-                  }}
-                  modifiers={{
-                    hasEvents: (date) => getEventsForDate(date).length > 0,
-                  }}
-                  modifiersClassNames={{
-                    hasEvents: 'bg-synth-pink/20 border-synth-pink',
-                  }}
-                />
+                <div className="swift-ui-card">
+                  <div className="swift-ui-card-content">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={handleDateSelect}
+                      month={calendarDate}
+                      onMonthChange={setCalendarDate}
+                      className="rounded-md border"
+                      numberOfMonths={1}
+                      disabled={(date) => {
+                        // Disable dates before today
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const dateToCheck = new Date(date);
+                        dateToCheck.setHours(0, 0, 0, 0);
+                        return dateToCheck < today;
+                      }}
+                      modifiers={{
+                        hasEvents: (date) => getEventsForDate(date).length > 0,
+                      }}
+                      modifiersClassNames={{
+                        hasEvents: 'bg-synth-pink/20 border-synth-pink',
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
               {selectedDate && selectedDateEvents.length > 0 && (
                 <div className="mt-4 space-y-2 w-full max-w-2xl">
@@ -518,7 +522,8 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                   </h3>
                   <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
                     {selectedDateEvents.map((event) => (
-                      <Card key={event.id} className="cursor-pointer hover:shadow-md" onClick={() => handleEventClick(event)}>
+                      <Card key={event.id} className="cursor-pointer hover:shadow-md swift-ui-card" onClick={() => handleEventClick(event)}>
+                        <div className="swift-ui-card-content">
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -530,6 +535,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                             </div>
                           </div>
                         </CardContent>
+                        </div>
                       </Card>
                     ))}
                   </div>
@@ -571,13 +577,14 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
             {/* Artist Banner */}
             {selectedArtist && (
               <Card 
-                className="overflow-hidden border-2 border-synth-pink/20 shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
+                className="overflow-hidden border-2 border-synth-pink/20 shadow-lg cursor-pointer hover:shadow-xl transition-shadow swift-ui-card"
                 onClick={() => {
                   // Navigate to artist profile page using UUID or encoded name
                   const artistId = selectedArtist.id || encodeURIComponent(selectedArtist.name);
                   navigate(`/artist/${artistId}`);
                 }}
               >
+                <div className="swift-ui-card-content">
                 <div 
                   className="relative p-6"
                   style={{
@@ -666,6 +673,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                       </div>
                     </div>
                   </div>
+                </div>
                 </div>
               </Card>
             )}
@@ -842,7 +850,8 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                     <h3 className="font-semibold mb-2">Related Group Chats</h3>
                     <div className="grid grid-cols-1 gap-2">
                       {groupChats.map((chat) => (
-                        <Card key={chat.id} className="cursor-pointer hover:shadow-md" onClick={() => onNavigateToChat && chat.chat_id && onNavigateToChat(chat.chat_id)}>
+                        <Card key={chat.id} className="cursor-pointer hover:shadow-md swift-ui-card" onClick={() => onNavigateToChat && chat.chat_id && onNavigateToChat(chat.chat_id)}>
+                          <div className="swift-ui-card-content">
                           <CardContent className="p-4">
                             <div className="flex items-center justify-between">
                               <div>
@@ -855,6 +864,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                               </div>
                             </div>
                           </CardContent>
+                          </div>
                         </Card>
                       ))}
                     </div>

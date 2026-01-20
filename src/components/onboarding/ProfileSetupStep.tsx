@@ -60,13 +60,7 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
   useEffect(() => {
     const generateSuggestedUsername = async () => {
       const isEmpty = !formData.username;
-      
-      // Get name from user metadata - handle Apple Sign In (full_name) and regular signups (name)
-      const userName = user?.user_metadata?.full_name || 
-                       user?.user_metadata?.name || 
-                       user?.email?.split('@')[0] || 
-                       '';
-      const hasName = !!userName;
+      const hasName = !!user?.user_metadata?.name;
       
       // Reset suggestion flag when username is cleared (user manually cleared it)
       // Only reset if we're not currently generating and username is empty
@@ -79,7 +73,7 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
         isGeneratingRef.current = true; // Mark as generating to prevent reset
         try {
           const { generateAvailableUsername } = await import('@/services/usernameService');
-          const suggested = await generateAvailableUsername(userName);
+          const suggested = await generateAvailableUsername(user.user_metadata.name);
           if (suggested) {
             hasSuggestedRef.current = true; // Mark as suggested
             setFormData(prev => ({ ...prev, username: suggested }));
@@ -93,9 +87,9 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
     };
     
     generateSuggestedUsername();
-    // Only depend on user metadata - don't include formData.username to avoid circular dependency
+    // Only depend on user name - don't include formData.username to avoid circular dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.user_metadata?.name, user?.user_metadata?.full_name, user?.email]);
+  }, [user?.user_metadata?.name]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -185,16 +179,16 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
           return { available: false, error: 'Invalid username after sanitization' };
         }
         
-        const { data, error } = await supabase
-          .from('users')
-          .select('username')
+      const { data, error } = await supabase
+        .from('users')
+        .select('username')
           .eq('username', sanitized) // Use sanitized username to match primary path behavior
-          .limit(1);
+        .limit(1);
 
-        if (error && error.code !== 'PGRST116') {
-          console.warn('Error checking username:', error);
+      if (error && error.code !== 'PGRST116') {
+        console.warn('Error checking username:', error);
           return { available: true }; // Allow if column doesn't exist
-        }
+      }
 
         const available = !data || data.length === 0;
         return available 
@@ -225,18 +219,18 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
       
       if (!formatCheck.valid) {
         setErrors({ ...errors, username: formatCheck.error || 'Invalid username format' });
-        return;
-      }
+      return;
+    }
 
-      // Check availability
-      setIsCheckingUsername(true);
+    // Check availability
+    setIsCheckingUsername(true);
       const availability = await checkUsernameAvailability(sanitized);
-      setIsCheckingUsername(false);
+    setIsCheckingUsername(false);
 
       if (!availability.available) {
         setErrors({ ...errors, username: availability.error || 'This username is already taken' });
-      } else {
-        setErrors({ ...errors, username: '' });
+    } else {
+      setErrors({ ...errors, username: '' });
       }
     } catch (error) {
       console.error('Error validating username:', error);
@@ -263,11 +257,11 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
         
         if (!formatCheck.valid) {
           newErrors.username = formatCheck.error || 'Invalid username format';
-        } else {
-          // Check availability one more time
-          setIsCheckingUsername(true);
+      } else {
+        // Check availability one more time
+        setIsCheckingUsername(true);
           const availability = await checkUsernameAvailability(sanitized);
-          setIsCheckingUsername(false);
+        setIsCheckingUsername(false);
           if (!availability.available) {
             newErrors.username = availability.error || 'This username is already taken';
           } else {
@@ -340,11 +334,11 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
                 @
               </div>
-              <Input
-                id="username"
+            <Input
+              id="username"
                 placeholder="username"
-                value={formData.username}
-                onChange={(e) => {
+              value={formData.username}
+              onChange={(e) => {
                   // Sanitize input inline to match sanitizeUsername utility exactly
                   let value = e.target.value.toLowerCase().trim();
                   // Allow alphanumeric, underscore, period only
@@ -353,16 +347,16 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
                   value = value.replace(/^[_.]+|[_.]+$/g, '');
                   // Replace multiple consecutive periods or underscores with single (matches sanitizeUsername)
                   value = value.replace(/[_.]{2,}/g, (match) => match[0]);
-                  setFormData({ ...formData, username: value });
-                  // Clear error when user starts typing
-                  if (errors.username) {
-                    setErrors({ ...errors, username: '' });
-                  }
-                }}
-                onBlur={handleUsernameBlur}
+                setFormData({ ...formData, username: value });
+                // Clear error when user starts typing
+                if (errors.username) {
+                  setErrors({ ...errors, username: '' });
+                }
+              }}
+              onBlur={handleUsernameBlur}
                 maxLength={30}
                 className={`bg-white pl-8 ${errors.username ? 'border-destructive' : ''}`}
-              />
+            />
             </div>
             {isCheckingUsername && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -539,4 +533,3 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
     </div>
   );
 };
-

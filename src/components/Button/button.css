@@ -73,10 +73,10 @@
   justify-content: center;
 }
 
-/* Tertiary size (22px height) */
-/* Tertiary: 22px height, chip/pill label styling, labels only, small icons, no full-width */
+/* Tertiary size (25px height) */
+/* Tertiary: 25px height, chip/pill label styling, labels only, small icons, no full-width */
 .synth-button--tertiary {
-  height: 22px;
+  height: 25px;
   padding-left: var(--spacing-small, 12px);
   padding-right: var(--spacing-small, 12px);
   /* Note: border-radius is set in variant section to 999px for fully rounded pill */
@@ -131,7 +131,7 @@
   transform: scale(0.98);
 }
 
-/* Tertiary variant: 22px height, chip/pill label styling */
+/* Tertiary variant: 25px height, chip/pill label styling */
 .synth-button--tertiary {
   /* Chip/pill label styling per design system */
   background-color: var(--brand-pink-050);

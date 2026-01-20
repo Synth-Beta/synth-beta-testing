@@ -443,6 +443,21 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     }
   };
 
+  useEffect(() => {
+    loadEvents(0, false);
+  }, [
+    userId, 
+    filters && 'city' in filters ? filters.city : undefined,
+    filters && 'selectedCities' in filters ? (filters as FilterState).selectedCities : undefined,
+    filters && 'latitude' in filters ? (filters as FilterState).latitude : undefined,
+    filters && 'longitude' in filters ? (filters as FilterState).longitude : undefined,
+    filters && 'radiusMiles' in filters ? (filters as FilterState).radiusMiles : undefined,
+    filters && 'genres' in filters ? (filters as FilterState).genres : undefined,
+    filters && 'dateRange' in filters ? (filters as FilterState).dateRange : undefined,
+    filters && 'includePast' in filters ? (filters as PreferencesV4FeedFilters).includePast : undefined,
+    filters && 'maxDaysAhead' in filters ? (filters as PreferencesV4FeedFilters).maxDaysAhead : undefined,
+  ]);
+
   const handleLoadMore = useCallback(() => {
     if (!loadingMore && hasMore) {
       loadEvents(page + 1, true);
@@ -460,32 +475,16 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     loadEvents(0, false, true, true); // skipCache = true to force fresh fetch
   }, [userId, filters]);
 
-  useEffect(() => {
-    loadEvents(0, false);
-  }, [
-    userId, 
-    filters && 'city' in filters ? filters.city : undefined,
-    filters && 'selectedCities' in filters ? (filters as FilterState).selectedCities : undefined,
-    filters && 'latitude' in filters ? (filters as FilterState).latitude : undefined,
-    filters && 'longitude' in filters ? (filters as FilterState).longitude : undefined,
-    filters && 'radiusMiles' in filters ? (filters as FilterState).radiusMiles : undefined,
-    filters && 'genres' in filters ? (filters as FilterState).genres : undefined,
-    filters && 'dateRange' in filters ? (filters as FilterState).dateRange : undefined,
-    filters && 'includePast' in filters ? (filters as PreferencesV4FeedFilters).includePast : undefined,
-    filters && 'maxDaysAhead' in filters ? (filters as PreferencesV4FeedFilters).maxDaysAhead : undefined,
-  ]);
-
   // Enhanced iOS-like scrolling behavior with pull-to-refresh and infinite scroll
   useEffect(() => {
     const feedElement = feedRef.current;
     if (!feedElement) return;
 
     let isScrolling = false;
-    let scrollVelocity = 0;
     let lastScrollTop = feedElement.scrollTop;
     let lastScrollTime = Date.now();
     let touchStartY = 0;
-    let pullToRefreshThreshold = 80; // pixels to pull for refresh
+    const pullToRefreshThreshold = 80;
     let isPullingToRefresh = false;
     let pullDistance = 0;
 
@@ -493,25 +492,22 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
       const now = Date.now();
       const currentScrollTop = feedElement.scrollTop;
       const timeDelta = now - lastScrollTime;
-      
       if (timeDelta > 0) {
-        scrollVelocity = Math.abs(currentScrollTop - lastScrollTop) / timeDelta;
+        // noop - reserved for future velocity handling
       }
-      
+
       lastScrollTop = currentScrollTop;
       lastScrollTime = now;
-      
-      // Add visual feedback during scroll
+
       if (!isScrolling) {
         isScrolling = true;
         feedElement.style.transition = 'none';
       }
 
-      // Infinite scroll - auto-load more when near bottom
       const scrollHeight = feedElement.scrollHeight;
       const clientHeight = feedElement.clientHeight;
       const scrollTop = feedElement.scrollTop;
-      
+
       if (scrollHeight - scrollTop - clientHeight < 200 && hasMore && !loadingMore && !loading) {
         handleLoadMore();
       }
@@ -520,10 +516,8 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     const handleScrollEnd = () => {
       isScrolling = false;
       feedElement.style.transition = '';
-      scrollVelocity = 0;
     };
 
-    // Touch handling for pull-to-refresh and better iOS-like physics
     const handleTouchStart = (e: TouchEvent) => {
       touchStartY = e.touches[0].clientY;
       pullDistance = 0;
@@ -533,42 +527,30 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     const handleTouchMove = (e: TouchEvent) => {
       const touchY = e.touches[0].clientY;
       const deltaY = touchY - touchStartY;
-      const timeDelta = Date.now() - Date.now();
-      
-      // Pull-to-refresh: only when at top and pulling down
+
       if (feedElement.scrollTop === 0 && deltaY > 0) {
-        e.preventDefault(); // Prevent default scroll to allow pull-to-refresh
+        e.preventDefault();
         pullDistance = deltaY;
         isPullingToRefresh = true;
-        
-        // Visual feedback for pull-to-refresh (can be enhanced with visual indicator)
+
         if (pullDistance > pullToRefreshThreshold) {
-          // Ready to refresh
           feedElement.style.transform = `translateY(${Math.min(pullDistance, 120)}px)`;
         } else {
           feedElement.style.transform = `translateY(${pullDistance}px)`;
         }
-      } else {
-        // Calculate velocity for momentum scrolling
-        if (timeDelta > 0) {
-          scrollVelocity = Math.abs(deltaY) / timeDelta;
-        }
       }
     };
 
-    const handleTouchEnd = (e: TouchEvent) => {
-      // Handle pull-to-refresh completion
+    const handleTouchEnd = () => {
       if (isPullingToRefresh && pullDistance > pullToRefreshThreshold) {
-        // Trigger refresh
         feedElement.style.transform = '';
         feedElement.style.transition = 'transform 0.3s ease';
         handleRefresh();
       } else if (isPullingToRefresh) {
-        // Snap back if not pulled far enough
         feedElement.style.transform = '';
         feedElement.style.transition = 'transform 0.3s ease';
       }
-      
+
       isPullingToRefresh = false;
       pullDistance = 0;
       handleScrollEnd();
@@ -578,8 +560,7 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     feedElement.addEventListener('touchend', handleTouchEnd, { passive: false });
     feedElement.addEventListener('touchstart', handleTouchStart, { passive: true });
     feedElement.addEventListener('touchmove', handleTouchMove, { passive: false });
-    
-    // Also handle mouse wheel end
+
     let scrollTimeout: NodeJS.Timeout;
     const handleWheel = () => {
       clearTimeout(scrollTimeout);
@@ -631,29 +612,21 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
         <>
         <div className="swift-ui-feed" ref={feedRef}>
             {events.map((event, index) => {
-            // Resolve image URL with priority:
-            // 1. event_media_url (from artist/venue, highest priority)
-            // 2. images JSONB array (Ticketmaster/external sources)
-            // 3. poster_image_url (from RPC, could be from various sources)
+            // Resolve image URL with priority
             let imageUrl: string | undefined = undefined;
             let isCommunityPhoto = false;
             
             const eventMediaUrl = (event as any).event_media_url;
             const hasOfficialImages = event.images && Array.isArray(event.images) && event.images.length > 0;
             
-            // Priority 1: Use event_media_url if available (from artist/venue)
             if (eventMediaUrl) {
               imageUrl = replaceJambasePlaceholder(eventMediaUrl);
-            } 
-            // Priority 2: Extract from images JSONB array if available (Ticketmaster/external)
-            else if (hasOfficialImages) {
+            } else if (hasOfficialImages) {
               const bestImage = event.images.find((img: any) => 
                 img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
               ) || event.images.find((img: any) => img?.url);
               imageUrl = bestImage?.url ? replaceJambasePlaceholder(bestImage.url) : undefined;
-            }
-            // Priority 3: Use poster_image_url as fallback
-            else if (event.poster_image_url) {
+            } else if (event.poster_image_url) {
               imageUrl = replaceJambasePlaceholder(event.poster_image_url);
               
               // Only show "Community Photo" tag if:
@@ -686,28 +659,27 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
             
             return (
               <div key={uniqueKey} className="swift-ui-feed-item">
-                <CompactEventCard
-                  event={{
-                    id: event.id || '',
-                    title: event.title || event.artist_name || 'Event',
-                    artist_name: event.artist_name,
-                    venue_name: event.venue_name,
-                    event_date: event.event_date,
-                    venue_city: event.venue_city || undefined,
-                    image_url: imageUrl,
-                    poster_image_url: event.poster_image_url || undefined,
-                  }}
-                  interestedCount={(event.interested_count || 0) + ((interestedEvents.has(event.id) || event.user_is_interested) ? 1 : 0)}
-                  isInterested={interestedEvents.has(event.id) || event.user_is_interested || false}
-                  isCommunityPhoto={isCommunityPhoto}
-                  onInterestClick={(e) => handleInterestToggle(event.id, e)}
-                  onShareClick={(e) => handleShareClick(event, e)}
-                  onClick={() => onEventClick?.(event.id)}
-                />
+              <CompactEventCard
+                event={{
+                  id: event.id || '',
+                  title: event.title || event.artist_name || 'Event',
+                  artist_name: event.artist_name,
+                  venue_name: event.venue_name,
+                  event_date: event.event_date,
+                  venue_city: event.venue_city || undefined,
+                  image_url: imageUrl,
+                  poster_image_url: event.poster_image_url || undefined,
+                }}
+                interestedCount={(event.interested_count || 0) + ((interestedEvents.has(event.id) || event.user_is_interested) ? 1 : 0)}
+                isInterested={interestedEvents.has(event.id) || event.user_is_interested || false}
+                isCommunityPhoto={isCommunityPhoto}
+                onInterestClick={(e) => handleInterestToggle(event.id, e)}
+                onShareClick={(e) => handleShareClick(event, e)}
+                onClick={() => onEventClick?.(event.id)}
+              />
               </div>
             );
           })}
-          {/* Loading indicator at bottom when loading more */}
           {loadingMore && (
             <div className="flex justify-center py-8">
               <SynthLoader variant="spinner" size="sm" />

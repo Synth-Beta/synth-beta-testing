@@ -48,17 +48,18 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
     <button
       onClick={onClick}
       className={cn(
-        'w-full text-left rounded-2xl overflow-hidden relative group',
+        'w-full text-left overflow-hidden relative group',
         'transition-all duration-300 ease-out',
         className
       )}
       style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        backgroundColor: 'color-mix(in srgb, var(--neutral-0) 85%, transparent)',
         backdropFilter: 'blur(40px) saturate(180%)',
         WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-        border: '1px solid rgba(255, 255, 255, 0.3)',
-        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.1), 0 2px 8px 0 rgba(0, 0, 0, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.6)',
-        padding: '16px',
+        border: '1px solid color-mix(in srgb, var(--neutral-0) 30%, transparent)',
+        boxShadow: '0 4px 4px 0 var(--shadow-color), inset 0 1px 0 0 color-mix(in srgb, var(--neutral-0) 60%, transparent)',
+        padding: 'var(--spacing-small, 12px)',
+        borderRadius: 'var(--radius-corner, 10px)',
         cursor: onClick ? 'pointer' : 'default',
         outline: 'none',
       }}
@@ -90,40 +91,44 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
     >
       {/* Glass overlay gradient */}
       <div
-        className="absolute inset-0 pointer-events-none rounded-2xl"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(236, 72, 153, 0.02) 100%)',
+          borderRadius: 'var(--radius-corner, 10px)',
+          background:
+            'linear-gradient(135deg, color-mix(in srgb, var(--neutral-0) 12%, transparent) 0%, transparent 50%, color-mix(in srgb, var(--brand-pink-050) 20%, transparent) 100%)',
         }}
       />
 
-      <div className="relative z-10 flex flex-col gap-3">
+      <div className="relative z-10 flex flex-col" style={{ gap: 'var(--spacing-small, 12px)' }}>
         {/* Event Title */}
         <h3
           className="font-bold leading-tight line-clamp-2"
           style={{
-            fontSize: '16px',
+            fontSize: 'var(--typography-meta-size, 16px)',
             fontFamily: 'var(--font-family)',
+            fontWeight: 'var(--typography-meta-weight, 500)',
+            lineHeight: 'var(--typography-meta-line-height, 1.5)',
             color: 'var(--neutral-900)',
-            minHeight: '44px',
           }}
         >
           {event.title}
         </h3>
 
         {/* Date and Time */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col" style={{ gap: 'var(--spacing-inline, 6px)' }}>
           {eventDate && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
               <Calendar
                 size={14}
                 className="flex-shrink-0"
                 style={{ color: 'var(--brand-pink-500)' }}
               />
               <span
-                className="font-semibold"
                 style={{
-                  fontSize: '14px',
                   fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
                   color: 'var(--neutral-700)',
                 }}
               >
@@ -132,17 +137,18 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
             </div>
           )}
           {eventDate && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
               <Clock
                 size={14}
                 className="flex-shrink-0"
                 style={{ color: 'var(--brand-pink-500)' }}
               />
               <span
-                className="font-medium"
                 style={{
-                  fontSize: '13px',
                   fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
                   color: 'var(--neutral-600)',
                 }}
               >
@@ -155,19 +161,27 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
 
         {/* Venue and Location */}
         {(event.venue_name || event.venue_city || event.venue_state) && (
-          <div className="flex flex-col gap-1.5 pt-1 border-t border-solid" style={{ borderColor: 'rgba(0, 0, 0, 0.08)' }}>
+          <div
+            className="flex flex-col pt-1 border-t border-solid"
+            style={{
+              gap: 'var(--spacing-inline, 6px)',
+              borderColor: 'var(--neutral-200)',
+            }}
+          >
             {event.venue_name && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
                 <MapPin
                   size={14}
                   className="flex-shrink-0"
                   style={{ color: 'var(--brand-pink-500)' }}
                 />
                 <span
-                  className="font-semibold truncate"
+                  className="truncate"
                   style={{
-                    fontSize: '14px',
                     fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
                     color: 'var(--neutral-700)',
                   }}
                   title={event.venue_name}
@@ -178,10 +192,12 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
             )}
             {(event.venue_city || event.venue_state) && (
               <span
-                className="font-medium pl-6"
                 style={{
-                  fontSize: '12px',
+                  paddingLeft: 'calc(var(--spacing-inline, 6px) * 2)',
                   fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
                   color: 'var(--neutral-600)',
                 }}
               >
@@ -193,18 +209,23 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
 
         {/* Genres */}
         {event.genres && event.genres.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
+          <div className="flex flex-wrap pt-1" style={{ gap: 'var(--spacing-inline, 6px)' }}>
             {event.genres.slice(0, 2).map((genre, index) => (
               <span
                 key={index}
-                className="inline-flex items-center px-2.5 py-1 rounded-lg"
+                className="inline-flex items-center"
                 style={{
-                  backgroundColor: 'rgba(236, 72, 153, 0.1)',
-                  border: '1px solid rgba(236, 72, 153, 0.2)',
+                  height: '25px',
+                  paddingLeft: 'var(--spacing-small, 12px)',
+                  paddingRight: 'var(--spacing-small, 12px)',
+                  borderRadius: '999px',
+                  backgroundColor: 'var(--brand-pink-050)',
+                  border: '2px solid var(--brand-pink-500)',
                   fontFamily: 'var(--font-family)',
-                  fontSize: '11px',
-                  fontWeight: '600',
-                  color: 'var(--brand-pink-600)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  color: 'var(--brand-pink-500)',
                 }}
               >
                 {genre}

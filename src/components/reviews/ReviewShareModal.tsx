@@ -257,28 +257,30 @@ export function ReviewShareModal({
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent 
+      <SheetContent
         side="bottom"
-        className="h-[85vh] max-h-[85vh] rounded-t-[20px] p-0 flex flex-col overflow-hidden"
+        className="h-[85vh] max-h-[85vh] p-0 flex flex-col overflow-hidden"
         style={{
           paddingTop: 0,
+          backgroundColor: 'var(--neutral-50)',
+          borderTopLeftRadius: 'var(--radius-corner, 10px)',
+          borderTopRightRadius: 'var(--radius-corner, 10px)',
         }}
       >
-        {/* Handle bar at top for dragging */}
         <div className="w-full flex justify-center pt-3 pb-2 flex-shrink-0">
-          <div className="w-12 h-1.5 rounded-full bg-gray-300" />
+          <div className="w-12 h-1.5 rounded-full" style={{ backgroundColor: 'var(--neutral-200)' }} />
         </div>
-        
+
         <SheetHeader className="px-4 pb-3 flex-shrink-0">
           <SheetTitle className="text-xl font-bold">Share Review</SheetTitle>
           <SheetDescription>
             Share "{reviewTitle}" with your friends
           </SheetDescription>
         </SheetHeader>
-        
+
         <div className="flex-1 overflow-y-auto px-4 pb-4">
         {/* Review Preview */}
-        <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-3 border border-pink-200">
+        <div className="rounded-lg p-3 border" style={{ background: 'var(--gradient-soft)', borderColor: 'var(--neutral-200)' }}>
           <div className="flex items-center gap-2 mb-2">
             <div className="flex items-center gap-1">
               {[...Array(5)].map((_, i) => (
@@ -444,6 +446,7 @@ export function ReviewShareModal({
           </div>
           </>
         )}
+
         </div>
       </SheetContent>
     </Sheet>

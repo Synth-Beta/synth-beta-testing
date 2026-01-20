@@ -777,7 +777,7 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
           <div className="flex items-center gap-2 text-sm">
               <div
                 style={{
-                  height: '22px',
+                  height: '25px',
                   borderRadius: '999px',
                   paddingLeft: 'var(--spacing-small, 12px)',
                   paddingRight: 'var(--spacing-small, 12px)',
@@ -1056,7 +1056,7 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                                 <div
                                   key={index}
                                   style={{
-                                    height: '22px',
+                                    height: '25px',
                                     borderRadius: '999px',
                                     paddingLeft: 'var(--spacing-small, 12px)',
                                     paddingRight: 'var(--spacing-small, 12px)',
@@ -1126,11 +1126,10 @@ export default function VenueEventsPage({}: VenueEventsPageProps) {
                 </SelectContent>
               </Select>
             </div>
-            {/* Responsive grid: 1 column on mobile, 2 on tablet, 3 on desktop */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
               {upcomingEvents.map((event) => (
                 <SwiftUIEventCard
-                  key={event.id}
+                  key={event.id} 
                   event={{
                     id: event.id || '',
                     title: event.title || 'Event',

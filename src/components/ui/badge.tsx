@@ -33,7 +33,7 @@ function Badge({ className, variant, style, ...props }: BadgeProps) {
       className={cn(badgeVariants({ variant }), className)} 
       style={{
         borderRadius: 'var(--radius-corner, 10px)',
-        height: '22px',
+        height: '25px',
         ...style
       }}
       {...props} 
