@@ -85,7 +85,7 @@ export class ModerationService {
     } catch (error) {
       console.error('Error flagging content:', error);
       if (error instanceof Error) {
-        throw error;
+      throw error;
       }
       throw new Error('Failed to flag content');
     }

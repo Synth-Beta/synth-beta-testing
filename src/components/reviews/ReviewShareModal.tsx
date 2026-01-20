@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -256,15 +256,27 @@ export function ReviewShareModal({
   ];
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Share Review</DialogTitle>
-          <DialogDescription>
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent 
+        side="bottom"
+        className="h-[85vh] max-h-[85vh] rounded-t-[20px] p-0 flex flex-col overflow-hidden"
+        style={{
+          paddingTop: 0,
+        }}
+      >
+        {/* Handle bar at top for dragging */}
+        <div className="w-full flex justify-center pt-3 pb-2 flex-shrink-0">
+          <div className="w-12 h-1.5 rounded-full bg-gray-300" />
+        </div>
+        
+        <SheetHeader className="px-4 pb-3 flex-shrink-0">
+          <SheetTitle className="text-xl font-bold">Share Review</SheetTitle>
+          <SheetDescription>
             Share "{reviewTitle}" with your friends
-          </DialogDescription>
-        </DialogHeader>
-
+          </SheetDescription>
+        </SheetHeader>
+        
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
         {/* Review Preview */}
         <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-3 border border-pink-200">
           <div className="flex items-center gap-2 mb-2">
@@ -339,7 +351,7 @@ export function ReviewShareModal({
               />
             </div>
 
-            <div className="flex-1 flex flex-col overflow-hidden mt-4">
+            <div className="flex flex-col mt-4">
               <div className="flex items-center gap-2 mb-3">
                 <MessageCircle className="w-5 h-5 text-pink-500" />
                 <h3 className="font-semibold text-gray-900">Choose Chats</h3>
@@ -355,7 +367,7 @@ export function ReviewShareModal({
                 />
               </div>
 
-          <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+          <div className="space-y-2 pr-2 max-h-[40vh] overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-pink-500" />
@@ -432,9 +444,9 @@ export function ReviewShareModal({
           </div>
           </>
         )}
-
-      </DialogContent>
-    </Dialog>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

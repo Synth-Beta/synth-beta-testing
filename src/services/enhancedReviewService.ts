@@ -97,7 +97,6 @@ export class EnhancedReviewService {
           .from('engagements')
           .select('entity_id')
           .eq('user_id', userId)
-          .eq('entity_type', 'review')
           .eq('engagement_type', 'like')
           .in('entity_id', reviews?.map((r: any) => r.id) || []);
         

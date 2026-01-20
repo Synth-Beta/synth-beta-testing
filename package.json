@@ -5,7 +5,7 @@
   "description": "Find friends for local events - Never go to shows, concerts, or activities alone again",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "NODE_OPTIONS=--max-old-space-size=4096 vite",
     "dev:full": "concurrently \"npm run dev\" \"npm run backend:dev\"",
     "backend:install": "cd backend && npm install",
     "backend:dev": "cd backend && npm run dev",
