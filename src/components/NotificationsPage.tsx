@@ -21,6 +21,7 @@ import { SynthSLogo } from '@/components/SynthSLogo';
 import { NotificationService } from '@/services/notificationService';
 import type { NotificationWithDetails } from '@/types/notifications';
 import { SkeletonNotificationCard } from '@/components/skeleton/SkeletonNotificationCard';
+import { useViewTracking } from '@/hooks/useViewTracking';
 
 
 interface NotificationsPageProps {
@@ -40,6 +41,9 @@ export const NotificationsPage = ({
   onNavigateToArtist,
   onNavigateToVenue,
 }: NotificationsPageProps) => {
+  // Track notifications view
+  useViewTracking('view', 'notifications', { source: 'notifications' });
+
   const [notifications, setNotifications] = useState<NotificationWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);

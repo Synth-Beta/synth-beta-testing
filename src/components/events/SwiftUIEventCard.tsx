@@ -2,6 +2,8 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { Calendar, MapPin, Clock, Ticket } from 'lucide-react';
 import { format } from 'date-fns';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 
 interface SwiftUIEventCardProps {
   event: {
@@ -44,9 +46,28 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
     return parts.length > 0 ? parts.join(', ') : 'Location TBD';
   };
 
+  const handleClick = () => {
+    if (onClick) {
+      // Track event card click
+      try {
+        const eventUuid = getEventUuid(event);
+        const metadata = getEventMetadata(event);
+        trackInteraction.click(
+          'event',
+          event.id,
+          { ...metadata, source: 'event_card' },
+          eventUuid || undefined
+        );
+      } catch (error) {
+        console.error('Error tracking event card click:', error);
+      }
+      onClick();
+    }
+  };
+
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       className={cn(
         'w-full text-left overflow-hidden relative group',
         'transition-all duration-300 ease-out',

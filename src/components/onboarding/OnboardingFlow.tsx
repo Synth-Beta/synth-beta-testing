@@ -8,6 +8,8 @@ import { OnboardingService, ProfileSetupData } from '@/services/onboardingServic
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useViewTracking } from '@/hooks/useViewTracking';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -25,6 +27,23 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
   const totalSteps = 2;
   const progress = (currentStep / totalSteps) * 100;
+
+  // Track onboarding step views
+  useViewTracking('view', `onboarding_step_${currentStep}`, {
+    step: currentStep === 1 ? 'profile_setup' : 'music_tags',
+    step_number: currentStep,
+    total_steps: totalSteps
+  });
+
+  // Track onboarding completion
+  useEffect(() => {
+    if (currentStep === totalSteps) {
+      trackInteraction.formSubmit('onboarding', 'onboarding_complete', true, {
+        completed: true,
+        total_steps: totalSteps
+      });
+    }
+  }, [currentStep, totalSteps]);
 
   const handleProfileSetup = async (data: ProfileSetupData) => {
     if (!user) return;

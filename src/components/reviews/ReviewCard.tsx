@@ -2,6 +2,8 @@ import { Star, Heart, MessageSquare, Share2, MapPin } from 'lucide-react';
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback';
 import { ReviewWithEngagement } from '@/services/reviewService';
 import { formatDistanceToNow } from 'date-fns';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { useViewTracking } from '@/hooks/useViewTracking';
 
 interface ReviewCardProps {
   review: ReviewWithEngagement;
@@ -46,24 +48,51 @@ export function ReviewCard({
     ? formatDistanceToNow(new Date(review.created_at), { addSuffix: true })
     : 'Recently';
 
+  // Track review view
+  useViewTracking('review', review.id, { rating, source: 'review_card' }, review.id);
+
   const handleLike = () => {
+    // Track like
+    try {
+      trackInteraction.like('review', review.id, !isLiked, { rating }, review.id);
+    } catch (error) {
+      console.error('Error tracking review like:', error);
+    }
     onLike(review.id);
   };
 
   const handleComment = () => {
     if (onComment) {
+      // Track comment click
+      try {
+        trackInteraction.click('review', review.id, { action: 'comment', rating }, review.id);
+      } catch (error) {
+        console.error('Error tracking comment click:', error);
+      }
       onComment(review.id);
     }
   };
 
   const handleShare = () => {
     if (onShare) {
+      // Track share click
+      try {
+        trackInteraction.share('review', review.id, 'native', { rating }, review.id);
+      } catch (error) {
+        console.error('Error tracking share click:', error);
+      }
       onShare(review.id);
     }
   };
 
   const handleCardClick = () => {
     if (onOpenReviewDetail) {
+      // Track review card click
+      try {
+        trackInteraction.click('review', review.id, { rating, source: 'review_card' }, review.id);
+      } catch (error) {
+        console.error('Error tracking review card click:', error);
+      }
       onOpenReviewDetail(review);
     }
   };
@@ -71,6 +100,12 @@ export function ReviewCard({
   const handleArtistClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onOpenArtist && review.artist_id && review.artist_name) {
+      // Track artist click from review
+      try {
+        trackInteraction.click('artist', review.artist_id, { source: 'review_card', review_id: review.id }, review.artist_id);
+      } catch (error) {
+        console.error('Error tracking artist click:', error);
+      }
       onOpenArtist(review.artist_id, review.artist_name);
     }
   };
@@ -78,6 +113,12 @@ export function ReviewCard({
   const handleVenueClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onOpenVenue && review.venue_id && review.venue_name) {
+      // Track venue click from review
+      try {
+        trackInteraction.click('venue', review.venue_id, { source: 'review_card', review_id: review.id }, review.venue_id);
+      } catch (error) {
+        console.error('Error tracking venue click:', error);
+      }
       onOpenVenue(review.venue_id, review.venue_name);
     }
   };

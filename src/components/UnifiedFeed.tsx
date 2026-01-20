@@ -888,7 +888,9 @@ export const UnifiedFeed = ({
     
     // Track interaction
     try {
-      await trackInteraction.like(item.type, item.review_id || item.id, !!currentUserId);
+      // For reviews, use review_id as entityUuid if available
+      const entityUuid = item.type === 'review' ? (item.review_id || item.id) : item.id;
+      await trackInteraction.like(item.type, item.review_id || item.id, !!currentUserId, {}, entityUuid);
     } catch (error) {
       console.error('Error tracking like:', error);
     }
@@ -1326,7 +1328,7 @@ export const UnifiedFeed = ({
             source: 'feed_event_card',
             artist_name: item.event_data.artist_name,
             venue_name: item.event_data.venue_name
-          });
+          }, item.event_data.id); // event.id should be UUID
         } catch (trackError) {
           console.error('Error tracking share:', trackError);
         }

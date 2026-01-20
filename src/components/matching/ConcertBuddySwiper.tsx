@@ -13,6 +13,7 @@ import { Heart, X, Music, MapPin, Calendar, Sparkles, Loader2, MessageCircle } f
 import MatchingService, { PotentialMatch } from '@/services/matchingService';
 import { supabase } from '@/integrations/supabase/client';
 import { PushNotificationService } from '@/services/pushNotificationService';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface ConcertBuddySwiperProps {
   eventId: string;
@@ -72,6 +73,19 @@ export function ConcertBuddySwiper({
         swiped_user_id: currentUser.user_id,
         is_interested: isInterested
       });
+
+      // Track swipe interaction
+      try {
+        trackInteraction.swipe(
+          'user',
+          currentUser.user_id,
+          isInterested ? 'like' : 'pass',
+          { event_id: eventId, event_title: eventTitle },
+          currentUser.user_id
+        );
+      } catch (error) {
+        console.error('Error tracking swipe:', error);
+      }
 
       if (isInterested) {
         // Check if there's already a match using MatchingService

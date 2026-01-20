@@ -5,6 +5,7 @@ import { VenueFollowService } from '@/services/venueFollowService';
 import { VerifiedChatService } from '@/services/verifiedChatService';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface VenueFollowButtonProps {
   venueName: string;

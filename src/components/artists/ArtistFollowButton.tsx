@@ -5,6 +5,7 @@ import { ArtistFollowService } from '@/services/artistFollowService';
 import { VerifiedChatService } from '@/services/verifiedChatService';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface ArtistFollowButtonProps {
   artistId?: string;
@@ -178,6 +179,18 @@ export function ArtistFollowButton({
 
       setIsFollowing(newIsFollowing);
       setFollowerCount(prev => newIsFollowing ? prev + 1 : Math.max(0, prev - 1));
+
+      // Track follow/unfollow interaction
+      try {
+        trackInteraction[newIsFollowing ? 'follow' : 'unfollow'](
+          'artist',
+          resolvedArtistId || artistName || 'unknown',
+          { artist_name: artistName },
+          resolvedArtistId || undefined
+        );
+      } catch (error) {
+        console.error('Error tracking follow/unfollow:', error);
+      }
 
       // If following, automatically join the artist's verified chat
       if (newIsFollowing) {

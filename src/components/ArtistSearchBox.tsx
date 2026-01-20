@@ -131,7 +131,15 @@ export function ArtistSearchBox({
   };
 
   const handleArtistSelect = (artist: Artist) => {
-    try { trackInteraction.click('artist', (artist as any).id || (artist as any).jambase_artist_id || artist.name, { source: 'artist_search_box', name: (artist as any).name }); } catch {}
+    try {
+      const artistUuid = (artist as any).id || null;
+      trackInteraction.click(
+        'artist',
+        artistUuid || (artist as any).jambase_artist_id || artist.name,
+        { source: 'artist_search_box', name: (artist as any).name || artist.name },
+        artistUuid || undefined
+      );
+    } catch {}
     onArtistSelect(artist);
     setQuery(artist.name);
     setIsOpen(false);

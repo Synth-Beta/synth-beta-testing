@@ -33,10 +33,10 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && artistId) {
       loadArtistData();
     }
-  }, [isOpen, artistId, artistName]);
+  }, [isOpen, artistId]); // Removed artistName from dependencies to prevent unnecessary re-renders
 
   const loadArtistData = async () => {
     try {
@@ -99,11 +99,13 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-[#fcfcfc] overflow-y-auto overflow-x-hidden w-full max-w-full"
+      className="fixed inset-0 z-[100] bg-[#fcfcfc] overflow-y-auto overflow-x-hidden w-full max-w-full"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
         paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
@@ -211,6 +213,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                 <h3 className="font-semibold mb-4">Reviews</h3>
                 <ArtistVenueReviews
                   artistName={artistName}
+                  venueName="" // ArtistDetailModal doesn't have venue context
                   artistId={artistId}
                 />
               </div>

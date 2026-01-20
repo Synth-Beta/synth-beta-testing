@@ -483,6 +483,16 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
   };
 
   const createGroupChat = async () => {
+    // Group chats are temporarily disabled
+    toast({
+      title: "Coming Soon",
+      description: "Group chats are still in development and will be available soon.",
+      variant: "default",
+    });
+    return;
+    
+    // Disabled code below - keeping for reference
+    /*
     if (!groupName.trim() || selectedFriends.length === 0) {
       toast({
         title: "Error",
@@ -530,6 +540,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         variant: "destructive",
       });
     }
+    */
   };
 
   const toggleFriendSelection = (friendId: string) => {
@@ -821,13 +832,14 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                 <ArrowLeft className="w-4 h-4 hover-icon" />
                 Back
               </Button>
-              <Button
+              {/* Group chat creation temporarily disabled */}
+              {/* <Button
                 onClick={() => setShowCreateGroup(true)}
                 className="hover-button gradient-button"
               >
                 <Plus className="w-4 h-4 mr-1 hover-icon" />
                 New Group
-              </Button>
+              </Button> */}
             </div>
             
             {/* Search */}

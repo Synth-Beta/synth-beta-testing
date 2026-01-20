@@ -158,11 +158,13 @@ export function useIntersectionTrackingList(
             const timer = setTimeout(() => {
               const item = items.find(i => i.id === itemId);
               if (item) {
+                // Check if itemId is a UUID for entityUuid parameter
+                const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(itemId);
                 trackInteraction.view(entityType, itemId, undefined, {
                   ...item.metadata,
                   viewport_time: Date.now(),
                   tracked_via: 'intersection_observer_list'
-                });
+                }, isUUID ? itemId : undefined);
                 trackedItemsRef.current.add(itemId);
               }
               debounceTimersRef.current.delete(itemId);

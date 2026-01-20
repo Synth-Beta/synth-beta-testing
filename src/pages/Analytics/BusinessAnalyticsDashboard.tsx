@@ -45,8 +45,12 @@ import {
   Loader2,
   TrendingDown
 } from 'lucide-react';
+import { useViewTracking } from '@/hooks/useViewTracking';
 
 export default function BusinessAnalyticsDashboard() {
+  // Track analytics dashboard view
+  useViewTracking('view', 'analytics_business', { dashboard_type: 'business' });
+
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<BusinessStats | null>(null);
@@ -56,6 +60,21 @@ export default function BusinessAnalyticsDashboard() {
   const [artistPerformance, setArtistPerformance] = useState<ArtistPerformance[]>([]);
   const [achievements, setAchievements] = useState<BusinessAchievement[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'revenue' | 'customers' | 'events' | 'achievements' | 'promotions'>('overview');
+  
+  // Track tab switches
+  const handleTabChange = (tab: 'overview' | 'revenue' | 'customers' | 'events' | 'achievements' | 'promotions') => {
+    try {
+      import('@/services/interactionTrackingService').then(({ trackInteraction }) => {
+        trackInteraction.click('view', `analytics_tab_${tab}`, { 
+          tab, 
+          dashboard_type: 'business' 
+        });
+      });
+    } catch (error) {
+      console.error('Error tracking tab switch:', error);
+    }
+    setActiveTab(tab);
+  };
   const [promotionLoading, setPromotionLoading] = useState(false);
 
   // Load promotion data when promotions tab is activated
@@ -364,7 +383,7 @@ export default function BusinessAnalyticsDashboard() {
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => handleTabChange(tab.id as any)}
                   className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'

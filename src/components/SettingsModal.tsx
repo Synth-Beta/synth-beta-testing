@@ -18,6 +18,7 @@ import {
   getCurrentUserSettingsPreferences,
   updateCurrentUserSettingsPreferences 
 } from '@/services/userSettingsPreferencesService';
+import { useViewTracking } from '@/hooks/useViewTracking';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -27,6 +28,9 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: SettingsModalProps) => {
+  // Track settings view when modal opens
+  useViewTracking('view', 'settings', { source: 'settings' }, undefined, { enabled: isOpen });
+
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [view, setView] = useState<'menu' | 'onboarding-preferences' | 'security-actions' | 'verification'>('menu');
   const [isResettingPassword, setIsResettingPassword] = useState(false);

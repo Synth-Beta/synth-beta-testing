@@ -6,6 +6,8 @@ import { Star, Calendar, Heart, Bookmark, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { NetworkEvent } from '@/services/homeFeedService';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 
 interface NetworkEventsSectionProps {
   firstDegreeEvents: NetworkEvent[];
@@ -55,7 +57,22 @@ export const NetworkEventsSection: React.FC<NetworkEventsSectionProps> = ({
         'cursor-pointer hover:shadow-md transition-shadow',
         isSecondDegree && 'opacity-75'
       )}
-      onClick={() => onEventClick?.(event.event_id)}
+      onClick={() => {
+        // Track network event click
+        try {
+          const eventUuid = getEventUuid(event as any);
+          const metadata = getEventMetadata(event as any);
+          trackInteraction.click(
+            'event',
+            event.event_id,
+            { ...metadata, source: 'network_feed', friend_name: event.friend_name },
+            eventUuid || undefined
+          );
+        } catch (error) {
+          console.error('Error tracking network event click:', error);
+        }
+        onEventClick?.(event.event_id);
+      }}
     >
       <CardContent className="p-4">
         <div className="flex items-start gap-3">

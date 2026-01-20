@@ -569,7 +569,15 @@ export function JamBaseEventCard({
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center gap-1"
-                  onClick={() => { try { trackInteraction.click('ticket', event.id, { providerUrl: getCheapestTicketUrl() || event.ticket_urls[0] }); } catch {} }}
+                  onClick={() => { 
+                    try { 
+                      trackInteraction.click('ticket_link', event.id, { 
+                        providerUrl: getCheapestTicketUrl() || event.ticket_urls[0],
+                        artist_name: event.artist_name,
+                        venue_name: event.venue_name
+                      }, event.id); 
+                    } catch {} 
+                  }}
                 >
                   <Ticket className="w-4 h-4" />
                   <span className="hidden sm:inline">Tickets</span>

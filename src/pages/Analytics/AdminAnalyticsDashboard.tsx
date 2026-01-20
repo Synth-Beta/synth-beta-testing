@@ -52,8 +52,12 @@ import {
   UserCheck
 } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Cell } from 'recharts';
+import { useViewTracking } from '@/hooks/useViewTracking';
 
 export default function AdminAnalyticsDashboard() {
+  // Track analytics dashboard view
+  useViewTracking('view', 'analytics_admin', { dashboard_type: 'admin' });
+
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
@@ -75,6 +79,21 @@ export default function AdminAnalyticsDashboard() {
   const [socialGraphMetrics, setSocialGraphMetrics] = useState<SocialGraphMetrics | null>(null);
   const [searchEffectiveness, setSearchEffectiveness] = useState<SearchEffectiveness | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'active-users' | 'content' | 'achievements' | 'moderation'>('overview');
+  
+  // Track tab switches
+  const handleTabChange = (tab: 'overview' | 'users' | 'active-users' | 'content' | 'achievements' | 'moderation') => {
+    try {
+      import('@/services/interactionTrackingService').then(({ trackInteraction }) => {
+        trackInteraction.click('view', `analytics_tab_${tab}`, { 
+          tab, 
+          dashboard_type: 'admin' 
+        });
+      });
+    } catch (error) {
+      console.error('Error tracking tab switch:', error);
+    }
+    setActiveTab(tab);
+  };
 
   // Debug activeTab changes
   useEffect(() => {
@@ -292,7 +311,7 @@ export default function AdminAnalyticsDashboard() {
                   key={tab.id}
                   onClick={() => {
                     console.log('🔍 AdminAnalyticsDashboard: Tab clicked:', tab.id);
-                    setActiveTab(tab.id as any);
+                    handleTabChange(tab.id as any);
                   }}
                   className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab.id

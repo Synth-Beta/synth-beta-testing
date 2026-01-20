@@ -30,6 +30,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { UnifiedEventSearchService, type UnifiedEvent } from '@/services/unifiedEventSearchService';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
+import { useViewTracking } from '@/hooks/useViewTracking';
+import { getArtistUuid, getArtistMetadata } from '@/utils/entityUuidResolver';
 
 interface ArtistEventsPageProps {}
 
@@ -68,6 +70,18 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
   const [upcomingSortBy, setUpcomingSortBy] = useState<'date' | 'location' | 'price'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
+  // Store artist UUID for tracking
+  const [artistUuidForTracking, setArtistUuidForTracking] = useState<string | null>(null);
+
+  // Track artist events page view
+  useEffect(() => {
+    if (artistUuidForTracking && artistName) {
+      import('@/services/interactionTrackingService').then(({ trackInteraction }) => {
+        trackInteraction.view('artist', artistUuidForTracking, undefined, getArtistMetadata({ id: artistUuidForTracking, name: artistName }), artistUuidForTracking);
+      });
+    }
+  }, [artistUuidForTracking, artistName]);
+
   const computeCategoryAverage = (review: {
     rating?: number;
   }) => {
@@ -85,6 +99,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
       if (artistIdOrName && isValidUUID(artistIdOrName)) {
         // It's a UUID, use it directly
         artistUuid = artistIdOrName;
+        setArtistUuidForTracking(artistIdOrName);
         
         // Get artist details
         const { data: artistData } = await supabase
@@ -94,6 +109,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
           .maybeSingle();
         
         if (artistData) {
+          setArtistUuidForTracking(artistData.id);
           artistDataFound = { name: artistData.name, image_url: artistData.image_url };
           setArtistName(artistData.name);
           if (artistData.image_url) {
@@ -136,6 +152,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
         
         if (artistData) {
           artistUuid = artistData.id;
+          setArtistUuidForTracking(artistData.id);
           artistDataFound = { name: artistData.name, image_url: artistData.image_url };
           setArtistName(artistData.name);
           if (artistData.image_url) {
