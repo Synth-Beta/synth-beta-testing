@@ -258,7 +258,8 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
                 <Icon name="calendar" size={16} color="var(--neutral-900)" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-white" align="start">
+            <PopoverContent className="w-auto p-0 swift-ui-card" align="start">
+              <div className="swift-ui-card-content">
               <Calendar
                 mode="range"
                 selected={{
@@ -276,6 +277,7 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
                 }}
                 numberOfMonths={2}
               />
+              </div>
             </PopoverContent>
           </Popover>
 
@@ -291,8 +293,8 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 bg-white" align="start">
-              <div className="space-y-2">
+            <PopoverContent className="w-80 swift-ui-card" align="start">
+              <div className="swift-ui-card-content space-y-2">
                 <div className="font-semibold text-sm mb-2">Select Genres</div>
                 <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
                   {COMMON_GENRES.map((genre) => (
@@ -329,8 +331,8 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 bg-white" align="start">
-              <div className="space-y-2">
+            <PopoverContent className="w-80 swift-ui-card" align="start">
+              <div className="swift-ui-card-content space-y-2">
                 <div className="font-semibold text-sm mb-2">Select Cities</div>
                 {isLoadingCities ? (
                   <div className="text-sm text-muted-foreground">Loading cities...</div>

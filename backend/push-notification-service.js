@@ -33,11 +33,20 @@ class PushNotificationService {
     }
 
     try {
+      const keyId = process.env.APNS_KEY_ID;
+      const teamId = process.env.APNS_TEAM_ID;
+      
+      if (!keyId || !teamId) {
+        console.error('❌ APNS_KEY_ID and APNS_TEAM_ID environment variables are required');
+        this.apnProvider = null;
+        return;
+      }
+      
       const options = {
         token: {
           key: fs.readFileSync(keyPath), // Read .p8 key file
-          keyId: process.env.APNS_KEY_ID, // Key ID: J764D4P5DU
-          teamId: process.env.APNS_TEAM_ID // Team ID: R6JXB945ND
+          keyId: keyId, // Must be set via APNS_KEY_ID environment variable
+          teamId: teamId // Must be set via APNS_TEAM_ID environment variable
         },
         production: process.env.NODE_ENV === 'production' // true for production, false for sandbox
       };
@@ -67,7 +76,7 @@ class PushNotificationService {
     
     apnNotification.badge = notification.badge || 1;
     apnNotification.sound = 'default';
-    apnNotification.topic = 'com.tejpatel.synth'; // Your bundle ID
+    apnNotification.topic = process.env.APNS_BUNDLE_ID || 'com.tejpatel.synth'; // Bundle ID from env or default
     apnNotification.payload = notification.data || {};
     apnNotification.expiry = Math.floor(Date.now() / 1000) + 3600; // 1 hour
     apnNotification.priority = 10;

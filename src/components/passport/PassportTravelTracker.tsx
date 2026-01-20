@@ -309,10 +309,22 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
               zoom={4}
               style={{ height: '100%', width: '100%', zIndex: 0 }}
             >
-              <TileLayer
-                url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY || 'pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w'}`}
-                attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              />
+              {(() => {
+                const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY;
+                // SECURITY NOTE: Never use fallback tokens in production
+                // In development, maps will fail gracefully if token is not configured
+                // This prevents exposing hardcoded tokens that could be extracted from source
+                if (!mapboxToken) {
+                  console.error('❌ Mapbox token not configured. Maps will not render. Set VITE_MAPBOX_TOKEN or VITE_MAPBOX_KEY environment variable.');
+                  return null; // Don't render map without valid token
+                }
+                return (
+                  <TileLayer
+                    url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${mapboxToken}`}
+                    attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  />
+                );
+              })()}
               <MapBoundsFitter reviews={reviews} />
               
               {reviews.map((review) => (

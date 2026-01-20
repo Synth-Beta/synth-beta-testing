@@ -245,6 +245,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     setSelectedLocationName('');
   };
 
+  const handleClearRadius = () => {
+    setFilters({
+      ...filters,
+      radiusMiles: 30,
+    });
+    // Close the location popover if open to provide clear feedback
+    // The popover will re-open if user clicks location again
+  };
+
   const hasActiveLocation = Boolean(filters.latitude && filters.longitude);
 
   // If a vibe is selected, show results view
@@ -263,12 +272,85 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   return (
     <div 
-      className="min-h-screen" 
+      className="page-container" 
       style={{ 
-        backgroundColor: 'var(--neutral-50)',
-        overflow: 'visible' // Ensure content is not clipped
+        overflow: 'visible',
+        backgroundColor: 'var(--brand-pink-050)',
+        position: 'relative',
+        minHeight: '100vh'
       }}
     >
+      {/* Glass backdrop context - blobs and noise */}
+      <div 
+        className="swift-ui-discover-backdrop"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          pointerEvents: 'none',
+          zIndex: 0,
+          overflow: 'hidden'
+        }}
+      >
+        {/* Gradient blobs */}
+        <div 
+          className="swift-ui-discover-blob"
+          style={{
+            position: 'absolute',
+            top: '10%',
+            left: '5%',
+            width: '300px',
+            height: '300px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-pink-500) 20%, transparent) 0%, transparent 70%)',
+            filter: 'blur(80px)',
+            opacity: 0.4,
+            pointerEvents: 'none'
+          }}
+        />
+        <div 
+          className="swift-ui-discover-blob"
+          style={{
+            position: 'absolute',
+            top: '50%',
+            right: '10%',
+            width: '400px',
+            height: '400px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-pink-400) 15%, transparent) 0%, transparent 70%)',
+            filter: 'blur(100px)',
+            opacity: 0.3,
+            pointerEvents: 'none'
+          }}
+        />
+        <div 
+          className="swift-ui-discover-blob"
+          style={{
+            position: 'absolute',
+            bottom: '20%',
+            left: '20%',
+            width: '250px',
+            height: '250px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-pink-300) 18%, transparent) 0%, transparent 70%)',
+            filter: 'blur(60px)',
+            opacity: 0.35,
+            pointerEvents: 'none'
+          }}
+        />
+        {/* Noise overlay */}
+        <div 
+          className="swift-ui-discover-noise"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            opacity: 0.05
+          }}
+        />
+      </div>
       {/* Mobile Header with SearchBar */}
       {!hideHeader && (
       <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
@@ -292,19 +374,20 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       </MobileHeader>
       )}
       <div 
-        className="max-w-7xl mx-auto space-y-2" 
+        className="max-w-7xl mx-auto" 
         style={{ 
           paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
           paddingRight: 'var(--spacing-screen-margin-x, 20px)', 
           paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, 
           paddingBottom: 'var(--spacing-bottom-nav, 112px)',
-          overflow: 'visible', // Ensure content is not clipped
-          minHeight: 'auto' // Allow content to determine height
+          overflow: 'visible',
+          minHeight: 'auto',
+          position: 'relative',
+          zIndex: 1
         }}
       >
-
-        {/* Browse Vibes and Location Filter - Always Visible (Above Search Results) */}
-        <div className="mb-2 flex items-center gap-2 flex-wrap">
+        {/* Browse Vibes and Location Filter */}
+        <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 'var(--spacing-small, 12px)' }}>
           {/* Browse Vibes Button */}
           <Button
             onClick={() => setVibeModalOpen(true)}
@@ -337,8 +420,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 <span style={{ color: 'var(--neutral-900)' }}>Location</span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80" style={{ backgroundColor: 'var(--neutral-50)' }} align="start">
-              <div className="space-y-4">
+            <PopoverContent className="w-80 swift-ui-card" align="start">
+              <div className="swift-ui-card-content space-y-4">
                 <div className="font-semibold text-sm">Set Location</div>
                 
                 {/* Current Location Button */}
@@ -418,19 +501,20 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             </div>
             </PopoverContent>
           </Popover>
-            </div>
+        </div>
 
-        {/* Location Indicator Badge */}
-        {hasActiveLocation && (
-          <div className="mb-2">
+        {/* Location Indicator Badges */}
+        <div className="flex flex-wrap gap-2" style={{ marginBottom: '24px' }}>
+          {/* Location Pill - Only show when location is active */}
+          {hasActiveLocation && (
             <div
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                height: '22px',
+                height: '25px',
                 paddingLeft: 'var(--spacing-small, 12px)',
                 paddingRight: 'var(--spacing-small, 12px)',
-                borderRadius: 'var(--radius-corner, 10px)',
+                borderRadius: '999px',
                 backgroundColor: 'var(--brand-pink-050)',
                 border: '2px solid var(--brand-pink-500)',
                 fontFamily: 'var(--font-family)',
@@ -438,12 +522,28 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 fontWeight: 'var(--typography-meta-weight, 500)',
                 lineHeight: 'var(--typography-meta-line-height, 1.5)',
                 color: 'var(--brand-pink-500)',
-                boxShadow: '0 4px 4px 0 var(--shadow-color)',
-                gap: 'var(--spacing-inline, 6px)'
+                gap: 'var(--spacing-inline, 6px)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                width: 'fit-content',
+                maxWidth: '100%'
               }}
             >
-              <Icon name="location" size={16} color="var(--neutral-900)" />
-              <span>{selectedLocationName || 'Location'} ({filters.radiusMiles || 30} mi radius)</span>
+              <Icon name="location" size={19} color="var(--brand-pink-500)" />
+              <span style={{ 
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--brand-pink-500)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                minWidth: 0,
+                flexShrink: 1
+              }}>
+                {selectedLocationName || 'Location'}
+              </span>
               <button
                 onClick={handleClearLocation}
                 style={{
@@ -453,15 +553,66 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
+                  flexShrink: 0,
                   marginLeft: 'var(--spacing-inline, 6px)'
                 }}
-                className="ml-2 hover:text-destructive"
-                >
-                  <Icon name="x" size={16} color="var(--neutral-900)" />
-                </button>
+                className="hover:text-destructive"
+                aria-label="Clear location"
+              >
+                <Icon name="x" size={19} color="var(--brand-pink-500)" />
+              </button>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Radius Pill - Show only when a custom radius is set (different from default 30) */}
+          {(filters.radiusMiles && filters.radiusMiles !== 30) && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                height: '25px',
+                paddingLeft: 'var(--spacing-small, 12px)',
+                paddingRight: 'var(--spacing-small, 12px)',
+                borderRadius: '999px',
+                backgroundColor: 'var(--brand-pink-050)',
+                border: '2px solid var(--brand-pink-500)',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--brand-pink-500)',
+                gap: 'var(--spacing-inline, 6px)',
+                whiteSpace: 'nowrap',
+                width: 'fit-content'
+              }}
+            >
+              <span style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--brand-pink-500)'
+              }}>{filters.radiusMiles || 30} mi radius</span>
+              <button
+                onClick={handleClearRadius}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexShrink: 0,
+                  marginLeft: 'var(--spacing-inline, 6px)'
+                }}
+                className="hover:text-destructive"
+                aria-label="Clear radius"
+              >
+                <Icon name="x" size={19} color="var(--brand-pink-500)" />
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Search Results - Below Filters when searching */}
         {isSearchActive && (
@@ -488,22 +639,26 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       {!isSearchActive && (
           <>
             {/* Section 1: Because You Like ___ */}
+            <div style={{ marginBottom: '32px' }}>
             <BecauseYouLikeSection
             currentUserId={currentUserId}
             onNavigateToProfile={onNavigateToProfile}
             onNavigateToChat={onNavigateToChat}
           />
+            </div>
 
             {/* Section 2: Map/Calendar/Tour Section */}
+            <div style={{ marginBottom: '32px' }}>
             <MapCalendarTourSection
             currentUserId={currentUserId}
               filters={filters}
             onNavigateToProfile={onNavigateToProfile}
             onNavigateToChat={onNavigateToChat}
           />
+            </div>
 
             {/* Section 3: Scenes & Signals */}
-            <div className="mt-8">
+            <div>
           <ScenesSection
             currentUserId={currentUserId}
             onNavigateToProfile={onNavigateToProfile}

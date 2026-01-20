@@ -159,14 +159,30 @@ export class PushTokenService {
       });
 
       // Also listen for native iOS token (fallback method)
-      window.addEventListener('DeviceTokenReceived', async (event: any) => {
-        const token = event.detail?.token || (event as CustomEvent).detail?.token;
+      // Note: NotificationCenter events from native iOS don't use CustomEvent.detail
+      // They need to be accessed via window events or Capacitor bridge
+      const handleDeviceTokenReceived = async (event: any) => {
+        // Try multiple ways to get the token (handles both CustomEvent and NotificationCenter posts)
+        const token = event.detail?.token || 
+                     (event as CustomEvent)?.detail?.token ||
+                     event.token ||
+                     (event as any).userInfo?.token;
+        
         if (token) {
           console.log('📱 Device token received via native event:', token);
           this.storeToken(token);
           await this.registerToken(token, 'ios');
         }
-      });
+      };
+      
+      window.addEventListener('DeviceTokenReceived', handleDeviceTokenReceived);
+      
+      // Also listen via Capacitor App plugin events if available
+      if ((window as any).Capacitor?.Plugins?.App) {
+        (window as any).Capacitor.Plugins.App.addListener('appStateChange', (state: any) => {
+          // Device token might be available in app state
+        });
+      }
 
       // Listen for notification taps from native
       window.addEventListener('PushNotificationTapped', async (event: any) => {

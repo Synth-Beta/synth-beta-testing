@@ -13,7 +13,6 @@ import { EventListsCarousel } from './EventListsCarousel';
 import { CompactEventCard } from './CompactEventCard';
 import { FigmaEventCard } from '@/components/cards/FigmaEventCard';
 import { NetworkReviewCard } from './NetworkReviewCard';
-import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
 import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
 import { UnifiedEventsFeed } from './UnifiedEventsFeed';
@@ -86,7 +85,7 @@ interface HomeFeedProps {
   menuOpen?: boolean;
   onMenuClick?: () => void;
   hideHeader?: boolean;
-  refreshTrigger?: number; // Trigger to refresh reviews when incremented
+  refreshTrigger?: number;
 }
 
 export const HomeFeed: React.FC<HomeFeedProps> = ({
@@ -121,6 +120,27 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 
   // Refs for filter management
   const locationAutoAppliedRef = useRef(false);
+  
+  // Refs to store latest function references to avoid stale closures
+  // Note: Will be initialized with actual callbacks immediately after they're created
+  const loadTrendingEventsRef = useRef<((reset: boolean) => Promise<void>) | null>(null);
+  const loadNetworkEventsRef = useRef<((reset: boolean) => Promise<void>) | null>(null);
+  
+  // Refs to store current page numbers for synchronous access in callbacks
+  const trendingPageRef = useRef(0);
+  const friendsPageRef = useRef(0);
+  
+  // Refs to store current filter values for synchronous access in callbacks (avoid stale closures)
+  const filtersRef = useRef<FilterState>(filters);
+  const cityCoordinatesRef = useRef<{ lat: number; lng: number } | null>(cityCoordinates);
+  const activeCityRef = useRef<string | null>(activeCity);
+  
+  // Refs to store loading/hasMore states for synchronous access in event handlers (avoid stale closures)
+  // Initialized with default values, will be synced with state via useEffect
+  const trendingHasMoreRef = useRef(false);
+  const loadingTrendingRef = useRef(true);
+  const friendsHasMoreRef = useRef(false);
+  const loadingNetworkRef = useRef(true);
 
   // Available genres and cities for filters
   const [availableGenres] = useState<string[]>([
@@ -143,6 +163,15 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [friendsPage, setFriendsPage] = useState(0);
   const [trendingHasMore, setTrendingHasMore] = useState(true);
   const [friendsHasMore, setFriendsHasMore] = useState(true);
+  
+  // Keep refs in sync with state for synchronous access in callbacks
+  useEffect(() => {
+    trendingPageRef.current = trendingPage;
+  }, [trendingPage]);
+  
+  useEffect(() => {
+    friendsPageRef.current = friendsPage;
+  }, [friendsPage]);
   const [recommendedFriends, setRecommendedFriends] = useState<Array<{
     connected_user_id: string;
   name: string;
@@ -309,7 +338,8 @@ interface FriendEventInterest {
     loadCities();
   }, []);
 
-  // Load feed data when feed type changes
+  // Load feed data when feed type changes or user changes
+  // Include currentUserId to ensure data is reloaded when user changes (security/data-leakage prevention)
   useEffect(() => {
     console.log('🔄 [HOME FEED] Feed type changed:', selectedFeedType);
     if (selectedFeedType === 'trending') {
@@ -323,14 +353,17 @@ interface FriendEventInterest {
     } else if (selectedFeedType === 'reviews') {
       loadReviews();
       loadRecommendedFriends();
+    } else if (selectedFeedType === 'recommended') {
+      // PreferencesV4FeedSection handles its own data loading via useEffect on mount/filter changes
+      // No explicit load call needed here as the component initializes automatically
+      console.log('✅ [HOME FEED] Recommended feed selected - PreferencesV4FeedSection will handle loading');
     }
-  }, [selectedFeedType]);
+  }, [selectedFeedType, currentUserId]); // Add currentUserId to prevent data leakage when user changes
 
-  // Refresh reviews when refreshTrigger changes (triggered when review is submitted)
+  // Refresh reviews when refreshTrigger changes
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
       console.log('🔄 [HOME FEED] Refresh trigger changed, refetching reviews...');
-      // Only reload if reviews tab is active
       if (selectedFeedType === 'reviews') {
         loadReviews();
       }
@@ -352,6 +385,200 @@ interface FriendEventInterest {
     }
     // Friends feed does NOT reload on filter changes - it shows all events
   }, [filters.genres, filters.selectedCities, filters.dateRange]);
+
+  // Infinite scroll and pull-to-refresh handlers for trending feed
+  useEffect(() => {
+    if (selectedFeedType !== 'trending') return;
+    const feedElement = trendingFeedRef.current;
+    if (!feedElement) return;
+    // Ensure ref is assigned before attaching listeners (callback should be created and ref set by now)
+    if (!loadTrendingEventsRef.current) return;
+
+    let touchStartY = 0;
+    const pullToRefreshThreshold = 80;
+    let isPullingToRefresh = false;
+    let pullDistance = 0;
+
+    const handleScroll = () => {
+      const scrollHeight = feedElement.scrollHeight;
+      const clientHeight = feedElement.clientHeight;
+      const scrollTop = feedElement.scrollTop;
+
+      // Use refs to get current state values (avoid stale closures)
+      if (scrollHeight - scrollTop - clientHeight < 200 && trendingHasMoreRef.current && !loadingTrendingRef.current) {
+        // Update ref BEFORE setState to ensure it's synchronized before load function accesses it
+        // This prevents race conditions where ref and state are temporarily out of sync
+        const nextPage = trendingPageRef.current + 1;
+        trendingPageRef.current = nextPage;
+        setTrendingPage(nextPage);
+        // Use ref to get latest function reference (checked for null to prevent errors)
+        if (loadTrendingEventsRef.current) {
+          loadTrendingEventsRef.current(false);
+        }
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0].clientY;
+      pullDistance = 0;
+      isPullingToRefresh = false;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touchY = e.touches[0].clientY;
+      const deltaY = touchY - touchStartY;
+
+      if (feedElement.scrollTop === 0 && deltaY > 0) {
+        e.preventDefault();
+        pullDistance = deltaY;
+        isPullingToRefresh = true;
+
+        if (pullDistance > pullToRefreshThreshold) {
+          feedElement.style.transform = `translateY(${Math.min(pullDistance, 120)}px)`;
+        } else {
+          feedElement.style.transform = `translateY(${pullDistance}px)`;
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (isPullingToRefresh && pullDistance > pullToRefreshThreshold) {
+        feedElement.style.transform = '';
+        feedElement.style.transition = 'transform 0.3s ease';
+        setTrendingPage(prevPage => {
+          trendingPageRef.current = 0;
+          return 0;
+        });
+        // Use ref to get latest function reference (checked for null to prevent errors)
+        if (loadTrendingEventsRef.current) {
+          loadTrendingEventsRef.current(true);
+        }
+      } else if (isPullingToRefresh) {
+        feedElement.style.transform = '';
+        feedElement.style.transition = 'transform 0.3s ease';
+      }
+
+      isPullingToRefresh = false;
+      pullDistance = 0;
+    };
+
+    // Store options objects to reuse for cleanup (browser requires matching options)
+    const scrollOptions = { passive: true } as AddEventListenerOptions;
+    const touchendOptions = { passive: false } as AddEventListenerOptions;
+    const touchstartOptions = { passive: true } as AddEventListenerOptions;
+    const touchmoveOptions = { passive: false } as AddEventListenerOptions;
+
+    feedElement.addEventListener('scroll', handleScroll, scrollOptions);
+    feedElement.addEventListener('touchend', handleTouchEnd, touchendOptions);
+    feedElement.addEventListener('touchstart', handleTouchStart, touchstartOptions);
+    feedElement.addEventListener('touchmove', handleTouchMove, touchmoveOptions);
+
+    return () => {
+      // Remove listeners with the same options to ensure proper cleanup
+      feedElement.removeEventListener('scroll', handleScroll, scrollOptions);
+      feedElement.removeEventListener('touchend', handleTouchEnd, touchendOptions);
+      feedElement.removeEventListener('touchstart', handleTouchStart, touchstartOptions);
+      feedElement.removeEventListener('touchmove', handleTouchMove, touchmoveOptions);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFeedType, trendingEvents.length]);
+
+  // Infinite scroll and pull-to-refresh handlers for friends feed
+  useEffect(() => {
+    if (selectedFeedType !== 'friends') return;
+    const feedElement = friendsFeedRef.current;
+    if (!feedElement) return;
+    // Ensure ref is assigned before attaching listeners (callback should be created and ref set by now)
+    if (!loadNetworkEventsRef.current) return;
+
+    let touchStartY = 0;
+    const pullToRefreshThreshold = 80;
+    let isPullingToRefresh = false;
+    let pullDistance = 0;
+
+    const handleScroll = () => {
+      const scrollHeight = feedElement.scrollHeight;
+      const clientHeight = feedElement.clientHeight;
+      const scrollTop = feedElement.scrollTop;
+
+      // Use refs to get current state values (avoid stale closures)
+      if (scrollHeight - scrollTop - clientHeight < 200 && friendsHasMoreRef.current && !loadingNetworkRef.current) {
+        // Update ref BEFORE setState to ensure it's synchronized before load function accesses it
+        // This prevents race conditions where ref and state are temporarily out of sync
+        const nextPage = friendsPageRef.current + 1;
+        friendsPageRef.current = nextPage;
+        setFriendsPage(nextPage);
+        // Use ref to get latest function reference (checked for null to prevent errors)
+        if (loadNetworkEventsRef.current) {
+          loadNetworkEventsRef.current(false);
+        }
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0].clientY;
+      pullDistance = 0;
+      isPullingToRefresh = false;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touchY = e.touches[0].clientY;
+      const deltaY = touchY - touchStartY;
+
+      if (feedElement.scrollTop === 0 && deltaY > 0) {
+        e.preventDefault();
+        pullDistance = deltaY;
+        isPullingToRefresh = true;
+
+        if (pullDistance > pullToRefreshThreshold) {
+          feedElement.style.transform = `translateY(${Math.min(pullDistance, 120)}px)`;
+        } else {
+          feedElement.style.transform = `translateY(${pullDistance}px)`;
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (isPullingToRefresh && pullDistance > pullToRefreshThreshold) {
+        feedElement.style.transform = '';
+        feedElement.style.transition = 'transform 0.3s ease';
+        setFriendsPage(prevPage => {
+          friendsPageRef.current = 0;
+          return 0;
+        });
+        // Use ref to get latest function reference (checked for null to prevent errors)
+        if (loadNetworkEventsRef.current) {
+          loadNetworkEventsRef.current(true);
+        }
+      } else if (isPullingToRefresh) {
+        feedElement.style.transform = '';
+        feedElement.style.transition = 'transform 0.3s ease';
+      }
+
+      isPullingToRefresh = false;
+      pullDistance = 0;
+    };
+
+    // Store options objects to reuse for cleanup (browser requires matching options)
+    const scrollOptions = { passive: true } as AddEventListenerOptions;
+    const touchendOptions = { passive: false } as AddEventListenerOptions;
+    const touchstartOptions = { passive: true } as AddEventListenerOptions;
+    const touchmoveOptions = { passive: false } as AddEventListenerOptions;
+
+    feedElement.addEventListener('scroll', handleScroll, scrollOptions);
+    feedElement.addEventListener('touchend', handleTouchEnd, touchendOptions);
+    feedElement.addEventListener('touchstart', handleTouchStart, touchstartOptions);
+    feedElement.addEventListener('touchmove', handleTouchMove, touchmoveOptions);
+
+    return () => {
+      // Remove listeners with the same options to ensure proper cleanup
+      feedElement.removeEventListener('scroll', handleScroll, scrollOptions);
+      feedElement.removeEventListener('touchend', handleTouchEnd, touchendOptions);
+      feedElement.removeEventListener('touchstart', handleTouchStart, touchstartOptions);
+      feedElement.removeEventListener('touchmove', handleTouchMove, touchmoveOptions);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFeedType]);
 
   // Load user location for feed filtering - ALWAYS use lat/long + radius, NEVER city names
   const loadFeedLocation = async () => {
@@ -578,16 +805,20 @@ interface FriendEventInterest {
     }
   };
 
-  const loadNetworkEvents = async (reset: boolean = false) => {
+  const loadNetworkEvents = useCallback(async (reset: boolean = false) => {
     if (reset) {
+      friendsPageRef.current = 0; // Update ref BEFORE setState (React best practice)
       setFriendsPage(0);
-    setLoadingNetwork(true);
     }
+    // Set loading state for both reset and pagination to prevent race conditions
+    setLoadingNetwork(true);
     try {
       const pageSize = 18;
+      // Access friendsPage from ref to get current value synchronously (avoid stale closure)
+      const currentPage = reset ? 0 : friendsPageRef.current;
       const [firstDegree, secondDegree] = await Promise.all([
-        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, (friendsPage + 1) * 10),
-        HomeFeedService.getSecondDegreeNetworkEvents(currentUserId, (friendsPage + 1) * 8),
+        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, (currentPage + 1) * 10),
+        HomeFeedService.getSecondDegreeNetworkEvents(currentUserId, (currentPage + 1) * 8),
       ]);
       
       // NO FILTERS - show all events that any friend is going to
@@ -596,12 +827,12 @@ interface FriendEventInterest {
         setFirstDegreeEvents(firstDegree.slice(0, 10));
         setSecondDegreeEvents(secondDegree.slice(0, 8));
       } else {
-        setFirstDegreeEvents(prev => [...prev, ...firstDegree.slice(friendsPage * 10, (friendsPage + 1) * 10)]);
-        setSecondDegreeEvents(prev => [...prev, ...secondDegree.slice(friendsPage * 8, (friendsPage + 1) * 8)]);
+        setFirstDegreeEvents(prev => [...prev, ...firstDegree.slice(currentPage * 10, (currentPage + 1) * 10)]);
+        setSecondDegreeEvents(prev => [...prev, ...secondDegree.slice(currentPage * 8, (currentPage + 1) * 8)]);
       }
       
       const totalEvents = firstDegree.length + secondDegree.length;
-      setFriendsHasMore(totalEvents > (friendsPage + 1) * pageSize);
+      setFriendsHasMore(totalEvents > (currentPage + 1) * pageSize);
     } catch (error) {
       console.error('Error loading network events:', error);
       if (reset) {
@@ -611,164 +842,58 @@ interface FriendEventInterest {
     } finally {
       setLoadingNetwork(false);
     }
-  };
+  }, [currentUserId]); // Only depend on stable userId, access other values via refs
+  
+  // Keep filter/state refs in sync with current state values
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
+  
+  useEffect(() => {
+    cityCoordinatesRef.current = cityCoordinates;
+  }, [cityCoordinates]);
+  
+  useEffect(() => {
+    activeCityRef.current = activeCity;
+  }, [activeCity]);
+  
+  // Keep loading/hasMore refs in sync with state
+  useEffect(() => {
+    trendingHasMoreRef.current = trendingHasMore;
+  }, [trendingHasMore]);
+  
+  useEffect(() => {
+    loadingTrendingRef.current = loadingTrending;
+  }, [loadingTrending]);
+  
+  useEffect(() => {
+    friendsHasMoreRef.current = friendsHasMore;
+  }, [friendsHasMore]);
+  
+  useEffect(() => {
+    loadingNetworkRef.current = loadingNetwork;
+  }, [loadingNetwork]);
+  
+  // Keep ref in sync when callback changes
+  // Only assign in useEffect to avoid race conditions - event listeners are attached in a separate useEffect
+  // that depends on selectedFeedType, which ensures proper ordering
+  useEffect(() => {
+    loadNetworkEventsRef.current = loadNetworkEvents;
+  }, [loadNetworkEvents]);
 
   const loadMoreFriends = () => {
     if (!loadingNetwork && friendsHasMore) {
-      setFriendsPage(prev => prev + 1);
-      loadNetworkEvents(false);
+      // Calculate next page and update state, then sync ref in setState callback to maintain consistency
+      setFriendsPage(prevPage => {
+        friendsPageRef.current = prevPage + 1;
+        return prevPage + 1;
+      });
+      // Use ref to get latest function reference (checked for null to prevent errors)
+      if (loadNetworkEventsRef.current) {
+        loadNetworkEventsRef.current(false);
+      }
     }
   };
-
-  // Infinite scroll and pull-to-refresh handlers for trending feed
-  useEffect(() => {
-    if (selectedFeedType !== 'trending') return;
-    const feedElement = trendingFeedRef.current;
-    if (!feedElement) return;
-
-    let touchStartY = 0;
-    let pullToRefreshThreshold = 80;
-    let isPullingToRefresh = false;
-    let pullDistance = 0;
-
-    const handleScroll = () => {
-      const scrollHeight = feedElement.scrollHeight;
-      const clientHeight = feedElement.clientHeight;
-      const scrollTop = feedElement.scrollTop;
-      
-      // Infinite scroll - auto-load more when near bottom
-      if (scrollHeight - scrollTop - clientHeight < 200 && trendingHasMore && !loadingTrending) {
-        setTrendingPage(prev => prev + 1);
-        loadTrendingEvents(false);
-      }
-    };
-
-    const handleTouchStart = (e: TouchEvent) => {
-      touchStartY = e.touches[0].clientY;
-      pullDistance = 0;
-      isPullingToRefresh = false;
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      const touchY = e.touches[0].clientY;
-      const deltaY = touchY - touchStartY;
-      
-      // Pull-to-refresh: only when at top and pulling down
-      if (feedElement.scrollTop === 0 && deltaY > 0) {
-        e.preventDefault();
-        pullDistance = deltaY;
-        isPullingToRefresh = true;
-        
-        if (pullDistance > pullToRefreshThreshold) {
-          feedElement.style.transform = `translateY(${Math.min(pullDistance, 120)}px)`;
-        } else {
-          feedElement.style.transform = `translateY(${pullDistance}px)`;
-        }
-      }
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (isPullingToRefresh && pullDistance > pullToRefreshThreshold) {
-        feedElement.style.transform = '';
-        feedElement.style.transition = 'transform 0.3s ease';
-        setTrendingPage(0);
-        loadTrendingEvents(true);
-      } else if (isPullingToRefresh) {
-        feedElement.style.transform = '';
-        feedElement.style.transition = 'transform 0.3s ease';
-      }
-      
-      isPullingToRefresh = false;
-      pullDistance = 0;
-    };
-
-    feedElement.addEventListener('scroll', handleScroll, { passive: true });
-    feedElement.addEventListener('touchend', handleTouchEnd, { passive: false });
-    feedElement.addEventListener('touchstart', handleTouchStart, { passive: true });
-    feedElement.addEventListener('touchmove', handleTouchMove, { passive: false });
-
-    return () => {
-      feedElement.removeEventListener('scroll', handleScroll);
-      feedElement.removeEventListener('touchend', handleTouchEnd);
-      feedElement.removeEventListener('touchstart', handleTouchStart);
-      feedElement.removeEventListener('touchmove', handleTouchMove);
-    };
-  }, [selectedFeedType, trendingHasMore, loadingTrending, trendingEvents.length]);
-
-  // Infinite scroll and pull-to-refresh handlers for friends feed
-  useEffect(() => {
-    if (selectedFeedType !== 'friends') return;
-    const feedElement = friendsFeedRef.current;
-    if (!feedElement) return;
-
-    let touchStartY = 0;
-    let pullToRefreshThreshold = 80;
-    let isPullingToRefresh = false;
-    let pullDistance = 0;
-
-    const handleScroll = () => {
-      const scrollHeight = feedElement.scrollHeight;
-      const clientHeight = feedElement.clientHeight;
-      const scrollTop = feedElement.scrollTop;
-      
-      // Infinite scroll - auto-load more when near bottom
-      if (scrollHeight - scrollTop - clientHeight < 200 && friendsHasMore && !loadingNetwork) {
-        setFriendsPage(prev => prev + 1);
-        loadNetworkEvents(false);
-      }
-    };
-
-    const handleTouchStart = (e: TouchEvent) => {
-      touchStartY = e.touches[0].clientY;
-      pullDistance = 0;
-      isPullingToRefresh = false;
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      const touchY = e.touches[0].clientY;
-      const deltaY = touchY - touchStartY;
-      
-      // Pull-to-refresh: only when at top and pulling down
-      if (feedElement.scrollTop === 0 && deltaY > 0) {
-        e.preventDefault();
-        pullDistance = deltaY;
-        isPullingToRefresh = true;
-        
-        if (pullDistance > pullToRefreshThreshold) {
-          feedElement.style.transform = `translateY(${Math.min(pullDistance, 120)}px)`;
-        } else {
-          feedElement.style.transform = `translateY(${pullDistance}px)`;
-        }
-      }
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (isPullingToRefresh && pullDistance > pullToRefreshThreshold) {
-        feedElement.style.transform = '';
-        feedElement.style.transition = 'transform 0.3s ease';
-        setFriendsPage(0);
-        loadNetworkEvents(true);
-      } else if (isPullingToRefresh) {
-        feedElement.style.transform = '';
-        feedElement.style.transition = 'transform 0.3s ease';
-      }
-      
-      isPullingToRefresh = false;
-      pullDistance = 0;
-    };
-
-    feedElement.addEventListener('scroll', handleScroll, { passive: true });
-    feedElement.addEventListener('touchend', handleTouchEnd, { passive: false });
-    feedElement.addEventListener('touchstart', handleTouchStart, { passive: true });
-    feedElement.addEventListener('touchmove', handleTouchMove, { passive: false });
-
-    return () => {
-      feedElement.removeEventListener('scroll', handleScroll);
-      feedElement.removeEventListener('touchend', handleTouchEnd);
-      feedElement.removeEventListener('touchstart', handleTouchStart);
-      feedElement.removeEventListener('touchmove', handleTouchMove);
-    };
-  }, [selectedFeedType, friendsHasMore, loadingNetwork, firstDegreeEvents.length, secondDegreeEvents.length]);
 
   const loadReviews = async () => {
     setLoadingReviews(true);
@@ -798,31 +923,32 @@ interface FriendEventInterest {
 
   // Helper function to apply filters to events
   const applyFiltersToEvents = <T extends { event_date?: string; venue_city?: string; genres?: string[] | null }>(
-    events: T[]
+    events: T[],
+    filterState: FilterState = filters
   ): T[] => {
     console.log('🔍 [FILTER] applyFiltersToEvents called:', { 
       eventCount: events.length, 
       filters: {
-        selectedCities: filters.selectedCities,
-        dateRange: filters.dateRange,
-        genres: filters.genres
+        selectedCities: filterState.selectedCities,
+        dateRange: filterState.dateRange,
+        genres: filterState.genres
       }
     });
     
     const filtered = events.filter((event, index) => {
       // Date filter
-      if (filters.dateRange.from || filters.dateRange.to) {
+      if (filterState.dateRange.from || filterState.dateRange.to) {
         if (!event.event_date) {
           console.log(`🔍 [FILTER] Event ${index} filtered out: no event_date`);
           return false;
         }
         const eventDate = new Date(event.event_date);
-        if (filters.dateRange.from && eventDate < filters.dateRange.from) {
+        if (filterState.dateRange.from && eventDate < filterState.dateRange.from) {
           console.log(`🔍 [FILTER] Event ${index} filtered out: before date range`, eventDate);
           return false;
         }
-        if (filters.dateRange.to) {
-          const toDate = new Date(filters.dateRange.to);
+        if (filterState.dateRange.to) {
+          const toDate = new Date(filterState.dateRange.to);
           toDate.setHours(23, 59, 59, 999);
           if (eventDate > toDate) {
             console.log(`🔍 [FILTER] Event ${index} filtered out: after date range`, eventDate);
@@ -834,17 +960,17 @@ interface FriendEventInterest {
       // City filter removed - location filtering is done by coordinates in the service layer
 
       // Genre filter (skip if genres not available on event)
-      if (filters.genres && filters.genres.length > 0) {
+      if (filterState.genres && filterState.genres.length > 0) {
         const eventGenres = (event.genres || []).map((g: string) => g.toLowerCase());
         if (eventGenres.length === 0) {
           console.log(`🔍 [FILTER] Event ${index} filtered out: no genres`);
           return false; // No genres on event, skip if genre filter active
         }
-        const matches = filters.genres.some(genre => 
+        const matches = filterState.genres.some(genre => 
           eventGenres.some((eg: string) => eg.includes(genre.toLowerCase()) || genre.toLowerCase().includes(eg))
         );
         if (!matches) {
-          console.log(`🔍 [FILTER] Event ${index} filtered out: genre mismatch`, { eventGenres, filterGenres: filters.genres });
+          console.log(`🔍 [FILTER] Event ${index} filtered out: genre mismatch`, { eventGenres, filterGenres: filterState.genres });
           return false;
         }
       }
@@ -860,37 +986,47 @@ interface FriendEventInterest {
     return filtered;
   };
 
-  const loadTrendingEvents = async (reset: boolean = false) => {
-    console.log('🔥 [TRENDING] loadTrendingEvents called', { reset, trendingPage, cityCoordinates });
+  const loadTrendingEvents = useCallback(async (reset: boolean = false) => {
+    // Access current state values via refs to avoid stale closures
+    // This allows the callback to be stable while still using current values
+    const currentPage = reset ? 0 : trendingPageRef.current;
+    const currentCityCoordinates = cityCoordinatesRef.current;
+    const currentActiveCity = activeCityRef.current;
+    const currentFilters = filtersRef.current;
+    
+    console.log('🔥 [TRENDING] loadTrendingEvents called', { reset, currentPage, currentCityCoordinates });
     
     if (reset) {
+      // Update state first, then sync ref in setState callback to maintain consistency
       setTrendingPage(0);
-      setLoadingTrending(true);
+      trendingPageRef.current = 0;
     }
+    // Set loading state for both reset and pagination to prevent race conditions
+    setLoadingTrending(true);
     try {
       const pageSize = 12;
       console.log('🔥 [TRENDING] Calling getTrendingEvents with params:', {
         userId: currentUserId,
-        cityLat: cityCoordinates?.lat,
-        cityLng: cityCoordinates?.lng,
+        cityLat: currentCityCoordinates?.lat,
+        cityLng: currentCityCoordinates?.lng,
         radiusMiles: 50,
-        limit: (trendingPage + 1) * pageSize,
-        activeCity,
+        limit: (currentPage + 1) * pageSize,
+        activeCity: currentActiveCity,
       });
       
       const events = await HomeFeedService.getTrendingEvents(
         currentUserId,
-        cityCoordinates?.lat,
-        cityCoordinates?.lng,
+        currentCityCoordinates?.lat,
+        currentCityCoordinates?.lng,
         50,
-        (trendingPage + 1) * pageSize,
-        activeCity || undefined
+        (currentPage + 1) * pageSize,
+        currentActiveCity || undefined
       );
       
       console.log('🔥 [TRENDING] getTrendingEvents returned:', { eventCount: events.length, events });
       
-      // Apply filters
-      const filteredEvents = applyFiltersToEvents(events);
+      // Apply filters using current filters
+      const filteredEvents = applyFiltersToEvents(events, currentFilters);
       console.log('🔥 [TRENDING] After applying filters:', { filteredCount: filteredEvents.length });
       
       if (reset) {
@@ -898,14 +1034,14 @@ interface FriendEventInterest {
         console.log('🔥 [TRENDING] Set trending events (reset):', filteredEvents.slice(0, pageSize).length);
       } else {
         setTrendingEvents(prev => {
-          const newEvents = [...prev, ...filteredEvents.slice(trendingPage * pageSize, (trendingPage + 1) * pageSize)];
+          const newEvents = [...prev, ...filteredEvents.slice(currentPage * pageSize, (currentPage + 1) * pageSize)];
           console.log('🔥 [TRENDING] Set trending events (append):', { prevCount: prev.length, newCount: newEvents.length });
           return newEvents;
         });
       }
       
-      setTrendingHasMore(filteredEvents.length > (trendingPage + 1) * pageSize);
-      console.log('🔥 [TRENDING] Load complete:', { hasMore: filteredEvents.length > (trendingPage + 1) * pageSize });
+      setTrendingHasMore(filteredEvents.length > (currentPage + 1) * pageSize);
+      console.log('🔥 [TRENDING] Load complete:', { hasMore: filteredEvents.length > (currentPage + 1) * pageSize });
     } catch (error) {
       console.error('❌ [TRENDING] Error loading trending events:', error);
       if (reset) setTrendingEvents([]);
@@ -913,18 +1049,54 @@ interface FriendEventInterest {
       setLoadingTrending(false);
       console.log('🔥 [TRENDING] Loading state set to false');
     }
-  };
+    // Capture dependencies at callback creation time, but callback will be recreated when these change
+    // We rely on the ref assignment effect to update the ref when callback changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId]); // Only depend on stable userId, access other values via refs
+  
+  // Keep ref in sync when callback changes
+  // Only assign in useEffect to avoid race conditions - event listeners are attached in a separate useEffect
+  // that depends on selectedFeedType, which ensures proper ordering
+  useEffect(() => {
+    loadTrendingEventsRef.current = loadTrendingEvents;
+  }, [loadTrendingEvents]);
 
   const loadMoreTrending = () => {
     if (!loadingTrending && trendingHasMore) {
-      setTrendingPage(prev => prev + 1);
-      loadTrendingEvents(false);
+      // Calculate next page and update ref BEFORE setState (React best practice)
+      const nextPage = trendingPageRef.current + 1;
+      trendingPageRef.current = nextPage;
+      setTrendingPage(nextPage);
+      // Use ref to get latest function reference (checked for null to prevent errors)
+      if (loadTrendingEventsRef.current) {
+        loadTrendingEventsRef.current(false);
+      }
     }
   };
 
   const loadRecommendedFriends = async () => {
     setLoadingRecommendedFriends(true);
     try {
+      // First, fetch existing friend relationships to filter them out
+      // Only exclude users with 'pending' or 'accepted' status, not 'declined'
+      const { data: existingRelationships } = await supabase
+        .from('user_relationships')
+        .select('user_id, related_user_id, status')
+        .eq('relationship_type', 'friend')
+        .in('status', ['pending', 'accepted'])
+        .or(`user_id.eq.${currentUserId},related_user_id.eq.${currentUserId}`);
+
+      // Create a set of user IDs we already have relationships with (pending or accepted)
+      // Users with 'declined' status are NOT excluded and remain eligible for recommendations
+      const excludedUserIds = new Set<string>();
+      if (existingRelationships) {
+        existingRelationships.forEach((rel: any) => {
+          // Add the other user in the relationship (not the current user)
+          const otherUserId = rel.user_id === currentUserId ? rel.related_user_id : rel.user_id;
+          excludedUserIds.add(otherUserId);
+        });
+      }
+
       const [secondDegreeRes, thirdDegreeRes] = await Promise.allSettled([
         supabase.rpc('get_second_degree_connections', { target_user_id: currentUserId }),
         supabase.rpc('get_third_degree_connections', { target_user_id: currentUserId }),
@@ -938,8 +1110,13 @@ interface FriendEventInterest {
         ? thirdDegreeRes.value.data.map((f: any) => ({ ...f, connection_degree: 3 as const }))
         : [];
 
-      // Combine and sort by mutual friends count (if available) or connection degree
+      // Combine, filter out existing relationships, and sort by mutual friends count (if available) or connection degree
       const allFriends = [...secondDegree, ...thirdDegree]
+        .filter((f: any) => {
+          // Filter out users we already have friend relationships with (pending or accepted)
+          const userId = f.connected_user_id || f.user_id;
+          return !excludedUserIds.has(userId);
+        })
         .sort((a, b) => {
           // Prioritize by mutual friends count, then by connection degree (2nd before 3rd)
           const aMutual = a.mutual_friends_count || 0;
@@ -949,47 +1126,7 @@ interface FriendEventInterest {
         })
         .slice(0, 20); // Limit to 20 recommended friends
 
-      // Filter out users who already have pending friend requests or are already friends
-      if (allFriends.length > 0) {
-        const friendIds = allFriends.map((f: any) => f.connected_user_id);
-        
-        // Check for existing relationships (pending requests or accepted friends) - user sent to friend
-        const { data: existingRelationships } = await supabase
-          .from('user_relationships')
-          .select('related_user_id, status')
-          .eq('user_id', currentUserId)
-          .eq('relationship_type', 'friend')
-          .in('status', ['pending', 'accepted'])
-          .in('related_user_id', friendIds);
-
-        // Check for reverse relationships (friend sent to user)
-        const { data: reverseRelationships } = await supabase
-          .from('user_relationships')
-          .select('user_id, status')
-          .eq('related_user_id', currentUserId)
-          .eq('relationship_type', 'friend')
-          .in('status', ['pending', 'accepted'])
-          .in('user_id', friendIds);
-
-        // Create set of user IDs to exclude (pending requests or already friends)
-        const excludeUserIds = new Set<string>();
-        if (existingRelationships && existingRelationships.length > 0) {
-          existingRelationships.forEach((r: any) => {
-            excludeUserIds.add(r.related_user_id);
-          });
-        }
-        if (reverseRelationships && reverseRelationships.length > 0) {
-          reverseRelationships.forEach((r: any) => {
-            excludeUserIds.add(r.user_id);
-          });
-        }
-
-        // Filter out users with existing relationships
-        const filteredFriends = allFriends.filter((f: any) => !excludeUserIds.has(f.connected_user_id));
-        setRecommendedFriends(filteredFriends);
-      } else {
-        setRecommendedFriends(allFriends);
-      }
+      setRecommendedFriends(allFriends);
     } catch (error) {
       console.error('Error loading recommended friends:', error);
       setRecommendedFriends([]);
@@ -1010,12 +1147,8 @@ interface FriendEventInterest {
   };
 
   const handleSendFriendRequestForRail = async (userId: string) => {
-    // Check if already sent
-    if (sentFriendRequests.has(userId)) {
-      console.log('Friend request already sent to user:', userId);
-      return;
-    }
-
+    let shouldRemove = false;
+    // Track sending state to show loading spinner
     setSendingFriendRequests(prev => new Set(prev).add(userId));
     
     try {
@@ -1024,34 +1157,53 @@ interface FriendEventInterest {
       });
 
       if (error) {
-        // Handle "already sent" error gracefully
-        if (error.code === 'P0001' || error.message?.includes('already sent')) {
-          // Update state to reflect that request was already sent
-          setSentFriendRequests(prev => new Set(prev).add(userId));
-          console.log('Friend request was already sent to user:', userId);
-        } else {
-          throw error;
-        }
-      } else {
-        // Successfully sent - update state
-        setSentFriendRequests(prev => new Set(prev).add(userId));
+        // Only remove user if it's a validation/business logic error (already sent, etc.)
+        // Don't remove on actual network/connection failures
+        const errorCode = error.code || error.message || '';
+        const isBusinessError = errorCode.includes('already') || 
+                                errorCode.includes('duplicate') ||
+                                errorCode.includes('invalid') ||
+                                errorCode === '23505' || // PostgreSQL unique constraint
+                                errorCode === 'PGRST204'; // Supabase conflict
         
-        // Update the friend suggestions list to remove the user we just sent a request to
-        setFriendSuggestionsForRail(prev => prev.filter(f => f.user_id !== userId));
-        setRecommendedFriends(prev => prev.filter(f => f.connected_user_id !== userId));
+        if (isBusinessError) {
+          shouldRemove = true; // Remove on business logic errors (already sent, etc.)
+        } else {
+          // Network/connection errors - don't remove user, allow retry
+          console.error('Network error sending friend request:', error);
+          // Don't return early - let finally block clear sending state
+          return;
+        }
+        throw error;
       }
+      
+      // Success - definitely remove user
+      shouldRemove = true;
     } catch (error: any) {
-      console.error('Error sending friend request:', error);
-      // If it's an "already sent" error, still update the UI
-      if (error.code === 'P0001' || error.message?.includes('already sent')) {
-        setSentFriendRequests(prev => new Set(prev).add(userId));
+      if (!shouldRemove) {
+        // Network error occurred, don't update UI but still clear sending state in finally
+        return;
       }
+      console.error('Error sending friend request:', error);
     } finally {
+      // Always clear sending state, even on network errors
       setSendingFriendRequests(prev => {
         const next = new Set(prev);
         next.delete(userId);
         return next;
       });
+      
+      // Update UI only if we should remove (success or business logic error)
+      // Do this in finally to ensure it happens even if early return occurs
+      if (shouldRemove) {
+        // Update both friend suggestions lists to remove the user we just sent a request to
+        setFriendSuggestionsForRail(prev => prev.filter(f => f.user_id !== userId));
+        // Also update recommendedFriends (uses connected_user_id field)
+        setRecommendedFriends(prev => prev.filter(f => {
+          const friendUserId = f.connected_user_id || (f as any).user_id;
+          return friendUserId !== userId;
+        }));
+      }
     }
   };
 
@@ -1454,22 +1606,36 @@ interface FriendEventInterest {
 
   const handleEventClick = async (eventId: string) => {
     try {
-      // Fetch event data from database using events table with JOINs to get normalized artist/venue names via foreign keys
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('events')
         .select('*, artists(name), venues(name)')
         .eq('id', eventId)
         .single();
 
+      if (error) {
+        console.error('Error fetching event details:', error);
+        return;
+      }
+
       if (data) {
         // Normalize the event data to include artist_name and venue_name from JOINed data
+        // Properly handle null/undefined cases from JOIN operations
+        const artistName = Array.isArray(data.artists) && data.artists.length > 0
+          ? data.artists[0]?.name
+          : (data.artists as any)?.name || data.artist_name || null;
+        
+        const venueName = Array.isArray(data.venues) && data.venues.length > 0
+          ? data.venues[0]?.name
+          : (data.venues as any)?.name || data.venue_name || null;
+        
         const normalizedEvent = {
           ...data,
-          artist_name: (data.artists?.name) || null,
-          venue_name: (data.venues?.name) || null,
+          artist_name: artistName,
+          venue_name: venueName,
         };
+        
         setSelectedEvent(normalizedEvent);
-        const interested = await UserEventService.isUserInterested(currentUserId, data.id);
+        const interested = await UserEventService.isUserInterested(currentUserId, normalizedEvent.id);
         setSelectedEventInterested(interested);
         setEventDetailsOpen(true);
       }
@@ -1501,7 +1667,11 @@ interface FriendEventInterest {
   };
 
   const feedTypes = [
+    { value: 'recommended', label: 'Recommended' },
     { value: 'events', label: 'Events' },
+    { value: 'trending', label: 'Trending' },
+    { value: 'friends', label: 'Friends' },
+    { value: 'group-chats', label: 'Group Chats' },
     { value: 'reviews', label: 'Reviews' },
   ];
                       
@@ -1656,15 +1826,142 @@ interface FriendEventInterest {
             filters={filters}
             onEventClick={handleEventClick}
             onInterestToggle={async (eventId, interested) => {
-              // Update local state if needed
               console.log('Interest toggled:', eventId, interested);
             }}
             onShareClick={async (event, e) => {
               e.stopPropagation();
               console.log('Share event:', event);
-              // Add share functionality here
             }}
           />
+        )}
+        {selectedFeedType === 'recommended' && (
+              <PreferencesV4FeedSection
+                userId={currentUserId}
+                onEventClick={handleEventClick}
+                filters={filters}
+          />
+        )}
+        {selectedFeedType === 'trending' && (
+          <div className="space-y-4">
+              {loadingTrending && trendingEvents.length === 0 ? (
+                <SynthLoadingInline text="Loading trending events..." size="md" />
+              ) : (
+                <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {trendingEvents.map((event) => {
+                      return (
+                      <CompactEventCard
+                        key={event.event_id}
+                        event={{
+                          id: event.event_id,
+                          title: event.title,
+                          artist_name: event.artist_name,
+                          venue_name: event.venue_name,
+                          event_date: event.event_date,
+                          venue_city: event.venue_city || undefined,
+                          image_url: replaceJambasePlaceholder(event.event_media_url) || undefined,
+                        }}
+                        onClick={() => handleEventClick(event.event_id)}
+                      />
+                      );
+                    })}
+                  </div>
+                  {trendingHasMore && (
+                    <div className="flex justify-center pt-4">
+                      <Button
+                        variant="outline"
+                      onClick={() => {
+                        // Calculate next page and update ref BEFORE setState (React best practice)
+                        const nextPage = trendingPageRef.current + 1;
+                        trendingPageRef.current = nextPage;
+                        setTrendingPage(nextPage);
+                        // Use ref to get latest function reference (checked for null to prevent errors)
+                        if (loadTrendingEventsRef.current) {
+                          loadTrendingEventsRef.current(false);
+                        }
+                      }}
+                        disabled={loadingTrending}
+                      >
+                        {loadingTrending ? (
+                          <>
+                          <SynthLoader variant="spinner" size="sm" />
+                            Loading...
+                          </>
+                        ) : (
+                        'Load More'
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+              </div>
+        )}
+        {selectedFeedType === 'friends' && (
+          <div className="space-y-4">
+            {loadingNetwork && firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <SynthLoadingInline />
+              </div>
+              ) : (
+                <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {[...firstDegreeEvents, ...secondDegreeEvents].map((event) => (
+                      <CompactEventCard
+                      key={event.event_id}
+                        event={{
+                          id: event.event_id,
+                          title: event.title,
+                        artist_name: event.artist_name,
+                        venue_name: event.venue_name,
+                          event_date: event.event_date,
+                        venue_city: event.venue_city || undefined,
+                        }}
+                        onClick={() => handleEventClick(event.event_id)}
+                      />
+                  ))}
+                  </div>
+                  {friendsHasMore && (
+                    <div className="flex justify-center pt-4">
+                      <Button
+                        variant="outline"
+                      onClick={() => {
+                        // Calculate next page and update ref BEFORE setState (React best practice)
+                        const nextPage = friendsPageRef.current + 1;
+                        friendsPageRef.current = nextPage;
+                        setFriendsPage(nextPage);
+                        // Use ref to get latest function reference (checked for null to prevent errors)
+                        if (loadNetworkEventsRef.current) {
+                          loadNetworkEventsRef.current(false);
+                        }
+                      }}
+                        disabled={loadingNetwork}
+                      >
+                        {loadingNetwork ? (
+                          <>
+                          <SynthLoader variant="spinner" size="sm" />
+                            Loading...
+                          </>
+                        ) : (
+                        'Load More'
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+          </div>
+        )}
+        {selectedFeedType === 'group-chats' && (
+          <div className="flex items-center justify-center py-24">
+            <div className="text-center space-y-2">
+              <MessageCircle className="w-12 h-12 mx-auto" style={{ color: 'var(--neutral-600)' }} />
+              <h3 className="font-semibold" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-body-size, 20px)', fontWeight: 'var(--typography-body-weight, 500)', lineHeight: 'var(--typography-body-line-height, 1.5)' }}>Coming Soon</h3>
+              <p className="text-muted-foreground" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                Group chats are still in development
+              </p>
+            </div>
+          </div>
         )}
         
         {/* Old group chat code - commented out */}
@@ -1905,142 +2202,77 @@ interface FriendEventInterest {
           </div>
         )}
         {selectedFeedType === 'reviews' && (
-          <div className="swift-ui-feed-container space-y-4">
-            {/* Recommended Users - Horizontal Scroll */}
-            {recommendedFriends.length > 0 && (
-              <div className="overflow-x-auto pb-4 -mx-5 px-5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <div className="flex gap-4" style={{ minWidth: 'max-content' }}>
-                  {/* Recommended Users */}
-                  {recommendedFriends.map((friend) => {
-                    const isSending = sendingFriendRequests.has(friend.connected_user_id);
-                    const isSent = sentFriendRequests.has(friend.connected_user_id);
-
-                    return (
-                      <div
-                        key={`user-${friend.connected_user_id}`}
-                        className="flex-shrink-0 w-32 cursor-pointer"
-                        onClick={() => onNavigateToProfile?.(friend.connected_user_id)}
-                      >
-                        <div className="flex flex-col items-center gap-2 p-3" style={{ borderRadius: '12px', backgroundColor: 'var(--neutral-50)', border: '1px solid var(--neutral-200)' }}>
-                          <Avatar className="w-24 h-24">
-                            <AvatarImage src={friend.avatar_url} alt={friend.name} />
-                            <AvatarFallback className="text-lg" style={{ backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)' }}>
-                              {friend.name.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="w-full text-center">
-                            <p className="text-xs font-semibold line-clamp-1 mb-0.5">{friend.name}</p>
-                            {friend.mutual_friends_count && friend.mutual_friends_count > 0 && (
-                              <p className="text-[10px]" style={{ color: 'var(--neutral-600)' }}>
-                                {friend.mutual_friends_count} mutual
-                              </p>
-                            )}
-                          </div>
-                          {!isSent && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="w-full h-7 text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSendFriendRequestForRail(friend.connected_user_id);
-                              }}
-                              disabled={isSending}
-                            >
-                              {isSending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3 mr-1" />}
-                              {!isSending && 'Add'}
-                            </Button>
-                          )}
-                          {isSent && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="w-full h-7 text-xs"
-                              disabled
-                            >
-                              <UserCheck className="h-3 w-3 mr-1" />
-                              Sent
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Reviews List */}
-            {loadingReviews ? (
-              <div className="flex items-center justify-center py-12">
-                <SynthLoadingInline />
-              </div>
-            ) : reviews.length === 0 ? (
-              <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
-                <div className="flex items-center justify-center mb-2">
-                  <Icon name="squareComment" size={60} alt="" />
-                </div>
-                <p style={{ 
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-body-size, 20px)',
-                  fontWeight: 'var(--typography-body-weight, 500)',
-                  lineHeight: 'var(--typography-body-line-height, 1.5)',
-                  color: 'var(--neutral-900)',
-                  margin: 0,
-                  textAlign: 'center'
-                }}>No reviews yet</p>
-                <p style={{ 
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-meta-size, 16px)',
-                  fontWeight: 'var(--typography-meta-weight, 500)',
-                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                  color: 'var(--neutral-600)',
-                  margin: 0,
-                  textAlign: 'center'
-                }}>Be the first to review an event!</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {reviews.map((review) => (
-                  <NetworkReviewCard
-                    key={review.id}
-                    review={{
+          <div className="space-y-4">
+          {loadingReviews ? (
+            <div className="flex items-center justify-center py-12">
+              <SynthLoadingInline />
+            </div>
+          ) : reviews.length === 0 ? (
+            <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
+              {/* Large icon (60px), dark grey - using MessageSquare for reviews */}
+              <Icon name="squareComment" size={60} alt="" color="var(--neutral-600)" />
+              {/* Heading - Body typography, off black */}
+              <p style={{ 
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-body-size, 20px)',
+                fontWeight: 'var(--typography-body-weight, 500)',
+                lineHeight: 'var(--typography-body-line-height, 1.5)',
+                color: 'var(--neutral-900)',
+                margin: 0,
+                textAlign: 'center'
+              }}>No reviews yet</p>
+              {/* Description - Meta typography, dark grey */}
+              <p style={{ 
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--neutral-600)',
+                margin: 0,
+                textAlign: 'center'
+              }}>Be the first to review an event!</p>
+                  </div>
+                ) : (
+              <div className="space-y-3">
+              {reviews.map((review) => (
+                <NetworkReviewCard
+                  key={review.id}
+                  review={{
+                    id: review.id,
+                    author: {
+                      id: review.author.id,
+                      name: review.author.name,
+                      avatar_url: review.author.avatar_url,
+                    },
+                    created_at: review.created_at,
+                    rating: review.rating,
+                    content: review.content,
+                    photos: review.photos,
+                    event_info: review.event_info,
+                  }}
+                  onClick={() => {
+                    // Convert NetworkReview to UnifiedFeedItem format for the modal
+                    const unifiedReview: UnifiedFeedItem = {
                       id: review.id,
-                      author: {
-                        id: review.author.id,
-                        name: review.author.name,
-                        avatar_url: review.author.avatar_url,
-                      },
+                      type: 'review',
+                      title: review.event_info?.artist_name || 'Review',
+                      author: review.author,
                       created_at: review.created_at,
-                      rating: review.rating,
                       content: review.content,
+                      rating: review.rating,
                       photos: review.photos,
-                      artist_id: review.artist_id,
-                      artist_image_url: review.artist_image_url,
                       event_info: review.event_info,
-                    }}
-                    onClick={() => {
-                      const unifiedReview: UnifiedFeedItem = {
-                        id: review.id,
-                        type: 'review',
-                        title: review.event_info?.artist_name || 'Review',
-                        author: review.author,
-                        created_at: review.created_at,
-                        content: review.content,
-                        rating: review.rating,
-                        photos: review.photos,
-                        event_info: review.event_info,
-                        relevance_score: 0,
-                      };
-                      setSelectedReview(unifiedReview);
-                      setReviewDetailOpen(true);
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                      relevance_score: 0,
+                    };
+                    setSelectedReview(unifiedReview);
+                    setReviewDetailOpen(true);
+                  }}
+                />
+              ))}
+            </div>
+              )}
+                  </div>
+          )}
       </div>
 
       {/* Event Details Modal */}
@@ -2073,8 +2305,8 @@ interface FriendEventInterest {
       {/* Review Detail Modal */}
       {reviewDetailOpen && selectedReview && (
         <Dialog open={reviewDetailOpen} onOpenChange={setReviewDetailOpen}>
-          <DialogContent 
-            className="fixed inset-0 z-[100] max-w-none w-full h-full m-0 p-0 overflow-hidden bg-white rounded-none"
+          <DialogContent
+            className="fixed inset-0 z-[100] max-w-none w-full h-full m-0 p-0 overflow-hidden rounded-none"
             style={{
               left: 0,
               top: 0,
@@ -2086,6 +2318,7 @@ interface FriendEventInterest {
               borderRadius: 0,
               border: 'none',
               boxShadow: 'none',
+              backgroundColor: 'var(--neutral-50)',
             }}
           >
             <DialogTitle className="sr-only">Review Details</DialogTitle>

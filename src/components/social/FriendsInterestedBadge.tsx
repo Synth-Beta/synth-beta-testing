@@ -85,7 +85,7 @@ export function FriendsInterestedBadge({ eventId, onClick }: FriendsInterestedBa
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        height: '22px',
+        height: '25px',
         paddingLeft: 'var(--spacing-small, 12px)',
         paddingRight: 'var(--spacing-small, 12px)',
         borderRadius: 'var(--radius-corner, 10px)',
@@ -114,7 +114,7 @@ export function FriendsInterestedBadge({ eventId, onClick }: FriendsInterestedBa
         }
       }}
     >
-      <Users size={16} />
+      <Users size={19} />
       <span>{friendCount} friend{friendCount !== 1 ? 's' : ''} interested</span>
     </div>
   );

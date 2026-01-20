@@ -19,8 +19,8 @@ interface CompactEventCardProps {
   };
   interestedCount?: number;
   isInterested?: boolean;
-  isCommunityPhoto?: boolean; // Indicates if image is from a user review photo
-  reason?: EventReason; // Why this event is shown: recommended, trending, friend_interested, following
+  isCommunityPhoto?: boolean;
+  reason?: EventReason;
   onInterestClick?: (e: React.MouseEvent) => void;
   onShareClick?: (e: React.MouseEvent) => void;
   onClick?: () => void;
@@ -38,53 +38,52 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
   onClick,
   className,
 }) => {
-  // Get badge text and styling based on reason
-  const getReasonBadge = () => {
-    if (!reason) return null;
-    
-    const badgeConfig = {
-      recommended: { text: 'Recommended', bgColor: 'rgba(255, 51, 153, 0.9)', textColor: '#ffffff' },
-      trending: { text: 'Trending', bgColor: 'rgba(255, 102, 179, 0.9)', textColor: '#ffffff' },
-      friend_interested: { text: 'Friend Interested', bgColor: 'rgba(255, 51, 153, 0.85)', textColor: '#ffffff' },
-      following: { text: 'Following', bgColor: 'rgba(255, 51, 153, 0.9)', textColor: '#ffffff' },
-    };
-    
-    const config = badgeConfig[reason];
-    if (!config) return null;
-    
-    return (
-      <div
-        className="absolute left-4 px-3 py-1.5 rounded-lg backdrop-blur-sm"
-        style={{
-          top: '20px', // Fixed position from top for consistency across all cards
-          backgroundColor: config.bgColor,
-          color: config.textColor,
-          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.3)',
-          fontSize: '11px',
-          fontWeight: 700,
-          letterSpacing: '0.5px',
-          textTransform: 'uppercase',
-          zIndex: 50,
-        }}
-        aria-label={`Event shown because: ${config.text}`}
-      >
-        {config.text}
-      </div>
-    );
-  };
   const rawImageUrl = event.poster_image_url || event.image_url;
   const imageUrl = rawImageUrl ? replaceJambasePlaceholder(rawImageUrl) : null;
   const eventDate = event.event_date ? new Date(event.event_date) : null;
-  
+
   const formatDate = (date: Date | null) => {
     if (!date) return '';
     return format(date, 'EEE, MMM d, yyyy');
   };
 
+  const getReasonBadge = () => {
+    if (!reason) return null;
+
+    const labelMap: Record<EventReason, string> = {
+      recommended: 'Recommended',
+      trending: 'Trending',
+      friend_interested: 'Friend Interested',
+      following: 'Following',
+    };
+
+    return (
+      <div
+        className="absolute left-4 px-3 py-1.5 rounded-lg"
+        style={{
+          top: 'var(--spacing-grouped, 24px)',
+          backgroundColor: 'var(--brand-pink-500)',
+          color: 'var(--neutral-50)',
+          boxShadow: '0 4px 4px 0 var(--shadow-color)',
+          fontFamily: 'var(--font-family)',
+          fontSize: 'var(--typography-meta-size, 16px)',
+          fontWeight: 'var(--typography-meta-weight, 500)',
+          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+          letterSpacing: '0.5px',
+          textTransform: 'uppercase',
+          zIndex: 50,
+        }}
+        aria-label={`Event shown because: ${labelMap[reason]}`}
+      >
+        {labelMap[reason]}
+      </div>
+    );
+  };
+
   return (
     <div
       className={cn(
-        'swift-ui-card flex flex-col rounded-3xl overflow-hidden',
+        'swift-ui-card flex flex-col overflow-hidden',
         'relative group cursor-pointer',
         'w-full h-full max-h-[85vh]',
         className
@@ -100,40 +99,38 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       role="button"
       aria-label={`View event: ${event.title}`}
     >
-      {/* Event Image - Full height hero image */}
-      <div
-        className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden"
-        style={{ outline: 'none' }}
-      >
+      {/* Event Image */}
+      <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden">
       {imageUrl ? (
         <>
-          <img
-            src={imageUrl}
-            alt={event.title}
-            className="w-full h-full object-cover"
-          />
-          {/* Gradient overlay for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-          
-          {/* Reason Badge - Bottom Left - Positioned on image */}
-          {reason && getReasonBadge()}
-          
-          {/* Community Photo Tag - ACCESSIBILITY: Decorative, hide from screen readers */}
-          {isCommunityPhoto && (
+            <img src={imageUrl} alt={event.title} className="w-full h-full object-cover" />
             <div
-              className="absolute top-4 right-4 flex items-center swift-ui-badge z-50"
-              aria-hidden="true"
-            >
-              <span className="swift-ui-badge-text">
-                Community Photo
-              </span>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="w-full h-full flex items-center justify-center swift-ui-gradient-bg">
-          <div className="text-center px-4">
-            <p className="text-xl font-semibold line-clamp-2 text-white">
+              className="absolute inset-0"
+              style={{
+                background:
+                  'linear-gradient(to top, rgba(14, 14, 14, 0.8) 0%, rgba(14, 14, 14, 0.4) 50%, transparent 100%)',
+              }}
+            />
+            {reason && getReasonBadge()}
+            {isCommunityPhoto && (
+              <div className="absolute top-4 right-4 swift-ui-badge z-50" aria-hidden="true">
+                <span className="swift-ui-badge-text">Community Photo</span>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center swift-ui-gradient-bg">
+            <div className="text-center px-4">
+              <p
+                className="line-clamp-2"
+                style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-h2-size, 24px)',
+                  fontWeight: 'var(--typography-h2-weight, 700)',
+                  lineHeight: 'var(--typography-h2-line-height, 1.3)',
+                  color: 'var(--neutral-0)',
+                }}
+              >
               {event.title}
             </p>
           </div>
@@ -141,93 +138,111 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       )}
       </div>
 
-      {/* Content overlay - positioned absolutely over image */}
+      {/* Content Overlay */}
       <div className="absolute bottom-0 left-0 right-0 swift-ui-card-content" style={{ zIndex: 40 }}>
-        {/* Gradient background for content */}
-        <div className="absolute inset-0 bg-gradient-to-t from-white/95 via-white/90 to-white/70 backdrop-blur-xl" />
-        
-        {/* Content */}
-        <div className="relative p-6 flex flex-col gap-4">
-          {/* Event title */}
-          <h2 className="text-2xl font-bold leading-tight text-neutral-900 line-clamp-2">
-            {event.title}
+      <div
+          className="absolute inset-0"
+        style={{
+            background:
+              'linear-gradient(to top, color-mix(in srgb, var(--neutral-0) 96%, transparent) 0%, color-mix(in srgb, var(--neutral-0) 90%, transparent) 60%, color-mix(in srgb, var(--neutral-0) 70%, transparent) 100%)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+          }}
+        />
+
+        <div
+          className="relative flex flex-col"
+          style={{ padding: 'var(--spacing-grouped, 24px)', gap: 'var(--spacing-small, 12px)' }}
+        >
+          <h2
+            className="line-clamp-2"
+            style={{
+          fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-h2-size, 24px)',
+              fontWeight: 'var(--typography-h2-weight, 700)',
+              lineHeight: 'var(--typography-h2-line-height, 1.3)',
+          color: 'var(--neutral-900)',
+            }}
+          >
+          {event.title}
           </h2>
 
-          {/* Event details */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col" style={{ gap: 'var(--spacing-inline, 6px)' }}>
             {event.venue_name && (
-              <div className="flex items-center gap-2 text-neutral-700">
-                <MapPin 
-                  className="w-5 h-5 flex-shrink-0" 
-                  style={{ color: 'var(--brand-pink-500)' }}
-                />
-                <span className="text-base">
+              <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                <MapPin size={20} style={{ color: 'var(--brand-pink-500)' }} />
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--neutral-700)',
+                  }}
+                >
                   {event.venue_name}
                   {event.venue_city && ` · ${event.venue_city}`}
                 </span>
               </div>
             )}
             {eventDate && (
-              <div className="flex items-center gap-2 text-neutral-700">
-                <Calendar 
-                  className="w-5 h-5 flex-shrink-0" 
-                  style={{ color: 'var(--brand-pink-500)' }}
-                />
-                <span className="text-base">{formatDate(eventDate)}</span>
+              <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                <Calendar size={20} style={{ color: 'var(--brand-pink-500)' }} />
+                <span
+                  style={{
+          fontFamily: 'var(--font-family)',
+          fontSize: 'var(--typography-meta-size, 16px)',
+          fontWeight: 'var(--typography-meta-weight, 500)',
+          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--neutral-700)',
+                  }}
+                >
+                  {formatDate(eventDate)}
+                </span>
               </div>
             )}
-          </div>
+        </div>
 
-          {/* Interested count */}
           {interestedCount > 0 && (
-            <div className="text-base text-neutral-600 font-medium">
+        <div
+          style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--neutral-600)',
+          }}
+        >
               {interestedCount} {interestedCount === 1 ? 'person' : 'people'} interested
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex items-center gap-3 pt-2">
-            {/* Interested toggle button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onInterestClick?.(e);
-              }}
+          <div className="flex items-center" style={{ gap: 'var(--spacing-small, 12px)' }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onInterestClick?.(e);
+            }}
               className={cn(
-                'swift-ui-button swift-ui-button-primary flex-1',
-                isInterested && 'swift-ui-button-active'
+                'swift-ui-button',
+                isInterested ? 'swift-ui-button-primary' : 'swift-ui-button-secondary'
               )}
-              aria-label={isInterested ? 'Remove interest' : 'Mark as interested'}
-            >
-              <Heart 
-                size={18} 
-                className={cn(
-                  isInterested ? 'fill-white' : 'stroke-current'
-                )} 
-                strokeWidth={2.5}
-                aria-hidden="true"
-              />
-              <span>{isInterested ? 'Interested' : 'Interested'}</span>
-              {isInterested && (
-                <Check 
-                  size={18} 
-                  className="ml-auto" 
-                  aria-hidden="true"
-                />
-              )}
-            </button>
+            aria-label={isInterested ? 'Remove interest' : 'Mark as interested'}
+          >
+              <span style={{ color: isInterested ? 'var(--neutral-50)' : 'var(--brand-pink-500)' }}>Interested</span>
+              <Heart size={24} strokeWidth={2.5} style={{ color: isInterested ? 'var(--neutral-50)' : 'var(--brand-pink-500)' }} aria-hidden="true" />
+          </button>
 
-            {/* Share button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onShareClick?.(e);
-              }}
-              className="swift-ui-button swift-ui-button-secondary w-14 h-14"
-              aria-label="Share event"
-            >
-              <Send size={20} strokeWidth={2.5} />
-            </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onShareClick?.(e);
+            }}
+              className="swift-ui-button swift-ui-button-secondary swift-ui-button-icon"
+            aria-label="Share event"
+          >
+              <Send size={24} strokeWidth={2.5} />
+          </button>
           </div>
         </div>
       </div>

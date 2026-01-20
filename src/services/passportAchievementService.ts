@@ -17,6 +17,7 @@ export interface AchievementDisplay {
   name: string;
   description: string;
   icon: string;
+  category: string; // Required category field for compatibility with PassportStampsView
   tier?: 'bronze' | 'silver' | 'gold';
   progress: number;
   goal: number;
@@ -33,6 +34,29 @@ export class PassportAchievementService {
    */
   static async getBehavioralAchievements(userId: string): Promise<AchievementDisplay[]> {
     try {
+      if (!userId) {
+        console.error('PassportAchievementService: userId is required');
+        return [];
+      }
+
+      console.log('PassportAchievementService: Fetching achievements for userId:', userId);
+
+      // Recalculate achievements to ensure they're up to date
+      try {
+        const { error: recalcError } = await supabase.rpc('check_all_achievements', { 
+          p_user_id: userId 
+        });
+        if (recalcError) {
+          console.warn('PassportAchievementService: Error recalculating achievements:', recalcError);
+          // Continue anyway - might be a new function that doesn't exist yet
+        } else {
+          console.log('PassportAchievementService: Successfully recalculated achievements');
+        }
+      } catch (recalcErr) {
+        console.warn('PassportAchievementService: check_all_achievements function may not exist yet:', recalcErr);
+        // Continue anyway - function might not be deployed yet
+      }
+
       // Get all active achievements
       const { data: allAchievements, error: achievementsError } = await supabase
         .from('achievements')
@@ -40,7 +64,17 @@ export class PassportAchievementService {
         .eq('is_active', true)
         .order('sort_order', { ascending: true });
 
-      if (achievementsError) throw achievementsError;
+      if (achievementsError) {
+        console.error('PassportAchievementService: Error fetching achievements table:', achievementsError);
+        throw achievementsError;
+      }
+
+      console.log(`PassportAchievementService: Found ${allAchievements?.length || 0} active achievements`);
+
+      if (!allAchievements || allAchievements.length === 0) {
+        console.warn('PassportAchievementService: No active achievements found in database');
+        return [];
+      }
 
       // Get user's progress for all achievements
       const { data: userProgress, error: progressError } = await supabase
@@ -48,7 +82,13 @@ export class PassportAchievementService {
         .select('*')
         .eq('user_id', userId);
 
-      if (progressError) throw progressError;
+      if (progressError) {
+        console.error('PassportAchievementService: Error fetching user progress:', progressError);
+        // Don't throw - user might not have any progress yet, which is fine
+        console.log('PassportAchievementService: Continuing without user progress data');
+      }
+
+      console.log(`PassportAchievementService: Found ${userProgress?.length || 0} progress records for user`);
 
       // Create a map of progress by achievement_id
       const progressMap = new Map<string, any>();
@@ -110,6 +150,7 @@ export class PassportAchievementService {
           name: achievement.name,
           description: description,
           icon: icon,
+          category: achievement.category || 'general', // Add category field for compatibility
           tier: currentTier || undefined,
           progress: currentProgress,
           goal: currentGoal,
@@ -120,7 +161,7 @@ export class PassportAchievementService {
       });
 
       // Sort: unlocked first, then by sort_order
-      return achievements.sort((a, b) => {
+      const sortedAchievements = achievements.sort((a, b) => {
         if (a.unlocked !== b.unlocked) {
           return a.unlocked ? -1 : 1;
         }
@@ -135,8 +176,16 @@ export class PassportAchievementService {
         // Then by progress
         return (b.progress || 0) - (a.progress || 0);
       });
+
+      console.log(`PassportAchievementService: Returning ${sortedAchievements.length} achievements`, {
+        unlocked: sortedAchievements.filter(a => a.unlocked).length,
+        locked: sortedAchievements.filter(a => !a.unlocked).length,
+      });
+
+      return sortedAchievements;
     } catch (error) {
-      console.error('Error fetching behavioral achievements:', error);
+      console.error('PassportAchievementService: Error fetching behavioral achievements:', error);
+      // Return empty array instead of throwing to prevent UI breakage
       return [];
     }
   }

@@ -173,11 +173,11 @@ export const DemoMapCalendarTourSection: React.FC<DemoMapCalendarTourSectionProp
     return dateA - dateB;
   });
 
-  const getTourMapCenter = () => {
+  const getTourMapCenter = (): [number, number] => {
     if (tourEvents.length === 0) return [40.7128, -74.0060]; // Default to NYC
     const avgLat = tourEvents.reduce((sum, e) => sum + e.latitude, 0) / tourEvents.length;
     const avgLng = tourEvents.reduce((sum, e) => sum + e.longitude, 0) / tourEvents.length;
-    return [avgLat, avgLng];
+    return [avgLat, avgLng] as [number, number]; // Explicitly type as LatLngTuple
   };
 
   return (
@@ -370,10 +370,22 @@ export const DemoMapCalendarTourSection: React.FC<DemoMapCalendarTourSectionProp
                     style={{ height: '100%', width: '100%', zIndex: 0 }}
                     boundsOptions={{ padding: [50, 50] }}
                   >
-                    <TileLayer
-                      url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY || 'pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w'}`}
-                      attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    />
+                    {(() => {
+                      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY;
+                      // SECURITY NOTE: Never use fallback tokens in production
+                      // In development, maps will fail gracefully if token is not configured
+                      // This prevents exposing hardcoded tokens that could be extracted from source
+                      if (!mapboxToken) {
+                        console.error('❌ Mapbox token not configured. Maps will not render. Set VITE_MAPBOX_TOKEN or VITE_MAPBOX_KEY environment variable.');
+                        return null; // Don't render map without valid token
+                      }
+                      return (
+                        <TileLayer
+                          url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${mapboxToken}`}
+                          attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        />
+                      );
+                    })()}
                     <MapBoundsFitter events={sortedTourEvents} />
                     
                     {/* Draw route lines with arrowheads */}
@@ -490,7 +502,6 @@ export const DemoMapCalendarTourSection: React.FC<DemoMapCalendarTourSectionProp
             <JamBaseEventCard
               event={selectedEvent}
               currentUserId={currentUserId}
-              onClose={() => setEventDetailsOpen(false)}
             />
           )}
         </DialogContent>

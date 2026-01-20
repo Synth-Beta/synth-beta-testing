@@ -278,11 +278,10 @@ export function EventDetailsModal({
       // Normalize the event data to handle both legacy and normalized schema
       const normalizedEvent = {
         ...event,
-        // Support both normalized and legacy field names
         artist_name: event.artist_name || (event as any).artist_name_normalized || null,
         venue_name: event.venue_name || (event as any).venue_name_normalized || null,
       };
-      
+
       // Always use the passed event data directly
       // This avoids 406 errors from RLS policies and unnecessary database calls
       setActualEvent(normalizedEvent);
@@ -295,7 +294,6 @@ export function EventDetailsModal({
     if (isOpen && actualEvent && (!actualEvent.artist_name || !actualEvent.venue_name)) {
       const fetchArtistVenueNames = async () => {
         try {
-          // Use the events_with_artist_venue view to get normalized names
           const { data: eventData, error } = await supabase
             .from('events_with_artist_venue')
             .select('artist_name_normalized, venue_name_normalized, artist_id, venue_id')
@@ -311,9 +309,8 @@ export function EventDetailsModal({
               venue_id: prev.venue_id || eventData.venue_id || null,
             }));
           } else if (actualEvent.artist_id || actualEvent.venue_id) {
-            // Fallback: fetch directly from artists/venues tables if IDs are available
             const promises: Promise<{ type: string; data: any; error: any }>[] = [];
-            
+
             if (actualEvent.artist_id && !actualEvent.artist_name) {
               promises.push(
                 Promise.resolve(
@@ -325,7 +322,7 @@ export function EventDetailsModal({
                 ).then(({ data, error }) => ({ type: 'artist', data, error }))
               );
             }
-            
+
             if (actualEvent.venue_id && !actualEvent.venue_name) {
               promises.push(
                 Promise.resolve(
@@ -339,8 +336,8 @@ export function EventDetailsModal({
             }
 
             const results = await Promise.all(promises);
-            
             const updates: any = {};
+
             results.forEach(result => {
               if (result.data && !result.error) {
                 if (result.type === 'artist') {
@@ -1026,7 +1023,7 @@ export function EventDetailsModal({
             {isPastEvent && (
               <div
                 style={{
-                  height: '22px',
+                  height: '25px',
                   borderRadius: 'var(--radius-corner, 10px)',
                   paddingLeft: 'var(--spacing-small, 12px)',
                   paddingRight: 'var(--spacing-small, 12px)',
@@ -1048,7 +1045,7 @@ export function EventDetailsModal({
             {isUpcomingEvent && (
               <div
                 style={{
-                  height: '22px',
+                  height: '25px',
                   borderRadius: 'var(--radius-corner, 10px)',
                   paddingLeft: 'var(--spacing-small, 12px)',
                   paddingRight: 'var(--spacing-small, 12px)',
@@ -1072,231 +1069,91 @@ export function EventDetailsModal({
             <PopularityIndicator interestedCount={interestedCount || 0} attendanceCount={attendanceCount || 0} />
           </div>
 
-          {/* Artist and Venue Info - SwiftUI Liquid Glass Buttons */}
+          {/* Artist and Venue Info */}
           <div className="flex flex-col gap-3 mb-3">
-            {/* Artist Button */}
-            <button
-              onClick={handleArtistClick}
-              disabled={!actualEvent.artist_name}
-              className="w-full text-left rounded-xl overflow-hidden relative group"
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                backdropFilter: 'blur(40px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.1), 0 2px 8px 0 rgba(0, 0, 0, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.6)',
-                padding: '16px',
-                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                cursor: actualEvent.artist_name ? 'pointer' : 'not-allowed',
-                outline: 'none',
-                opacity: actualEvent.artist_name ? 1 : 0.7,
-              }}
-              onMouseEnter={(e) => {
-                if (actualEvent.artist_name) {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 12px 40px 0 rgba(0, 0, 0, 0.12), 0 4px 12px 0 rgba(0, 0, 0, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.8)';
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.1), 0 2px 8px 0 rgba(0, 0, 0, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.6)';
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
-              }}
-              onMouseDown={(e) => {
-                if (actualEvent.artist_name) {
-                  e.currentTarget.style.transform = 'translateY(0px) scale(0.98)';
-                }
-              }}
-              onMouseUp={(e) => {
-                if (actualEvent.artist_name) {
-                  e.currentTarget.style.transform = 'translateY(-2px) scale(1)';
-                }
-              }}
-              title={actualEvent.artist_name ? "Click to view all events for this artist" : "Artist name not available"}
-            >
-              {/* Glass overlay gradient */}
-              <div 
-                className="absolute inset-0 pointer-events-none rounded-xl"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(236, 72, 153, 0.02) 100%)',
-                }}
-              />
-              
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-2">
-                  <Music size={16} className="flex-shrink-0" style={{ color: 'var(--brand-pink-500)' }} />
-                  <h3 
-                    className="text-xs font-semibold uppercase tracking-wide"
-                    style={{ 
-                      color: 'var(--neutral-600)',
-                      fontFamily: 'var(--font-family)'
-                    }}
-                  >
-                    Artist
-                  </h3>
+            {/* Artist Info - Only render if artist_name exists */}
+            {actualEvent.artist_name && (
+              <div className="bg-gray-50 rounded-lg p-3 w-full">
+                <h3 className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+                  <Music size={16} className="flex-shrink-0" />
+                  <span>Artist</span>
+                </h3>
+                <div
+                  className="font-medium text-sm cursor-pointer hover:text-pink-600 transition-colors break-words"
+                  onClick={handleArtistClick}
+                  title="Click to view all events for this artist"
+                >
+                  {actualEvent.artist_name}
                 </div>
-                {actualEvent.artist_name ? (
-                  <div
-                    className="font-semibold text-base break-words mb-2 transition-colors group-hover:text-pink-600"
-                    style={{
-                      fontFamily: 'var(--font-family)',
-                      color: 'var(--neutral-900)',
-                    }}
-                  >
-                    {actualEvent.artist_name}
-                  </div>
-                ) : (
-                  <div
-                    className="font-medium text-sm break-words mb-2"
-                    style={{
-                      fontFamily: 'var(--font-family)',
-                      color: 'var(--neutral-500)',
-                      fontStyle: 'italic',
-                    }}
-                  >
-                    Artist name not available
-                  </div>
-                )}
                 {actualEvent.genres && actualEvent.genres.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
+                  <div className="flex flex-wrap gap-1 mt-1.5">
                     {actualEvent.genres.slice(0, 3).map((genre, index) => (
-                      <span
+                      <div
                         key={index}
-                        className="inline-flex items-center px-2 py-1 rounded-lg"
                         style={{
-                          backgroundColor: 'rgba(236, 72, 153, 0.1)',
-                          border: '1px solid rgba(236, 72, 153, 0.2)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          height: '25px',
+                          paddingLeft: 'var(--spacing-small, 12px)',
+                          paddingRight: 'var(--spacing-small, 12px)',
+                          borderRadius: 'var(--radius-corner, 10px)',
+                          backgroundColor: 'var(--neutral-100)',
+                          border: '2px solid var(--neutral-200)',
                           fontFamily: 'var(--font-family)',
-                          fontSize: '11px',
-                          fontWeight: '600',
-                          color: 'var(--brand-pink-600)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          color: 'var(--neutral-900)',
+                          boxShadow: '0 4px 4px 0 var(--shadow-color)'
                         }}
                       >
                         {genre}
-                      </span>
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
-            </button>
+            )}
 
-            {/* Venue Button */}
-            <button
-              onClick={handleVenueClick}
-              disabled={!actualEvent.venue_name}
-              className="w-full text-left rounded-xl overflow-hidden relative group"
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                backdropFilter: 'blur(40px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.1), 0 2px 8px 0 rgba(0, 0, 0, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.6)',
-                padding: '16px',
-                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                cursor: actualEvent.venue_name ? 'pointer' : 'not-allowed',
-                outline: 'none',
-                opacity: actualEvent.venue_name ? 1 : 0.7,
-              }}
-              onMouseEnter={(e) => {
-                if (actualEvent.venue_name) {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 12px 40px 0 rgba(0, 0, 0, 0.12), 0 4px 12px 0 rgba(0, 0, 0, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.8)';
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.1), 0 2px 8px 0 rgba(0, 0, 0, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.6)';
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
-              }}
-              onMouseDown={(e) => {
-                if (actualEvent.venue_name) {
-                  e.currentTarget.style.transform = 'translateY(0px) scale(0.98)';
-                }
-              }}
-              onMouseUp={(e) => {
-                if (actualEvent.venue_name) {
-                  e.currentTarget.style.transform = 'translateY(-2px) scale(1)';
-                }
-              }}
-              title={actualEvent.venue_name ? "Click to view all events at this venue" : "Venue name not available"}
-            >
-              {/* Glass overlay gradient */}
-              <div 
-                className="absolute inset-0 pointer-events-none rounded-xl"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(236, 72, 153, 0.02) 100%)',
-                }}
-              />
-              
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-2">
-                  <MapPin size={16} className="flex-shrink-0" style={{ color: 'var(--brand-pink-500)' }} />
-                  <h3 
-                    className="text-xs font-semibold uppercase tracking-wide"
-                    style={{ 
-                      color: 'var(--neutral-600)',
-                      fontFamily: 'var(--font-family)'
-                    }}
-                  >
-                    Venue
-                  </h3>
-                </div>
-                {actualEvent.venue_name ? (
-                  <div
-                    className="font-semibold text-base break-words mb-1.5 transition-colors group-hover:text-pink-600"
-                    style={{
-                      fontFamily: 'var(--font-family)',
-                      color: 'var(--neutral-900)',
-                    }}
-                  >
-                    {actualEvent.venue_name}
-                  </div>
-                ) : (
-                  <div
-                    className="font-medium text-sm break-words mb-1.5"
-                    style={{
-                      fontFamily: 'var(--font-family)',
-                      color: 'var(--neutral-500)',
-                      fontStyle: 'italic',
-                    }}
-                  >
-                    Venue name not available
-                  </div>
-                )}
-                <div 
-                  className="text-sm break-words mb-1"
-                  style={{
-                    fontFamily: 'var(--font-family)',
-                    color: 'var(--neutral-600)',
-                  }}
+            {/* Venue Info - Only render if venue_name exists */}
+            {actualEvent.venue_name && (
+              <div className="bg-gray-50 rounded-lg p-3 w-full">
+                <h3 className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+                  <MapPin size={16} className="flex-shrink-0" />
+                  <span>Venue</span>
+                </h3>
+                <div
+                  className="font-medium text-sm mb-1 cursor-pointer hover:text-pink-600 transition-colors break-words"
+                  onClick={handleVenueClick}
+                  title="Click to view all events at this venue"
                 >
+                  {actualEvent.venue_name}
+                </div>
+                <div className="text-muted-foreground text-xs break-words">
                   {getVenueAddress()}
                 </div>
                 {actualEvent.venue_zip && (
-                  <div 
-                    className="text-xs"
-                    style={{
-                      fontFamily: 'var(--font-family)',
-                      color: 'var(--neutral-500)',
-                    }}
-                  >
+                  <div className="text-xs text-muted-foreground mt-1">
                     ZIP: {actualEvent.venue_zip}
                   </div>
                 )}
               </div>
-            </button>
+            )}
           </div>
 
 
           {/* Reviews Section - Show artist and venue reviews for all events */}
-          <ArtistVenueReviews
-            artistName={actualEvent.artist_name}
-            venueName={actualEvent.venue_name}
-            artistId={actualEvent.artist_id}
-            venueId={actualEvent.venue_id}
-          />
+          {/* Only render if at least one of artist_name or venue_name exists */}
+          {/* Pass actual values - use empty string fallback only when absolutely necessary */}
+          {/* The component should handle empty strings by skipping those queries */}
+          {(actualEvent.artist_name || actualEvent.venue_name) && (
+            <ArtistVenueReviews
+              artistName={actualEvent.artist_name || ''}
+              venueName={actualEvent.venue_name || ''}
+              artistId={actualEvent.artist_id}
+              venueId={actualEvent.venue_id}
+            />
+          )}
 
           {/* Social Features Tabs */}
           <div className="mt-4 space-y-3">
@@ -1538,7 +1395,7 @@ export function EventDetailsModal({
                                             style={{
                                               display: 'inline-flex',
                                               alignItems: 'center',
-                                              height: '22px',
+                                              height: '25px',
                                               paddingLeft: 'var(--spacing-small, 12px)',
                                               paddingRight: 'var(--spacing-small, 12px)',
                                               borderRadius: 'var(--radius-corner, 10px)',
