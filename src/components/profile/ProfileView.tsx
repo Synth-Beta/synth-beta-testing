@@ -506,10 +506,12 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           id: jambaseEvent?.id ?? '',
           jambase_event_id: jambaseEvent?.jambase_event_id ?? jambaseEvent?.id ?? '',
           title: jambaseEvent?.title ?? '',
-          artist_name: jambaseEvent?.artist_name ?? '',
-          artist_id: jambaseEvent?.artist_id ?? null,
-          venue_name: jambaseEvent?.venue_name ?? '',
-          venue_id: jambaseEvent?.venue_id ?? null,
+          // Use normalized artist_name and venue_name from JOINs (already populated by getUserInterestedEvents)
+          // Preserve null instead of empty string so EventDetailsModal fallback can fetch names
+          artist_name: jambaseEvent?.artist_name || (jambaseEvent as any)?.artist_name || null,
+          artist_id: jambaseEvent?.artist_id ?? (jambaseEvent as any)?.artist_id ?? null,
+          venue_name: jambaseEvent?.venue_name || (jambaseEvent as any)?.venue_name || null,
+          venue_id: jambaseEvent?.venue_id ?? (jambaseEvent as any)?.venue_id ?? null,
           venue_address: jambaseEvent?.venue_address ?? null,
           venue_city: jambaseEvent?.venue_city ?? null,
           venue_state: jambaseEvent?.venue_state ?? null,
