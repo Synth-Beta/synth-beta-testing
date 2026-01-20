@@ -60,7 +60,13 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
   useEffect(() => {
     const generateSuggestedUsername = async () => {
       const isEmpty = !formData.username;
-      const hasName = !!user?.user_metadata?.name;
+      
+      // Get name from user metadata - handle Apple Sign In (full_name) and regular signups (name)
+      const userName = user?.user_metadata?.full_name || 
+                       user?.user_metadata?.name || 
+                       user?.email?.split('@')[0] || 
+                       '';
+      const hasName = !!userName;
       
       // Reset suggestion flag when username is cleared (user manually cleared it)
       // Only reset if we're not currently generating and username is empty
@@ -73,7 +79,7 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
         isGeneratingRef.current = true; // Mark as generating to prevent reset
         try {
           const { generateAvailableUsername } = await import('@/services/usernameService');
-          const suggested = await generateAvailableUsername(user.user_metadata.name);
+          const suggested = await generateAvailableUsername(userName);
           if (suggested) {
             hasSuggestedRef.current = true; // Mark as suggested
             setFormData(prev => ({ ...prev, username: suggested }));
@@ -87,9 +93,9 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
     };
     
     generateSuggestedUsername();
-    // Only depend on user name - don't include formData.username to avoid circular dependency
+    // Only depend on user metadata - don't include formData.username to avoid circular dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.user_metadata?.name]);
+  }, [user?.user_metadata?.name, user?.user_metadata?.full_name, user?.email]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
