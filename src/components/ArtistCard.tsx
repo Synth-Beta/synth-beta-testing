@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { supabase } from '@/integrations/supabase/client';
 import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 
 interface ArtistCardProps {
   artist: Artist;
@@ -222,55 +223,24 @@ export function ArtistCard({
               <Calendar className="w-5 h-5" />
               Upcoming Events ({upcomingEvents.length})
             </h3>
-            <div className="grid grid-cols-3 gap-2 w-full max-w-full overflow-x-hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
                     {displayedUpcomingEvents.map((event) => (
-                <Card key={event.jambase_event_id} className="hover:bg-muted/50 cursor-pointer w-full max-w-full min-w-0 overflow-hidden">
-                  <CardContent className="p-2">
-                          <div className="space-y-1">
-                      <div className="font-medium text-xs break-words">{formatDate(event.event_date)}</div>
-                      <div className="text-xs text-muted-foreground break-words">
-                              {formatTime(event.event_date)}
-                              {event.doors_time && (
-                          <span className="ml-1 block">
-                            Doors: {formatDoorsTime(event.doors_time)}
-                                </span>
-                              )}
-                            </div>
-                      <div className="font-medium text-xs truncate min-w-0" title={event.venue_name}>
-                        {event.venue_name || 'Venue TBD'}
-                          </div>
-                      <div className="text-xs text-muted-foreground truncate min-w-0">
-                        {getLocationString(event)}
-                            </div>
-                          {event.price_range ? (
-                        <div className="font-medium text-xs">${event.price_range}</div>
-                          ) : (
-                        <div className="text-muted-foreground text-xs">Price TBD</div>
-                          )}
-                          {event.ticket_available && event.ticket_urls && event.ticket_urls.length > 0 ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
-                          className="text-blue-600 hover:text-blue-700 text-xs px-1.5 py-0.5 h-5 mt-1 w-full"
-                            >
-                              <a 
-                                href={event.ticket_urls[0]} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-1"
-                              >
-                            <Ticket className="w-2.5 h-2.5" />
-                            <span className="text-xs">Buy</span>
-                              </a>
-                            </Button>
-                      ) : null}
-                      <Badge variant="default" className="text-xs mt-1 w-full text-center">
-                            Upcoming
-                          </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
+                <SwiftUIEventCard
+                  key={event.jambase_event_id || event.id}
+                  event={{
+                    id: event.id || event.jambase_event_id || '',
+                    title: event.title || 'Event',
+                    event_date: event.event_date,
+                    venue_name: event.venue_name,
+                    venue_city: event.venue_city,
+                    venue_state: event.venue_state,
+                    doors_time: event.doors_time,
+                    price_range: event.price_range,
+                    ticket_urls: event.ticket_urls,
+                    ticket_available: event.ticket_available,
+                    genres: event.genres,
+                  }}
+                />
                     ))}
               </div>
               {!showAllEvents && upcomingEvents.length > 10 && (

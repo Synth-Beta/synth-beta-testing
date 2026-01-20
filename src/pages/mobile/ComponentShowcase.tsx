@@ -743,7 +743,7 @@ const ComponentShowcase: React.FC = () => {
 
           {/* Tertiary Variant */}
           <div className="component-subgroup">
-            <h3 className="component-subgroup__title">Tertiary (22px height, labels only, no full-width)</h3>
+            <h3 className="component-subgroup__title">Tertiary (25px height, labels only, no full-width)</h3>
             <div className="component-variants">
               <div className="component-variant">
                 <p className="component-variant__label">Text Only</p>

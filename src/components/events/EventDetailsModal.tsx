@@ -19,7 +19,8 @@ import {
   Award,
   Flag,
   MoreVertical,
-  Loader2
+  Loader2,
+  ExternalLink
 } from 'lucide-react';
 import { EventCommentsModal } from './EventCommentsModal';
 import { ReportContentModal } from '../moderation/ReportContentModal';
@@ -274,12 +275,91 @@ export function EventDetailsModal({
   // The event data is already complete from the map/feed
   useEffect(() => {
     if (isOpen && event) {
+      // Normalize the event data to handle both legacy and normalized schema
+      const normalizedEvent = {
+        ...event,
+        artist_name: event.artist_name || (event as any).artist_name_normalized || null,
+        venue_name: event.venue_name || (event as any).venue_name_normalized || null,
+      };
+
       // Always use the passed event data directly
       // This avoids 406 errors from RLS policies and unnecessary database calls
-      setActualEvent(event);
+      setActualEvent(normalizedEvent);
       setLoading(false);
     }
   }, [isOpen, event]);
+
+  // Fetch artist and venue names if missing (for normalized schema)
+  useEffect(() => {
+    if (isOpen && actualEvent && (!actualEvent.artist_name || !actualEvent.venue_name)) {
+      const fetchArtistVenueNames = async () => {
+        try {
+          const { data: eventData, error } = await supabase
+            .from('events_with_artist_venue')
+            .select('artist_name_normalized, venue_name_normalized, artist_id, venue_id')
+            .eq('id', actualEvent.id)
+            .single();
+
+          if (eventData && !error) {
+            setActualEvent(prev => ({
+              ...prev,
+              artist_name: prev.artist_name || eventData.artist_name_normalized || null,
+              venue_name: prev.venue_name || eventData.venue_name_normalized || null,
+              artist_id: prev.artist_id || eventData.artist_id || null,
+              venue_id: prev.venue_id || eventData.venue_id || null,
+            }));
+          } else if (actualEvent.artist_id || actualEvent.venue_id) {
+            const promises: Promise<{ type: string; data: any; error: any }>[] = [];
+
+            if (actualEvent.artist_id && !actualEvent.artist_name) {
+              promises.push(
+                Promise.resolve(
+                  supabase
+                    .from('artists')
+                    .select('name')
+                    .eq('id', actualEvent.artist_id)
+                    .single()
+                ).then(({ data, error }) => ({ type: 'artist', data, error }))
+              );
+            }
+
+            if (actualEvent.venue_id && !actualEvent.venue_name) {
+              promises.push(
+                Promise.resolve(
+                  supabase
+                    .from('venues')
+                    .select('name')
+                    .eq('id', actualEvent.venue_id)
+                    .single()
+                ).then(({ data, error }) => ({ type: 'venue', data, error }))
+              );
+            }
+
+            const results = await Promise.all(promises);
+            const updates: any = {};
+
+            results.forEach(result => {
+              if (result.data && !result.error) {
+                if (result.type === 'artist') {
+                  updates.artist_name = result.data.name;
+                } else if (result.type === 'venue') {
+                  updates.venue_name = result.data.name;
+                }
+              }
+            });
+
+            if (Object.keys(updates).length > 0) {
+              setActualEvent(prev => ({ ...prev, ...updates }));
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching artist/venue names:', error);
+        }
+      };
+
+      fetchArtistVenueNames();
+    }
+  }, [isOpen, actualEvent?.id, actualEvent?.artist_id, actualEvent?.venue_id]);
 
   // Load attendance data for past events
   useEffect(() => {
@@ -822,7 +902,7 @@ export function EventDetailsModal({
                       }
                     }}
                   >
-                    <Heart size={16} className={`mr-1 ${localIsInterested ? 'fill-current' : ''}`} />
+                    <Heart size={24} className={`mr-1 ${localIsInterested ? 'fill-current' : ''}`} />
                     {localIsInterested ? 'Interested' : "I'm Interested"}
                   </Button>
                 )}
@@ -943,7 +1023,7 @@ export function EventDetailsModal({
             {isPastEvent && (
               <div
                 style={{
-                  height: '22px',
+                  height: '25px',
                   borderRadius: 'var(--radius-corner, 10px)',
                   paddingLeft: 'var(--spacing-small, 12px)',
                   paddingRight: 'var(--spacing-small, 12px)',
@@ -965,7 +1045,7 @@ export function EventDetailsModal({
             {isUpcomingEvent && (
               <div
                 style={{
-                  height: '22px',
+                  height: '25px',
                   borderRadius: 'var(--radius-corner, 10px)',
                   paddingLeft: 'var(--spacing-small, 12px)',
                   paddingRight: 'var(--spacing-small, 12px)',
@@ -1012,7 +1092,7 @@ export function EventDetailsModal({
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        height: '22px',
+                        height: '25px',
                         paddingLeft: 'var(--spacing-small, 12px)',
                         paddingRight: 'var(--spacing-small, 12px)',
                         borderRadius: 'var(--radius-corner, 10px)',
@@ -1131,7 +1211,7 @@ export function EventDetailsModal({
                     setShowGroups(false);
                   }}
                 >
-                  <Heart size={16} style={{ marginRight: 'var(--spacing-inline, 6px)', flexShrink: 0, color: showBuddyFinder ? 'var(--neutral-50)' : undefined }} />
+                  <Heart size={24} style={{ marginRight: 'var(--spacing-inline, 6px)', flexShrink: 0, color: showBuddyFinder ? 'var(--neutral-50)' : undefined }} />
                   <span style={{ color: showBuddyFinder ? 'var(--neutral-50)' : undefined }}>Meet ({interestedCount !== null ? interestedCount : 0})</span>
                 </Button>
               )}
@@ -1306,7 +1386,7 @@ export function EventDetailsModal({
                                             style={{
                                               display: 'inline-flex',
                                               alignItems: 'center',
-                                              height: '22px',
+                                              height: '25px',
                                               paddingLeft: 'var(--spacing-small, 12px)',
                                               paddingRight: 'var(--spacing-small, 12px)',
                                               borderRadius: 'var(--radius-corner, 10px)',

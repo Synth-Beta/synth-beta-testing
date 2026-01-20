@@ -30,7 +30,9 @@ export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId, 
   }, [isOpen, reviewId]);
 
   const loadComments = async () => {
-    if (!reviewId) return;
+    if (!reviewId) {
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -83,8 +85,27 @@ export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId, 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-[95vw] h-[85dvh] max-h-[85dvh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col">
-        <DialogHeader className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
+      <DialogContent
+        className="fixed inset-0 z-[100] max-w-none w-full h-full m-0 p-0 overflow-hidden flex flex-col rounded-none"
+        style={{
+          left: 0,
+          top: 0,
+          transform: 'none',
+          width: '100vw',
+          height: '100vh',
+          maxWidth: '100vw',
+          maxHeight: '100vh',
+          borderRadius: 0,
+          backgroundColor: 'var(--neutral-50)',
+        }}
+      >
+        <DialogHeader
+          className="px-4 py-3 border-b sticky top-0 z-10"
+          style={{
+            borderColor: 'var(--neutral-200)',
+            backgroundColor: 'var(--neutral-50)',
+          }}
+        >
           <DialogTitle>Review Comments</DialogTitle>
           <DialogDescription>
             Share your thoughts about this review

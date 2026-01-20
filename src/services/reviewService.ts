@@ -1148,16 +1148,32 @@ export class ReviewService {
 
       // Check if current user has liked any of these reviews
       let userLikes: string[] = [];
-      if (userId) {
-        const { data: likes } = await supabase
-          .from('engagements')
-          .select('entity_id')
-          .eq('user_id', userId)
+      if (userId && reviews && reviews.length > 0) {
+        // First, get entity_ids for all review IDs
+        const reviewIds = reviews.map(r => r.id);
+        const { data: entities, error: entitiesError } = await supabase
+          .from('entities')
+          .select('id, entity_uuid')
           .eq('entity_type', 'review')
-          .eq('engagement_type', 'like')
-          .in('entity_id', reviews?.map(r => r.id) || []);
+          .in('entity_uuid', reviewIds);
         
-        userLikes = likes?.map(l => l.entity_id) || [];
+        if (entitiesError) {
+          console.error('Error fetching entities for review likes:', entitiesError);
+          // Continue with empty likes array if entity lookup fails
+        } else if (entities && entities.length > 0) {
+          const entityIds = entities.map(e => e.id);
+          // Now query engagements using entity_ids (FK to entities.id)
+          const { data: likes } = await supabase
+            .from('engagements')
+            .select('entity_id')
+            .eq('user_id', userId)
+            .eq('engagement_type', 'like')
+            .in('entity_id', entityIds);
+          
+          // Map entity_ids back to review IDs for matching
+          const entityIdToReviewId = new Map(entities.map(e => [e.id, e.entity_uuid]));
+          userLikes = (likes?.map(l => entityIdToReviewId.get(l.entity_id)).filter(Boolean) as string[]) || [];
+        }
       }
 
       // Process reviews with engagement data
@@ -1672,14 +1688,22 @@ export class ReviewService {
     console.log('🔍 ReviewService: likeReview called', { userId, reviewId });
     
     try {
+      // Get or create entity for this review (use RPC function which handles creation)
+      const { data: entityId, error: entityError } = await supabase.rpc('get_or_create_entity', {
+        p_entity_type: 'review',
+        p_entity_uuid: reviewId,
+        p_entity_text_id: null,
+      });
+
+      if (entityError) throw entityError;
+
       // Check if user already liked this review
       console.log('🔍 ReviewService: Checking for existing like...');
       const { data: existingLike, error: checkError } = await supabase
         .from('engagements')
         .select('id')
         .eq('user_id', userId)
-        .eq('entity_type', 'review')
-        .eq('entity_id', reviewId)
+        .eq('entity_id', entityId)
         .eq('engagement_type', 'like')
         .maybeSingle();
 
@@ -1691,8 +1715,28 @@ export class ReviewService {
       }
 
       if (existingLike) {
-        console.log('✅ ReviewService: User already liked this review, returning existing like');
-        return existingLike as ReviewLike;
+        console.log('✅ ReviewService: User already liked this review, fetching full like record...');
+        // Fetch the full like record to return complete ReviewLike object
+        const { data: fullLike, error: fetchError } = await supabase
+          .from('engagements')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('entity_id', entityId)
+          .eq('engagement_type', 'like')
+          .single();
+        
+        if (fetchError || !fullLike) {
+          console.error('❌ ReviewService: Error fetching existing like:', fetchError);
+          throw fetchError || new Error('Failed to fetch existing like');
+        }
+        
+        // Transform engagements table result to ReviewLike interface
+        return {
+          id: fullLike.id,
+          user_id: fullLike.user_id,
+          review_id: reviewId, // Add review_id for ReviewLike interface compatibility
+          created_at: fullLike.created_at,
+        } as ReviewLike;
       }
 
       console.log('🔍 ReviewService: Inserting new like...');
@@ -1700,8 +1744,7 @@ export class ReviewService {
         .from('engagements')
         .insert({
           user_id: userId,
-          entity_type: 'review',
-          entity_id: reviewId,
+          entity_id: entityId, // FK to entities.id (replaces entity_type + entity_id)
           engagement_type: 'like'
         })
         .select()
@@ -1714,23 +1757,42 @@ export class ReviewService {
         // Handle duplicate key error gracefully
         if (error.code === '23505') {
           console.log('🔍 ReviewService: Duplicate key error, fetching existing like...');
-          // Try to get the existing like
-          const { data: existing } = await supabase
+          // Try to get the existing like (entityId already available from above)
+          const { data: existing, error: fetchError } = await supabase
             .from('engagements')
             .select('*')
             .eq('user_id', userId)
-            .eq('entity_type', 'review')
-            .eq('entity_id', reviewId)
+            .eq('entity_id', entityId)
             .eq('engagement_type', 'like')
             .single();
+          
+          if (fetchError || !existing) {
+            console.error('❌ ReviewService: Error fetching existing like after duplicate key error:', fetchError);
+            throw error; // Re-throw original error if fetch fails
+          }
+          
           console.log('✅ ReviewService: Found existing like after duplicate error:', existing);
-          return existing as ReviewLike;
+          
+          // Transform engagements table result to ReviewLike interface
+          return {
+            id: existing.id,
+            user_id: existing.user_id,
+            review_id: reviewId, // Add review_id for ReviewLike interface compatibility
+            created_at: existing.created_at,
+          } as ReviewLike;
         }
         throw error;
       }
 
       console.log('✅ ReviewService: Like inserted successfully:', data);
-      return data;
+      
+      // Transform engagements table result to ReviewLike interface (add review_id for compatibility)
+      return {
+        id: data.id,
+        user_id: data.user_id,
+        review_id: reviewId, // Add review_id field required by ReviewLike interface
+        created_at: data.created_at,
+      } as ReviewLike;
     } catch (error) {
       console.error('❌ ReviewService: Error liking review:', error);
       throw new Error(`Failed to like review: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1742,12 +1804,28 @@ export class ReviewService {
    */
   static async unlikeReview(userId: string, reviewId: string): Promise<void> {
     try {
+      // Get entity_id for this review
+      const { data: entityData, error: entityError } = await supabase
+        .from('entities')
+        .select('id')
+        .eq('entity_type', 'review')
+        .eq('entity_uuid', reviewId)
+        .single();
+
+      if (entityError && (entityError as any).code !== 'PGRST116') {
+        throw entityError;
+      }
+
+      if (!entityData?.id) {
+        // Entity not found, nothing to unlike - return silently
+        return;
+      }
+
       const { error } = await supabase
         .from('engagements')
         .delete()
         .eq('user_id', userId)
-        .eq('entity_type', 'review')
-        .eq('entity_id', reviewId)
+        .eq('entity_id', entityData.id)
         .eq('engagement_type', 'like');
 
       if (error) throw error;
@@ -1767,12 +1845,20 @@ export class ReviewService {
     parentCommentId?: string
   ): Promise<ReviewComment> {
     try {
+      // Get or create entity for this review
+      const { data: entityId, error: entityError } = await supabase.rpc('get_or_create_entity', {
+        p_entity_type: 'review',
+        p_entity_uuid: reviewId,
+        p_entity_text_id: null,
+      });
+
+      if (entityError) throw entityError;
+
       const { data, error } = await supabase
         .from('comments')
         .insert({
           user_id: userId,
-          entity_type: 'review',
-          entity_id: reviewId,
+          entity_id: entityId, // FK to entities.id (replaces entity_type + entity_id)
           comment_text: commentText,
           parent_comment_id: parentCommentId
         })
@@ -1784,7 +1870,19 @@ export class ReviewService {
       // Update comments count
       await this.updateReviewCounts(reviewId, 'comments', 1);
 
-      return data;
+      // Transform unified comments table result to ReviewComment interface
+      // ReviewComment was from old review_comments table, now we use unified comments
+      // Map the data to match the expected ReviewComment structure
+      return {
+        id: data.id,
+        user_id: data.user_id,
+        review_id: reviewId, // Add review_id for ReviewComment compatibility
+        comment_text: data.comment_text,
+        parent_comment_id: data.parent_comment_id,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        likes_count: data.likes_count || 0,
+      } as ReviewComment;
     } catch (error) {
       console.error('Error adding comment:', error);
       throw new Error(`Failed to add comment: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1796,12 +1894,27 @@ export class ReviewService {
    */
   static async getReviewComments(reviewId: string): Promise<CommentWithUser[]> {
     try {
+      // Get entity_id for this review
+      const { data: entityData, error: entityError } = await supabase
+        .from('entities')
+        .select('id')
+        .eq('entity_type', 'review')
+        .eq('entity_uuid', reviewId)
+        .single();
+
+      if (entityError && (entityError as any).code !== 'PGRST116') {
+        throw entityError;
+      }
+
+      if (!entityData?.id) {
+        return []; // Entity not found, return empty array
+      }
+
       // First, get the comments
       const { data: comments, error: commentsError } = await supabase
         .from('comments')
         .select('*')
-        .eq('entity_type', 'review')
-        .eq('entity_id', reviewId)
+        .eq('entity_id', entityData.id)
         .order('created_at', { ascending: true });
 
       if (commentsError) throw commentsError;
@@ -1857,12 +1970,20 @@ export class ReviewService {
     platform?: string
   ): Promise<ReviewShare> {
     try {
+      // Get or create entity for this review
+      const { data: entityId, error: entityError } = await supabase.rpc('get_or_create_entity', {
+        p_entity_type: 'review',
+        p_entity_uuid: reviewId,
+        p_entity_text_id: null,
+      });
+
+      if (entityError) throw entityError;
+
       const { data, error } = await supabase
         .from('engagements')
         .insert({
           user_id: userId,
-          entity_type: 'review',
-          entity_id: reviewId,
+          entity_id: entityId, // FK to entities.id (replaces entity_type + entity_id)
           engagement_type: 'share',
           engagement_value: platform || 'unknown',
           metadata: { review_id: reviewId, share_platform: platform }
@@ -2050,19 +2171,37 @@ export class ReviewService {
       // Check if user has liked this review
       let isLiked = false;
       if (userId) {
-        const { data: likeData, error: likeError } = await supabase
-          .from('engagements')
+        // Get entity_id for this review first
+        const { data: entityData, error: entityError } = await supabase
+          .from('entities')
           .select('id')
           .eq('entity_type', 'review')
-          .eq('entity_id', reviewId)
-          .eq('engagement_type', 'like')
-          .eq('user_id', userId)
-          .maybeSingle();
+          .eq('entity_uuid', reviewId)
+          .single();
         
-        if (likeError) {
-          console.error('❌ ReviewService: Error checking like status:', likeError);
-        } else {
-          isLiked = !!likeData;
+        if (entityError) {
+          // Only ignore "not found" errors (PGRST116), log others
+          if ((entityError as any).code !== 'PGRST116') {
+            console.error('Error fetching entity for review engagement check:', entityError);
+          }
+          // Return null if entity lookup fails (isLiked will remain false)
+          // Continue to return review counts even if like check fails
+        }
+        
+        if (entityData?.id) {
+          const { data: likeData, error: likeError } = await supabase
+            .from('engagements')
+            .select('id')
+            .eq('entity_id', entityData.id)
+            .eq('engagement_type', 'like')
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          if (likeError) {
+            console.error('❌ ReviewService: Error checking like status:', likeError);
+          } else {
+            isLiked = !!likeData;
+          }
         }
       }
       
@@ -2262,16 +2401,32 @@ export class ReviewService {
 
       // Check if current user has liked any of these reviews
       let userLikes: string[] = [];
-      if (userId) {
-        const { data: likes } = await supabase
-          .from('engagements')
-          .select('entity_id')
-          .eq('user_id', userId)
+      if (userId && reviews && reviews.length > 0) {
+        // First, get entity_ids for all review IDs
+        const reviewIds = reviews.map((r: any) => r.id);
+        const { data: entities, error: entitiesError } = await supabase
+          .from('entities')
+          .select('id, entity_uuid')
           .eq('entity_type', 'review')
-          .eq('engagement_type', 'like')
-          .in('entity_id', reviews?.map(r => r.id) || []);
+          .in('entity_uuid', reviewIds);
         
-        userLikes = likes?.map(l => l.entity_id) || [];
+        if (entitiesError) {
+          console.error('Error fetching entities for review likes:', entitiesError);
+          // Continue with empty likes array if entity lookup fails
+        } else if (entities && entities.length > 0) {
+          const entityIds = entities.map(e => e.id);
+          // Now query engagements using entity_ids (FK to entities.id)
+          const { data: likes } = await supabase
+            .from('engagements')
+            .select('entity_id')
+            .eq('user_id', userId)
+            .eq('engagement_type', 'like')
+            .in('entity_id', entityIds);
+          
+          // Map entity_ids back to review IDs for matching
+          const entityIdToReviewId = new Map(entities.map(e => [e.id, e.entity_uuid]));
+          userLikes = (likes?.map(l => entityIdToReviewId.get(l.entity_id)).filter(Boolean) as string[]) || [];
+        }
       }
 
       // Process reviews with engagement data
@@ -2328,16 +2483,32 @@ export class ReviewService {
 
       // Check if current user has liked any of these reviews
       let userLikes: string[] = [];
-      if (userId) {
-        const { data: likes } = await supabase
-          .from('engagements')
-          .select('entity_id')
-          .eq('user_id', userId)
+      if (userId && reviews && reviews.length > 0) {
+        // First, get entity_ids for all review IDs
+        const reviewIds = reviews.map((r: any) => r.id);
+        const { data: entities, error: entitiesError } = await supabase
+          .from('entities')
+          .select('id, entity_uuid')
           .eq('entity_type', 'review')
-          .eq('engagement_type', 'like')
-          .in('entity_id', reviews?.map(r => r.id) || []);
+          .in('entity_uuid', reviewIds);
         
-        userLikes = likes?.map(l => l.entity_id) || [];
+        if (entitiesError) {
+          console.error('Error fetching entities for review likes:', entitiesError);
+          // Continue with empty likes array if entity lookup fails
+        } else if (entities && entities.length > 0) {
+          const entityIds = entities.map(e => e.id);
+          // Now query engagements using entity_ids (FK to entities.id)
+          const { data: likes } = await supabase
+            .from('engagements')
+            .select('entity_id')
+            .eq('user_id', userId)
+            .eq('engagement_type', 'like')
+            .in('entity_id', entityIds);
+          
+          // Map entity_ids back to review IDs for matching
+          const entityIdToReviewId = new Map(entities.map(e => [e.id, e.entity_uuid]));
+          userLikes = (likes?.map(l => entityIdToReviewId.get(l.entity_id)).filter(Boolean) as string[]) || [];
+        }
       }
 
       // Process reviews with engagement data

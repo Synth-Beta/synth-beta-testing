@@ -1,8 +1,10 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Send, Check } from 'lucide-react';
+import { Calendar, MapPin, Send, Check, Heart } from 'lucide-react';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
+
+export type EventReason = 'recommended' | 'trending' | 'friend_interested' | 'following';
 
 interface CompactEventCardProps {
   event: {
@@ -17,7 +19,8 @@ interface CompactEventCardProps {
   };
   interestedCount?: number;
   isInterested?: boolean;
-  isCommunityPhoto?: boolean; // Indicates if image is from a user review photo
+  isCommunityPhoto?: boolean;
+  reason?: EventReason;
   onInterestClick?: (e: React.MouseEvent) => void;
   onShareClick?: (e: React.MouseEvent) => void;
   onClick?: () => void;
@@ -29,6 +32,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
   interestedCount = 0,
   isInterested = false,
   isCommunityPhoto = false,
+  reason,
   onInterestClick,
   onShareClick,
   onClick,
@@ -38,18 +42,52 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
   const imageUrl = rawImageUrl ? replaceJambasePlaceholder(rawImageUrl) : null;
   const eventDate = event.event_date ? new Date(event.event_date) : null;
 
+  const formatDate = (date: Date | null) => {
+    if (!date) return '';
+    return format(date, 'EEE, MMM d, yyyy');
+  };
+
+  const getReasonBadge = () => {
+    if (!reason) return null;
+
+    const labelMap: Record<EventReason, string> = {
+      recommended: 'Recommended',
+      trending: 'Trending',
+      friend_interested: 'Friend Interested',
+      following: 'Following',
+    };
+
+    return (
+      <div
+        className="absolute left-4 px-3 py-1.5 rounded-lg"
+        style={{
+          top: 'var(--spacing-grouped, 24px)',
+          backgroundColor: 'var(--brand-pink-500)',
+          color: 'var(--neutral-50)',
+          boxShadow: '0 4px 4px 0 var(--shadow-color)',
+          fontFamily: 'var(--font-family)',
+          fontSize: 'var(--typography-meta-size, 16px)',
+          fontWeight: 'var(--typography-meta-weight, 500)',
+          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+          letterSpacing: '0.5px',
+          textTransform: 'uppercase',
+          zIndex: 50,
+        }}
+        aria-label={`Event shown because: ${labelMap[reason]}`}
+      >
+        {labelMap[reason]}
+      </div>
+    );
+  };
+
   return (
     <div
       className={cn(
-        'flex flex-col rounded-lg overflow-hidden',
-        'hover:shadow-lg transition-all duration-200',
+        'swift-ui-card flex flex-col overflow-hidden',
         'relative group cursor-pointer',
+        'w-full h-full max-h-[85vh]',
         className
       )}
-      style={{ 
-        backgroundColor: 'var(--neutral-100)',
-        border: '1px solid var(--neutral-200)'
-      }}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -62,54 +100,37 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       aria-label={`View event: ${event.title}`}
     >
       {/* Event Image */}
-      <div
-        className="relative w-full aspect-square"
-        style={{ outline: 'none' }}
-      >
+      <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden">
       {imageUrl ? (
         <>
-          <img
-            src={imageUrl}
-            alt={event.title}
-            className="w-full h-full object-cover"
-          />
-          {/* Community Photo Tag - ACCESSIBILITY: Decorative, hide from screen readers */}
-          {isCommunityPhoto && (
+            <img src={imageUrl} alt={event.title} className="w-full h-full object-cover" />
             <div
-              className="absolute top-2 right-2 flex items-center"
-              aria-hidden="true"
+              className="absolute inset-0"
               style={{
-                display: 'flex',
-                height: '22px',
-                paddingLeft: 'var(--spacing-small, 12px)',
-                paddingRight: 'var(--spacing-small, 12px)',
-                alignItems: 'center',
-                gap: 'var(--spacing-small, 12px)',
-                borderRadius: '10px',
-                background: 'var(--neutral-50)',
-                boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                background:
+                  'linear-gradient(to top, rgba(14, 14, 14, 0.8) 0%, rgba(14, 14, 14, 0.4) 50%, transparent 100%)',
               }}
-            >
-              <span
+            />
+            {reason && getReasonBadge()}
+            {isCommunityPhoto && (
+              <div className="absolute top-4 right-4 swift-ui-badge z-50" aria-hidden="true">
+                <span className="swift-ui-badge-text">Community Photo</span>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center swift-ui-gradient-bg">
+            <div className="text-center px-4">
+              <p
+                className="line-clamp-2"
                 style={{
                   fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-meta-size, 16px)',
-                  fontWeight: 'var(--typography-medium-weight, 500)',
-                  color: 'var(--neutral-900)',
-                  lineHeight: '1',
-                  whiteSpace: 'nowrap',
+                  fontSize: 'var(--typography-h2-size, 24px)',
+                  fontWeight: 'var(--typography-h2-weight, 700)',
+                  lineHeight: 'var(--typography-h2-line-height, 1.3)',
+                  color: 'var(--neutral-0)',
                 }}
               >
-                Community Photo
-              </span>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-100)' }}>
-          {/* TODO: Replace gradient with approved gradient token or neutral background */}
-          <div className="text-center px-2">
-            <p className="text-xs font-semibold line-clamp-2" style={{ color: 'var(--brand-pink-500)' }}>
               {event.title}
             </p>
           </div>
@@ -117,134 +138,112 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       )}
       </div>
 
+      {/* Content Overlay */}
+      <div className="absolute bottom-0 left-0 right-0 swift-ui-card-content" style={{ zIndex: 40 }}>
       <div
-        className="px-2"
+          className="absolute inset-0"
         style={{
-          backgroundColor: 'var(--neutral-50)',
-          paddingTop: 'var(--spacing-small, 12px)',
-          paddingBottom: 'var(--spacing-small, 12px)',
-          display: 'flex',
-          flexDirection: 'column',
-          flexGrow: 1
-        }}
-      >
-        {/* Event title */}
-        <p className="text-sm font-semibold line-clamp-2 leading-tight" style={{ 
-          fontFamily: 'var(--font-family)',
-          fontSize: 'var(--typography-body-size, 20px)',
-          fontWeight: 'var(--typography-body-weight, 500)',
-          lineHeight: 'var(--typography-body-line-height, 1.5)',
-          color: 'var(--neutral-900)',
-          marginBottom: 'var(--spacing-inline, 6px)'
-        }}>
-          {event.title}
-        </p>
+            background:
+              'linear-gradient(to top, color-mix(in srgb, var(--neutral-0) 96%, transparent) 0%, color-mix(in srgb, var(--neutral-0) 90%, transparent) 60%, color-mix(in srgb, var(--neutral-0) 70%, transparent) 100%)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+          }}
+        />
 
-        {/* Interested count */}
-        <div style={{
+        <div
+          className="relative flex flex-col"
+          style={{ padding: 'var(--spacing-grouped, 24px)', gap: 'var(--spacing-small, 12px)' }}
+        >
+          <h2
+            className="line-clamp-2"
+            style={{
+          fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-h2-size, 24px)',
+              fontWeight: 'var(--typography-h2-weight, 700)',
+              lineHeight: 'var(--typography-h2-line-height, 1.3)',
+          color: 'var(--neutral-900)',
+            }}
+          >
+          {event.title}
+          </h2>
+
+          <div className="flex flex-col" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+            {event.venue_name && (
+              <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                <MapPin size={20} style={{ color: 'var(--brand-pink-500)' }} />
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--neutral-700)',
+                  }}
+                >
+                  {event.venue_name}
+                  {event.venue_city && ` · ${event.venue_city}`}
+                </span>
+              </div>
+            )}
+            {eventDate && (
+              <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                <Calendar size={20} style={{ color: 'var(--brand-pink-500)' }} />
+                <span
+                  style={{
           fontFamily: 'var(--font-family)',
           fontSize: 'var(--typography-meta-size, 16px)',
           fontWeight: 'var(--typography-meta-weight, 500)',
           lineHeight: 'var(--typography-meta-line-height, 1.5)',
-          color: 'var(--neutral-600)'
-        }}>
-          {interestedCount} interested
+                    color: 'var(--neutral-700)',
+                  }}
+                >
+                  {formatDate(eventDate)}
+                </span>
+              </div>
+            )}
         </div>
 
-        {/* Actions (Interested left, Share right) */}
+          {interestedCount > 0 && (
         <div
-          className="flex items-center justify-between"
           style={{
-            width: '100%',
-            marginTop: 'auto',
-            paddingTop: 'var(--spacing-small, 12px)'
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--neutral-600)',
           }}
         >
-          {/* Interested toggle button (left-aligned) */}
+              {interestedCount} {interestedCount === 1 ? 'person' : 'people'} interested
+            </div>
+          )}
+
+          <div className="flex items-center" style={{ gap: 'var(--spacing-small, 12px)' }}>
           <button
             onClick={(e) => {
               e.stopPropagation();
               onInterestClick?.(e);
             }}
-            style={{
-              height: 'var(--size-button-height, 36px)',
-              paddingLeft: 'var(--spacing-small, 12px)',
-              paddingRight: 'var(--spacing-small, 12px)',
-              borderRadius: 'var(--radius-corner, 10px)',
-              fontFamily: 'var(--font-family)',
-              fontSize: 'var(--typography-meta-size, 16px)',
-              fontWeight: 'var(--typography-meta-weight, 500)',
-              lineHeight: 'var(--typography-meta-line-height, 1.5)',
-              border: isInterested ? 'none' : '2px solid var(--brand-pink-500)',
-              backgroundColor: isInterested ? 'var(--brand-pink-500)' : 'var(--neutral-50)',
-              color: isInterested ? 'var(--neutral-50)' : 'var(--brand-pink-500)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 4px 4px 0 var(--shadow-color)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-inline, 6px)'
-            }}
-            onMouseEnter={(e) => {
-              if (!isInterested) {
-                e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)';
-                e.currentTarget.style.borderColor = 'var(--brand-pink-600)';
-              } else {
-                e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isInterested) {
-                e.currentTarget.style.backgroundColor = 'var(--neutral-50)';
-                e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
-              } else {
-                e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
-              }
-            }}
+              className={cn(
+                'swift-ui-button',
+                isInterested ? 'swift-ui-button-primary' : 'swift-ui-button-secondary'
+              )}
             aria-label={isInterested ? 'Remove interest' : 'Mark as interested'}
           >
-            Interested
-            {isInterested && (
-              <Check 
-                size={16} 
-                style={{ 
-                  color: 'var(--neutral-50)',
-                  flexShrink: 0
-                }} 
-                aria-hidden="true"
-              />
-            )}
+              <span style={{ color: isInterested ? 'var(--neutral-50)' : 'var(--brand-pink-500)' }}>Interested</span>
+              <Heart size={24} strokeWidth={2.5} style={{ color: isInterested ? 'var(--neutral-50)' : 'var(--brand-pink-500)' }} aria-hidden="true" />
           </button>
 
-          {/* Share button (right-aligned, secondary) */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onShareClick?.(e);
             }}
-            style={{
-              width: '44px',
-              height: '44px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              borderRadius: 'var(--radius-corner, 10px)',
-              color: 'var(--neutral-900)',
-              transition: 'background-color 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
+              className="swift-ui-button swift-ui-button-secondary swift-ui-button-icon"
             aria-label="Share event"
           >
-            <Send size={24} strokeWidth={2} />
+              <Send size={24} strokeWidth={2.5} />
           </button>
+          </div>
         </div>
       </div>
     </div>

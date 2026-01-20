@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PreferencesV4FeedService, type PreferencesV4FeedFilters } from '@/services/preferencesV4FeedService';
 import { CompactEventCard } from './CompactEventCard';
 import { RefreshCw } from 'lucide-react';
@@ -41,6 +41,7 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
   const [flagModalOpen, setFlagModalOpen] = useState(false);
   const [flaggedEvent, setFlaggedEvent] = useState<PersonalizedEvent | null>(null);
   const { toast } = useToast();
+  const feedRef = useRef<HTMLDivElement>(null);
 
   const pageSize = 20;
 
@@ -457,7 +458,13 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     filters && 'maxDaysAhead' in filters ? (filters as PreferencesV4FeedFilters).maxDaysAhead : undefined,
   ]);
 
-  const handleRefresh = () => {
+  const handleLoadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      loadEvents(page + 1, true);
+    }
+  }, [loadingMore, hasMore, page]);
+
+  const handleRefresh = useCallback(() => {
     // Clear following-first events and load completely new set
     setSkipFollowing(true);
     // Clear cache for current filter combination
@@ -466,7 +473,111 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     setEvents([]);
     setPage(0);
     loadEvents(0, false, true, true); // skipCache = true to force fresh fetch
-  };
+  }, [userId, filters]);
+
+  // Enhanced iOS-like scrolling behavior with pull-to-refresh and infinite scroll
+  useEffect(() => {
+    const feedElement = feedRef.current;
+    if (!feedElement) return;
+
+    let isScrolling = false;
+    let lastScrollTop = feedElement.scrollTop;
+    let lastScrollTime = Date.now();
+    let touchStartY = 0;
+    const pullToRefreshThreshold = 80;
+    let isPullingToRefresh = false;
+    let pullDistance = 0;
+
+    const handleScroll = () => {
+      const now = Date.now();
+      const currentScrollTop = feedElement.scrollTop;
+      const timeDelta = now - lastScrollTime;
+      if (timeDelta > 0) {
+        // noop - reserved for future velocity handling
+      }
+
+      lastScrollTop = currentScrollTop;
+      lastScrollTime = now;
+
+      if (!isScrolling) {
+        isScrolling = true;
+        feedElement.style.transition = 'none';
+      }
+
+      const scrollHeight = feedElement.scrollHeight;
+      const clientHeight = feedElement.clientHeight;
+      const scrollTop = feedElement.scrollTop;
+
+      if (scrollHeight - scrollTop - clientHeight < 200 && hasMore && !loadingMore && !loading) {
+        handleLoadMore();
+      }
+    };
+
+    const handleScrollEnd = () => {
+      isScrolling = false;
+      feedElement.style.transition = '';
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0].clientY;
+      pullDistance = 0;
+      isPullingToRefresh = false;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touchY = e.touches[0].clientY;
+      const deltaY = touchY - touchStartY;
+
+      if (feedElement.scrollTop === 0 && deltaY > 0) {
+        e.preventDefault();
+        pullDistance = deltaY;
+        isPullingToRefresh = true;
+
+        if (pullDistance > pullToRefreshThreshold) {
+          feedElement.style.transform = `translateY(${Math.min(pullDistance, 120)}px)`;
+        } else {
+          feedElement.style.transform = `translateY(${pullDistance}px)`;
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (isPullingToRefresh && pullDistance > pullToRefreshThreshold) {
+        feedElement.style.transform = '';
+        feedElement.style.transition = 'transform 0.3s ease';
+        handleRefresh();
+      } else if (isPullingToRefresh) {
+        feedElement.style.transform = '';
+        feedElement.style.transition = 'transform 0.3s ease';
+      }
+
+      isPullingToRefresh = false;
+      pullDistance = 0;
+      handleScrollEnd();
+    };
+
+    feedElement.addEventListener('scroll', handleScroll, { passive: true });
+    feedElement.addEventListener('touchend', handleTouchEnd, { passive: false });
+    feedElement.addEventListener('touchstart', handleTouchStart, { passive: true });
+    feedElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    let scrollTimeout: NodeJS.Timeout;
+    const handleWheel = () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(handleScrollEnd, 150);
+    };
+
+    feedElement.addEventListener('wheel', handleWheel, { passive: true });
+
+    return () => {
+      feedElement.removeEventListener('scroll', handleScroll);
+      feedElement.removeEventListener('touchend', handleTouchEnd);
+      feedElement.removeEventListener('touchstart', handleTouchStart);
+      feedElement.removeEventListener('touchmove', handleTouchMove);
+      feedElement.removeEventListener('wheel', handleWheel);
+      clearTimeout(scrollTimeout);
+    };
+  }, [events.length, hasMore, loadingMore, loading, handleLoadMore, handleRefresh]);
 
   // Show loading state only if we have no cached data and no events
   // If we have events (from cache), don't show loading spinner
@@ -494,26 +605,28 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     );
   }
 
-  const handleLoadMore = () => {
-    if (!loadingMore && hasMore) {
-      loadEvents(page + 1, true);
-    }
-  };
-
   return (
-    <div className={`space-y-4 ${className}`}>
-      {/* Events Grid - Vertical Layout */}
+    <div className={`swift-ui-feed-container ${className}`}>
+      {/* Events Feed - One card per screen with iOS scrolling */}
       {events.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <>
+        <div className="swift-ui-feed" ref={feedRef}>
             {events.map((event, index) => {
             // Resolve image URL with priority
             let imageUrl: string | undefined = undefined;
             let isCommunityPhoto = false;
             
-            // Check if there are any official images available (Ticketmaster/external sources)
+            const eventMediaUrl = (event as any).event_media_url;
             const hasOfficialImages = event.images && Array.isArray(event.images) && event.images.length > 0;
             
-            if (event.poster_image_url) {
+            if (eventMediaUrl) {
+              imageUrl = replaceJambasePlaceholder(eventMediaUrl);
+            } else if (hasOfficialImages) {
+              const bestImage = event.images.find((img: any) => 
+                img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
+              ) || event.images.find((img: any) => img?.url);
+              imageUrl = bestImage?.url ? replaceJambasePlaceholder(bestImage.url) : undefined;
+            } else if (event.poster_image_url) {
               imageUrl = replaceJambasePlaceholder(event.poster_image_url);
               
               // Only show "Community Photo" tag if:
@@ -525,46 +638,28 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
                 event.poster_image_url?.includes('review-photos') ||
                 event.poster_image_url?.includes('supabase.co/storage');
               
-              // Check if poster_image_url matches event_media_url (from artist, not community)
-              const isEventMediaUrl = (event as any).event_media_url && 
-                event.poster_image_url === (event as any).event_media_url;
-              
               // Check if it's a placeholder (fallback image)
               const isPlaceholder = event.poster_image_url?.includes('/Generic Images/') ||
                 event.poster_image_url?.includes('placeholder') ||
                 event.poster_image_url?.includes('picsum.photos');
               
-              // Check if it's in the official images array (external source)
-              const isInImagesArray = hasOfficialImages && 
-                event.images.some((img: any) => img?.url === event.poster_image_url);
-              
               // Only mark as community photo if:
               // - No official images available (falling back to user content)
               // - It's a Supabase storage URL (user-uploaded)
               // - Not a placeholder
-              // - Not from event_media_url (artist image)
-              // - Not in official images array
               if (!hasOfficialImages && 
                   isSupabaseStorageUrl && 
-                  !isPlaceholder && 
-                  !isEventMediaUrl && 
-                  !isInImagesArray) {
+                  !isPlaceholder) {
                 isCommunityPhoto = true;
               }
-            } else if (hasOfficialImages) {
-              // Use official images if available
-              const bestImage = event.images.find((img: any) => 
-                img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
-              ) || event.images.find((img: any) => img?.url);
-              imageUrl = bestImage?.url ? replaceJambasePlaceholder(bestImage.url) : undefined;
             }
             
             // Use index in key to ensure uniqueness even if IDs somehow duplicate
             const uniqueKey = `${event.id || 'event'}-${index}`;
             
             return (
+              <div key={uniqueKey} className="swift-ui-feed-item">
               <CompactEventCard
-                key={uniqueKey}
                 event={{
                   id: event.id || '',
                   title: event.title || event.artist_name || 'Event',
@@ -582,35 +677,20 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
                 onShareClick={(e) => handleShareClick(event, e)}
                 onClick={() => onEventClick?.(event.id)}
               />
+              </div>
             );
           })}
+          {loadingMore && (
+            <div className="flex justify-center py-8">
+              <SynthLoader variant="spinner" size="sm" />
+            </div>
+          )}
         </div>
+        </>
       ) : (
         <div className="text-center py-6 text-muted-foreground text-sm">
           <p>No personalized recommendations yet.</p>
           <p className="text-xs mt-1">Start following artists or marking events as interested!</p>
-        </div>
-      )}
-
-      {/* Load More Button */}
-      {events.length > 0 && hasMore && (
-        <div className="flex justify-center pt-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="flex items-center gap-2"
-          >
-            {loadingMore ? (
-              <>
-                <SynthLoader variant="spinner" size="sm" />
-                Loading...
-              </>
-            ) : (
-              'Load More'
-            )}
-          </Button>
         </div>
       )}
 

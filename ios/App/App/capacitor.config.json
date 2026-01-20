@@ -1,7 +1,7 @@
 {
   "appId": "com.tejpatel.synth",
   "appName": "Synth",
-  "webDir": "public",
+  "webDir": "dist",
   "plugins": {
     "SplashScreen": {
       "launchShowDuration": 3000,
@@ -17,5 +17,11 @@
       "style": "dark",
       "backgroundColor": "#FF3399"
     }
-  }
+  },
+  "packageClassList": [
+    "AppPlugin",
+    "PushNotificationsPlugin",
+    "SplashScreenPlugin",
+    "StatusBarPlugin"
+  ]
 }

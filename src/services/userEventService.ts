@@ -104,34 +104,19 @@ export class UserEventService {
   }> {
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId);
     if (isUUID) {
-      const { data: event, error } = await supabase
-        .from('events')
-        .select('id, jambase_event_id')
-        .eq('id', jambaseEventId)
-        .maybeSingle();
-
-      if (error) {
-        return { eventUuid: jambaseEventId, jambaseEventId: null };
-      }
-
+      // If it's already a UUID, we can use it directly as eventUuid
+      // No need to query the database to verify - the upsert will fail gracefully if invalid
       return {
-        eventUuid: event?.id || jambaseEventId,
-        jambaseEventId: event?.jambase_event_id || null,
+        eventUuid: jambaseEventId,
+        jambaseEventId: null, // events table doesn't have jambase_event_id column
       };
     }
 
-    const { data: event, error } = await supabase
-      .from('events')
-      .select('id, jambase_event_id')
-      .eq('jambase_event_id', jambaseEventId)
-      .maybeSingle();
-
-    if (error) {
-      return { eventUuid: null, jambaseEventId };
-    }
-
+    // If not a UUID, treat it as a jambase_event_id
+    // Since events table doesn't have jambase_event_id column, return null
+    // The calling code will need to handle this case
     return {
-      eventUuid: event?.id || null,
+      eventUuid: null,
       jambaseEventId: jambaseEventId,
     };
   }
@@ -181,7 +166,7 @@ export class UserEventService {
                 event_id: eventUuid,
                 relationship_type: 'interested',
               },
-              { onConflict: 'user_id,event_id,relationship_type' }
+              { onConflict: 'user_id,event_id' }
             );
 
           if (!error) {

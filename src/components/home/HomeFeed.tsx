@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PersonalizedFeedService, type PersonalizedEvent, type FeedItem } from '@/services/personalizedFeedService';
 import { HomeFeedService, type NetworkEvent, type EventList, type TrendingEvent, type NetworkReview } from '@/services/homeFeedService';
 import { UnifiedFeedService, type UnifiedFeedItem } from '@/services/unifiedFeedService';
@@ -13,8 +13,9 @@ import { EventListsCarousel } from './EventListsCarousel';
 import { CompactEventCard } from './CompactEventCard';
 import { FigmaEventCard } from '@/components/cards/FigmaEventCard';
 import { NetworkReviewCard } from './NetworkReviewCard';
-import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
+import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
+import { UnifiedEventsFeed } from './UnifiedEventsFeed';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
@@ -84,6 +85,7 @@ interface HomeFeedProps {
   menuOpen?: boolean;
   onMenuClick?: () => void;
   hideHeader?: boolean;
+  refreshTrigger?: number;
 }
 
 export const HomeFeed: React.FC<HomeFeedProps> = ({
@@ -98,6 +100,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   menuOpen = false,
   onMenuClick,
   hideHeader = false,
+  refreshTrigger = 0,
 }) => {
   // Header state
   const [activeCity, setActiveCity] = useState<string | null>(null);
@@ -186,8 +189,8 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [flagModalOpen, setFlagModalOpen] = useState(false);
   const [flaggedEvent, setFlaggedEvent] = useState<{ id: string; title: string } | null>(null);
 
-  // Feed type selection
-  const [selectedFeedType, setSelectedFeedType] = useState<string>('recommended');
+  // Feed type selection - simplified to just Events and Reviews
+  const [selectedFeedType, setSelectedFeedType] = useState<string>('events');
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
 
   // Location state for feed filtering
@@ -209,6 +212,10 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   // Review detail modal
   const [selectedReview, setSelectedReview] = useState<UnifiedFeedItem | null>(null);
   const [reviewDetailOpen, setReviewDetailOpen] = useState(false);
+
+  // Refs for feed containers
+  const trendingFeedRef = useRef<HTMLDivElement>(null);
+  const friendsFeedRef = useRef<HTMLDivElement>(null);
 
   // Friend event interests
 interface FriendEventInterest {
@@ -314,8 +321,19 @@ interface FriendEventInterest {
       loadFriendSuggestionsForRail();
     } else if (selectedFeedType === 'reviews') {
       loadReviews();
+      loadRecommendedFriends();
     }
   }, [selectedFeedType]);
+
+  // Refresh reviews when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      console.log('🔄 [HOME FEED] Refresh trigger changed, refetching reviews...');
+      if (selectedFeedType === 'reviews') {
+        loadReviews();
+      }
+    }
+  }, [refreshTrigger, selectedFeedType]);
 
   // Update dropdown button border when open state changes
   useEffect(() => {
@@ -332,6 +350,152 @@ interface FriendEventInterest {
     }
     // Friends feed does NOT reload on filter changes - it shows all events
   }, [filters.genres, filters.selectedCities, filters.dateRange]);
+
+  // Infinite scroll and pull-to-refresh handlers for trending feed
+  useEffect(() => {
+    if (selectedFeedType !== 'trending') return;
+    const feedElement = trendingFeedRef.current;
+    if (!feedElement) return;
+
+    let touchStartY = 0;
+    const pullToRefreshThreshold = 80;
+    let isPullingToRefresh = false;
+    let pullDistance = 0;
+
+    const handleScroll = () => {
+      const scrollHeight = feedElement.scrollHeight;
+      const clientHeight = feedElement.clientHeight;
+      const scrollTop = feedElement.scrollTop;
+
+      if (scrollHeight - scrollTop - clientHeight < 200 && trendingHasMore && !loadingTrending) {
+        setTrendingPage(prev => prev + 1);
+        loadTrendingEvents(false);
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0].clientY;
+      pullDistance = 0;
+      isPullingToRefresh = false;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touchY = e.touches[0].clientY;
+      const deltaY = touchY - touchStartY;
+
+      if (feedElement.scrollTop === 0 && deltaY > 0) {
+        e.preventDefault();
+        pullDistance = deltaY;
+        isPullingToRefresh = true;
+
+        if (pullDistance > pullToRefreshThreshold) {
+          feedElement.style.transform = `translateY(${Math.min(pullDistance, 120)}px)`;
+        } else {
+          feedElement.style.transform = `translateY(${pullDistance}px)`;
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (isPullingToRefresh && pullDistance > pullToRefreshThreshold) {
+        feedElement.style.transform = '';
+        feedElement.style.transition = 'transform 0.3s ease';
+        setTrendingPage(0);
+        loadTrendingEvents(true);
+      } else if (isPullingToRefresh) {
+        feedElement.style.transform = '';
+        feedElement.style.transition = 'transform 0.3s ease';
+      }
+
+      isPullingToRefresh = false;
+      pullDistance = 0;
+    };
+
+    feedElement.addEventListener('scroll', handleScroll, { passive: true });
+    feedElement.addEventListener('touchend', handleTouchEnd, { passive: false });
+    feedElement.addEventListener('touchstart', handleTouchStart, { passive: true });
+    feedElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      feedElement.removeEventListener('scroll', handleScroll);
+      feedElement.removeEventListener('touchend', handleTouchEnd);
+      feedElement.removeEventListener('touchstart', handleTouchStart);
+      feedElement.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [selectedFeedType, trendingHasMore, loadingTrending, trendingEvents.length]);
+
+  // Infinite scroll and pull-to-refresh handlers for friends feed
+  useEffect(() => {
+    if (selectedFeedType !== 'friends') return;
+    const feedElement = friendsFeedRef.current;
+    if (!feedElement) return;
+
+    let touchStartY = 0;
+    const pullToRefreshThreshold = 80;
+    let isPullingToRefresh = false;
+    let pullDistance = 0;
+
+    const handleScroll = () => {
+      const scrollHeight = feedElement.scrollHeight;
+      const clientHeight = feedElement.clientHeight;
+      const scrollTop = feedElement.scrollTop;
+
+      if (scrollHeight - scrollTop - clientHeight < 200 && friendsHasMore && !loadingNetwork) {
+        setFriendsPage(prev => prev + 1);
+        loadNetworkEvents(false);
+      }
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0].clientY;
+      pullDistance = 0;
+      isPullingToRefresh = false;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touchY = e.touches[0].clientY;
+      const deltaY = touchY - touchStartY;
+
+      if (feedElement.scrollTop === 0 && deltaY > 0) {
+        e.preventDefault();
+        pullDistance = deltaY;
+        isPullingToRefresh = true;
+
+        if (pullDistance > pullToRefreshThreshold) {
+          feedElement.style.transform = `translateY(${Math.min(pullDistance, 120)}px)`;
+        } else {
+          feedElement.style.transform = `translateY(${pullDistance}px)`;
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (isPullingToRefresh && pullDistance > pullToRefreshThreshold) {
+        feedElement.style.transform = '';
+        feedElement.style.transition = 'transform 0.3s ease';
+        setFriendsPage(0);
+        loadNetworkEvents(true);
+      } else if (isPullingToRefresh) {
+        feedElement.style.transform = '';
+        feedElement.style.transition = 'transform 0.3s ease';
+      }
+
+      isPullingToRefresh = false;
+      pullDistance = 0;
+    };
+
+    feedElement.addEventListener('scroll', handleScroll, { passive: true });
+    feedElement.addEventListener('touchend', handleTouchEnd, { passive: false });
+    feedElement.addEventListener('touchstart', handleTouchStart, { passive: true });
+    feedElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      feedElement.removeEventListener('scroll', handleScroll);
+      feedElement.removeEventListener('touchend', handleTouchEnd);
+      feedElement.removeEventListener('touchstart', handleTouchStart);
+      feedElement.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [selectedFeedType, friendsHasMore, loadingNetwork]);
 
   // Load user location for feed filtering - ALWAYS use lat/long + radius, NEVER city names
   const loadFeedLocation = async () => {
@@ -1253,10 +1417,7 @@ interface FriendEventInterest {
   };
 
   const feedTypes = [
-    { value: 'recommended', label: 'Hand Picked Events' },
-    { value: 'trending', label: 'Trending Events' },
-    { value: 'friends', label: 'Friends Interested' },
-    { value: 'group-chats', label: 'Recommended Group Chats' },
+    { value: 'events', label: 'Events' },
     { value: 'reviews', label: 'Reviews' },
   ];
                       
@@ -1322,7 +1483,7 @@ interface FriendEventInterest {
                       color: 'var(--neutral-900)',
                     }}
                   >
-                    {feedTypes.find((ft) => ft.value === selectedFeedType)?.label || 'Hand Picked Events'}
+                    {feedTypes.find((ft) => ft.value === selectedFeedType)?.label || 'Events'}
                   </span>
                   <ChevronDown className="h-4 w-4" style={{ color: 'var(--neutral-900)' }} />
                 </Button>
@@ -1405,6 +1566,20 @@ interface FriendEventInterest {
           </>
         )}
         {/* Feed content based on selection */}
+        {selectedFeedType === 'events' && (
+          <UnifiedEventsFeed
+            currentUserId={currentUserId}
+            filters={filters}
+            onEventClick={handleEventClick}
+            onInterestToggle={async (eventId, interested) => {
+              console.log('Interest toggled:', eventId, interested);
+            }}
+            onShareClick={async (event, e) => {
+              e.stopPropagation();
+              console.log('Share event:', event);
+            }}
+          />
+        )}
         {selectedFeedType === 'recommended' && (
               <PreferencesV4FeedSection
                 userId={currentUserId}
@@ -1864,61 +2039,35 @@ interface FriendEventInterest {
       {/* Review Detail Modal */}
       {reviewDetailOpen && selectedReview && (
         <Dialog open={reviewDetailOpen} onOpenChange={setReviewDetailOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent
+            className="fixed inset-0 z-[100] max-w-none w-full h-full m-0 p-0 overflow-hidden rounded-none"
+            style={{
+              left: 0,
+              top: 0,
+              transform: 'none',
+              width: '100vw',
+              height: '100vh',
+              maxWidth: '100vw',
+              maxHeight: '100vh',
+              borderRadius: 0,
+              border: 'none',
+              boxShadow: 'none',
+              backgroundColor: 'var(--neutral-50)',
+            }}
+          >
             <DialogTitle className="sr-only">Review Details</DialogTitle>
             <DialogDescription className="sr-only">
               Detailed view of {selectedReview.author.name}'s review
             </DialogDescription>
-            <BelliStyleReviewCard
-              review={{
-                id: selectedReview.review_id || selectedReview.id,
-                user_id: selectedReview.author.id,
-                event_id: (selectedReview.event_info as any)?.event_id || '',
-                rating: selectedReview.rating || 0,
-                review_text: selectedReview.content || '',
-                is_public: selectedReview.is_public ?? true,
-                created_at: selectedReview.created_at,
-                updated_at: selectedReview.updated_at || selectedReview.created_at,
-                likes_count: selectedReview.likes_count || 0,
-                comments_count: selectedReview.comments_count || 0,
-                shares_count: selectedReview.shares_count || 0,
-                is_liked_by_user: selectedReview.is_liked || false,
-                reaction_emoji: '',
-                photos: selectedReview.photos || [],
-                videos: [],
-                mood_tags: [],
-                genre_tags: [],
-                context_tags: [],
-                artist_name: selectedReview.event_info?.artist_name,
-                artist_id: selectedReview.event_info?.artist_id,
-                venue_name: selectedReview.event_info?.venue_name,
-                venue_id: (selectedReview.event_info as any)?.venue_id,
-                artist_performance_rating: (selectedReview as any).artist_performance_rating,
-                production_rating: (selectedReview as any).production_rating,
-                venue_rating: (selectedReview as any).venue_rating,
-                location_rating: (selectedReview as any).location_rating,
-                value_rating: (selectedReview as any).value_rating,
-                artist_performance_feedback: (selectedReview as any).artist_performance_feedback,
-                production_feedback: (selectedReview as any).production_feedback,
-                venue_feedback: (selectedReview as any).venue_feedback,
-                location_feedback: (selectedReview as any).location_feedback,
-                value_feedback: (selectedReview as any).value_feedback,
-              }}
+            <ReviewDetailView
+              reviewId={selectedReview.review_id || selectedReview.id}
               currentUserId={currentUserId}
-              onLike={async () => {
-                // TODO: Implement like functionality
+              onBack={() => setReviewDetailOpen(false)}
+              onEdit={() => {
+                // TODO: Implement edit functionality
               }}
-              onComment={() => {
-                // TODO: Implement comment functionality
-              }}
-              onShare={() => {
-                // TODO: Implement share functionality
-              }}
-              userProfile={{
-                name: selectedReview.author.name,
-                avatar_url: selectedReview.author.avatar_url,
-                verified: selectedReview.author.verified,
-                account_type: selectedReview.author.account_type,
+              onDelete={() => {
+                // TODO: Implement delete functionality
               }}
             />
           </DialogContent>

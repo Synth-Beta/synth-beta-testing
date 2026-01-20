@@ -15,8 +15,10 @@ dist-ssr
 .env
 .env.local
 .env*.local
+.env.bak
 *.env
 !.env.example
+backend/.env
 
 # Security - API Keys and Authentication Files - NEVER commit these!
 *.p8

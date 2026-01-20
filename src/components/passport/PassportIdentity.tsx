@@ -79,7 +79,7 @@ export const PassportIdentity: React.FC<PassportIdentityProps> = ({ userId, user
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                height: '22px',
+                height: '25px',
                 paddingLeft: 'var(--spacing-small, 12px)',
                 paddingRight: 'var(--spacing-small, 12px)',
                 borderRadius: 'var(--radius-corner, 10px)',

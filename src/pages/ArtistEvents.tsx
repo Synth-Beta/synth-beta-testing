@@ -29,6 +29,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { UnifiedEventSearchService, type UnifiedEvent } from '@/services/unifiedEventSearchService';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 
 interface ArtistEventsPageProps {}
 
@@ -955,7 +956,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
           <div className="flex items-center gap-2 text-sm">
               <div
                 style={{
-                  height: '22px',
+                  height: '25px',
                   borderRadius: '999px',
                   paddingLeft: 'var(--spacing-small, 12px)',
                   paddingRight: 'var(--spacing-small, 12px)',
@@ -1196,7 +1197,7 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
                                 <div
                                   key={index}
                                   style={{
-                                    height: '22px',
+                                    height: '25px',
                                     borderRadius: '999px',
                                     paddingLeft: 'var(--spacing-small, 12px)',
                                     paddingRight: 'var(--spacing-small, 12px)',
@@ -1266,85 +1267,25 @@ export default function ArtistEventsPage({}: ArtistEventsPageProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-3 gap-2 w-full max-w-full overflow-x-hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
               {upcomingEvents.map((event) => (
-                <Card 
+                <SwiftUIEventCard
                   key={event.id} 
-                  className="overflow-hidden cursor-pointer w-full max-w-full min-w-0 hover:shadow-md transition-shadow"
+                  event={{
+                    id: event.id || '',
+                    title: event.title || 'Event',
+                    event_date: event.event_date,
+                    venue_name: event.venue_name,
+                    venue_city: event.venue_city,
+                    venue_state: event.venue_state,
+                    doors_time: event.doors_time,
+                    price_range: event.price_range,
+                    ticket_urls: event.ticket_urls,
+                    ticket_available: event.ticket_available,
+                    genres: event.genres,
+                  }}
                   onClick={() => handleEventClick(event)}
-                >
-                  <div className="p-2 w-full max-w-full overflow-x-hidden">
-                    <h3 className="mb-1 line-clamp-2 break-words" style={{
-                      fontFamily: 'var(--font-family)',
-                      fontSize: 'var(--typography-body-size, 20px)',
-                      fontWeight: 'var(--typography-body-weight, 500)',
-                      lineHeight: 'var(--typography-body-line-height, 1.5)',
-                      color: 'var(--neutral-900)',
-                      minHeight: '40px'
-                    }}>
-                          {event.title}
-                        </h3>
-                    <div className="space-y-1 mb-2">
-                      <div className="flex items-center gap-1" style={{
-                        fontFamily: 'var(--font-family)',
-                        fontSize: 'var(--typography-meta-size, 16px)',
-                        fontWeight: 'var(--typography-meta-weight, 500)',
-                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                        color: 'var(--neutral-600)'
-                      }}>
-                        <Calendar size={16} style={{ color: 'var(--neutral-600)' }} />
-                        <span className="truncate">{formatDate(event.event_date)}</span>
-                      </div>
-                      <div className="flex items-center gap-1" style={{
-                        fontFamily: 'var(--font-family)',
-                        fontSize: 'var(--typography-meta-size, 16px)',
-                        fontWeight: 'var(--typography-meta-weight, 500)',
-                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                        color: 'var(--neutral-600)'
-                      }}>
-                        <Clock size={16} style={{ color: 'var(--neutral-600)' }} />
-                        <span className="truncate">{formatTime(event.event_date)}</span>
-                    </div>
-                      <div className="flex items-center gap-1" style={{
-                        fontFamily: 'var(--font-family)',
-                        fontSize: 'var(--typography-meta-size, 16px)',
-                        fontWeight: 'var(--typography-meta-weight, 500)',
-                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                        color: 'var(--neutral-600)'
-                      }}>
-                        <MapPin size={16} style={{ color: 'var(--neutral-600)' }} />
-                        <span className="truncate">
-                        {getLocationString(event)}
-                        </span>
-                    </div>
-                  </div>
-                    {event.genres && event.genres.length > 0 && (
-                      <div className="flex flex-wrap gap-0.5">
-                        {event.genres.slice(0, 2).map((genre, index) => (
-                          <div
-                            key={index}
-                            style={{
-                              height: '22px',
-                              borderRadius: '999px',
-                              paddingLeft: 'var(--spacing-small, 12px)',
-                              paddingRight: 'var(--spacing-small, 12px)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              backgroundColor: 'var(--neutral-100)',
-                              color: 'var(--neutral-900)',
-                              fontFamily: 'var(--font-family)',
-                              fontSize: 'var(--typography-meta-size, 16px)',
-                              fontWeight: 'var(--typography-meta-weight, 500)',
-                              lineHeight: 'var(--typography-meta-line-height, 1.5)'
-                            }}
-                          >
-                            {genre}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </Card>
+                />
               ))}
             </div>
           </div>

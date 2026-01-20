@@ -1,6 +1,5 @@
 import React from 'react';
-import { Star, Image as ImageIcon } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Star, Calendar, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +15,8 @@ interface NetworkReviewCardProps {
     rating?: number;
     content?: string;
     photos?: string[];
+    artist_id?: string;
+    artist_image_url?: string;
     event_info?: {
       artist_name?: string;
       venue_name?: string;
@@ -34,104 +35,201 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
   const authorName = review.author.name || 'User';
   const artistName = review.event_info?.artist_name || 'Artist';
   const venueName = review.event_info?.venue_name || 'Venue';
-  // Use Event_date from review if available, otherwise fall back to event_info.event_date or created_at
   const reviewEventDate = (review as any).Event_date || (review as any).event_date;
   const eventDate = reviewEventDate
-    ? format(new Date(reviewEventDate), 'MMM d, yyyy')
+    ? format(new Date(reviewEventDate), 'EEE, MMM d, yyyy')
     : review.event_info?.event_date 
-    ? format(new Date(review.event_info.event_date), 'MMM d, yyyy')
+    ? format(new Date(review.event_info.event_date), 'EEE, MMM d, yyyy')
     : review.created_at 
-    ? format(new Date(review.created_at), 'MMM d, yyyy')
+    ? format(new Date(review.created_at), 'EEE, MMM d, yyyy')
     : '';
   const rating = review.rating || 0;
   const reviewText = review.content || '';
-  const photos = review.photos || [];
+  const imageUrl = review.artist_image_url || null;
 
   return (
     <div
-      onClick={onClick}
       className={cn(
-        'bg-white border border-gray-200 rounded-lg p-2 cursor-pointer hover:shadow-md transition-shadow',
+        'swift-ui-card flex flex-col overflow-hidden',
+        'relative group cursor-pointer',
+        'w-full h-full max-h-[85vh]',
         className
       )}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`View review by ${authorName}`}
     >
-      {/* Header: NAME reviewed ARTIST at VENUE on DATE */}
-      <div className="mb-1.5">
-        <p className="text-xs font-semibold text-gray-900 leading-tight">
-          <span className="font-bold">{authorName}</span>
-          {' reviewed '}
-          <span className="font-bold">{artistName}</span>
-          {venueName && (
-            <>
-              {' at '}
-              <span className="font-bold">{venueName}</span>
-            </>
-          )}
-          {eventDate && (
-            <>
-              {' on '}
-              <span className="font-bold">{eventDate}</span>
-            </>
-          )}
+      <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden">
+        {imageUrl ? (
+          <>
+            <img src={imageUrl} alt={`${artistName} at ${venueName}`} className="w-full h-full object-cover" />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  'linear-gradient(to top, rgba(14, 14, 14, 0.8) 0%, rgba(14, 14, 14, 0.4) 50%, transparent 100%)',
+              }}
+            />
+          </>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center swift-ui-gradient-bg">
+            <div className="text-center px-4">
+              <p
+                className="line-clamp-2"
+                style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-h2-size, 24px)',
+                  fontWeight: 'var(--typography-h2-weight, 700)',
+                  lineHeight: 'var(--typography-h2-line-height, 1.3)',
+                  color: 'var(--neutral-0)',
+                }}
+              >
+                {artistName}
+                {venueName && ` at ${venueName}`}
         </p>
       </div>
-
-      {/* Rating */}
-      {rating > 0 && (
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <div className="flex items-center gap-0.5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star
-                key={i}
-                className={cn(
-                  'w-3 h-3',
-                  i < Math.floor(rating)
-                    ? 'fill-synth-pink text-synth-pink'
-                    : 'text-gray-300'
-                )}
-                strokeWidth={1.5}
-              />
-            ))}
           </div>
-          <span className="text-xs font-semibold text-gray-700">{rating.toFixed(1)}</span>
+        )}
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 swift-ui-card-content" style={{ zIndex: 40 }}>
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(to top, color-mix(in srgb, var(--neutral-0) 96%, transparent) 0%, color-mix(in srgb, var(--neutral-0) 90%, transparent) 60%, color-mix(in srgb, var(--neutral-0) 70%, transparent) 100%)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+          }}
+        />
+
+        <div
+          className="relative flex flex-col"
+          style={{ padding: 'var(--spacing-grouped, 24px)', gap: 'var(--spacing-small, 12px)' }}
+        >
+          <h2
+            className="line-clamp-2"
+            style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-h2-size, 24px)',
+              fontWeight: 'var(--typography-h2-weight, 700)',
+              lineHeight: 'var(--typography-h2-line-height, 1.3)',
+              color: 'var(--neutral-900)',
+            }}
+          >
+            {artistName}
+            {venueName && ` at ${venueName}`}
+          </h2>
+
+          <div className="flex flex-col" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+            {venueName && (
+              <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                <MapPin size={20} style={{ color: 'var(--brand-pink-500)' }} />
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--neutral-700)',
+                  }}
+                >
+                  {venueName}
+                </span>
         </div>
       )}
-
-      {/* Review Text */}
-      {reviewText && (
-        <p className="text-xs text-gray-700 mb-1.5 line-clamp-2 leading-tight">
-          {reviewText}
-        </p>
-      )}
-
-      {/* Review Photos */}
-      {photos.length > 0 && (
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
-          {photos.slice(0, 2).map((photo, index) => (
-            <div
-              key={index}
-              className="flex-shrink-0 w-12 h-12 rounded overflow-hidden bg-gray-100"
-            >
-              <img
-                src={photo}
-                alt={`Review photo ${index + 1}`}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            </div>
-          ))}
-          {photos.length > 2 && (
-            <div className="flex-shrink-0 w-12 h-12 rounded bg-gray-100 flex items-center justify-center">
-              <div className="text-center">
-                <ImageIcon className="w-4 h-4 text-gray-400 mx-auto" />
-                <span className="text-[9px] text-gray-500">+{photos.length - 2}</span>
+            {eventDate && (
+              <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                <Calendar size={20} style={{ color: 'var(--brand-pink-500)' }} />
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--neutral-700)',
+                  }}
+                >
+                  {eventDate}
+                </span>
               </div>
+            )}
+          </div>
+
+          <div className="flex flex-col" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+            <p
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--neutral-700)',
+              }}
+            >
+              <span style={{ fontWeight: 'var(--typography-bold-weight, 700)' }}>{authorName}</span>
+              {' reviewed this event'}
+            </p>
+
+            {rating > 0 && (
+              <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                  {Array.from({ length: 5 }).map((_, i) => {
+                    const starValue = i + 1;
+                    const isFullStar = starValue <= Math.floor(rating);
+                    const isHalfStar = !isFullStar && starValue <= rating;
+
+                    return (
+                      <Star
+                        key={i}
+                        className={cn('w-5 h-5')}
+                        style={{
+                          color: isFullStar || isHalfStar ? 'var(--brand-pink-500)' : 'var(--neutral-200)',
+                          fill: isFullStar || isHalfStar ? 'var(--brand-pink-500)' : 'transparent',
+                          fillOpacity: isHalfStar ? 0.5 : 1,
+                        }}
+                        strokeWidth={isFullStar || isHalfStar ? 0 : 1.5}
+              />
+                    );
+                  })}
             </div>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--brand-pink-500)',
+                  }}
+                >
+                  {rating.toFixed(1)}
+                </span>
+              </div>
+            )}
+            </div>
+
+          {reviewText && (
+            <p
+              className="line-clamp-2"
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-body-size, 20px)',
+                fontWeight: 'var(--typography-body-weight, 500)',
+                lineHeight: 'var(--typography-body-line-height, 1.5)',
+                color: 'var(--neutral-900)',
+              }}
+            >
+              {reviewText}
+            </p>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

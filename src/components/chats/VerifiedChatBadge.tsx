@@ -192,7 +192,7 @@ export function VerifiedChatBadge({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              height: '22px',
+              height: '25px',
               paddingLeft: 'var(--spacing-small, 12px)',
               paddingRight: 'var(--spacing-small, 12px)',
               borderRadius: 'var(--radius-corner, 10px)',
@@ -207,7 +207,7 @@ export function VerifiedChatBadge({
               gap: 'var(--spacing-inline, 6px)'
             }}
           >
-            <MessageSquare size={16} style={{ color: 'var(--brand-pink-500)' }} />
+            <MessageSquare size={19} style={{ color: 'var(--brand-pink-500)' }} />
             <span>
               {chatInfo.member_count || 0} {chatInfo.member_count === 1 ? 'member' : 'members'}
             </span>

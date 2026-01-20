@@ -62,7 +62,7 @@ export function TrendingBadge({ eventId, className }: TrendingBadgeProps) {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        height: '22px',
+        height: '25px',
         paddingLeft: 'var(--spacing-small, 12px)',
         paddingRight: 'var(--spacing-small, 12px)',
         borderRadius: 'var(--radius-corner, 10px)',
@@ -78,7 +78,7 @@ export function TrendingBadge({ eventId, className }: TrendingBadgeProps) {
       }}
       className={className}
     >
-      <Flame size={16} style={{ fill: 'currentColor' }} />
+      <Flame size={19} style={{ fill: 'currentColor' }} />
       <span>Trending</span>
     </div>
   );
