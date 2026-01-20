@@ -164,41 +164,66 @@ export function ReviewDetailView({
 
         // Check if user has liked this review
         if (currentUserId) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewDetailView.tsx:167',message:'Checking if review is liked',data:{userId:currentUserId,reviewId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-          // #endregion
-          
-          // Check for existing like - query both entity_id and metadata->>review_id
-          // (for old format with entity_id and new format with NULL entity_id + metadata)
-          const [byEntityResult, byMetadataResult] = await Promise.all([
-            supabase
-              .from('engagements')
+          try {
+            // Get entity_id for this review first (entity_id is FK to entities.id, not reviewId)
+            const { data: entityData, error: entityError } = await supabase
+              .from('entities')
               .select('id')
-              .eq('user_id', currentUserId)
-              .eq('entity_id', reviewId)
-              .eq('engagement_type', 'like')
-              .maybeSingle(),
-            supabase
-              .from('engagements')
-              .select('id')
-              .eq('user_id', currentUserId)
-              .is('entity_id', null)
-              .eq('engagement_type', 'like')
-              .eq('metadata->>review_id', reviewId)
-              .maybeSingle()
-          ]);
-          
-          const existingLike = byEntityResult.data || byMetadataResult.data;
-          const likeError = byEntityResult.error || byMetadataResult.error;
-
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/83411ffc-4ef9-49cb-aa0a-3fc1709c6732',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReviewDetailView.tsx:177',message:'Like check result',data:{hasLike:!!existingLike,error:likeError?.message,errorCode:likeError?.code},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-          // #endregion
-
-          setIsLiked(!!existingLike);
-          
-          if (likeError) {
-            console.error('Error checking if review is liked:', likeError);
+              .eq('entity_type', 'review')
+              .eq('entity_uuid', reviewId)
+              .single();
+            
+            let isLiked = false;
+            
+            if (entityError) {
+              // Only ignore "not found" errors (PGRST116), log others
+              if ((entityError as any).code !== 'PGRST116') {
+                console.error('Error fetching entity for review like check:', entityError);
+              }
+              
+              // Entity not found - check old format as fallback (for migration compatibility)
+              // Old format: entity_id directly stores reviewId, or metadata->>review_id
+              const [oldFormatResult, metadataResult] = await Promise.all([
+                supabase
+                  .from('engagements')
+                  .select('id')
+                  .eq('user_id', currentUserId)
+                  .eq('entity_id', reviewId)
+                  .eq('engagement_type', 'like')
+                  .maybeSingle(),
+                supabase
+                  .from('engagements')
+                  .select('id')
+                  .eq('user_id', currentUserId)
+                  .is('entity_id', null)
+                  .eq('engagement_type', 'like')
+                  .eq('metadata->>review_id', reviewId)
+                  .maybeSingle()
+              ]);
+              
+              isLiked = !!(oldFormatResult.data || metadataResult.data);
+            } else if (entityData?.id) {
+              // Query engagements using the entity_id from entities table (new format)
+              const { data: likeData, error: likeError } = await supabase
+                .from('engagements')
+                .select('id')
+                .eq('user_id', currentUserId)
+                .eq('entity_id', entityData.id)
+                .eq('engagement_type', 'like')
+                .maybeSingle();
+              
+              isLiked = !!likeData;
+              
+              if (likeError) {
+                console.error('Error checking if review is liked:', likeError);
+              }
+            }
+            
+            setIsLiked(isLiked);
+          } catch (likeCheckError) {
+            // If like check fails, just set to false and continue - don't block review display
+            console.error('Error checking if review is liked:', likeCheckError);
+            setIsLiked(false);
           }
         }
       } catch (error) {

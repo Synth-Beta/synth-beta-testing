@@ -1,11 +1,14 @@
 import UIKit
 import Capacitor
 import UserNotifications
+import AuthenticationServices
+import WebKit
 
 @UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate, WKScriptMessageHandler {
 
     var window: UIWindow?
+    var appleSignInHandler: AppleSignInHandler?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Set up push notification delegate
@@ -27,7 +30,72 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
         }
         
+        // Set up Apple Sign In listener
+        setupAppleSignInListener()
+        
         return true
+    }
+    
+    // MARK: - Apple Sign In Listener Setup
+    
+    func setupAppleSignInListener() {
+        // Listen for requests from web layer via NotificationCenter (fallback)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppleSignIn),
+            name: NSNotification.Name("RequestAppleSignIn"),
+            object: nil
+        )
+        
+        // Set up JavaScript message handler to receive requests from web layer
+        // This listens for messages posted via webkit.messageHandlers.appleSignIn
+        setupJavaScriptMessageHandler()
+    }
+    
+    /// Sets up WKWebView message handler to receive JavaScript requests
+    func setupJavaScriptMessageHandler() {
+        // Wait for the web view to be available, then inject the message handler
+        DispatchQueue.main.async {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first,
+               let webView = self.findWebView(in: window) {
+                // Configure message handler
+                webView.configuration.userContentController.add(self, name: "appleSignIn")
+                
+                // Inject JavaScript that listens for RequestAppleSignIn events
+                // and forwards them to the native message handler
+                let script = """
+                    (function() {
+                        window.addEventListener('RequestAppleSignIn', function() {
+                            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.appleSignIn) {
+                                window.webkit.messageHandlers.appleSignIn.postMessage({});
+                            }
+                        });
+                    })();
+                """
+                webView.configuration.userContentController.addUserScript(
+                    WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
+                )
+            }
+        }
+    }
+    
+    /// Helper to find WKWebView in window hierarchy
+    func findWebView(in window: UIWindow) -> WKWebView? {
+        func findWebView(in view: UIView) -> WKWebView? {
+            if let webView = view as? WKWebView {
+                return webView
+            }
+            for subview in view.subviews {
+                if let webView = findWebView(in: subview) {
+                    return webView
+                }
+            }
+            return nil
+        }
+        
+        guard let rootView = window.rootViewController?.view else { return nil }
+        return findWebView(in: rootView)
     }
     
     // Handle device token registration
@@ -105,6 +173,143 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Feel free to add additional processing here, but if you want the App API to support
         // tracking app url opens, make sure to keep this call
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
+    }
+    
+    // MARK: - Apple Sign In Bridge
+    
+    /// Initiates Apple Sign In and sends token to web layer via notification
+    @objc func handleAppleSignIn() {
+        if #available(iOS 13.0, *) {
+            appleSignInHandler = AppleSignInHandler()
+            appleSignInHandler?.signIn { [weak self] result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let identityToken):
+                        // Send token to JavaScript via JavaScript evaluation
+                        self?.sendTokenToWebLayer(token: identityToken)
+                    case .failure(let error):
+                        // Send error to JavaScript
+                        self?.sendErrorToWebLayer(error: error.localizedDescription)
+                    }
+                    self?.appleSignInHandler = nil
+                }
+            }
+        } else {
+            // iOS 12 and below - send error
+            sendErrorToWebLayer(error: "Apple Sign In requires iOS 13.0 or later")
+        }
+    }
+    
+    /// Sends Apple Sign In token to web layer
+    func sendTokenToWebLayer(token: String) {
+        // Escape token for JavaScript (handle quotes and newlines)
+        let escapedToken = token.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+        
+        // Use JavaScript evaluation to dispatch event to web layer
+        let script = """
+            (function() {
+                try {
+                    window.dispatchEvent(new CustomEvent('AppleSignInTokenReceived', { 
+                        detail: { token: '\(escapedToken)' } 
+                    }));
+                } catch(e) {
+                    console.error('Error dispatching AppleSignInTokenReceived:', e);
+                }
+            })();
+        """
+        
+        // Post notification (web layer listens for this - primary method)
+        NotificationCenter.default.post(
+            name: NSNotification.Name("AppleSignInTokenReceived"),
+            object: nil,
+            userInfo: ["token": token]
+        )
+        
+        // Also try to evaluate JavaScript directly in web view (fallback)
+        // Use async dispatch without delay - web view should be ready since we're on main thread
+        DispatchQueue.main.async {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first {
+                self.evaluateJavaScriptInWebView(script: script, in: window)
+            }
+        }
+    }
+    
+    /// Sends error to web layer
+    func sendErrorToWebLayer(error: String) {
+        // Escape error message for JavaScript
+        let escapedError = error.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+        
+        let script = """
+            (function() {
+                try {
+                    window.dispatchEvent(new CustomEvent('AppleSignInError', { 
+                        detail: { error: '\(escapedError)' } 
+                    }));
+                } catch(e) {
+                    console.error('Error dispatching AppleSignInError:', e);
+                }
+            })();
+        """
+        
+        // Post notification (web layer listens for this - primary method)
+        NotificationCenter.default.post(
+            name: NSNotification.Name("AppleSignInError"),
+            object: nil,
+            userInfo: ["error": error]
+        )
+        
+        // Also try to evaluate JavaScript directly in web view (fallback)
+        // Use async dispatch without delay - web view should be ready since we're on main thread
+        DispatchQueue.main.async {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first {
+                self.evaluateJavaScriptInWebView(script: script, in: window)
+            }
+        }
+    }
+    
+    /// Helper to evaluate JavaScript in web view
+    func evaluateJavaScriptInWebView(script: String, in window: UIWindow) {
+        // Try to find WKWebView recursively
+        func findWebView(in view: UIView) -> WKWebView? {
+            if let webView = view as? WKWebView {
+                return webView
+            }
+            for subview in view.subviews {
+                if let webView = findWebView(in: subview) {
+                    return webView
+                }
+            }
+            return nil
+        }
+        
+        // Properly cast and call evaluateJavaScript with completion handler
+        if let rootView = window.rootViewController?.view,
+           let webView = findWebView(in: rootView) {
+            webView.evaluateJavaScript(script) { result, error in
+                if let error = error {
+                    // Silently fail - NotificationCenter is the primary method
+                    print("WebView JavaScript evaluation failed (this is expected if NotificationCenter was used): \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    // MARK: - WKScriptMessageHandler
+    
+    /// Receives messages from JavaScript via WKWebView message handler
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "appleSignIn" {
+            // Handle Apple Sign In request from JavaScript
+            handleAppleSignIn()
+        }
     }
 
 }

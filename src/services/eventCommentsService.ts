@@ -36,12 +36,30 @@ export class EventCommentsService {
   static async getEventComments(eventId: string, limit: number = 20, offset: number = 0): Promise<{ comments: EventCommentWithUser[]; total: number; hasMore: boolean }> {
     const internalEventId = await this.resolveInternalEventId(eventId);
     
+    // Get entity_id for this event
+    const { data: entityData, error: entityError } = await supabase
+      .from('entities')
+      .select('id')
+      .eq('entity_type', 'event')
+      .eq('entity_uuid', internalEventId)
+      .single();
+    
+    if (entityError && (entityError as any).code !== 'PGRST116') {
+      throw entityError;
+    }
+
+    if (!entityData?.id) {
+      // Entity not found, return empty results
+      return { comments: [], total: 0, hasMore: false };
+    }
+
+    const entityId = entityData.id;
+    
     // Get total count
     const { count, error: countError } = await supabase
       .from('comments')
       .select('*', { count: 'exact', head: true })
-      .eq('entity_type', 'event')
-      .eq('entity_id', internalEventId);
+      .eq('entity_id', entityId);
     
     if (countError && (countError as any).code !== 'PGRST205') {
       throw countError;
@@ -53,8 +71,7 @@ export class EventCommentsService {
     const { data: comments, error: commentsError } = await supabase
       .from('comments')
       .select('*')
-      .eq('entity_type', 'event')
-      .eq('entity_id', internalEventId)
+      .eq('entity_id', entityId)
       .order('created_at', { ascending: true })
       .range(offset, offset + limit - 1);
     
@@ -81,10 +98,12 @@ export class EventCommentsService {
       profileMap.set(p.user_id, { id: p.id, name: p.name, avatar_url: p.avatar_url || undefined });
     });
 
+    // Map comments - use internalEventId since all comments are for this event
+    // Note: comments now use entity_id (FK to entities.id) instead of event_id
     const withUsers: EventCommentWithUser[] = (comments as any[]).map((c) => ({
       id: c.id,
       user_id: c.user_id,
-      event_id: c.event_id,
+      event_id: internalEventId, // Use the resolved internal event ID (entity_uuid from entities table)
       parent_comment_id: c.parent_comment_id ?? null,
       comment_text: c.comment_text,
       created_at: c.created_at,
@@ -104,12 +123,23 @@ export class EventCommentsService {
     parentCommentId?: string
   ): Promise<EventComment> {
     const internalEventId = await this.resolveInternalEventId(eventId);
+    
+    // Get or create entity for this event
+    const { data: entityId, error: entityError } = await supabase.rpc('get_or_create_entity', {
+      p_entity_type: 'event',
+      p_entity_uuid: internalEventId,
+      p_entity_text_id: null,
+    });
+
+    if (entityError) {
+      throw entityError as unknown;
+    }
+
     const { data, error } = await supabase
       .from('comments')
       .insert({
         user_id: userId,
-        entity_type: 'event',
-        entity_id: internalEventId,
+        entity_id: entityId, // FK to entities.id (replaces entity_type + entity_id)
         comment_text: commentText,
         parent_comment_id: parentCommentId
       })
@@ -123,7 +153,17 @@ export class EventCommentsService {
       // Fix: Cast error to unknown first before throwing, to avoid type issues.
       throw error as unknown;
     }
-    return data as unknown as EventComment;
+    
+    // Transform database result to EventComment interface (add event_id for compatibility)
+    return {
+      id: data.id,
+      user_id: data.user_id,
+      event_id: internalEventId, // Add event_id field required by EventComment interface
+      parent_comment_id: data.parent_comment_id ?? null,
+      comment_text: data.comment_text,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    } as EventComment;
   }
 }
 

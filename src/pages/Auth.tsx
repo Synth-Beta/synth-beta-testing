@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { handleAppleSignInFromNative, setupAppleSignInListeners } from '@/services/appleAuthService';
 
 // Add the elegant-shift animation keyframes
 const styles = `
@@ -33,7 +34,51 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [appleSignInLoading, setAppleSignInLoading] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Check if iOS
+    const checkIOS = () => {
+      const userAgent = window.navigator.userAgent || window.navigator.vendor || (window as any).opera;
+      const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+      
+      // Safely check for Capacitor
+      const Capacitor = (window as any).Capacitor;
+      if (Capacitor && typeof Capacitor.getPlatform === 'function') {
+        try {
+          setIsIOS(Capacitor.getPlatform() === 'ios' || isIOSDevice);
+        } catch (error) {
+          // Fallback to user agent detection if Capacitor fails
+          console.warn('Error checking Capacitor platform:', error);
+          setIsIOS(isIOSDevice);
+        }
+      } else {
+        setIsIOS(isIOSDevice);
+      }
+    };
+    
+    checkIOS();
+    
+    // Set up Apple Sign In listeners only if iOS is detected
+    // We'll check isIOS state in a separate effect to avoid dependency issues
+  }, []);
+
+  useEffect(() => {
+    let cleanup: (() => void) | null = null;
+    
+    if (isIOS) {
+      cleanup = setupAppleSignInListeners();
+    }
+    
+    // Cleanup function: remove listeners when component unmounts or isIOS changes
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, [isIOS]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +138,45 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (!isIOS) {
+      toast({
+        title: "Not available",
+        description: "Apple Sign In is only available on iOS devices.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAppleSignInLoading(true);
+
+    try {
+      const result = await handleAppleSignInFromNative();
+      
+      if (result.success) {
+        toast({
+          title: "Welcome!",
+          description: "You're now signed in with Apple.",
+        });
+        onAuthSuccess();
+      } else {
+        toast({
+          title: "Sign in failed",
+          description: result.error || "Failed to sign in with Apple",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Sign in failed",
+        description: error.message || "Failed to sign in with Apple",
+        variant: "destructive",
+      });
+    } finally {
+      setAppleSignInLoading(false);
     }
   };
 
@@ -229,6 +313,39 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
               </form>
             </TabsContent>
           </Tabs>
+          
+          {/* Apple Sign In Button - Only show on iOS */}
+          {isIOS && (
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white/90 text-gray-500" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+              <Button
+                onClick={handleAppleSignIn}
+                disabled={appleSignInLoading || loading}
+                className="w-full mt-4 bg-black hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2"
+                style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+              >
+                {appleSignInLoading ? (
+                  'Signing in...'
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                    </svg>
+                    Sign in with Apple
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
