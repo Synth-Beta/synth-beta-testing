@@ -1748,36 +1748,45 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
               </div>
               
               {/* Instructions Box */}
-              <div className="border-[3px] rounded-[12px] p-3 min-h-[110px] flex items-center justify-center" style={{ width: 'calc(100vw - 40px)', backgroundColor: 'var(--brand-pink-050)', borderColor: 'var(--brand-pink-600)' }}>
-                <ul className="list-disc space-y-0 ml-6" style={{ color: 'var(--brand-pink-600)' }}>
-                  <li className="mb-0">
-                    <span style={{ 
-                      fontFamily: 'var(--font-family)',
-                      color: 'var(--brand-pink-600)',
-                      fontSize: 'var(--typography-meta-size, 16px)',
-                      fontWeight: 'var(--typography-meta-weight, 500)',
-                      lineHeight: 'var(--typography-meta-line-height, 1.5)'
-                    }}>Send friend requests first</span>
-                  </li>
-                  <li className="mb-0">
-                    <span style={{ 
-                      fontFamily: 'var(--font-family)',
-                      color: 'var(--brand-pink-600)',
-                      fontSize: 'var(--typography-meta-size, 16px)',
-                      fontWeight: 'var(--typography-meta-weight, 500)',
-                      lineHeight: 'var(--typography-meta-line-height, 1.5)'
-                    }}>Wait for them to accept</span>
-                  </li>
-                  <li>
-                    <span style={{ 
-                      fontFamily: 'var(--font-family)',
-                      color: 'var(--brand-pink-600)',
-                      fontSize: 'var(--typography-meta-size, 16px)',
-                      fontWeight: 'var(--typography-meta-weight, 500)',
-                      lineHeight: 'var(--typography-meta-line-height, 1.5)'
-                    }}>Then start chatting!</span>
-                  </li>
-                </ul>
+              <div 
+                className="swift-ui-card rounded-[12px] p-3 min-h-[110px] flex items-center justify-center" 
+                style={{ 
+                  width: 'calc(100vw - 40px)', 
+                  backgroundColor: 'var(--neutral-200) !important',
+                  border: '3px solid var(--overlay-20) !important'
+                }}
+              >
+                <div className="swift-ui-card-content">
+                  <ul className="list-disc space-y-0 ml-6" style={{ color: 'var(--neutral-900)' }}>
+                    <li className="mb-0">
+                      <span style={{ 
+                        fontFamily: 'var(--font-family)',
+                        color: 'var(--neutral-900)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                      }}>Send friend requests first</span>
+                    </li>
+                    <li className="mb-0">
+                      <span style={{ 
+                        fontFamily: 'var(--font-family)',
+                        color: 'var(--neutral-900)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                      }}>Wait for them to accept</span>
+                    </li>
+                    <li>
+                      <span style={{ 
+                        fontFamily: 'var(--font-family)',
+                        color: 'var(--neutral-900)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                      }}>Then start chatting!</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           ) : (
@@ -2009,36 +2018,59 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
             </div>
 
             {/* Messages */}
-              <div style={{ maxWidth: '353px', width: '100%', margin: '0 auto', paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 112px)' }}>
+              <div style={{ maxWidth: '353px', width: '100%', margin: '0 auto', paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 112px)', position: 'relative' }}>
               {selectedChat.is_group_chat ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-                    {/* Large icon (60px), dark grey */}
-                    <MessageCircle size={60} className="mx-auto" style={{ color: 'var(--neutral-600)' }} />
-                    {/* Heading - Body typography, off black */}
-                    <h3 style={{ 
-                      fontFamily: 'var(--font-family)',
-                      fontSize: 'var(--typography-body-size, 20px)',
-                      fontWeight: 'var(--typography-body-weight, 500)',
-                      lineHeight: 'var(--typography-body-line-height, 1.5)',
-                      color: 'var(--neutral-900)',
-                      margin: 0,
-                      textAlign: 'center'
-                    }}>Coming Soon</h3>
-                    {/* Description - Meta typography, dark grey */}
-                    <p style={{ 
-                      fontFamily: 'var(--font-family)',
-                      fontSize: 'var(--typography-meta-size, 16px)',
-                      fontWeight: 'var(--typography-meta-weight, 500)',
-                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                      color: 'var(--neutral-600)',
-                      margin: 0,
-                      textAlign: 'center'
-                    }}>
-                      Group chats are still in development
-                    </p>
+                <>
+                  {/* Back Button - 12px below header, 20px from left */}
+                  <div style={{
+                    position: 'absolute',
+                    top: hideHeader ? 'var(--spacing-small, 12px)' : 'calc(68px + var(--spacing-small, 12px))',
+                    left: 'var(--spacing-screen-margin-x, 20px)',
+                    zIndex: 10
+                  }}>
+                    <SynthButton
+                      variant="secondary"
+                      icon="leftArrow"
+                      iconPosition="left"
+                      onClick={() => {
+                        window.scrollTo(0, 0);
+                        if (onBack) {
+                          onBack();
+                        }
+                      }}
+                    >
+                      Back
+                    </SynthButton>
                   </div>
-                </div>
+                  <div className="flex items-center justify-center h-full">
+                    <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                      {/* Large icon (60px), dark grey */}
+                      <MessageCircle size={60} className="mx-auto" style={{ color: 'var(--neutral-600)' }} />
+                      {/* Heading - Body typography, off black */}
+                      <h3 style={{ 
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-body-size, 20px)',
+                        fontWeight: 'var(--typography-body-weight, 500)',
+                        lineHeight: 'var(--typography-body-line-height, 1.5)',
+                        color: 'var(--neutral-900)',
+                        margin: 0,
+                        textAlign: 'center'
+                      }}>Coming Soon</h3>
+                      {/* Description - Meta typography, dark grey */}
+                      <p style={{ 
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        color: 'var(--neutral-600)',
+                        margin: 0,
+                        textAlign: 'center'
+                      }}>
+                        Group chats are still in development
+                      </p>
+                    </div>
+                  </div>
+                </>
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full" style={{ gap: 'var(--spacing-inline, 6px)' }}>
                   {/* Large icon (60px), dark grey */}

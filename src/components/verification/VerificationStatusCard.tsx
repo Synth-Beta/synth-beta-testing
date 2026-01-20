@@ -139,7 +139,26 @@ export function VerificationStatusCard({
             <span className="text-sm font-medium">Trust Score</span>
             <span className="text-2xl font-bold text-primary">{breakdown.score}%</span>
           </div>
-          <Progress value={progressPercentage} className="h-2" />
+          <div 
+            className="w-full overflow-hidden"
+            style={{
+              height: '8px',
+              backgroundColor: 'var(--neutral-100)',
+              borderRadius: 'var(--radius-corner, 10px)'
+            }}
+          >
+            <div
+              className="h-full transition-all duration-300"
+              style={{ 
+                width: `${progressPercentage}%`,
+                background: 'var(--gradient-brand)',
+                borderRadius: progressPercentage >= 100 
+                  ? 'var(--radius-corner, 10px)' 
+                  : 'var(--radius-corner, 10px) 0 0 var(--radius-corner, 10px)',
+                minWidth: progressPercentage > 0 ? '4px' : '0'
+              }}
+            />
+          </div>
           <p className="text-xs text-muted-foreground">
             {breakdown.criteriaMet} of {breakdown.totalCriteria} criteria met
             {!verified && breakdown.criteriaMet < 4 && (
@@ -193,12 +212,26 @@ export function VerificationStatusCard({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <h5 className="font-medium text-sm">{criterion.label}</h5>
-                    <Badge
-                      variant={met ? 'default' : 'secondary'}
-                      className="text-xs"
+                    <div
+                      style={{
+                        height: '25px',
+                        paddingLeft: 'var(--spacing-small, 12px)',
+                        paddingRight: 'var(--spacing-small, 12px)',
+                        backgroundColor: met ? '#f0fdf4' : '#f9fafb', // green-50 : gray-50
+                        color: met ? '#16a34a' : '#6b7280', // green-600 : gray-500
+                        border: met ? '2px solid #bbf7d0' : '2px solid #e5e7eb', // green-200 : gray-200
+                        borderRadius: '999px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        whiteSpace: 'nowrap'
+                      }}
                     >
                       {criterion.target}
-                    </Badge>
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {criterion.description}
