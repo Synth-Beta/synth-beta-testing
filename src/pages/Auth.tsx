@@ -36,6 +36,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   const [loading, setLoading] = useState(false);
   const [appleSignInLoading, setAppleSignInLoading] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -138,6 +139,42 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast({
+        title: 'Email required',
+        description: 'Please enter your email address first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://synth-beta-testing.vercel.app/reset-password',
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: 'Password reset email sent',
+        description: 'Check your email for instructions to reset your password.',
+      });
+    } catch (error: any) {
+      console.error('Error sending password reset:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send password reset email.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -248,6 +285,17 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                   />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={isResettingPassword}
+                    className="text-sm text-[#FF3399] hover:text-[#E6007A] transition-colors disabled:opacity-50"
+                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                  >
+                    {isResettingPassword ? 'Sending...' : 'Forgot password?'}
+                  </button>
                 </div>
                 <Button 
                   type="submit" 

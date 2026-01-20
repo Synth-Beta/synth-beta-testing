@@ -13,6 +13,7 @@ import { ArtistFollowingPage } from "./pages/ArtistFollowingPage";
 import Admin from "./pages/Admin";
 import MobilePreview from "./pages/mobile/MobilePreview";
 import ComponentShowcase from "./pages/mobile/ComponentShowcase";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => {
               <Route path="/following" element={<ArtistFollowingPage />} />
               <Route path="/following/:userId" element={<ArtistFollowingPage />} />
               <Route path="/auth/spotify/callback" element={<SpotifyCallback />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               {/* Component showcase route */}
               <Route path="/components" element={<ComponentShowcase />} />
               {/* Mobile preview route for beta testing */}

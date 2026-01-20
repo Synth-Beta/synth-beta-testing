@@ -266,7 +266,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       className="page-container" 
       style={{ 
         overflow: 'visible',
-        backgroundColor: 'var(--brand-pink-050)',
+        backgroundColor: 'var(--neutral-50)',
         position: 'relative',
         minHeight: '100vh'
       }}

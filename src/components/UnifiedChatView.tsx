@@ -1718,16 +1718,34 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
               </div>
               
               {/* Instructions Box */}
-              <div className="border-[3px] rounded-[12px] p-3 min-h-[110px] flex items-center justify-center" style={{ width: 'calc(100vw - 40px)', backgroundColor: 'var(--brand-pink-050)', borderColor: 'var(--brand-pink-700)' }}>
-                <ul className="list-disc text-[16px] font-normal leading-[normal] space-y-0 ml-6" style={{ color: 'var(--neutral-900)' }}>
+              <div className="border-[3px] rounded-[12px] p-3 min-h-[110px] flex items-center justify-center" style={{ width: 'calc(100vw - 40px)', backgroundColor: 'var(--brand-pink-050)', borderColor: 'var(--brand-pink-600)' }}>
+                <ul className="list-disc space-y-0 ml-6" style={{ color: 'var(--brand-pink-600)' }}>
                   <li className="mb-0">
-                    <span>Send friend requests first</span>
+                    <span style={{ 
+                      fontFamily: 'var(--font-family)',
+                      color: 'var(--brand-pink-600)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                    }}>Send friend requests first</span>
                   </li>
                   <li className="mb-0">
-                    <span>Wait for them to accept</span>
+                    <span style={{ 
+                      fontFamily: 'var(--font-family)',
+                      color: 'var(--brand-pink-600)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                    }}>Wait for them to accept</span>
                   </li>
                   <li>
-                    <span>Then start chatting!</span>
+                    <span style={{ 
+                      fontFamily: 'var(--font-family)',
+                      color: 'var(--brand-pink-600)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                    }}>Then start chatting!</span>
                   </li>
                 </ul>
               </div>
