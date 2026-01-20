@@ -15,7 +15,7 @@ interface VibeCardProps {
 export const VibeCard: React.FC<VibeCardProps> = ({
   title,
   description,
-  icon: Icon,
+  icon,
   onClick,
   className,
 }) => {

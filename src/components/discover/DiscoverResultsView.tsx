@@ -228,8 +228,24 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
   const hasMore = results ? displayedEvents.length < results.events.length : false;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-4 pt-4 pb-6">
+    <div 
+      className="page-container" 
+      style={{ 
+        overflow: 'visible',
+        backgroundColor: 'var(--neutral-50)',
+        position: 'relative',
+        minHeight: '100vh'
+      }}
+    >
+      <div 
+        className="max-w-6xl mx-auto" 
+        style={{
+          paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
+          paddingRight: 'var(--spacing-screen-margin-x, 20px)', 
+          paddingTop: 'calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))', 
+          paddingBottom: 'var(--spacing-bottom-nav, 112px)',
+        }}
+      >
         {/* Header */}
         <div className="mb-6">
           <Button
