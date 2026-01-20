@@ -201,7 +201,9 @@ async function backfillUsernames() {
             continue;
           }
           
-          // Generate available username
+          // Generate available username using local function (not usernameService)
+          // Note: This local function takes (baseUsername, existingUsernames array)
+          // which differs from usernameService.generateAvailableUsername(baseName, excludeUserId)
           const newUsername = await generateAvailableUsername(
             baseUsername,
             Array.from(existingUsernames)

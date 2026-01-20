@@ -1151,13 +1151,16 @@ export class ReviewService {
       if (userId && reviews && reviews.length > 0) {
         // First, get entity_ids for all review IDs
         const reviewIds = reviews.map(r => r.id);
-        const { data: entities } = await supabase
+        const { data: entities, error: entitiesError } = await supabase
           .from('entities')
           .select('id, entity_uuid')
           .eq('entity_type', 'review')
           .in('entity_uuid', reviewIds);
         
-        if (entities && entities.length > 0) {
+        if (entitiesError) {
+          console.error('Error fetching entities for review likes:', entitiesError);
+          // Continue with empty likes array if entity lookup fails
+        } else if (entities && entities.length > 0) {
           const entityIds = entities.map(e => e.id);
           // Now query engagements using entity_ids (FK to entities.id)
           const { data: likes } = await supabase
@@ -2169,12 +2172,21 @@ export class ReviewService {
       let isLiked = false;
       if (userId) {
         // Get entity_id for this review first
-        const { data: entityData } = await supabase
+        const { data: entityData, error: entityError } = await supabase
           .from('entities')
           .select('id')
           .eq('entity_type', 'review')
           .eq('entity_uuid', reviewId)
           .single();
+        
+        if (entityError) {
+          // Only ignore "not found" errors (PGRST116), log others
+          if ((entityError as any).code !== 'PGRST116') {
+            console.error('Error fetching entity for review engagement check:', entityError);
+          }
+          // Return null if entity lookup fails (isLiked will remain false)
+          // Continue to return review counts even if like check fails
+        }
         
         if (entityData?.id) {
           const { data: likeData, error: likeError } = await supabase
@@ -2392,13 +2404,16 @@ export class ReviewService {
       if (userId && reviews && reviews.length > 0) {
         // First, get entity_ids for all review IDs
         const reviewIds = reviews.map((r: any) => r.id);
-        const { data: entities } = await supabase
+        const { data: entities, error: entitiesError } = await supabase
           .from('entities')
           .select('id, entity_uuid')
           .eq('entity_type', 'review')
           .in('entity_uuid', reviewIds);
         
-        if (entities && entities.length > 0) {
+        if (entitiesError) {
+          console.error('Error fetching entities for review likes:', entitiesError);
+          // Continue with empty likes array if entity lookup fails
+        } else if (entities && entities.length > 0) {
           const entityIds = entities.map(e => e.id);
           // Now query engagements using entity_ids (FK to entities.id)
           const { data: likes } = await supabase
@@ -2471,13 +2486,16 @@ export class ReviewService {
       if (userId && reviews && reviews.length > 0) {
         // First, get entity_ids for all review IDs
         const reviewIds = reviews.map((r: any) => r.id);
-        const { data: entities } = await supabase
+        const { data: entities, error: entitiesError } = await supabase
           .from('entities')
           .select('id, entity_uuid')
           .eq('entity_type', 'review')
           .in('entity_uuid', reviewIds);
         
-        if (entities && entities.length > 0) {
+        if (entitiesError) {
+          console.error('Error fetching entities for review likes:', entitiesError);
+          // Continue with empty likes array if entity lookup fails
+        } else if (entities && entities.length > 0) {
           const entityIds = entities.map(e => e.id);
           // Now query engagements using entity_ids (FK to entities.id)
           const { data: likes } = await supabase

@@ -30,9 +30,7 @@ export class EventLikesService {
   static async likeEvent(userId: string, eventId: string): Promise<EventLike | null> {
     const internalEventId = await this.resolveInternalEventId(eventId);
     
-    // First check if the user has already liked this event
-    const existingLike = await this.isLikedByUser(userId, eventId);
-    // Get or create entity for this event
+    // Get or create entity for this event first (optimize: don't check existence before creating entity)
     const { data: entityId, error: entityError } = await supabase.rpc('get_or_create_entity', {
       p_entity_type: 'event',
       p_entity_uuid: internalEventId,
@@ -41,28 +39,28 @@ export class EventLikesService {
 
     if (entityError) throw entityError;
 
+    // Check if user has already liked this event using the entity_id
+    const { data: existingLike, error: checkError } = await supabase
+      .from('engagements')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('entity_id', entityId)
+      .eq('engagement_type', 'like')
+      .maybeSingle();
+
+    if (checkError && (checkError as any).code !== 'PGRST116') {
+      console.error('Error checking existing like:', checkError);
+      throw checkError;
+    }
+
     if (existingLike) {
       // User already liked this event, return the existing like
-      const { data, error: fetchError } = await supabase
-        .from('engagements')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('entity_id', entityId)
-        .eq('engagement_type', 'like')
-        .single();
-      
-      if (fetchError || !data) {
-        console.error('Error fetching existing like:', fetchError);
-        // Return null if fetch fails rather than returning invalid data
-        return null;
-      }
-      
       // Transform engagements table result to EventLike interface
       return {
-        id: data.id,
-        user_id: data.user_id,
+        id: existingLike.id,
+        user_id: existingLike.user_id,
         event_id: internalEventId, // Add event_id for EventLike interface compatibility
-        created_at: data.created_at,
+        created_at: existingLike.created_at,
       } as EventLike;
     }
     
@@ -121,12 +119,20 @@ export class EventLikesService {
     const internalEventId = await this.resolveInternalEventId(eventId);
     
     // Get entity_id for this event
-    const { data: entityData } = await supabase
+    const { data: entityData, error: entityError } = await supabase
       .from('entities')
       .select('id')
       .eq('entity_type', 'event')
       .eq('entity_uuid', internalEventId)
       .single();
+
+    if (entityError) {
+      // Only ignore "not found" errors (PGRST116), log others
+      if ((entityError as any).code !== 'PGRST116') {
+        console.error('Error fetching entity for unlike event:', entityError);
+      }
+      return; // Entity not found or error, nothing to delete
+    }
 
     if (!entityData?.id) {
       return; // Entity not found, nothing to delete
@@ -148,12 +154,20 @@ export class EventLikesService {
     const internalEventId = await this.resolveInternalEventId(eventId);
     
     // Get entity_id for this event
-    const { data: entityData } = await supabase
+    const { data: entityData, error: entityError } = await supabase
       .from('entities')
       .select('id')
       .eq('entity_type', 'event')
       .eq('entity_uuid', internalEventId)
       .single();
+
+    if (entityError) {
+      // Only ignore "not found" errors (PGRST116), log others
+      if ((entityError as any).code !== 'PGRST116') {
+        console.error('Error fetching entity for event likers:', entityError);
+      }
+      return []; // Entity not found or error, return empty array
+    }
 
     if (!entityData?.id) {
       return []; // Entity not found, return empty array
@@ -183,12 +197,20 @@ export class EventLikesService {
       const internalEventId = await this.resolveInternalEventId(eventId);
       
       // Get entity_id for this event
-      const { data: entityData } = await supabase
+      const { data: entityData, error: entityError } = await supabase
         .from('entities')
         .select('id')
         .eq('entity_type', 'event')
         .eq('entity_uuid', internalEventId)
         .single();
+
+      if (entityError) {
+        // Only ignore "not found" errors (PGRST116), log others
+        if ((entityError as any).code !== 'PGRST116') {
+          console.error('Error fetching entity for isLikedByUser:', entityError);
+        }
+        return false; // Entity not found or error, so like doesn't exist
+      }
 
       if (!entityData?.id) {
         return false; // Entity not found, so like doesn't exist

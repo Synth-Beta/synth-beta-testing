@@ -630,8 +630,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         .map((item: any) => {
           // Get event_date from review - it's a Date object from getUserReviewHistory
           // If it's a string (from database), convert to Date; if already Date, use as-is
+          // Handle both lowercase (event_date) and capitalized (Event_date) for migration compatibility
           let reviewEventDate: Date | undefined = undefined;
-          const eventDateValue = (item.review as any).event_date;
+          const eventDateValue = (item.review as any).event_date || (item.review as any).Event_date;
           if (eventDateValue) {
             if (eventDateValue instanceof Date) {
               reviewEventDate = eventDateValue;
@@ -1501,11 +1502,23 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   const handleEditReview = (review: any) => {
     // Open edit with prefilled data for non-destructive updates
+    // Normalize event_date to string format for consistent type handling
+    let eventDate: string;
+    if (review.event_date instanceof Date) {
+      // Convert Date object to ISO string and extract date part
+      eventDate = review.event_date.toISOString().split('T')[0];
+    } else if (typeof review.event_date === 'string') {
+      eventDate = review.event_date;
+    } else {
+      // Fallback to event.event_date or created_at
+      eventDate = review.event?.event_date || review.created_at;
+    }
+    
     setReviewModalEvent({
       id: review.event_id,
       title: review.event?.event_name || 'Concert Review',
       venue_name: review.event?.venue_name || review.event?.location || 'Unknown Venue',
-      event_date: review.event_date || review.event?.event_date || review.created_at,
+      event_date: eventDate,
       artist_name: review.event?.artist_name || 'Unknown Artist',
       existing_review_id: review.id,
       // pass through existing ratings/texts where the form can read them from context if needed

@@ -114,6 +114,11 @@ export const UserInfo: React.FC<UserInfoProps> = ({
         {/* Show only the name - username is shown in header */}
         <p className="user-info__name">{name}</p>
 
+        {/* Conditionally show username if showUsername is true (for backwards compatibility) */}
+        {showUsername && (
+          <p className="user-info__username">@{username}</p>
+        )}
+
         {showStats && (
           <div className="user-info__stats" aria-label="User statistics">
             {stats.map((stat) => {

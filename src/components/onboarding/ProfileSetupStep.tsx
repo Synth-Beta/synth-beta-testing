@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,26 +52,42 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // Auto-suggest username from name when component mounts or name changes
-  // Only run when user name changes, not on every username keystroke
+  // Auto-suggest username from name when component mounts, name changes, or username is cleared
+  // Use a ref to track if we've already suggested to prevent infinite loops
+  const hasSuggestedRef = React.useRef(false);
+  const isGeneratingRef = React.useRef(false);
+  
   useEffect(() => {
     const generateSuggestedUsername = async () => {
-      // Only suggest if username is empty (to avoid re-suggesting when user clears it)
-      if (!formData.username && user?.user_metadata?.name) {
+      const isEmpty = !formData.username;
+      const hasName = !!user?.user_metadata?.name;
+      
+      // Reset suggestion flag when username is cleared (user manually cleared it)
+      // Only reset if we're not currently generating and username is empty
+      if (isEmpty && hasSuggestedRef.current && !isGeneratingRef.current) {
+        hasSuggestedRef.current = false;
+      }
+      
+      // Only suggest if username is empty, user has a name, we haven't suggested yet, and we're not currently generating
+      if (isEmpty && hasName && !hasSuggestedRef.current && !isGeneratingRef.current) {
+        isGeneratingRef.current = true; // Mark as generating to prevent reset
         try {
           const { generateAvailableUsername } = await import('@/services/usernameService');
           const suggested = await generateAvailableUsername(user.user_metadata.name);
           if (suggested) {
+            hasSuggestedRef.current = true; // Mark as suggested
             setFormData(prev => ({ ...prev, username: suggested }));
           }
         } catch (error) {
           console.error('Error generating suggested username:', error);
+        } finally {
+          isGeneratingRef.current = false; // Clear generating flag
         }
       }
     };
     
     generateSuggestedUsername();
-    // Only depend on user name, not formData.username to avoid re-running on every keystroke
+    // Only depend on user name - don't include formData.username to avoid circular dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.user_metadata?.name]);
 
@@ -141,14 +157,16 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
     }
   };
 
-  const checkUsernameAvailability = async (username: string): Promise<boolean> => {
-    if (!username.trim()) return false;
+  const checkUsernameAvailability = async (username: string): Promise<{ available: boolean; error?: string }> => {
+    if (!username.trim()) {
+      return { available: false, error: 'Username is required' };
+    }
     
     try {
       // Use the shared username service for consistency
       const { checkUsernameAvailability: checkAvailability } = await import('@/services/usernameService');
       const result = await checkAvailability(username);
-      return result.available;
+      return result;
     } catch (error) {
       console.error('Error checking username availability:', error);
       // Fallback to direct query if service fails
@@ -158,7 +176,7 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
         const sanitized = sanitizeUsername(username);
         
         if (!sanitized) {
-          return false; // Invalid username after sanitization
+          return { available: false, error: 'Invalid username after sanitization' };
         }
         
         const { data, error } = await supabase
@@ -169,13 +187,16 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
 
         if (error && error.code !== 'PGRST116') {
           console.warn('Error checking username:', error);
-          return true; // Allow if column doesn't exist
+          return { available: true }; // Allow if column doesn't exist
         }
 
-        return !data || data.length === 0;
+        const available = !data || data.length === 0;
+        return available 
+          ? { available: true }
+          : { available: false, error: 'This username is already taken' };
       } catch (fallbackError) {
         console.error('Fallback username check failed:', fallbackError);
-        return true; // Allow on error to not block onboarding
+        return { available: true }; // Allow on error to not block onboarding
       }
     }
   };
@@ -188,8 +209,11 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
     }
 
     // Use shared validation utilities
+    // Note: formData.username is already sanitized by the onChange handler,
+    // but we call sanitizeUsername again to ensure consistency (it's idempotent)
     try {
       const { validateUsernameFormat, sanitizeUsername } = await import('@/utils/usernameUtils');
+      // Re-sanitize to ensure consistency (sanitizeUsername is idempotent)
       const sanitized = sanitizeUsername(username);
       const formatCheck = validateUsernameFormat(sanitized);
       
@@ -200,11 +224,11 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
 
       // Check availability
       setIsCheckingUsername(true);
-      const isAvailable = await checkUsernameAvailability(sanitized);
+      const availability = await checkUsernameAvailability(sanitized);
       setIsCheckingUsername(false);
 
-      if (!isAvailable) {
-        setErrors({ ...errors, username: 'This username is already taken' });
+      if (!availability.available) {
+        setErrors({ ...errors, username: availability.error || 'This username is already taken' });
       } else {
         setErrors({ ...errors, username: '' });
       }
@@ -236,10 +260,10 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
         } else {
           // Check availability one more time
           setIsCheckingUsername(true);
-          const isAvailable = await checkUsernameAvailability(sanitized);
+          const availability = await checkUsernameAvailability(sanitized);
           setIsCheckingUsername(false);
-          if (!isAvailable) {
-            newErrors.username = 'This username is already taken';
+          if (!availability.available) {
+            newErrors.username = availability.error || 'This username is already taken';
           } else {
             // Store sanitized username to use when passing to onNext
             finalUsername = sanitized;
