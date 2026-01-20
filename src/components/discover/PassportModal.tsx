@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,9 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { PassportEntry } from '@/services/passportService';
+import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
+import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProcessedAchievement extends AchievementDisplay {
   completedTier?: 'bronze' | 'silver' | 'gold' | null;
@@ -54,12 +57,114 @@ export const PassportModal: React.FC<PassportModalProps> = ({
   const [nextToUnlock, setNextToUnlock] = useState<NextToUnlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'identity' | 'stamps' | 'achievements' | 'timeline' | 'taste' | 'bucket'>('identity');
+  const [venueDialog, setVenueDialog] = useState<{ open: boolean; venueId?: string | null; venueName?: string }>(() => ({ open: false }));
+  const [artistDialog, setArtistDialog] = useState<{ open: boolean; artistId?: string | null; artistName?: string }>(() => ({ open: false }));
+  const handlingRef = useRef<{ artist: boolean; venue: boolean }>({ artist: false, venue: false });
 
   useEffect(() => {
     if (isOpen || inline) {
       loadPassportData();
     }
   }, [isOpen, inline, userId]);
+
+  // Add event listeners for artist and venue card opening
+  // Set up listeners when modal is open or inline - keep listeners active even after modal closes
+  useEffect(() => {
+    const openArtist = async (e: Event) => {
+      // Prevent duplicate handling using ref
+      if (handlingRef.current.artist) return;
+      handlingRef.current.artist = true;
+      
+      const detail = (e as CustomEvent).detail || {};
+      
+      // If we have artistId, use it. Otherwise, try to find it by name
+      let artistId = detail.artistId;
+      
+      if (!artistId && detail.artistName) {
+        try {
+          const { data: artistData } = await supabase
+            .from('artists')
+            .select('id')
+            .ilike('name', detail.artistName)
+            .limit(1)
+            .maybeSingle();
+          
+          if (artistData) {
+            artistId = artistData.id;
+          }
+        } catch (error) {
+          console.error('Error fetching artist ID:', error);
+        }
+      }
+      
+      // Set the artist dialog state first
+      const artistDialogState = { 
+        open: true, 
+        artistId: artistId || null,
+        artistName: detail.artistName || 'Unknown Artist'
+      };
+      setArtistDialog(artistDialogState);
+      
+      // Close the PassportModal after a brief delay to allow state to update
+      if (isOpen && !inline) {
+        setTimeout(() => {
+          onClose();
+          // Reset after a delay to allow modal to close
+          setTimeout(() => { handlingRef.current.artist = false; }, 300);
+        }, 100);
+      } else {
+        // Reset after a delay if not closing
+        setTimeout(() => { handlingRef.current.artist = false; }, 500);
+      }
+    };
+    
+    const openVenue = async (e: Event) => {
+      // Prevent duplicate handling using ref
+      if (handlingRef.current.venue) return;
+      handlingRef.current.venue = true;
+      
+      const detail = (e as CustomEvent).detail || {};
+      
+      // Close the PassportModal first to avoid dialog conflicts
+      if (isOpen && !inline) {
+        onClose();
+      }
+      
+      // If we have venueId, use it. Otherwise, try to find it by name
+      let venueId = detail.venueId;
+      
+      if (!venueId && detail.venueName) {
+        try {
+          const { data: venueData } = await supabase
+            .from('venues')
+            .select('id')
+            .ilike('name', detail.venueName)
+            .limit(1)
+            .maybeSingle();
+          
+          if (venueData) {
+            venueId = venueData.id;
+          }
+        } catch (error) {
+          console.error('Error fetching venue ID:', error);
+        }
+      }
+      
+      // Open the existing VenueDetailModal
+      setVenueDialog({ open: true, venueId: venueId || null, venueName: detail.venueName });
+      
+      // Reset after a delay
+      setTimeout(() => { handlingRef.current.venue = false; }, 500);
+    };
+
+    document.addEventListener('open-venue-card', openVenue as EventListener);
+    document.addEventListener('open-artist-card', openArtist as EventListener);
+    
+    return () => {
+      document.removeEventListener('open-venue-card', openVenue as EventListener);
+      document.removeEventListener('open-artist-card', openArtist as EventListener);
+    };
+  }, [isOpen, inline, onClose]);
 
   const loadPassportData = async () => {
     setLoading(true);
@@ -85,7 +190,9 @@ export const PassportModal: React.FC<PassportModalProps> = ({
     return Math.min((current / total) * 100, 100);
   };
 
-  if (!isOpen) {
+  // Don't return null if we have open artist/venue dialogs - we need to keep the component mounted
+  // to render the detail modals even after the PassportModal closes
+  if (!isOpen && !inline && !artistDialog.open && !venueDialog.open) {
     return null;
   }
 
@@ -353,21 +460,93 @@ export const PassportModal: React.FC<PassportModalProps> = ({
   );
 
   if (inline) {
-    return <div className="w-full">{content}</div>;
+    return (
+      <>
+        <div className="w-full">{content}</div>
+        {/* Artist Dialog */}
+        <Dialog open={artistDialog.open} onOpenChange={(open) => setArtistDialog({ open, artist: null, events: undefined, totalEvents: undefined })}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogTitle className="sr-only">Artist Profile</DialogTitle>
+            <DialogDescription className="sr-only">Artist profile for {artistDialog.artist?.name || 'artist'}</DialogDescription>
+            {artistDialog.artist && (
+              <ArtistCard
+                artist={artistDialog.artist}
+                events={artistDialog.events || []}
+                totalEvents={artistDialog.totalEvents || 0}
+                source={artistDialog.events && artistDialog.events.length > 0 ? 'api' : 'database'}
+                userId={userId}
+                onBack={() => setArtistDialog({ open: false, artist: null, events: undefined, totalEvents: undefined })}
+                showAllEvents={true}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
+      {/* Artist Detail Modal - Use existing modal */}
+      {artistDialog.artistId && (
+        <ArtistDetailModal
+          isOpen={artistDialog.open}
+          onClose={() => setArtistDialog({ open: false, artistId: null, artistName: undefined })}
+          artistId={artistDialog.artistId}
+          artistName={artistDialog.artistName || 'Unknown Artist'}
+          currentUserId={userId}
+        />
+      )}
+
+      {/* Venue Detail Modal - Use existing modal */}
+      {venueDialog.venueId && venueDialog.venueName && (
+        <VenueDetailModal
+          isOpen={venueDialog.open}
+          onClose={() => setVenueDialog({ open: false, venueId: null, venueName: '' })}
+          venueId={venueDialog.venueId}
+          venueName={venueDialog.venueName}
+          currentUserId={userId}
+        />
+      )}
+      </>
+    );
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Live Music Passport</DialogTitle>
-          <DialogDescription>
-            Your curated, earned, and evolving snapshot of your live-music journey
-          </DialogDescription>
-        </DialogHeader>
-        {content}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Live Music Passport</DialogTitle>
+            <DialogDescription>
+              Your curated, earned, and evolving snapshot of your live-music journey
+            </DialogDescription>
+          </DialogHeader>
+          {content}
+        </DialogContent>
+      </Dialog>
+
+      {/* Artist Detail Modal - Use existing modal */}
+      {artistDialog.open && artistDialog.artistId && (
+        <ArtistDetailModal
+          isOpen={artistDialog.open}
+          onClose={() => {
+            setArtistDialog({ open: false, artistId: null, artistName: undefined });
+          }}
+          artistId={artistDialog.artistId}
+          artistName={artistDialog.artistName || 'Unknown Artist'}
+          currentUserId={userId}
+        />
+      )}
+
+      {/* Venue Detail Modal - Use existing modal */}
+      {venueDialog.open && venueDialog.venueId && venueDialog.venueName && (
+        <VenueDetailModal
+          isOpen={venueDialog.open}
+          onClose={() => {
+            setVenueDialog({ open: false, venueId: null, venueName: '' });
+          }}
+          venueId={venueDialog.venueId}
+          venueName={venueDialog.venueName}
+          currentUserId={userId}
+        />
+      )}
+    </>
   );
 };
 

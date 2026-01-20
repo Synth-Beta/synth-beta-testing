@@ -17,6 +17,7 @@ import type { VibeType } from '@/services/discoverVibeService';
 import type { VibeFilters } from '@/services/discoverVibeService';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import { SearchBar } from '@/components/SearchBar/SearchBar';
+import { useViewTracking } from '@/hooks/useViewTracking';
 
 interface DiscoverViewProps {
   currentUserId: string;
@@ -56,6 +57,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const [selectedLocationName, setSelectedLocationName] = useState<string>('');
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  // Track discover view
+  useViewTracking('view', 'discover', { source: 'discover' });
 
   // Detect mobile
   useEffect(() => {

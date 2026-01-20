@@ -36,6 +36,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
+import { useViewTracking } from '@/hooks/useViewTracking';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 
 // Helper function to format member count - guaranteed to return clean string
 const formatMemberCount = (count: number | string | null | undefined): string => {
@@ -231,6 +234,9 @@ interface FriendEventInterest {
   created_at: string;
 }
   const [friendEventInterests, setFriendEventInterests] = useState<FriendEventInterest[]>([]);
+
+  // Track home feed view
+  useViewTracking('view', 'home_feed', { source: 'home' });
 
   // Load user's active city and apply to filters
   useEffect(() => {
@@ -1376,15 +1382,41 @@ interface FriendEventInterest {
   };
 
   const handleEventClick = async (eventId: string) => {
+    // Track event click from feed
     try {
-      const { data } = await supabase
+      const eventUuid = getEventUuid({ id: eventId });
+      trackInteraction.click(
+        'event',
+        eventId,
+        { source: 'home_feed' },
+        eventUuid || undefined
+      );
+    } catch (error) {
+      console.error('Error tracking event click:', error);
+    }
+
+    try {
+      // Query events table with JOINs to get artist and venue names via foreign keys
+      const { data, error } = await supabase
         .from('events')
-        .select('*')
+        .select('*, artists(name), venues(name)')
         .eq('id', eventId)
         .single();
 
+      if (error) {
+        console.error('Error fetching event:', error);
+        return;
+      }
+
       if (data) {
-        setSelectedEvent(data);
+        // Normalize the event data to include artist_name and venue_name from JOINed data
+        const normalizedEvent = {
+          ...data,
+          artist_name: (data.artists?.name) || null,
+          venue_name: (data.venues?.name) || null,
+        };
+        
+        setSelectedEvent(normalizedEvent);
         const interested = await UserEventService.isUserInterested(currentUserId, data.id);
         setSelectedEventInterested(interested);
         setEventDetailsOpen(true);
@@ -1944,7 +1976,7 @@ interface FriendEventInterest {
           ) : reviews.length === 0 ? (
             <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
               {/* Large icon (60px), dark grey - using MessageSquare for reviews */}
-              <Icon name="squareComment" size={60} alt="" style={{ color: 'var(--neutral-600)' }} />
+              <Icon name="squareComment" size={60} alt="" color="var(--neutral-600)" />
               {/* Heading - Body typography, off black */}
               <p style={{ 
                 fontFamily: 'var(--font-family)',
@@ -2021,6 +2053,7 @@ interface FriendEventInterest {
           currentUserId={currentUserId}
           isInterested={selectedEventInterested}
           onInterestToggle={async (eventId, interested) => {
+            // Tracking is handled in UserEventService.setEventInterest
             try {
               await UserEventService.setEventInterest(currentUserId, eventId, interested);
               setSelectedEventInterested(interested);

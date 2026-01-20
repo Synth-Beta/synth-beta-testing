@@ -5,6 +5,8 @@ import { ChevronRight, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FigmaEventCard } from '@/components/cards/FigmaEventCard';
 import type { EventList } from '@/services/homeFeedService';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 
 interface EventListsCarouselProps {
   lists: EventList[];
@@ -47,7 +49,22 @@ export const EventListsCarousel: React.FC<EventListsCarouselProps> = ({
                     event_date: event.event_date,
                     price_range: event.price_range || undefined,
                   }}
-                  onClick={() => onEventClick?.(event.id)}
+                  onClick={() => {
+                    // Track event click from carousel
+                    try {
+                      const eventUuid = getEventUuid(event);
+                      const metadata = getEventMetadata(event);
+                      trackInteraction.click(
+                        'event',
+                        event.id,
+                        { ...metadata, source: 'event_list_carousel', list_title: list.title },
+                        eventUuid || undefined
+                      );
+                    } catch (error) {
+                      console.error('Error tracking event click:', error);
+                    }
+                    onEventClick?.(event.id);
+                  }}
                 />
               </div>
             ))}

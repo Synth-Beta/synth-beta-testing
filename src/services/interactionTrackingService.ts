@@ -321,27 +321,25 @@ class InteractionTrackingService {
         return;
       }
       
-      // DISABLED: interactions table doesn't exist - just log to console
-      // const { error } = await supabase
-      //   .from('interactions')
-      //   .insert([{
-      //     user_id: user.id,
-      //     session_id: normalizedEvent.sessionId || this.sessionId,
-      //     event_type: normalizedEvent.eventType,
-      //     entity_type: normalizedEvent.entityType,
-      //     entity_id: normalizedEvent.entityId || null,
-      //     entity_uuid: normalizedEvent.entityUuid || null,
-      //     metadata: normalizedEvent.metadata || {}
-      //   }]);
+      // Insert interaction into database
+      // Note: metadata column doesn't exist in the schema, so metadata is not persisted
+      // Marketing metadata would need to be stored separately or added as a column in the future
+      const { error } = await supabase
+        .from('interactions')
+        .insert([{
+          user_id: user.id,
+          session_id: normalizedEvent.sessionId || this.sessionId,
+          event_type: normalizedEvent.eventType,
+          entity_type: normalizedEvent.entityType,
+          entity_id: normalizedEvent.entityId || null,
+          entity_uuid: normalizedEvent.entityUuid || null
+        }]);
 
-      // if (error) {
-      //   await this.logError('interaction_logging_error', error, normalizedEvent);
-      //   console.error('Failed to log interaction:', error);
-      //   // Don't throw - logging failures shouldn't break the app
-      // }
-      
-      // Just log to console for now
-      console.debug('Interaction logged:', normalizedEvent);
+      if (error) {
+        await this.logError('interaction_logging_error', error, normalizedEvent);
+        console.error('Failed to log interaction:', error);
+        // Don't throw - logging failures shouldn't break the app
+      }
     } catch (error) {
       await this.logError('interaction_logging_exception', error, normalizedEvent);
       console.error('Error logging interaction:', error);
@@ -455,32 +453,27 @@ class InteractionTrackingService {
         event_type: event.eventType,
         entity_type: event.entityType,
         entity_id: event.entityId || null,
-        entity_uuid: event.entityUuid || null,
-        metadata: event.metadata || {}
+        entity_uuid: event.entityUuid || null
+        // Note: metadata column doesn't exist in the interactions table schema
+        // Marketing metadata is not persisted but can be logged to console for debugging
       }));
 
-      // DISABLED: interactions table doesn't exist - just log to console
-      // const { error } = await supabase
-      //   .from('interactions')
-      //   .insert(dbBatch);
+      // Insert batch into database
+      const { error } = await supabase
+        .from('interactions')
+        .insert(dbBatch);
 
-      // if (error) {
-      //   console.error('Failed to log interaction batch:', error);
-      //   // Log error for each failed event
-      //   for (const event of validEvents) {
-      //     await this.logError('interaction_logging_error', error, event);
-      //   }
-      // } else {
-      //   console.log(`✅ Logged ${dbBatch.length} interactions`);
-      //   if (invalidEvents.length > 0) {
-      //     console.warn(`⚠️ Skipped ${invalidEvents.length} invalid interactions`);
-      //   }
-      // }
-      
-      // Just log to console for now
-      console.debug(`✅ Logged ${dbBatch.length} interactions (console only)`, dbBatch);
-      if (invalidEvents.length > 0) {
-        console.warn(`⚠️ Skipped ${invalidEvents.length} invalid interactions`);
+      if (error) {
+        console.error('Failed to log interaction batch:', error);
+        // Log error for each failed event
+        for (const event of validEvents) {
+          await this.logError('interaction_logging_error', error, event);
+        }
+      } else {
+        console.debug(`✅ Logged ${dbBatch.length} interactions`);
+        if (invalidEvents.length > 0) {
+          console.warn(`⚠️ Skipped ${invalidEvents.length} invalid interactions`);
+        }
       }
     } catch (error) {
       console.error('Error logging interaction batch:', error);
@@ -544,21 +537,23 @@ export const trackInteraction = {
   },
 
   // Click interactions
-  click: (entityType: string, entityId: string, metadata?: Record<string, any>) => {
+  click: (entityType: string, entityId: string, metadata?: Record<string, any>, entityUuid?: string | null) => {
     interactionTracker.queueInteraction({
       eventType: 'click',
       entityType,
       entityId,
+      entityUuid: entityUuid || undefined,
       metadata
     });
   },
 
   // Like interactions
-  like: (entityType: string, entityId: string, isLiked: boolean, metadata?: Record<string, any>) => {
+  like: (entityType: string, entityId: string, isLiked: boolean, metadata?: Record<string, any>, entityUuid?: string | null) => {
     interactionTracker.queueInteraction({
       eventType: 'like',
       entityType,
       entityId,
+      entityUuid: entityUuid || undefined,
       metadata: {
         isLiked,
         ...metadata
@@ -567,11 +562,12 @@ export const trackInteraction = {
   },
 
   // Share interactions
-  share: (entityType: string, entityId: string, platform?: string, metadata?: Record<string, any>) => {
+  share: (entityType: string, entityId: string, platform?: string, metadata?: Record<string, any>, entityUuid?: string | null) => {
     interactionTracker.queueInteraction({
       eventType: 'share',
       entityType,
       entityId,
+      entityUuid: entityUuid || undefined,
       metadata: {
         platform,
         ...metadata
@@ -580,11 +576,12 @@ export const trackInteraction = {
   },
 
   // Comment interactions
-  comment: (entityType: string, entityId: string, commentLength?: number, metadata?: Record<string, any>) => {
+  comment: (entityType: string, entityId: string, commentLength?: number, metadata?: Record<string, any>, entityUuid?: string | null) => {
     interactionTracker.queueInteraction({
       eventType: 'comment',
       entityType,
       entityId,
+      entityUuid: entityUuid || undefined,
       metadata: {
         commentLength,
         ...metadata
@@ -607,11 +604,12 @@ export const trackInteraction = {
   },
 
   // Interest interactions
-  interest: (entityType: string, entityId: string, isInterested: boolean, metadata?: Record<string, any>) => {
+  interest: (entityType: string, entityId: string, isInterested: boolean, metadata?: Record<string, any>, entityUuid?: string | null) => {
     interactionTracker.queueInteraction({
       eventType: 'interest',
       entityType,
       entityId,
+      entityUuid: entityUuid || undefined,
       metadata: {
         isInterested,
         ...metadata
@@ -620,11 +618,12 @@ export const trackInteraction = {
   },
 
   // Swipe interactions
-  swipe: (entityType: string, entityId: string, direction: 'like' | 'pass', metadata?: Record<string, any>) => {
+  swipe: (entityType: string, entityId: string, direction: 'like' | 'pass', metadata?: Record<string, any>, entityUuid?: string | null) => {
     interactionTracker.queueInteraction({
       eventType: 'swipe',
       entityType,
       entityId,
+      entityUuid: entityUuid || undefined,
       metadata: {
         direction,
         ...metadata
@@ -633,11 +632,12 @@ export const trackInteraction = {
   },
 
   // View interactions
-  view: (entityType: string, entityId: string, duration?: number, metadata?: Record<string, any>) => {
+  view: (entityType: string, entityId: string, duration?: number, metadata?: Record<string, any>, entityUuid?: string | null) => {
     interactionTracker.queueInteraction({
       eventType: 'view',
       entityType,
       entityId,
+      entityUuid: entityUuid || undefined,
       metadata: {
         duration,
         ...metadata
@@ -646,11 +646,12 @@ export const trackInteraction = {
   },
 
   // Feed impression tracking
-  trackFeedImpression: (eventId: string, metadata?: Record<string, any>) => {
+  trackFeedImpression: (eventId: string, metadata?: Record<string, any>, entityUuid?: string | null) => {
     interactionTracker.queueInteraction({
       eventType: 'view',
       entityType: 'event',
       entityId: eventId,
+      entityUuid: entityUuid || undefined,
       metadata: {
         source: 'feed',
         impression: true,
@@ -696,6 +697,28 @@ export const trackInteraction = {
         field,
         ...metadata
       }
+    });
+  },
+
+  // Follow interactions
+  follow: (entityType: string, entityId: string, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'follow',
+      entityType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata
+    });
+  },
+
+  // Unfollow interactions
+  unfollow: (entityType: string, entityId: string, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'unfollow',
+      entityType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata
     });
   }
 };

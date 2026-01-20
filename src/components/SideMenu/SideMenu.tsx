@@ -10,6 +10,7 @@ import { useAccountType } from '@/hooks/useAccountType';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/types/database.types';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 export interface SideMenuProps {
   /**
@@ -208,6 +209,11 @@ export const SideMenu: React.FC<SideMenuProps> = ({
               label="Notifications"
               icon="bell"
               onPress={() => {
+                try {
+                  trackInteraction.click('view', 'side_menu_notifications', { source: 'side_menu' });
+                } catch (error) {
+                  console.error('Error tracking menu click:', error);
+                }
                 onNavigateToNotifications?.();
                 onClose();
               }}
@@ -217,6 +223,11 @@ export const SideMenu: React.FC<SideMenuProps> = ({
               label="Event Timeline"
               icon="music"
               onPress={() => {
+                try {
+                  trackInteraction.click('view', 'side_menu_timeline', { source: 'side_menu' });
+                } catch (error) {
+                  console.error('Error tracking menu click:', error);
+                }
                 if (onNavigateToProfile) {
                   sessionStorage.setItem('profileTab', 'timeline');
                   onNavigateToProfile(undefined, 'timeline');
@@ -229,6 +240,11 @@ export const SideMenu: React.FC<SideMenuProps> = ({
               label="Interested"
               icon="heart"
               onPress={() => {
+                try {
+                  trackInteraction.click('view', 'side_menu_interested', { source: 'side_menu' });
+                } catch (error) {
+                  console.error('Error tracking menu click:', error);
+                }
                 if (onNavigateToProfile) {
                   sessionStorage.setItem('profileTab', 'interested');
                   onNavigateToProfile(undefined, 'interested');
@@ -241,6 +257,11 @@ export const SideMenu: React.FC<SideMenuProps> = ({
               label="Settings"
               icon="settings"
               onPress={() => {
+                try {
+                  trackInteraction.click('view', 'side_menu_settings', { source: 'side_menu' });
+                } catch (error) {
+                  console.error('Error tracking menu click:', error);
+                }
                 onNavigateToSettings?.();
                 onClose();
               }}

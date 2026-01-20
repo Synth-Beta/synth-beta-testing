@@ -48,6 +48,8 @@ import { ProfileStarBuckets } from './ProfileStarBuckets';
 import { PassportModal } from '@/components/discover/PassportModal';
 import { PassportService } from '@/services/passportService';
 import { Sparkles } from 'lucide-react';
+import { useViewTracking } from '@/hooks/useViewTracking';
+import { trackInteraction } from '@/services/interactionTrackingService';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import { UserInfo } from './UserInfo';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
@@ -183,6 +185,14 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   // Determine which user's profile to show
   const targetUserId = profileUserId || currentUserId;
   const isViewingOwnProfile = !profileUserId || profileUserId === currentUserId;
+
+  // Track profile view
+  useViewTracking(
+    'profile',
+    targetUserId,
+    { is_own_profile: isViewingOwnProfile },
+    targetUserId
+  );
 
   useEffect(() => {
     console.log('🔍 ProfileView: useEffect triggered with:', {
@@ -2009,7 +2019,19 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         )}
 
         {/* Instagram-style Content Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={(tab) => {
+          // Track profile tab switch
+          try {
+            trackInteraction.click('profile', `profile_tab_${tab}`, { 
+              tab,
+              is_own_profile: isViewingOwnProfile,
+              profile_user_id: targetUserId
+            }, targetUserId);
+          } catch (error) {
+            console.error('Error tracking profile tab switch:', error);
+          }
+          setActiveTab(tab);
+        }} className="w-full">
           <TabsList className={`glass-card inner-glow grid w-full max-w-full mb-4 p-1 floating-shadow overflow-x-hidden ${canViewInterested ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <TabsTrigger value="my-events" className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />

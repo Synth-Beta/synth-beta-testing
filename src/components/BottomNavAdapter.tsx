@@ -1,6 +1,7 @@
 import React from 'react';
 import { Icon } from '@/components/Icon';
 import './BottomNav/BottomNav.css';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 interface BottomNavAdapterProps {
   currentView: 'feed' | 'search' | 'profile' | 'profile-edit' | 'analytics' | 'events' | 'chat' | 'notifications' | 'onboarding';
@@ -35,14 +36,20 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
       id: 'home',
       label: 'Home',
       icon: isHome ? 'houseSelected' : 'house',
-      onClick: () => onViewChange('feed'),
+      onClick: () => {
+        trackInteraction.navigate(currentView, 'feed', { source: 'bottom_nav' });
+        onViewChange('feed');
+      },
       isActive: isHome,
     },
     {
       id: 'discover',
       label: 'Discover',
       icon: isDiscover ? 'discoverSelected' : 'discover',
-      onClick: () => onViewChange('search'),
+      onClick: () => {
+        trackInteraction.navigate(currentView, 'discover', { source: 'bottom_nav' });
+        onViewChange('search');
+      },
       isActive: isDiscover,
     },
     {
@@ -50,6 +57,7 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
       label: 'Post',
       icon: 'plus',
       onClick: () => {
+        trackInteraction.click('view', 'create_post', { source: 'bottom_nav' });
         if (onOpenEventReview) {
           onOpenEventReview();
         } else {
@@ -62,14 +70,20 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
       id: 'messages',
       label: 'Messages',
       icon: isMessages ? 'circleCommentSelected' : 'circleComment',
-      onClick: () => onViewChange('chat'),
+      onClick: () => {
+        trackInteraction.navigate(currentView, 'chat', { source: 'bottom_nav' });
+        onViewChange('chat');
+      },
       isActive: isMessages,
     },
     {
       id: 'profile',
       label: 'Profile',
       icon: isProfile ? 'userSelected' : 'user',
-      onClick: () => onViewChange('profile'),
+      onClick: () => {
+        trackInteraction.navigate(currentView, 'profile', { source: 'bottom_nav' });
+        onViewChange('profile');
+      },
       isActive: isProfile,
     },
   ];

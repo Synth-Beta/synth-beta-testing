@@ -81,22 +81,37 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
   };
 
   const handleItemClick = (item: BucketListItem) => {
-    if (item.entity_type === 'artist') {
-      // Dispatch event to open artist card
-      window.dispatchEvent(new CustomEvent('open-artist-card', {
+    // Use entity_name from bucket_list - that's all we need!
+    // The existing card opening mechanism (used in feeds/searches) will handle the lookup
+    const entityType = item.entity_type || (item.artist ? 'artist' : item.venue ? 'venue' : null);
+    
+    if (!entityType) {
+      console.error('Cannot determine entity type for item:', item);
+      return;
+    }
+    
+    if (entityType === 'artist' || item.artist) {
+      // Dispatch the same event that feeds/searches use
+      const event = new CustomEvent('open-artist-card', {
         detail: {
           artistId: item.entity_id,
           artistName: item.entity_name,
         },
-      }));
-    } else if (item.entity_type === 'venue') {
-      // Dispatch event to open venue card
-      window.dispatchEvent(new CustomEvent('open-venue-card', {
+        bubbles: true,
+      });
+      document.dispatchEvent(event);
+    } else if (entityType === 'venue' || item.venue) {
+      // Dispatch the same event that feeds/searches use
+      const event = new CustomEvent('open-venue-card', {
         detail: {
           venueId: item.entity_id,
           venueName: item.entity_name,
         },
-      }));
+        bubbles: true,
+      });
+      document.dispatchEvent(event);
+    } else {
+      console.error('Unknown entity type:', entityType, item);
     }
   };
 
@@ -221,6 +236,7 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
+                      {/* Just show the name - no "Artist" or "Venue" label */}
                       <h4 className="font-semibold text-sm truncate">{item.entity_name}</h4>
                       <Button
                         variant="ghost"
@@ -235,26 +251,6 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
                       </Button>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge
-                        variant="secondary"
-                        className={`text-xs ${
-                          item.entity_type === 'artist'
-                            ? 'bg-pink-100 text-pink-700'
-                            : 'bg-blue-100 text-blue-700'
-                        }`}
-                      >
-                        {item.entity_type === 'artist' ? (
-                          <>
-                            <Music className="w-2.5 h-2.5 mr-1" />
-                            Artist
-                          </>
-                        ) : (
-                          <>
-                            <Building2 className="w-2.5 h-2.5 mr-1" />
-                            Venue
-                          </>
-                        )}
-                      </Badge>
                       <span className="text-xs text-muted-foreground">
                         Added {new Date(item.added_at).toLocaleDateString()}
                       </span>

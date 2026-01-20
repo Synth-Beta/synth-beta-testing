@@ -260,8 +260,23 @@ export class UserEventService {
       }
       
       try {
-        trackInteraction.interest('event', jambaseEventId, interested);
-        console.log('🎯 Tracked interest interaction:', { jambaseEventId, interested });
+        // Try to get event UUID from database if jambaseEventId is not a UUID
+        let eventUuid: string | null = null;
+        if (jambaseEventId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId)) {
+          eventUuid = jambaseEventId;
+        } else {
+          // Try to resolve from external_entity_ids or events table
+          const { data: eventData } = await supabase
+            .from('events')
+            .select('id')
+            .eq('jambase_event_id', jambaseEventId)
+            .maybeSingle();
+          if (eventData?.id) {
+            eventUuid = eventData.id;
+          }
+        }
+        trackInteraction.interest('event', jambaseEventId, interested, {}, eventUuid);
+        console.log('🎯 Tracked interest interaction:', { jambaseEventId, interested, eventUuid });
       } catch (error) {
         console.error('Error tracking interest interaction:', error);
       }
@@ -279,7 +294,21 @@ export class UserEventService {
     try {
       await UserEventService.setEventInterest(userId, jambaseEventId, false);
       try {
-        trackInteraction.interest('event', jambaseEventId, false, { action: 'remove' });
+        // Try to get event UUID
+        let eventUuid: string | null = null;
+        if (jambaseEventId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId)) {
+          eventUuid = jambaseEventId;
+        } else {
+          const { data: eventData } = await supabase
+            .from('events')
+            .select('id')
+            .eq('jambase_event_id', jambaseEventId)
+            .maybeSingle();
+          if (eventData?.id) {
+            eventUuid = eventData.id;
+          }
+        }
+        trackInteraction.interest('event', jambaseEventId, false, { action: 'remove' }, eventUuid);
       } catch {}
     } catch (error) {
       console.error('Error removing event interest:', error);
@@ -931,7 +960,9 @@ export class UserEventService {
       // If wasThere is false and no existing review, do nothing (no record to delete)
 
       try {
-        trackInteraction.interest('event', eventId, wasThere, { action: 'attendance' });
+        // eventId should already be a UUID for internal events
+        const eventUuid = eventId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId) ? eventId : null;
+        trackInteraction.interest('event', eventId, wasThere, { action: 'attendance' }, eventUuid);
       } catch {}
     } catch (error) {
       console.error('Error marking user attendance:', error);

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Icon } from '@/components/Icon';
 import { Home, Compass, MessageCircle, User } from 'lucide-react';
 import './BottomNav.css';
+import { trackInteraction } from '@/services/interactionTrackingService';
 
 /**
  * Bottom Navigation Component
@@ -82,7 +83,20 @@ export const BottomNav: React.FC = () => {
     },
   ];
 
-  const handleNavClick = (path: string) => {
+  const handleNavClick = (path: string, itemId: string) => {
+    // Track navigation
+    try {
+      const viewMap: Record<string, string> = {
+        home: 'feed',
+        discover: 'discover',
+        post: 'post',
+        messages: 'chat',
+        profile: 'profile'
+      };
+      trackInteraction.navigate(currentPath, viewMap[itemId] || itemId, { source: 'bottom_nav' });
+    } catch (error) {
+      console.error('Error tracking navigation:', error);
+    }
     navigate(path);
   };
 
@@ -96,7 +110,7 @@ export const BottomNav: React.FC = () => {
               <button
                 key={item.id}
                 className="bottom-nav__item bottom-nav__item--cta"
-                onClick={() => handleNavClick(item.path)}
+                onClick={() => handleNavClick(item.path, item.id)}
                 aria-label={item.label}
                 aria-current={item.isActive ? 'page' : undefined}
                 type="button"
@@ -113,7 +127,7 @@ export const BottomNav: React.FC = () => {
               <button
                 key={item.id}
                 className={`bottom-nav__item ${item.isActive ? 'bottom-nav__item--active' : ''}`}
-                onClick={() => handleNavClick(item.path)}
+                onClick={() => handleNavClick(item.path, item.id)}
                 aria-label={item.label}
                 aria-current={item.isActive ? 'page' : undefined}
                 type="button"
@@ -130,7 +144,7 @@ export const BottomNav: React.FC = () => {
               <button
                 key={item.id}
                 className={`bottom-nav__item ${item.isActive ? 'bottom-nav__item--active' : ''}`}
-                onClick={() => handleNavClick(item.path)}
+                onClick={() => handleNavClick(item.path, item.id)}
                 aria-label={item.label}
                 aria-current={item.isActive ? 'page' : undefined}
                 type="button"
