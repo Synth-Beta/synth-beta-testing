@@ -282,22 +282,32 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         }
       });
 
+      // Filter to only show upcoming events (exclude past events)
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Set to start of today for more reliable date comparison
+      const filteredUnifiedEvents = unifiedEvents.filter((event) => {
+        if (!event.event_date) return false;
+        const eventDate = new Date(event.event_date);
+        eventDate.setHours(0, 0, 0, 0); // Normalize to start of day
+        return eventDate >= now;
+      });
+
       // Randomize order instead of sorting by date
       // Fisher-Yates shuffle algorithm
-      for (let i = unifiedEvents.length - 1; i > 0; i--) {
+      for (let i = filteredUnifiedEvents.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [unifiedEvents[i], unifiedEvents[j]] = [unifiedEvents[j], unifiedEvents[i]];
+        [filteredUnifiedEvents[i], filteredUnifiedEvents[j]] = [filteredUnifiedEvents[j], filteredUnifiedEvents[i]];
       }
 
       // Update state
       if (append) {
-        setEvents(prev => [...prev, ...unifiedEvents]);
+        setEvents(prev => [...prev, ...filteredUnifiedEvents]);
       } else {
-        setEvents(unifiedEvents);
+        setEvents(filteredUnifiedEvents);
       }
 
       // Check if there are more events
-      setHasMore(unifiedEvents.length >= limit);
+      setHasMore(filteredUnifiedEvents.length >= limit);
     } catch (error) {
       console.error('Error loading unified events:', error);
     } finally {
@@ -329,6 +339,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       }
 
       // Query events from followed artists and venues
+      // Query events table directly with JOINs since view may be missing some columns
       let eventsQuery = supabase
         .from('events')
         .select('id, title, event_date, venue_city, images, event_media_url, media_urls, artist_id, artists(name), venue_id, venues(name)')

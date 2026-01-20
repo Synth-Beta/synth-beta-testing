@@ -423,10 +423,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   const handleNavigateToEvent = async (eventId: string) => {
     try {
-      // Fetch event data from database
+      // Fetch event data from database using events table with JOINs to get normalized artist/venue names via foreign keys
       const { data: eventData, error } = await supabase
         .from('events')
-        .select('*')
+        .select('*, artists(name), venues(name)')
         .eq('id', eventId)
         .single();
 
@@ -441,14 +441,20 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       }
 
       if (eventData) {
+        // Normalize the event data to include artist_name and venue_name from JOINed data
+        const normalizedEvent = {
+          ...eventData,
+          artist_name: (eventData.artists?.name) || null,
+          venue_name: (eventData.venues?.name) || null,
+        };
         // Store the event data in localStorage for the feed to pick up
-        localStorage.setItem('selectedEvent', JSON.stringify(eventData));
+        localStorage.setItem('selectedEvent', JSON.stringify(normalizedEvent));
         // Navigate to feed where the event modal will open
         // The HomeFeed useEffect will detect this and open the modal
         setCurrentView('feed');
         // Also dispatch custom event as backup mechanism
         window.dispatchEvent(new CustomEvent('open-event-details', { 
-          detail: { event: eventData } 
+          detail: { event: normalizedEvent } 
         }));
       }
     } catch (error) {

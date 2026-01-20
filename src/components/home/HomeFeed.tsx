@@ -1454,14 +1454,21 @@ interface FriendEventInterest {
 
   const handleEventClick = async (eventId: string) => {
     try {
+      // Fetch event data from database using events table with JOINs to get normalized artist/venue names via foreign keys
       const { data } = await supabase
         .from('events')
-        .select('*')
+        .select('*, artists(name), venues(name)')
         .eq('id', eventId)
         .single();
 
       if (data) {
-        setSelectedEvent(data);
+        // Normalize the event data to include artist_name and venue_name from JOINed data
+        const normalizedEvent = {
+          ...data,
+          artist_name: (data.artists?.name) || null,
+          venue_name: (data.venues?.name) || null,
+        };
+        setSelectedEvent(normalizedEvent);
         const interested = await UserEventService.isUserInterested(currentUserId, data.id);
         setSelectedEventInterested(interested);
         setEventDetailsOpen(true);

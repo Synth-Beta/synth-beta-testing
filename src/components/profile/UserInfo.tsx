@@ -41,6 +41,13 @@ export interface UserInfoProps {
    * Optional additional classes for root container.
    */
   className?: string;
+
+  /**
+   * Optional click handlers for stats in userProfile variant.
+   */
+  onFollowersClick?: () => void;
+  onFollowingClick?: () => void;
+  onEventsClick?: () => void;
 }
 
 export const UserInfo: React.FC<UserInfoProps> = ({
