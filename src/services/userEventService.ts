@@ -378,16 +378,48 @@ export class UserEventService {
     total: number;
   }> {
     try {
-      // Get current authenticated user - RPC uses auth.uid() so we should query with that
-      const { data: authData4, error: authError4 } = await supabase.auth.getUser();
-      
-      // Check for auth errors (non-fatal, just log)
-      if (authError4) {
-        console.warn('⚠️ Error getting auth user:', authError4);
+      // Authorization check: verify user is authenticated
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData?.user) {
+        throw new Error('Authentication required to view event interests');
       }
       
-      const currentAuthUser = authData4?.user;
-      const queryUserId = currentAuthUser?.id || userId; // Use auth.uid() if available, fallback to userId
+      const currentUserId = authData.user.id;
+      
+      // Authorization: allow viewing own events, or require friendship check for others
+      // Note: RLS allows all authenticated users to read, but service layer enforces privacy
+      if (userId !== currentUserId) {
+        // Check if users are friends (required to view others' interested events)
+        const { data: friendship, error: friendshipError } = await supabase
+          .from('user_relationships')
+          .select('id')
+          .eq('relationship_type', 'friend')
+          .eq('status', 'accepted')
+          .or(`and(user_id.eq.${currentUserId},related_user_id.eq.${userId}),and(user_id.eq.${userId},related_user_id.eq.${currentUserId})`)
+          .limit(1)
+          .maybeSingle();
+        
+        if (friendshipError) {
+          console.warn('Error checking friendship status:', friendshipError);
+          throw new Error('Unable to verify authorization to view this user\'s events');
+        }
+        
+        if (!friendship) {
+          // Not friends - check if profile is public as fallback
+          const { data: profile, error: profileError } = await supabase
+            .from('users')
+            .select('is_public_profile')
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          if (profileError || !profile?.is_public_profile) {
+            throw new Error('You can only view your own events or events from friends');
+          }
+        }
+      }
+      
+      // Use the userId parameter - authorization verified above
+      const queryUserId = userId;
       
       // Get all event interests from user_event_relationships table
       const { data: relationships, error: relationshipsError } = await supabase
