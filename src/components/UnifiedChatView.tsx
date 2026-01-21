@@ -46,7 +46,7 @@ import { format, parseISO, differenceInMinutes, isWithinInterval, subDays } from
 import { UserInfo } from '@/components/profile/UserInfo';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { EventMessageCard } from '@/components/chat/EventMessageCard';
-import { ReviewMessageCard } from '@/components/chat/ReviewMessageCard';
+import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
@@ -57,6 +57,104 @@ import { VerifiedChatService } from '@/services/verifiedChatService';
 import { Badge as VerifiedBadge } from '@/components/ui/badge';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
+
+// Chat Review Message wrapper that fetches and displays review using SwiftUIReviewCard
+const ChatReviewMessage: React.FC<{
+  reviewId: string;
+  currentUserId?: string;
+  onReviewClick?: (review: ReviewWithEngagement) => void;
+  metadata?: { review_text?: string; rating?: number; artist_name?: string; venue_name?: string; };
+}> = ({ reviewId, currentUserId, onReviewClick, metadata }) => {
+  const [review, setReview] = React.useState<ReviewWithEngagement | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [userProfile, setUserProfile] = React.useState<{ name: string; avatar_url?: string }>({ name: 'User' });
+
+  React.useEffect(() => {
+    const loadReview = async () => {
+      try {
+        const { data: reviewData } = await supabase
+          .from('reviews')
+          .select('id, user_id, event_id, rating, review_text, photos, created_at, updated_at, likes_count, comments_count, shares_count')
+          .eq('id', reviewId)
+          .single();
+
+        if (reviewData) {
+          // Fetch user profile
+          const { data: userData } = await supabase
+            .from('users')
+            .select('name, avatar_url')
+            .eq('user_id', reviewData.user_id)
+            .single();
+
+          // Fetch event info for artist/venue names
+          let artistName = metadata?.artist_name;
+          let venueName = metadata?.venue_name;
+          if (reviewData.event_id) {
+            const { data: eventData } = await supabase
+              .from('events')
+              .select('artist_name, venue_name')
+              .eq('id', reviewData.event_id)
+              .single();
+            if (eventData) {
+              artistName = eventData.artist_name || artistName;
+              venueName = eventData.venue_name || venueName;
+            }
+          }
+
+          setReview({
+            id: reviewData.id,
+            user_id: reviewData.user_id,
+            event_id: reviewData.event_id || '',
+            rating: reviewData.rating,
+            review_text: reviewData.review_text || '',
+            is_public: true,
+            created_at: reviewData.created_at,
+            updated_at: reviewData.updated_at || reviewData.created_at,
+            likes_count: reviewData.likes_count || 0,
+            comments_count: reviewData.comments_count || 0,
+            shares_count: reviewData.shares_count || 0,
+            is_liked_by_user: false,
+            reaction_emoji: '',
+            photos: reviewData.photos || [],
+            videos: [],
+            mood_tags: [],
+            genre_tags: [],
+            context_tags: [],
+            artist_name: artistName,
+            venue_name: venueName,
+          });
+
+          if (userData) {
+            setUserProfile({ name: userData.name || 'User', avatar_url: userData.avatar_url || undefined });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading review for chat:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadReview();
+  }, [reviewId, metadata]);
+
+  if (loading) {
+    return <div style={{ padding: 16, color: 'var(--neutral-600)' }}>Loading review...</div>;
+  }
+
+  if (!review) {
+    return <div style={{ padding: 16, color: 'var(--neutral-600)' }}>Review not found</div>;
+  }
+
+  return (
+    <SwiftUIReviewCard
+      review={review}
+      mode="compact"
+      currentUserId={currentUserId}
+      userProfile={userProfile}
+      onOpenDetail={() => onReviewClick?.(review)}
+    />
+  );
+};
 
 interface Chat {
   id: string;
@@ -1600,9 +1698,8 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                         style={{ gap: isLastInGroup ? 'var(--spacing-inline, 6px)' : '0' }}
                       >
                         {message.message_type === 'review_share' && (message.shared_review_id || message.metadata?.review_id) ? (
-                          <ReviewMessageCard
+                          <ChatReviewMessage
                             reviewId={message.shared_review_id || message.metadata?.review_id}
-                            customMessage={message.metadata?.custom_message}
                             onReviewClick={handleReviewClick}
                             currentUserId={currentUserId}
                             metadata={message.metadata}

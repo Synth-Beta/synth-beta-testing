@@ -16,13 +16,12 @@ import { format } from 'date-fns';
 // JamBaseService removed - using database queries directly
 import { EventReviewModal } from '../reviews/EventReviewModal';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ProfileReviewCard } from '../reviews/ProfileReviewCard';
+import { SwiftUIReviewCard } from '../reviews/SwiftUIReviewCard';
 import type { Artist } from '@/types/concertSearch';
 import { ReviewService } from '@/services/reviewService';
 import { UserEventService } from '@/services/userEventService';
 import { DraftReviewService } from '@/services/draftReviewService';
 import { getEventStatus, isEventPast, getPastEvents, getUpcomingEvents } from '@/utils/eventStatusUtils';
-import { BelliStyleReviewCard } from '../reviews/BelliStyleReviewCard';
 import { detectStreamingServiceType } from '../streaming/UnifiedStreamingStats';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { EventDetailsModal } from '../events/EventDetailsModal';
@@ -2912,9 +2911,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 View concert review details
               </DialogDescription>
             </DialogHeader>
-            {/* BelliStyleReviewCard inside dialog */}
+            {/* SwiftUIReviewCard inside dialog */}
             <div className="w-full h-full overflow-y-auto p-2">
-              <BelliStyleReviewCard
+              <SwiftUIReviewCard
                 review={{
                   id: selectedReview.id,
                   user_id: selectedReview.user_id || profile?.user_id || '',
@@ -2950,9 +2949,12 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   setlist: (selectedReview as any).setlist || selectedReview.jambase_events?.setlist,
                   custom_setlist: (selectedReview as any).custom_setlist
                 }}
+                mode="detail"
+                showBackButton={true}
+                onBack={() => setViewReviewOpen(false)}
                 currentUserId={currentUserId}
                 onLike={async (reviewId, isLiked) => {
-                  console.log('🔍 ProfileView BelliStyle onLike:', { reviewId, isLiked });
+                  console.log('🔍 ProfileView SwiftUI onLike:', { reviewId, isLiked });
                 }}
                 onComment={() => {
                   console.log('Comment on review from ProfileView');

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, Link2, Facebook, MessageCircle, Mail, ArrowRight } from 'lucide-react';
+import { X, Search, Link2, MessageSquare, Mail, ArrowRight } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { InAppShareService, type ShareTarget } from '@/services/inAppShareService';
 import { ShareService } from '@/services/shareService';
@@ -94,7 +94,7 @@ export function EventShareModal({
         .filter(id => id.startsWith('friend-'))
         .map(id => id.replace('friend-', ''));
 
-      let result = { successCount: 0, errors: [] };
+      let result = { successCount: 0, errors: [] as string[] };
 
       // Share to existing group chats
       if (groupChatIds.length > 0) {
@@ -171,7 +171,28 @@ export function EventShareModal({
     }
   };
 
-  const handleExternalShare = async (platform?: string) => {
+  const handleTextMessage = async () => {
+    try {
+      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
+      const text = encodeURIComponent(`Check out this event: ${event.title}\n${url}`);
+      window.open(`sms:?body=${text}`, '_blank');
+    } catch (error) {
+      console.error('Error sharing via text:', error);
+    }
+  };
+
+  const handleEmail = async () => {
+    try {
+      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
+      const subject = encodeURIComponent(`Check out: ${event.title}`);
+      const body = encodeURIComponent(`I thought you might like this event!\n\n${event.title}\n\n${url}`);
+      window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+    } catch (error) {
+      console.error('Error sharing via email:', error);
+    }
+  };
+
+  const handleMoreOptions = async () => {
     try {
       const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
       
@@ -181,12 +202,7 @@ export function EventShareModal({
           text: event.description || 'Check out this event!',
           url: url
         });
-        toast({
-          title: "Shared!",
-          description: "Event shared successfully",
-        });
       } else {
-        // Fallback to copy link
         await navigator.clipboard.writeText(url);
         toast({
           title: "Link Copied!",
@@ -195,12 +211,7 @@ export function EventShareModal({
       }
     } catch (error: any) {
       if (error.name !== 'AbortError') {
-        console.error('Error sharing externally:', error);
-        toast({
-          title: "Error",
-          description: "Failed to share event",
-          variant: "destructive"
-        });
+        console.error('Error sharing:', error);
       }
     }
   };
@@ -281,7 +292,7 @@ export function EventShareModal({
             borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
           }}
         >
-          <div style={{ width: '32px' }} /> {/* Spacer for centering */}
+          <div style={{ width: '32px' }} />
           <h2
             style={{
               fontFamily: 'var(--font-family)',
@@ -307,13 +318,6 @@ export function EventShareModal({
               background: 'transparent',
               cursor: 'pointer',
               borderRadius: '16px',
-              transition: 'background-color 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
             <X size={20} style={{ color: 'var(--neutral-900)' }} />
@@ -327,13 +331,7 @@ export function EventShareModal({
             borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
           }}
         >
-          <div
-            style={{
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <Search
               size={18}
               style={{
@@ -359,15 +357,6 @@ export function EventShareModal({
                 lineHeight: '1.4',
                 color: 'var(--neutral-900)',
                 outline: 'none',
-                transition: 'all 0.2s ease',
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.06)';
-                e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
-                e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.1)';
               }}
             />
           </div>
@@ -386,14 +375,7 @@ export function EventShareModal({
         >
           {/* Direct Share Contacts */}
           {loading ? (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '40px 0',
-              }}
-            >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
               <div
                 style={{
                   width: '24px',
@@ -433,34 +415,16 @@ export function EventShareModal({
                         cursor: 'pointer',
                         padding: '4px',
                         borderRadius: '12px',
-                        transition: 'background-color 0.2s ease',
                         backgroundColor: isSelected ? 'rgba(236, 72, 153, 0.1)' : 'transparent',
                       }}
-                      onMouseEnter={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                        }
-                      }}
                     >
-                      <div
-                        style={{
-                          position: 'relative',
-                          width: '64px',
-                          height: '64px',
-                        }}
-                      >
+                      <div style={{ position: 'relative', width: '64px', height: '64px' }}>
                         <Avatar
                           style={{
                             width: '64px',
                             height: '64px',
                             border: isSelected ? '3px solid var(--brand-pink-500)' : '2px solid rgba(0, 0, 0, 0.1)',
                             borderRadius: '50%',
-                            transition: 'all 0.2s ease',
                           }}
                         >
                           <AvatarImage src={target.avatar_url || undefined} />
@@ -495,14 +459,7 @@ export function EventShareModal({
                               border: '2px solid white',
                             }}
                           >
-                            <div
-                              style={{
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '50%',
-                                backgroundColor: 'white',
-                              }}
-                            />
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'white' }} />
                           </div>
                         )}
                       </div>
@@ -555,13 +512,6 @@ export function EventShareModal({
                   background: 'transparent',
                   cursor: 'pointer',
                   borderRadius: '12px',
-                  transition: 'background-color 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
                 <div
@@ -578,22 +528,14 @@ export function EventShareModal({
                 >
                   <Link2 size={28} style={{ color: 'var(--neutral-700)' }} />
                 </div>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-family)',
-                    fontSize: '12px',
-                    lineHeight: '1.3',
-                    color: 'var(--neutral-700)',
-                    textAlign: 'center',
-                  }}
-                >
+                <span style={{ fontFamily: 'var(--font-family)', fontSize: '12px', color: 'var(--neutral-700)', textAlign: 'center' }}>
                   Copy link
                 </span>
               </button>
 
-              {/* Facebook */}
+              {/* Text Messages */}
               <button
-                onClick={() => handleExternalShare('facebook')}
+                onClick={handleTextMessage}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -605,13 +547,6 @@ export function EventShareModal({
                   background: 'transparent',
                   cursor: 'pointer',
                   borderRadius: '12px',
-                  transition: 'background-color 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
                 <div
@@ -619,79 +554,23 @@ export function EventShareModal({
                     width: '64px',
                     height: '64px',
                     borderRadius: '50%',
-                    backgroundColor: '#1877F2',
+                    backgroundColor: 'rgba(0, 0, 0, 0.06)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    border: '2px solid rgba(0, 0, 0, 0.1)',
                   }}
                 >
-                  <Facebook size={28} style={{ color: 'white' }} />
+                  <MessageSquare size={28} style={{ color: 'var(--neutral-700)' }} />
                 </div>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-family)',
-                    fontSize: '12px',
-                    lineHeight: '1.3',
-                    color: 'var(--neutral-700)',
-                    textAlign: 'center',
-                  }}
-                >
-                  Facebook
-                </span>
-              </button>
-
-              {/* Messenger */}
-              <button
-                onClick={() => handleExternalShare('messenger')}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  minWidth: '80px',
-                  padding: '4px',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  borderRadius: '12px',
-                  transition: 'background-color 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                <div
-                  style={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: '50%',
-                    backgroundColor: '#0084FF',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <MessageCircle size={28} style={{ color: 'white' }} />
-                </div>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-family)',
-                    fontSize: '12px',
-                    lineHeight: '1.3',
-                    color: 'var(--neutral-700)',
-                    textAlign: 'center',
-                  }}
-                >
-                  Messenger
+                <span style={{ fontFamily: 'var(--font-family)', fontSize: '12px', color: 'var(--neutral-700)', textAlign: 'center' }}>
+                  Text Message
                 </span>
               </button>
 
               {/* Email */}
               <button
-                onClick={() => handleExternalShare('email')}
+                onClick={handleEmail}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -703,13 +582,6 @@ export function EventShareModal({
                   background: 'transparent',
                   cursor: 'pointer',
                   borderRadius: '12px',
-                  transition: 'background-color 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
                 <div
@@ -726,28 +598,25 @@ export function EventShareModal({
                 >
                   <Mail size={28} style={{ color: 'var(--neutral-700)' }} />
                 </div>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-family)',
-                    fontSize: '12px',
-                    lineHeight: '1.3',
-                    color: 'var(--neutral-700)',
-                    textAlign: 'center',
-                  }}
-                >
+                <span style={{ fontFamily: 'var(--font-family)', fontSize: '12px', color: 'var(--neutral-700)', textAlign: 'center' }}>
                   Email
                 </span>
               </button>
 
-              {/* More options indicator */}
-              <div
+              {/* More options */}
+              <button
+                onClick={handleMoreOptions}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  justifyContent: 'center',
+                  gap: '8px',
                   minWidth: '80px',
                   padding: '4px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  borderRadius: '12px',
                 }}
               >
                 <div
@@ -764,7 +633,7 @@ export function EventShareModal({
                 >
                   <ArrowRight size={24} style={{ color: 'var(--neutral-400)' }} />
                 </div>
-              </div>
+              </button>
             </div>
           </div>
         </div>
@@ -791,24 +660,12 @@ export function EventShareModal({
                 fontFamily: 'var(--font-family)',
                 fontSize: '16px',
                 fontWeight: '600',
-                lineHeight: '1.4',
                 cursor: sharing ? 'not-allowed' : 'pointer',
                 opacity: sharing ? 0.7 : 1,
-                transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-              }}
-              onMouseEnter={(e) => {
-                if (!sharing) {
-                  e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!sharing) {
-                  e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
-                }
               }}
             >
               {sharing ? (

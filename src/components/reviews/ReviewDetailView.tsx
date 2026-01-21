@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Star, ThumbsUp, MessageCircle, Share2, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Star, ThumbsUp, MessageCircle, Share2, Edit, Trash2, Music2, MapPin, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
@@ -17,6 +17,9 @@ interface ReviewDetailViewProps {
   onBack: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onOpenArtist?: (artistId: string, artistName: string) => void;
+  onOpenVenue?: (venueId: string, venueName: string) => void;
+  onOpenProfile?: (userId: string) => void;
 }
 
 interface FullReviewData {
@@ -57,6 +60,9 @@ export function ReviewDetailView({
   onBack,
   onEdit,
   onDelete,
+  onOpenArtist,
+  onOpenVenue,
+  onOpenProfile,
 }: ReviewDetailViewProps) {
   const [reviewData, setReviewData] = useState<FullReviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -356,31 +362,27 @@ export function ReviewDetailView({
                 <ArrowLeft className="h-4 w-4 text-white" />
               </Button>
               
-              <Avatar className="w-14 h-14 shrink-0">
-                <AvatarImage src={reviewData.author?.avatar_url || undefined} alt={reviewData.author?.name} />
-                <AvatarFallback className="text-white font-bold text-lg" style={{ backgroundColor: '#FF3399' }}>
-                  {reviewData.author?.name?.charAt(0).toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
+              <button
+                onClick={() => onOpenProfile?.(reviewData.user_id)}
+                className="shrink-0"
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+              >
+                <Avatar className="w-14 h-14">
+                  <AvatarImage src={reviewData.author?.avatar_url || undefined} alt={reviewData.author?.name} />
+                  <AvatarFallback className="text-white font-bold text-lg" style={{ backgroundColor: '#FF3399' }}>
+                    {reviewData.author?.name?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
               
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-xl mb-1" style={{ color: 'var(--neutral-900)' }}>
+                <button
+                  onClick={() => onOpenProfile?.(reviewData.user_id)}
+                  className="font-bold text-xl mb-1 text-left"
+                  style={{ color: 'var(--neutral-900)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                >
                   {reviewData.author?.name || 'User'}
-                </p>
-                <p className="text-base mb-1" style={{ color: 'var(--neutral-700)' }}>
-                  Reviewed{' '}
-                  {reviewData.event_info?.artist_name && (
-                    <>
-                      <strong style={{ color: '#FF3399', textDecoration: 'underline' }}>{reviewData.event_info.artist_name}</strong>
-                    </>
-                  )}
-                  {reviewData.event_info?.venue_name && (
-                    <>
-                      {' at '}
-                      <strong style={{ color: '#FF3399', textDecoration: 'underline' }}>{reviewData.event_info.venue_name}</strong>
-                    </>
-                  )}
-                </p>
+                </button>
                 <p className="text-base" style={{ color: 'var(--neutral-600, #5d646f)' }}>
                   {timeAgo}
                 </p>
@@ -440,6 +442,73 @@ export function ReviewDetailView({
                   }}
                 />
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Artist and Venue Buttons */}
+        {(reviewData.event_info?.artist_name || reviewData.event_info?.venue_name) && (
+          <div className="flex gap-3">
+            {/* Artist Button */}
+            {reviewData.event_info?.artist_name && (
+              <button
+                onClick={() => {
+                  onOpenArtist?.((reviewData as any).artist_id || '', reviewData.event_info?.artist_name || '');
+                }}
+                className="swift-ui-button swift-ui-button-secondary flex-1"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '14px 20px',
+                  borderRadius: 14,
+                  border: '2px solid var(--brand-pink-200, #FBCFE8)',
+                  background: 'var(--brand-pink-050, #FDF2F8)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <Music2 size={20} style={{ color: 'var(--brand-pink-500, #FF3399)' }} />
+                <span style={{ 
+                  fontWeight: 600, 
+                  fontSize: 16, 
+                  color: 'var(--brand-pink-500, #FF3399)',
+                }}>
+                  {reviewData.event_info.artist_name}
+                </span>
+              </button>
+            )}
+
+            {/* Venue Button */}
+            {reviewData.event_info?.venue_name && (
+              <button
+                onClick={() => {
+                  onOpenVenue?.((reviewData as any).venue_id || '', reviewData.event_info?.venue_name || '');
+                }}
+                className="swift-ui-button swift-ui-button-secondary flex-1"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '14px 20px',
+                  borderRadius: 14,
+                  border: '2px solid var(--brand-pink-200, #FBCFE8)',
+                  background: 'var(--brand-pink-050, #FDF2F8)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <MapPin size={20} style={{ color: 'var(--brand-pink-500, #FF3399)' }} />
+                <span style={{ 
+                  fontWeight: 600, 
+                  fontSize: 16, 
+                  color: 'var(--brand-pink-500, #FF3399)',
+                }}>
+                  {reviewData.event_info.venue_name}
+                </span>
+              </button>
             )}
           </div>
         )}

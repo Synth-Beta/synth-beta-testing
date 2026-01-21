@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Share2, Star, Music } from 'lucide-react';
+import { ChevronLeft, Share2, Star, Music, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { ArtistVenueReviews } from '@/components/reviews/ArtistVenueReviews';
@@ -23,6 +23,10 @@ interface ArtistDetailModalProps {
   currentUserId: string;
 }
 
+const INITIAL_UPCOMING_COUNT = 5;
+const INITIAL_PAST_COUNT = 3;
+const LOAD_MORE_COUNT = 10;
+
 export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   isOpen,
   onClose,
@@ -35,10 +39,15 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const [totalReviews, setTotalReviews] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [upcomingShown, setUpcomingShown] = useState(INITIAL_UPCOMING_COUNT);
+  const [pastShown, setPastShown] = useState(INITIAL_PAST_COUNT);
 
   useEffect(() => {
     if (isOpen && artistId) {
       loadArtistData();
+      // Reset pagination when modal opens
+      setUpcomingShown(INITIAL_UPCOMING_COUNT);
+      setPastShown(INITIAL_PAST_COUNT);
     }
   }, [isOpen, artistId]);
 
@@ -106,6 +115,28 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
 
   const upcomingEvents = events.filter(e => new Date(e.event_date) >= new Date());
   const pastEvents = events.filter(e => new Date(e.event_date) < new Date());
+
+  const hasMoreUpcoming = upcomingEvents.length > upcomingShown;
+  const hasMorePast = pastEvents.length > pastShown;
+
+  const loadMoreButtonStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    padding: '14px 20px',
+    marginTop: 12,
+    fontSize: 15,
+    fontWeight: 600,
+    borderRadius: 12,
+    border: '1.5px solid var(--brand-pink-500)',
+    background: 'rgba(255, 255, 255, 0.8)',
+    backdropFilter: 'blur(20px)',
+    color: 'var(--brand-pink-500)',
+    cursor: 'pointer',
+    transition: `all ${animations.standardDuration} ${animations.springTiming}`,
+  };
 
   return (
     <>
@@ -257,7 +288,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                     Upcoming Events ({upcomingEvents.length})
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {upcomingEvents.slice(0, 10).map((event) => (
+                    {upcomingEvents.slice(0, upcomingShown).map((event) => (
                       <SwiftUIEventCard
                         key={event.id}
                         event={event}
@@ -267,6 +298,15 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                       />
                     ))}
                   </div>
+                  {hasMoreUpcoming && (
+                    <button
+                      onClick={() => setUpcomingShown(prev => prev + LOAD_MORE_COUNT)}
+                      style={loadMoreButtonStyle}
+                    >
+                      <ChevronDown size={18} />
+                      Load More ({upcomingEvents.length - upcomingShown} remaining)
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -277,7 +317,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                     Past Events ({pastEvents.length})
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {pastEvents.slice(0, 5).map((event) => (
+                    {pastEvents.slice(0, pastShown).map((event) => (
                       <SwiftUIEventCard
                         key={event.id}
                         event={event}
@@ -287,6 +327,15 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                       />
                     ))}
                   </div>
+                  {hasMorePast && (
+                    <button
+                      onClick={() => setPastShown(prev => prev + LOAD_MORE_COUNT)}
+                      style={loadMoreButtonStyle}
+                    >
+                      <ChevronDown size={18} />
+                      Load More ({pastEvents.length - pastShown} remaining)
+                    </button>
+                  )}
                 </div>
               )}
 

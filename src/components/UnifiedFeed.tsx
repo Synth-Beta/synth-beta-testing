@@ -58,9 +58,7 @@ import { PageActions } from '@/components/PageActions';
 import { getEventStatus, isEventPast, getPastEvents, getUpcomingEvents } from '@/utils/eventStatusUtils';
 import { ReviewService, PublicReviewWithProfile, ReviewWithEngagement } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
-import { ReviewCard } from '@/components/reviews/ReviewCard';
-import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
-import { ProfileReviewCard } from '@/components/reviews/ProfileReviewCard';
+import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventCommentsModal } from '@/components/events/EventCommentsModal';
 import { ReviewCommentsModal } from '@/components/reviews/ReviewCommentsModal';
@@ -2293,19 +2291,19 @@ export const UnifiedFeed = ({
           } as ReviewWithEngagement;
 
           return (
-            <ReviewCard
+            <SwiftUIReviewCard
               key={`${item.id}-${index}`}
               review={review}
+              mode="compact"
+              currentUserId={currentUserId}
               userProfile={{
                 name: item.author?.name || 'User',
                 avatar_url: item.author?.avatar_url || undefined,
                 verified: (item.author as any)?.verified,
                 account_type: (item.author as any)?.account_type,
               }}
-              isLiked={likedPosts.has(item.id)}
-              onLike={(reviewId) => {
-                const isLiked = likedPosts.has(item.id);
-                if (isLiked) {
+              onLike={(reviewId, isLiked) => {
+                if (likedPosts.has(item.id)) {
                   setLikedPosts((prev) => {
                     const next = new Set(prev);
                     next.delete(item.id);
@@ -2321,7 +2319,7 @@ export const UnifiedFeed = ({
                 // Use the current item (it's already in scope)
                 handleShare(item);
               }}
-              onOpenReviewDetail={(review) => {
+              onOpenDetail={(review) => {
                 setSelectedReviewDetail(item);
                 setShowReviewDetailModal(true);
               }}
@@ -2766,13 +2764,13 @@ export const UnifiedFeed = ({
                           fullAuthor: item.author
                         });
                         return (
-                        <BelliStyleReviewCard
+                        <SwiftUIReviewCard
                           key={`${item.id}-${index}`}
+                          mode="compact"
                           review={{
                       id: item.review_id || item.id,
                       user_id: item.author?.id || currentUserId,
                       event_id: (item as any).event_id || '',
-                      // Use item.rating directly - it should be a number from the database
                       rating: typeof item.rating === 'number' 
                         ? item.rating 
                         : (typeof item.rating === 'string' ? parseFloat(item.rating) : null) ?? 0,
@@ -2805,13 +2803,9 @@ export const UnifiedFeed = ({
                       ticket_price_paid: (item as any).ticket_price_paid,
                       setlist: (item as any).setlist,
                       custom_setlist: (item as any).custom_setlist,
-                      // Pass connection degree data from UnifiedFeedItem
-                      connection_degree: item.connection_degree,
-                      connection_type_label: item.connection_type_label
                     } as any}
                     currentUserId={currentUserId}
                     onLike={(reviewId, isLiked) => {
-                      console.log('🔍 BelliStyle onLike:', { reviewId, isLiked, itemId: item.id });
                       if (isLiked) {
                         setLikedPosts(prev => new Set([...prev, item.id]));
                       } else {
@@ -2824,7 +2818,6 @@ export const UnifiedFeed = ({
                     }}
                     onComment={() => setOpenReviewCommentsFor(item.review_id || item.id)}
                     onShare={(reviewId) => {
-                      // Use the current item (it's already in scope)
                       handleShare(item);
                     }}
                     onEdit={() => {
@@ -2960,8 +2953,10 @@ export const UnifiedFeed = ({
                       verified: (item.author as any)?.verified,
                       account_type: (item.author as any)?.account_type
                     }}
-                    followedArtists={followedArtists}
-                    followedVenues={followedVenues}
+                    onOpenDetail={() => {
+                      setSelectedReviewDetail(item);
+                      setShowReviewDetailModal(true);
+                    }}
                   />
                         );
                       })}
@@ -2978,8 +2973,9 @@ export const UnifiedFeed = ({
                       {/* Remaining reviews */}
                       {remainingReviews.map((item, index) => {
                         return (
-                        <BelliStyleReviewCard
+                        <SwiftUIReviewCard
                           key={`${item.id}-${index + 3}`}
+                          mode="compact"
                           review={{
                             id: item.review_id || item.id,
                             user_id: item.author?.id || currentUserId,
@@ -3016,8 +3012,6 @@ export const UnifiedFeed = ({
                             ticket_price_paid: (item as any).ticket_price_paid,
                             setlist: (item as any).setlist,
                             custom_setlist: (item as any).custom_setlist,
-                            connection_degree: item.connection_degree,
-                            connection_type_label: item.connection_type_label
                           } as any}
                           currentUserId={currentUserId}
                           onLike={(reviewId, isLiked) => {
@@ -3132,8 +3126,10 @@ export const UnifiedFeed = ({
                             verified: (item.author as any)?.verified,
                             account_type: (item.author as any)?.account_type
                           }}
-                          followedArtists={followedArtists}
-                          followedVenues={followedVenues}
+                          onOpenDetail={() => {
+                            setSelectedReviewDetail(item);
+                            setShowReviewDetailModal(true);
+                          }}
                         />
                         );
                       })}

@@ -34,7 +34,7 @@ import { UnifiedChatView } from '@/components/UnifiedChatView';
 import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
 import { EventReviewModal } from '@/components/EventReviewModal';
 import { FriendProfileCard } from '@/components/FriendProfileCard';
-import { BelliStyleReviewCard } from '@/components/reviews/BelliStyleReviewCard';
+import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
 
 interface ConcertReview {
   id: string;
@@ -761,7 +761,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                     </div>
                   ) : (
                     reviews.map((review) => (
-                      <BelliStyleReviewCard
+                      <SwiftUIReviewCard
                         key={review.id}
                         review={{
                           id: review.id,
@@ -788,7 +788,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
                         currentUserId={currentUserId}
                         onEdit={handleEditReview}
                         onDelete={handleDeleteReview}
-                        showEventInfo={true}
+                        mode="compact"
                         userProfile={{
                           name: review.reviewer_name || 'User',
                           avatar_url: review.reviewer_avatar,

@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Star, MapPin, Plus, TrendingUp } from 'lucide-react';
-import { ReviewService, VenueStats, TagCount } from '@/services/reviewService';
-import { VenueReviewCard } from './VenueReviewCard';
+import { ReviewService, VenueStats, TagCount, ReviewWithEngagement } from '@/services/reviewService';
+import { SwiftUIReviewCard } from './SwiftUIReviewCard';
 import { EventReviewModal } from './EventReviewModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -223,11 +223,14 @@ export function VenueReviewsDemo({ venue, className }: VenueReviewsDemoProps) {
               Recent Reviews ({reviews.length})
             </h3>
             {reviews.map((review) => (
-              <VenueReviewCard
+              <SwiftUIReviewCard
                 key={review.id}
-                review={review}
-                showVenueInfo={false} // Don't show venue info since we're on the venue page
-                showArtistInfo={true}
+                review={review as unknown as ReviewWithEngagement}
+                mode="compact"
+                userProfile={{
+                  name: review.reviewer_name || 'User',
+                  avatar_url: review.reviewer_avatar || undefined,
+                }}
               />
             ))}
           </>

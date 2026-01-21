@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { PublicReviewCard } from './PublicReviewCard';
-import { ReviewService, PublicReviewWithProfile } from '@/services/reviewService';
+import { SwiftUIReviewCard } from './SwiftUIReviewCard';
+import { ReviewService, PublicReviewWithProfile, ReviewWithEngagement } from '@/services/reviewService';
 import { Button } from '@/components/ui/button';
 import { Loader2, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -185,13 +185,19 @@ export function PublicReviewList({
       {/* Reviews List */}
       <div className="space-y-4">
         {filteredReviews.map((review) => (
-          <PublicReviewCard
+          <SwiftUIReviewCard
             key={review.id}
-            review={review}
+            review={review as unknown as ReviewWithEngagement}
             currentUserId={currentUserId}
             onLike={handleLike}
             onComment={handleComment}
             onShare={handleShare}
+            mode="compact"
+            onOpenDetail={(r) => handleComment(r.id)}
+            userProfile={{
+              name: review.reviewer_name || 'User',
+              avatar_url: review.reviewer_avatar || undefined,
+            }}
           />
         ))}
       </div>

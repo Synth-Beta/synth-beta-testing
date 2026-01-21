@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/Icon/Icon';
 import { SceneService, type SceneDetail } from '@/services/sceneService';
@@ -30,7 +29,6 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
   onNavigateToProfile,
   onNavigateToChat,
 }) => {
-  const navigate = useNavigate();
   const [scene, setScene] = useState<SceneDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<JamBaseEvent | null>(null);
@@ -371,21 +369,27 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
   };
 
   const handleParticipantClick = (participant: { type: string; name: string; id: string; participantId?: string; textValue?: string }) => {
-    // Navigate directly to full pages
+    // Open detail modals for artists and venues
     if (participant.type === 'artist' && participant.participantId) {
-      // Navigate to full artist page using artist_id (UUID)
-      navigate(`/artist/${participant.participantId}`);
+      setSelectedArtistId(participant.participantId);
+      setSelectedArtistName(participant.name);
+      setArtistModalOpen(true);
     } else if (participant.type === 'venue' && participant.participantId) {
-      // Navigate to full venue page using venue_id (UUID)
-      navigate(`/venue/${participant.participantId}`);
+      setSelectedVenueId(participant.participantId);
+      setSelectedVenueName(participant.name);
+      setVenueModalOpen(true);
     } else if (participant.type === 'artist' && participant.name) {
-      // Fallback to name if no participantId
-      navigate(`/artist/${encodeURIComponent(participant.name)}`);
+      // Fallback to name if no participantId - still open modal
+      setSelectedArtistId(participant.id);
+      setSelectedArtistName(participant.name);
+      setArtistModalOpen(true);
     } else if (participant.type === 'venue' && participant.name) {
-      // Fallback to name if no participantId
-      navigate(`/venue/${encodeURIComponent(participant.name)}`);
+      // Fallback to name if no participantId - still open modal
+      setSelectedVenueId(participant.id);
+      setSelectedVenueName(participant.name);
+      setVenueModalOpen(true);
     }
-    // Cities and genres don't have detail pages, so do nothing
+    // Cities and genres don't have detail modals, so do nothing
   };
 
   const loadSceneDetails = async () => {
@@ -456,14 +460,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-6xl mx-auto px-4 pt-4 pb-6">
-          <Button variant="ghost" onClick={() => {
-            // Use browser history navigation if available, otherwise use onBack prop
-            if (window.history.length > 1) {
-              navigate(-1);
-            } else {
-              onBack();
-            }
-          }} className="mb-4" style={{
+          <Button variant="ghost" onClick={onBack} className="mb-4" style={{
             height: 'var(--size-button-height, 36px)',
             paddingLeft: 'var(--spacing-small, 12px)',
             paddingRight: 'var(--spacing-small, 12px)',
@@ -507,14 +504,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
         }}
       >
         {/* Back Button */}
-        <Button variant="ghost" size="sm" onClick={() => {
-          // Use browser history navigation if available, otherwise use onBack prop
-          if (window.history.length > 1) {
-            navigate(-1);
-          } else {
-            onBack();
-          }
-        }} className="mb-6">
+        <Button variant="ghost" size="sm" onClick={onBack} className="mb-6">
           <Icon name="leftArrow" size={16} className="mr-2" color="var(--neutral-900)" />
           Back to Discover
         </Button>

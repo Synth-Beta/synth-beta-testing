@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Share2, Star, MapPin, Building2 } from 'lucide-react';
+import { ChevronLeft, Share2, Star, MapPin, Building2, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 import { ArtistVenueReviews } from '@/components/reviews/ArtistVenueReviews';
@@ -24,6 +24,10 @@ interface VenueDetailModalProps {
   currentUserId: string;
 }
 
+const INITIAL_UPCOMING_COUNT = 5;
+const INITIAL_PAST_COUNT = 3;
+const LOAD_MORE_COUNT = 10;
+
 export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
   isOpen,
   onClose,
@@ -39,10 +43,15 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const [totalReviews, setTotalReviews] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [upcomingShown, setUpcomingShown] = useState(INITIAL_UPCOMING_COUNT);
+  const [pastShown, setPastShown] = useState(INITIAL_PAST_COUNT);
 
   useEffect(() => {
     if (isOpen) {
       loadVenueData();
+      // Reset pagination when modal opens
+      setUpcomingShown(INITIAL_UPCOMING_COUNT);
+      setPastShown(INITIAL_PAST_COUNT);
     }
   }, [isOpen, venueId, venueName]);
 
@@ -50,13 +59,12 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
     try {
       setLoading(true);
       
-      // Get events for this venue using venue_id (UUID join)
+      // Get events for this venue using venue_id (UUID join) - no limit
       const { data: eventsData, error: eventsError } = await supabase
         .from('events')
         .select('*')
         .eq('venue_id', venueId)
-        .order('event_date', { ascending: true })
-        .limit(100);
+        .order('event_date', { ascending: true });
 
       if (eventsError) {
         console.warn('Error fetching venue events:', eventsError);
@@ -124,6 +132,28 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
 
   const upcomingEvents = events.filter(e => new Date(e.event_date) >= new Date());
   const pastEvents = events.filter(e => new Date(e.event_date) < new Date());
+
+  const hasMoreUpcoming = upcomingEvents.length > upcomingShown;
+  const hasMorePast = pastEvents.length > pastShown;
+
+  const loadMoreButtonStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    padding: '14px 20px',
+    marginTop: 12,
+    fontSize: 15,
+    fontWeight: 600,
+    borderRadius: 12,
+    border: '1.5px solid var(--brand-pink-500)',
+    background: 'rgba(255, 255, 255, 0.8)',
+    backdropFilter: 'blur(20px)',
+    color: 'var(--brand-pink-500)',
+    cursor: 'pointer',
+    transition: `all ${animations.standardDuration} ${animations.springTiming}`,
+  };
 
   return (
     <>
@@ -308,7 +338,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                     Upcoming Events ({upcomingEvents.length})
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {upcomingEvents.slice(0, 10).map((event) => (
+                    {upcomingEvents.slice(0, upcomingShown).map((event) => (
                       <SwiftUIEventCard
                         key={event.id}
                         event={event}
@@ -318,6 +348,15 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                       />
                     ))}
                   </div>
+                  {hasMoreUpcoming && (
+                    <button
+                      onClick={() => setUpcomingShown(prev => prev + LOAD_MORE_COUNT)}
+                      style={loadMoreButtonStyle}
+                    >
+                      <ChevronDown size={18} />
+                      Load More ({upcomingEvents.length - upcomingShown} remaining)
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -328,7 +367,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                     Past Events ({pastEvents.length})
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {pastEvents.slice(0, 5).map((event) => (
+                    {pastEvents.slice(0, pastShown).map((event) => (
                       <SwiftUIEventCard
                         key={event.id}
                         event={event}
@@ -338,6 +377,15 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                       />
                     ))}
                   </div>
+                  {hasMorePast && (
+                    <button
+                      onClick={() => setPastShown(prev => prev + LOAD_MORE_COUNT)}
+                      style={loadMoreButtonStyle}
+                    >
+                      <ChevronDown size={18} />
+                      Load More ({pastEvents.length - pastShown} remaining)
+                    </button>
+                  )}
                 </div>
               )}
 

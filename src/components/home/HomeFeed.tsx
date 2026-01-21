@@ -12,7 +12,8 @@ import { NetworkEventsSection } from './NetworkEventsSection';
 import { EventListsCarousel } from './EventListsCarousel';
 import { CompactEventCard } from './CompactEventCard';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
-import { NetworkReviewCard } from './NetworkReviewCard';
+import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
+import type { ReviewWithEngagement } from '@/services/reviewService';
 import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
 import { UnifiedEventsFeed } from './UnifiedEventsFeed';
@@ -43,6 +44,9 @@ import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 import { triggerNativeEventShare, isNativeShareAvailable, setupNativeShareListener } from '@/utils/nativeShareService';
 import { EventShareModal } from '@/components/events/EventShareModal';
 import { InAppShareService } from '@/services/inAppShareService';
+import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
+import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
+import { useNavigate } from 'react-router-dom';
 
 // Helper function to format member count - guaranteed to return clean string
 const formatMemberCount = (count: number | string | null | undefined): string => {
@@ -253,6 +257,16 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   // Review detail modal
   const [selectedReview, setSelectedReview] = useState<UnifiedFeedItem | null>(null);
   const [reviewDetailOpen, setReviewDetailOpen] = useState(false);
+
+  // Artist/Venue detail modals
+  const [artistModalOpen, setArtistModalOpen] = useState(false);
+  const [venueModalOpen, setVenueModalOpen] = useState(false);
+  const [selectedArtistId, setSelectedArtistId] = useState<string | null>(null);
+  const [selectedArtistName, setSelectedArtistName] = useState<string>('');
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  const [selectedVenueName, setSelectedVenueName] = useState<string>('');
+
+  const navigate = useNavigate();
 
   // Refs for feed containers
   const trendingFeedRef = useRef<HTMLDivElement>(null);
@@ -2315,22 +2329,40 @@ interface FriendEventInterest {
                 ) : (
               <div className="space-y-3">
               {reviews.map((review) => (
-                <NetworkReviewCard
+                <SwiftUIReviewCard
                   key={review.id}
                   review={{
                     id: review.id,
-                    author: {
-                      id: review.author.id,
-                      name: review.author.name,
-                      avatar_url: review.author.avatar_url,
-                    },
-                    created_at: review.created_at,
+                    user_id: review.author.id,
+                    event_id: (review.event_info as any)?.event_id || '',
+                    artist_id: review.artist_id,
                     rating: review.rating,
-                    content: review.content,
-                    photos: review.photos,
-                    event_info: review.event_info,
+                    review_text: review.content,
+                    is_public: true,
+                    created_at: review.created_at,
+                    updated_at: review.created_at,
+                    likes_count: 0,
+                    comments_count: 0,
+                    shares_count: 0,
+                    is_liked_by_user: false,
+                    reaction_emoji: '',
+                    photos: review.photos || [],
+                    videos: [],
+                    mood_tags: [],
+                    genre_tags: [],
+                    context_tags: [],
+                    artist_name: review.event_info?.artist_name,
+                    venue_name: review.event_info?.venue_name,
+                    Event_date: review.event_info?.event_date,
+                  } as ReviewWithEngagement}
+                  mode="compact"
+                  currentUserId={currentUserId}
+                  artistImageUrl={review.artist_image_url}
+                  userProfile={{
+                    name: review.author.name,
+                    avatar_url: review.author.avatar_url || undefined,
                   }}
-                  onClick={() => {
+                  onOpenDetail={() => {
                     // Convert NetworkReview to UnifiedFeedItem format for the modal
                     const unifiedReview: UnifiedFeedItem = {
                       id: review.id,
@@ -2416,6 +2448,26 @@ interface FriendEventInterest {
               onDelete={() => {
                 // TODO: Implement delete functionality
               }}
+              onOpenArtist={(artistId, artistName) => {
+                setReviewDetailOpen(false); // Close review detail dialog first
+                setSelectedArtistId(artistId);
+                setSelectedArtistName(artistName);
+                setArtistModalOpen(true);
+              }}
+              onOpenVenue={(venueId, venueName) => {
+                setReviewDetailOpen(false); // Close review detail dialog first
+                setSelectedVenueId(venueId);
+                setSelectedVenueName(venueName);
+                setVenueModalOpen(true);
+              }}
+              onOpenProfile={(userId) => {
+                if (onNavigateToProfile) {
+                  onNavigateToProfile(userId);
+                } else {
+                  // Fallback to navigate if callback not available
+                  navigate(`/profile/${userId}`);
+                }
+              }}
             />
           </DialogContent>
         </Dialog>
@@ -2445,6 +2497,36 @@ interface FriendEventInterest {
           contentType="event"
           contentId={flaggedEvent.id}
           contentTitle={flaggedEvent.title}
+        />
+      )}
+
+      {/* Artist Detail Modal */}
+      {artistModalOpen && selectedArtistId && (
+        <ArtistDetailModal
+          isOpen={artistModalOpen}
+          onClose={() => {
+            setArtistModalOpen(false);
+            setSelectedArtistId(null);
+            setSelectedArtistName('');
+          }}
+          artistId={selectedArtistId}
+          artistName={selectedArtistName}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      {/* Venue Detail Modal */}
+      {venueModalOpen && selectedVenueId && (
+        <VenueDetailModal
+          isOpen={venueModalOpen}
+          onClose={() => {
+            setVenueModalOpen(false);
+            setSelectedVenueId(null);
+            setSelectedVenueName('');
+          }}
+          venueId={selectedVenueId}
+          venueName={selectedVenueName}
+          currentUserId={currentUserId}
         />
       )}
     </div>

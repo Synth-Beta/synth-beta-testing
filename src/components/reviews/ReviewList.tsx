@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ReviewCard } from './ReviewCard';
+import { SwiftUIReviewCard } from './SwiftUIReviewCard';
 import { ReviewService, ReviewWithEngagement } from '@/services/reviewService';
 import { EnhancedReviewService } from '@/services/enhancedReviewService';
 import { Button } from '@/components/ui/button';
@@ -151,15 +151,16 @@ export function ReviewList({
       {/* Reviews List */}
       <div className="space-y-4">
         {reviews.map((review) => (
-          <ReviewCard
+          <SwiftUIReviewCard
             key={review.id}
             review={review}
             currentUserId={currentUserId}
             onLike={handleLike}
             onComment={handleComment}
             onShare={handleShare}
-            showEventInfo={showEventInfo}
             onEdit={onEdit}
+            mode="compact"
+            onOpenDetail={(r) => onReviewClick?.(r.id)}
           />
         ))}
       </div>

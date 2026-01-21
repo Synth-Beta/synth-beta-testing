@@ -1,7 +1,7 @@
 /**
  * Demo Home Page - Same layout and components as production HomeFeed
  * 
- * Uses same UI components (CompactEventCard, NetworkReviewCard, etc.) but with hardcoded mock data.
+ * Uses same UI components (CompactEventCard, SwiftUIReviewCard, etc.) but with hardcoded mock data.
  * NO API calls - all data is from mockData.ts
  */
 
@@ -9,7 +9,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import { CompactEventCard } from '@/components/home/CompactEventCard';
-import { NetworkReviewCard } from '@/components/home/NetworkReviewCard';
+import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
+import type { ReviewWithEngagement } from '@/services/reviewService';
 import { DEMO_USER, DEMO_EVENTS, DEMO_REVIEWS } from '../data/mockData';
 import {
   DropdownMenu,
@@ -80,24 +81,35 @@ export const DemoHomePage: React.FC<DemoHomePageProps> = ({
     user_is_interested: false,
   }));
 
-  // Convert demo reviews to NetworkReview format
+  // Convert demo reviews to ReviewWithEngagement format for SwiftUIReviewCard
   const demoNetworkReviews = DEMO_REVIEWS.slice(0, 10).map(review => {
     const event = DEMO_EVENTS.find(e => e.id === review.event_id);
     return {
-      id: review.id,
-      author: {
-        id: DEMO_USER.id,
-        name: DEMO_USER.name,
-        avatar_url: DEMO_USER.avatar_url || undefined,
-      },
-      created_at: review.created_at,
-      rating: review.rating,
-      content: review.review_text || undefined,
-      photos: review.photos || undefined,
-      event_info: {
+      review: {
+        id: review.id,
+        user_id: DEMO_USER.id,
+        event_id: review.event_id,
+        rating: review.rating,
+        review_text: review.review_text || '',
+        is_public: true,
+        created_at: review.created_at,
+        updated_at: review.created_at,
+        likes_count: 0,
+        comments_count: 0,
+        shares_count: 0,
+        is_liked_by_user: false,
+        reaction_emoji: '',
+        photos: review.photos || [],
+        videos: [],
+        mood_tags: [],
+        genre_tags: [],
+        context_tags: [],
         artist_name: event?.artist_name,
         venue_name: event?.venue_name,
-        event_date: event?.event_date,
+      } as ReviewWithEngagement,
+      userProfile: {
+        name: DEMO_USER.name,
+        avatar_url: DEMO_USER.avatar_url || undefined,
       },
     };
   });
@@ -287,11 +299,13 @@ export const DemoHomePage: React.FC<DemoHomePageProps> = ({
         {selectedFeedType === 'reviews' && (
           <div className="space-y-4">
             <div className="space-y-3">
-              {demoNetworkReviews.map((review) => (
-                <NetworkReviewCard
-                  key={review.id}
-                  review={review}
-                  onClick={() => console.log('Demo: Review clicked', review.id)}
+              {demoNetworkReviews.map((item) => (
+                <SwiftUIReviewCard
+                  key={item.review.id}
+                  review={item.review}
+                  mode="compact"
+                  userProfile={item.userProfile}
+                  onOpenDetail={() => console.log('Demo: Review clicked', item.review.id)}
                 />
               ))}
             </div>

@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { FriendsReviewService } from '@/services/friendsReviewService';
 import type { UnifiedFeedItem } from '@/services/unifiedFeedService';
 import type { ReviewWithEngagement } from '@/services/reviewService';
-import { ReviewCard } from '@/components/reviews/ReviewCard';
+import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
 import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -873,17 +873,17 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
           
           return (
             <React.Fragment key={item.id}>
-              <ReviewCard
+              <SwiftUIReviewCard
                 review={review}
+                mode="compact"
                 userProfile={{
                   name: item.author?.name || 'User',
                   avatar_url: item.author?.avatar_url || undefined,
                   verified: (item.author as any)?.verified,
                   account_type: (item.author as any)?.account_type,
                 }}
-                isLiked={isLiked}
-                onLike={(reviewId) => {
-                  const newLiked = !isLiked;
+                currentUserId={currentUserId}
+                onLike={(reviewId, newLiked) => {
                   setLikedReviews((prev) => {
                     const next = new Set(prev);
                     if (newLiked) {
@@ -906,7 +906,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                     setReviewShareModalOpen(true);
                   }
                 }}
-                onOpenReviewDetail={async (review) => {
+                onOpenDetail={async (review) => {
                 // Find the corresponding UnifiedFeedItem to show in modal
                 const item = reviewItems.find(item => (item.review_id || item.id) === review.id);
                 if (item) {
