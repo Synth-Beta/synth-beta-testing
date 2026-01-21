@@ -28,7 +28,7 @@ VITE_BACKEND_URL=http://localhost:3001
 VITE_APPLE_MUSIC_DEVELOPER_TOKEN=[YOUR_APPLE_MUSIC_TOKEN]
 
 # Mapbox API (Required for maps)
-VITE_MAPBOX_TOKEN=pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w
+VITE_MAPBOX_TOKEN=pk.YOUR_MAPBOX_PUBLIC_TOKEN
 ```
 
 ### Deployment Steps
@@ -47,6 +47,7 @@ VITE_MAPBOX_TOKEN=pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJ
 3. **Set Environment Variables**
    - Add all required environment variables
    - Ensure `VITE_` prefix for client-side variables
+   - Set `VITE_MAPBOX_TOKEN` in Vercel (Production, Preview, Development) or maps will not render.
 
 4. **Deploy**
    - Click "Deploy"

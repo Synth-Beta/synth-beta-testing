@@ -93,7 +93,7 @@ export const UserInfo: React.FC<UserInfoProps> = ({
   const showStats = variant === 'userProfile';
 
   const stats = [
-    { key: 'followers', label: 'Followers', value: followers },
+    { key: 'followers', label: 'Friends', value: followers },
     { key: 'following', label: 'Following', value: following },
     { key: 'events', label: 'Events', value: events },
   ];

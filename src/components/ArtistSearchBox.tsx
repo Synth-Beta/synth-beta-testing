@@ -196,6 +196,7 @@ export function ArtistSearchBox({
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
           widthVariant="full"
+          spellCheck={false}
         />
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
           {isLoading && (
@@ -221,7 +222,7 @@ export function ArtistSearchBox({
           {searchResults.artists.length > 0 ? (
             <div 
               ref={listRef} 
-              className="max-h-[min(500px,calc(100vh-300px))] overflow-y-auto overscroll-contain synth-scrollbar"
+              className="max-h-[min(520px,70vh)] overflow-y-auto overscroll-contain synth-scrollbar"
               style={{
                 scrollBehavior: 'smooth',
               }}

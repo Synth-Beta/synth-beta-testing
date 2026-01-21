@@ -31,8 +31,8 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
   const isMessages = currentView === 'chat';
   const isProfile = currentView === 'profile';
 
-  const handleNavClick = (onClick: () => void, isActive: boolean) => {
-    if (isActive) {
+  const handleNavClick = (onClick: () => void, isActive: boolean, skipReloadWhenActive?: boolean) => {
+    if (isActive && !skipReloadWhenActive) {
       // If clicking the currently active icon, scroll to top and refresh
       window.scrollTo({ top: 0, behavior: 'smooth' });
       window.location.reload();
@@ -95,6 +95,8 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
         onViewChange('profile');
       },
       isActive: isProfile,
+      // When on a friend's profile, clicking Profile should go to *your* profile, not reload (reload sends you to Home). Always run onClick so MainApp can setProfileUserId(undefined).
+      skipReloadWhenActive: true,
     },
   ];
 
@@ -107,7 +109,7 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
               <button
                 key={item.id}
                 className="bottom-nav__item bottom-nav__item--cta"
-                onClick={() => handleNavClick(item.onClick, item.isActive)}
+                onClick={() => handleNavClick(item.onClick, item.isActive, item.skipReloadWhenActive)}
                 aria-label={item.label}
                 aria-current={item.isActive ? 'page' : undefined}
                 type="button"
@@ -121,7 +123,7 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
             <button
               key={item.id}
               className={`bottom-nav__item ${item.isActive ? 'bottom-nav__item--active' : ''}`}
-              onClick={() => handleNavClick(item.onClick, item.isActive)}
+              onClick={() => handleNavClick(item.onClick, item.isActive, item.skipReloadWhenActive)}
               aria-label={item.label}
               aria-current={item.isActive ? 'page' : undefined}
               type="button"

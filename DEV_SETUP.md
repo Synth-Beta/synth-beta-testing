@@ -37,7 +37,7 @@ VITE_SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
 # Backend URL
 VITE_BACKEND_URL=http://localhost:3001
 
-# Mapbox API (Required for maps)
+# Mapbox API (Required for maps). If not set, maps will not render and a one-time console.warn will appear. Get a public token at https://account.mapbox.com/access-tokens/
 VITE_MAPBOX_TOKEN=[YOUR_MAPBOX_TOKEN]
 
 # Development flags

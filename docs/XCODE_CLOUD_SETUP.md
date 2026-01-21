@@ -77,7 +77,8 @@ If your build requires environment variables:
 2. Add environment variables under **Environment Variables**
 3. Common variables:
    - `NODE_VERSION` (if you need a specific Node.js version)
-   - Any build-time configuration
+   - `VITE_MAPBOX_TOKEN` — required for maps in the iOS app. Set to your Mapbox public token (pk.…) so `ci_post_clone.sh`’s `npm run build` can inline it. Without this, maps will not render.
+   - Any other build-time configuration
 
 ### 4. Verify Pre-Build Script
 

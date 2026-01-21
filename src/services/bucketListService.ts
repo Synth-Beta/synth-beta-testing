@@ -163,27 +163,33 @@ export class BucketListService {
   }
 
   /**
-   * Add an artist to bucket list
+   * Add an artist to bucket list.
+   * Resolves artist UUID to entities.id via get_or_create_entity, then inserts into bucket_list.
+   * bucket_list.entity_id is an FK to entities.id (entity_type column was removed in migration).
    */
   static async addArtist(userId: string, artistId: string, artistName: string): Promise<boolean> {
     try {
+      if (!artistId) return false;
+
+      const { data: entityId, error: rpcError } = await supabase.rpc('get_or_create_entity', {
+        p_entity_type: 'artist',
+        p_entity_uuid: artistId,
+      });
+      if (rpcError) throw rpcError;
+      if (!entityId) return false;
+
       const { error } = await supabase
         .from('bucket_list')
         .insert({
           user_id: userId,
-          entity_type: 'artist',
-          entity_id: artistId,
+          entity_id: entityId,
           entity_name: artistName,
         });
 
       if (error) {
-        // If it's a unique constraint violation, the item is already in the list
-        if (error.code === '23505') {
-          return true; // Already exists, treat as success
-        }
+        if (error.code === '23505') return true; // already in list
         throw error;
       }
-
       return true;
     } catch (error) {
       console.error('Error adding artist to bucket list:', error);
@@ -192,27 +198,33 @@ export class BucketListService {
   }
 
   /**
-   * Add a venue to bucket list
+   * Add a venue to bucket list.
+   * Resolves venue UUID to entities.id via get_or_create_entity, then inserts into bucket_list.
+   * bucket_list.entity_id is an FK to entities.id (entity_type column was removed in migration).
    */
   static async addVenue(userId: string, venueId: string, venueName: string): Promise<boolean> {
     try {
+      if (!venueId) return false;
+
+      const { data: entityId, error: rpcError } = await supabase.rpc('get_or_create_entity', {
+        p_entity_type: 'venue',
+        p_entity_uuid: venueId,
+      });
+      if (rpcError) throw rpcError;
+      if (!entityId) return false;
+
       const { error } = await supabase
         .from('bucket_list')
         .insert({
           user_id: userId,
-          entity_type: 'venue',
-          entity_id: venueId,
+          entity_id: entityId,
           entity_name: venueName,
         });
 
       if (error) {
-        // If it's a unique constraint violation, the item is already in the list
-        if (error.code === '23505') {
-          return true; // Already exists, treat as success
-        }
+        if (error.code === '23505') return true; // already in list
         throw error;
       }
-
       return true;
     } catch (error) {
       console.error('Error adding venue to bucket list:', error);
@@ -241,7 +253,8 @@ export class BucketListService {
   }
 
   /**
-   * Remove by entity (artist or venue)
+   * Remove by entity (artist or venue).
+   * bucket_list has no entity_type; entity_id is FK to entities.id. Resolve via entities table.
    */
   static async removeEntity(
     userId: string,
@@ -249,15 +262,20 @@ export class BucketListService {
     entityId: string
   ): Promise<boolean> {
     try {
+      const { data: entity } = await supabase
+        .from('entities')
+        .select('id')
+        .eq('entity_type', entityType)
+        .eq('entity_uuid', entityId)
+        .maybeSingle();
+      if (!entity) return true; // nothing to remove
+
       const { error } = await supabase
         .from('bucket_list')
         .delete()
         .eq('user_id', userId)
-        .eq('entity_type', entityType)
-        .eq('entity_id', entityId);
-
+        .eq('entity_id', entity.id);
       if (error) throw error;
-
       return true;
     } catch (error) {
       console.error('Error removing entity from bucket list:', error);
@@ -266,7 +284,8 @@ export class BucketListService {
   }
 
   /**
-   * Check if an entity is in the bucket list
+   * Check if an entity is in the bucket list.
+   * bucket_list has no entity_type; entity_id is FK to entities.id. Resolve via entities table.
    */
   static async isInBucketList(
     userId: string,
@@ -274,19 +293,21 @@ export class BucketListService {
     entityId: string
   ): Promise<boolean> {
     try {
+      const { data: entity, error: entityErr } = await supabase
+        .from('entities')
+        .select('id')
+        .eq('entity_type', entityType)
+        .eq('entity_uuid', entityId)
+        .maybeSingle();
+      if (entityErr || !entity) return false;
+
       const { data, error } = await supabase
         .from('bucket_list')
         .select('id')
         .eq('user_id', userId)
-        .eq('entity_type', entityType)
-        .eq('entity_id', entityId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        // PGRST116 is "not found" which is fine
-        throw error;
-      }
-
+        .eq('entity_id', entity.id)
+        .maybeSingle();
+      if (error && error.code !== 'PGRST116') throw error;
       return !!data;
     } catch (error) {
       console.error('Error checking bucket list:', error);

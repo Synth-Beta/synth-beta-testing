@@ -34,7 +34,7 @@ export function AchievementCard({
   className,
   compact = false
 }: AchievementCardProps) {
-  const progressPercent = Math.min((progress / goal) * 100, 100);
+  const progressPercent = goal > 0 ? Math.min((progress / goal) * 100, 100) : 0;
 
   if (compact) {
     return (

@@ -36,7 +36,7 @@ VITE_SPOTIFY_REDIRECT_URI=http://localhost:8080/auth/spotify/callback
 VITE_APPLE_MUSIC_DEVELOPER_TOKEN=your_apple_music_token
 
 # Mapbox API (Required for maps)
-VITE_MAPBOX_TOKEN=pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w
+VITE_MAPBOX_TOKEN=pk.YOUR_MAPBOX_PUBLIC_TOKEN
 ```
 
 ### Step 3: Get Your Spotify Client ID
@@ -85,7 +85,7 @@ After local testing works, add to Vercel Dashboard → Settings → Environment 
 | `VITE_SETLIST_FM_API_KEY` | `[YOUR_SETLIST_FM_API_KEY]` | All |
 | `VITE_SPOTIFY_CLIENT_ID` | (your Spotify Client ID) | All |
 | `VITE_SPOTIFY_REDIRECT_URI` | `https://your-domain.vercel.app/auth/spotify/callback` | All |
-| `VITE_MAPBOX_TOKEN` | `pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w` | All |
+| `VITE_MAPBOX_TOKEN` | `pk.YOUR_MAPBOX_PUBLIC_TOKEN` | All |
 
 **Important**: Replace `your-domain.vercel.app` with your actual Vercel domain!
 

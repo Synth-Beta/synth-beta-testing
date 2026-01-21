@@ -66,6 +66,12 @@ export interface SearchBarProps {
    * Callback when input loses focus
    */
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+
+  /**
+   * Enable browser spellcheck. Default true. Set false for proper-noun search (artists, venues)
+   * to avoid red underlines on names like "fred" or "Beyoncé".
+   */
+  spellCheck?: boolean;
 }
 
 /**
@@ -105,6 +111,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   name,
   onFocus,
   onBlur,
+  spellCheck = true,
 }) => {
   const [internalValue, setInternalValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -163,6 +170,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         placeholder={placeholder}
         disabled={disabled}
         autoFocus={autoFocus}
+        spellCheck={spellCheck}
         id={id || `search-input-${Math.random().toString(36).substr(2, 9)}`}
         name={name}
         className="synth-search-bar__input"

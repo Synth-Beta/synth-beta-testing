@@ -78,11 +78,6 @@ function Calendar({
           color: "var(--neutral-50)",
           borderRadius: "10px",
         },
-        today: {
-          backgroundColor: "var(--brand-pink-500)",
-          color: "var(--neutral-50)",
-          borderRadius: "10px",
-        },
         disabled: {
           color: "var(--neutral-400)",
         },

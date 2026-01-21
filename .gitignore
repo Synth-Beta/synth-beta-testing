@@ -10,7 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-
+ios/App/App/public
 # Environment variables - NEVER commit these!
 .env
 .env.local

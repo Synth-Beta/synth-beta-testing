@@ -5,7 +5,6 @@ const config: CapacitorConfig = {
   appName: 'Synth',
   webDir: 'dist',
   // Mapbox token is configured via VITE_MAPBOX_TOKEN environment variable
-  // Token: pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w
   // Server config only for live-reload development
   // Comment out server config for production builds (bundled assets)
   // Uncomment below for live-reload development:

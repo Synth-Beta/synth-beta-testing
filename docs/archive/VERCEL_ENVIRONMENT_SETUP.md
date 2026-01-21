@@ -48,8 +48,8 @@ Make sure to select **All** environments (Production, Preview, Development) for 
 ### 5. Mapbox (Required for Maps)
 
 **Variable**: `VITE_MAPBOX_TOKEN`  
-**Value**: `pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w`  
-ℹ️ This is your Mapbox public access token for map tiles
+**Value**: `pk.YOUR_MAPBOX_PUBLIC_TOKEN`  
+ℹ️ This is your Mapbox public access token for map tiles. Get one at https://account.mapbox.com/access-tokens/
 
 ## Step-by-Step Instructions
 
