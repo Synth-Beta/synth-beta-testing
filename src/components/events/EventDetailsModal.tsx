@@ -47,9 +47,11 @@ import { PromotionTrackingService } from '@/services/promotionTrackingService';
 import { UserEventService } from '@/services/userEventService';
 import { useToast } from '@/hooks/use-toast';
 import { useAccountType } from '@/hooks/useAccountType';
-import { addUTMToURL, extractTicketProvider, getDaysUntilEvent, extractEventMetadata } from '@/utils/trackingHelpers';
+import { extractTicketProvider, getDaysUntilEvent, extractEventMetadata } from '@/utils/trackingHelpers';
 import { SetlistService } from '@/services/setlistService';
 import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
+import { JamBaseAttribution } from '@/components/attribution';
+import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 
 interface EventDetailsModalProps {
   event: JamBaseEvent | null;
@@ -291,8 +293,8 @@ export function EventDetailsModal({
           if (error) {
             console.error('Error fetching event:', error);
             // Fallback to using passed event data
-            setActualEvent(event);
-            setLoading(false);
+      setActualEvent(event);
+      setLoading(false);
             return;
           }
 
@@ -958,7 +960,7 @@ export function EventDetailsModal({
                       } catch (error) {
                         console.error('Error tracking interest toggle:', error);
                       }
-
+                      
                       // 🎯 TRACK: Promotion interaction for interest toggle
                       if (newInterestState) {
                         // User is expressing interest - this is a conversion
@@ -1240,12 +1242,12 @@ export function EventDetailsModal({
                     color: 'var(--neutral-900)',
                     marginBottom: actualEvent.genres && actualEvent.genres.length > 0 ? '8px' : '0'
                   }}
-                >
-                  {actualEvent.artist_name}
-                </div>
-                {actualEvent.genres && actualEvent.genres.length > 0 && (
+              >
+                {actualEvent.artist_name}
+              </div>
+              {actualEvent.genres && actualEvent.genres.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                    {actualEvent.genres.slice(0, 3).map((genre, index) => (
+                  {actualEvent.genres.slice(0, 3).map((genre, index) => (
                       <span
                         key={index}
                         style={{
@@ -1267,9 +1269,9 @@ export function EventDetailsModal({
                       >
                         {genre}
                       </span>
-                    ))}
-                  </div>
-                )}
+                  ))}
+                </div>
+              )}
               </button>
             )}
 
@@ -1310,9 +1312,9 @@ export function EventDetailsModal({
                     lineHeight: 'var(--typography-body-line-height, 1.4)',
                     color: 'var(--neutral-900)'
                   }}
-                >
-                  {actualEvent.venue_name}
-                </div>
+              >
+                {actualEvent.venue_name}
+              </div>
                 <div 
                   className="break-words"
                   style={{
@@ -1322,9 +1324,9 @@ export function EventDetailsModal({
                     lineHeight: '1.4'
                   }}
                 >
-                  {getVenueAddress()}
-                </div>
-                {actualEvent.venue_zip && (
+                {getVenueAddress()}
+              </div>
+              {actualEvent.venue_zip && (
                   <div 
                     style={{
                       fontFamily: 'var(--font-family)',
@@ -1333,11 +1335,11 @@ export function EventDetailsModal({
                       marginTop: '4px'
                     }}
                   >
-                    ZIP: {actualEvent.venue_zip}
-                  </div>
+                  ZIP: {actualEvent.venue_zip}
+                </div>
                 )}
               </button>
-            )}
+              )}
           </div>
 
 
@@ -1861,83 +1863,83 @@ export function EventDetailsModal({
 
                 {/* Second Row: Ticket Links */}
                 <div className="flex flex-wrap items-center gap-2 w-full">
-                  {(((actualEvent as any).ticket_urls && (actualEvent as any).ticket_urls.length > 0) || 
-                    (actualEvent as any).ticket_url) && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      style={{
-                        fontFamily: 'var(--font-family)',
-                        fontSize: 'var(--typography-meta-size, 16px)',
-                        fontWeight: 'var(--typography-meta-weight, 500)',
-                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                        backgroundColor: 'var(--brand-pink-500)',
-                        color: 'var(--neutral-0)',
-                        paddingLeft: 'var(--spacing-small, 12px)',
-                        paddingRight: 'var(--spacing-small, 12px)',
-                        height: 'var(--size-button-height-sm, 28px)',
-                        borderRadius: 'var(--radius-corner, 10px)',
-                        border: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--spacing-inline, 6px)',
-                        transition: 'all 0.2s ease',
-                        boxShadow: '0 4px 4px 0 var(--shadow-color)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
-                      }}
-                      onClick={() => {
-                        // 🎯 TRACK: Ticket link click (CRITICAL FOR REVENUE!)
-                        const ticketUrl = (actualEvent as any).ticket_urls?.[0] || (actualEvent as any).ticket_url;
-                        const ticketProvider = extractTicketProvider(ticketUrl);
-                        const daysUntilEvent = actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined;
-                        
-                        trackInteraction.click('ticket_link', actualEvent.id, {
-                          ticket_url: ticketUrl,
-                          ticket_provider: ticketProvider,
-                          price_range: actualEvent.price_range,
-                          event_date: actualEvent.event_date,
-                          artist_name: actualEvent.artist_name,
-                          venue_name: actualEvent.venue_name,
-                          days_until_event: daysUntilEvent,
-                          source: 'event_modal',
-                          user_interested: localIsInterested
-                        }, actualEvent.id);
-                        
-                        // 🎯 TRACK: Promotion interaction for ticket click
-                        PromotionTrackingService.trackPromotionInteraction(
-                          actualEvent.id,
-                          currentUserId || '',
-                          'click',
-                          {
-                            source: 'event_modal_ticket_click',
-                            ticket_url: ticketUrl,
-                            ticket_provider: ticketProvider
-                          }
-                        );
-                        
-                        // Mark interaction for duration tracking
-                        hasInteracted.current = true;
-                        
-                        // Add UTM parameters for commission tracking
-                        const urlWithUTM = addUTMToURL(ticketUrl, {
-                          eventId: actualEvent.id,
-                          userId: currentUserId,
-                          source: 'event_modal'
-                        });
-                        
-                        // Open ticket link in new tab
-                        window.open(urlWithUTM, '_blank', 'noopener,noreferrer');
-                      }}
-                    >
-                      <Ticket size={16} style={{ flexShrink: 0, color: 'var(--neutral-50)' }} />
-                      <span style={{ color: 'var(--neutral-50)' }}>Get Tickets</span>
-                    </Button>
-                  )}
+                  {(() => {
+                    const eventLink = getCompliantEventLink(actualEvent);
+                    if (!eventLink) return null;
+                    
+                    const ticketProvider = extractTicketProvider(eventLink);
+                    const daysUntilEvent = actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined;
+                    
+                    return (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        asChild
+                        style={{
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          backgroundColor: 'var(--brand-pink-500)',
+                          color: 'var(--neutral-0)',
+                          paddingLeft: 'var(--spacing-small, 12px)',
+                          paddingRight: 'var(--spacing-small, 12px)',
+                          height: 'var(--size-button-height-sm, 28px)',
+                          borderRadius: 'var(--radius-corner, 10px)',
+                          border: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 'var(--spacing-inline, 6px)',
+                          transition: 'all 0.2s ease',
+                          boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
+                        }}
+                      >
+                        <a
+                          href={eventLink}
+                          target="_blank"
+                          rel="nofollow noopener noreferrer"
+                          onClick={() => {
+                            // 🎯 TRACK: Ticket link click (CRITICAL FOR REVENUE!)
+                            trackInteraction.click('ticket_link', actualEvent.id, {
+                              ticket_url: eventLink,
+                              ticket_provider: ticketProvider,
+                              price_range: actualEvent.price_range,
+                              event_date: actualEvent.event_date,
+                              artist_name: actualEvent.artist_name,
+                              venue_name: actualEvent.venue_name,
+                              days_until_event: daysUntilEvent,
+                              source: 'event_modal',
+                              user_interested: localIsInterested
+                            }, actualEvent.id);
+                            
+                            // 🎯 TRACK: Promotion interaction for ticket click
+                            PromotionTrackingService.trackPromotionInteraction(
+                              actualEvent.id,
+                              currentUserId || '',
+                              'click',
+                              {
+                                source: 'event_modal_ticket_click',
+                                ticket_url: eventLink,
+                                ticket_provider: ticketProvider
+                              }
+                            );
+                            
+                            // Mark interaction for duration tracking
+                            hasInteracted.current = true;
+                          }}
+                        >
+                          <Ticket size={16} style={{ flexShrink: 0, color: 'var(--neutral-50)' }} />
+                          <span style={{ color: 'var(--neutral-50)' }}>Get Tickets</span>
+                        </a>
+                      </Button>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -1945,6 +1947,11 @@ export function EventDetailsModal({
           </div>
           {/* Spacer to ensure ticketing controls are not overlapped by footers */}
           <div className={`${friendModalOpen ? 'h-20' : 'h-2'}`} />
+          
+          {/* JamBase Attribution */}
+          <div className="pt-4 mt-4 border-t" style={{ borderColor: 'var(--neutral-200)' }}>
+            <JamBaseAttribution variant="footer" />
+          </div>
         </div>
         {/* Friend Profile Modal (inline) */}
         {friendModalOpen && friendModalUser && (

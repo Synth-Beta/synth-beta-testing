@@ -5,6 +5,9 @@ import { Calendar, MapPin, Send, Check, Heart } from 'lucide-react';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
+import { JamBaseAttribution } from '@/components/attribution';
+import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
+import { Ticket, ExternalLink } from 'lucide-react';
 
 export type EventReason = 'recommended' | 'trending' | 'friend_interested' | 'following';
 
@@ -307,6 +310,47 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
             >
               <Send size={20} strokeWidth={2.5} />
             </button>
+
+            {/* Ticket Link */}
+            {(() => {
+              const eventLink = getCompliantEventLink(event);
+              if (!eventLink) return null;
+              return (
+                <a
+                  href={eventLink}
+                  target="_blank"
+                  rel="nofollow noopener noreferrer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    try {
+                      const eventUuid = getEventUuid(event);
+                      trackInteraction.click(
+                        'ticket_link',
+                        event.id,
+                        { source: 'event_card', reason: reason || 'unknown' },
+                        eventUuid || undefined
+                      );
+                    } catch (error) {
+                      console.error('Error tracking ticket link click:', error);
+                    }
+                  }}
+                  className="swift-ui-button swift-ui-button-secondary flex items-center gap-2"
+                  style={{
+                    paddingLeft: 'var(--spacing-small, 12px)',
+                    paddingRight: 'var(--spacing-small, 12px)',
+                  }}
+                  aria-label="Get tickets"
+                >
+                  <Ticket size={20} strokeWidth={2.5} style={{ color: 'var(--brand-pink-500)' }} />
+                  <span style={{ color: 'var(--brand-pink-500)' }}>Tickets</span>
+                </a>
+              );
+            })()}
+          </div>
+
+          {/* JamBase Attribution */}
+          <div className="pt-2 mt-2 border-t" style={{ borderColor: 'var(--neutral-200)' }}>
+            <JamBaseAttribution variant="inline" />
           </div>
         </div>
       </div>

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
 import { JamBaseEventResponse } from '@/types/eventTypes';
 import { formatPrice } from '@/utils/currencyUtils';
+import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 
 // Fix for default markers in React Leaflet
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -297,20 +298,28 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
                     Review
                   </Button>
                   
-                  {event.ticket_urls && event.ticket_urls.length > 0 && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(event.ticket_urls![0], '_blank');
-                      }}
-                      className="text-xs"
-                    >
-                      <Ticket className="w-3 h-3 mr-1" />
-                      Tickets
-                    </Button>
-                  )}
+                  {(() => {
+                    const eventLink = getCompliantEventLink(event);
+                    if (!eventLink) return null;
+                    return (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        asChild
+                        className="text-xs"
+                      >
+                        <a
+                          href={eventLink}
+                          target="_blank"
+                          rel="nofollow noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Ticket className="w-3 h-3 mr-1" />
+                          Tickets
+                        </a>
+                      </Button>
+                    );
+                  })()}
                 </div>
               </div>
             </Popup>

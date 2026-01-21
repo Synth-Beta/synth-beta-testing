@@ -4,6 +4,7 @@ import { Calendar, MapPin, Clock, Ticket } from 'lucide-react';
 import { format } from 'date-fns';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
+import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 
 interface SwiftUIEventCardProps {
   event: {
@@ -286,12 +287,15 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
               Price TBD
             </span>
           )}
-          {event.ticket_available && event.ticket_urls && event.ticket_urls.length > 0 && (
-            <a
-              href={event.ticket_urls[0]}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+          {(() => {
+            const eventLink = getCompliantEventLink(event);
+            if (!eventLink) return null;
+            return (
+              <a
+                href={eventLink}
+                target="_blank"
+                rel="nofollow noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all"
               style={{
                 backgroundColor: 'var(--brand-pink-500)',
@@ -312,7 +316,8 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
               <Ticket size={12} />
               <span>Buy</span>
             </a>
-          )}
+            );
+          })()}
         </div>
       </div>
     </button>

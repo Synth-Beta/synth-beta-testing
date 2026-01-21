@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { JamBaseEvent } from '@/types/eventTypes';
+import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 
 interface JamBaseEventCardProps {
   event: JamBaseEvent;
@@ -260,25 +261,29 @@ export function JamBaseEventCard({
 
           {/* External Links */}
           <div className="flex items-center gap-2">
-            {event.ticket_urls && event.ticket_urls.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="text-blue-600 hover:text-blue-700"
-              >
-                <a 
-                  href={event.ticket_urls[0]} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1"
+            {(() => {
+              const eventLink = getCompliantEventLink(event);
+              if (!eventLink) return null;
+              return (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="text-blue-600 hover:text-blue-700"
                 >
-                  <Ticket className="w-4 h-4" />
-                  <span className="hidden sm:inline">Tickets</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </Button>
-            )}
+                  <a 
+                    href={eventLink} 
+                    target="_blank" 
+                    rel="nofollow noopener noreferrer"
+                    className="flex items-center gap-1"
+                  >
+                    <Ticket className="w-4 h-4" />
+                    <span className="hidden sm:inline">Tickets</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </Button>
+              );
+            })()}
           </div>
         </div>
 
