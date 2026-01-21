@@ -91,7 +91,7 @@ export class SetlistService {
     
     // Always try setlist.fm API first via backend proxy
     try {
-      console.log('🎵 SetlistService: Making request to setlist.fm API via backend proxy:', url);
+      // Removed verbose logging - only log errors
       
       const response = await fetch(url, {
         headers: {
@@ -102,8 +102,7 @@ export class SetlistService {
       
       if (!response.ok) {
         if (response.status === 404) {
-          // Backend searched setlist.fm API but found nothing
-          console.log('📭 No results from setlist.fm API');
+          // Backend searched setlist.fm API but found nothing - silent return
           return null;
         }
         throw new Error(`Backend API error: ${response.status} ${response.statusText}`);
@@ -112,18 +111,23 @@ export class SetlistService {
       const data = await response.json();
       
       if (!data.setlist || data.setlist.length === 0) {
-        // No matches from backend
-        console.log('📭 No results from setlist.fm API');
+        // No matches from backend - silent return
         return null;
       }
       
-      console.log('✅ SetlistService: Received setlists from setlist.fm API:', data.setlist.length);
+      // Success - no console log needed
       
       // Data is already transformed by the backend
       return data.setlist;
       
-    } catch (error) {
-      console.error('❌ Error with setlist.fm API proxy:', error);
+    } catch (error: any) {
+      // Only log if it's not a connection refused (expected when backend isn't running)
+      if (error?.message?.includes('Failed to fetch') || error?.message?.includes('ERR_CONNECTION_REFUSED')) {
+        // Backend not running - expected in dev, don't spam console
+        // Error will be caught by caller and handled gracefully
+      } else {
+        console.warn('⚠️ Setlist service error:', error?.message || error);
+      }
       const offlineError = new Error('setlist-service-offline');
       offlineError.name = 'SetlistServiceOfflineError';
       throw offlineError;

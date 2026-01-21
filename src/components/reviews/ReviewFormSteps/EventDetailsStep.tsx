@@ -41,7 +41,14 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
           .order('event_date', { ascending: false })
           .limit(50); // Increased limit to get more results
         
-        if (!error && data) {
+        if (error) {
+          // Log error but don't spam console - view might not exist or have issues
+          if (error.code !== 'PGRST116') { // PGRST116 = relation does not exist (expected in some cases)
+            console.warn('⚠️ Event search error:', error.message);
+          }
+          setEventResults([]);
+          setShowEventResults(false);
+        } else if (data) {
           // Filter to ONLY show past events for reviews
           const pastEventsOnly = data.filter(event => isEventPast(event.event_date));
           
