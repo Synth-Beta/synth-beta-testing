@@ -12,7 +12,6 @@
 
 const { Ratelimit } = require('@upstash/ratelimit');
 const { Redis } = require('@upstash/redis');
-const rateLimit = require('express-rate-limit');
 
 // Rate limit tier configurations
 const RATE_LIMIT_TIERS = {

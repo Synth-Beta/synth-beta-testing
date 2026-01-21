@@ -3,6 +3,7 @@ import { MapPin, Calendar, Ticket, MessageCircle, Share2, Heart, Flag } from 'lu
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { formatPrice } from '@/utils/currencyUtils';
 
 interface FigmaEventCardProps {
   event: {
@@ -35,11 +36,6 @@ export const FigmaEventCard: React.FC<FigmaEventCardProps> = ({
   onClick,
   className,
 }) => {
-  const formatPrice = (priceRange?: string) => {
-    if (!priceRange) return 'Price TBD';
-    return priceRange;
-  };
-
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Date TBD';
     try {
@@ -100,7 +96,7 @@ export const FigmaEventCard: React.FC<FigmaEventCardProps> = ({
         <div className="flex items-center gap-[3.5px] mb-0">
           <Ticket className="size-[24px] text-[#b00056] flex-shrink-0" strokeWidth={2} />
           <p className="flex-1 font-['Inter',sans-serif] font-normal leading-[24px] not-italic text-[16px] text-[#0e0e0e] break-words line-clamp-1">
-            {formatPrice(event.price_range)}
+            {formatPrice(event.price_range) || 'Price TBD'}
           </p>
         </div>
       </div>
