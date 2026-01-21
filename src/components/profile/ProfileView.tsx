@@ -24,7 +24,7 @@ import { DraftReviewService } from '@/services/draftReviewService';
 import { getEventStatus, isEventPast, getPastEvents, getUpcomingEvents } from '@/utils/eventStatusUtils';
 import { BelliStyleReviewCard } from '../reviews/BelliStyleReviewCard';
 import { detectStreamingServiceType } from '../streaming/UnifiedStreamingStats';
-import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { EventDetailsModal } from '../events/EventDetailsModal';
 import { MusicTasteCard } from './MusicTasteCard';
 import { HolisticStatsCard } from './HolisticStatsCard';

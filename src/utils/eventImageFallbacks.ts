@@ -13,14 +13,19 @@ export function replaceJambasePlaceholder(imageUrl: string | null | undefined): 
     return null;
   }
   
-  // Check if the URL matches the JamBase placeholder (case-insensitive, with or without protocol)
-  if (imageUrl.includes('jambase-default-band-image-bw-1480x832.png') || 
+  // Check if it's a JamBase placeholder that needs replacement
+  const isJambasePlaceholder = imageUrl.includes('jambase-default-band-image-bw-1480x832.png') || 
       imageUrl === JAMBASE_PLACEHOLDER_URL ||
-      imageUrl.includes('jambase.com/wp-content/uploads/2021/08/jambase-default-band-image-bw-1480x832.png')) {
-    return SYNTH_PLACEHOLDER_PATH;
-  }
+      imageUrl.includes('jambase.com/wp-content/uploads/2021/08/jambase-default-band-image-bw-1480x832.png');
   
-  return imageUrl;
+  // Also check if it's the incorrect Synth placeholder path that needs fixing
+  const isIncorrectSynthPlaceholder = imageUrl === '/Synth_Placeholder.png' || 
+      imageUrl.includes('/Synth_Placeholder.png');
+  
+  const wasReplaced = isJambasePlaceholder || isIncorrectSynthPlaceholder;
+  const result = wasReplaced ? SYNTH_PLACEHOLDER_PATH : imageUrl;
+  
+  return result;
 }
 
 const EVENT_FALLBACK_IMAGES = [

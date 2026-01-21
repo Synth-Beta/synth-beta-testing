@@ -3,12 +3,14 @@ import Capacitor
 import UserNotifications
 import AuthenticationServices
 import WebKit
+import SwiftUI
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate, WKScriptMessageHandler {
 
     var window: UIWindow?
     var appleSignInHandler: AppleSignInHandler?
+    var eventShareHandler: Any? // EventShareHandler (Any? to avoid import issues)
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Clear WKWebView cache on launch to ensure fresh content
@@ -41,6 +43,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Set up Apple Sign In listener
         setupAppleSignInListener()
         
+        // Set up Event Share listener
+        setupEventShareListener()
+        
         return true
     }
     
@@ -67,16 +72,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                let window = windowScene.windows.first,
                let webView = self.findWebView(in: window) {
-                // Configure message handler
+                // Configure message handlers
                 webView.configuration.userContentController.add(self, name: "appleSignIn")
+                webView.configuration.userContentController.add(self, name: "eventShare")
                 
-                // Inject JavaScript that listens for RequestAppleSignIn events
-                // and forwards them to the native message handler
+                // Inject JavaScript that listens for events and forwards them to native
                 let script = """
                     (function() {
+                        // Apple Sign In
                         window.addEventListener('RequestAppleSignIn', function() {
                             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.appleSignIn) {
                                 window.webkit.messageHandlers.appleSignIn.postMessage({});
+                            }
+                        });
+                        
+                        // Event Share
+                        window.addEventListener('RequestEventShare', function(event) {
+                            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.eventShare) {
+                                window.webkit.messageHandlers.eventShare.postMessage(event.detail || {});
                             }
                         });
                     })();
@@ -340,11 +353,102 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     // MARK: - WKScriptMessageHandler
     
+    // MARK: - Event Share Setup
+    
+    /// Sets up event share listener
+    func setupEventShareListener() {
+        // Initialize event share handler if iOS 15+
+        if #available(iOS 15.0, *) {
+            eventShareHandler = EventShareHandler.shared
+        }
+        
+        // Listen for requests from web layer via NotificationCenter (fallback)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleEventShare),
+            name: NSNotification.Name("RequestEventShare"),
+            object: nil
+        )
+    }
+    
+    /// Handles event share request from JavaScript
+    @objc func handleEventShare(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let eventData = userInfo["event"] as? [String: Any] else {
+            print("Invalid event share data")
+            return
+        }
+        
+        // Parse event data
+        guard let eventId = eventData["eventId"] as? String,
+              let title = eventData["title"] as? String else {
+            print("Missing required event fields")
+            return
+        }
+        
+        let event = EventShareData(
+            eventId: eventId,
+            title: title,
+            artistName: eventData["artistName"] as? String,
+            venueName: eventData["venueName"] as? String,
+            venueCity: eventData["venueCity"] as? String,
+            eventDate: eventData["eventDate"] as? String,
+            imageUrl: eventData["imageUrl"] as? String ?? eventData["posterImageUrl"] as? String,
+            posterImageUrl: eventData["posterImageUrl"] as? String
+        )
+        
+        if #available(iOS 15.0, *) {
+            presentEventShareModal(event: event)
+        }
+    }
+    
+    /// Presents the event share modal
+    @available(iOS 15.0, *)
+    func presentEventShareModal(event: EventShareData) {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first,
+              let rootViewController = window.rootViewController else {
+            print("Could not find root view controller")
+            return
+        }
+        
+        let handler = EventShareHandler.shared
+        
+        handler.presentShareModal(
+            event: event,
+            from: rootViewController,
+            onShareExternally: {
+                handler.shareExternally(
+                    event: event,
+                    from: rootViewController,
+                    completion: { _ in }
+                )
+            },
+            onShareInChat: {
+                handler.shareInChat(event: event) {
+                    // Share in chat handled by web layer
+                }
+            }
+        )
+    }
+    
+    // MARK: - WKScriptMessageHandler
+    
     /// Receives messages from JavaScript via WKWebView message handler
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == "appleSignIn" {
             // Handle Apple Sign In request from JavaScript
             handleAppleSignIn()
+        } else if message.name == "eventShare" {
+            // Handle Event Share request from JavaScript
+            if let eventData = message.body as? [String: Any] {
+                let notification = Notification(
+                    name: NSNotification.Name("RequestEventShare"),
+                    object: nil,
+                    userInfo: ["event": eventData]
+                )
+                handleEventShare(notification: notification)
+            }
         }
     }
 

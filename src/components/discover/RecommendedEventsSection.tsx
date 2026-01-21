@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { Icon } from '@/components/Icon/Icon';
 import { UnifiedEventSearchService, type UnifiedEvent } from '@/services/unifiedEventSearchService';
 import { SimpleEventRecommendationService } from '@/services/simpleEventRecommendationService';
@@ -215,7 +215,7 @@ export const RecommendedEventsSection: React.FC<RecommendedEventsSectionProps> =
           <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
             {recommendedEvents.map((event) => (
               <div key={event.id} className="flex-shrink-0 w-[300px]">
-                <JamBaseEventCard
+                <SwiftUIEventCard
                   event={event as any}
                   currentUserId={currentUserId}
                   isInterested={interestedEvents.has(event.id || '')}

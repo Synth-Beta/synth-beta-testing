@@ -2,10 +2,9 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Calendar, MapPin, Send, Check, Heart } from 'lucide-react';
-import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
+import { replaceJambasePlaceholder, getFallbackEventImage } from '@/utils/eventImageFallbacks';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
-import { JamBaseAttribution } from '@/components/attribution';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 import { Ticket, ExternalLink } from 'lucide-react';
 
@@ -167,7 +166,22 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden">
       {imageUrl ? (
         <>
-            <img src={imageUrl} alt={event.title} className="w-full h-full object-cover" />
+            <img 
+              src={imageUrl} 
+              alt={event.title} 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                // Fallback to a generic fallback image if the primary image fails
+                const fallbackUrl = getFallbackEventImage(event.id);
+                if (target.src !== fallbackUrl) {
+                  target.src = fallbackUrl;
+                } else {
+                  // If fallback also fails, prevent infinite loop
+                  target.onerror = null;
+                }
+              }}
+            />
             <div
               className="absolute inset-0"
               style={{
@@ -348,10 +362,6 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
             })()}
           </div>
 
-          {/* JamBase Attribution */}
-          <div className="pt-2 mt-2 border-t" style={{ borderColor: 'var(--neutral-200)' }}>
-            <JamBaseAttribution variant="inline" />
-          </div>
         </div>
       </div>
     </div>

@@ -564,11 +564,12 @@ BEGIN
   FROM public.users
   WHERE user_id = NEW.sender_id;
 
-  -- Get event info
-  SELECT title, artist_name, event_date::text
+  -- Get event info (join with artists table to get artist name)
+  SELECT e.title, a.name, e.event_date::text
   INTO v_event_title, v_event_artist, v_event_date
-  FROM public.events
-  WHERE id = NEW.shared_event_id;
+  FROM public.events e
+  LEFT JOIN public.artists a ON e.artist_id = a.id
+  WHERE e.id = NEW.shared_event_id;
 
   -- Get all participants in this chat (except the sender)
   SELECT users INTO v_chat_participants

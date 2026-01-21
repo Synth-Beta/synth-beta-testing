@@ -7,8 +7,7 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import NotFound from "./pages/NotFound";
 import SpotifyCallback from "./pages/SpotifyCallback";
 import AppPage from "./pages/App";
-import ArtistEvents from "./pages/ArtistEvents";
-import VenueEvents from "./pages/VenueEvents";
+// ArtistEvents and VenueEvents removed - using detail modals instead
 import { StreamingStatsPage } from "./pages/StreamingStatsPage";
 import { ArtistFollowingPage } from "./pages/ArtistFollowingPage";
 import Admin from "./pages/Admin";
@@ -32,8 +31,7 @@ const App = () => {
             <Routes>
               <Route path="/" element={<AppPage />} />
               <Route path="/admin" element={<Admin />} />
-              <Route path="/artist/:artistId" element={<ArtistEvents />} />
-              <Route path="/venue/:venueId" element={<VenueEvents />} />
+              {/* Artist/Venue routes removed - using detail modals instead */}
               <Route path="/streaming-stats" element={<StreamingStatsPage />} />
               {/* Following routes for artists and venues */}
               <Route path="/following" element={<ArtistFollowingPage />} />

@@ -1,26 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { X, Search, Link2, Facebook, MessageCircle, Mail, ArrowRight } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Users, 
-  MessageCircle, 
-  Send, 
-  Check,
-  Search,
-  X,
-  Loader2,
-  Share2,
-  Globe
-} from 'lucide-react';
 import { InAppShareService, type ShareTarget } from '@/services/inAppShareService';
 import { ShareService } from '@/services/shareService';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { useToast } from '@/hooks/use-toast';
+import { Users } from 'lucide-react';
 
 interface EventShareModalProps {
   event: JamBaseEvent;
@@ -35,61 +20,20 @@ export function EventShareModal({
   isOpen,
   onClose
 }: EventShareModalProps) {
-  const [activeTab, setActiveTab] = useState<'all'>('all');
   const [chats, setChats] = useState<ShareTarget[]>([]);
   const [friends, setFriends] = useState<Array<{ user_id: string; name: string; avatar_url: string | null }>>([]);
-  const [selectedChats, setSelectedChats] = useState<Set<string>>(new Set());
-  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
-  const [customMessage, setCustomMessage] = useState('');
+  const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const [showChatSelection, setShowChatSelection] = useState(false);
   const { toast } = useToast();
-
-  const handleExternalShare = async () => {
-    try {
-      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
-      
-      // Try native share first
-      if (navigator.share) {
-        await navigator.share({
-          title: event.title,
-          text: event.description || 'Check out this concert!',
-          url: url
-        });
-        toast({
-          title: "Shared!",
-          description: "Event shared successfully",
-        });
-      } else {
-        // Fallback to copy link
-        await navigator.clipboard.writeText(url);
-        toast({
-          title: "Link Copied!",
-          description: "Event link copied to clipboard",
-        });
-      }
-    } catch (error: any) {
-      // User cancelled or error occurred
-      if (error.name !== 'AbortError') {
-        console.error('Error sharing externally:', error);
-        toast({
-          title: "Error",
-          description: "Failed to share event",
-          variant: "destructive"
-        });
-      }
-    }
-  };
-
 
   useEffect(() => {
     if (isOpen) {
       loadShareTargets();
       loadFriends();
-      // Reset chat selection state when modal opens
-      setShowChatSelection(false);
+      setSelectedTargets(new Set());
+      setSearchQuery('');
     }
   }, [isOpen, currentUserId]);
 
@@ -119,35 +63,23 @@ export function EventShareModal({
     }
   };
 
-  const toggleChatSelection = (chatId: string) => {
-    setSelectedChats(prev => {
+  const toggleTargetSelection = (targetId: string) => {
+    setSelectedTargets(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(chatId)) {
-        newSet.delete(chatId);
+      if (newSet.has(targetId)) {
+        newSet.delete(targetId);
       } else {
-        newSet.add(chatId);
+        newSet.add(targetId);
       }
       return newSet;
     });
   };
 
-  const toggleFriendSelection = (friendId: string) => {
-    setSelectedFriends(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(friendId)) {
-        newSet.delete(friendId);
-      } else {
-        newSet.add(friendId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleShareToExistingChats = async () => {
-    if (selectedChats.size === 0) {
+  const handleShare = async () => {
+    if (selectedTargets.size === 0) {
       toast({
-        title: "No chats selected",
-        description: "Please select at least one chat to share with",
+        title: "No contacts selected",
+        description: "Please select at least one contact to share with",
         variant: "destructive"
       });
       return;
@@ -156,10 +88,9 @@ export function EventShareModal({
     try {
       setSharing(true);
       
-      // Separate group chats and friend chats
-      const selectedChatsArray = Array.from(selectedChats);
-      const groupChatIds = selectedChatsArray.filter(id => !id.startsWith('friend-'));
-      const friendIds = selectedChatsArray
+      const selectedTargetsArray = Array.from(selectedTargets);
+      const groupChatIds = selectedTargetsArray.filter(id => !id.startsWith('friend-'));
+      const friendIds = selectedTargetsArray
         .filter(id => id.startsWith('friend-'))
         .map(id => id.replace('friend-', ''));
 
@@ -170,8 +101,7 @@ export function EventShareModal({
         const groupResult = await InAppShareService.shareEventToMultipleChats(
           event.id,
           groupChatIds,
-          currentUserId,
-          customMessage || undefined
+          currentUserId
         );
         result.successCount += groupResult.successCount;
         result.errors.push(...groupResult.results.filter(r => !r.success).map(r => r.error || 'Unknown error'));
@@ -183,8 +113,7 @@ export function EventShareModal({
           const friendResult = await InAppShareService.shareEventToNewChat(
             event.id,
             friendId,
-            currentUserId,
-            customMessage || undefined
+            currentUserId
           );
           if (friendResult.success) {
             result.successCount += 1;
@@ -198,13 +127,10 @@ export function EventShareModal({
 
       if (result.successCount > 0) {
         toast({
-          title: "Event Shared! 🎉",
-          description: `Successfully shared to ${result.successCount} chat${result.successCount > 1 ? 's' : ''}`,
+          title: "Shared! 🎉",
+          description: `Successfully shared to ${result.successCount} contact${result.successCount > 1 ? 's' : ''}`,
         });
-        
-        // Reset and close
-        setSelectedChats(new Set());
-        setCustomMessage('');
+        setSelectedTargets(new Set());
         onClose();
       }
 
@@ -227,83 +153,72 @@ export function EventShareModal({
     }
   };
 
-  const handleShareToNewChats = async () => {
-    if (selectedFriends.size === 0) {
-      toast({
-        title: "No friends selected",
-        description: "Please select at least one friend to share with",
-        variant: "destructive"
-      });
-      return;
-    }
-
+  const handleCopyLink = async () => {
     try {
-      setSharing(true);
-      const friendIds = Array.from(selectedFriends);
-      let successCount = 0;
-      let failureCount = 0;
-
-      for (const friendId of friendIds) {
-        const result = await InAppShareService.shareEventToNewChat(
-          event.id,
-          friendId,
-          currentUserId,
-          customMessage || undefined
-        );
-
-        if (result.success) {
-          successCount++;
-        } else {
-          failureCount++;
-        }
-      }
-
-      if (successCount > 0) {
-        toast({
-          title: "Event Shared! 🎉",
-          description: `Successfully shared to ${successCount} friend${successCount > 1 ? 's' : ''}`,
-        });
-        
-        // Reset and close
-        setSelectedFriends(new Set());
-        setCustomMessage('');
-        onClose();
-      }
-
-      if (failureCount > 0) {
-        toast({
-          title: "Partial Success",
-          description: `${failureCount} share${failureCount > 1 ? 's' : ''} failed`,
-          variant: "destructive"
-        });
-      }
+      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: "Link Copied!",
+        description: "Event link copied to clipboard",
+      });
     } catch (error) {
-      console.error('Error sharing event:', error);
+      console.error('Error copying link:', error);
       toast({
         title: "Error",
-        description: "Failed to share event",
+        description: "Failed to copy link",
         variant: "destructive"
       });
-    } finally {
-      setSharing(false);
     }
   };
 
+  const handleExternalShare = async (platform?: string) => {
+    try {
+      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
+      
+      if (navigator.share) {
+        await navigator.share({
+          title: event.title,
+          text: event.description || 'Check out this event!',
+          url: url
+        });
+        toast({
+          title: "Shared!",
+          description: "Event shared successfully",
+        });
+      } else {
+        // Fallback to copy link
+        await navigator.clipboard.writeText(url);
+        toast({
+          title: "Link Copied!",
+          description: "Event link copied to clipboard",
+        });
+      }
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error('Error sharing externally:', error);
+        toast({
+          title: "Error",
+          description: "Failed to share event",
+          variant: "destructive"
+        });
+      }
+    }
+  };
 
+  // Combine and filter chats and friends
   const filteredChats = chats.filter(chat =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-    !chat.name.toLowerCase().includes('direct chat') &&
-    !chat.name.toLowerCase().includes('dc direct')
+    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredFriends = friends.filter(friend =>
     friend.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Combine group chats and friend chats into one unified list
-  const allChats = [
+  const allTargets = [
     ...filteredChats.map(chat => ({
-      ...chat,
+      id: chat.id,
+      name: chat.name,
+      avatar_url: chat.avatar_url,
       type: 'group',
       isGroup: true
     })),
@@ -317,170 +232,619 @@ export function EventShareModal({
     }))
   ];
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Share Event</DialogTitle>
-          <DialogDescription>
-            Share "{event.title}" with your friends
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Event Preview */}
-        <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-3 border border-pink-200">
-          <h3 className="font-semibold text-gray-900 text-sm">{event.title}</h3>
-          <p className="text-xs text-gray-600">{event.venue_name} • {new Date(event.event_date).toLocaleDateString()}</p>
-        </div>
-
-        {/* Share Options - Side by Side */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* External Share Button */}
-          <Button
-            onClick={handleExternalShare}
-            variant="outline"
-            className="h-auto py-4 border-pink-200 hover:bg-pink-50 flex flex-col items-center gap-2"
-          >
-            <Share2 className="w-6 h-6 text-pink-500" />
-            <span className="text-sm font-medium">Share Externally</span>
-            <span className="text-xs text-gray-500">Phone, Apps, etc.</span>
-          </Button>
-
-          {/* Share in Chat Button - Toggles chat selection */}
-          <Button
-            onClick={() => {
-              setShowChatSelection(!showChatSelection);
-              if (!showChatSelection && chats.length === 0 && friends.length === 0 && !loading) {
-                loadShareTargets();
-                loadFriends();
-              }
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '100%',
+          maxHeight: '85vh',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          borderTopLeftRadius: '24px',
+          borderTopRightRadius: '24px',
+          borderTop: '1px solid rgba(255, 255, 255, 0.3)',
+          boxShadow: '0 -8px 32px 0 rgba(0, 0, 0, 0.2)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 20px',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+          }}
+        >
+          <div style={{ width: '32px' }} /> {/* Spacer for centering */}
+          <h2
+            style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: '18px',
+              fontWeight: '600',
+              lineHeight: '1.4',
+              color: 'var(--neutral-900)',
+              flex: 1,
+              textAlign: 'center',
             }}
-            variant={showChatSelection ? "default" : "outline"}
-            className={`h-auto py-4 border-pink-200 flex flex-col items-center gap-2 ${
-              showChatSelection 
-                ? 'bg-pink-500 hover:bg-pink-600 text-white border-pink-500' 
-                : 'hover:bg-pink-50'
-            }`}
           >
-            <MessageCircle className={`w-6 h-6 ${showChatSelection ? 'text-white' : 'text-pink-500'}`} />
-            <span className="text-sm font-medium">Share in Chat</span>
-            <span className={`text-xs ${showChatSelection ? 'text-pink-100' : 'text-gray-500'}`}>Within Synth</span>
-          </Button>
+            Share
+          </h2>
+          <button
+            onClick={onClose}
+            style={{
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              borderRadius: '16px',
+              transition: 'background-color 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            <X size={20} style={{ color: 'var(--neutral-900)' }} />
+          </button>
         </div>
 
-        {/* Chat Selection Section - Expandable */}
-        {showChatSelection && (
-          <>
-            {/* Custom Message */}
-            <div className="space-y-1 mt-4 border-t pt-4">
-              <label className="text-xs font-medium text-gray-600">
-                Add a message (optional)
-              </label>
-              <Textarea
-                placeholder="Let's go to this show together! 🎵"
-                value={customMessage}
-                onChange={(e) => setCustomMessage(e.target.value)}
-                rows={1}
-                className="resize-none text-sm"
+        {/* Search Bar */}
+        <div
+          style={{
+            padding: '12px 20px',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+          }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <Search
+              size={18}
+              style={{
+                position: 'absolute',
+                left: '12px',
+                color: 'var(--neutral-400)',
+                pointerEvents: 'none',
+              }}
+            />
+            <input
+              type="text"
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px 10px 40px',
+                borderRadius: '12px',
+                border: '1px solid rgba(0, 0, 0, 0.1)',
+                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                fontFamily: 'var(--font-family)',
+                fontSize: '15px',
+                lineHeight: '1.4',
+                color: 'var(--neutral-900)',
+                outline: 'none',
+                transition: 'all 0.2s ease',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.06)';
+                e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
+                e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.1)';
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Scrollable Content */}
+        <div
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '16px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+          }}
+        >
+          {/* Direct Share Contacts */}
+          {loading ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '40px 0',
+              }}
+            >
+              <div
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  border: '2px solid var(--brand-pink-500)',
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite',
+                }}
               />
             </div>
-
-            <div className="flex-1 flex flex-col overflow-hidden mt-4">
-              <div className="flex items-center gap-2 mb-3">
-                <MessageCircle className="w-5 h-5 text-pink-500" />
-                <h3 className="font-semibold text-gray-900">Choose Chats</h3>
-              </div>
-
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search chats..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-
-          <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-pink-500" />
-              </div>
-            ) : allChats.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <MessageCircle className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                <p>No chats found</p>
-                <p className="text-sm">Start a conversation to share events</p>
-              </div>
-            ) : (
-              allChats.map((chat) => (
-                <div
-                  key={chat.id}
-                  onClick={() => toggleChatSelection(chat.id)}
-                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
-                    selectedChats.has(chat.id)
-                      ? 'bg-pink-50 border-2 border-pink-300'
-                      : 'bg-white border border-gray-200 hover:border-pink-200'
-                  }`}
-                >
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={chat.avatar_url || undefined} />
-                    <AvatarFallback>
-                      {chat.isGroup ? (
-                        <Users className="w-5 h-5" />
-                      ) : (
-                        chat.name.split(' ').map(n => n[0]).join('')
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{chat.name}</h4>
-                    <p className="text-xs text-gray-500">
-                      {chat.isGroup ? `${(chat as any).users?.length || (chat as any).member_count || 0} members` : 'Direct message'}
-                    </p>
-                  </div>
-                  {selectedChats.has(chat.id) && (
-                    <div className="w-6 h-6 rounded-full bg-pink-500 flex items-center justify-center">
-                      <Check className="w-4 h-4 text-white" />
+          ) : allTargets.length > 0 ? (
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '16px',
+                  overflowX: 'auto',
+                  paddingBottom: '8px',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                }}
+                className="hide-scrollbar"
+              >
+                {allTargets.map((target) => {
+                  const isSelected = selectedTargets.has(target.id);
+                  return (
+                    <div
+                      key={target.id}
+                      onClick={() => toggleTargetSelection(target.id)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px',
+                        minWidth: '80px',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        borderRadius: '12px',
+                        transition: 'background-color 0.2s ease',
+                        backgroundColor: isSelected ? 'rgba(236, 72, 153, 0.1)' : 'transparent',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: 'relative',
+                          width: '64px',
+                          height: '64px',
+                        }}
+                      >
+                        <Avatar
+                          style={{
+                            width: '64px',
+                            height: '64px',
+                            border: isSelected ? '3px solid var(--brand-pink-500)' : '2px solid rgba(0, 0, 0, 0.1)',
+                            borderRadius: '50%',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          <AvatarImage src={target.avatar_url || undefined} />
+                          <AvatarFallback
+                            style={{
+                              backgroundColor: 'var(--brand-pink-050)',
+                              color: 'var(--brand-pink-500)',
+                              fontSize: '24px',
+                              fontWeight: '600',
+                            }}
+                          >
+                            {target.isGroup ? (
+                              <Users size={28} style={{ color: 'var(--brand-pink-500)' }} />
+                            ) : (
+                              target.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                            )}
+                          </AvatarFallback>
+                        </Avatar>
+                        {isSelected && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              bottom: '-2px',
+                              right: '-2px',
+                              width: '24px',
+                              height: '24px',
+                              borderRadius: '50%',
+                              backgroundColor: 'var(--brand-pink-500)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              border: '2px solid white',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: 'white',
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-family)',
+                          fontSize: '12px',
+                          lineHeight: '1.3',
+                          color: 'var(--neutral-700)',
+                          textAlign: 'center',
+                          maxWidth: '80px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {target.name}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
 
-          <div className="mt-4 pt-4 border-t flex gap-2">
-            <Button
-              onClick={onClose}
-              variant="outline"
-              className="flex-1"
+          {/* External Share Options */}
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                gap: '16px',
+                overflowX: 'auto',
+                paddingBottom: '8px',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+              }}
+              className="hide-scrollbar"
             >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleShareToExistingChats}
-              disabled={selectedChats.size === 0 || sharing}
-              className="flex-1 bg-pink-500 hover:bg-pink-600 text-white"
+              {/* Copy Link */}
+              <button
+                onClick={handleCopyLink}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  minWidth: '80px',
+                  padding: '4px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  borderRadius: '12px',
+                  transition: 'background-color 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <div
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '2px solid rgba(0, 0, 0, 0.1)',
+                  }}
+                >
+                  <Link2 size={28} style={{ color: 'var(--neutral-700)' }} />
+                </div>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: '12px',
+                    lineHeight: '1.3',
+                    color: 'var(--neutral-700)',
+                    textAlign: 'center',
+                  }}
+                >
+                  Copy link
+                </span>
+              </button>
+
+              {/* Facebook */}
+              <button
+                onClick={() => handleExternalShare('facebook')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  minWidth: '80px',
+                  padding: '4px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  borderRadius: '12px',
+                  transition: 'background-color 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <div
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    backgroundColor: '#1877F2',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Facebook size={28} style={{ color: 'white' }} />
+                </div>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: '12px',
+                    lineHeight: '1.3',
+                    color: 'var(--neutral-700)',
+                    textAlign: 'center',
+                  }}
+                >
+                  Facebook
+                </span>
+              </button>
+
+              {/* Messenger */}
+              <button
+                onClick={() => handleExternalShare('messenger')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  minWidth: '80px',
+                  padding: '4px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  borderRadius: '12px',
+                  transition: 'background-color 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <div
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    backgroundColor: '#0084FF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <MessageCircle size={28} style={{ color: 'white' }} />
+                </div>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: '12px',
+                    lineHeight: '1.3',
+                    color: 'var(--neutral-700)',
+                    textAlign: 'center',
+                  }}
+                >
+                  Messenger
+                </span>
+              </button>
+
+              {/* Email */}
+              <button
+                onClick={() => handleExternalShare('email')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  minWidth: '80px',
+                  padding: '4px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  borderRadius: '12px',
+                  transition: 'background-color 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <div
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '2px solid rgba(0, 0, 0, 0.1)',
+                  }}
+                >
+                  <Mail size={28} style={{ color: 'var(--neutral-700)' }} />
+                </div>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: '12px',
+                    lineHeight: '1.3',
+                    color: 'var(--neutral-700)',
+                    textAlign: 'center',
+                  }}
+                >
+                  Email
+                </span>
+              </button>
+
+              {/* More options indicator */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '80px',
+                  padding: '4px',
+                }}
+              >
+                <div
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '2px solid rgba(0, 0, 0, 0.1)',
+                  }}
+                >
+                  <ArrowRight size={24} style={{ color: 'var(--neutral-400)' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Share Button */}
+        {selectedTargets.size > 0 && (
+          <div
+            style={{
+              padding: '16px 20px',
+              borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+              backgroundColor: 'rgba(255, 255, 255, 0.98)',
+            }}
+          >
+            <button
+              onClick={handleShare}
+              disabled={sharing}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '12px',
+                border: 'none',
+                backgroundColor: 'var(--brand-pink-500)',
+                color: 'white',
+                fontFamily: 'var(--font-family)',
+                fontSize: '16px',
+                fontWeight: '600',
+                lineHeight: '1.4',
+                cursor: sharing ? 'not-allowed' : 'pointer',
+                opacity: sharing ? 0.7 : 1,
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}
+              onMouseEnter={(e) => {
+                if (!sharing) {
+                  e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!sharing) {
+                  e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
+                }
+              }}
             >
               {sharing ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <div
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid white',
+                      borderTopColor: 'transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 0.8s linear infinite',
+                    }}
+                  />
                   Sharing...
                 </>
               ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  Share ({selectedChats.size})
-                </>
+                `Share (${selectedTargets.size})`
               )}
-            </Button>
-            </div>
+            </button>
           </div>
-          </>
         )}
+      </div>
 
-      </DialogContent>
-    </Dialog>
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+    </div>
   );
 }
-

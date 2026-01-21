@@ -553,19 +553,30 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
 
   // Extract image URL helper
   const getImageUrl = (event: UnifiedEventItem): string | undefined => {
+    let selectedUrl: string | undefined;
+    let source: string;
+    
     if (event.event_media_url) {
-      return replaceJambasePlaceholder(event.event_media_url);
+      selectedUrl = replaceJambasePlaceholder(event.event_media_url);
+      source = 'event_media_url';
     } else if (event.images && Array.isArray(event.images) && event.images.length > 0) {
       const bestImage = event.images.find((img: any) => 
         img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000))
       ) || event.images.find((img: any) => img?.url);
-      return bestImage?.url ? replaceJambasePlaceholder(bestImage.url) : undefined;
+      selectedUrl = bestImage?.url ? replaceJambasePlaceholder(bestImage.url) : undefined;
+      source = 'images_array';
     } else if (event.image_url) {
-      return replaceJambasePlaceholder(event.image_url);
+      selectedUrl = replaceJambasePlaceholder(event.image_url);
+      source = 'image_url';
     } else if (event.poster_image_url) {
-      return replaceJambasePlaceholder(event.poster_image_url);
+      selectedUrl = replaceJambasePlaceholder(event.poster_image_url);
+      source = 'poster_image_url';
+    } else {
+      selectedUrl = undefined;
+      source = 'none';
     }
-    return undefined;
+    
+    return selectedUrl;
   };
 
   if (loading && events.length === 0) {

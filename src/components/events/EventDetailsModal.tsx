@@ -20,11 +20,12 @@ import {
   Flag,
   MoreVertical,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  ChevronLeft,
+  Share2
 } from 'lucide-react';
 import { EventCommentsModal } from './EventCommentsModal';
 import { ReportContentModal } from '../moderation/ReportContentModal';
-import { JamBaseEventCard } from './JamBaseEventCard';
 import { FriendsInterestedBadge } from '../social/FriendsInterestedBadge';
 import { TrendingBadge } from '../social/TrendingBadge';
 import { PopularityIndicator } from '../social/PopularityIndicator';
@@ -52,6 +53,21 @@ import { SetlistService } from '@/services/setlistService';
 import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
 import { JamBaseAttribution } from '@/components/attribution';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
+import { 
+  iosModal, 
+  iosModalBackdrop, 
+  iosHeader, 
+  iosBottomBar, 
+  iosPrimaryButton, 
+  iosSecondaryButton,
+  iosIconButton,
+  glassCard,
+  glassCardLight,
+  textStyles,
+  section,
+  divider,
+  animations
+} from '@/styles/glassmorphism';
 
 interface EventDetailsModalProps {
   event: JamBaseEvent | null;
@@ -883,59 +899,91 @@ export function EventDetailsModal({
 
   return (
     <>
+    {/* Backdrop */}
     <div 
-      className="fixed inset-0 z-50 bg-[#fcfcfc] overflow-y-auto overflow-x-hidden w-full max-w-full"
+      style={iosModalBackdrop}
+      onClick={onClose}
+    />
+    
+    {/* Modal Container */}
+    <div 
+      className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden"
       style={{
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
-        pointerEvents: 'auto'
+        ...iosModal,
+        background: 'var(--neutral-50, #FCFCFC)',
+        pointerEvents: 'auto',
       }}
     >
-      {/* Header with X button */}
-      <div className="bg-[#fcfcfc] border-b border-gray-200 w-full max-w-full">
-        <div
+      {/* iOS-style Header with glassmorphism */}
+      <div 
+        style={{
+          ...iosHeader,
+          position: 'sticky',
+          top: 0,
+          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+        }}
+      >
+        {/* Back button */}
+        <button
+          onClick={onClose}
           style={{
-            paddingTop: 'var(--spacing-grouped, 24px)',
-            paddingBottom: 'var(--spacing-small, 12px)',
-            paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
-            paddingRight: 'var(--spacing-screen-margin-x, 20px)'
+            ...iosIconButton,
+            width: 40,
+            height: 40,
+          }}
+          aria-label="Close"
+        >
+          <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} />
+        </button>
+        
+        {/* Title */}
+        <h1 
+          style={{
+            ...textStyles.title2,
+            flex: 1,
+            textAlign: 'center',
+            margin: '0 12px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            color: 'var(--neutral-900)',
           }}
         >
-          <div className="flex items-start justify-between gap-2">
-            <h1 className="text-lg font-bold leading-tight flex-1 min-w-0 pr-2 break-words" style={{
-              fontFamily: 'var(--font-family)',
-              fontSize: 'var(--typography-h2-size, 24px)',
-              fontWeight: 'var(--typography-h2-weight, 700)',
-              lineHeight: 'var(--typography-h2-line-height, 1.3)',
-              color: 'var(--neutral-900)'
-            }}>
-                {actualEvent.title}
-          </h1>
-          <button
-            onClick={onClose}
-            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-            aria-label="Close"
-              style={{
-                width: '44px',
-                height: '44px'
-              }}
-          >
-              <X size={24} />
-          </button>
-        </div>
-        </div>
-        <div
+          {actualEvent.title}
+        </h1>
+        
+        {/* Share button */}
+        <button
+          onClick={() => {/* Share handler */}}
           style={{
-            paddingBottom: 'var(--spacing-small, 12px)',
-            paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
-            paddingRight: 'var(--spacing-screen-margin-x, 20px)'
+            ...iosIconButton,
+            width: 40,
+            height: 40,
+          }}
+          aria-label="Share"
+        >
+          <Share2 size={20} style={{ color: 'var(--neutral-900)' }} />
+        </button>
+      </div>
+
+      {/* Content area with iOS padding */}
+      <div style={{ padding: '0 20px', paddingTop: 16 }}>
+        {/* Event Title (larger, below header) */}
+        <h2 
+          style={{
+            ...textStyles.largeTitle,
+            color: 'var(--neutral-900)',
+            marginBottom: 8,
+            lineHeight: 1.2,
           }}
         >
-              {/* Interest button and Claim button placed directly under event name */}
-          <div className="mb-2 flex gap-1.5 flex-wrap">
+          {actualEvent.title}
+        </h2>
+        {/* Action buttons row */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {isUpcomingEvent && onInterestToggle && (
-                  <Button
-                    variant={localIsInterested ? "default" : "outline"}
+                  <button
                     type="button"
                     onClick={async () => {
                       console.log('Interest button clicked', { currentState: localIsInterested, eventId: actualEvent?.id });
@@ -985,42 +1033,30 @@ export function EventDetailsModal({
                       }
                     }}
                     style={{
-                      fontSize: 'var(--typography-meta-size, 16px)',
-                      fontWeight: 'var(--typography-meta-weight, 500)',
-                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                      paddingLeft: 'var(--spacing-small, 12px)',
-                      paddingRight: 'var(--spacing-small, 12px)',
-                      height: 'var(--size-button-height-sm, 28px)',
-                      borderRadius: 'var(--radius-corner, 10px)',
-                      border: localIsInterested ? 'none' : '2px solid var(--brand-pink-500)',
-                      backgroundColor: localIsInterested ? 'var(--brand-pink-500)' : 'var(--neutral-50)',
-                      color: localIsInterested ? 'var(--neutral-0)' : 'var(--brand-pink-500)',
-                      transition: 'all 0.2s ease',
-                      boxShadow: '0 4px 4px 0 var(--shadow-color)',
-                      pointerEvents: 'auto',
-                      zIndex: 10,
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!localIsInterested) {
-                        e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)';
-                        e.currentTarget.style.borderColor = 'var(--brand-pink-600)';
-                      } else {
-                        e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!localIsInterested) {
-                        e.currentTarget.style.backgroundColor = 'var(--neutral-50)';
-                        e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
-                      } else {
-                        e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
-                      }
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '10px 18px',
+                      fontSize: 15,
+                      fontWeight: 600,
+                      borderRadius: 12,
+                      border: localIsInterested ? 'none' : '1.5px solid var(--brand-pink-500)',
+                      background: localIsInterested 
+                        ? 'var(--brand-pink-500)' 
+                        : 'rgba(255, 255, 255, 0.8)',
+                      backdropFilter: 'blur(20px)',
+                      WebkitBackdropFilter: 'blur(20px)',
+                      color: localIsInterested ? '#fff' : 'var(--brand-pink-500)',
+                      cursor: 'pointer',
+                      transition: `all ${animations.standardDuration} ${animations.springTiming}`,
+                      boxShadow: localIsInterested 
+                        ? '0 4px 12px rgba(204, 36, 134, 0.3)' 
+                        : '0 2px 8px rgba(0, 0, 0, 0.08)',
                     }}
                   >
-                    <Heart size={16} className={`mr-1 ${localIsInterested ? 'fill-current' : ''}`} />
+                    <Heart size={18} fill={localIsInterested ? '#fff' : 'none'} />
                     {localIsInterested ? 'Interested' : "I'm Interested"}
-                  </Button>
+                  </button>
                 )}
                 <Button
                   type="button"
@@ -1060,63 +1096,110 @@ export function EventDetailsModal({
                   <span>Report</span>
                 </Button>
               </div>
+          {/* Date/Time/Price Info Card - Glassmorphism */}
           <div
-            className="flex items-center gap-1.5 mb-3 flex-wrap"
             style={{
-              fontFamily: 'var(--font-family)',
-              fontSize: 'var(--typography-meta-size, 16px)',
-              fontWeight: 'var(--typography-meta-weight, 500)',
-              lineHeight: 'var(--typography-meta-line-height, 1.5)',
-              color: 'var(--neutral-600)'
+              ...glassCardLight,
+              padding: 16,
+              marginBottom: 16,
             }}
           >
-                <Calendar size={16} style={{ color: 'var(--neutral-600)' }} />
-                <span>{formatDate(actualEvent.event_date)}</span>
-                <span>•</span>
-                <Clock size={16} style={{ color: 'var(--neutral-600)' }} />
-                <span>{formatTime(actualEvent.event_date)}</span>
-                {actualEvent.doors_time && (
-                  <>
-                    <span>•</span>
-                    <span>Doors: {formatDoorsTime(actualEvent.doors_time)}</span>
-                  </>
-                )}
-                {(() => {
-                  const event = actualEvent as any;
-                  const priceRange = event?.price_range;
-                  const priceMin = event?.ticket_price_min ?? event?.price_min;
-                  const priceMax = event?.ticket_price_max ?? event?.price_max;
-                  
-                  if (priceRange || priceMin || priceMax) {
-                    let priceDisplay = '';
-                    if (priceRange) {
-                      priceDisplay = formatPrice(priceRange);
-                    } else if (priceMin && priceMax) {
-                      priceDisplay = `$${priceMin} - $${priceMax}`;
-                    } else if (priceMin) {
-                      priceDisplay = `$${priceMin}+`;
-                    } else if (priceMax) {
-                      priceDisplay = `Up to $${priceMax}`;
-                    }
-                    
-                    return (
-                      <>
-                        <span>•</span>
-                        <Ticket size={16} style={{ color: 'var(--neutral-600)' }} />
-                        <span style={{ fontWeight: 'var(--typography-meta-weight, 500)', color: 'var(--neutral-600)' }}>{priceDisplay}</span>
-                      </>
-                    );
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Date */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: 'rgba(204, 36, 134, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Calendar size={18} style={{ color: 'var(--brand-pink-500)' }} />
+                </div>
+                <div>
+                  <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
+                    {formatDate(actualEvent.event_date)}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Time */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: 'rgba(204, 36, 134, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Clock size={18} style={{ color: 'var(--brand-pink-500)' }} />
+                </div>
+                <div>
+                  <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
+                    {formatTime(actualEvent.event_date)}
+                    {actualEvent.doors_time && (
+                      <span style={{ color: 'var(--neutral-600)', marginLeft: 8 }}>
+                        Doors: {formatDoorsTime(actualEvent.doors_time)}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Price */}
+              {(() => {
+                const event = actualEvent as any;
+                const priceRange = event?.price_range;
+                const priceMin = event?.ticket_price_min ?? event?.price_min;
+                const priceMax = event?.ticket_price_max ?? event?.price_max;
+                
+                if (priceRange || priceMin || priceMax) {
+                  let priceDisplay = '';
+                  if (priceRange) {
+                    priceDisplay = formatPrice(priceRange);
+                  } else if (priceMin && priceMax) {
+                    priceDisplay = `$${priceMin} - $${priceMax}`;
+                  } else if (priceMin) {
+                    priceDisplay = `$${priceMin}+`;
+                  } else if (priceMax) {
+                    priceDisplay = `Up to $${priceMax}`;
                   }
-                  return null;
-                })()}
+                  
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        background: 'rgba(204, 36, 134, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                        <Ticket size={18} style={{ color: 'var(--brand-pink-500)' }} />
+                      </div>
+                      <div>
+                        <span style={{ ...textStyles.callout, fontWeight: 600, color: 'var(--neutral-900)' }}>
+                          {priceDisplay}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
+          </div>
             
           {/* Remove Interest Button for Past Events */}
             {isPastEvent && onInterestToggle && localIsInterested && (
-              <Button
-                variant="secondary"
+              <button
                 type="button"
-                  onClick={async () => {
+                onClick={async () => {
                   console.log('Remove interest button clicked');
                   // Track interest removal
                   try {
@@ -1137,66 +1220,33 @@ export function EventDetailsModal({
                   }
                   onInterestToggle(actualEvent.id, false);
                 }}
-                style={{ pointerEvents: 'auto', zIndex: 10 }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '10px 16px',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  borderRadius: 10,
+                  border: '1px solid var(--neutral-300)',
+                  background: 'rgba(255, 255, 255, 0.8)',
+                  backdropFilter: 'blur(20px)',
+                  color: 'var(--neutral-700)',
+                  cursor: 'pointer',
+                }}
               >
-                <X size={16} style={{ marginRight: 'var(--spacing-inline, 6px)' }} />
+                <X size={16} />
                 Remove Interest
-              </Button>
+              </button>
             )}
           </div>
-      </div>
 
-      <div className={`flex flex-col px-4 pb-28 w-full max-w-full overflow-x-hidden ${friendModalOpen ? 'pb-40' : ''}`} id="event-details-desc" style={{
-        paddingTop: 'var(--spacing-small, 12px)'
-      }}>
           {/* Event Status Badges */}
           <div className="flex flex-wrap gap-1.5" style={{
             marginBottom: 'var(--spacing-grouped, 24px)'
           }}>
-            {isPastEvent && (
-              <div
-                style={{
-                  height: '25px',
-                  borderRadius: 'var(--radius-corner, 10px)',
-                  paddingLeft: 'var(--spacing-small, 12px)',
-                  paddingRight: 'var(--spacing-small, 12px)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  backgroundColor: 'var(--neutral-100)',
-                  border: '2px solid var(--neutral-200)',
-                  color: 'var(--neutral-900)',
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-meta-size, 16px)',
-                  fontWeight: 'var(--typography-meta-weight, 500)',
-                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                  boxShadow: '0 4px 4px 0 var(--shadow-color)'
-                }}
-              >
-                Past Event
-              </div>
-            )}
-            {isUpcomingEvent && (
-              <div
-                style={{
-                  height: '25px',
-                  borderRadius: 'var(--radius-corner, 10px)',
-                  paddingLeft: 'var(--spacing-small, 12px)',
-                  paddingRight: 'var(--spacing-small, 12px)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  backgroundColor: 'var(--brand-pink-050)',
-                  border: '2px solid var(--brand-pink-500)',
-                  color: 'var(--brand-pink-500)',
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-meta-size, 16px)',
-                  fontWeight: 'var(--typography-meta-weight, 500)',
-                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                  boxShadow: '0 4px 4px 0 var(--shadow-color)'
-                }}
-              >
-                Upcoming
-              </div>
-            )}
+{/* Past Event badge removed per user request */}
+{/* Upcoming badge removed per user request */}
             <TrendingBadge eventId={actualEvent.id} />
             <FriendsInterestedBadge eventId={actualEvent.id} />
             <PopularityIndicator interestedCount={interestedCount || 0} attendanceCount={attendanceCount || 0} />
@@ -1798,19 +1848,8 @@ export function EventDetailsModal({
             ) : (
               /* Upcoming Event Actions */
               <div className="flex flex-col gap-2 w-full">
-                {/* First Row: Comments, Price, Members */}
+                {/* First Row: Price, Members */}
                 <div className="flex flex-wrap items-center gap-2 w-full">
-                  {/* Event Comments Button for Upcoming Events */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCommentsOpen(true)}
-                    className="text-xs px-3 py-1 h-7"
-                  >
-                    <MessageSquare size={16} className="mr-1 flex-shrink-0" />
-                    <span className="text-xs">Comments</span>
-                  </Button>
-
                   {/* Price Range for Upcoming Events */}
                   {(() => {
                     const event = actualEvent as any;

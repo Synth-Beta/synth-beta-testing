@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { FigmaEventCard } from '@/components/cards/FigmaEventCard';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import type { EventList } from '@/services/homeFeedService';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
@@ -39,7 +39,7 @@ export const EventListsCarousel: React.FC<EventListsCarouselProps> = ({
           <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
             {list.events.map((event) => (
               <div key={event.id} className="flex-shrink-0 w-[280px] sm:w-[320px]">
-                <FigmaEventCard
+                <SwiftUIEventCard
                   event={{
                     id: event.id,
                     title: event.title || event.artist_name || 'Event',
@@ -49,6 +49,8 @@ export const EventListsCarousel: React.FC<EventListsCarouselProps> = ({
                     event_date: event.event_date,
                     price_range: event.price_range || undefined,
                   }}
+                  compact={true}
+                  showActions={false}
                   onClick={() => {
                     // Track event click from carousel
                     try {

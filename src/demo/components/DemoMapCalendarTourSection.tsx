@@ -23,7 +23,7 @@ import { format } from 'date-fns';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import type { VibeFilters } from '@/services/discoverVibeService';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { CompactEventCard } from '@/components/home/CompactEventCard';
 import { SynthLoadingInline } from '@/components/ui/SynthLoader';
 import { DEMO_TOUR_ARTIST, DEMO_TOUR_EVENTS } from '../data/mockData';
@@ -499,7 +499,7 @@ export const DemoMapCalendarTourSection: React.FC<DemoMapCalendarTourSectionProp
       <Dialog open={eventDetailsOpen} onOpenChange={setEventDetailsOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {selectedEvent && (
-            <JamBaseEventCard
+            <SwiftUIEventCard
               event={selectedEvent}
               currentUserId={currentUserId}
             />

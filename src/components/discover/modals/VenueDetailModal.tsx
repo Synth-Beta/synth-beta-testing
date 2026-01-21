@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Icon } from '@/components/Icon/Icon';
-import { Star } from 'lucide-react';
+import { ChevronLeft, Share2, Star, MapPin, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 import { ArtistVenueReviews } from '@/components/reviews/ArtistVenueReviews';
 import { EventMap } from '@/components/EventMap';
-import { useNavigate } from 'react-router-dom';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
+import {
+  iosModal,
+  iosModalBackdrop,
+  iosHeader,
+  iosIconButton,
+  glassCard,
+  glassCardLight,
+  textStyles,
+  animations,
+} from '@/styles/glassmorphism';
 
 interface VenueDetailModalProps {
   isOpen: boolean;
@@ -24,14 +31,11 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
   venueName,
   currentUserId,
 }) => {
-  const navigate = useNavigate();
   const [venueCity, setVenueCity] = useState<string | null>(null);
   const [venueState, setVenueState] = useState<string | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
-  const [totalEvents, setTotalEvents] = useState(0);
-  const [upcomingEvents, setUpcomingEvents] = useState(0);
-  const [pastEvents, setPastEvents] = useState(0);
+  const [events, setEvents] = useState<any[]>([]);
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const [totalReviews, setTotalReviews] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -47,18 +51,18 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
       setLoading(true);
       
       // Get events for this venue using venue_id (UUID join)
-      // This is the primary source of data - events have venue location info
-      const { data: events, error: eventsError } = await supabase
+      const { data: eventsData, error: eventsError } = await supabase
         .from('events')
-        .select('id, event_date, venue_city, venue_state, latitude, longitude')
+        .select('*')
         .eq('venue_id', venueId)
+        .order('event_date', { ascending: true })
         .limit(100);
 
       if (eventsError) {
         console.warn('Error fetching venue events:', eventsError);
       }
 
-      // Get venue details if possible (but don't fail if it errors)
+      // Get venue details if possible
       try {
         const { data: venueData } = await supabase
           .from('venues')
@@ -66,51 +70,28 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
           .eq('id', venueId)
           .maybeSingle();
 
-        // Use venue table data if available (fallback to events)
         if (venueData) {
           if (venueData.state && !venueState) setVenueState(venueData.state);
           if (venueData.latitude && !latitude) setLatitude(Number(venueData.latitude));
           if (venueData.longitude && !longitude) setLongitude(Number(venueData.longitude));
         }
       } catch (venueError) {
-        // Silently fail - we'll use event data instead
         console.warn('Could not fetch venue details (non-critical):', venueError);
       }
 
-      if (events && events.length > 0) {
-        setTotalEvents(events.length);
-        const now = new Date();
-        const upcoming = events.filter(e => new Date(e.event_date) >= now).length;
-        setUpcomingEvents(upcoming);
-        setPastEvents(events.length - upcoming);
+      if (eventsData && eventsData.length > 0) {
+        setEvents(eventsData);
 
-        // Get location from first event (most reliable source)
-        const firstEvent = events[0];
+        // Get location from first event
+        const firstEvent = eventsData[0];
         if (firstEvent.venue_city) setVenueCity(firstEvent.venue_city);
         if (firstEvent.venue_state) setVenueState(firstEvent.venue_state);
         if (firstEvent.latitude) setLatitude(Number(firstEvent.latitude));
         if (firstEvent.longitude) setLongitude(Number(firstEvent.longitude));
       }
 
-      if (events && events.length > 0) {
-        setTotalEvents(events.length);
-        const now = new Date();
-        const upcoming = events.filter(e => new Date(e.event_date) >= now).length;
-        setUpcomingEvents(upcoming);
-        setPastEvents(events.length - upcoming);
-
-        // Get location from first event if venue data didn't have it
-        if (!venueCity || !venueState) {
-          const firstEvent = events[0];
-          if (firstEvent.venue_city && !venueCity) setVenueCity(firstEvent.venue_city);
-          if (firstEvent.venue_state && !venueState) setVenueState(firstEvent.venue_state);
-          if (firstEvent.latitude && !latitude) setLatitude(Number(firstEvent.latitude));
-          if (firstEvent.longitude && !longitude) setLongitude(Number(firstEvent.longitude));
-        }
-      }
-
       // Get reviews for events at this venue
-      const eventIds = events?.map(e => e.id) || [];
+      const eventIds = eventsData?.map(e => e.id) || [];
       if (eventIds.length > 0) {
         const { data: reviews } = await supabase
           .from('reviews')
@@ -120,7 +101,6 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
           .eq('is_draft', false);
 
         if (reviews && reviews.length > 0) {
-          // Filter out NULL/undefined ratings - only include actual numeric ratings
           const ratings = reviews
             .map(r => r.venue_rating || r.rating)
             .filter((r): r is number => typeof r === 'number' && !isNaN(r) && r > 0);
@@ -128,9 +108,8 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
             const avgRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
             setAverageRating(avgRating);
           } else {
-            setAverageRating(null); // NULL when no ratings exist
+            setAverageRating(null);
           }
-          // Only count reviews that have ratings
           setTotalReviews(ratings.length);
         }
       }
@@ -143,159 +122,258 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
 
   if (!isOpen) return null;
 
+  const upcomingEvents = events.filter(e => new Date(e.event_date) >= new Date());
+  const pastEvents = events.filter(e => new Date(e.event_date) < new Date());
+
   return (
-    <div 
-      className="fixed inset-0 z-50 bg-[#fcfcfc] overflow-y-auto overflow-x-hidden w-full max-w-full"
-      style={{
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
-      }}
-    >
-      {/* Header with X button */}
-      <div className="bg-[#fcfcfc] border-b border-gray-200 w-full max-w-full">
-        <div className="px-4 py-3 flex items-center justify-between gap-2">
-          <h1 className="text-lg font-bold flex-1 pr-2 break-words min-w-0">{venueName}</h1>
-          <button
-            onClick={onClose}
-            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-            aria-label="Close"
+    <>
+      {/* Backdrop */}
+      <div style={iosModalBackdrop} onClick={onClose} />
+      
+      {/* Modal Container */}
+      <div
+        style={{
+          ...iosModal,
+          background: 'var(--neutral-50, #FCFCFC)',
+        }}
+      >
+        {/* iOS-style Header */}
+        <div
+          style={{
+            ...iosHeader,
+            position: 'sticky',
+            top: 0,
+            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+          }}
+        >
+          <button onClick={onClose} style={{ ...iosIconButton, width: 40, height: 40 }} aria-label="Close">
+            <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} />
+          </button>
+          
+          <h1
+            style={{
+              ...textStyles.title2,
+              flex: 1,
+              textAlign: 'center',
+              margin: '0 12px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              color: 'var(--neutral-900)',
+            }}
           >
-            <Icon name="x" size={24} color="var(--neutral-900)" />
+            {venueName}
+          </h1>
+          
+          <button style={{ ...iosIconButton, width: 40, height: 40 }} aria-label="Share">
+            <Share2 size={20} style={{ color: 'var(--neutral-900)' }} />
           </button>
         </div>
-          </div>
-      
-      <div className="px-4 py-4 w-full max-w-full overflow-x-hidden">
 
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Header Section */}
-            <div className="flex items-start gap-3 w-full">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                <Icon name="location" size={35} color="var(--neutral-600)" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-lg font-bold mb-2 break-words">{venueName}</h2>
+        {/* Content */}
+        <div style={{ padding: 20, paddingBottom: 100 }}>
+          {loading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 0' }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  border: '3px solid var(--neutral-200)',
+                  borderTopColor: 'var(--brand-pink-500)',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                }}
+              />
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {/* Hero Section - Venue Info */}
+              <div
+                style={{
+                  ...glassCard,
+                  padding: 20,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                }}
+              >
+                {/* Venue Icon */}
+                <div
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 20,
+                    background: 'linear-gradient(135deg, var(--brand-pink-500) 0%, #8D1FF4 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 16,
+                    boxShadow: '0 8px 24px rgba(204, 36, 134, 0.3)',
+                  }}
+                >
+                  <Building2 size={36} color="#fff" />
+                </div>
+                
+                {/* Venue Name */}
+                <h2 style={{ ...textStyles.title1, color: 'var(--neutral-900)', marginBottom: 8 }}>
+                  {venueName}
+                </h2>
+                
+                {/* Location */}
                 {(venueCity || venueState) && (
-                  <div className="flex items-center gap-1 text-muted-foreground mb-2">
-                    <Icon name="location" size={16} color="var(--neutral-600)" />
-                    <span>{[venueCity, venueState].filter(Boolean).join(', ')}</span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <MapPin size={16} style={{ color: 'var(--neutral-600)' }} />
+                    <span style={{ ...textStyles.callout, color: 'var(--neutral-600)' }}>
+                      {[venueCity, venueState].filter(Boolean).join(', ')}
+                    </span>
                   </div>
                 )}
+                
+                {/* Rating */}
                 {averageRating !== null && (
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex items-center">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star
                           key={i}
-                          size={16}
+                          size={18}
+                          fill={i < Math.floor(averageRating) ? 'var(--rating-star)' : 'none'}
                           style={{
-                            color: i < Math.floor(averageRating) ? 'var(--color-yellow)' : 'var(--neutral-300)',
-                            fill: i < Math.floor(averageRating) ? 'var(--color-yellow)' : 'none',
+                            color: i < Math.floor(averageRating) ? 'var(--rating-star)' : 'var(--neutral-300)',
                           }}
                         />
                       ))}
                     </div>
-                    <span className="text-sm font-medium">{averageRating.toFixed(1)}</span>
+                    <span style={{ ...textStyles.callout, fontWeight: 600 }}>{averageRating.toFixed(1)}</span>
                     {totalReviews > 0 && (
-                      <span className="text-sm text-muted-foreground">
+                      <span style={{ ...textStyles.footnote }}>
                         ({totalReviews} {totalReviews === 1 ? 'review' : 'reviews'})
                       </span>
                     )}
                   </div>
                 )}
-                <div className="flex items-center gap-2 mt-3 flex-wrap">
-                  <VenueFollowButton
-                    venueName={venueName}
-                    venueCity={venueCity || undefined}
-                    venueState={venueState || undefined}
-                    userId={currentUserId}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => {
-                      navigate(`/venue/${encodeURIComponent(venueName)}`);
-                      onClose();
-                    }}
-                  >
-                    View All Events
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Map */}
-            {latitude && longitude && (
-              <div className="h-64 rounded-lg overflow-hidden border">
-                <EventMap
-                  center={[latitude, longitude]}
-                  zoom={15}
-                  events={[{
-                    id: venueId,
-                    jambase_event_id: venueId,
-                    title: venueName,
-                    artist_name: venueName,
-                    artist_id: '',
-                    venue_name: venueName,
-                    venue_id: venueId,
-                    event_date: new Date().toISOString(),
-                    latitude,
-                    longitude,
-                  }]}
-                  onEventClick={() => {}}
-                />
-              </div>
-            )}
-
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-2 w-full">
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <div className="text-2xl font-bold">{totalEvents}</div>
-                <div className="text-sm text-muted-foreground">Total Events</div>
-              </div>
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <div className="text-2xl font-bold">{upcomingEvents}</div>
-                <div className="text-sm text-muted-foreground">Upcoming</div>
-              </div>
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <div className="text-2xl font-bold">{pastEvents}</div>
-                <div className="text-sm text-muted-foreground">Past</div>
-              </div>
-            </div>
-
-            {/* Reviews Section */}
-            {totalReviews > 0 && (
-              <div>
-                <h3 className="font-semibold mb-4">Reviews</h3>
-                <ArtistVenueReviews
-                  artistName=""
+                
+                {/* Follow Button */}
+                <VenueFollowButton
                   venueName={venueName}
-                  venueId={venueId}
+                  venueCity={venueCity || undefined}
+                  venueState={venueState || undefined}
+                  userId={currentUserId}
                 />
               </div>
-            )}
 
-            {/* View Full Page Button */}
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                navigate(`/venue/${encodeURIComponent(venueName)}`);
-                onClose();
-              }}
-            >
-              View Full Venue Page
-            </Button>
-          </div>
-        )}
+              {/* Map Section */}
+              {latitude && longitude && (
+                <div
+                  style={{
+                    ...glassCardLight,
+                    padding: 0,
+                    overflow: 'hidden',
+                    height: 200,
+                    borderRadius: 16,
+                  }}
+                >
+                  <EventMap
+                    center={[latitude, longitude]}
+                    zoom={15}
+                    events={[{
+                      id: venueId,
+                      jambase_event_id: venueId,
+                      title: venueName,
+                      artist_name: venueName,
+                      artist_id: '',
+                      venue_name: venueName,
+                      venue_id: venueId,
+                      event_date: new Date().toISOString(),
+                      latitude,
+                      longitude,
+                    }]}
+                    onEventClick={() => {}}
+                  />
+                </div>
+              )}
+
+              {/* Upcoming Events Section */}
+              {upcomingEvents.length > 0 && (
+                <div>
+                  <h3 style={{ ...textStyles.title2, color: 'var(--neutral-900)', marginBottom: 16 }}>
+                    Upcoming Events ({upcomingEvents.length})
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {upcomingEvents.slice(0, 10).map((event) => (
+                      <SwiftUIEventCard
+                        key={event.id}
+                        event={event}
+                        currentUserId={currentUserId}
+                        showActions={false}
+                        compact={true}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Past Events Section */}
+              {pastEvents.length > 0 && (
+                <div>
+                  <h3 style={{ ...textStyles.title2, color: 'var(--neutral-900)', marginBottom: 16 }}>
+                    Past Events ({pastEvents.length})
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {pastEvents.slice(0, 5).map((event) => (
+                      <SwiftUIEventCard
+                        key={event.id}
+                        event={event}
+                        currentUserId={currentUserId}
+                        showActions={false}
+                        compact={true}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Reviews Section */}
+              {totalReviews > 0 && (
+                <div>
+                  <h3 style={{ ...textStyles.title2, color: 'var(--neutral-900)', marginBottom: 16 }}>
+                    Reviews
+                  </h3>
+                  <ArtistVenueReviews
+                    artistName=""
+                    venueName={venueName}
+                    venueId={venueId}
+                  />
+                </div>
+              )}
+
+              {/* Empty State */}
+              {events.length === 0 && (
+                <div
+                  style={{
+                    ...glassCardLight,
+                    padding: 40,
+                    textAlign: 'center',
+                  }}
+                >
+                  <Building2 size={48} style={{ color: 'var(--neutral-400)', marginBottom: 16 }} />
+                  <p style={{ ...textStyles.body, color: 'var(--neutral-600)' }}>
+                    No events found for this venue
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
-

@@ -1,0 +1,5 @@
+JS_FILE=assets/index-DvKk68Ko.js
+JS_HASH=06449f9d9cb9a3efb2fc97d9ed6539d0
+CSS_FILE=assets/index-CpzvmFpD.css
+CSS_HASH=8d4b352e5d5d2406f7fa9a5af66f633d
+TIMESTAMP=1768950894

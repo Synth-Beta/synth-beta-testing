@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { Icon } from '@/components/Icon/Icon';
 import { UnifiedEventSearchService, type UnifiedEvent } from '@/services/unifiedEventSearchService';
 import { UserEventService } from '@/services/userEventService';
@@ -286,7 +286,7 @@ export const BrowseAllEventsSection: React.FC<BrowseAllEventsSectionProps> = ({
               <>
                 {events.map((event) => (
                   <div key={event.id} className="w-full">
-                    <JamBaseEventCard
+                    <SwiftUIEventCard
                       event={event as any}
                       currentUserId={currentUserId}
                       isInterested={interestedEvents.has(event.id || '')}

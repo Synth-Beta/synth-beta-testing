@@ -11,11 +11,12 @@ import { MobileHeader } from '@/components/Header/MobileHeader';
 import { NetworkEventsSection } from './NetworkEventsSection';
 import { EventListsCarousel } from './EventListsCarousel';
 import { CompactEventCard } from './CompactEventCard';
-import { FigmaEventCard } from '@/components/cards/FigmaEventCard';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { NetworkReviewCard } from './NetworkReviewCard';
 import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
 import { UnifiedEventsFeed } from './UnifiedEventsFeed';
+import { JamBaseHeaderAttribution } from './JamBaseHeaderAttribution';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
@@ -39,6 +40,9 @@ import { Label } from '@/components/ui/label';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
+import { triggerNativeEventShare, isNativeShareAvailable, setupNativeShareListener } from '@/utils/nativeShareService';
+import { EventShareModal } from '@/components/events/EventShareModal';
+import { InAppShareService } from '@/services/inAppShareService';
 
 // Helper function to format member count - guaranteed to return clean string
 const formatMemberCount = (count: number | string | null | undefined): string => {
@@ -242,6 +246,10 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
 
+  // Share modal state
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [selectedEventForShare, setSelectedEventForShare] = useState<any>(null);
+
   // Review detail modal
   const [selectedReview, setSelectedReview] = useState<UnifiedFeedItem | null>(null);
   const [reviewDetailOpen, setReviewDetailOpen] = useState(false);
@@ -267,6 +275,30 @@ interface FriendEventInterest {
 
   // Track home feed view
   useViewTracking('view', 'home_feed', { source: 'home' });
+
+  // Setup native share listener for "Share in Chat" callback
+  useEffect(() => {
+    if (!isNativeShareAvailable()) {
+      return; // Only setup listener if native share is available
+    }
+
+    const cleanup = setupNativeShareListener((event) => {
+      // Handle share in chat from native layer
+      setSelectedEventForShare({
+        id: event.eventId,
+        title: event.title,
+        artist_name: event.artistName,
+        venue_name: event.venueName,
+        venue_city: event.venueCity,
+        event_date: event.eventDate,
+        image_url: event.imageUrl,
+        poster_image_url: event.posterImageUrl,
+      });
+      setShareModalOpen(true);
+    });
+
+    return cleanup;
+  }, []);
 
   // Load user's active city and apply to filters
   useEffect(() => {
@@ -1687,11 +1719,7 @@ interface FriendEventInterest {
   };
 
   const feedTypes = [
-    { value: 'recommended', label: 'Recommended' },
     { value: 'events', label: 'Events' },
-    { value: 'trending', label: 'Trending' },
-    { value: 'friends', label: 'Friends' },
-    { value: 'group-chats', label: 'Group Chats' },
     { value: 'reviews', label: 'Reviews' },
   ];
                       
@@ -1705,9 +1733,9 @@ interface FriendEventInterest {
           <div
             style={{
               width: '100%',
-              paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
               display: 'flex',
-              justifyContent: 'flex-start',
+              justifyContent: 'center',
+              alignItems: 'center',
             }}
           >
             <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
@@ -1802,6 +1830,11 @@ interface FriendEventInterest {
           </div>
         </MobileHeader>
       )}
+      
+      {/* JamBase Attribution - Top right corner, only for events feed */}
+      {!hideHeader && selectedFeedType === 'events' && (
+        <JamBaseHeaderAttribution />
+      )}
       <div
         className="max-w-7xl mx-auto"
         style={{
@@ -1813,7 +1846,7 @@ interface FriendEventInterest {
           paddingBottom: 'var(--spacing-bottom-nav, 112px)',
         }}
       >
-        {feedLocation && (
+        {feedLocation && selectedFeedType !== 'events' && selectedFeedType !== 'reviews' && (
           <>
             {/* Radius selector - below box, right-aligned */}
             <div className="flex items-center justify-end gap-2" style={{ marginBottom: 'var(--spacing-small, 12px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
@@ -1850,7 +1883,34 @@ interface FriendEventInterest {
             }}
             onShareClick={async (event, e) => {
               e.stopPropagation();
-              console.log('Share event:', event);
+              
+              // Check if native share is available (iOS app)
+              if (isNativeShareAvailable()) {
+                // Use native SwiftUI share modal
+                triggerNativeEventShare({
+                  eventId: event.event_id,
+                  title: event.title,
+                  artistName: event.artist_name,
+                  venueName: event.venue_name,
+                  venueCity: event.venue_city,
+                  eventDate: event.event_date,
+                  imageUrl: event.image_url || event.poster_image_url,
+                  posterImageUrl: event.poster_image_url,
+                });
+              } else {
+                // Fallback to web modal
+                setSelectedEventForShare({
+                  id: event.event_id,
+                  title: event.title,
+                  artist_name: event.artist_name,
+                  venue_name: event.venue_name,
+                  venue_city: event.venue_city,
+                  event_date: event.event_date,
+                  image_url: event.image_url || event.poster_image_url,
+                  poster_image_url: event.poster_image_url,
+                });
+                setShareModalOpen(true);
+              }
             }}
           />
         )}
@@ -2359,6 +2419,19 @@ interface FriendEventInterest {
             />
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Event Share Modal (fallback for web) */}
+      {shareModalOpen && selectedEventForShare && (
+        <EventShareModal
+          event={selectedEventForShare}
+          currentUserId={currentUserId}
+          isOpen={shareModalOpen}
+          onClose={() => {
+            setShareModalOpen(false);
+            setSelectedEventForShare(null);
+          }}
+        />
       )}
 
       {/* Flag Content Modal */}

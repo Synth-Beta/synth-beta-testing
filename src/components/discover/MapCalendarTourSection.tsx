@@ -17,7 +17,7 @@ import type { JamBaseEvent } from '@/types/eventTypes';
 import { supabase } from '@/integrations/supabase/client';
 import type { VibeFilters } from '@/services/discoverVibeService';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { CompactEventCard } from '@/components/home/CompactEventCard';
 import { LocationService } from '@/services/locationService';
 import { UserEventService } from '@/services/userEventService';
@@ -911,7 +911,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
       <Dialog open={eventDetailsOpen} onOpenChange={setEventDetailsOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {selectedEvent && (
-            <JamBaseEventCard
+            <SwiftUIEventCard
               event={selectedEvent}
               currentUserId={currentUserId}
               onInterestToggle={async () => {}}

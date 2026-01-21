@@ -17,7 +17,7 @@ import type { JamBaseEvent } from '@/types/eventTypes';
 import type { UnifiedEvent } from '@/services/unifiedEventSearchService';
 import { format } from 'date-fns';
 import { ArtistCard } from '@/components/ArtistCard';
-import { JamBaseEventCard } from '@/components/events/JamBaseEventCard';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { useAuth } from '@/hooks/useAuth';
 
 interface ArtistWithEvents extends ArtistFollowWithDetails {
@@ -932,7 +932,7 @@ export function ArtistFollowingPage() {
               </DialogTitle>
             </DialogHeader>
             <div className="mt-4">
-              <JamBaseEventCard
+              <SwiftUIEventCard
                 event={selectedEvent as any}
                 currentUserId={user?.id || ''}
                 showInterestButton={false}
