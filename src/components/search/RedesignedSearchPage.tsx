@@ -715,6 +715,10 @@ const fetchEvents = async (query: string, limit: number = 25, offset: number = 0
   try {
     // Use trigram pattern: prefix match for single words (faster), full wildcard for multi-word
     const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      return [];
+    }
+    
     const isSingleWord = trimmedQuery.split(/\s+/).length === 1;
     const searchPattern = isSingleWord && trimmedQuery.length > 0
       ? `${trimmedQuery}%`  // Prefix match for single words (faster)
@@ -722,6 +726,7 @@ const fetchEvents = async (query: string, limit: number = 25, offset: number = 0
     
     // Events table uses artist_id and venue_id (FKs), not artist_name/venue_name
     // Join with artists and venues to get names
+    // Filter out null titles to reduce scan overhead
     const { data, error } = await supabase
       .from('events')
       .select(`
@@ -736,12 +741,15 @@ const fetchEvents = async (query: string, limit: number = 25, offset: number = 0
         artists(id, name),
         venues(id, name)
       `)
+      .not('title', 'is', null) // Exclude null titles to reduce scan overhead
       .ilike('title', searchPattern)
       .order('event_date', { ascending: true })
-      .range(offset, offset + limit - 1);
+      .range(offset, offset + limit - 1)
+      .limit(limit); // Explicit limit as safety net
 
     if (error) {
       console.error('Error searching events:', error);
+      // Don't throw - return empty array to prevent UI breakage
       return [];
     }
 
