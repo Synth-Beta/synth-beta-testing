@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { UserEventService } from '@/services/userEventService';
 import { format, parseISO } from 'date-fns';
+import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 
 interface EventMessageCardProps {
   eventId: string;
@@ -318,26 +319,31 @@ export function EventMessageCard({
             </Button>
           )}
 
-          {event.ticket_urls && event.ticket_urls.length > 0 && isUpcomingEvent && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-50"
-              asChild
-              onClick={(e) => e.stopPropagation()}
-            >
-              <a 
-                href={event.ticket_urls[0]} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-1"
+          {(() => {
+            if (!isUpcomingEvent) return null;
+            const eventLink = getCompliantEventLink(event);
+            if (!eventLink) return null;
+            return (
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+                asChild
+                onClick={(e) => e.stopPropagation()}
               >
-                <Ticket className="w-3 h-3" />
-                Tickets
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </Button>
-          )}
+                <a 
+                  href={eventLink} 
+                  target="_blank" 
+                  rel="nofollow noopener noreferrer"
+                  className="flex items-center justify-center gap-1"
+                >
+                  <Ticket className="w-3 h-3" />
+                  Tickets
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </Button>
+            );
+          })()}
         </div>
 
         {/* View Details Link */}

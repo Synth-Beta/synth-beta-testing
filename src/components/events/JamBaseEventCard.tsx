@@ -40,6 +40,8 @@ import { usePromotionImpression } from '@/hooks/usePromotionImpression';
 import { formatVenueName, formatVenueLocation, formatVenueAddress } from '@/utils/venueUtils';
 import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
+import { JamBaseAttribution } from '@/components/attribution';
+import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 
 interface JamBaseEventCardProps {
   event: JamBaseEvent | (JamBaseEventResponse & { images?: any[] });
@@ -218,17 +220,8 @@ export function JamBaseEventCard({
     })();
   }, [event.id, event.artist_id, event.artist_name, event.images]);
 
-  const getCheapestTicketUrl = () => {
-    if (!event.ticket_urls || event.ticket_urls.length === 0) return null;
-    // Heuristic: prefer URLs containing known cheap vendors first
-    const preferredOrder = ['stubhub', 'vividseats', 'seatgeek', 'ticketmaster', 'axs'];
-    const lower = event.ticket_urls.map(u => ({ url: u, l: u.toLowerCase() }));
-    for (const vendor of preferredOrder) {
-      const found = lower.find(u => u.l.includes(vendor));
-      if (found) return found.url;
-    }
-    return event.ticket_urls[0];
-  };
+  // Get compliant event link (primary ticket URL or JamBase event URL)
+  const eventLink = getCompliantEventLink(event);
 
   return (
     <Card
@@ -557,7 +550,7 @@ export function JamBaseEventCard({
               </DropdownMenuContent>
             </DropdownMenu>
             
-            {event.ticket_urls && event.ticket_urls.length > 0 && (
+            {eventLink && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -565,14 +558,14 @@ export function JamBaseEventCard({
                 className="text-blue-600 hover:text-blue-700"
               >
                 <a 
-                  href={getCheapestTicketUrl() || event.ticket_urls[0]} 
+                  href={eventLink} 
                   target="_blank" 
-                  rel="noopener noreferrer"
+                  rel="nofollow noopener noreferrer"
                   className="flex items-center gap-1"
                   onClick={() => { 
                     try { 
                       trackInteraction.click('ticket_link', event.id, { 
-                        providerUrl: getCheapestTicketUrl() || event.ticket_urls[0],
+                        providerUrl: eventLink,
                         artist_name: event.artist_name,
                         venue_name: event.venue_name
                       }, event.id); 
@@ -612,6 +605,11 @@ export function JamBaseEventCard({
             </div>
           </div>
         )}
+
+        {/* JamBase Attribution */}
+        <div className="pt-2 border-t border-gray-100">
+          <JamBaseAttribution variant="inline" />
+        </div>
       </CardContent>
 
       {/* Event Share Modal */}

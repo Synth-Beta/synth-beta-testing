@@ -6,6 +6,9 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
+import { JamBaseAttribution } from '@/components/attribution';
+import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
+import { Ticket, ExternalLink } from 'lucide-react';
 
 interface CompactEventCardProps {
   event: JamBaseEvent;
@@ -100,6 +103,38 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
             )}
           </div>
         )}
+
+        {/* Ticket Link */}
+        {(() => {
+          const eventLink = getCompliantEventLink(event);
+          if (!eventLink) return null;
+          return (
+            <div className="pt-2">
+              <a
+                href={eventLink}
+                target="_blank"
+                rel="nofollow noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 14px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                }}
+              >
+                <Ticket className="w-3 h-3" />
+                <span>Tickets</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          );
+        })()}
+
+        {/* JamBase Attribution */}
+        <div className="pt-2 mt-2 border-t border-gray-100">
+          <JamBaseAttribution variant="inline" />
+        </div>
       </CardContent>
     </Card>
   );

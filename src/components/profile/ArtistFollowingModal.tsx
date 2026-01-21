@@ -10,6 +10,7 @@ import { JamBaseService } from '@/services/jambaseService';
 import type { ArtistFollowWithDetails } from '@/types/artistFollow';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { format } from 'date-fns';
+import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 
 interface ArtistFollowingModalProps {
   open: boolean;
@@ -88,9 +89,10 @@ export function ArtistFollowingModal({
   };
 
   const handleEventClick = (event: JamBaseEvent) => {
-    // Open event in new tab
-    if (event.ticketing?.urls?.[0]) {
-      window.open(event.ticketing.urls[0], '_blank');
+    // Open event in new tab using compliant link
+    const eventLink = getCompliantEventLink(event);
+    if (eventLink) {
+      window.open(eventLink, '_blank', 'noopener,noreferrer');
     }
   };
 

@@ -6,6 +6,7 @@ import { Calendar, MapPin, Music, Ticket, ExternalLink, Clock } from 'lucide-rea
 import { safeFormatEventDateTime } from '@/lib/dateUtils';
 import type { Event } from '@/types/concertSearch';
 import { EventDetailsModal } from './events/EventDetailsModal';
+import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 
 interface ConcertSearchResultsProps {
   event: Event | null;
@@ -122,19 +123,23 @@ export function ConcertSearchResults({ event, isNewEvent, source, currentUserId 
             </div>
           )}
 
-          {event.ticket_urls && event.ticket_urls.length > 0 && (
-                <Button size="sm" variant="outline" asChild>
-                  <a 
-                    href={event.ticket_urls[0]} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Buy Tickets
-                  </a>
-                </Button>
-              )}
+          {(() => {
+            const eventLink = getCompliantEventLink(event);
+            if (!eventLink) return null;
+            return (
+              <Button size="sm" variant="outline" asChild>
+                <a 
+                  href={eventLink} 
+                  target="_blank" 
+                  rel="nofollow noopener noreferrer"
+                  className="flex items-center gap-1"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Buy Tickets
+                </a>
+              </Button>
+            );
+          })()}
             </div>
           )}
 
