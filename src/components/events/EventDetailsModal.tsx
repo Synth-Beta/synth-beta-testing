@@ -22,7 +22,8 @@ import {
   Loader2,
   ExternalLink,
   ChevronLeft,
-  Share2
+  Share2,
+  Building2
 } from 'lucide-react';
 import { EventCommentsModal } from './EventCommentsModal';
 import { ReportContentModal } from '../moderation/ReportContentModal';
@@ -37,7 +38,7 @@ import EventGroupService from '@/services/eventGroupService';
 import { FriendProfileCard } from '@/components/FriendProfileCard';
 import { formatPrice } from '@/utils/currencyUtils';
 import { EventReviewsSection } from '@/components/reviews/EventReviewsSection';
-import { ArtistVenueReviews } from '@/components/reviews/ArtistVenueReviews';
+import type { ReviewWithEngagement } from '@/services/reviewService';
 import { EventMap } from '@/components/EventMap';
 import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
 import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
@@ -133,6 +134,8 @@ export function EventDetailsModal({
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [artistModalOpen, setArtistModalOpen] = useState(false);
   const [venueModalOpen, setVenueModalOpen] = useState(false);
+  const [artistVenueReviews, setArtistVenueReviews] = useState<ReviewWithEngagement[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [eventGroups, setEventGroups] = useState<any[]>([]);
   const [verifiedChatInfo, setVerifiedChatInfo] = useState<any>(null);
   const [verifiedChatLoading, setVerifiedChatLoading] = useState(false);
@@ -446,6 +449,117 @@ export function EventDetailsModal({
       }
     }
   }, [actualEvent?.id, isOpen, currentUserId]);
+
+  // Load reviews for the artist and venue
+  const [reviewUserProfiles, setReviewUserProfiles] = useState<Record<string, { name: string; avatar_url?: string }>>({});
+  
+  useEffect(() => {
+    const loadArtistVenueReviews = async () => {
+      if (!actualEvent || !isOpen) return;
+      
+      setReviewsLoading(true);
+      try {
+        const allReviews: ReviewWithEngagement[] = [];
+        const seenReviewIds = new Set<string>();
+
+        // Fetch artist reviews if we have artist_id
+        if (actualEvent.artist_id) {
+          const { data: artistReviews } = await supabase
+            .from('reviews')
+            .select(`
+              id, user_id, event_id, artist_id, venue_id, rating, review_text,
+              photos, videos, mood_tags, genre_tags, context_tags,
+              likes_count, comments_count, shares_count, is_public,
+              created_at, updated_at, artist_performance_rating, production_rating,
+              venue_rating, location_rating, value_rating, "Event_date"
+            `)
+            .eq('artist_id', actualEvent.artist_id)
+            .eq('is_public', true)
+            .eq('is_draft', false)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+          if (artistReviews) {
+            artistReviews.forEach(r => {
+              if (!seenReviewIds.has(r.id)) {
+                seenReviewIds.add(r.id);
+                allReviews.push({
+                  ...r,
+                  is_liked_by_user: false,
+                  reaction_emoji: '',
+                  artist_name: actualEvent.artist_name || '',
+                  venue_name: actualEvent.venue_name || '',
+                  _reviewSource: 'artist', // Tag as artist review
+                } as ReviewWithEngagement & { _reviewSource: string });
+              }
+            });
+          }
+        }
+
+        // Fetch venue reviews if we have venue_id
+        if (actualEvent.venue_id) {
+          const { data: venueReviews } = await supabase
+            .from('reviews')
+            .select(`
+              id, user_id, event_id, artist_id, venue_id, rating, review_text,
+              photos, videos, mood_tags, genre_tags, context_tags,
+              likes_count, comments_count, shares_count, is_public,
+              created_at, updated_at, artist_performance_rating, production_rating,
+              venue_rating, location_rating, value_rating, "Event_date"
+            `)
+            .eq('venue_id', actualEvent.venue_id)
+            .eq('is_public', true)
+            .eq('is_draft', false)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+          if (venueReviews) {
+            venueReviews.forEach(r => {
+              if (!seenReviewIds.has(r.id)) {
+                seenReviewIds.add(r.id);
+                allReviews.push({
+                  ...r,
+                  is_liked_by_user: false,
+                  reaction_emoji: '',
+                  artist_name: actualEvent.artist_name || '',
+                  venue_name: actualEvent.venue_name || '',
+                  _reviewSource: 'venue', // Tag as venue review
+                } as ReviewWithEngagement & { _reviewSource: string });
+              }
+            });
+          }
+        }
+
+        // Sort by created_at
+        allReviews.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        const finalReviews = allReviews.slice(0, 10);
+        setArtistVenueReviews(finalReviews);
+
+        // Fetch user profiles for all reviews
+        const userIds = [...new Set(finalReviews.map(r => r.user_id).filter(Boolean))];
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('users')
+            .select('user_id, name, avatar_url')
+            .in('user_id', userIds);
+          
+          if (profiles) {
+            const profileMap: Record<string, { name: string; avatar_url?: string }> = {};
+            profiles.forEach(p => {
+              profileMap[p.user_id] = { name: p.name || 'User', avatar_url: p.avatar_url || undefined };
+            });
+            setReviewUserProfiles(profileMap);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading artist/venue reviews:', error);
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+
+    loadArtistVenueReviews();
+  }, [actualEvent?.artist_id, actualEvent?.venue_id, isOpen]);
 
   // Fetch setlist from setlist.fm API for past events that don't have a setlist
   useEffect(() => {
@@ -1393,17 +1507,165 @@ export function EventDetailsModal({
           </div>
 
 
-          {/* Reviews Section - Show artist and venue reviews for all events */}
-          {/* Only render if at least one of artist_name or venue_name exists */}
-          {/* Pass actual values - use empty string fallback only when absolutely necessary */}
-          {/* The component should handle empty strings by skipping those queries */}
-          {(actualEvent.artist_name || actualEvent.venue_name) && (
-            <ArtistVenueReviews
-              artistName={actualEvent.artist_name || ''}
-              venueName={actualEvent.venue_name || ''}
-              artistId={actualEvent.artist_id}
-              venueId={actualEvent.venue_id}
-            />
+          {/* Reviews Section - Show artist and venue reviews */}
+          {/* Reviews Section - Yelp/Google style */}
+          {(actualEvent.artist_id || actualEvent.venue_id) && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold" style={{ color: 'var(--neutral-900)' }}>
+                Reviews {artistVenueReviews.length > 0 && `(${artistVenueReviews.length})`}
+              </h3>
+              {reviewsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--brand-pink-500)' }} />
+                </div>
+              ) : artistVenueReviews.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                  {artistVenueReviews.map((review) => {
+                    const profile = reviewUserProfiles[review.user_id];
+                    const artistPerfRating = (review as any).artist_performance_rating;
+                    const venueRating = (review as any).venue_rating;
+                    const locationRating = (review as any).location_rating;
+                    // Use the source tag to determine review type (set during fetch)
+                    const reviewSource = (review as any)._reviewSource;
+                    const reviewType = reviewSource === 'artist' ? 'artist' : reviewSource === 'venue' ? 'venue' : 'general';
+                    return (
+                      <div
+                        key={review.id}
+                        style={{
+                          background: 'rgba(255,255,255,0.8)',
+                          backdropFilter: 'blur(10px)',
+                          padding: 16,
+                          borderRadius: 12,
+                          border: '1px solid rgba(0,0,0,0.05)',
+                        }}
+                      >
+                        {/* Review Type Tag + Rating Row */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            {/* Review Type Tag */}
+                            {reviewType !== 'general' && (
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                background: reviewType === 'artist' ? 'var(--brand-purple-100)' : 'var(--brand-teal-100)',
+                                color: reviewType === 'artist' ? 'var(--brand-purple-700)' : 'var(--brand-teal-700)',
+                                padding: '3px 8px',
+                                borderRadius: 12,
+                                fontSize: 11,
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px',
+                              }}>
+                                {reviewType === 'artist' ? <Music size={10} /> : <Building2 size={10} />}
+                                {reviewType === 'artist' ? 'Artist Review' : 'Venue Review'}
+                              </div>
+                            )}
+                            {/* Primary Rating based on review type */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              background: 'var(--brand-pink-500)',
+                              color: '#fff',
+                              padding: '4px 8px',
+                              borderRadius: 6,
+                              fontSize: 14,
+                              fontWeight: 600,
+                            }}>
+                              {reviewType === 'artist' ? <Music size={14} /> : reviewType === 'venue' ? <Building2 size={14} /> : <Star size={14} fill="#fff" />}
+                              {(reviewType === 'artist' ? (artistPerfRating || review.rating) : reviewType === 'venue' ? (venueRating || review.rating) : review.rating)?.toFixed(1) || 'N/A'}
+                            </div>
+                            {/* Secondary: Location Rating for venue reviews */}
+                            {reviewType === 'venue' && locationRating && (
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                background: 'var(--neutral-100)',
+                                color: 'var(--neutral-700)',
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                fontSize: 12,
+                              }}>
+                                <MapPin size={12} />
+                                Location: {locationRating.toFixed(1)}
+                              </div>
+                            )}
+                          </div>
+                          {/* Date */}
+                          <span style={{ fontSize: 12, color: 'var(--neutral-500)' }}>
+                            {new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+                        
+                        {/* Review Text */}
+                        {review.review_text && (
+                          <p style={{
+                            fontSize: 14,
+                            color: 'var(--neutral-700)',
+                            margin: '8px 0',
+                            lineHeight: 1.5,
+                          }}>
+                            "{review.review_text}"
+                          </p>
+                        )}
+                        
+                        {/* User Profile Button with Avatar */}
+                        <button
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent('open-user-profile', { detail: { userId: review.user_id } }));
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            marginTop: 12,
+                            padding: '8px 12px',
+                            background: 'rgba(255,255,255,0.8)',
+                            border: '1.5px solid var(--brand-pink-500)',
+                            borderRadius: 20,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          {/* Profile Pic */}
+                          <div style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            background: profile?.avatar_url ? `url(${profile.avatar_url}) center/cover` : 'var(--brand-pink-500)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fff',
+                            fontSize: 11,
+                            fontWeight: 600,
+                          }}>
+                            {!profile?.avatar_url && (profile?.name?.charAt(0).toUpperCase() || 'U')}
+                          </div>
+                          <span style={{
+                            fontSize: 14,
+                            color: 'var(--brand-pink-500)',
+                            fontWeight: 500,
+                          }}>
+                            {profile?.name || 'User'}
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <Card className="border-gray-200">
+                  <CardContent className="py-6 text-center">
+                    <p className="text-sm text-gray-500">
+                      No reviews yet for {actualEvent.artist_name}{actualEvent.artist_name && actualEvent.venue_name ? ' or ' : ''}{actualEvent.venue_name}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
 
           {/* Social Features Tabs */}

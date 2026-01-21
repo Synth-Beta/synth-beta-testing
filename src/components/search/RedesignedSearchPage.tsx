@@ -14,6 +14,8 @@ import { UnifiedVenueSearchService, VenueSearchResult } from '@/services/unified
 import { format, parseISO } from 'date-fns';
 import { EventMap } from '@/components/events/EventMap';
 import { trackInteraction } from '@/services/interactionTrackingService';
+import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
+import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
 
 interface RedesignedSearchPageProps {
   userId: string;
@@ -154,6 +156,15 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
     venues: false,
   });
   const [errors, setErrors] = useState<Partial<Record<TabKey, string>>>({});
+  
+  // Modal states for artist/venue detail
+  const [artistModalOpen, setArtistModalOpen] = useState(false);
+  const [venueModalOpen, setVenueModalOpen] = useState(false);
+  const [selectedArtistId, setSelectedArtistId] = useState<string | null>(null);
+  const [selectedArtistName, setSelectedArtistName] = useState<string>('');
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  const [selectedVenueName, setSelectedVenueName] = useState<string>('');
+
   const [pagination, setPagination] = useState<Record<TabKey, { page: number; hasMore: boolean }>>({
     all: { page: 1, hasMore: false },
     users: { page: 1, hasMore: false },
@@ -670,6 +681,36 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
         </Tabs>
         )}
       </div>
+
+      {/* Artist Detail Modal */}
+      {artistModalOpen && selectedArtistId && (
+        <ArtistDetailModal
+          isOpen={artistModalOpen}
+          onClose={() => {
+            setArtistModalOpen(false);
+            setSelectedArtistId(null);
+            setSelectedArtistName('');
+          }}
+          artistId={selectedArtistId}
+          artistName={selectedArtistName}
+          currentUserId={userId}
+        />
+      )}
+
+      {/* Venue Detail Modal */}
+      {venueModalOpen && selectedVenueId && (
+        <VenueDetailModal
+          isOpen={venueModalOpen}
+          onClose={() => {
+            setVenueModalOpen(false);
+            setSelectedVenueId(null);
+            setSelectedVenueName('');
+          }}
+          venueId={selectedVenueId}
+          venueName={selectedVenueName}
+          currentUserId={userId}
+        />
+      )}
     </div>
   );
 };
@@ -853,7 +894,11 @@ const ArtistResults: React.FC<{ results: ArtistSearchResult[] }> = ({ results })
         <Card 
           key={artist.id} 
           className="hover:shadow-sm transition-shadow cursor-pointer"
-          onClick={() => navigate(`/artist/${encodeURIComponent(artist.name)}`)}
+          onClick={() => {
+            setSelectedArtistId(artist.id);
+            setSelectedArtistName(artist.name);
+            setArtistModalOpen(true);
+          }}
         >
           <CardContent className="p-4 flex items-center gap-4">
             <div className="flex-shrink-0 relative">
@@ -1003,7 +1048,11 @@ const VenueResults: React.FC<{ results: VenueSearchResult[] }> = ({ results }) =
         <Card 
           key={venue.id} 
           className="hover:shadow-sm transition-shadow cursor-pointer"
-          onClick={() => navigate(`/venue/${encodeURIComponent(venue.name)}`)}
+          onClick={() => {
+            setSelectedVenueId(venue.id);
+            setSelectedVenueName(venue.name);
+            setVenueModalOpen(true);
+          }}
         >
           <CardContent className="p-4 flex items-start gap-4">
           <div className="flex-shrink-0">

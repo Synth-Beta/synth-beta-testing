@@ -187,6 +187,19 @@ export const EventMap: React.FC<EventMapProps> = ({
         .brand-pink-marker img {
           filter: brightness(0) saturate(100%) invert(27%) sepia(93%) saturate(1352%) hue-rotate(300deg) brightness(0.85) contrast(0.9);
         }
+        /* Minimize attribution */
+        .leaflet-control-attribution {
+          font-size: 8px !important;
+          padding: 2px 5px !important;
+          background: rgba(255,255,255,0.7) !important;
+          max-width: 150px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .leaflet-control-attribution a {
+          color: #666 !important;
+        }
       `}</style>
       <MapContainer
         center={center}

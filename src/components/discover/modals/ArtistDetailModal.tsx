@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Share2, Star, Music, ChevronDown } from 'lucide-react';
+import { ChevronLeft, Share2, Star, Music, ChevronDown, Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
-import { ArtistVenueReviews } from '@/components/reviews/ArtistVenueReviews';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
+import type { ReviewWithEngagement } from '@/services/reviewService';
 import {
   iosModal,
   iosModalBackdrop,
@@ -36,11 +36,15 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
 }) => {
   const [artistImage, setArtistImage] = useState<string | null>(null);
   const [events, setEvents] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<ReviewWithEngagement[]>([]);
+  const [reviewUserProfiles, setReviewUserProfiles] = useState<Record<string, { name: string; avatar_url?: string }>>({});
+  const [mediaItems, setMediaItems] = useState<{ url: string; type: 'photo' | 'video' }[]>([]);
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const [totalReviews, setTotalReviews] = useState(0);
   const [loading, setLoading] = useState(true);
   const [upcomingShown, setUpcomingShown] = useState(INITIAL_UPCOMING_COUNT);
   const [pastShown, setPastShown] = useState(INITIAL_PAST_COUNT);
+  const [reviewsShown, setReviewsShown] = useState(3);
 
   useEffect(() => {
     if (isOpen && artistId) {
@@ -86,22 +90,180 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
         }
       }
 
-      // Get reviews for events by this artist
+      // Get reviews for this artist - both direct (artist_id) and event-linked
       const eventIds = eventsData?.map(e => e.id) || [];
+      
+      // Fetch direct artist reviews (where artist_id matches)
+      const { data: directReviews } = await supabase
+        .from('reviews')
+        .select(`
+          id,
+          user_id,
+          event_id,
+          artist_id,
+          venue_id,
+          rating,
+          review_text,
+          photos,
+          videos,
+          mood_tags,
+          genre_tags,
+          context_tags,
+          likes_count,
+          comments_count,
+          shares_count,
+          is_public,
+          created_at,
+          updated_at,
+          artist_performance_rating,
+          production_rating,
+          venue_rating,
+          location_rating,
+          value_rating,
+          "Event_date"
+        `)
+        .eq('artist_id', artistId)
+        .eq('is_public', true)
+        .eq('is_draft', false)
+        .order('created_at', { ascending: false });
+
+      // Fetch event-linked reviews (reviews for events by this artist)
+      let eventLinkedReviews: any[] = [];
       if (eventIds.length > 0) {
-        const { data: reviews } = await supabase
+        const { data: eventReviews } = await supabase
           .from('reviews')
-          .select('rating')
+          .select(`
+            id,
+            user_id,
+            event_id,
+            artist_id,
+            venue_id,
+            rating,
+            review_text,
+            photos,
+            videos,
+            mood_tags,
+            genre_tags,
+            context_tags,
+            likes_count,
+            comments_count,
+            shares_count,
+            is_public,
+            created_at,
+            updated_at,
+            artist_performance_rating,
+            production_rating,
+            venue_rating,
+            location_rating,
+            value_rating,
+            "Event_date"
+          `)
           .in('event_id', eventIds)
           .eq('is_public', true)
-          .eq('is_draft', false);
+          .eq('is_draft', false)
+          .order('created_at', { ascending: false });
 
-        if (reviews && reviews.length > 0) {
-          const avgRating = reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length;
-          setAverageRating(avgRating);
-          setTotalReviews(reviews.length);
+        if (eventReviews) {
+          eventLinkedReviews = eventReviews;
         }
       }
+
+      // Combine and deduplicate reviews
+      const allReviewsRaw = [...(directReviews || []), ...eventLinkedReviews];
+      const uniqueReviewIds = new Set<string>();
+      const uniqueReviews = allReviewsRaw.filter(r => {
+        if (uniqueReviewIds.has(r.id)) return false;
+        uniqueReviewIds.add(r.id);
+        return true;
+      });
+
+      // Calculate average rating
+      if (uniqueReviews.length > 0) {
+        const validRatings = uniqueReviews.filter(r => r.rating && r.rating > 0);
+        if (validRatings.length > 0) {
+          const avgRating = validRatings.reduce((sum, r) => sum + r.rating, 0) / validRatings.length;
+          setAverageRating(avgRating);
+        }
+        setTotalReviews(uniqueReviews.length);
+      }
+
+      // Fetch user profiles for reviews
+      const userIds = [...new Set(uniqueReviews.map(r => r.user_id).filter(Boolean))];
+      const { data: profiles } = userIds.length > 0 
+        ? await supabase.from('users').select('user_id, name, avatar_url').in('user_id', userIds)
+        : { data: [] };
+
+      // Store profiles in state for SwiftUIReviewCard
+      if (profiles) {
+        const profileMap: Record<string, { name: string; avatar_url?: string }> = {};
+        profiles.forEach(p => {
+          profileMap[p.user_id] = { name: p.name || 'User', avatar_url: p.avatar_url || undefined };
+        });
+        setReviewUserProfiles(profileMap);
+      }
+
+      // Fetch venue names for reviews
+      const venueIds = [...new Set(uniqueReviews.map(r => r.venue_id).filter(Boolean))];
+      const { data: venues } = venueIds.length > 0
+        ? await supabase.from('venues').select('id, name').in('id', venueIds)
+        : { data: [] };
+
+      // Transform reviews to ReviewWithEngagement format
+      const transformedReviews: ReviewWithEngagement[] = uniqueReviews.map(r => {
+        const profile = profiles?.find(p => p.user_id === r.user_id);
+        const venue = venues?.find(v => v.id === r.venue_id);
+        const event = eventsData?.find(e => e.id === r.event_id);
+
+        return {
+          id: r.id,
+          user_id: r.user_id,
+          event_id: r.event_id || '',
+          artist_id: r.artist_id,
+          venue_id: r.venue_id,
+          rating: r.rating,
+          review_text: r.review_text,
+          is_public: r.is_public,
+          created_at: r.created_at,
+          updated_at: r.updated_at,
+          likes_count: r.likes_count || 0,
+          comments_count: r.comments_count || 0,
+          shares_count: r.shares_count || 0,
+          is_liked_by_user: false,
+          reaction_emoji: '',
+          photos: r.photos || [],
+          videos: r.videos || [],
+          mood_tags: r.mood_tags || [],
+          genre_tags: r.genre_tags || [],
+          context_tags: r.context_tags || [],
+          artist_name: artistName,
+          venue_name: venue?.name || event?.venue_name || '',
+          Event_date: r.Event_date || event?.event_date,
+          artist_performance_rating: r.artist_performance_rating,
+          production_rating: r.production_rating,
+          venue_rating: r.venue_rating,
+          location_rating: r.location_rating,
+          value_rating: r.value_rating,
+        };
+      });
+
+      setReviews(transformedReviews);
+
+      // Collect media from reviews
+      const allMedia: { url: string; type: 'photo' | 'video' }[] = [];
+      uniqueReviews.forEach(r => {
+        if (r.photos && Array.isArray(r.photos)) {
+          r.photos.forEach((url: string) => {
+            if (url) allMedia.push({ url, type: 'photo' });
+          });
+        }
+        if (r.videos && Array.isArray(r.videos)) {
+          r.videos.forEach((url: string) => {
+            if (url) allMedia.push({ url, type: 'video' });
+          });
+        }
+      });
+      setMediaItems(allMedia);
+
     } catch (error) {
       console.error('Error loading artist data:', error);
     } finally {
@@ -281,6 +443,132 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                 />
               </div>
 
+              {/* Reviews Section - Yelp/Google style (ABOVE events) */}
+              <div>
+                <h3 style={{ ...textStyles.title2, color: 'var(--neutral-900)', marginBottom: 16 }}>
+                  Reviews {reviews.length > 0 && `(${reviews.length})`}
+                </h3>
+                {reviews.length > 0 ? (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      {reviews.slice(0, reviewsShown).map((review) => {
+                        const profile = reviewUserProfiles[review.user_id];
+                        const artistPerfRating = (review as any).artist_performance_rating;
+                        return (
+                          <div
+                            key={review.id}
+                            style={{
+                              ...glassCardLight,
+                              padding: 16,
+                              borderRadius: 12,
+                            }}
+                          >
+                            {/* Rating Row - Artist Performance Only */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {/* Primary Rating: Artist Performance (or fallback to overall) */}
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  background: 'var(--brand-pink-500)',
+                                  color: '#fff',
+                                  padding: '4px 8px',
+                                  borderRadius: 6,
+                                  fontSize: 14,
+                                  fontWeight: 600,
+                                }}>
+                                  <Music size={14} />
+                                  {(artistPerfRating || review.rating)?.toFixed(1) || 'N/A'}
+                                </div>
+                              </div>
+                              <span style={{ ...textStyles.caption, color: 'var(--neutral-500)' }}>
+                                {new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            </div>
+                            
+                            {/* Review Text */}
+                            {review.review_text && (
+                              <p style={{
+                                ...textStyles.body,
+                                color: 'var(--neutral-700)',
+                                margin: '8px 0',
+                                lineHeight: 1.5,
+                              }}>
+                                "{review.review_text}"
+                              </p>
+                            )}
+                            
+                            {/* User Profile Button with Avatar */}
+                            <button
+                              onClick={() => {
+                                window.dispatchEvent(new CustomEvent('open-user-profile', { detail: { userId: review.user_id } }));
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                marginTop: 12,
+                                padding: '8px 12px',
+                                background: 'rgba(255,255,255,0.8)',
+                                border: '1.5px solid var(--brand-pink-500)',
+                                borderRadius: 20,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                              }}
+                            >
+                              {/* Profile Pic */}
+                              <div style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: '50%',
+                                background: profile?.avatar_url ? `url(${profile.avatar_url}) center/cover` : 'var(--brand-pink-500)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#fff',
+                                fontSize: 11,
+                                fontWeight: 600,
+                              }}>
+                                {!profile?.avatar_url && (profile?.name?.charAt(0).toUpperCase() || 'U')}
+                              </div>
+                              <span style={{
+                                fontSize: 14,
+                                color: 'var(--brand-pink-500)',
+                                fontWeight: 500,
+                              }}>
+                                {profile?.name || 'User'}
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {reviews.length > reviewsShown && (
+                      <button
+                        onClick={() => setReviewsShown(prev => prev + LOAD_MORE_COUNT)}
+                        style={loadMoreButtonStyle}
+                      >
+                        <ChevronDown size={18} />
+                        Load More ({reviews.length - reviewsShown} remaining)
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div
+                    style={{
+                      ...glassCardLight,
+                      padding: 24,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <p style={{ ...textStyles.body, color: 'var(--neutral-600)' }}>
+                      No reviews yet for {artistName}
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Upcoming Events Section */}
               {upcomingEvents.length > 0 && (
                 <div>
@@ -339,17 +627,50 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                 </div>
               )}
 
-              {/* Reviews Section */}
-              {totalReviews > 0 && (
+              {/* Media Section */}
+              {mediaItems.length > 0 && (
                 <div>
-                  <h3 style={{ ...textStyles.title2, color: 'var(--neutral-900)', marginBottom: 16 }}>
-                    Reviews
+                  <h3 style={{ ...textStyles.title2, color: 'var(--neutral-900)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Camera size={20} style={{ color: 'var(--brand-pink-500)' }} />
+                    Media ({mediaItems.length})
                   </h3>
-                  <ArtistVenueReviews
-                    artistName={artistName}
-                    venueName=""
-                    artistId={artistId}
-                  />
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(3, 1fr)', 
+                    gap: 8,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                  }}>
+                    {mediaItems.slice(0, 6).map((media, idx) => (
+                      <div 
+                        key={idx}
+                        style={{
+                          aspectRatio: '1',
+                          borderRadius: 8,
+                          overflow: 'hidden',
+                          background: 'var(--neutral-100)',
+                        }}
+                      >
+                        {media.type === 'photo' ? (
+                          <img 
+                            src={media.url} 
+                            alt={`Media ${idx + 1}`}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <video 
+                            src={media.url}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {mediaItems.length > 6 && (
+                    <p style={{ ...textStyles.footnote, color: 'var(--neutral-600)', textAlign: 'center', marginTop: 8 }}>
+                      +{mediaItems.length - 6} more
+                    </p>
+                  )}
                 </div>
               )}
 

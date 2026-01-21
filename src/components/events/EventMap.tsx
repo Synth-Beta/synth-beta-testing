@@ -188,7 +188,21 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
   const eventsToShow = visibleEvents.length > 0 ? visibleEvents : validEvents;
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full" style={{ position: 'relative' }}>
+      <style>{`
+        .leaflet-control-attribution {
+          font-size: 8px !important;
+          padding: 2px 5px !important;
+          background: rgba(255,255,255,0.7) !important;
+          max-width: 150px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .leaflet-control-attribution a {
+          color: #666 !important;
+        }
+      `}</style>
       <MapContainer
         center={center}
         zoom={zoom}

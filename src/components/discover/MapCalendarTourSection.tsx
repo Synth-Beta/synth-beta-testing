@@ -694,6 +694,18 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
             ) : selectedArtist && tourEvents.length > 0 ? (
               <>
                 <div className="h-96 rounded-lg overflow-hidden border relative z-0">
+                  <style>{`
+                    .leaflet-control-attribution {
+                      font-size: 8px !important;
+                      padding: 2px 5px !important;
+                      background: rgba(255,255,255,0.7) !important;
+                      max-width: 150px;
+                      white-space: nowrap;
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                    }
+                    .leaflet-control-attribution a { color: #666 !important; }
+                  `}</style>
                   <MapContainer
                     center={getTourMapCenter()}
                     zoom={5}

@@ -61,21 +61,14 @@ export class EventPhotoService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Get photos from event_media table
+      // Get photos from event_media table (without nested joins to avoid FK issues)
       const { data: mediaRecords, error } = await supabase
         .from('event_media')
         .select(`
           id,
           url,
           review_id,
-          created_at,
-          review:reviews!event_media_review_id_fkey (
-            user_id,
-            user:users!reviews_user_id_fkey (
-              name,
-              avatar_url
-            )
-          )
+          created_at
         `)
         .eq('event_id', eventId)
         .eq('media_type', 'photo')
@@ -87,10 +80,26 @@ export class EventPhotoService {
         return [];
       }
 
+      if (!mediaRecords || mediaRecords.length === 0) {
+        return [];
+      }
+
+      // Get review data separately
+      const reviewIds = [...new Set(mediaRecords.map(m => m.review_id).filter(Boolean))];
+      const { data: reviews } = reviewIds.length > 0
+        ? await supabase.from('reviews').select('id, user_id').in('id', reviewIds)
+        : { data: [] };
+
+      // Get user data separately
+      const userIds = [...new Set((reviews || []).map(r => r.user_id).filter(Boolean))];
+      const { data: users } = userIds.length > 0
+        ? await supabase.from('users').select('user_id, name, avatar_url').in('user_id', userIds)
+        : { data: [] };
+
       // Convert to EventPhoto format
-      const photos: EventPhoto[] = (mediaRecords || []).map((media: any) => {
-        const review = media.review as any;
-        const reviewUser = review?.user as any;
+      const photos: EventPhoto[] = mediaRecords.map((media: any) => {
+        const review = reviews?.find(r => r.id === media.review_id);
+        const reviewUser = users?.find(u => u.user_id === review?.user_id);
         
         return {
           id: media.id,
