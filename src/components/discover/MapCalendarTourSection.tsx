@@ -465,7 +465,18 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList 
+          className="grid w-full grid-cols-3" 
+          style={{ 
+            marginBottom: 0,
+            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(236, 72, 153, 0.2)',
+            borderRadius: 'var(--radius-corner, 10px)',
+            padding: '4px'
+          }}
+        >
           <TabsTrigger value="calendar" className="flex items-center gap-2">
             <Icon name="calendar" size={16} />
             Calendar
@@ -481,7 +492,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         </TabsList>
 
         {/* Calendar View */}
-        <TabsContent value="calendar" className="mt-4">
+        <TabsContent value="calendar" className="mt-8">
           {calendarLoading ? (
             <SynthLoadingInline text="Loading calendar..." size="lg" />
           ) : (
@@ -551,7 +562,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         </TabsContent>
 
         {/* Leaderboards View */}
-        <TabsContent value="leaderboards" className="mt-4">
+        <TabsContent value="leaderboards" className="mt-8">
           <div className="flex items-center justify-center h-96">
             <div className="text-center space-y-2">
               <Icon name="ribbonAward" size={60} className="mx-auto" color="var(--neutral-600)" />
@@ -564,7 +575,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         </TabsContent>
 
         {/* Tour Tracker View */}
-        <TabsContent value="tour" className="mt-4">
+        <TabsContent value="tour" className="mt-8">
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Search for an Artist</label>
@@ -689,10 +700,22 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                     style={{ height: '100%', width: '100%', zIndex: 0 }}
                     boundsOptions={{ padding: [50, 50] }}
                   >
-                    <TileLayer
-                      url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY || 'pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w'}`}
-                      attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    />
+                    {(() => {
+                      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY;
+                      // SECURITY NOTE: Never use fallback tokens in production
+                      // In development, maps will fail gracefully if token is not configured
+                      // This prevents exposing hardcoded tokens that could be extracted from source
+                      if (!mapboxToken) {
+                        console.error('❌ Mapbox token not configured. Maps will not render. Set VITE_MAPBOX_TOKEN or VITE_MAPBOX_KEY environment variable.');
+                        return null; // Don't render map without valid token
+                      }
+                      return (
+                        <TileLayer
+                          url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${mapboxToken}`}
+                          attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        />
+                      );
+                    })()}
                     <MapBoundsFitter events={sortedTourEvents} />
                     
                     {/* Draw route lines with arrowheads (based on grouped venues) */}

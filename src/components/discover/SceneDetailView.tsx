@@ -500,7 +500,12 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-12">
+      <div 
+        className="max-w-6xl mx-auto px-4 sm:px-6 pt-4"
+        style={{ 
+          paddingBottom: `calc(var(--spacing-bottom-nav, 112px) + env(safe-area-inset-bottom, 0px) + var(--spacing-grouped, 24px))`
+        }}
+      >
         {/* Back Button */}
         <Button variant="ghost" size="sm" onClick={() => {
           // Use browser history navigation if available, otherwise use onBack prop
@@ -545,7 +550,16 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
 
         {/* User Progress Section */}
         {hasProgress && (
-          <Card className="mb-8 border-2 border-synth-pink/20 shadow-lg">
+          <Card 
+            className="mb-8 shadow-lg"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.7)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(236, 72, 153, 0.2)',
+              borderRadius: 'var(--radius-corner, 20px)',
+            }}
+          >
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 rounded-lg bg-synth-pink/10">
@@ -594,7 +608,15 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
               {/* Detailed Progress Metrics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {totalArtists > 0 && (
-                  <div className="p-4 rounded-lg bg-muted/50 border">
+                  <div 
+                    className="p-4 rounded-lg"
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                      backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(0, 0, 0, 0.1)',
+                    }}
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Icon name="music" size={16} color="var(--neutral-600)" />
@@ -628,7 +650,15 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                 )}
                 
                 {totalVenues > 0 && (
-                  <div className="p-4 rounded-lg bg-muted/50 border">
+                  <div 
+                    className="p-4 rounded-lg"
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                      backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(0, 0, 0, 0.1)',
+                    }}
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Icon name="location" size={16} color="var(--neutral-600)" />
@@ -662,7 +692,15 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                 )}
                 
                 {totalCities > 0 && (
-                  <div className="p-4 rounded-lg bg-muted/50 border">
+                  <div 
+                    className="p-4 rounded-lg"
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                      backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(0, 0, 0, 0.1)',
+                    }}
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Icon name="location" size={16} color="var(--neutral-600)" />
@@ -696,7 +734,15 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                 )}
                 
                 {totalGenres > 0 && (
-                  <div className="p-4 rounded-lg bg-muted/50 border">
+                  <div 
+                    className="p-4 rounded-lg"
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                      backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(0, 0, 0, 0.1)',
+                    }}
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Icon name="mediumShootingStar" size={16} color="var(--neutral-600)" />
@@ -732,7 +778,15 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
 
               {/* Events Attended */}
               {progress.events_experienced > 0 && (
-                <div className="mt-4 p-3 rounded-lg bg-synth-pink/10 border border-synth-pink/20 flex items-center gap-3">
+                <div 
+                  className="mt-4 p-3 rounded-lg flex items-center gap-3"
+                  style={{
+                    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(236, 72, 153, 0.2)',
+                  }}
+                >
                   <Icon name="circleCheck" size={24} className="flex-shrink-0" color="var(--brand-pink-500)" />
                   <div>
                     <p className="text-sm font-medium">
@@ -766,7 +820,11 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                   key={p.id}
                   className="cursor-pointer transition-all hover:shadow-lg"
                   style={{
-                    border: '1px solid var(--neutral-200)'
+                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(0, 0, 0, 0.1)',
+                    borderRadius: 'var(--radius-corner, 16px)',
                   }}
                   onClick={() => handleParticipantClick({
                     type: 'venue',
@@ -806,18 +864,19 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                             <Icon name="circleCheck" size={24} className="flex-shrink-0" color="var(--status-success-500)" />
                           )}
                         </div>
-                        <div className="flex items-center gap-4" style={{
+                        <div className="flex items-center gap-2 flex-wrap" style={{
                           fontFamily: 'var(--font-family)',
                           fontSize: 'var(--typography-meta-size, 16px)',
                           fontWeight: 'var(--typography-meta-weight, 500)',
                           lineHeight: 'var(--typography-meta-line-height, 1.5)',
                           color: 'var(--neutral-600)'
                         }}>
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 flex-shrink-0">
                             <Icon name="calendar" size={24} color="var(--neutral-600)" />
                             {eventCount} {eventCount === 1 ? 'upcoming event' : 'upcoming events'}
                           </span>
                           <div
+                            className="flex-shrink-0"
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -832,7 +891,8 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                               fontWeight: 'var(--typography-meta-weight, 500)',
                               lineHeight: 'var(--typography-meta-line-height, 1.5)',
                               color: isExperienced ? 'var(--brand-pink-500)' : 'var(--neutral-900)',
-                              boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                              boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                              whiteSpace: 'nowrap'
                             }}
                           >
                             {isExperienced ? 'Experienced' : 'Not Experienced'}
@@ -857,7 +917,11 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                   key={p.id}
                   className="cursor-pointer transition-all hover:shadow-lg"
                   style={{
-                    border: '1px solid var(--neutral-200)'
+                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(0, 0, 0, 0.1)',
+                    borderRadius: 'var(--radius-corner, 16px)',
                   }}
                   onClick={() => handleParticipantClick({
                     type: 'artist',
@@ -897,18 +961,19 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                             <Icon name="circleCheck" size={24} className="flex-shrink-0" color="var(--status-success-500)" />
                           )}
                         </div>
-                        <div className="flex items-center gap-4" style={{
+                        <div className="flex items-center gap-2 flex-wrap" style={{
                           fontFamily: 'var(--font-family)',
                           fontSize: 'var(--typography-meta-size, 16px)',
                           fontWeight: 'var(--typography-meta-weight, 500)',
                           lineHeight: 'var(--typography-meta-line-height, 1.5)',
                           color: 'var(--neutral-600)'
                         }}>
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 flex-shrink-0">
                             <Icon name="calendar" size={24} color="var(--neutral-600)" />
                             {eventCount} {eventCount === 1 ? 'upcoming event' : 'upcoming events'}
                           </span>
                           <div
+                            className="flex-shrink-0"
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -923,7 +988,8 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                               fontWeight: 'var(--typography-meta-weight, 500)',
                               lineHeight: 'var(--typography-meta-line-height, 1.5)',
                               color: isExperienced ? 'var(--brand-pink-500)' : 'var(--neutral-900)',
-                              boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                              boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                              whiteSpace: 'nowrap'
                             }}
                           >
                             {isExperienced ? 'Experienced' : 'Not Experienced'}
@@ -947,7 +1013,11 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                   key={p.id}
                   className="cursor-pointer transition-all hover:shadow-lg"
                   style={{
-                    border: '1px solid var(--neutral-200)'
+                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(0, 0, 0, 0.1)',
+                    borderRadius: 'var(--radius-corner, 16px)',
                   }}
                   onClick={() => handleParticipantClick({
                     type: 'city',
@@ -979,18 +1049,19 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                             <Icon name="circleCheck" size={24} className="flex-shrink-0" color="var(--status-success-500)" />
                           )}
                         </div>
-                        <div className="flex items-center gap-4" style={{
+                        <div className="flex items-center gap-2 flex-wrap" style={{
                           fontFamily: 'var(--font-family)',
                           fontSize: 'var(--typography-meta-size, 16px)',
                           fontWeight: 'var(--typography-meta-weight, 500)',
                           lineHeight: 'var(--typography-meta-line-height, 1.5)',
                           color: 'var(--neutral-600)'
                         }}>
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 flex-shrink-0">
                             <Icon name="calendar" size={24} color="var(--neutral-600)" />
                             {eventCount} {eventCount === 1 ? 'upcoming event' : 'upcoming events'}
                           </span>
                           <div
+                            className="flex-shrink-0"
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -1005,7 +1076,8 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                               fontWeight: 'var(--typography-meta-weight, 500)',
                               lineHeight: 'var(--typography-meta-line-height, 1.5)',
                               color: isExperienced ? 'var(--brand-pink-500)' : 'var(--neutral-900)',
-                              boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                              boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                              whiteSpace: 'nowrap'
                             }}
                           >
                             {isExperienced ? 'Experienced' : 'Not Experienced'}
@@ -1026,7 +1098,14 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
               return (
                 <Card
                   key={p.id}
-                  className="cursor-pointer transition-all hover:shadow-lg border-2 border-muted"
+                  className="cursor-pointer transition-all hover:shadow-lg"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(0, 0, 0, 0.1)',
+                    borderRadius: 'var(--radius-corner, 16px)',
+                  }}
                   onClick={() => handleParticipantClick({
                     type: 'genre',
                     name: p.text_value || '',
@@ -1105,7 +1184,14 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
               {scene.activeReviewers.map((reviewer) => (
                 <Card
                   key={reviewer.user_id}
-                  className="cursor-pointer hover:shadow-md transition-all hover:border-synth-pink/50"
+                  className="cursor-pointer hover:shadow-md transition-all"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(0, 0, 0, 0.1)',
+                    borderRadius: 'var(--radius-corner, 16px)',
+                  }}
                   onClick={() => onNavigateToProfile?.(reviewer.user_id)}
                 >
                   <CardContent className="p-4">

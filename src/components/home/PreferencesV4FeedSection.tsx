@@ -462,7 +462,7 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
     if (!loadingMore && hasMore) {
       loadEvents(page + 1, true);
     }
-  }, [loadingMore, hasMore, page]);
+  }, [loadingMore, hasMore, page, loadEvents]);
 
   const handleRefresh = useCallback(() => {
     // Clear following-first events and load completely new set

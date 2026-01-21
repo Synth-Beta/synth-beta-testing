@@ -91,18 +91,19 @@ export function ArtistVenueReviews({
         venueName: venueName
       });
       // Fetch artist stats and reviews
-      try {
-        
-        // Query reviews where the event's artist_name matches
-        // First try to find the artist in the artists table to get UUID/jambase_id
-        let eventIds: { id: string }[] = [];
-        
-        // Try to find artist by exact name match first (much faster)
-        const { data: artistData } = await supabase
-          .from('artists')
-          .select('id, name') // jambase_artist_id available via helper view if needed
-          .ilike('name', artistName)
-          .maybeSingle();
+      // Skip artist queries if artistName is empty
+      if (artistName && artistName.trim()) {
+        try {
+          // Query reviews where the event's artist_name matches
+          // First try to find the artist in the artists table to get UUID/jambase_id
+          let eventIds: { id: string }[] = [];
+          
+          // Try to find artist by exact name match first (much faster)
+          const { data: artistData } = await supabase
+            .from('artists')
+            .select('id, name') // jambase_artist_id available via helper view if needed
+            .ilike('name', artistName)
+            .maybeSingle();
         
         if (artistData) {
           // If we found the artist, query events using helper view (artist_id is UUID FK after normalization)
@@ -316,17 +317,28 @@ export function ArtistVenueReviews({
           error: 'Failed to load artist reviews'
         });
         setArtistReviews([]);
+        }
+      } else {
+        // Artist name is empty, set empty stats
+        setArtistStats({
+          totalReviews: 0,
+          averageRating: 0,
+          loading: false
+        });
+        setArtistReviews([]);
       }
 
       // Fetch venue stats and reviews - get ALL reviews for this venue
-      try {
-        // Fetching venue reviews
-        
-        // First get event IDs for this venue (venue_name column removed - use helper view)
-        const { data: venueEventIds, error: venueEventIdsError } = await supabase
-          .from('events_with_artist_venue')
-          .select('id')
-          .ilike('venue_name_normalized', `%${venueName}%`);
+      // Skip venue queries if venueName is empty
+      if (venueName && venueName.trim()) {
+        try {
+          // Fetching venue reviews
+          
+          // First get event IDs for this venue (venue_name column removed - use helper view)
+          const { data: venueEventIds, error: venueEventIdsError } = await supabase
+            .from('events_with_artist_venue')
+            .select('id')
+            .ilike('venue_name_normalized', `%${venueName}%`);
 
         if (venueEventIdsError) {
           console.error('Error fetching event IDs for venue:', venueEventIdsError);
@@ -519,6 +531,15 @@ export function ArtistVenueReviews({
           averageRating: 0,
           loading: false,
           error: 'Failed to load venue reviews'
+        });
+        setVenueReviews([]);
+        }
+      } else {
+        // Venue name is empty, set empty stats
+        setVenueStats({
+          totalReviews: 0,
+          averageRating: 0,
+          loading: false
         });
         setVenueReviews([]);
       }

@@ -20,6 +20,7 @@ import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { supabase } from '@/integrations/supabase/client';
 import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
+import { useNavigate } from 'react-router-dom';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { getArtistUuid, getArtistMetadata } from '@/utils/entityUuidResolver';
 import { useViewTracking } from '@/hooks/useViewTracking';
@@ -47,6 +48,7 @@ export function ArtistCard({
   showAllEvents = false,
   className 
 }: ArtistCardProps) {
+  const navigate = useNavigate();
   const [currentUserId, setCurrentUserId] = React.useState<string | undefined>(userId);
 
   // Track artist view
@@ -110,7 +112,9 @@ export function ArtistCard({
 
   return (
     <div className={cn("w-full max-w-4xl mx-auto space-y-6 overflow-x-hidden", className)}>
-      {/* Back Button */}
+      {/* Back Button - Optional, for use when component is embedded in modals/dialogs */}
+      {/* When events are clicked, component navigates to /feed using React Router */}
+      {/* If onBack is provided, it will be used instead of router navigation for back button */}
       {onBack && (
         <button
           onClick={() => {
@@ -279,6 +283,26 @@ export function ArtistCard({
                     ticket_urls: event.ticket_urls,
                     ticket_available: event.ticket_available,
                     genres: event.genres,
+                  }}
+                  onClick={() => {
+                    const eventId = event.id || event.jambase_event_id;
+                    if (eventId) {
+                      // Store event data first (primary mechanism - most reliable)
+                      localStorage.setItem('selectedEvent', JSON.stringify({
+                        id: eventId,
+                        ...event
+                      }));
+                      
+                      // Dispatch event and navigate - localStorage is the primary mechanism
+                      // The event listener will check localStorage after navigation completes
+                      window.dispatchEvent(new CustomEvent('open-event-details', { 
+                        detail: { event: { id: eventId, ...event } } 
+                      }));
+                      
+                      // Navigate immediately - HomeFeed checks localStorage on mount and when event is dispatched
+                      // Using setTimeout with 0ms doesn't guarantee event processing, so we rely on localStorage as primary
+                      navigate('/feed');
+                    }
                   }}
                 />
                     ))}

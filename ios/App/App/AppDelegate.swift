@@ -11,6 +11,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     var appleSignInHandler: AppleSignInHandler?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Clear WKWebView cache on launch to ensure fresh content
+        let dataStore = WKWebsiteDataStore.default()
+        let websiteDataTypes = WKWebsiteDataStore.allWebsiteDataTypes()
+        let date = Date(timeIntervalSince1970: 0)
+        dataStore.removeData(ofTypes: websiteDataTypes, modifiedSince: date) {
+            print("✅ Cleared WKWebView cache")
+        }
+        
         // Set up push notification delegate
         UNUserNotificationCenter.current().delegate = self
         
@@ -105,12 +113,40 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         print("Device token received: \(token)")
         
-        // Send token to JavaScript via Capacitor
+        // Send token to JavaScript via multiple methods for reliability
+        // Method 1: Post notification (handled by NotificationCenter listeners)
         NotificationCenter.default.post(
             name: NSNotification.Name("DeviceTokenReceived"),
             object: nil,
             userInfo: ["token": token]
         )
+        
+        // Method 2: Dispatch JavaScript event directly to web view
+        // Escape token to prevent JavaScript injection if token contains special characters
+        let escapedToken = token.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        
+        let script = """
+            (function() {
+                try {
+                    window.dispatchEvent(new CustomEvent('DeviceTokenReceived', { 
+                        detail: { token: '\(escapedToken)' } 
+                    }));
+                } catch(e) {
+                    console.error('Error dispatching DeviceTokenReceived:', e);
+                }
+            })();
+        """
+        
+        DispatchQueue.main.async {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first {
+                self.evaluateJavaScriptInWebView(script: script, in: window)
+            }
+        }
     }
 
     // Handle registration failure

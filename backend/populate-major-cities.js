@@ -148,10 +148,8 @@ async function fetchEventsForCity(city) {
   }
 }
 
-// Import transformation logic directly - need to require after ticketmaster-routes defines exports
-const ticketmasterRoutes = require('./ticketmaster-routes');
-const transformTicketmasterEvent = ticketmasterRoutes.transformTicketmasterEvent;
-const { extractGenres } = require('./genreMapping');
+// Transform: Ticketmaster API event -> jambase_events row
+const { transformTicketmasterEvent } = require('./ticketmasterTransform');
 
 // Transform and insert events directly using transformation logic
 async function processEventsForCity(cityData, cityInfo) {

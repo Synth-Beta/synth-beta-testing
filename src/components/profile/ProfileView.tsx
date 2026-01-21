@@ -2872,13 +2872,19 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
           {/* 🎫 Passport Tab */}
           <TabsContent value="passport" className="mt-4 mb-32 w-full max-w-full overflow-x-hidden">
-            <PassportModal
-              isOpen={true}
-              onClose={() => setActiveTab('my-events')}
-              userId={targetUserId}
-              userName={profile?.name || undefined}
-              inline={true}
-            />
+            {targetUserId ? (
+              <PassportModal
+                isOpen={true}
+                onClose={() => setActiveTab('my-events')}
+                userId={targetUserId}
+                userName={profile?.name || undefined}
+                inline={true}
+              />
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Unable to load passport. User ID is missing.</p>
+              </div>
+            )}
           </TabsContent>
 
         </Tabs>

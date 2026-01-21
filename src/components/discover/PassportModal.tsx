@@ -56,6 +56,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
   const [achievements, setAchievements] = useState<AchievementDisplay[]>([]);
   const [nextToUnlock, setNextToUnlock] = useState<NextToUnlock[]>([]);
   const [loading, setLoading] = useState(true);
+  const [achievementsError, setAchievementsError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'identity' | 'stamps' | 'achievements' | 'timeline' | 'taste' | 'bucket'>('identity');
   const [venueDialog, setVenueDialog] = useState<{ open: boolean; venueId?: string | null; venueName?: string }>(() => ({ open: false }));
   const [artistDialog, setArtistDialog] = useState<{ open: boolean; artistId?: string | null; artistName?: string }>(() => ({ open: false }));
@@ -167,20 +168,85 @@ export const PassportModal: React.FC<PassportModalProps> = ({
   }, [isOpen, inline, onClose]);
 
   const loadPassportData = async () => {
+    if (!userId) {
+      console.error('PassportModal: userId is required but not provided');
+      setLoading(false);
+      return;
+    }
+
+    console.log('PassportModal: Loading passport data for userId:', userId);
     setLoading(true);
+    
+    // Track errors for all sections
+    // Note: Using different variable names to avoid shadowing state variables
+    let progressError: string | null = null;
+    let stampsError: string | null = null;
+    let achievementsLoadError: string | null = null;
+    let nextToUnlockError: string | null = null;
+    
     try {
+      // Load data with individual error handling for better debugging
       const [progressData, stampsData, achievementsData, nextData] = await Promise.all([
-        PassportService.getPassportProgress(userId),
-        PassportService.getStampsByRarity(userId),
-        PassportAchievementService.getBehavioralAchievements(userId),
-        PassportService.getNextToUnlock(userId),
+        PassportService.getPassportProgress(userId).catch(err => {
+          console.error('PassportModal: Error loading progress:', err);
+          progressError = err instanceof Error ? err.message : 'Failed to load progress';
+          return { cities: [], venues: [], artists: [], scenes: [], totalCount: 0 };
+        }),
+        PassportService.getStampsByRarity(userId).catch(err => {
+          console.error('PassportModal: Error loading stamps:', err);
+          stampsError = err instanceof Error ? err.message : 'Failed to load stamps';
+          return [];
+        }),
+        PassportAchievementService.getBehavioralAchievements(userId).catch(err => {
+          console.error('PassportModal: Error loading achievements:', err);
+          achievementsLoadError = err instanceof Error ? err.message : 'Failed to load achievements';
+          return [];
+        }),
+        PassportService.getNextToUnlock(userId).catch(err => {
+          console.error('PassportModal: Error loading next to unlock:', err);
+          nextToUnlockError = err instanceof Error ? err.message : 'Failed to load next unlocks';
+          return [];
+        }),
       ]);
+      
+      console.log('PassportModal: Data loaded:', {
+        progressCount: progressData.totalCount || 0,
+        stampsCount: stampsData.length || 0,
+        achievementsCount: achievementsData.length || 0,
+        nextToUnlockCount: nextData.length || 0,
+        errors: {
+          progress: progressError,
+          stamps: stampsError,
+          achievements: achievementsLoadError,
+          nextToUnlock: nextToUnlockError,
+        },
+      });
+      
       setProgress(progressData);
       setAllStamps(stampsData);
       setAchievements(achievementsData);
       setNextToUnlock(nextData);
+      
+      // Only set achievementsError with achievements-specific errors
+      // Other sections' errors are logged but not displayed in the achievements tab
+      if (achievementsLoadError) {
+        setAchievementsError(achievementsLoadError);
+      } else {
+        // Successfully loaded achievements (even if empty array - just means no data yet)
+        setAchievementsError(null);
+      }
+      
+      // Log errors from other sections for debugging, but don't display them in achievements tab
+      if (progressError || stampsError || nextToUnlockError) {
+        console.warn('PassportModal: Non-achievements sections had errors:', {
+          progress: progressError,
+          stamps: stampsError,
+          nextToUnlock: nextToUnlockError,
+        });
+      }
     } catch (error) {
-      console.error('Error loading passport data:', error);
+      console.error('PassportModal: Unexpected error loading passport data:', error);
+      setAchievementsError('An unexpected error occurred while loading passport data');
     } finally {
       setLoading(false);
     }
@@ -359,11 +425,25 @@ export const PassportModal: React.FC<PassportModalProps> = ({
           </TabsContent>
 
           <TabsContent value="stamps" className="mt-4 w-full max-w-full overflow-x-hidden px-1">
-            <PassportStampsView stamps={allStamps} achievements={achievements} loading={loading} />
+            <PassportStampsView 
+              stamps={allStamps} 
+              achievements={achievements.map(a => ({ ...a, category: a.category || 'general' }))} 
+              loading={loading} 
+            />
           </TabsContent>
 
             <TabsContent value="achievements" className="mt-4 w-full max-w-full overflow-x-hidden px-1">
-              {achievements.length === 0 ? (
+              {achievementsError ? (
+                <div className="text-center py-8">
+                  <p className="text-red-600 font-semibold mb-2">Error loading achievements</p>
+                  <p className="text-sm text-muted-foreground">{achievementsError}</p>
+                  <p className="text-xs text-muted-foreground mt-2">Please try refreshing the page or contact support if the issue persists.</p>
+                </div>
+              ) : loading ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Loading achievements...</p>
+                </div>
+              ) : achievements.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No achievements unlocked yet.</p>
                   <p className="text-xs mt-1">Keep attending events and writing reviews to unlock achievements!</p>

@@ -12,7 +12,9 @@ The setlist search functionality uses a multi-tier approach:
 
 ## API Key Configuration
 
-The setlist.fm API key is: `QxGjjwxk0MUyxyCJa2FADnFRwEqFUy__7wpt`
+**⚠️ SECURITY: API keys must be stored as environment variables, never hardcoded.**
+
+The setlist.fm API key should be set in the `SETLIST_FM_API_KEY` environment variable.
 
 ### Environment Variables
 
@@ -131,7 +133,7 @@ npm run dev
 ### API Key Errors
 - **Symptom**: setlist.fm API returns 401/403
 - **Fix**: Set `SETLIST_FM_API_KEY` in Vercel environment variables
-- **Check**: Verify the key is correct: `QxGjjwxk0MUyxyCJa2FADnFRwEqFUy__7wpt`
+- **Check**: Verify the key is set correctly in your environment variables (never hardcode in source code)
 
 ### iOS/Android Not Working
 - **Symptom**: Setlist search fails in mobile app

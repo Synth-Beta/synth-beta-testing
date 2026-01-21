@@ -249,6 +249,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     setSelectedLocationName('');
   };
 
+  const handleClearRadius = () => {
+    setFilters({
+      ...filters,
+      radiusMiles: 30,
+    });
+    // Close the location popover if open to provide clear feedback
+    // The popover will re-open if user clicks location again
+  };
+
   const hasActiveLocation = Boolean(filters.latitude && filters.longitude);
 
   // If a vibe is selected, show results view
@@ -499,9 +508,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         </div>
 
         {/* Location Indicator Badges */}
-        {hasActiveLocation && (
-          <div className="flex flex-wrap gap-2" style={{ marginBottom: '24px' }}>
-            {/* Location Pill */}
+        <div className="flex flex-wrap gap-2" style={{ marginBottom: '24px' }}>
+          {/* Location Pill - Only show when location is active */}
+          {hasActiveLocation && (
             <div
               style={{
                 display: 'inline-flex',
@@ -557,8 +566,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 <Icon name="x" size={19} color="var(--brand-pink-500)" />
               </button>
             </div>
+          )}
 
-            {/* Radius Pill */}
+          {/* Radius Pill - Show only when a custom radius is set (different from default 30) */}
+          {(filters.radiusMiles && filters.radiusMiles !== 30) && (
             <div
               style={{
                 display: 'inline-flex',
@@ -586,10 +597,26 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 lineHeight: 'var(--typography-meta-line-height, 1.5)',
                 color: 'var(--brand-pink-500)'
               }}>{filters.radiusMiles || 30} mi radius</span>
-              <Icon name="x" size={19} color="var(--brand-pink-500)" />
+              <button
+                onClick={handleClearRadius}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexShrink: 0,
+                  marginLeft: 'var(--spacing-inline, 6px)'
+                }}
+                className="hover:text-destructive"
+                aria-label="Clear radius"
+              >
+                <Icon name="x" size={19} color="var(--brand-pink-500)" />
+              </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Search Results - Below Filters when searching */}
         {isSearchActive && (

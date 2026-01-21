@@ -1018,7 +1018,7 @@ export function EventDetailsModal({
                       }
                     }}
                   >
-                    <Heart size={24} className={`mr-1 ${localIsInterested ? 'fill-current' : ''}`} />
+                    <Heart size={16} className={`mr-1 ${localIsInterested ? 'fill-current' : ''}`} />
                     {localIsInterested ? 'Interested' : "I'm Interested"}
                   </Button>
                 )}
@@ -1204,7 +1204,7 @@ export function EventDetailsModal({
 
           {/* Artist and Venue Info - Swift-style buttons */}
           <div className="flex flex-col gap-3 mb-3">
-            {/* Artist Info - Swift button style */}
+            {/* Artist Info - Swift button style - Only render if artist_name exists (bug fix) */}
             {actualEvent.artist_name && actualEvent.artist_id && (
               <button
                 onClick={handleArtistClick}
@@ -1249,24 +1249,25 @@ export function EventDetailsModal({
                   <div className="flex flex-wrap gap-1.5">
                   {actualEvent.genres.slice(0, 3).map((genre, index) => (
                       <span
-                      key={index}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                          height: '24px',
-                          paddingLeft: '10px',
-                          paddingRight: '10px',
-                          borderRadius: '12px',
-                          backgroundColor: 'rgba(0, 0, 0, 0.05)',
-                          border: '1px solid rgba(0, 0, 0, 0.1)',
-                        fontFamily: 'var(--font-family)',
-                          fontSize: '13px',
-                          fontWeight: '500',
-                          color: 'var(--neutral-700)',
-                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
-                      }}
-                    >
-                      {genre}
+                        key={index}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          height: '25px',
+                          paddingLeft: 'var(--spacing-small, 12px)',
+                          paddingRight: 'var(--spacing-small, 12px)',
+                          borderRadius: 'var(--radius-corner, 10px)',
+                          backgroundColor: 'var(--neutral-100)',
+                          border: '2px solid var(--neutral-200)',
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          color: 'var(--neutral-900)',
+                          boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                        }}
+                      >
+                        {genre}
                       </span>
                   ))}
                 </div>
@@ -1274,7 +1275,7 @@ export function EventDetailsModal({
               </button>
             )}
 
-            {/* Venue Info - Swift button style */}
+            {/* Venue Info - Swift button style - Only render if venue_name exists (bug fix) */}
             {actualEvent.venue_name && actualEvent.venue_id && (
               <button
                 onClick={handleVenueClick}
@@ -1343,12 +1344,17 @@ export function EventDetailsModal({
 
 
           {/* Reviews Section - Show artist and venue reviews for all events */}
-          <ArtistVenueReviews
-            artistName={actualEvent.artist_name}
-            venueName={actualEvent.venue_name}
-            artistId={actualEvent.artist_id}
-            venueId={actualEvent.venue_id}
-          />
+          {/* Only render if at least one of artist_name or venue_name exists */}
+          {/* Pass actual values - use empty string fallback only when absolutely necessary */}
+          {/* The component should handle empty strings by skipping those queries */}
+          {(actualEvent.artist_name || actualEvent.venue_name) && (
+            <ArtistVenueReviews
+              artistName={actualEvent.artist_name || ''}
+              venueName={actualEvent.venue_name || ''}
+              artistId={actualEvent.artist_id}
+              venueId={actualEvent.venue_id}
+            />
+          )}
 
           {/* Social Features Tabs */}
           <div className="mt-4 space-y-3">
@@ -1427,7 +1433,7 @@ export function EventDetailsModal({
                     setShowGroups(false);
                   }}
                 >
-                  <Heart size={24} style={{ marginRight: 'var(--spacing-inline, 6px)', flexShrink: 0, color: showBuddyFinder ? 'var(--neutral-50)' : undefined }} />
+                  <Heart size={16} style={{ marginRight: 'var(--spacing-inline, 6px)', flexShrink: 0, color: showBuddyFinder ? 'var(--neutral-50)' : undefined }} />
                   <span style={{ color: showBuddyFinder ? 'var(--neutral-50)' : undefined }}>Meet ({interestedCount !== null ? interestedCount : 0})</span>
                 </Button>
               )}

@@ -89,14 +89,16 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
         if (onClick) {
           e.currentTarget.style.transform = 'translateY(-4px)';
           e.currentTarget.style.boxShadow = '0 12px 40px 0 rgba(0, 0, 0, 0.12), 0 4px 12px 0 rgba(0, 0, 0, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.8)';
-          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+          // Use color-mix() to match initial backgroundColor syntax
+          e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--neutral-0) 95%, transparent)';
         }
       }}
       onMouseLeave={(e) => {
         if (onClick) {
           e.currentTarget.style.transform = 'translateY(0)';
           e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.1), 0 2px 8px 0 rgba(0, 0, 0, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.6)';
-          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
+          // Use color-mix() to match initial backgroundColor syntax
+          e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--neutral-0) 85%, transparent)';
         }
       }}
       onMouseDown={(e) => {

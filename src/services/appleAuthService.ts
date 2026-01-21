@@ -99,23 +99,20 @@ function triggerNativeAppleSignIn(): void {
   window.dispatchEvent(new CustomEvent('RequestAppleSignIn'));
   
   // Also try Capacitor bridge if available (additional fallback)
-  if (typeof (window as any).Capacitor !== 'undefined') {
-    const { Capacitor } = (window as any).Capacitor;
-    
-    if (Capacitor.isNativePlatform() && Capacitor.Plugins) {
-      try {
-        if ((window as any).webkit?.messageHandlers?.capacitor) {
-          (window as any).webkit.messageHandlers.capacitor.postMessage({
-            type: 'plugin',
-            callbackId: 'apple-sign-in',
-            pluginId: 'App',
-            methodName: 'handleAppleSignIn',
-            options: {}
-          });
-        }
-      } catch (error) {
-        console.log('Capacitor bridge method failed');
+  const Capacitor = (window as any).Capacitor;
+  if (Capacitor && typeof Capacitor.isNativePlatform === 'function' && Capacitor.Plugins) {
+    try {
+      if ((window as any).webkit?.messageHandlers?.capacitor) {
+        (window as any).webkit.messageHandlers.capacitor.postMessage({
+          type: 'plugin',
+          callbackId: 'apple-sign-in',
+          pluginId: 'App',
+          methodName: 'handleAppleSignIn',
+          options: {}
+        });
       }
+    } catch (error) {
+      console.log('Capacitor bridge method failed');
     }
   }
 }
@@ -160,9 +157,14 @@ function isIOS(): boolean {
   const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
   
   // Check Capacitor platform
-  if (typeof (window as any).Capacitor !== 'undefined') {
-    const { Capacitor } = (window as any).Capacitor;
-    return Capacitor.getPlatform() === 'ios' || isIOSDevice;
+  const Capacitor = (window as any).Capacitor;
+  if (Capacitor && typeof Capacitor.getPlatform === 'function') {
+    try {
+      return Capacitor.getPlatform() === 'ios' || isIOSDevice;
+    } catch (error) {
+      console.warn('Error checking Capacitor platform:', error);
+      return isIOSDevice;
+    }
   }
   
   return isIOSDevice;
