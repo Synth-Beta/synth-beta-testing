@@ -46,7 +46,7 @@ import { format, parseISO, differenceInMinutes, isWithinInterval, subDays } from
 import { UserInfo } from '@/components/profile/UserInfo';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { EventMessageCard } from '@/components/chat/EventMessageCard';
-import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
+import { ReviewMessageCard } from '@/components/chat/ReviewMessageCard';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
@@ -58,100 +58,20 @@ import { Badge as VerifiedBadge } from '@/components/ui/badge';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
 
-// Chat Review Message wrapper that fetches and displays review using SwiftUIReviewCard
+// Chat Review Message wrapper that displays review using ReviewMessageCard (styled like EventMessageCard)
 const ChatReviewMessage: React.FC<{
   reviewId: string;
   currentUserId?: string;
   onReviewClick?: (review: ReviewWithEngagement) => void;
-  metadata?: { review_text?: string; rating?: number; artist_name?: string; venue_name?: string; };
+  metadata?: { review_text?: string; rating?: number; artist_name?: string; venue_name?: string; custom_message?: string; };
 }> = ({ reviewId, currentUserId, onReviewClick, metadata }) => {
-  const [review, setReview] = React.useState<ReviewWithEngagement | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [userProfile, setUserProfile] = React.useState<{ name: string; avatar_url?: string }>({ name: 'User' });
-
-  React.useEffect(() => {
-    const loadReview = async () => {
-      try {
-        const { data: reviewData } = await supabase
-          .from('reviews')
-          .select('id, user_id, event_id, rating, review_text, photos, created_at, updated_at, likes_count, comments_count, shares_count')
-          .eq('id', reviewId)
-          .single();
-
-        if (reviewData) {
-          // Fetch user profile
-          const { data: userData } = await supabase
-            .from('users')
-            .select('name, avatar_url')
-            .eq('user_id', reviewData.user_id)
-            .single();
-
-          // Fetch event info for artist/venue names
-          let artistName = metadata?.artist_name;
-          let venueName = metadata?.venue_name;
-          if (reviewData.event_id) {
-            const { data: eventData } = await supabase
-              .from('events')
-              .select('artist_name, venue_name')
-              .eq('id', reviewData.event_id)
-              .single();
-            if (eventData) {
-              artistName = eventData.artist_name || artistName;
-              venueName = eventData.venue_name || venueName;
-            }
-          }
-
-          setReview({
-            id: reviewData.id,
-            user_id: reviewData.user_id,
-            event_id: reviewData.event_id || '',
-            rating: reviewData.rating,
-            review_text: reviewData.review_text || '',
-            is_public: true,
-            created_at: reviewData.created_at,
-            updated_at: reviewData.updated_at || reviewData.created_at,
-            likes_count: reviewData.likes_count || 0,
-            comments_count: reviewData.comments_count || 0,
-            shares_count: reviewData.shares_count || 0,
-            is_liked_by_user: false,
-            reaction_emoji: '',
-            photos: reviewData.photos || [],
-            videos: [],
-            mood_tags: [],
-            genre_tags: [],
-            context_tags: [],
-            artist_name: artistName,
-            venue_name: venueName,
-          });
-
-          if (userData) {
-            setUserProfile({ name: userData.name || 'User', avatar_url: userData.avatar_url || undefined });
-          }
-        }
-      } catch (error) {
-        console.error('Error loading review for chat:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadReview();
-  }, [reviewId, metadata]);
-
-  if (loading) {
-    return <div style={{ padding: 16, color: 'var(--neutral-600)' }}>Loading review...</div>;
-  }
-
-  if (!review) {
-    return <div style={{ padding: 16, color: 'var(--neutral-600)' }}>Review not found</div>;
-  }
-
   return (
-    <SwiftUIReviewCard
-      review={review}
-      mode="compact"
+    <ReviewMessageCard
+      reviewId={reviewId}
       currentUserId={currentUserId}
-      userProfile={userProfile}
-      onOpenDetail={() => onReviewClick?.(review)}
+      onReviewClick={onReviewClick}
+      customMessage={metadata?.custom_message}
+      metadata={metadata}
     />
   );
 };
@@ -979,6 +899,29 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
 
   const createDirectChat = async (userId: string) => {
     try {
+      // Validate inputs
+      if (!currentUserId || !userId) {
+        console.error('Missing user IDs:', { currentUserId, userId });
+        toast({
+          title: "Error",
+          description: "Missing user information. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(currentUserId) || !uuidRegex.test(userId)) {
+        console.error('Invalid UUID format:', { currentUserId, userId });
+        toast({
+          title: "Error",
+          description: "Invalid user information. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       console.log('Creating direct chat between:', currentUserId, 'and', userId);
       
       // First check if this user is actually a friend
@@ -999,11 +942,32 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       });
 
       if (error) {
-        console.error('Error creating direct chat:', error);
+        console.error('❌ Error creating direct chat:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          ...((error as any).status ? { status: (error as any).status } : {})
+        });
+        
+        // Show more specific error message
+        let errorMessage = "Failed to create chat. Please try again.";
+        if (error.message) {
+          if (error.message.includes('permission') || error.message.includes('policy')) {
+            errorMessage = "Permission denied. Please check your account permissions.";
+          } else if (error.message.includes('foreign key') || error.message.includes('constraint')) {
+            errorMessage = "Invalid user information. Please try again.";
+          } else {
+            errorMessage = error.message;
+          }
+        }
+        
         toast({
           title: "Error",
-          description: "Failed to create chat. Please try again.",
+          description: errorMessage,
           variant: "destructive",
+          duration: 10000
         });
         return;
       }
@@ -2143,7 +2107,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                   paddingTop: hideHeader 
                     ? `calc(env(safe-area-inset-top, 0px) + 44px + var(--spacing-small, 12px))` 
                     : `calc(env(safe-area-inset-top, 0px) + 68px + 44px + var(--spacing-small, 12px))`, 
-                  paddingBottom: `calc(44px + var(--spacing-screen-margin-x, 20px) + env(safe-area-inset-bottom, 0px) + var(--spacing-bottom-nav, 112px))`
+                  paddingBottom: `calc(44px + var(--spacing-grouped, 24px) + env(safe-area-inset-bottom, 0px) + 80px)`
                 }}
               >
               {selectedChat.is_group_chat ? (
@@ -2224,30 +2188,27 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                   }}>Start the conversation!</p>
                 </div>
               ) : (
-                  <div className="flex flex-col" style={{ paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
+                  <div className="flex flex-col" style={{ paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-small, 12px)' }}>
                 {renderGroupedMessages()}
                 <div ref={messagesEndRef} />
                 </div>
               )}
             </div>
 
-            {/* Message Input - Fixed at bottom above nav bar */}
+            {/* Message Input - Fixed flush at edge of navigation bar (80px nav height, not 112px) */}
             {!selectedChat.is_group_chat && (
               <div 
                 style={{ 
                   position: 'fixed',
-                  bottom: `calc(var(--spacing-bottom-nav, 112px) + env(safe-area-inset-bottom, 0px))`,
+                  bottom: `calc(80px + env(safe-area-inset-bottom, 0px))`,
                   left: 0,
                   right: 0,
                   maxWidth: '393px',
                   margin: '0 auto',
                   paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
                   paddingRight: 'var(--spacing-screen-margin-x, 20px)', 
-                  paddingTop: 'var(--spacing-grouped, 24px)',
-                  paddingBottom: 'var(--spacing-screen-margin-x, 20px)', 
-                  backgroundColor: 'rgba(250, 250, 250, 0.95)',
-                  backdropFilter: 'blur(20px)',
-                  WebkitBackdropFilter: 'blur(20px)',
+                  paddingTop: 0,
+                  paddingBottom: 0,
                   zIndex: 40
                 }}
               >

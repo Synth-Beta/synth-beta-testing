@@ -37,6 +37,8 @@ export async function handleAppleSignInFromNative(): Promise<AppleSignInResult> 
       const token = customEvent.detail?.token || (customEvent as any).token;
       
       if (token) {
+        console.log('✅ Apple Sign In: Identity token received from iOS native layer');
+        
         // Stop event propagation to prevent other listeners (like setupAppleSignInListeners) from firing
         event.stopImmediatePropagation();
         
@@ -47,10 +49,22 @@ export async function handleAppleSignInFromNative(): Promise<AppleSignInResult> 
         // Authenticate with Supabase
         authenticateWithSupabase(token)
           .then((result) => resolve(result))
-          .catch((error) => resolve({
-            success: false,
-            error: error.message || 'Failed to authenticate with Supabase'
-          }));
+          .catch((error) => {
+            console.error('❌ Apple Sign In: Exception during authentication:', error);
+            resolve({
+              success: false,
+              error: error?.message || 'Failed to authenticate with Supabase'
+            });
+          });
+      } else {
+        console.error('❌ Apple Sign In: Token listener fired but no token in event');
+        // Remove listeners and resolve with error to prevent hanging
+        window.removeEventListener('AppleSignInTokenReceived', tokenListener, true);
+        window.removeEventListener('AppleSignInError', errorListener, true);
+        resolve({
+          success: false,
+          error: 'No token received from Apple Sign In. Please try again.'
+        });
       }
     };
 
@@ -122,6 +136,7 @@ function triggerNativeAppleSignIn(): void {
  */
 async function authenticateWithSupabase(identityToken: string): Promise<AppleSignInResult> {
   try {
+    // Validate token is received
     if (!identityToken || identityToken.trim() === '') {
       console.error('❌ Apple Sign In: Empty identity token received');
       return {
@@ -130,9 +145,15 @@ async function authenticateWithSupabase(identityToken: string): Promise<AppleSig
       };
     }
 
-    if (import.meta.env.DEV) {
-      console.log('🔐 Apple Sign In: Authenticating with Supabase...');
-    }
+    // Log token validation (without exposing full token)
+    const tokenLength = identityToken.length;
+    const tokenPrefix = identityToken.substring(0, 20);
+    console.log('🔐 Apple Sign In: Token received from iOS');
+    console.log('   Token length:', tokenLength, 'characters');
+    console.log('   Token prefix:', tokenPrefix, '...');
+    console.log('   Token format valid:', identityToken.includes('.') ? 'Yes (JWT format)' : 'No');
+    
+    console.log('🔐 Apple Sign In: Authenticating with Supabase...');
     
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'apple',
@@ -140,30 +161,57 @@ async function authenticateWithSupabase(identityToken: string): Promise<AppleSig
     });
 
     if (error) {
-      // Always log errors for debugging
-      console.error('❌ Apple Sign In: Supabase authentication error:', error);
-      console.error('Error status:', error.status);
-      console.error('Error message:', error.message);
-      console.error('Error name:', error.name);
+      // Always log FULL error details for debugging
+      console.error('❌ Apple Sign In: Supabase authentication error');
+      console.error('   Error status:', error.status);
+      console.error('   Error message:', error.message);
+      console.error('   Error name:', error.name);
+      console.error('   Full error object:', JSON.stringify(error, null, 2));
       
-      // Provide more specific error messages
+      // Check for specific Supabase error codes
+      const errorCode = (error as any).code;
+      const errorDescription = (error as any).description || error.message;
+      
+      // Provide more specific error messages based on Supabase error codes
       let errorMessage = 'Failed to sign in with Apple';
+      let userFriendlyMessage = errorMessage;
+      
+      if (errorCode) {
+        console.error('   Supabase error code:', errorCode);
+      }
+      
       if (error.message) {
-        if (error.message.includes('Invalid token') || error.message.includes('invalid_token')) {
+        // Check for common Supabase Apple Sign In errors
+        if (error.message.includes('Provider') && error.message.includes('not enabled')) {
+          errorMessage = 'Apple Sign In is not enabled in Supabase. Please configure Apple provider in Supabase Dashboard.';
+          userFriendlyMessage = 'Apple Sign In is not configured. Please contact support.';
+        } else if (error.message.includes('Invalid token') || error.message.includes('invalid_token')) {
           errorMessage = 'The Apple Sign In token is invalid. Please try again.';
+          userFriendlyMessage = 'Invalid Apple Sign In token. Please try again.';
         } else if (error.message.includes('expired')) {
           errorMessage = 'The sign-in session has expired. Please try again.';
+          userFriendlyMessage = 'Sign-in session expired. Please try again.';
         } else if (error.status === 0 || error.message.includes('Failed to fetch')) {
           errorMessage = 'Network error. Please check your internet connection.';
+          userFriendlyMessage = 'Network error. Please check your internet connection.';
         } else if (error.status === 400) {
-          errorMessage = 'Invalid Apple Sign In request. Please try again.';
+          // 400 errors are often configuration issues
+          if (error.message.includes('client_id') || error.message.includes('Client ID')) {
+            errorMessage = `Invalid Apple Sign In configuration: ${error.message}. Check Supabase Dashboard → Authentication → Providers → Apple. Use Bundle ID: com.tejpatel.synth`;
+            userFriendlyMessage = 'Apple Sign In configuration error. Please contact support.';
+          } else {
+            errorMessage = `Invalid Apple Sign In request: ${error.message}. Check Supabase Dashboard Apple provider configuration.`;
+            userFriendlyMessage = 'Invalid Apple Sign In request. Please try again.';
+          }
         } else {
           errorMessage = error.message;
+          userFriendlyMessage = error.message;
         }
       }
+      
       return {
         success: false,
-        error: errorMessage
+        error: userFriendlyMessage
       };
     }
 

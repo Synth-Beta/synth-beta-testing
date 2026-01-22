@@ -508,14 +508,9 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
               disabled={isSigningOut}
             >
               <LogOut className="w-5 h-5" />
-              <div className="text-left">
-                <div className="font-medium">
-                  {isSigningOut ? 'Signing out...' : 'Sign Out'}
-                </div>
-                <div className="text-sm opacity-80">
-                  {isSigningOut ? 'Please wait...' : 'Sign out of your account'}
-                </div>
-              </div>
+              <span className="font-medium">
+                {isSigningOut ? 'Signing out...' : 'Sign Out'}
+              </span>
             </Button>
           </div>
         ) : view === 'onboarding-preferences' ? (

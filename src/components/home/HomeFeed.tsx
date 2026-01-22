@@ -1748,7 +1748,7 @@ interface FriendEventInterest {
             style={{
               width: '100%',
               display: 'flex',
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               alignItems: 'center',
             }}
           >
