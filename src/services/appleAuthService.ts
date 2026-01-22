@@ -130,21 +130,33 @@ async function authenticateWithSupabase(identityToken: string): Promise<AppleSig
       };
     }
 
-    console.log('🔐 Apple Sign In: Authenticating with Supabase...');
+    if (import.meta.env.DEV) {
+      console.log('🔐 Apple Sign In: Authenticating with Supabase...');
+    }
+    
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'apple',
       token: identityToken
     });
 
     if (error) {
-      console.error('❌ Apple Sign In: Supabase authentication error:', error);
+      if (import.meta.env.DEV) {
+        console.error('❌ Apple Sign In: Supabase authentication error:', error);
+        console.error('Error status:', error.status);
+        console.error('Error message:', error.message);
+      }
+      
       // Provide more specific error messages
       let errorMessage = 'Failed to sign in with Apple';
       if (error.message) {
-        if (error.message.includes('Invalid token')) {
+        if (error.message.includes('Invalid token') || error.message.includes('invalid_token')) {
           errorMessage = 'The Apple Sign In token is invalid. Please try again.';
         } else if (error.message.includes('expired')) {
           errorMessage = 'The sign-in session has expired. Please try again.';
+        } else if (error.status === 0 || error.message.includes('Failed to fetch')) {
+          errorMessage = 'Network error. Please check your internet connection.';
+        } else if (error.status === 400) {
+          errorMessage = 'Invalid Apple Sign In request. Please try again.';
         } else {
           errorMessage = error.message;
         }
@@ -156,20 +168,26 @@ async function authenticateWithSupabase(identityToken: string): Promise<AppleSig
     }
 
     if (!data.session) {
-      console.error('❌ Apple Sign In: No session returned from Supabase');
+      if (import.meta.env.DEV) {
+        console.error('❌ Apple Sign In: No session returned from Supabase');
+      }
       return {
         success: false,
         error: 'Authentication succeeded but no session was created. Please try again.'
       };
     }
 
-    console.log('✅ Apple Sign In: Successfully authenticated with Supabase');
+    if (import.meta.env.DEV) {
+      console.log('✅ Apple Sign In: Successfully authenticated with Supabase');
+    }
     return {
       success: true,
       session: data.session
     };
   } catch (error: any) {
-    console.error('❌ Apple Sign In: Unexpected error:', error);
+    if (import.meta.env.DEV) {
+      console.error('❌ Apple Sign In: Unexpected error:', error);
+    }
     return {
       success: false,
       error: error?.message || 'An unexpected error occurred during authentication'

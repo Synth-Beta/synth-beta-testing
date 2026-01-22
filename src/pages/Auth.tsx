@@ -162,13 +162,23 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         }
         
         // Provide more helpful error messages
-        let userMessage = error.message;
-        if (error.status === 400) {
+        let userMessage = error.message || 'Sign in failed. Please try again.';
+        
+        // Only show network error for actual network failures (no response from server)
+        const isNetworkError = error.status === 0 && (
+          error.message?.includes('Failed to fetch') || 
+          error.message?.includes('NetworkError') ||
+          error.message?.includes('Network request failed')
+        );
+        
+        if (error.status === 400 || error.message?.includes('Invalid login credentials')) {
           userMessage = 'Invalid email or password. Please check your credentials.';
-        } else if (error.status === 0 || error.message?.includes('fetch')) {
+        } else if (isNetworkError) {
           userMessage = 'Network error. Please check your internet connection.';
-        } else if (error.message?.includes('Invalid login credentials')) {
-          userMessage = 'Invalid email or password.';
+        } else if (error.status === 429) {
+          userMessage = 'Too many attempts. Please wait a moment and try again.';
+        } else if (error.status === 500 || error.status === 502 || error.status === 503) {
+          userMessage = 'Server error. Please try again in a moment.';
         }
         
         throw new Error(userMessage);
@@ -222,7 +232,21 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       });
 
       if (error) {
-        throw error;
+        if (import.meta.env.DEV) {
+          console.error('❌ Password reset error:', error);
+          console.error('Error status:', error.status);
+          console.error('Error message:', error.message);
+        }
+        
+        // Provide better error messages
+        let errorMessage = error.message || 'Failed to send password reset email.';
+        if (error.status === 429) {
+          errorMessage = 'Too many attempts. Please wait a moment and try again.';
+        } else if (error.status === 0) {
+          errorMessage = 'Network error. Please check your internet connection.';
+        }
+        
+        throw new Error(errorMessage);
       }
 
       toast({
@@ -230,10 +254,12 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         description: 'Check your email for instructions to reset your password.',
       });
     } catch (error: any) {
-      console.error('Error sending password reset:', error);
+      if (import.meta.env.DEV) {
+        console.error('❌ Password reset failed:', error);
+      }
       toast({
         title: 'Error',
-        description: error.message || 'Failed to send password reset email.',
+        description: error?.message || 'Failed to send password reset email.',
         variant: 'destructive',
       });
     } finally {
@@ -254,25 +280,38 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     setAppleSignInLoading(true);
 
     try {
+      if (import.meta.env.DEV) {
+        console.log('🍎 Starting Apple Sign In...');
+      }
+      
       const result = await handleAppleSignInFromNative();
       
       if (result.success) {
+        if (import.meta.env.DEV) {
+          console.log('✅ Apple Sign In successful');
+        }
         toast({
           title: "Welcome!",
           description: "You're now signed in with Apple.",
         });
         onAuthSuccess();
       } else {
+        if (import.meta.env.DEV) {
+          console.error('❌ Apple Sign In failed:', result.error);
+        }
         toast({
           title: "Sign in failed",
-          description: result.error || "Failed to sign in with Apple",
+          description: result.error || "Failed to sign in with Apple. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error: any) {
+      if (import.meta.env.DEV) {
+        console.error('❌ Apple Sign In exception:', error);
+      }
       toast({
         title: "Sign in failed",
-        description: error.message || "Failed to sign in with Apple",
+        description: error?.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
