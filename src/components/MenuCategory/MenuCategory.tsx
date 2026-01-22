@@ -23,6 +23,11 @@ export interface MenuCategoryProps {
    * Optional additional CSS classes
    */
   className?: string;
+
+  /**
+   * Optional badge count (shows red dot with number if > 0)
+   */
+  badgeCount?: number;
 }
 
 /**
@@ -45,6 +50,7 @@ export const MenuCategory: React.FC<MenuCategoryProps> = ({
   icon,
   onPress,
   className = '',
+  badgeCount,
 }) => {
   const baseClasses = 'menu-category';
   const clickableClass = onPress ? 'menu-category--clickable' : '';
@@ -57,13 +63,39 @@ export const MenuCategory: React.FC<MenuCategoryProps> = ({
     .join(' ');
 
   const content = (
-    <div className="menu-category__content">
-      <IconText
-        text={label}
-        icon={icon}
-        iconPosition="left"
-        className="menu-category__icon-text"
-      />
+    <div className="menu-category__content" style={{ position: 'relative' }}>
+      <div style={{ position: 'relative', display: 'inline-flex' }}>
+        <IconText
+          text={label}
+          icon={icon}
+          iconPosition="left"
+          className="menu-category__icon-text"
+        />
+        {typeof badgeCount === 'number' && badgeCount > 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              top: -4,
+              left: 14,
+              backgroundColor: '#EF4444',
+              color: '#fff',
+              borderRadius: 10,
+              minWidth: 18,
+              height: 18,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 11,
+              fontWeight: 600,
+              paddingLeft: 5,
+              paddingRight: 5,
+              boxSizing: 'border-box',
+            }}
+          >
+            {badgeCount > 99 ? '99+' : badgeCount}
+          </div>
+        )}
+      </div>
     </div>
   );
 

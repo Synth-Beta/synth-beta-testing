@@ -322,28 +322,36 @@ BEGIN
   WHERE id = request_id;
   
   -- Create reciprocal relationship only if it doesn't already exist
+  -- Wrap in exception handling to ensure DELETE always runs even if INSERT fails
   IF NOT friendship_exists THEN
-    INSERT INTO public.user_relationships (
-      user_id,
-      related_user_id,
-      relationship_type,
-      status,
-      created_at,
-      updated_at
-    )
-    SELECT 
-      request_record.receiver_id,
-      request_record.sender_id,
-      'friend',
-      'accepted',
-      now(),
-      now()
-    WHERE NOT EXISTS (
-      SELECT 1 FROM public.user_relationships
-      WHERE user_id = request_record.receiver_id
-        AND related_user_id = request_record.sender_id
-        AND relationship_type = 'friend'
-    );
+    BEGIN
+      INSERT INTO public.user_relationships (
+        user_id,
+        related_user_id,
+        relationship_type,
+        status,
+        created_at,
+        updated_at
+      )
+      SELECT 
+        request_record.receiver_id,
+        request_record.sender_id,
+        'friend',
+        'accepted',
+        now(),
+        now()
+      WHERE NOT EXISTS (
+        SELECT 1 FROM public.user_relationships
+        WHERE user_id = request_record.receiver_id
+          AND related_user_id = request_record.sender_id
+          AND relationship_type = 'friend'
+      );
+    EXCEPTION
+      WHEN unique_violation THEN
+        -- Friendship already exists due to unique constraint, ignore the error
+        -- This can happen due to race conditions or constraint checking edge cases
+        NULL;
+    END;
   END IF;
   
   -- Create notification for the sender (only if not already sent recently)
@@ -364,6 +372,7 @@ BEGIN
   );
   
   -- Delete the original friend_request notification
+  -- This MUST run even if the INSERT above failed, so it's placed after exception handling
   DELETE FROM public.notifications
   WHERE user_id = current_user_id
     AND type = 'friend_request'

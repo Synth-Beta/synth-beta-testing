@@ -604,7 +604,8 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         {events.map((event, index) => {
           const imageUrl = getImageUrl(event);
           const isInterested = interestedEvents.has(event.event_id) || event.user_is_interested || false;
-          const interestedCount = (event.interested_count || 0) + (isInterested ? 1 : 0);
+          // Don't add +1 here - event.interested_count from DB already includes current user if interested
+          const interestedCount = event.interested_count || 0;
 
           return (
             <div 

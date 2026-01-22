@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/types/database.types';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
 import { trackInteraction } from '@/services/interactionTrackingService';
+import { notificationService } from '@/services/notificationService';
 
 export interface SideMenuProps {
   /**
@@ -31,7 +32,7 @@ export interface SideMenuProps {
   /**
    * Navigation callbacks
    */
-  onNavigateToNotifications?: () => void;
+  onNavigateToNotifications?: (filter?: 'friends_only' | 'exclude_friends') => void;
   onNavigateToProfile?: (userId?: string, tab?: 'timeline' | 'interested') => void;
   onNavigateToSettings?: () => void;
   onNavigateToVerification?: () => void;
@@ -77,8 +78,10 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   const { user } = useAuth();
   const { accountInfo } = useAccountType();
   const [userProfile, setUserProfile] = useState<Tables<'users'> | null>(null);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [pendingFriendRequestsCount, setPendingFriendRequestsCount] = useState(0);
 
-  // Fetch user profile data when menu opens
+  // Fetch user profile data and notification counts when menu opens
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!isOpen) return;
@@ -113,7 +116,36 @@ export const SideMenu: React.FC<SideMenuProps> = ({
       }
     };
 
+    const fetchNotificationCounts = async () => {
+      if (!isOpen || !user) return;
+
+      try {
+        // Fetch unread notifications count (excluding friend requests)
+        const { count: notifCount } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('read', false)
+          .not('type', 'eq', 'friend_request');
+        
+        setUnreadNotificationsCount(notifCount || 0);
+
+        // Fetch pending friend requests count
+        const { count: friendReqCount } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('read', false)
+          .eq('type', 'friend_request');
+        
+        setPendingFriendRequestsCount(friendReqCount || 0);
+      } catch (error) {
+        console.error('SideMenu: Error fetching notification counts', error);
+      }
+    };
+
     fetchUserProfile();
+    fetchNotificationCounts();
   }, [isOpen, user]);
 
   const getInitial = (name: string | null | undefined): string => {
@@ -206,15 +238,33 @@ export const SideMenu: React.FC<SideMenuProps> = ({
           {/* Navigation */}
           <div className="side-menu__list">
             <MenuCategory
+              label="Friends"
+              icon="twoUsers"
+              badgeCount={pendingFriendRequestsCount}
+              onPress={() => {
+                try {
+                  trackInteraction.click('view', 'side_menu_friends', { source: 'side_menu' });
+                } catch (error) {
+                  console.error('Error tracking menu click:', error);
+                }
+                // Navigate to notifications showing ONLY friend requests
+                onNavigateToNotifications?.('friends_only');
+                onClose();
+              }}
+            />
+
+            <MenuCategory
               label="Notifications"
               icon="bell"
+              badgeCount={unreadNotificationsCount}
               onPress={() => {
                 try {
                   trackInteraction.click('view', 'side_menu_notifications', { source: 'side_menu' });
                 } catch (error) {
                   console.error('Error tracking menu click:', error);
                 }
-                onNavigateToNotifications?.();
+                // Navigate to notifications EXCLUDING friend requests
+                onNavigateToNotifications?.('exclude_friends');
                 onClose();
               }}
             />

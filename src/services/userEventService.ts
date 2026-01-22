@@ -233,31 +233,32 @@ export class UserEventService {
         }
       }
       
+      // DISABLED: Auto-join event chat feature blocked per user request
       // If interested, automatically join the event's verified chat
-      if (interested && eventUuid) {
-        try {
-          console.log('🟢 UserEventService: User expressed interest, joining verified chat...', {
-            eventUuid,
-            jambaseEventId,
-            userId
-          });
-          
-          // Get event title for chat name
-          const { data: eventData } = await supabase
-            .from('events')
-            .select('title, id')
-            .eq('id', eventUuid)
-            .maybeSingle();
-          
-          const eventTitle = eventData?.title || 'Event';
-          
-          await VerifiedChatService.joinOrOpenVerifiedChat('event', eventUuid, eventTitle, userId);
-          console.log('🟢 UserEventService: Successfully joined event verified chat');
-        } catch (error) {
-          // Don't fail the interest action if chat join fails
-          console.error('⚠️ UserEventService: Error joining event verified chat (non-fatal):', error);
-        }
-      }
+      // if (interested && eventUuid) {
+      //   try {
+      //     console.log('🟢 UserEventService: User expressed interest, joining verified chat...', {
+      //       eventUuid,
+      //       jambaseEventId,
+      //       userId
+      //     });
+      //     
+      //     // Get event title for chat name
+      //     const { data: eventData } = await supabase
+      //       .from('events')
+      //       .select('title, id')
+      //       .eq('id', eventUuid)
+      //       .maybeSingle();
+      //     
+      //     const eventTitle = eventData?.title || 'Event';
+      //     
+      //     await VerifiedChatService.joinOrOpenVerifiedChat('event', eventUuid, eventTitle, userId);
+      //     console.log('🟢 UserEventService: Successfully joined event verified chat');
+      //   } catch (error) {
+      //     // Don't fail the interest action if chat join fails
+      //     console.error('⚠️ UserEventService: Error joining event verified chat (non-fatal):', error);
+      //   }
+      // }
       
       try {
         // Try to get event UUID from database if jambaseEventId is not a UUID

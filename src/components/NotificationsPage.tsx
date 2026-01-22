@@ -31,6 +31,7 @@ interface NotificationsPageProps {
   onNavigateToEvent?: (eventId: string) => void;
   onNavigateToArtist?: (artistId: string) => void;
   onNavigateToVenue?: (venueName: string) => void;
+  filter?: 'friends_only' | 'exclude_friends';
 }
 
 export const NotificationsPage = ({ 
@@ -40,6 +41,7 @@ export const NotificationsPage = ({
   onNavigateToEvent,
   onNavigateToArtist,
   onNavigateToVenue,
+  filter,
 }: NotificationsPageProps) => {
   // Track notifications view
   useViewTracking('view', 'notifications', { source: 'notifications' });
@@ -57,7 +59,7 @@ export const NotificationsPage = ({
     }
     
     fetchNotifications();
-  }, [currentUserId, sessionExpired]);
+  }, [currentUserId, sessionExpired, filter]);
 
   const fetchNotifications = async () => {
     try {
@@ -74,8 +76,19 @@ export const NotificationsPage = ({
         NotificationService.getUnreadCount()
       ]);
       
-      setNotifications(result.notifications);
-      setUnreadCount(count);
+      // Apply filter based on prop
+      let filteredNotifications = result.notifications;
+      if (filter === 'friends_only') {
+        filteredNotifications = result.notifications.filter(n => n.type === 'friend_request');
+      } else if (filter === 'exclude_friends') {
+        filteredNotifications = result.notifications.filter(n => n.type !== 'friend_request');
+      }
+      
+      setNotifications(filteredNotifications);
+      
+      // Update unread count based on filter
+      const filteredUnread = filteredNotifications.filter(n => !n.is_read).length;
+      setUnreadCount(filteredUnread);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       toast({
@@ -231,11 +244,13 @@ export const NotificationsPage = ({
       }
 
       // Delete all matching notifications
+      // Include user_id in WHERE clause to ensure RLS policies are satisfied
       const notificationIds = matchingNotifications.map(n => n.id);
       const { error } = await supabase
         .from('notifications')
         .delete()
-        .in('id', notificationIds);
+        .in('id', notificationIds)
+        .eq('user_id', currentUserId);
 
       if (error) {
         console.error('Could not delete notification:', error);
@@ -674,7 +689,9 @@ export const NotificationsPage = ({
               <ArrowLeft className="w-4 h-4 hover-icon" />
             </Button>
             <SynthSLogo size="md" className="hover-icon" />
-            <h1 className="gradient-text text-2xl font-bold">Notifications</h1>
+            <h1 className="gradient-text text-2xl font-bold">
+              {filter === 'friends_only' ? 'Friend Requests' : 'Notifications'}
+            </h1>
             {unreadCount > 0 && (
               <Badge variant="default" className="gradient-badge">
                 {unreadCount} unread
@@ -702,10 +719,19 @@ export const NotificationsPage = ({
         {notifications.length === 0 ? (
           <Card className="glass-card inner-glow floating-shadow">
             <CardContent className="text-center py-12">
-              <Bell className="w-12 h-12 mx-auto mb-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-              <h3 className="text-lg font-semibold mb-2 gradient-text">No notifications yet</h3>
+              {filter === 'friends_only' ? (
+                <UserPlus className="w-12 h-12 mx-auto mb-4 hover-icon" style={{ color: 'var(--brand-pink-500)' }} />
+              ) : (
+                <Bell className="w-12 h-12 mx-auto mb-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+              )}
+              <h3 className="text-lg font-semibold mb-2 gradient-text">
+                {filter === 'friends_only' ? 'No friend requests' : 'No notifications yet'}
+              </h3>
               <p className="text-gray-500">
-                When you get friend requests, event updates, or review activity, they'll appear here.
+                {filter === 'friends_only' 
+                  ? "When someone sends you a friend request, it will appear here."
+                  : "When you get event updates or review activity, they'll appear here."
+                }
               </p>
             </CardContent>
           </Card>

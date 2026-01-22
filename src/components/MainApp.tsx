@@ -48,6 +48,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [currentView, setCurrentView] = useState<ViewType>('feed');
   const [events, setEvents] = useState<EventCardEvent[]>([]);
   const [profileUserId, setProfileUserId] = useState<string | undefined>(undefined);
+  const [notificationFilter, setNotificationFilter] = useState<'friends_only' | 'exclude_friends' | undefined>(undefined);
   const [chatUserId, setChatUserId] = useState<string | undefined>(undefined);
   const [chatId, setChatId] = useState<string | undefined>(undefined);
   const [showOnboardingReminder, setShowOnboardingReminder] = useState(false);
@@ -422,7 +423,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     }
   };
 
-  const handleNavigateToNotifications = () => {
+  const handleNavigateToNotifications = (filter?: 'friends_only' | 'exclude_friends') => {
+    setNotificationFilter(filter);
     setCurrentView('notifications');
   };
 
@@ -610,11 +612,12 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         return (
           <NotificationsPage
             currentUserId={user.id}
-            onBack={handleBack}
+            onBack={() => setCurrentView('feed')}
             onNavigateToProfile={handleNavigateToProfile}
             onNavigateToEvent={handleNavigateToEvent}
             onNavigateToArtist={handleNavigateToArtist}
             onNavigateToVenue={handleNavigateToVenue}
+            filter={notificationFilter}
           />
         );
       case 'chat':
