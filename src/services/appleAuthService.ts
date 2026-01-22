@@ -140,11 +140,11 @@ async function authenticateWithSupabase(identityToken: string): Promise<AppleSig
     });
 
     if (error) {
-      if (import.meta.env.DEV) {
-        console.error('❌ Apple Sign In: Supabase authentication error:', error);
-        console.error('Error status:', error.status);
-        console.error('Error message:', error.message);
-      }
+      // Always log errors for debugging
+      console.error('❌ Apple Sign In: Supabase authentication error:', error);
+      console.error('Error status:', error.status);
+      console.error('Error message:', error.message);
+      console.error('Error name:', error.name);
       
       // Provide more specific error messages
       let errorMessage = 'Failed to sign in with Apple';

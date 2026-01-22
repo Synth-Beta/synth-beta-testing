@@ -139,11 +139,11 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     setLoading(true);
 
     try {
-      if (import.meta.env.DEV) {
-        console.log('🔐 Attempting sign in...');
-        console.log('Email:', email ? `${email.substring(0, 3)}***` : 'empty');
-        console.log('Platform:', Capacitor.isNativePlatform() ? 'Mobile' : 'Web');
-      }
+      // Always log for debugging
+      console.log('🔐 Attempting sign in...');
+      console.log('Email:', email ? `${email.substring(0, 3)}***` : 'empty');
+      console.log('Platform:', Capacitor.isNativePlatform() ? 'Mobile' : 'Web');
+      console.log('Supabase client initialized:', !!supabase);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -151,14 +151,13 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       });
 
       if (error) {
+        // Always log errors in production for debugging
+        console.error('❌ Sign in error:', error);
+        console.error('Error status:', error.status);
+        console.error('Error message:', error.message);
+        console.error('Error name:', error.name);
         if (import.meta.env.DEV) {
-          console.error('❌ Sign in error:', error);
-          console.error('Error code:', error.status);
-          console.error('Error message:', error.message);
           console.error('Full error object:', JSON.stringify(error, null, 2));
-        } else {
-          // In production, log minimal error info
-          console.error('Sign in failed:', error.message);
         }
         
         // Provide more helpful error messages

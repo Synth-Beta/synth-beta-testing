@@ -13,9 +13,15 @@ if (import.meta.env.DEV) {
 // Check if we have valid credentials
 if (SUPABASE_URL === "https://your-project.supabase.co" || SUPABASE_PUBLISHABLE_KEY === "your-anon-key") {
   console.error('❌ Supabase credentials not found! Check environment variables.');
+  console.error('SUPABASE_URL:', SUPABASE_URL);
+  console.error('SUPABASE_KEY present:', !!SUPABASE_PUBLISHABLE_KEY);
+  console.error('Environment check - DEV:', import.meta.env.DEV);
+  console.error('Environment check - MODE:', import.meta.env.MODE);
 } else {
+  // Always log in production too for debugging
+  console.log('✅ Supabase credentials loaded');
   if (import.meta.env.DEV) {
-    console.log('✅ Supabase credentials loaded successfully');
+    console.log('Supabase URL:', SUPABASE_URL);
   }
 }
 
