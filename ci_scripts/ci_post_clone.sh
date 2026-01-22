@@ -177,10 +177,39 @@ done
 
 # Build web assets (required for cap sync to copy to ios/App/App/public)
 echo "🔨 Building web assets..."
+
+# Check for required environment variables
+echo "🔍 Checking environment variables..."
+if [ -z "$VITE_SUPABASE_URL" ]; then
+  echo "⚠️  WARNING: VITE_SUPABASE_URL not set!"
+  echo "   Supabase authentication will not work in the app"
+  echo "   Set this in Xcode Cloud workflow → Environment Variables"
+fi
+if [ -z "$VITE_SUPABASE_ANON_KEY" ] && [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+  echo "⚠️  WARNING: VITE_SUPABASE_ANON_KEY not set!"
+  echo "   Supabase authentication will not work in the app"
+  echo "   Set this in Xcode Cloud workflow → Environment Variables"
+fi
+
+# Log which variables are set (without exposing values)
+echo "Environment variables status:"
+echo "  VITE_SUPABASE_URL: $([ -n "$VITE_SUPABASE_URL" ] && echo 'SET' || echo 'MISSING')"
+echo "  VITE_SUPABASE_ANON_KEY: $([ -n "$VITE_SUPABASE_ANON_KEY" ] && echo 'SET' || echo 'MISSING')"
+echo "  VITE_SUPABASE_PUBLISHABLE_KEY: $([ -n "$VITE_SUPABASE_PUBLISHABLE_KEY" ] && echo 'SET' || echo 'MISSING')"
+
+# Build with environment variables
+echo "Running: npm run build"
 if ! npm run build; then
   echo "❌ Error: npm run build failed"
   echo "   This means the latest code changes were not built into dist/"
   echo "   The iOS app will be built with outdated web assets"
+  if [ -z "$VITE_SUPABASE_URL" ] || ([ -z "$VITE_SUPABASE_ANON_KEY" ] && [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]); then
+    echo ""
+    echo "⚠️  CRITICAL: Supabase environment variables are missing!"
+    echo "   Go to Xcode Cloud workflow settings and add:"
+    echo "   - VITE_SUPABASE_URL"
+    echo "   - VITE_SUPABASE_ANON_KEY"
+  fi
   exit 1
 fi
 
