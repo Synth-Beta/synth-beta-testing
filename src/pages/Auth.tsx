@@ -82,6 +82,25 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     };
   }, [isIOS]);
 
+  // Helper function to get redirect URL based on platform
+  const getRedirectUrl = (path: string): string => {
+    const isMobile = Capacitor.isNativePlatform();
+    if (isMobile) {
+      // Use custom URL scheme for mobile deep links
+      // Remove leading slash and hash for mobile URLs
+      // Supabase will append #access_token=... so we need synth://onboarding not synth://#onboarding
+      let mobilePath = path.startsWith('/') ? path.substring(1) : path;
+      mobilePath = mobilePath.startsWith('#') ? mobilePath.substring(1) : mobilePath;
+      return `synth://${mobilePath}`;
+    }
+    // Use current origin for web (works in dev, staging, production)
+    // Fallback to production URL if window is not available (SSR)
+    const baseUrl = typeof window !== 'undefined' 
+      ? window.location.origin 
+      : 'https://synth-beta-testing.vercel.app';
+    return `${baseUrl}${path}`;
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -91,7 +110,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         email,
         password,
         options: {
-          emailRedirectTo: 'https://synth-beta-testing.vercel.app/#onboarding',
+          emailRedirectTo: getRedirectUrl('/#onboarding'),
           data: {
             name: name,
           }
@@ -120,22 +139,65 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      if (import.meta.env.DEV) {
+        console.log('🔐 Attempting sign in...');
+        console.log('Email:', email ? `${email.substring(0, 3)}***` : 'empty');
+        console.log('Platform:', Capacitor.isNativePlatform() ? 'Mobile' : 'Web');
+      }
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        if (import.meta.env.DEV) {
+          console.error('❌ Sign in error:', error);
+          console.error('Error code:', error.status);
+          console.error('Error message:', error.message);
+          console.error('Full error object:', JSON.stringify(error, null, 2));
+        } else {
+          // In production, log minimal error info
+          console.error('Sign in failed:', error.message);
+        }
+        
+        // Provide more helpful error messages
+        let userMessage = error.message;
+        if (error.status === 400) {
+          userMessage = 'Invalid email or password. Please check your credentials.';
+        } else if (error.status === 0 || error.message?.includes('fetch')) {
+          userMessage = 'Network error. Please check your internet connection.';
+        } else if (error.message?.includes('Invalid login credentials')) {
+          userMessage = 'Invalid email or password.';
+        }
+        
+        throw new Error(userMessage);
+      }
 
+      if (!data.session) {
+        if (import.meta.env.DEV) {
+          console.error('❌ No session returned after sign in');
+        }
+        throw new Error('Sign in succeeded but no session was created');
+      }
+
+      if (import.meta.env.DEV) {
+        console.log('✅ Sign in successful, session created');
+        console.log('User ID:', data.user?.id);
+      }
       toast({
         title: "Welcome back!",
         description: "You're now signed in.",
       });
       onAuthSuccess();
     } catch (error: any) {
+      if (import.meta.env.DEV) {
+        console.error('❌ Sign in failed:', error);
+      }
+      const errorMessage = error?.message || error?.msg || 'Unknown error occurred. Please try again.';
       toast({
         title: "Sign in failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

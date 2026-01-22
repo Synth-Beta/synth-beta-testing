@@ -29,21 +29,26 @@ const supabaseConfig: any = {
     autoRefreshToken: true,
     // Persist session in mobile app storage
     persistSession: true,
-    // Detect session from URL (for deep links)
-    detectSessionInUrl: true,
+    // Detect session from URL (for deep links) - only on web
+    detectSessionInUrl: !isMobile, // Disable on mobile, we handle deep links manually
     // Storage adapter for mobile (uses Capacitor Preferences)
-    storage: isMobile ? undefined : undefined, // Let Supabase use default storage
+    // Let Supabase use default storage which works on both web and mobile
     // Redirect URLs based on platform
     redirectTo: isMobile 
       ? 'synth://' // Mobile deep link scheme
-      : window.location.origin, // Web origin
+      : typeof window !== 'undefined' ? window.location.origin : 'https://synth-beta-testing.vercel.app', // Web origin
   },
 };
+
+if (isMobile && import.meta.env.DEV) {
+  console.log('📱 Mobile platform detected - using mobile auth configuration');
+}
 
 // Create Supabase client
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, supabaseConfig);
 
 // Set up auth state change listener for deep link handling on mobile
+// This is mobile-only because web handles auth callbacks differently
 if (isMobile && typeof window !== 'undefined') {
   supabase.auth.onAuthStateChange((event, session) => {
     if (import.meta.env.DEV) {
@@ -53,6 +58,7 @@ if (isMobile && typeof window !== 'undefined') {
     // Handle deep link callbacks
     if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
       // Session is established, app can proceed
+      // Deep link processing is handled in App.tsx DeepLinkHandlerInner component
       if (import.meta.env.DEV) {
         console.log('✅ User authenticated via deep link');
       }

@@ -19,10 +19,12 @@ To enable mobile authentication (email/password sign in, sign up, forgot passwor
    In the **Redirect URLs** section, add these URLs (one per line):
    ```
    synth://**
-   synth://#onboarding
+   synth://onboarding
    synth://reset-password
    synth://
    ```
+   
+   **Note:** The `synth://**` wildcard covers all variations, but adding specific URLs is recommended for clarity.
 
 4. **Update Site URL (if needed)**
    - The **Site URL** should remain as your web URL: `https://synth-beta-testing.vercel.app`
@@ -33,9 +35,9 @@ To enable mobile authentication (email/password sign in, sign up, forgot passwor
 
 ### What These URLs Do
 
-- `synth://**` - Allows all deep links with the `synth://` scheme (catch-all)
-- `synth://#onboarding` - Email confirmation redirects to onboarding
-- `synth://reset-password` - Password reset redirects to reset password page
+- `synth://**` - Allows all deep links with the `synth://` scheme (catch-all) - **REQUIRED**
+- `synth://onboarding` - Email confirmation redirects to onboarding (Supabase appends `#access_token=...`)
+- `synth://reset-password` - Password reset redirects to reset password page (Supabase appends `#access_token=...`)
 - `synth://` - Base deep link scheme
 
 ### Testing
