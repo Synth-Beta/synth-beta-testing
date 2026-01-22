@@ -14,6 +14,7 @@
  */
 
 import JambaseSyncService from '../backend/jambase-sync-service.mjs';
+import { fetchGenresForArtist, isEmptyGenres } from './fetch-artist-genres.mjs';
 
 class IncrementalSync3NF {
   constructor(syncService) {
@@ -145,6 +146,33 @@ class IncrementalSync3NF {
 
     // Insert new artists
     if (newArtists.length > 0) {
+      // Fetch genres for new artists that have empty genres
+      for (const artist of newArtists) {
+        if (isEmptyGenres(artist.genres)) {
+          console.log(`  🔍 Fetching genres for new artist: ${artist.name}`);
+          try {
+            const { genres: fetchedGenres, source } = await fetchGenresForArtist({
+              id: artist.identifier || artist.jambase_artist_id,
+              name: artist.name,
+              external_identifiers: artist.external_identifiers
+            });
+            
+            if (fetchedGenres && fetchedGenres.length > 0) {
+              artist.genres = fetchedGenres;
+              console.log(`  ✓ Found genres via ${source}: ${fetchedGenres.slice(0, 2).join(', ')}`);
+            } else {
+              // Set default genre for artists without genres
+              artist.genres = ['small artist'];
+              console.log(`  ⚠️  No genres found, setting default: small artist`);
+            }
+          } catch (error) {
+            console.warn(`  ⚠️  Error fetching genres for ${artist.name}: ${error.message}`);
+            // Set default genre on error
+            artist.genres = ['small artist'];
+          }
+        }
+      }
+      
       // Remove jambase_artist_id and artist_data_source from data (they're not columns, just used for deduplication)
       const artistsToInsert = newArtists.map(artist => {
         const { jambase_artist_id, artist_data_source, ...artistData } = artist;
@@ -206,12 +234,16 @@ class IncrementalSync3NF {
         ? existingGenres 
         : (existingGenres ? [existingGenres] : []);
       
-      // Merge with new genres if provided
+      // Only merge if newGenres is provided AND not empty
       let mergedGenres = [...existingArray];
       
-      if (newGenres) {
-        const newGenresArray = Array.isArray(newGenres) ? newGenres : [newGenres];
-        
+      // Check if newGenres is valid (not null, not undefined, not empty array)
+      const hasValidNewGenres = newGenres && 
+        Array.isArray(newGenres) && 
+        newGenres.length > 0 && 
+        !isEmptyGenres(newGenres);
+      
+      if (hasValidNewGenres) {
         // Deduplicate (case-insensitive)
         const genreMap = new Map();
         
@@ -226,7 +258,7 @@ class IncrementalSync3NF {
         }
         
         // Add new genres
-        for (const genre of newGenresArray) {
+        for (const genre of newGenres) {
           if (genre) {
             const key = String(genre).toLowerCase().trim();
             genreMap.set(key, String(genre).trim());
@@ -236,13 +268,20 @@ class IncrementalSync3NF {
         mergedGenres = Array.from(genreMap.values());
       }
       
-      // ALWAYS include merged genres in update (preserves existing + adds new)
+      // Only update genres if we have valid merged genres OR if existing genres are empty
+      // Never overwrite existing genres with empty array
+      const shouldUpdateGenres = mergedGenres.length > 0 || existingArray.length === 0;
+      
       const updateData = {
         ...artistData,
-        genres: mergedGenres,
         updated_at: new Date().toISOString(),
         last_synced_at: new Date().toISOString()
       };
+      
+      // Only include genres in update if we should update them
+      if (shouldUpdateGenres) {
+        updateData.genres = mergedGenres.length > 0 ? mergedGenres : existingArray;
+      }
       
       const { error } = await this.syncService.supabase
         .from('artists')
@@ -459,6 +498,34 @@ class IncrementalSync3NF {
 
     // Insert new events
     if (newEvents.length > 0) {
+      // Fetch artist genres for events that need them
+      const artistUuidsToFetch = new Set();
+      for (const { eventData } of newEvents) {
+        const artistUuid = eventData.artist_jambase_id_text 
+          ? artistUuidMap.get(eventData.artist_jambase_id_text) 
+          : null;
+        if (artistUuid && isEmptyGenres(eventData.genres)) {
+          artistUuidsToFetch.add(artistUuid);
+        }
+      }
+      
+      // Fetch genres from database for artists
+      const artistGenresMap = new Map();
+      if (artistUuidsToFetch.size > 0) {
+        const { data: artistsWithGenres, error: fetchError } = await this.syncService.supabase
+          .from('artists')
+          .select('id, genres')
+          .in('id', Array.from(artistUuidsToFetch));
+        
+        if (!fetchError && artistsWithGenres) {
+          for (const artist of artistsWithGenres) {
+            if (!isEmptyGenres(artist.genres)) {
+              artistGenresMap.set(artist.id, artist.genres);
+            }
+          }
+        }
+      }
+      
       // Map artist/venue Jambase IDs to UUIDs
       const eventsWithUuids = newEvents.map(({ eventData, jambaseEventId }) => {
         const artistUuid = eventData.artist_jambase_id_text 
@@ -477,11 +544,22 @@ class IncrementalSync3NF {
           venue_jambase_id_text,
           artist_name,
           venue_name,
+          genres: eventGenres,
           ...eventDataClean 
         } = eventData;
 
+        // Use event genres if available, otherwise use artist genres
+        let finalGenres = eventGenres;
+        if (isEmptyGenres(eventGenres) && artistUuid) {
+          const artistGenres = artistGenresMap.get(artistUuid);
+          if (!isEmptyGenres(artistGenres)) {
+            finalGenres = artistGenres;
+          }
+        }
+
         return {
           ...eventDataClean,
+          genres: finalGenres,
           artist_id: artistUuid, // UUID FK to artists(id)
           venue_id: venueUuid, // UUID FK to venues(id)
           created_at: new Date().toISOString(),
@@ -512,6 +590,34 @@ class IncrementalSync3NF {
     }
 
     // Update existing events
+    // First, fetch artist genres for events that need them
+    const updateArtistUuidsToFetch = new Set();
+    for (const { data } of updateEvents) {
+      const artistUuid = data.artist_jambase_id_text 
+        ? artistUuidMap.get(data.artist_jambase_id_text) 
+        : null;
+      if (artistUuid && isEmptyGenres(data.genres)) {
+        updateArtistUuidsToFetch.add(artistUuid);
+      }
+    }
+    
+    // Fetch genres from database for artists
+    const updateArtistGenresMap = new Map();
+    if (updateArtistUuidsToFetch.size > 0) {
+      const { data: artistsWithGenres, error: fetchError } = await this.syncService.supabase
+        .from('artists')
+        .select('id, genres')
+        .in('id', Array.from(updateArtistUuidsToFetch));
+      
+      if (!fetchError && artistsWithGenres) {
+        for (const artist of artistsWithGenres) {
+          if (!isEmptyGenres(artist.genres)) {
+            updateArtistGenresMap.set(artist.id, artist.genres);
+          }
+        }
+      }
+    }
+    
     for (const { uuid, data, jambaseEventId } of updateEvents) {
       const artistUuid = data.artist_jambase_id_text 
         ? artistUuidMap.get(data.artist_jambase_id_text) 
@@ -529,17 +635,34 @@ class IncrementalSync3NF {
         venue_jambase_id_text,
         artist_name,
         venue_name,
+        genres: eventGenres,
         ...eventDataClean 
       } = data;
 
+      // Use event genres if available, otherwise use artist genres
+      let finalGenres = eventGenres;
+      if (isEmptyGenres(eventGenres) && artistUuid) {
+        const artistGenres = updateArtistGenresMap.get(artistUuid);
+        if (!isEmptyGenres(artistGenres)) {
+          finalGenres = artistGenres;
+        }
+      }
+
+      const updateData = {
+        ...eventDataClean,
+        artist_id: artistUuid, // UUID FK to artists(id)
+        venue_id: venueUuid, // UUID FK to venues(id)
+        updated_at: new Date().toISOString()
+      };
+      
+      // Only update genres if we have valid genres (don't overwrite with empty)
+      if (!isEmptyGenres(finalGenres)) {
+        updateData.genres = finalGenres;
+      }
+
       const { error } = await this.syncService.supabase
         .from('events')
-        .update({
-          ...eventDataClean,
-          artist_id: artistUuid, // UUID FK to artists(id)
-          venue_id: venueUuid, // UUID FK to venues(id)
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', uuid);
 
       if (error) {

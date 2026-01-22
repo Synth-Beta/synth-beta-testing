@@ -171,6 +171,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [friendStatus, setFriendStatus] = useState<'none' | 'friends' | 'pending_sent' | 'pending_received'>('none');
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const [followedArtistsCount, setFollowedArtistsCount] = useState(0);
+  const [followedVenuesCount, setFollowedVenuesCount] = useState(0);
   const [passportProgress, setPassportProgress] = useState({
     cities: 0,
     venues: 0,
@@ -879,9 +880,20 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       
       setFollowedArtistsCount(finalCount);
       console.log('🔍 ProfileView: Final artist follows count set to:', finalCount);
+
+      // Also fetch venue follows count
+      const { count: venueCount } = await supabase
+        .from('user_venue_relationships')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', targetUserId);
+      
+      const venueFollowsCount = venueCount || 0;
+      setFollowedVenuesCount(venueFollowsCount);
+      console.log('🔍 ProfileView: Venue follows count set to:', venueFollowsCount);
     } catch (error) {
-      console.error('Error fetching followed artists count:', error);
+      console.error('Error fetching followed artists/venues count:', error);
       setFollowedArtistsCount(0);
+      setFollowedVenuesCount(0);
     }
   };
 
@@ -1680,7 +1692,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     initial={profile.name.charAt(0).toUpperCase()}
                     imageUrl={profile.avatar_url}
                     followers={friends.length}
-                    following={followedArtistsCount}
+                    following={followedArtistsCount + followedVenuesCount}
                     events={reviewsCount}
                     onFollowersClick={() => { setFollowersModalType('friends'); setShowFollowersModal(true); }}
                     onFollowingClick={() => setShowFollowingModal(true)}

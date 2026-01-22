@@ -118,7 +118,7 @@ class EventShareHandler {
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "'", with: "\\'")
             .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\r", with "\\r")
+            .replacingOccurrences(of: "\r", with: "\\r")
             .replacingOccurrences(of: "\"", with: "\\\"")
         
         let script = """
