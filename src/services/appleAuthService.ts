@@ -122,26 +122,57 @@ function triggerNativeAppleSignIn(): void {
  */
 async function authenticateWithSupabase(identityToken: string): Promise<AppleSignInResult> {
   try {
+    if (!identityToken || identityToken.trim() === '') {
+      console.error('❌ Apple Sign In: Empty identity token received');
+      return {
+        success: false,
+        error: 'Invalid identity token from Apple. Please try again.'
+      };
+    }
+
+    console.log('🔐 Apple Sign In: Authenticating with Supabase...');
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'apple',
       token: identityToken
     });
 
     if (error) {
+      console.error('❌ Apple Sign In: Supabase authentication error:', error);
+      // Provide more specific error messages
+      let errorMessage = 'Failed to sign in with Apple';
+      if (error.message) {
+        if (error.message.includes('Invalid token')) {
+          errorMessage = 'The Apple Sign In token is invalid. Please try again.';
+        } else if (error.message.includes('expired')) {
+          errorMessage = 'The sign-in session has expired. Please try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
       return {
         success: false,
-        error: error.message || 'Failed to authenticate with Supabase'
+        error: errorMessage
       };
     }
 
+    if (!data.session) {
+      console.error('❌ Apple Sign In: No session returned from Supabase');
+      return {
+        success: false,
+        error: 'Authentication succeeded but no session was created. Please try again.'
+      };
+    }
+
+    console.log('✅ Apple Sign In: Successfully authenticated with Supabase');
     return {
       success: true,
       session: data.session
     };
   } catch (error: any) {
+    console.error('❌ Apple Sign In: Unexpected error:', error);
     return {
       success: false,
-      error: error.message || 'Authentication error'
+      error: error?.message || 'An unexpected error occurred during authentication'
     };
   }
 }

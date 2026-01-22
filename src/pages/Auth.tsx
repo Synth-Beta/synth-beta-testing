@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { handleAppleSignInFromNative, setupAppleSignInListeners } from '@/services/appleAuthService';
+import { Capacitor } from '@capacitor/core';
 
 // Add the elegant-shift animation keyframes
 const styles = `
@@ -155,7 +156,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     setIsResettingPassword(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://synth-beta-testing.vercel.app/reset-password',
+        redirectTo: getRedirectUrl('/reset-password'),
       });
 
       if (error) {

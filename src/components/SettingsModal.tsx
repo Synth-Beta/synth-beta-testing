@@ -19,6 +19,7 @@ import {
   updateCurrentUserSettingsPreferences 
 } from '@/services/userSettingsPreferencesService';
 import { useViewTracking } from '@/hooks/useViewTracking';
+import { Capacitor } from '@capacitor/core';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -98,8 +99,14 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
 
     setIsResettingPassword(true);
     try {
+      // Get redirect URL based on platform (mobile vs web)
+      const isMobile = Capacitor.isNativePlatform();
+      const redirectUrl = isMobile 
+        ? 'synth://reset-password' 
+        : 'https://synth-beta-testing.vercel.app/reset-password';
+      
       const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
-        redirectTo: 'https://synth-beta-testing.vercel.app/reset-password',
+        redirectTo: redirectUrl,
       });
 
       if (error) {

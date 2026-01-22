@@ -212,8 +212,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-        // Called when the app was launched with a url. Feel free to add additional processing here,
-        // but if you want the App API to support tracking app url opens, make sure to keep this call
+        // Called when the app was launched with a url (including custom URL schemes like synth://)
+        // This handles deep links from Supabase auth callbacks (email confirmation, password reset)
+        // ApplicationDelegateProxy forwards the URL to Capacitor, which triggers 'appUrlOpen' event
+        // The web layer (App.tsx) listens for this event and processes the auth callback
+        // Note: We don't log the full URL to avoid exposing sensitive auth tokens (access_token, refresh_token) in logs
+        if url.scheme == "synth" {
+            // Only log that a deep link was received, without exposing any URL details that might contain tokens
+            print("📱 Received synth:// deep link (auth callback)")
+        }
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
     }
 
