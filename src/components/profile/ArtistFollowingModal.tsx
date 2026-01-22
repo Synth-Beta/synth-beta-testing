@@ -11,6 +11,8 @@ import type { ArtistFollowWithDetails } from '@/types/artistFollow';
 import type { JamBaseEvent } from '@/services/jambaseEventsService';
 import { format } from 'date-fns';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { getEventUuid } from '@/utils/entityUuidResolver';
 
 interface ArtistFollowingModalProps {
   open: boolean;
@@ -92,6 +94,24 @@ export function ArtistFollowingModal({
     // Open event in new tab using compliant link
     const eventLink = getCompliantEventLink(event);
     if (eventLink) {
+      // Track ticket link click
+      try {
+        const eventUuid = getEventUuid(event);
+        trackInteraction.click(
+          'ticket_link',
+          event.id,
+          {
+            source: 'artist_following_modal',
+            ticket_url: eventLink,
+            artist_name: event.artist_name,
+            venue_name: event.venue_name,
+            event_date: event.event_date,
+          },
+          eventUuid || undefined
+        );
+      } catch (error) {
+        console.error('Error tracking ticket link click:', error);
+      }
       window.open(eventLink, '_blank', 'noopener,noreferrer');
     }
   };

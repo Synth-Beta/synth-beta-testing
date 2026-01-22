@@ -9,6 +9,8 @@ import { format, parseISO } from 'date-fns';
 import { JamBaseEventResponse } from '@/types/eventTypes';
 import { formatPrice } from '@/utils/currencyUtils';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { getEventUuid } from '@/utils/entityUuidResolver';
 
 // Fix for default markers in React Leaflet
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -314,7 +316,27 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
                           href={eventLink}
                           target="_blank"
                           rel="nofollow noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Track ticket link click
+                            try {
+                              const eventUuid = getEventUuid(event);
+                              trackInteraction.click(
+                                'ticket_link',
+                                event.id,
+                                {
+                                  source: 'event_map',
+                                  ticket_url: eventLink,
+                                  artist_name: event.artist_name,
+                                  venue_name: event.venue_name,
+                                  event_date: event.event_date,
+                                },
+                                eventUuid || undefined
+                              );
+                            } catch (error) {
+                              console.error('Error tracking ticket link click:', error);
+                            }
+                          }}
                         >
                           <Ticket className="w-3 h-3 mr-1" />
                           Tickets

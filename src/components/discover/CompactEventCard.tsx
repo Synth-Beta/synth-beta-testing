@@ -9,6 +9,8 @@ import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import { JamBaseAttribution } from '@/components/attribution';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 import { Ticket, ExternalLink } from 'lucide-react';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { getEventUuid } from '@/utils/entityUuidResolver';
 
 interface CompactEventCardProps {
   event: JamBaseEvent;
@@ -114,7 +116,28 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
                 href={eventLink}
                 target="_blank"
                 rel="nofollow noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Track ticket link click
+                  try {
+                    const eventUuid = getEventUuid(event);
+                    trackInteraction.click(
+                      'ticket_link',
+                      event.id,
+                      {
+                        source: 'discover_compact_event_card',
+                        ticket_url: eventLink,
+                        artist_name: event.artist_name,
+                        venue_name: event.venue_name,
+                        event_date: event.event_date,
+                        price_range: event.price_range,
+                      },
+                      eventUuid || undefined
+                    );
+                  } catch (error) {
+                    console.error('Error tracking ticket link click:', error);
+                  }
+                }}
                 className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:underline"
                 style={{
                   fontFamily: 'var(--font-family)',

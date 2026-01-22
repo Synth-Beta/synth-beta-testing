@@ -7,6 +7,8 @@ import { safeFormatEventDateTime } from '@/lib/dateUtils';
 import type { Event } from '@/types/concertSearch';
 import { EventDetailsModal } from './events/EventDetailsModal';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { getEventUuid } from '@/utils/entityUuidResolver';
 
 interface ConcertSearchResultsProps {
   event: Event | null;
@@ -133,6 +135,26 @@ export function ConcertSearchResults({ event, isNewEvent, source, currentUserId 
                   target="_blank" 
                   rel="nofollow noopener noreferrer"
                   className="flex items-center gap-1"
+                  onClick={() => {
+                    // Track ticket link click
+                    try {
+                      const eventUuid = getEventUuid(event);
+                      trackInteraction.click(
+                        'ticket_link',
+                        event.id,
+                        {
+                          source: 'concert_search_results',
+                          ticket_url: eventLink,
+                          artist_name: event.artist_name,
+                          venue_name: event.venue_name,
+                          event_date: event.event_date,
+                        },
+                        eventUuid || undefined
+                      );
+                    } catch (error) {
+                      console.error('Error tracking ticket link click:', error);
+                    }
+                  }}
                 >
                   <ExternalLink className="h-3 w-3" />
                   Buy Tickets

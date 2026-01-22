@@ -16,6 +16,8 @@ import type { JamBaseEvent } from '@/types/eventTypes';
 import { UserEventService } from '@/services/userEventService';
 import { format, parseISO } from 'date-fns';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
+import { trackInteraction } from '@/services/interactionTrackingService';
+import { getEventUuid } from '@/utils/entityUuidResolver';
 
 interface EventMessageCardProps {
   eventId: string;
@@ -329,13 +331,33 @@ export function EventMessageCard({
                 variant="outline"
                 className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-50"
                 asChild
-                onClick={(e) => e.stopPropagation()}
               >
                 <a 
                   href={eventLink} 
                   target="_blank" 
                   rel="nofollow noopener noreferrer"
                   className="flex items-center justify-center gap-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Track ticket link click
+                    try {
+                      const eventUuid = getEventUuid(event);
+                      trackInteraction.click(
+                        'ticket_link',
+                        event.id,
+                        {
+                          source: 'chat_event_message_card',
+                          ticket_url: eventLink,
+                          artist_name: event.artist_name,
+                          venue_name: event.venue_name,
+                          event_date: event.event_date,
+                        },
+                        eventUuid || undefined
+                      );
+                    } catch (error) {
+                      console.error('Error tracking ticket link click:', error);
+                    }
+                  }}
                 >
                   <Ticket className="w-3 h-3" />
                   Tickets
