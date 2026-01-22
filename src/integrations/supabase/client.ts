@@ -1,8 +1,34 @@
 import { createClient } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
 
+// Get Supabase credentials from environment variables
+// These MUST be set at build time (npm run build) for mobile apps
+// For local builds: Set in .env.local file
+// For Xcode Cloud: Set in workflow environment variables
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://your-project.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || "your-anon-key";
+
+// CRITICAL: If credentials are missing, throw error immediately so it's obvious
+if (SUPABASE_URL === "https://your-project.supabase.co" || SUPABASE_PUBLISHABLE_KEY === "your-anon-key") {
+  const errorMsg = `❌ CRITICAL: Supabase credentials missing! 
+  
+Environment variables not set at build time:
+- VITE_SUPABASE_URL: ${SUPABASE_URL === "https://your-project.supabase.co" ? "MISSING" : "SET"}
+- VITE_SUPABASE_ANON_KEY or VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY === "your-anon-key" ? "MISSING" : "SET"}
+
+To fix:
+1. Create .env.local file with your Supabase credentials
+2. Run: npm run build
+3. Then: npx cap sync ios
+4. Rebuild in Xcode
+
+OR for Xcode Cloud:
+1. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to workflow environment variables
+2. Ensure ci_post_clone.sh runs npm run build with these variables`;
+  
+  console.error(errorMsg);
+  // Don't throw - let the app try to load, but it will fail with clear error messages
+}
 
 // Debug logging (disabled in production)
 if (import.meta.env.DEV) {
@@ -52,6 +78,9 @@ if (isMobile && import.meta.env.DEV) {
 
 // Create Supabase client
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, supabaseConfig);
+
+// Expose URL for validation (for debugging)
+(supabase as any).supabaseUrl = SUPABASE_URL;
 
 // Set up auth state change listener for deep link handling on mobile
 // This is mobile-only because web handles auth callbacks differently

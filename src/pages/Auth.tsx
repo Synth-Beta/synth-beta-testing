@@ -124,10 +124,13 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         description: "We sent you a confirmation link.",
       });
     } catch (error: any) {
+      const errorMsg = error?.message || error?.toString() || 'Sign up failed. Please try again.';
+      const errorStatus = error?.status ? ` (Status: ${error.status})` : '';
       toast({
         title: "Sign up failed",
-        description: error.message,
+        description: `${errorMsg}${errorStatus}`,
         variant: "destructive",
+        duration: 10000, // Show for 10 seconds
       });
     } finally {
       setLoading(false);
@@ -144,6 +147,12 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       console.log('Email:', email ? `${email.substring(0, 3)}***` : 'empty');
       console.log('Platform:', Capacitor.isNativePlatform() ? 'Mobile' : 'Web');
       console.log('Supabase client initialized:', !!supabase);
+      
+      // Check if Supabase credentials are configured
+      const supabaseUrl = (supabase as any).supabaseUrl;
+      if (!supabaseUrl || supabaseUrl.includes('your-project.supabase.co')) {
+        throw new Error('Supabase not configured. Environment variables missing at build time. Check build settings.');
+      }
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -203,11 +212,17 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       if (import.meta.env.DEV) {
         console.error('❌ Sign in failed:', error);
       }
+      
+      // Show FULL error details in toast for debugging (especially for TestFlight)
       const errorMessage = error?.message || error?.msg || 'Unknown error occurred. Please try again.';
+      const errorStatus = error?.status ? ` (Status: ${error.status})` : '';
+      const fullErrorMessage = `${errorMessage}${errorStatus}`;
+      
       toast({
         title: "Sign in failed",
-        description: errorMessage,
+        description: fullErrorMessage,
         variant: "destructive",
+        duration: 10000, // Show for 10 seconds so user can read it
       });
     } finally {
       setLoading(false);
@@ -256,10 +271,13 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       if (import.meta.env.DEV) {
         console.error('❌ Password reset failed:', error);
       }
+      const errorMsg = error?.message || error?.toString() || 'Failed to send password reset email.';
+      const errorStatus = error?.status ? ` (Status: ${error.status})` : '';
       toast({
-        title: 'Error',
-        description: error?.message || 'Failed to send password reset email.',
+        title: 'Password Reset Failed',
+        description: `${errorMsg}${errorStatus}`,
         variant: 'destructive',
+        duration: 10000, // Show for 10 seconds
       });
     } finally {
       setIsResettingPassword(false);
@@ -299,19 +317,22 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
           console.error('❌ Apple Sign In failed:', result.error);
         }
         toast({
-          title: "Sign in failed",
+          title: "Apple Sign In failed",
           description: result.error || "Failed to sign in with Apple. Please try again.",
           variant: "destructive",
+          duration: 10000, // Show for 10 seconds
         });
       }
     } catch (error: any) {
       if (import.meta.env.DEV) {
         console.error('❌ Apple Sign In exception:', error);
       }
+      const errorMsg = error?.message || error?.toString() || "An unexpected error occurred. Please try again.";
       toast({
-        title: "Sign in failed",
-        description: error?.message || "An unexpected error occurred. Please try again.",
+        title: "Apple Sign In failed",
+        description: errorMsg,
         variant: "destructive",
+        duration: 10000, // Show for 10 seconds
       });
     } finally {
       setAppleSignInLoading(false);
