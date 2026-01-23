@@ -481,7 +481,6 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
           <TabsTrigger 
             value="calendar" 
             className="flex items-center gap-2 discover-tab-trigger"
-            style={{ minHeight: '44px' }}
           >
             <Icon name="calendar" size={16} />
             Calendar
@@ -489,7 +488,6 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
           <TabsTrigger 
             value="leaderboards" 
             className="flex items-center gap-2 discover-tab-trigger"
-            style={{ minHeight: '44px' }}
           >
             <Icon name="ribbonAward" size={16} />
             Leaderboards
@@ -497,7 +495,6 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
           <TabsTrigger 
             value="tour" 
             className="flex items-center gap-2 discover-tab-trigger"
-            style={{ minHeight: '44px' }}
           >
             <Icon name="route" size={16} />
             Tour Tracker

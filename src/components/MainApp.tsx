@@ -763,7 +763,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         </div>
       )}
       
-      <main style={{ backgroundColor: 'transparent' }}>
+      <div style={{ backgroundColor: 'transparent' }}>
         {renderCurrentView()}
       </main>
 

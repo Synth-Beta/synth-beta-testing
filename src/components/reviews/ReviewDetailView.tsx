@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Star, ThumbsUp, MessageCircle, Share2, Edit, Trash2, MapPin, ChevronLeft, Flag, ChevronDown, ChevronUp, Music2, Lightbulb, Building2, Compass, DollarSign } from 'lucide-react';
+import { Star, ThumbsUp, MessageCircle, Share2, Edit, Trash2, MapPin, ChevronLeft } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
@@ -376,146 +376,60 @@ export function ReviewDetailView({
         }}
       >
         <div className="max-w-2xl mx-auto" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
-          {/* Top Header Row: Back Chevron, Avatar + Username, Edit/Delete */}
-          <div className="flex items-center justify-between" style={{ paddingTop: 'var(--spacing-small, 12px)', paddingBottom: 'var(--spacing-small, 12px)' }}>
-            {/* Left side: Back Chevron, Avatar, Username - all left-aligned with 6px spacing */}
-            <div className="flex items-center" style={{ gap: '6px' }}>
-              {/* Back Chevron */}
-              <button
-                onClick={onBack}
-                style={{ 
-                  background: 'none', 
-                  border: 'none', 
-                  padding: 0, 
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: '44px',
-                  minHeight: '44px',
-                  width: '44px',
-                  height: '44px',
-                }}
-                type="button"
-                aria-label="Go back"
-              >
-                <ChevronLeft style={{ width: '35px', height: '35px', color: 'var(--neutral-900)' }} aria-hidden="true" />
-              </button>
-              
-              {/* Avatar */}
-              <button
-                onClick={() => onOpenProfile?.(reviewData.user_id)}
-                className="shrink-0"
-                style={{ 
-                  background: 'none', 
-                  border: 'none', 
-                  padding: 0, 
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Avatar className="w-10 h-10" style={{ border: '2px solid var(--brand-pink-500)' }}>
-                  <AvatarImage 
-                    src={reviewData.author?.avatar_url || undefined} 
-                    alt={reviewData.author?.name ? `${reviewData.author.name}'s profile picture` : "User profile picture"} 
-                  />
-                  <AvatarFallback className="text-white font-bold" style={{ backgroundColor: '#FF3399' }}>
-                    {reviewData.author?.name?.charAt(0).toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-              </button>
-              
-              {/* Username */}
-              <button
-                onClick={() => onOpenProfile?.(reviewData.user_id)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-body-size, 20px)',
-                  fontWeight: 'var(--typography-body-weight, 500)',
-                  lineHeight: 'var(--typography-body-line-height, 1.5)',
-                  color: 'var(--neutral-900)',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                {reviewData.author?.name || 'User'}
-              </button>
-            </div>
-
-            {/* Right side: Edit/Delete Icons for owner, Flag icon for others */}
-            {isOwner ? (
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button 
-                  onClick={onEdit} 
-                  style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    padding: 0, 
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 36, 
-                    height: 36,
-                    borderRadius: 8,
-                  }} 
-                  aria-label="Edit review" 
-                  type="button"
-                >
-                  <Edit size={18} style={{ color: 'var(--neutral-600)' }} aria-hidden="true" />
-                </button>
-                <button 
-                  onClick={onDelete} 
-                  style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    padding: 0, 
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 36, 
-                    height: 36,
-                    borderRadius: 8,
-                  }} 
-                  aria-label="Delete review" 
-                  type="button"
-                >
-                  <Trash2 size={18} style={{ color: '#EF4444' }} aria-hidden="true" />
-                </button>
-              </div>
-            ) : currentUserId ? (
-              <button 
-                onClick={() => setReportModalOpen(true)} 
-                style={{ 
-                  background: 'none', 
-                  border: 'none', 
-                  padding: 0, 
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 36, 
-                  height: 36,
-                  borderRadius: 8,
-                }} 
-                aria-label="Report review"
-                type="button"
-              >
-                <Flag size={18} style={{ color: 'var(--neutral-600)' }} aria-hidden="true" />
-              </button>
-            ) : null}
+          {/* Top Header Row: Back Chevron, Avatar, Username */}
+          <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-small, 12px)', paddingBottom: 'var(--spacing-small, 12px)' }}>
+            {/* Back Chevron */}
+            <button
+              onClick={onBack}
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                padding: 0, 
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ChevronLeft style={{ width: '35px', height: '35px', color: 'var(--neutral-900)' }} />
+            </button>
+            
+            {/* Avatar */}
+            <button
+              onClick={() => onOpenProfile?.(reviewData.user_id)}
+              className="shrink-0"
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            >
+              <Avatar className="w-14 h-14">
+                <AvatarImage src={reviewData.author?.avatar_url || undefined} alt={reviewData.author?.name} />
+                <AvatarFallback className="text-white font-bold text-lg" style={{ backgroundColor: '#FF3399' }}>
+                  {reviewData.author?.name?.charAt(0).toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+            
+            {/* Username */}
+            <button
+              onClick={() => onOpenProfile?.(reviewData.user_id)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-body-size, 20px)',
+                fontWeight: 'var(--typography-body-weight, 500)',
+                lineHeight: 'var(--typography-body-line-height, 1.5)',
+                color: 'var(--neutral-600)',
+              }}
+            >
+              {reviewData.author?.name || 'User'}
+            </button>
           </div>
 
-          {/* Pills Row - 24px below header row */}
+          {/* Pills Row - Directly below header row */}
           {(reviewData.event_info?.artist_name || reviewData.event_info?.venue_name) && (
-            <div className="flex flex-col" style={{ gap: '12px', paddingTop: '24px', paddingBottom: 'var(--spacing-small, 12px)' }}>
+            <div className="flex flex-col" style={{ gap: 'var(--spacing-inline, 6px)', paddingBottom: 'var(--spacing-small, 12px)' }}>
               {/* Artist Button */}
               {reviewData.event_info?.artist_name && (
                 <button
@@ -607,15 +521,15 @@ export function ReviewDetailView({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-grouped, 24px)' }}>
           {/* {PersonName}'s Review Heading */}
           <h1 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
-            {isOwner ? "Your Review" : (reviewData.author?.name ? `${reviewData.author.name.split(' ')[0]}'s Review` : "Review")}
+            {reviewData.author?.name ? `${reviewData.author.name.split(' ')[0]}'s Review` : "Review"}
           </h1>
 
           {/* Review Text Container */}
           {reviewData.review_text && (
             <div
+              className="rounded-xl border-2"
               style={{
-                borderRadius: '12px',
-                border: '1px solid rgba(0, 0, 0, 0.1)',
+                borderColor: 'var(--neutral-300, #c9c9c9)',
                 backgroundColor: 'white',
                 padding: '16px',
               }}
@@ -641,11 +555,7 @@ export function ReviewDetailView({
             >
               <img
                 src={mainImage}
-                alt={reviewData.event_info?.artist_name && reviewData.event_info?.venue_name 
-                  ? `Review photo from ${reviewData.event_info.artist_name} at ${reviewData.event_info.venue_name}`
-                  : reviewData.author?.name 
-                    ? `${reviewData.author.name}'s review photo`
-                    : "Review photo"}
+                alt="Review"
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
@@ -654,126 +564,64 @@ export function ReviewDetailView({
             </div>
           )}
 
-          {/* Rating Details (Profile-style toggle + cards, keep rating column width) */}
+          {/* Rating Details */}
           {ratingCategories.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <button
-                onClick={() => setDetailsExpanded((v) => !v)}
-                style={{
-                  ...glassCardLight,
-                  width: '100%',
-                  padding: '14px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer',
-                  border: 'none',
-                }}
-                type="button"
-              >
-                <span style={{ ...textStyles.callout, fontWeight: 600, color: 'var(--neutral-900)' }}>
-                  Rating Details
-                </span>
-                {detailsExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-              </button>
-
-              {detailsExpanded && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {ratingCategories.map((category) => (
-                    <div
-                      key={category.name}
-                      style={{
-                        ...glassCardLight,
-                        padding: 16,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 16,
-                      }}
-                    >
-                      {/* Category Info */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          {category.icon && (
-                            <category.icon size={20} style={{ color: category.iconColor, flexShrink: 0 }} />
-                          )}
-                          <p style={{ ...textStyles.callout, fontWeight: 600, color: 'var(--neutral-900)', margin: 0 }}>
-                            {category.name}
-                          </p>
-                        </div>
-                        {category.feedback && (
-                          <p style={{ ...textStyles.footnote, color: 'var(--neutral-700)', margin: 0 }}>
-                            "{category.feedback}"
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Rating (keep same width as home feed view) */}
-                      <div className="shrink-0 w-[120px]" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-                        <p style={{ ...textStyles.title3, color: 'var(--neutral-900)', margin: 0 }}>
-                          {category.rating.toFixed(1)}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-grouped, 24px)' }}>
+              <h2 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+                View Rating Details
+              </h2>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-grouped, 24px)' }}>
+                {ratingCategories.map((category) => (
+                  <div
+                    key={category.name}
+                    className="flex gap-6 items-center p-3 rounded-xl border-2"
+                    style={{
+                      borderColor: 'var(--neutral-300, #c9c9c9)',
+                      backgroundColor: 'white',
+                    }}
+                  >
+                    {/* Category Info */}
+                    <div className="flex flex-col gap-6 flex-1 min-w-0">
+                      <p className="text-xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+                        {category.name}
+                      </p>
+                      {category.feedback && (
+                        <p className="text-base" style={{ color: 'var(--neutral-600, #5d646f)' }}>
+                          "{category.feedback}"
                         </p>
-                        <div className="flex gap-0">
-                          {Array.from({ length: 5 }).map((_, i) => {
-                            const starValue = i + 1;
-                            const isFilled = starValue <= Math.floor(category.rating);
-                            const isHalf = !isFilled && starValue <= category.rating && category.rating < starValue;
+                      )}
+                    </div>
 
-                            if (isHalf) {
-                              return (
-                                <span
-                                  key={i}
-                                  style={{
-                                    position: 'relative',
-                                    display: 'inline-flex',
-                                    width: '24px',
-                                    height: '24px',
-                                  }}
-                                >
-                                  <Star
-                                    className="w-6 h-6"
-                                    style={{ color: '#D1D5DB', fill: 'transparent' }}
-                                    strokeWidth={1.5}
-                                  />
-                                  <span
-                                    style={{
-                                      position: 'absolute',
-                                      top: 0,
-                                      left: 0,
-                                      width: '50%',
-                                      height: '100%',
-                                      overflow: 'hidden',
-                                    }}
-                                  >
-                                    <Star
-                                      className="w-6 h-6"
-                                      style={{ color: '#FCDC5F', fill: '#FCDC5F' }}
-                                      strokeWidth={0}
-                                    />
-                                  </span>
-                                </span>
-                              );
-                            }
-
-                            return (
-                              <Star
-                                key={i}
-                                className={cn(
-                                  'w-6 h-6',
-                                  isFilled
-                                    ? 'fill-[#FCDC5F] text-[#FCDC5F]'
-                                    : 'text-neutral-300 fill-transparent'
-                                )}
-                                strokeWidth={isFilled ? 0 : 1.5}
-                              />
-                            );
-                          })}
-                        </div>
+                    {/* Rating */}
+                    <div className="flex flex-col gap-3 items-end shrink-0 w-[120px]">
+                      <p className="text-xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+                        {category.rating.toFixed(1)}
+                      </p>
+                      <div className="flex gap-0">
+                        {Array.from({ length: 5 }).map((_, i) => {
+                          const starValue = i + 1;
+                          const isFilled = starValue <= Math.floor(category.rating);
+                          const isHalf = !isFilled && starValue <= category.rating;
+                          
+                          return (
+                            <Star
+                              key={i}
+                              className={cn(
+                                'w-6 h-6',
+                                isFilled || isHalf
+                                  ? 'fill-[#FCDC5F] text-[#FCDC5F]'
+                                  : 'text-neutral-300 fill-transparent'
+                              )}
+                              strokeWidth={isFilled || isHalf ? 0 : 1.5}
+                            />
+                          );
+                        })}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -866,7 +714,7 @@ export function ReviewDetailView({
             onClick={handleShare}
             aria-label="Share review"
           >
-            <Share2 className="w-6 h-6" style={{ color: 'var(--neutral-50)' }} aria-hidden="true" />
+            <Share2 className="w-6 h-6" style={{ color: 'var(--neutral-50)' }} />
           </Button>
           </div>
         </div>
