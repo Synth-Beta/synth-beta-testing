@@ -1670,7 +1670,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           </h1>
       </MobileHeader>
       )}
-      <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 112px)' }}>
+      <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
         {/* Profile Header */}
         <div 
           className="mb-6 relative w-full max-w-full" 
@@ -1760,7 +1760,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                         e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
                       }}
                     >
-                      <Edit size={16} style={{ marginRight: 'var(--spacing-inline, 6px)', color: 'var(--neutral-50)' }} />
+                      <Edit size={24} style={{ marginRight: 'var(--spacing-inline, 6px)', color: 'var(--neutral-50)' }} />
                       <span style={{ color: 'var(--neutral-50)' }}>Edit Profile</span>
                     </Button>
                     <Button 
@@ -2140,16 +2140,71 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             </div>
 
             {rankingMode === false && (
-            <ProfileStarBuckets
-              reviews={reviews}
-              onSelectReview={(review) => {
-                setSelectedReview(review as any);
-                setViewReviewOpen(true);
-              }}
-            />
+              reviews.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-50)', gap: 'var(--spacing-inline, 6px)' }}>
+                  {/* Large icon (60px), dark grey */}
+                  <Calendar className="w-[60px] h-[60px] mx-auto" style={{ color: 'var(--neutral-600)' }} />
+                  {/* Heading - Body typography, off black */}
+                  <h3 style={{ 
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-body-size, 20px)',
+                    fontWeight: 'var(--typography-body-weight, 500)',
+                    lineHeight: 'var(--typography-body-line-height, 1.5)',
+                    color: 'var(--neutral-900)',
+                    margin: 0,
+                    textAlign: 'center'
+                  }}>No Posts Yet</h3>
+                  {/* Description - Meta typography, dark grey - only visible on own profile */}
+                  {isViewingOwnProfile && (
+                    <p style={{ 
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                      color: 'var(--neutral-600)',
+                      margin: 0,
+                      textAlign: 'center'
+                    }}>Start attending events and writing reviews to build your profile!</p>
+                  )}
+                </div>
+              ) : (
+                <ProfileStarBuckets
+                  reviews={reviews}
+                  onSelectReview={(review) => {
+                    setSelectedReview(review as any);
+                    setViewReviewOpen(true);
+                  }}
+                />
+              )
             )}
 
             {rankingMode === true && isViewingOwnProfile && (
+              reviews.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-50)', gap: 'var(--spacing-inline, 6px)' }}>
+                  {/* Large icon (60px), dark grey */}
+                  <Calendar className="w-[60px] h-[60px] mx-auto" style={{ color: 'var(--neutral-600)' }} />
+                  {/* Heading - Body typography, off black */}
+                  <h3 style={{ 
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-body-size, 20px)',
+                    fontWeight: 'var(--typography-body-weight, 500)',
+                    lineHeight: 'var(--typography-body-line-height, 1.5)',
+                    color: 'var(--neutral-900)',
+                    margin: 0,
+                    textAlign: 'center'
+                  }}>No Posts Yet</h3>
+                  {/* Description - Meta typography, dark grey - only visible on own profile */}
+                  <p style={{ 
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--neutral-600)',
+                    margin: 0,
+                    textAlign: 'center'
+                  }}>Start attending events and writing reviews to build your profile!</p>
+                </div>
+              ) : (
               <div className="space-y-6">
                 {(() => {
                   // Get all unique ratings from reviews
@@ -2270,6 +2325,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   });
                 })()}
               </div>
+              )
             )}
             
             {rankingMode === 'unreviewed' && isViewingOwnProfile && (
@@ -2658,16 +2714,18 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     margin: 0,
                     textAlign: 'center'
                   }}>No Interested Events Yet</h3>
-                  {/* Description - Meta typography, dark grey */}
-                  <p style={{ 
-                    fontFamily: 'var(--font-family)',
-                    fontSize: 'var(--typography-meta-size, 16px)',
-                    fontWeight: 'var(--typography-meta-weight, 500)',
-                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                    color: 'var(--neutral-600)',
-                    margin: 0,
-                    textAlign: 'center'
-                  }}>Tap the heart on events to add them here.</p>
+                  {/* Description - Meta typography, dark grey - only visible on own profile */}
+                  {isViewingOwnProfile && (
+                    <p style={{ 
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                      color: 'var(--neutral-600)',
+                      margin: 0,
+                      textAlign: 'center'
+                    }}>Tap the heart on events to add them here.</p>
+                  )}
                 </div>
               ) : filteredUserEvents.length === 0 ? (
                 <div className="text-center py-12" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-100)' }}>

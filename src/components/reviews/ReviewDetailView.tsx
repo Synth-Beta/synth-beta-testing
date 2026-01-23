@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Star, ThumbsUp, MessageCircle, Share2, Edit, Trash2, Music2, MapPin, User } from 'lucide-react';
+import { Star, ThumbsUp, MessageCircle, Share2, Edit, Trash2, MapPin, ChevronLeft } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
@@ -42,6 +42,8 @@ interface FullReviewData {
   setlist?: any;
   likes_count?: number;
   comments_count?: number;
+  artist_id?: string | null;
+  venue_id?: string | null;
   author?: {
     id: string;
     name: string;
@@ -120,6 +122,9 @@ export function ReviewDetailView({
 
         // Fetch event/artist/venue info
         let eventInfo: any = {};
+        let artistId: string | null = null;
+        let venueId: string | null = null;
+        
         if (review.event_id) {
           const { data: event } = await supabase
             .from('events')
@@ -136,6 +141,8 @@ export function ReviewDetailView({
             .single();
 
           if (event) {
+            artistId = event.artist_id;
+            venueId = event.venue_id;
             eventInfo = {
               artist_name: (event.artists as any)?.name,
               venue_name: (event.venues as any)?.name,
@@ -143,6 +150,8 @@ export function ReviewDetailView({
             };
           }
         } else if (review.artist_id && review.venue_id) {
+          artistId = review.artist_id;
+          venueId = review.venue_id;
           const [artistRes, venueRes] = await Promise.all([
             supabase.from('artists').select('name').eq('id', review.artist_id).single(),
             supabase.from('venues').select('name').eq('id', review.venue_id).single(),
@@ -156,6 +165,8 @@ export function ReviewDetailView({
 
         const finalReviewData = {
           ...review,
+          artist_id: artistId || review.artist_id || null,
+          venue_id: venueId || review.venue_id || null,
           author: author ? {
             id: author.user_id,
             name: author.name,
@@ -338,7 +349,7 @@ export function ReviewDetailView({
         zIndex: 100,
       }}
     >
-      {/* Header with liquid glass effect */}
+      {/* Header */}
       <div 
         className="sticky top-0 z-10"
         style={{
@@ -347,301 +358,350 @@ export function ReviewDetailView({
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
           borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
           boxShadow: '0 4px 4px rgba(0, 0, 0, 0.25)',
+          paddingTop: 'env(safe-area-inset-top)',
         }}
       >
-        <div className="max-w-2xl mx-auto px-5 pt-20 pb-4">
-          <div className="flex items-start justify-between gap-6">
-            {/* Left: Back Button and User Info */}
-            <div className="flex items-start gap-3 flex-1 min-w-0">
-              <Button
-                size="icon"
-                className="h-6 w-6 rounded-full shrink-0"
-                style={{ backgroundColor: '#FF3399' }}
-                onClick={onBack}
-              >
-                <ArrowLeft className="h-4 w-4 text-white" />
-              </Button>
-              
-              <button
-                onClick={() => onOpenProfile?.(reviewData.user_id)}
-                className="shrink-0"
-                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-              >
-                <Avatar className="w-14 h-14">
-                  <AvatarImage src={reviewData.author?.avatar_url || undefined} alt={reviewData.author?.name} />
-                  <AvatarFallback className="text-white font-bold text-lg" style={{ backgroundColor: '#FF3399' }}>
-                    {reviewData.author?.name?.charAt(0).toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-              </button>
-              
-              <div className="flex-1 min-w-0">
-                <button
-                  onClick={() => onOpenProfile?.(reviewData.user_id)}
-                  className="font-bold text-xl mb-1 text-left"
-                  style={{ color: 'var(--neutral-900)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                >
-                  {reviewData.author?.name || 'User'}
-                </button>
-                <p className="text-base" style={{ color: 'var(--neutral-600, #5d646f)' }}>
-                  {timeAgo}
-                </p>
-              </div>
-            </div>
-
-            {/* Right: Edit/Delete Buttons */}
-            {isOwner && (
-              <div className="flex items-center gap-3 shrink-0">
-                {onEdit && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={onEdit}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                )}
-                {onDelete && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={onDelete}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            )}
+        <div className="max-w-2xl mx-auto" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
+          {/* Top Header Row: Back Chevron, Avatar, Username */}
+          <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-small, 12px)', paddingBottom: 'var(--spacing-small, 12px)' }}>
+            {/* Back Chevron */}
+            <button
+              onClick={onBack}
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                padding: 0, 
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ChevronLeft style={{ width: '35px', height: '35px', color: 'var(--neutral-900)' }} />
+            </button>
+            
+            {/* Avatar */}
+            <button
+              onClick={() => onOpenProfile?.(reviewData.user_id)}
+              className="shrink-0"
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            >
+              <Avatar className="w-14 h-14">
+                <AvatarImage src={reviewData.author?.avatar_url || undefined} alt={reviewData.author?.name} />
+                <AvatarFallback className="text-white font-bold text-lg" style={{ backgroundColor: '#FF3399' }}>
+                  {reviewData.author?.name?.charAt(0).toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+            
+            {/* Username */}
+            <button
+              onClick={() => onOpenProfile?.(reviewData.user_id)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-body-size, 20px)',
+                fontWeight: 'var(--typography-body-weight, 500)',
+                lineHeight: 'var(--typography-body-line-height, 1.5)',
+                color: 'var(--neutral-600)',
+              }}
+            >
+              {reviewData.author?.name || 'User'}
+            </button>
           </div>
+
+          {/* Pills Row - Directly below header row */}
+          {(reviewData.event_info?.artist_name || reviewData.event_info?.venue_name) && (
+            <div className="flex flex-col" style={{ gap: 'var(--spacing-inline, 6px)', paddingBottom: 'var(--spacing-small, 12px)' }}>
+              {/* Artist Button */}
+              {reviewData.event_info?.artist_name && (
+                <button
+                  onClick={() => {
+                    if (onOpenArtist && reviewData.artist_id) {
+                      onOpenArtist(reviewData.artist_id, reviewData.event_info?.artist_name || '');
+                    }
+                  }}
+                  className="swift-ui-button swift-ui-button-secondary"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-start',
+                    gap: 8,
+                    padding: '14px 20px',
+                    borderRadius: 14,
+                    border: '2px solid var(--brand-pink-500, #FF3399)',
+                    background: 'var(--brand-pink-500, #FF3399)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    width: 'fit-content',
+                    maxWidth: 'calc(100vw - calc(var(--spacing-screen-margin-x, 20px) * 2))',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--brand-pink-050, #FDF2F8)', flexShrink: 0 }}>
+                    <path d="m11 7.601-5.994 8.19a1 1 0 0 0 .1 1.298l.817.818a1 1 0 0 0 1.314.087L15.09 12"/>
+                    <path d="M16.5 21.174C15.5 20.5 14.372 20 13 20c-2.058 0-3.928 2.356-6 2-2.072-.356-2.775-3.369-1.5-4.5"/>
+                    <circle cx="16" cy="7" r="5"/>
+                  </svg>
+                  <span style={{ 
+                    fontWeight: 600, 
+                    fontSize: 16, 
+                    color: 'var(--brand-pink-050, #FDF2F8)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>
+                    {reviewData.event_info.artist_name}
+                  </span>
+                </button>
+              )}
+
+              {/* Venue Button */}
+              {reviewData.event_info?.venue_name && (
+                <button
+                  onClick={() => {
+                    if (onOpenVenue && reviewData.venue_id) {
+                      onOpenVenue(reviewData.venue_id, reviewData.event_info?.venue_name || '');
+                    }
+                  }}
+                  className="swift-ui-button swift-ui-button-secondary"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-start',
+                    gap: 8,
+                    padding: '14px 20px',
+                    borderRadius: 14,
+                    border: '2px solid var(--brand-pink-200, #FBCFE8)',
+                    background: 'var(--brand-pink-050, #FDF2F8)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    width: 'fit-content',
+                    maxWidth: 'calc(100vw - calc(var(--spacing-screen-margin-x, 20px) * 2))',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <MapPin size={20} style={{ color: 'var(--brand-pink-500, #FF3399)', flexShrink: 0 }} />
+                  <span style={{ 
+                    fontWeight: 600, 
+                    fontSize: 16, 
+                    color: 'var(--brand-pink-500, #FF3399)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>
+                    {reviewData.event_info.venue_name}
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-2xl mx-auto px-5 py-6 space-y-12">
-        {/* Caption and Image */}
-        {(reviewData.review_text || mainImage) && (
-          <div className="space-y-3">
-            {reviewData.review_text && (
-              <p className="text-xl font-medium" style={{ color: 'var(--neutral-600, #5d646f)' }}>
-                {reviewData.review_text}
-              </p>
-            )}
-            {mainImage && (
-              <div 
-                className="rounded-xl overflow-hidden shadow-md"
-                style={{ aspectRatio: '353/250' }}
-              >
-                <img
-                  src={mainImage}
-                  alt="Review"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        )}
+      <div className="max-w-2xl mx-auto" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-grouped, 24px)' }}>
+          {/* {PersonName}'s Review Heading */}
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+            {reviewData.author?.name ? `${reviewData.author.name.split(' ')[0]}'s Review` : "Review"}
+          </h1>
 
-        {/* Artist and Venue Buttons */}
-        {(reviewData.event_info?.artist_name || reviewData.event_info?.venue_name) && (
-          <div className="flex gap-3">
-            {/* Artist Button */}
-            {reviewData.event_info?.artist_name && (
-              <button
-                onClick={() => {
-                  onOpenArtist?.((reviewData as any).artist_id || '', reviewData.event_info?.artist_name || '');
-                }}
-                className="swift-ui-button swift-ui-button-secondary flex-1"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  padding: '14px 20px',
-                  borderRadius: 14,
-                  border: '2px solid var(--brand-pink-200, #FBCFE8)',
-                  background: 'var(--brand-pink-050, #FDF2F8)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <Music2 size={20} style={{ color: 'var(--brand-pink-500, #FF3399)' }} />
-                <span style={{ 
-                  fontWeight: 600, 
-                  fontSize: 16, 
-                  color: 'var(--brand-pink-500, #FF3399)',
-                }}>
-                  {reviewData.event_info.artist_name}
-                </span>
-              </button>
-            )}
-
-            {/* Venue Button */}
-            {reviewData.event_info?.venue_name && (
-              <button
-                onClick={() => {
-                  onOpenVenue?.((reviewData as any).venue_id || '', reviewData.event_info?.venue_name || '');
-                }}
-                className="swift-ui-button swift-ui-button-secondary flex-1"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  padding: '14px 20px',
-                  borderRadius: 14,
-                  border: '2px solid var(--brand-pink-200, #FBCFE8)',
-                  background: 'var(--brand-pink-050, #FDF2F8)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <MapPin size={20} style={{ color: 'var(--brand-pink-500, #FF3399)' }} />
-                <span style={{ 
-                  fontWeight: 600, 
-                  fontSize: 16, 
-                  color: 'var(--brand-pink-500, #FF3399)',
-                }}>
-                  {reviewData.event_info.venue_name}
-                </span>
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Rating Details */}
-        {ratingCategories.length > 0 && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
-              View Rating Details
-            </h2>
-            
-            <div className="space-y-6">
-              {ratingCategories.map((category) => (
-                <div
-                  key={category.name}
-                  className="flex gap-6 items-center p-3 rounded-xl border-2"
-                  style={{
-                    borderColor: 'var(--neutral-300, #c9c9c9)',
-                    backgroundColor: 'white',
-                  }}
-                >
-                  {/* Category Info */}
-                  <div className="flex flex-col gap-6 flex-1 min-w-0">
-                    <p className="text-xl font-bold" style={{ color: 'var(--neutral-900)' }}>
-                      {category.name}
-                    </p>
-                    {category.feedback && (
-                      <p className="text-base" style={{ color: 'var(--neutral-600, #5d646f)' }}>
-                        "{category.feedback}"
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Rating */}
-                  <div className="flex flex-col gap-3 items-end shrink-0 w-[120px]">
-                    <p className="text-xl font-bold" style={{ color: 'var(--neutral-900)' }}>
-                      {category.rating.toFixed(1)}
-                    </p>
-                    <div className="flex gap-0">
-                      {Array.from({ length: 5 }).map((_, i) => {
-                        const starValue = i + 1;
-                        const isFilled = starValue <= Math.floor(category.rating);
-                        const isHalf = !isFilled && starValue <= category.rating;
-                        
-                        return (
-                          <Star
-                            key={i}
-                            className={cn(
-                              'w-6 h-6',
-                              isFilled || isHalf
-                                ? 'fill-[#FCDC5F] text-[#FCDC5F]'
-                                : 'text-neutral-300 fill-transparent'
-                            )}
-                            strokeWidth={isFilled || isHalf ? 0 : 1.5}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Set List */}
-        {reviewData.setlist && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
-              Set List
-            </h2>
+          {/* Review Text Container */}
+          {reviewData.review_text && (
             <div
-              className="p-6 rounded-lg border-2"
+              className="rounded-xl border-2"
               style={{
-                borderColor: 'var(--neutral-600, #5d646f)',
-                backgroundColor: 'var(--neutral-50, #fcfcfc)',
-                boxShadow: '0 4px 4px rgba(0, 0, 0, 0.25)',
+                borderColor: 'var(--neutral-300, #c9c9c9)',
+                backgroundColor: 'white',
+                padding: '16px',
               }}
             >
-              <SetlistDisplay
-                setlist={reviewData.setlist}
-                type="api"
+              <p style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--neutral-900)',
+                margin: 0,
+              }}>
+                {reviewData.review_text}
+              </p>
+            </div>
+          )}
+
+          {/* Image */}
+          {mainImage && (
+            <div 
+              className="rounded-xl overflow-hidden shadow-md"
+              style={{ aspectRatio: '353/250' }}
+            >
+              <img
+                src={mainImage}
+                alt="Review"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
               />
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-3 pb-24">
+          {/* Rating Details */}
+          {ratingCategories.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-grouped, 24px)' }}>
+              <h2 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+                View Rating Details
+              </h2>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-grouped, 24px)' }}>
+                {ratingCategories.map((category) => (
+                  <div
+                    key={category.name}
+                    className="flex gap-6 items-center p-3 rounded-xl border-2"
+                    style={{
+                      borderColor: 'var(--neutral-300, #c9c9c9)',
+                      backgroundColor: 'white',
+                    }}
+                  >
+                    {/* Category Info */}
+                    <div className="flex flex-col gap-6 flex-1 min-w-0">
+                      <p className="text-xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+                        {category.name}
+                      </p>
+                      {category.feedback && (
+                        <p className="text-base" style={{ color: 'var(--neutral-600, #5d646f)' }}>
+                          "{category.feedback}"
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Rating */}
+                    <div className="flex flex-col gap-3 items-end shrink-0 w-[120px]">
+                      <p className="text-xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+                        {category.rating.toFixed(1)}
+                      </p>
+                      <div className="flex gap-0">
+                        {Array.from({ length: 5 }).map((_, i) => {
+                          const starValue = i + 1;
+                          const isFilled = starValue <= Math.floor(category.rating);
+                          const isHalf = !isFilled && starValue <= category.rating;
+                          
+                          return (
+                            <Star
+                              key={i}
+                              className={cn(
+                                'w-6 h-6',
+                                isFilled || isHalf
+                                  ? 'fill-[#FCDC5F] text-[#FCDC5F]'
+                                  : 'text-neutral-300 fill-transparent'
+                              )}
+                              strokeWidth={isFilled || isHalf ? 0 : 1.5}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Set List */}
+          {reviewData.setlist && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-grouped, 24px)' }}>
+                <SetlistDisplay
+                  setlist={reviewData.setlist}
+                  type="api"
+                />
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)', marginTop: ratingCategories.length > 0 ? 'var(--spacing-screen-margin-x, 20px)' : 0 }}>
           {/* Helpful Button */}
           <Button
-            variant="outline"
-            className="flex items-center gap-3 h-11 px-3 rounded-lg border-2 shadow-sm flex-1"
+            variant="secondary-neutral"
+            className="flex items-center gap-2 flex-1"
             style={{
-              backgroundColor: 'var(--brand-pink-050, #fdf2f7)',
-              borderColor: 'var(--brand-pink-050, #fdf2f7)',
-              color: 'var(--neutral-900)',
+              height: 'var(--size-input-height, 44px)',
             }}
             onClick={handleLike}
             disabled={isLiking || !currentUserId}
           >
             <ThumbsUp 
-              className={cn('h-6 w-6', isLiked && 'fill-current')} 
-              style={{ color: '#FF3399' }} 
+              className={cn('w-4 h-4', isLiked && 'fill-current')} 
+              style={{ color: 'var(--neutral-50)' }} 
             />
-            <span className="font-bold">{likesCount}</span>
-            <span>Helpful</span>
+            <span style={{ 
+              color: 'var(--neutral-600)',
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+            }}>{likesCount}</span>
+            <span style={{ 
+              color: 'var(--neutral-900)',
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+            }}>Helpful</span>
           </Button>
 
           {/* Comments Button */}
           <Button
-            variant="outline"
-            className="flex items-center gap-3 h-11 px-3 rounded-lg border-2 shadow-sm flex-1"
+            variant="secondary-neutral"
+            className="flex items-center gap-2 flex-1"
             style={{
-              backgroundColor: 'var(--brand-pink-050, #fdf2f7)',
-              borderColor: 'var(--brand-pink-500, #FF3399)',
-              color: 'var(--neutral-900)',
+              height: 'var(--size-input-height, 44px)',
             }}
             onClick={handleComment}
           >
-            <MessageCircle className="h-6 w-6" style={{ color: '#FF3399' }} />
-            <span className="font-bold">{commentsCount}</span>
-            <span>Comments</span>
+            <MessageCircle className="w-4 h-4" style={{ color: 'var(--neutral-50)' }} />
+            <span style={{ 
+              color: 'var(--neutral-600)',
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+            }}>{commentsCount}</span>
+            <span style={{ 
+              color: 'var(--neutral-900)',
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+            }}>Comments</span>
           </Button>
 
           {/* Share Button */}
           <Button
-            className="flex items-center justify-center h-11 w-11 rounded-lg shadow-sm shrink-0"
-            style={{ backgroundColor: 'var(--brand-pink-500, #FF3399)' }}
+            className="btn-synth-primary shrink-0"
+            style={{
+              width: 'var(--size-input-height, 44px)',
+              height: 'var(--size-input-height, 44px)',
+              padding: 0,
+              backgroundColor: 'var(--brand-pink-500, #FF3399)',
+              color: 'var(--neutral-50)',
+              borderRadius: 'var(--radius-corner, 10px)',
+              boxShadow: '0 4px 4px 0 var(--shadow-color)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--brand-pink-500, #FF3399)';
+            }}
             onClick={handleShare}
           >
-            <Share2 className="h-5 w-5 text-white" />
+            <Share2 className="w-6 h-6" style={{ color: 'var(--neutral-50)' }} />
           </Button>
+          </div>
         </div>
       </div>
 
