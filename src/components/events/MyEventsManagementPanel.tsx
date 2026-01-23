@@ -195,7 +195,7 @@ export function MyEventsManagementPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen p-6" style={{ backgroundColor: 'var(--neutral-50)', paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <div className="flex items-center justify-between">

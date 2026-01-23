@@ -477,15 +477,24 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
             padding: '4px'
           }}
         >
-          <TabsTrigger value="calendar" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="calendar" 
+            className="flex items-center gap-2 discover-tab-trigger"
+          >
             <Icon name="calendar" size={16} />
             Calendar
           </TabsTrigger>
-          <TabsTrigger value="leaderboards" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="leaderboards" 
+            className="flex items-center gap-2 discover-tab-trigger"
+          >
             <Icon name="ribbonAward" size={16} />
             Leaderboards
           </TabsTrigger>
-          <TabsTrigger value="tour" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="tour" 
+            className="flex items-center gap-2 discover-tab-trigger"
+          >
             <Icon name="route" size={16} />
             Tour Tracker
           </TabsTrigger>

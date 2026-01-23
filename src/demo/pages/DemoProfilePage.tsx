@@ -96,7 +96,7 @@ export const DemoProfilePage: React.FC<DemoProfilePageProps> = ({
       </MobileHeader>
 
       {/* Profile Content - EXACT same structure as production */}
-      <div className="px-5" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px + 12px)', paddingBottom: 'var(--spacing-bottom-nav, 112px)' }}>
+      <div className="px-5" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px + 12px)', paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
         {/* Enhanced Profile Header - EXACT same as production */}
         <div className="mb-6 bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 p-4 sm:p-6 border border-pink-100/50 shadow-sm relative overflow-hidden w-full max-w-full" style={{ borderRadius: '10px' }}>
           <div className="flex flex-col items-center gap-4 mb-4 w-full max-w-full">

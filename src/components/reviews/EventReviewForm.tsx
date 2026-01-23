@@ -1963,6 +1963,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               setIsReviewSubmitted(false); // Reset submission state for new review
             }}
             currentMode={currentDraft ? 'draft' : 'new'}
+            currentStep={currentStep}
           />
         )}
 
@@ -1994,7 +1995,18 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                   borderRadius: '999px'
                 }}
               />
-              <span className="break-words">Your progress is automatically saved locally</span>
+              <span 
+                className="break-words"
+                style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  color: 'var(--brand-pink-500)'
+                }}
+              >
+                Your progress is automatically saved locally
+              </span>
             </div>
           </div>
         )}
@@ -2037,13 +2049,16 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                     <span
                       key={`${label}-${index}`}
                       className={cn(
-                        'px-2 sm:px-3 py-1 rounded-full text-xs font-medium transition-colors flex-shrink-0',
+                        'px-2 sm:px-3 py-1 text-xs font-medium transition-colors flex-shrink-0',
                         isActive
                           ? 'bg-pink-500 text-white shadow-sm'
                           : isComplete
                             ? 'bg-pink-100 text-pink-700'
                             : 'bg-gray-100 text-gray-500'
                       )}
+                      style={{
+                        borderRadius: 'var(--radius-corner, 10px)'
+                      }}
                     >
                       {stepNumber}. {label}
                     </span>
@@ -2062,7 +2077,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2 w-full">
             <Button
-              variant="ghost"
+              variant="secondary-neutral"
               onClick={prevStep}
               disabled={!canGoBack}
                 className="flex-shrink-0"
@@ -2070,51 +2085,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             >
               Back
             </Button>
-
-              <div className="flex items-center gap-2 text-xs text-gray-500 flex-shrink-0">
-              {isSaving ? (
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className="animate-pulse flex-shrink-0"
-                      style={{
-                        width: 'var(--spacing-inline, 6px)',
-                        height: 'var(--spacing-inline, 6px)',
-                        backgroundColor: 'var(--rating-star)',
-                        borderRadius: '999px'
-                      }}
-                    />
-                    <span className="whitespace-nowrap">Auto-saving…</span>
-                </div>
-              ) : lastSaveTime ? (
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className="flex-shrink-0"
-                      style={{
-                        width: 'var(--spacing-inline, 6px)',
-                        height: 'var(--spacing-inline, 6px)',
-                        backgroundColor: 'var(--status-success-500)',
-                        borderRadius: '999px'
-                      }}
-                    />
-                    <span className="whitespace-nowrap hidden sm:inline">Auto-saved {lastSaveTime.toLocaleTimeString()}</span>
-                    <span className="whitespace-nowrap sm:hidden">Saved</span>
-                </div>
-              ) : (
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className="flex-shrink-0"
-                      style={{
-                        width: 'var(--spacing-inline, 6px)',
-                        height: 'var(--spacing-inline, 6px)',
-                        backgroundColor: 'var(--neutral-400)',
-                        borderRadius: '999px'
-                      }}
-                    />
-                    <span className="whitespace-nowrap hidden sm:inline">Auto-save active</span>
-                    <span className="whitespace-nowrap sm:hidden">Saved</span>
-                </div>
-              )}
-            </div>
 
               {currentStep < (totalSteps || REVIEW_FORM_TOTAL_STEPS) && (
                 <Button

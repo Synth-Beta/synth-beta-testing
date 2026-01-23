@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { 
   ThumbsUp, 
   MessageCircle, 
@@ -564,52 +565,97 @@ export function SwiftUIReviewCard({
               )}
 
               {/* Actions */}
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-small, 12px)' }}>
                 {/* Helpful toggle button */}
-                <button
+                <Button
+                  variant="secondary-neutral"
+                  className="flex items-center gap-2 flex-1"
+                  style={{
+                    height: 'var(--size-input-height, 44px)',
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleLike();
                   }}
-                  className={cn(
-                    'swift-ui-button',
-                    isLiked ? 'swift-ui-button-primary' : 'swift-ui-button-secondary'
-                  )}
+                  disabled={!currentUserId || isLiking}
                   aria-label={isLiked ? 'Remove helpful' : 'Mark as helpful'}
                 >
-                  <ThumbsUp size={20} strokeWidth={2.5} fill={isLiked ? 'currentColor' : 'none'} style={{ color: isLiked ? 'var(--neutral-50)' : 'var(--brand-pink-500)' }} aria-hidden="true" />
-                  <span style={{ color: isLiked ? 'var(--neutral-50)' : 'var(--brand-pink-500)' }}>{likesCount}</span>
-                  <span style={{ color: isLiked ? 'var(--neutral-50)' : 'var(--brand-pink-500)' }}>Helpful</span>
-                </button>
+                  <ThumbsUp 
+                    className={cn('w-4 h-4', isLiked && 'fill-current')} 
+                    style={{ color: 'var(--neutral-50)' }} 
+                  />
+                  <span style={{ 
+                    color: 'var(--neutral-600)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  }}>{likesCount}</span>
+                  <span style={{ 
+                    color: 'var(--neutral-900)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  }}>Helpful</span>
+                </Button>
 
                 {/* Comments button */}
-                <button
+                <Button
+                  variant="secondary-neutral"
+                  className="flex items-center gap-2 flex-1"
+                  style={{
+                    height: 'var(--size-input-height, 44px)',
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
                     onOpenDetail?.(review);
                   }}
-                  className={cn(
-                    'swift-ui-button',
-                    'swift-ui-button-secondary'
-                  )}
                   aria-label="View comments"
                 >
-                  <MessageCircle size={20} strokeWidth={2.5} style={{ color: 'var(--brand-pink-500)' }} aria-hidden="true" />
-                  <span style={{ color: 'var(--brand-pink-500)' }}>{commentsCount}</span>
-                  <span style={{ color: 'var(--brand-pink-500)' }}>Comments</span>
-                </button>
+                  <MessageCircle className="w-4 h-4" style={{ color: 'var(--neutral-50)' }} />
+                  <span style={{ 
+                    color: 'var(--neutral-600)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  }}>{commentsCount}</span>
+                  <span style={{ 
+                    color: 'var(--neutral-900)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  }}>Comments</span>
+                </Button>
 
                 {/* Share button */}
-                <button
+                <Button
+                  className="btn-synth-primary shrink-0"
+                  style={{
+                    width: 'var(--size-input-height, 44px)',
+                    height: 'var(--size-input-height, 44px)',
+                    padding: 0,
+                    backgroundColor: 'var(--brand-pink-500, #FF3399)',
+                    color: 'var(--neutral-50)',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--brand-pink-500, #FF3399)';
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleShare();
                   }}
-                  className="swift-ui-button swift-ui-button-primary w-14 h-14"
                   aria-label="Share review"
                 >
-                  <Share2 size={20} strokeWidth={2.5} style={{ color: 'var(--neutral-50)' }} />
-                </button>
+                  <Share2 className="w-6 h-6" style={{ color: 'var(--neutral-50)' }} />
+                </Button>
               </div>
             </div>
           </div>

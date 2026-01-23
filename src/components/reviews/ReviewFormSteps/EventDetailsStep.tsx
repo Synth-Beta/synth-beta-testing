@@ -328,11 +328,31 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
       {/* Summary */}
       {formData.selectedArtist && formData.selectedVenue && formData.eventDate && (
         <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <h3 className="text-sm font-medium text-blue-900 mb-2">Event Summary</h3>
-          <div className="text-sm text-blue-800">
-            <p>
+          <h3 className="font-medium text-blue-900 mb-2" style={{
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-body-size, 20px)',
+            fontWeight: 'var(--typography-body-weight, 500)',
+            lineHeight: 'var(--typography-body-line-height, 1.5)'
+          }}>Event Summary</h3>
+          <div className="text-blue-800" style={{
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-meta-size, 16px)',
+            fontWeight: 'var(--typography-meta-weight, 500)',
+            lineHeight: 'var(--typography-meta-line-height, 1.5)'
+          }}>
+            <p style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)'
+            }}>
               <button
                 className="font-bold hover:text-blue-600 hover:underline cursor-pointer"
+                style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-bold-weight, 700)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                }}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -349,10 +369,20 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
                 {formData.selectedArtist.name}
               </button>
             </p>
-            <p>
+            <p style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)'
+            }}>
               at{' '}
               <button
                 className="font-bold hover:text-blue-600 hover:underline cursor-pointer"
+                style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-bold-weight, 700)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                }}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -369,7 +399,11 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
                 {formData.selectedVenue.name}
               </button>
             </p>
-            <p>on {new Date(formData.eventDate + 'T12:00:00').toLocaleDateString('en-US', {
+            <p style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)'
+            }}>on {new Date(formData.eventDate + 'T12:00:00').toLocaleDateString('en-US', {
               weekday: 'long',
               month: 'long',
               day: 'numeric',

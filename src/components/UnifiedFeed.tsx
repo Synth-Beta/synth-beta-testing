@@ -189,10 +189,11 @@ export const UnifiedFeed = ({
     sectionCount === 2 ? 'grid-cols-2' :
     'grid-cols-3';
   const isEmbedded = embedded;
-  const outerClassName = isEmbedded ? 'w-full' : 'min-h-screen bg-[#f9fafb]';
+  const outerClassName = isEmbedded ? 'w-full' : 'min-h-screen';
   const outerStyle = isEmbedded ? {} : {
     paddingTop: 'env(safe-area-inset-top, 0px)',
-    paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
+    paddingBottom: 'var(--spacing-bottom-nav, 32px)',
+    backgroundColor: 'var(--neutral-50)'
   };
   const innerClassName = isEmbedded ? 'w-full space-y-0' : 'max-w-4xl mx-auto p-6 space-y-8';
   const headerSpacingClass = isEmbedded ? 'mb-0' : 'mb-8';

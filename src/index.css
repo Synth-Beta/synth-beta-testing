@@ -789,6 +789,49 @@
     pointer-events: none;
   }
   
+  /* Secondary button variant 2: Neutral-50 background, Neutral-600 text/icons/border */
+  .btn-synth-secondary-neutral {
+    background-color: var(--neutral-50);
+    color: var(--neutral-600) !important;
+    border: 2px solid var(--neutral-600);
+    border-radius: var(--radius-corner, 10px);
+    box-shadow: 0 4px 4px 0 var(--shadow-color);
+    height: var(--size-button-height, 36px);
+    padding-left: var(--spacing-small, 12px);
+    padding-right: var(--spacing-small, 12px);
+    font-family: var(--font-family);
+    font-size: var(--typography-meta-size, 16px);
+    font-weight: var(--typography-meta-weight, 500);
+    line-height: var(--typography-meta-line-height, 1.5);
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  
+  .btn-synth-secondary-neutral:hover:not(:disabled) {
+    background-color: var(--neutral-100);
+    border-color: var(--neutral-600);
+  }
+  
+  .btn-synth-secondary-neutral:active:not(:disabled) {
+    background-color: var(--neutral-100);
+    border-color: var(--neutral-600);
+    transform: scale(0.98);
+  }
+  
+  .btn-synth-secondary-neutral:disabled {
+    background-color: var(--neutral-50);
+    border-color: var(--state-disabled-bg);
+    color: var(--neutral-600) !important;
+    cursor: not-allowed;
+    opacity: 1;
+    pointer-events: none;
+  }
+  
+  .btn-synth-secondary-neutral svg,
+  .btn-synth-secondary-neutral .synth-icon {
+    color: var(--neutral-600) !important;
+  }
+  
   /* Ghost button variant - transparent with hover state */
   .btn-ghost {
     background-color: transparent;
@@ -1346,7 +1389,7 @@
     flex-direction: column;
     gap: var(--spacing-grouped, 24px);
     padding: var(--spacing-screen-margin-x, 20px);
-    padding-bottom: var(--spacing-bottom-nav, 112px);
+    padding-bottom: var(--spacing-bottom-nav, 32px);
     width: 100%;
     height: calc(100vh - 280px);
     min-height: 500px;
@@ -1451,11 +1494,11 @@
   }
 
       /* Page Container Utility - Standard layout for page content */
-      /* Provides consistent horizontal margins (20px) and bottom spacing (112px) for bottom nav */
+      /* Provides consistent horizontal margins (20px) and bottom spacing (32px) for bottom nav */
       .page-container {
         padding-left: var(--spacing-screen-margin-x, 20px);
         padding-right: var(--spacing-screen-margin-x, 20px);
-        padding-bottom: var(--spacing-bottom-nav, 112px);
+        padding-bottom: var(--spacing-bottom-nav, 32px);
         box-sizing: border-box;
         width: 100%;
       }
@@ -1496,5 +1539,26 @@
   
   .event-popup .leaflet-popup-content {
     @apply p-0;
+  }
+  
+  /* Discover tab selected state styling */
+  .discover-tab-trigger[data-state="active"] {
+    background-color: var(--brand-pink-050) !important;
+    color: var(--brand-pink-500) !important;
+  }
+  
+  .discover-tab-trigger[data-state="active"] svg,
+  .discover-tab-trigger[data-state="active"] .synth-icon {
+    color: var(--brand-pink-500) !important;
+  }
+  
+  .discover-tab-trigger[data-state="inactive"] {
+    background-color: transparent;
+    color: var(--neutral-600);
+  }
+  
+  .discover-tab-trigger[data-state="inactive"] svg,
+  .discover-tab-trigger[data-state="inactive"] .synth-icon {
+    color: var(--neutral-600);
   }
 }

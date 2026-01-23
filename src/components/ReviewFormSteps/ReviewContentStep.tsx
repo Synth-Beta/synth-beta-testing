@@ -124,10 +124,13 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
               Videos coming soon
             </Badge>
           </div>
-          <span className={cn(
-            "text-xs",
-            isNearLimit ? "text-orange-600" : "text-gray-500"
-          )}>
+          <span style={{
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-meta-size, 16px)',
+            fontWeight: 'var(--typography-meta-weight, 500)',
+            lineHeight: 'var(--typography-meta-line-height, 1.5)',
+            color: isNearLimit ? 'var(--status-warning-500, #B88900)' : 'var(--neutral-600)'
+          }}>
             {characterCount}/{maxCharacters}
           </span>
         </div>

@@ -649,7 +649,7 @@ export const NotificationsPage = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen synth-gradient-card p-4 pb-20">
+      <div className="min-h-screen synth-gradient-card p-4" style={{ paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
         <div className="max-w-2xl mx-auto space-y-6">
           {/* Header skeleton */}
           <div className="glass-card inner-glow text-center space-y-3 p-4 mb-6 floating-shadow">
@@ -674,11 +674,12 @@ export const NotificationsPage = ({
 
   return (
     <div 
-      className="min-h-screen synth-gradient-card pb-20"
+      className="min-h-screen synth-gradient-card"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
         paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
-        paddingRight: 'var(--spacing-screen-margin-x, 20px)'
+        paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+        paddingBottom: 'var(--spacing-bottom-nav, 32px)'
       }}
     >
       <div className="max-w-2xl mx-auto">

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Music, Plus, Trash2, GripVertical, Edit2, Save, X } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Music, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface CustomSetlistSong {
@@ -22,8 +22,12 @@ interface CustomSetlistInputProps {
   disabled?: boolean;
 }
 
+// Purple color for setlist editor only: rgb(147 51 234)
+const SETLIST_PURPLE = 'rgb(147 51 234)';
+
 export function CustomSetlistInput({ songs, onChange, className, disabled = false }: CustomSetlistInputProps) {
-  const [isAdding, setIsAdding] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<'add' | 'edit'>('add');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [newSong, setNewSong] = useState<Omit<CustomSetlistSong, 'position'>>({
     song_name: '',
@@ -43,10 +47,10 @@ export function CustomSetlistInput({ songs, onChange, className, disabled = fals
 
     onChange([...songs, song]);
     setNewSong({ song_name: '', cover_artist: '', notes: '' });
-    setIsAdding(false);
+    // Stay in add mode, don't close form
   };
 
-  const handleEditSong = (index: number) => {
+  const handleEditSongFromList = (index: number) => {
     const song = songs[index];
     setNewSong({
       song_name: song.song_name,
@@ -54,7 +58,7 @@ export function CustomSetlistInput({ songs, onChange, className, disabled = fals
       notes: song.notes || ''
     });
     setEditingIndex(index);
-    setIsAdding(true);
+    setActiveTab('add'); // Switch to Add Song tab
   };
 
   const handleSaveEdit = () => {
@@ -71,13 +75,13 @@ export function CustomSetlistInput({ songs, onChange, className, disabled = fals
     onChange(updatedSongs);
     setNewSong({ song_name: '', cover_artist: '', notes: '' });
     setEditingIndex(null);
-    setIsAdding(false);
+    setActiveTab('edit'); // Switch back to Edit Setlist tab after saving
   };
 
   const handleCancelEdit = () => {
     setNewSong({ song_name: '', cover_artist: '', notes: '' });
     setEditingIndex(null);
-    setIsAdding(false);
+    setActiveTab('edit'); // Switch back to Edit Setlist tab after canceling
   };
 
   const handleDeleteSong = (index: number) => {
@@ -90,150 +94,114 @@ export function CustomSetlistInput({ songs, onChange, className, disabled = fals
     onChange(reorderedSongs);
   };
 
-  const handleMoveSong = (index: number, direction: 'up' | 'down') => {
-    if (
-      (direction === 'up' && index === 0) ||
-      (direction === 'down' && index === songs.length - 1)
-    ) {
-      return;
-    }
-
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    const updatedSongs = [...songs];
-    [updatedSongs[index], updatedSongs[newIndex]] = [updatedSongs[newIndex], updatedSongs[index]];
-    
-    // Update positions
-    const reorderedSongs = updatedSongs.map((song, i) => ({
-      ...song,
-      position: i + 1
-    }));
-    
-    onChange(reorderedSongs);
+  const handleDeleteSetlist = () => {
+    onChange([]);
+    setIsExpanded(true);
   };
 
+  const handleSaveSetlist = () => {
+    setIsExpanded(false);
+  };
+
+  const handleCloseEditor = () => {
+    setIsExpanded(false);
+    setActiveTab('add');
+    setEditingIndex(null);
+    setNewSong({ song_name: '', cover_artist: '', notes: '' });
+  };
+
+  const handleOpenEditor = () => {
+    setIsExpanded(true);
+    setActiveTab('edit');
+  };
+
+  // Collapsed state - show summary card
+  if (!isExpanded && songs.length > 0) {
   return (
     <div className={cn("space-y-3", className, disabled && "opacity-50 pointer-events-none")}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Music className={cn("w-5 h-5", disabled ? "text-gray-400" : "text-purple-600")} />
-          <Label className={cn("text-sm font-medium", disabled && "text-gray-500")}>
-            {disabled ? "Custom Setlist (Disabled)" : "Custom Setlist (Optional)"}
-          </Label>
-          {songs.length > 0 && (
-            <Badge variant="secondary" className={cn(
-              disabled ? "bg-gray-100 text-gray-600" : "bg-purple-100 text-purple-800"
-            )}>
-              {songs.length} song{songs.length !== 1 ? 's' : ''}
-            </Badge>
-          )}
+        <Card className="border-pink-200 bg-pink-50">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Music className="w-4 h-4 sm:w-5 sm:h-5 text-pink-600 flex-shrink-0" />
+                <span className="font-semibold text-gray-900 text-sm sm:text-base truncate">Custom Setlist</span>
         </div>
-        {!isAdding && !disabled && (
           <Button
             type="button"
-            variant="outline"
+                variant="ghost"
             size="sm"
-            onClick={() => setIsAdding(true)}
-            className="text-purple-600 border-purple-300 hover:bg-purple-50"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add Song
+                onClick={handleDeleteSetlist}
+                disabled={disabled}
+                className="h-8 w-8 p-0 flex-shrink-0"
+              >
+                <Trash2 className="w-4 h-4 text-gray-600" />
           </Button>
-        )}
       </div>
-
-      <p className={cn("text-xs", disabled ? "text-gray-400" : "text-gray-500")}>
-        {disabled 
-          ? "Custom setlist creation is disabled because an API setlist was selected."
-          : "Create your own setlist for this show. Add songs in the order they were played."
-        }
-      </p>
-
-      {/* Song List */}
-      {songs.length > 0 && (
-        <div className="space-y-2">
-          {songs.map((song, index) => (
-            <Card key={index} className="border-purple-200 bg-purple-50/30">
-              <CardContent className="p-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex flex-col gap-1 pt-1">
-                    <button
+            <p className="text-xs sm:text-sm text-gray-600 mb-3">
+              {songs.length} {songs.length === 1 ? 'song' : 'songs'}
+            </p>
+                    <Button
                       type="button"
-                      onClick={() => handleMoveSong(index, 'up')}
-                      disabled={index === 0}
-                      className="text-purple-400 hover:text-purple-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                      aria-label="Move up"
-                    >
-                      <GripVertical className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveSong(index, 'down')}
-                      disabled={index === songs.length - 1}
-                      className="text-purple-400 hover:text-purple-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                      aria-label="Move down"
-                    >
-                      <GripVertical className="w-4 h-4" />
-                    </button>
-                  </div>
-                  
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-semibold text-sm flex-shrink-0">
-                    {index + 1}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-purple-900">{song.song_name}</div>
-                    {song.cover_artist && (
-                      <div className="text-xs text-purple-600 mt-1">
-                        <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
-                          Cover: {song.cover_artist}
-                        </Badge>
-                      </div>
-                    )}
-                    {song.notes && (
-                      <div className="text-xs text-purple-700 mt-1 italic">
-                        "{song.notes}"
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-1 flex-shrink-0">
+              variant="secondary"
+              onClick={handleOpenEditor}
+              disabled={disabled}
+              className="btn-synth-secondary w-full"
+            >
+              Edit Setlist
+                    </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Expanded state - show editor with tabs
+  if (isExpanded) {
+    return (
+      <div className={cn("space-y-3", className, disabled && "opacity-50 pointer-events-none")}>
+        <Card className="border-purple-300 bg-purple-50" style={{ borderColor: SETLIST_PURPLE }}>
+          <CardContent className="p-5" style={{ paddingLeft: '20px', paddingRight: '20px' }}>
+            {/* Top-right X icon */}
+            <div className="flex justify-end mb-4">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleEditSong(index)}
-                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                onClick={handleCloseEditor}
+                disabled={disabled}
+                className="h-8 w-8 p-0"
                     >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteSong(index)}
-                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
+                <X className="w-4 h-4" style={{ color: SETLIST_PURPLE }} />
                     </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
 
-      {/* Add/Edit Song Form */}
-      {isAdding && (
-        <Card className="border-purple-300 bg-purple-50">
-          <CardHeader className="pb-3">
-            <h4 className="text-sm font-semibold text-purple-900">
-              {editingIndex !== null ? 'Edit Song' : 'Add Song'}
-            </h4>
-          </CardHeader>
-          <CardContent className="space-y-3">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'add' | 'edit')} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4" style={{ backgroundColor: 'rgba(147, 51, 234, 0.1)' }}>
+                <TabsTrigger 
+                  value="add"
+                  className="data-[state=active]:bg-white data-[state=active]:text-purple-900"
+                  style={{ 
+                    color: activeTab === 'add' ? SETLIST_PURPLE : 'var(--neutral-600)',
+                  }}
+                >
+                  Add Song
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="edit"
+                  className="data-[state=active]:bg-white data-[state=active]:text-purple-900"
+                  style={{ 
+                    color: activeTab === 'edit' ? SETLIST_PURPLE : 'var(--neutral-600)',
+                  }}
+                >
+                  Edit Setlist
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Add Song Tab */}
+              <TabsContent value="add" className="space-y-4 mt-0">
+                <div className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="song_name" className="text-xs font-medium text-purple-900">
+                    <Label htmlFor="song_name" className="text-xs font-medium" style={{ color: SETLIST_PURPLE }}>
                 Song Name *
               </Label>
               <Input
@@ -242,12 +210,12 @@ export function CustomSetlistInput({ songs, onChange, className, disabled = fals
                 onChange={(e) => setNewSong({ ...newSong, song_name: e.target.value })}
                 placeholder="Enter song name..."
                 maxLength={200}
-                className="border-purple-200"
+                      style={{ borderColor: 'rgba(147, 51, 234, 0.3)' }}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cover_artist" className="text-xs font-medium text-purple-900">
+                    <Label htmlFor="cover_artist" className="text-xs font-medium" style={{ color: SETLIST_PURPLE }}>
                 Cover Artist (Optional)
               </Label>
               <Input
@@ -256,15 +224,15 @@ export function CustomSetlistInput({ songs, onChange, className, disabled = fals
                 onChange={(e) => setNewSong({ ...newSong, cover_artist: e.target.value })}
                 placeholder="If this was a cover, enter original artist..."
                 maxLength={100}
-                className="border-purple-200"
+                      style={{ borderColor: 'rgba(147, 51, 234, 0.3)' }}
               />
-              <p className="text-xs text-purple-600">
+                    <p className="text-xs" style={{ color: SETLIST_PURPLE }}>
                 Leave blank if it's an original by the performing artist
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes" className="text-xs font-medium text-purple-900">
+                    <Label htmlFor="notes" className="text-xs font-medium" style={{ color: SETLIST_PURPLE }}>
                 Special Notes (Optional)
               </Label>
               <Textarea
@@ -274,53 +242,161 @@ export function CustomSetlistInput({ songs, onChange, className, disabled = fals
                 placeholder="Any special notes about this performance..."
                 maxLength={300}
                 rows={2}
-                className="border-purple-200 resize-none"
+                      className="resize-none"
+                      style={{ borderColor: 'rgba(147, 51, 234, 0.3)' }}
               />
-              <p className="text-xs text-purple-600">
+                    <p className="text-xs" style={{ color: SETLIST_PURPLE }}>
                 E.g., "Extended guitar solo", "First time played live", "Crowd favorite"
               </p>
             </div>
 
             <div className="flex gap-2 pt-2">
+                    {editingIndex !== null && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={handleCancelEdit}
+                        className="flex-1"
+                        style={{ 
+                          borderColor: 'var(--neutral-300)',
+                          color: 'var(--neutral-700)'
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    )}
               <Button
                 type="button"
                 onClick={editingIndex !== null ? handleSaveEdit : handleAddSong}
                 disabled={!newSong.song_name.trim()}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                <Save className="w-4 h-4 mr-1" />
+                      className={editingIndex !== null ? "flex-1" : "w-full"}
+                      style={{ 
+                        backgroundColor: SETLIST_PURPLE,
+                        color: 'white'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(147, 51, 234, 0.9)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = SETLIST_PURPLE;
+                      }}
+                    >
                 {editingIndex !== null ? 'Save Changes' : 'Add Song'}
               </Button>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Edit Setlist Tab */}
+              <TabsContent value="edit" className="space-y-4 mt-0">
+                <h3 className="text-base font-semibold mb-4" style={{ color: SETLIST_PURPLE }}>
+                  Your Set List
+                </h3>
+
+                {songs.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Music className="w-8 h-8 mx-auto mb-2" style={{ color: 'rgba(147, 51, 234, 0.3)' }} />
+                    <p className="text-sm" style={{ color: SETLIST_PURPLE }}>No songs added yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {songs.map((song, index) => (
+                      <div key={index} className="border-b border-purple-200 pb-3 last:border-b-0">
+                        <div className="flex items-start gap-3">
+                          <span className="text-base font-semibold flex-shrink-0" style={{ color: SETLIST_PURPLE }}>
+                            {index + 1}.
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900">{song.song_name}</div>
+                            {song.cover_artist && (
+                              <div className="text-xs text-gray-600 mt-1">Cover: {song.cover_artist}</div>
+                            )}
+                            {song.notes && (
+                              <div className="text-xs text-gray-600 mt-1 italic">"{song.notes}"</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-2 ml-6">
+                          <button
+                            type="button"
+                            onClick={() => handleEditSongFromList(index)}
+                            className="text-sm underline"
+                            style={{ color: 'var(--neutral-600)' }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSong(index)}
+                            className="p-1"
+                            style={{ color: 'var(--neutral-600)' }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
               <Button
                 type="button"
-                variant="outline"
-                onClick={handleCancelEdit}
-                className="border-purple-300 text-purple-700 hover:bg-purple-50"
-              >
-                <X className="w-4 h-4 mr-1" />
-                Cancel
+                  onClick={handleSaveSetlist}
+                  disabled={songs.length === 0}
+                  className="w-full mt-6"
+                  style={{ 
+                    backgroundColor: SETLIST_PURPLE,
+                    color: 'white'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(147, 51, 234, 0.9)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = SETLIST_PURPLE;
+                  }}
+                >
+                  Save Setlist
               </Button>
-            </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
-      )}
+      </div>
+    );
+  }
 
-      {songs.length === 0 && !isAdding && (
-        <div className="text-center py-6 border-2 border-dashed border-purple-200 rounded-lg bg-purple-50/30">
-          <Music className="w-8 h-8 text-purple-300 mx-auto mb-2" />
-          <p className="text-sm text-purple-600 mb-2">No songs added yet</p>
+  // Empty state - show "No songs added yet" with button to start
+  return (
+    <div className={cn("space-y-3", className, disabled && "opacity-50 pointer-events-none")}>
+      <div className="text-center py-6 border-2 border-dashed rounded-lg" style={{ 
+        borderColor: 'rgba(147, 51, 234, 0.3)',
+        backgroundColor: 'rgba(147, 51, 234, 0.05)'
+      }}>
+        <Music className="w-8 h-8 mx-auto mb-2" style={{ color: 'rgba(147, 51, 234, 0.3)' }} />
+        <p className="text-sm mb-2" style={{ color: SETLIST_PURPLE }}>No songs added yet</p>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setIsAdding(true)}
-            className="text-purple-600 border-purple-300 hover:bg-purple-50"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add Your First Song
+          onClick={() => setIsExpanded(true)}
+          disabled={disabled}
+            style={{
+            borderColor: SETLIST_PURPLE,
+            color: SETLIST_PURPLE
+          }}
+          className="hover:bg-purple-50"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(147, 51, 234, 0.1)';
+            e.currentTarget.style.color = SETLIST_PURPLE;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = SETLIST_PURPLE;
+          }}
+        >
+            <span style={{ color: SETLIST_PURPLE }}>Add Your First Song</span>
           </Button>
         </div>
-      )}
     </div>
   );
 }

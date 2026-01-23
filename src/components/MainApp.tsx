@@ -643,13 +643,13 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       case 'analytics':
         // Render the appropriate analytics dashboard based on account type
         if (!accountInfo) {
-          return (
-            <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-50)' }}>
-              <div className="text-center">
-                <p style={{ color: 'var(--neutral-600)' }}>Loading account information...</p>
+            return (
+              <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-50)', paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
+                <div className="text-center">
+                  <p style={{ color: 'var(--neutral-600)' }}>Loading account information...</p>
+                </div>
               </div>
-            </div>
-          );
+            );
         }
         
         console.log('🔍 MainApp: Account info for analytics:', accountInfo);
@@ -668,7 +668,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           default:
             console.log('🔍 MainApp: Unknown account type, showing not available message');
             return (
-              <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-50)' }}>
+              <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-50)', paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
                 <div className="text-center">
                   <p style={{ color: 'var(--neutral-600)' }}>Analytics not available for your account type.</p>
                   <p style={{ 
@@ -685,7 +685,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         }
       case 'events':
         return (
-          <div className="min-h-screen p-6" style={{ backgroundColor: 'var(--neutral-50)' }}>
+          <div className="min-h-screen p-6" style={{ backgroundColor: 'var(--neutral-50)', paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
             <MyEventsManagementPanel />
           </div>
         );
@@ -760,7 +760,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         </div>
       )}
       
-      <div style={{ paddingBottom: hideNavigation ? '0' : 'var(--spacing-bottom-nav, 112px)' }}>
+      <div style={{ backgroundColor: 'transparent' }}>
         {renderCurrentView()}
       </div>
 

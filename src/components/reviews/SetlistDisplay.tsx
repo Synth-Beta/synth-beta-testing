@@ -216,56 +216,80 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
   }
 
   return (
-    <Card className={cn("border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50", className)}>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <Music className="w-5 h-5 text-purple-600" />
-              <h4 className="font-semibold text-purple-900">Setlist</h4>
-              <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                {totalSongs} songs
-              </Badge>
-            </div>
-            <div className="space-y-1 text-sm text-purple-700">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-3 w-3" />
-                {formatDate(setlist.eventDate)}
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-3 w-3" />
-                {setlist.venue?.name}, {setlist.venue?.city}
-                {setlist.venue?.state && `, ${setlist.venue.state}`}
-              </div>
-            </div>
+    <div className={cn("space-y-6", className)}>
+      {/* Section Header with Setlist.fm button */}
+      <div className="flex items-center justify-between" style={{ paddingLeft: '20px', paddingRight: '20px' }}>
+        <h2 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+          Setlist
+        </h2>
+        {setlist.url && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(setlist.url, '_blank')}
+            className="text-purple-600 border-purple-300 hover:bg-purple-100"
+          >
+            <ExternalLink className="w-4 h-4 mr-1" />
+            Setlist.fm
+          </Button>
+        )}
+      </div>
+
+      {/* Purple Container */}
+      <div className="border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg" style={{
+        boxShadow: '0 4px 4px rgba(0, 0, 0, 0.25)',
+        padding: '24px 20px',
+      }}>
+        {/* Container Header with Setlist title and View/Hide button */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Music className="w-5 h-5 text-purple-600" />
+            <h3 className="font-semibold text-purple-900">Setlist</h3>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="text-purple-600 border-purple-300 hover:bg-purple-100"
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-purple-600 border-purple-300 hover:bg-purple-100"
+          >
+            <span 
+              className="text-purple-600"
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+              }}
             >
-              {isExpanded ? <ChevronUp className="w-4 h-4 mr-1" /> : <ChevronDown className="w-4 h-4 mr-1" />}
-              {isExpanded ? 'Hide' : 'Show'} Setlist
-            </Button>
-            {setlist.url && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(setlist.url, '_blank')}
-                className="text-purple-600 border-purple-300 hover:bg-purple-100"
-              >
-                <ExternalLink className="w-4 h-4 mr-1" />
-                Setlist.fm
-              </Button>
-            )}
+              {isExpanded ? 'Hide' : 'View'} Setlist
+            </span>
+            {isExpanded ? <ChevronUp className="w-6 h-6 ml-1 text-purple-600" /> : <ChevronDown className="w-6 h-6 ml-1 text-purple-600" />}
+          </Button>
+        </div>
+
+        {/* Songs badge and date - directly under Setlist title, aligned with text */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+              {totalSongs} songs
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Calendar className="w-6 h-6" style={{ color: 'var(--neutral-600)' }} />
+            <span style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+              color: 'var(--neutral-600)'
+            }}>
+              {formatDate(setlist.eventDate)}
+            </span>
           </div>
         </div>
-      </CardHeader>
 
       {isExpanded && (
-        <CardContent className="pt-0">
+        <div className="pt-0">
           {setlist.info && (
             <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
               {setlist.info}
@@ -309,8 +333,9 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
               </div>
             ))}
           </div>
-        </CardContent>
+        </div>
       )}
-    </Card>
+      </div>
+    </div>
   );
 }

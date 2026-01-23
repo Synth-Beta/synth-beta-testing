@@ -246,7 +246,7 @@ export default function CreatorAnalyticsDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen p-6" style={{ backgroundColor: 'var(--neutral-50)', paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">

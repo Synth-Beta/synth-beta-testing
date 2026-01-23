@@ -500,7 +500,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
       <div 
         className="max-w-6xl mx-auto px-4 sm:px-6 pt-4"
         style={{ 
-          paddingBottom: `calc(var(--spacing-bottom-nav, 112px) + env(safe-area-inset-bottom, 0px) + var(--spacing-grouped, 24px))`
+          paddingBottom: `calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px) + var(--spacing-grouped, 24px))`
         }}
       >
         {/* Back Button */}

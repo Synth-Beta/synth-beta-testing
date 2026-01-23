@@ -123,7 +123,7 @@
   --spacing-big-section: 60px;
   --spacing-screen-margin-x: 20px;
   --spacing-menu-item-row-height: 48px;
-  --spacing-bottom-nav: 112px; /* Space above bottom navigation and after page content */
+  --spacing-bottom-nav: 32px; /* Space above bottom navigation and after page content */
   
   /* Pop-up/Layout Sizing */
   /* Pop-up width: device width minus 40px (20px margins on each side) */

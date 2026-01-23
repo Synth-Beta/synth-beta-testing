@@ -22,7 +22,7 @@ export const spacing = {
   bigSection: 60,
   screenMarginX: 20,
   menuItemRowHeight: 48,
-  bottomNav: 112, // Space above bottom navigation and after page content
+  bottomNav: 32, // Space above bottom navigation and after page content
 } as const;
 
 /**

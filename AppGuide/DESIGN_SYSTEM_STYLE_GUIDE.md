@@ -233,7 +233,7 @@ var(--font-family) = 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Ro
 | **Grouped** | 24px | Spacing between grouped sections, larger gaps | `var(--spacing-grouped, 24px)` | `gap: 'var(--spacing-grouped, 24px)'` |
 | **Big Section** | 60px | Major section breaks, large spacing between major UI sections | `var(--spacing-big-section, 60px)` | `marginBottom: 'var(--spacing-big-section, 60px)'` |
 | **Screen Margin X** | 20px | Horizontal margins for all page content (left and right) | `var(--spacing-screen-margin-x, 20px)` | `paddingLeft: 'var(--spacing-screen-margin-x, 20px)'`, `paddingRight: 'var(--spacing-screen-margin-x, 20px)'` |
-| **Bottom Nav** | 112px | Total space reserved at bottom (80px bottom nav + 32px spacing) | `var(--spacing-bottom-nav, 112px)` | `paddingBottom: 'var(--spacing-bottom-nav, 112px)'` |
+| **Bottom Nav** | 32px | Space between end of content and bottom of page | `var(--spacing-bottom-nav, 32px)` | `paddingBottom: 'var(--spacing-bottom-nav, 32px)'` |
 
 **Spacing Rules:**
 
@@ -246,9 +246,8 @@ var(--font-family) = 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Ro
    - Major sections: `60px` (`var(--spacing-big-section, 60px)`)
 4. **Bottom Navigation Spacing**: 
    - Bottom navigation visual height is `80px` (defined in Figma)
-   - Total spacing reserved at bottom of pages is `112px` (`var(--spacing-bottom-nav, 112px)`)
-   - This includes: `80px` bottom nav height + `32px` breathing room between content and bottom nav
-   - Content should end `32px` above the bottom nav
+   - Spacing between end of content and bottom of page is `32px` (`var(--spacing-bottom-nav, 32px)`)
+   - Content should end `32px` above the bottom of the page
    - This spacing is intentionally asymmetric with top spacing (12px below header) to maintain visual hierarchy
 5. **Never use arbitrary spacing**: Avoid values like `8px`, `10px`, `16px`, `18px`, `32px`, etc. Use the predefined tokens.
 
@@ -259,7 +258,7 @@ var(--font-family) = 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Ro
   paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
   paddingRight: 'var(--spacing-screen-margin-x, 20px)',
   paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px + 12px)',
-  paddingBottom: 'var(--spacing-bottom-nav, 112px)'
+  paddingBottom: 'var(--spacing-bottom-nav, 32px)'
 }}>
   <div style={{ marginBottom: 'var(--spacing-small, 12px)' }}>
     Content

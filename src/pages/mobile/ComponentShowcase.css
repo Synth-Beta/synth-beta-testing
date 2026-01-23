@@ -23,10 +23,10 @@
 .component-showcase__content {
   width: 100%;
   padding: var(--spacing-grouped, 24px) var(--spacing-screen-margin-x, 20px);
-  padding-bottom: var(--spacing-bottom-nav, 112px);
+  padding-bottom: var(--spacing-bottom-nav, 32px);
   box-sizing: border-box;
   /* Content should not have overflow, parent handles scrolling */
-  min-height: calc(100vh - var(--spacing-bottom-nav, 112px));
+  min-height: calc(100vh - var(--spacing-bottom-nav, 32px));
 }
 
 .component-showcase__title {

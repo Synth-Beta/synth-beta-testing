@@ -46,9 +46,27 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData, maxChara
           className="resize-none text-base"
           maxLength={maxCharacters}
         />
-        <div className="flex justify-between items-center text-xs text-gray-500">
-          <span>Minimum 1-2 sentences is perfect.</span>
-          <span className={cn(isNearLimit ? 'text-orange-600' : 'text-gray-500')}>
+        <div className="flex justify-between items-center" style={{
+          fontFamily: 'var(--font-family)',
+          fontSize: 'var(--typography-meta-size, 16px)',
+          fontWeight: 'var(--typography-meta-weight, 500)',
+          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+          color: 'var(--neutral-600)'
+        }}>
+          <span style={{
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-meta-size, 16px)',
+            fontWeight: 'var(--typography-meta-weight, 500)',
+            lineHeight: 'var(--typography-meta-line-height, 1.5)',
+            color: 'var(--neutral-900)'
+          }}>Minimum 1-2 sentences is perfect.</span>
+          <span style={{
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-meta-size, 16px)',
+            fontWeight: 'var(--typography-meta-weight, 500)',
+            lineHeight: 'var(--typography-meta-line-height, 1.5)',
+            color: isNearLimit ? 'var(--status-warning-500, #B88900)' : 'var(--neutral-600)'
+          }}>
             {characterCount}/{maxCharacters}
           </span>
         </div>
