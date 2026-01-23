@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchBar } from '@/components/SearchBar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -567,7 +567,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                     ? (results.users.length > 0 || results.artists.length > 0 || results.events.length > 0 || results.venues.length > 0)
                     : activeResults.length > 0) && (
                     <div className="space-y-4">
-                      {key === 'all' && <AllResults results={results} onNavigateToProfile={_onNavigateToProfile} onEventClick={onEventClick} onTabChange={setActiveTab} />}
+                      {key === 'all' && <AllResults results={results} onNavigateToProfile={_onNavigateToProfile} onEventClick={onEventClick} onTabChange={setActiveTab} debouncedQuery={debouncedQuery} />}
                       {key === 'users' && (
                         <>
                           <UserResults results={results.users} onNavigateToProfile={_onNavigateToProfile} />
@@ -622,7 +622,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                       )}
                       {key === 'events' && (
                         <>
-                          <EventResults results={results.events} onEventClick={onEventClick} />
+                          <EventResults results={results.events} onEventClick={onEventClick} debouncedQuery={debouncedQuery} />
                           {pagination.events.hasMore && (
                             <div className="flex justify-center pt-4">
                               <Button
@@ -877,6 +877,8 @@ const UserResults: React.FC<{
 );
 const ArtistResults: React.FC<{ results: ArtistSearchResult[] }> = ({ results }) => {
   const navigate = useNavigate();
+  // Track if touch event was handled to prevent onClick from firing
+  const touchHandledRef = useRef<{ [key: string]: boolean }>({});
   
   // Debug: Log image URLs
   console.log('🎨 ArtistResults - Artists with images:', results.map(a => ({
@@ -894,10 +896,29 @@ const ArtistResults: React.FC<{ results: ArtistSearchResult[] }> = ({ results })
         <Card 
           key={artist.id} 
           className="hover:shadow-sm transition-shadow cursor-pointer"
-          onClick={() => {
+          onClick={(e) => {
+            // Prevent onClick if touch event already handled this
+            if (touchHandledRef.current[artist.id]) {
+              touchHandledRef.current[artist.id] = false;
+              return;
+            }
             setSelectedArtistId(artist.id);
             setSelectedArtistName(artist.name);
             setArtistModalOpen(true);
+          }}
+          onTouchEnd={(e) => {
+            // Ensure touch events work on mobile
+            e.preventDefault();
+            e.stopPropagation();
+            // Mark as handled to prevent onClick from firing
+            touchHandledRef.current[artist.id] = true;
+            setSelectedArtistId(artist.id);
+            setSelectedArtistName(artist.name);
+            setArtistModalOpen(true);
+            // Reset after a short delay to allow for potential onClick cancellation
+            setTimeout(() => {
+              touchHandledRef.current[artist.id] = false;
+            }, 300);
           }}
         >
           <CardContent className="p-4 flex items-center gap-4">
@@ -957,11 +978,13 @@ const ArtistResults: React.FC<{ results: ArtistSearchResult[] }> = ({ results })
   );
 };
 
-const EventResults: React.FC<{ results: EventSearchResult[]; onEventClick?: (event: EventSearchResult) => void }> = ({ results, onEventClick }) => {
+const EventResults: React.FC<{ results: EventSearchResult[]; onEventClick?: (event: EventSearchResult) => void; debouncedQuery?: string }> = ({ results, onEventClick, debouncedQuery = '' }) => {
   const navigate = useNavigate();
+  // Track if touch event was handled to prevent onClick from firing
+  const touchHandledRef = useRef<{ [key: string]: boolean }>({});
   return (
     <>
-      {results.map((event) => {
+      {results.map((event, index) => {
       const formattedDate = (() => {
         if (!event.eventDate) return null;
         try {
@@ -975,7 +998,12 @@ const EventResults: React.FC<{ results: EventSearchResult[]; onEventClick?: (eve
         <Card 
           key={event.id} 
           className="hover:shadow-sm transition-shadow cursor-pointer"
-          onClick={() => {
+          onClick={(e) => {
+            // Prevent onClick if touch event already handled this
+            if (touchHandledRef.current[event.id]) {
+              touchHandledRef.current[event.id] = false;
+              return;
+            }
             if (onEventClick) {
               // Track search result click
               try {
@@ -983,7 +1011,7 @@ const EventResults: React.FC<{ results: EventSearchResult[]; onEventClick?: (eve
                   source: 'search',
                   query: debouncedQuery,
                   result_type: 'event',
-                  position: results.events.indexOf(event)
+                  position: index
                 }, event.id);
               } catch (error) {
                 console.error('Error tracking search result click:', error);
@@ -1001,6 +1029,38 @@ const EventResults: React.FC<{ results: EventSearchResult[]; onEventClick?: (eve
                 }));
               }
             }
+          }}
+          onTouchEnd={(e) => {
+            // Ensure touch events work on mobile
+            e.preventDefault();
+            e.stopPropagation();
+            // Mark as handled to prevent onClick from firing
+            touchHandledRef.current[event.id] = true;
+            // Track search result click (same as onClick)
+            try {
+              trackInteraction.click('event', event.id, { 
+                source: 'search',
+                query: debouncedQuery,
+                result_type: 'event',
+                position: index
+              }, event.id);
+            } catch (error) {
+              console.error('Error tracking search result click:', error);
+            }
+            if (onEventClick) {
+              onEventClick(event);
+            } else if (event.id) {
+              window.dispatchEvent(new CustomEvent('open-event-details', { 
+                detail: { 
+                  event: event,
+                  eventId: event.id
+                }
+              }));
+            }
+            // Reset after a short delay to allow for potential onClick cancellation
+            setTimeout(() => {
+              touchHandledRef.current[event.id] = false;
+            }, 300);
           }}
         >
           <CardContent className="p-4 flex items-center gap-4">
@@ -1042,16 +1102,37 @@ const EventResults: React.FC<{ results: EventSearchResult[]; onEventClick?: (eve
 
 const VenueResults: React.FC<{ results: VenueSearchResult[] }> = ({ results }) => {
   const navigate = useNavigate();
+  // Track if touch event was handled to prevent onClick from firing
+  const touchHandledRef = useRef<{ [key: string]: boolean }>({});
   return (
     <>
       {results.map((venue) => (
         <Card 
           key={venue.id} 
           className="hover:shadow-sm transition-shadow cursor-pointer"
-          onClick={() => {
+          onClick={(e) => {
+            // Prevent onClick if touch event already handled this
+            if (touchHandledRef.current[venue.id]) {
+              touchHandledRef.current[venue.id] = false;
+              return;
+            }
             setSelectedVenueId(venue.id);
             setSelectedVenueName(venue.name);
             setVenueModalOpen(true);
+          }}
+          onTouchEnd={(e) => {
+            // Ensure touch events work on mobile - use onTouchEnd for consistency with other result types
+            e.preventDefault();
+            e.stopPropagation();
+            // Mark as handled to prevent onClick from firing
+            touchHandledRef.current[venue.id] = true;
+            setSelectedVenueId(venue.id);
+            setSelectedVenueName(venue.name);
+            setVenueModalOpen(true);
+            // Reset after a short delay to allow for potential onClick cancellation
+            setTimeout(() => {
+              touchHandledRef.current[venue.id] = false;
+            }, 300);
           }}
         >
           <CardContent className="p-4 flex items-start gap-4">
@@ -1154,19 +1235,46 @@ const AllResults: React.FC<{
               <Card 
                 key={user.id} 
                 className="hover:shadow-sm transition-shadow cursor-pointer"
-                onClick={() => {
-          // Track user search result click
-          try {
-            trackInteraction.click('user', user.id, { 
-              source: 'search',
-              query: debouncedQuery,
-              result_type: 'user'
-            }, user.id);
-          } catch (error) {
-            console.error('Error tracking user search click:', error);
-          }
-          onNavigateToProfile?.(user.id);
-        }}
+                onClick={(e) => {
+                  // Prevent onClick if touch event already handled this
+                  if (touchHandledRef.current[user.id]) {
+                    touchHandledRef.current[user.id] = false;
+                    return;
+                  }
+                  // Track user search result click
+                  try {
+                    trackInteraction.click('user', user.id, { 
+                      source: 'search',
+                      query: debouncedQuery,
+                      result_type: 'user'
+                    }, user.id);
+                  } catch (error) {
+                    console.error('Error tracking user search click:', error);
+                  }
+                  onNavigateToProfile?.(user.id);
+                }}
+                onTouchEnd={(e) => {
+                  // Ensure touch events work on mobile
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // Mark as handled to prevent onClick from firing
+                  touchHandledRef.current[user.id] = true;
+                  // Track user search result click (same as onClick)
+                  try {
+                    trackInteraction.click('user', user.id, { 
+                      source: 'search',
+                      query: debouncedQuery,
+                      result_type: 'user'
+                    }, user.id);
+                  } catch (error) {
+                    console.error('Error tracking user search click:', error);
+                  }
+                  onNavigateToProfile?.(user.id);
+                  // Reset after a short delay to allow for potential onClick cancellation
+                  setTimeout(() => {
+                    touchHandledRef.current[user.id] = false;
+                  }, 300);
+                }}
               >
                 <CardContent className="p-3 flex items-center gap-3">
                   <Avatar className="h-10 w-10">

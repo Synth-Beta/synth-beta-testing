@@ -475,13 +475,23 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   const handleNavigateToArtist = (artistId: string) => {
-    // Navigate to artist page
-    window.location.href = `/artist/${encodeURIComponent(artistId)}`;
+    // Dispatch custom event to open artist detail modal (works in both web and mobile)
+    window.dispatchEvent(new CustomEvent('open-artist-card', {
+      detail: {
+        artistId: artistId,
+        artistName: artistId // Will be resolved by the modal
+      }
+    }));
   };
 
   const handleNavigateToVenue = (venueName: string) => {
-    // Navigate to venue page
-    window.location.href = `/venue/${encodeURIComponent(venueName)}`;
+    // Dispatch custom event to open venue detail modal (works in both web and mobile)
+    window.dispatchEvent(new CustomEvent('open-venue-card', {
+      detail: {
+        venueId: venueName,
+        venueName: venueName
+      }
+    }));
   };
 
   const handleNavigateToProfile = (userId?: string, tab?: 'timeline' | 'interested') => {
@@ -708,8 +718,13 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       className="min-h-screen"
       style={{
         paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
-        backgroundColor: 'var(--neutral-50)'
-      }}
+        backgroundColor: 'var(--neutral-50)',
+        // Set CSS variable for onboarding banner height so MobileHeader can position below it
+        '--onboarding-banner-height': showOnboardingReminder && !hideNavigation ? '60px' : '0px',
+        // Set CSS variable for header padding-top: when banner is visible, no safe area padding needed
+        // (banner already accounts for it); when banner is not visible, header needs safe area padding
+        '--mobile-header-padding-top': showOnboardingReminder && !hideNavigation ? '0px' : 'env(safe-area-inset-top, 0px)',
+      } as React.CSSProperties}
     >
       {/* Onboarding Reminder Banner */}
       {showOnboardingReminder && !hideNavigation && (

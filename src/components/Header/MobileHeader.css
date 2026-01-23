@@ -6,14 +6,18 @@
 
 .mobile-header {
   position: fixed;
-  top: 0;
+  /* Position below onboarding banner if present (approximately 60px height) */
+  /* Note: OnboardingReminderBanner already accounts for safe-area-inset-top in its paddingTop,
+     so we only need to add the banner height here, not the safe area inset again */
+  top: var(--onboarding-banner-height, 0px);
   left: 0;
   right: 0;
   z-index: 50;
   background-color: var(--neutral-50);
   box-shadow: 0 4px 4px 0 var(--shadow-color);
-  /* Safe area support: add safe-area padding ABOVE the header, not baked into header height */
-  padding-top: env(safe-area-inset-top, 0px);
+  /* Safe area support: when banner is visible, it already accounts for safe area, so padding-top is 0.
+     When banner is not visible, header needs safe area padding. This is controlled by CSS variable. */
+  padding-top: var(--mobile-header-padding-top, env(safe-area-inset-top, 0px));
 }
 
 .mobile-header__container {

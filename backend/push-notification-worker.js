@@ -17,18 +17,22 @@ const BATCH_SIZE = 100; // Process 100 notifications at a time
  */
 async function queuePendingNotifications() {
   try {
+    const startTime = Date.now();
     const result = await pushNotificationService.queuePendingNotifications(100);
+    const duration = Date.now() - startTime;
     
     if (result.error) {
-      console.error('Error queueing pending notifications:', result.error);
+      console.error(`[${new Date().toISOString()}] ❌ Error queueing pending notifications:`, result.error);
       return;
     }
 
     if (result.queued > 0) {
-      console.log(`📬 Queued ${result.queued} new push notifications`);
+      console.log(`[${new Date().toISOString()}] 📬 Queued ${result.queued} new push notifications (${duration}ms)`);
+    } else {
+      console.log(`[${new Date().toISOString()}] ℹ️  No new notifications to queue (${duration}ms)`);
     }
   } catch (error) {
-    console.error('Error queueing pending notifications:', error);
+    console.error(`[${new Date().toISOString()}] ❌ Error queueing pending notifications:`, error);
   }
 }
 
@@ -36,19 +40,27 @@ async function queuePendingNotifications() {
  * Process push notification queue
  */
 async function processPushQueue() {
+  const cycleStartTime = Date.now();
   try {
-    console.log(`[${new Date().toISOString()}] Processing push notification queue...`);
+    console.log(`[${new Date().toISOString()}] 🔄 Starting push notification processing cycle...`);
     
     // Queue any pending notifications (no trigger needed)
     await queuePendingNotifications();
     
+    const processStartTime = Date.now();
     const result = await pushNotificationService.processQueue(BATCH_SIZE);
+    const processDuration = Date.now() - processStartTime;
+    
+    const totalDuration = Date.now() - cycleStartTime;
     
     if (result.processed > 0 || result.errors > 0) {
-      console.log(`✅ Processed: ${result.processed}, Errors: ${result.errors}`);
+      console.log(`[${new Date().toISOString()}] ✅ Cycle complete: Processed ${result.processed}, Errors ${result.errors} (${processDuration}ms processing, ${totalDuration}ms total)`);
+    } else {
+      console.log(`[${new Date().toISOString()}] ℹ️  Cycle complete: No items to process (${totalDuration}ms total)`);
     }
   } catch (error) {
-    console.error('❌ Error processing push queue:', error);
+    const totalDuration = Date.now() - cycleStartTime;
+    console.error(`[${new Date().toISOString()}] ❌ Error processing push queue (${totalDuration}ms):`, error);
   }
 }
 

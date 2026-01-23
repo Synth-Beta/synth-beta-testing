@@ -45,8 +45,23 @@ export const OnboardingReminderBanner = ({ onComplete }: OnboardingReminderBanne
     <Alert 
       className="rounded-none border-x-0 border-t-0 bg-gradient-to-r from-primary/10 to-accent/10"
       style={{
-        marginTop: 'env(safe-area-inset-top, 0px)'
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 60,
+        // Ensure safe area padding is always applied, with minimum spacing
+        paddingTop: `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))`,
+        paddingBottom: 'var(--spacing-small, 12px)',
+        paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+        paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+        marginTop: 0,
+        marginBottom: 0,
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+        // Set a CSS variable so other components can account for banner height
+        minHeight: '60px',
       }}
+      data-banner-visible="true"
     >
       <div className="flex items-center justify-between gap-4">
         <AlertDescription className="flex-1 text-sm">

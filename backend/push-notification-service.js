@@ -194,10 +194,13 @@ class PushNotificationService {
   /**
    * Queue pending notifications directly (no database function needed)
    * Call this periodically to queue notifications that need push
+   * Respects user_settings_preferences.enable_push_notifications
    */
   async queuePendingNotifications(limit = 100) {
     try {
       // Get unread notifications with active device tokens
+      // Note: We'll filter by user preferences after fetching since Supabase query builder
+      // doesn't easily support complex JOINs with OR conditions
       const { data: notifications, error } = await this.supabase
         .from('notifications')
         .select(`
@@ -211,7 +214,7 @@ class PushNotificationService {
         .eq('is_read', false)
         .eq('device_tokens.is_active', true)
         .eq('device_tokens.platform', 'ios')
-        .limit(limit);
+        .limit(limit * 2); // Fetch more to account for filtering
 
       if (error) {
         console.error('Error fetching pending notifications:', error);
@@ -222,8 +225,39 @@ class PushNotificationService {
         return { queued: 0 };
       }
 
+      // Get unique user IDs from notifications
+      const userIds = [...new Set(notifications.map(n => n.user_id))];
+      
+      // Fetch user preferences for all users
+      const { data: userPreferences, error: prefError } = await this.supabase
+        .from('user_settings_preferences')
+        .select('user_id, enable_push_notifications')
+        .in('user_id', userIds);
+
+      if (prefError) {
+        console.warn('Error fetching user preferences (will default to enabled):', prefError);
+      }
+
+      // Create a map of user_id -> enable_push_notifications
+      // Default to true if preferences don't exist (NULL means enabled by default)
+      const pushEnabledMap = new Map();
+      userIds.forEach(userId => {
+        const pref = userPreferences?.find(p => p.user_id === userId);
+        // If preference exists and is false, disable. Otherwise enable (true or NULL)
+        pushEnabledMap.set(userId, pref ? pref.enable_push_notifications !== false : true);
+      });
+
+      // Filter notifications to only include users with push notifications enabled
+      const enabledNotifications = notifications.filter(n => {
+        return pushEnabledMap.get(n.user_id) === true;
+      });
+
+      if (enabledNotifications.length === 0) {
+        return { queued: 0 };
+      }
+
       // Check which are already queued
-      const notificationIds = notifications.map(n => n.id);
+      const notificationIds = enabledNotifications.map(n => n.id);
       const { data: existing } = await this.supabase
         .from('push_notification_queue')
         .select('notification_id, device_token')
@@ -235,7 +269,7 @@ class PushNotificationService {
 
       // Queue new notifications
       const queueItems = [];
-      for (const notification of notifications) {
+      for (const notification of enabledNotifications) {
         for (const device of notification.device_tokens) {
           const key = `${notification.id}:${device.device_token}`;
           if (!existingSet.has(key)) {
@@ -286,7 +320,7 @@ class PushNotificationService {
       .limit(limit);
 
     if (error) {
-      console.error('Error fetching push queue:', error);
+      console.error(`[${new Date().toISOString()}] Error fetching push queue:`, error);
       return { processed: 0, errors: 1 };
     }
 
@@ -294,43 +328,75 @@ class PushNotificationService {
       return { processed: 0, errors: 0 };
     }
 
+    console.log(`[${new Date().toISOString()}] 📋 Found ${queue.length} pending notification(s) in queue`);
+
     let processed = 0;
     let errors = 0;
 
     for (const item of queue) {
       try {
+        const sendStartTime = Date.now();
         const result = await this.sendNotification(item.device_token, {
           title: item.title,
           message: item.body,
           data: item.data
         });
+        const sendDuration = Date.now() - sendStartTime;
 
         // Update queue status
+        // Only increment retry_count on failure, not on success
+        const currentRetryCount = item.retry_count || 0;
+        const newRetryCount = result.success ? currentRetryCount : currentRetryCount + 1;
+        
+        // Only mark as 'failed' if retry limit reached (3 retries = 4 total attempts)
+        // retry_count represents the number of failed attempts, so >= 4 means initial + 3 retries
+        const shouldMarkAsFailed = !result.success && newRetryCount >= 4;
+        const newStatus = result.success ? 'sent' : (shouldMarkAsFailed ? 'failed' : 'pending');
+        
         await this.supabase
           .from('push_notification_queue')
           .update({
-            status: result.success ? 'sent' : 'failed',
+            status: newStatus,
             sent_at: result.success ? new Date().toISOString() : null,
             error_message: result.error || null,
-            retry_count: item.retry_count + 1
+            retry_count: newRetryCount
           })
           .eq('id', item.id);
 
         if (result.success) {
           processed++;
+          console.log(`[${new Date().toISOString()}] ✅ Sent push notification ${item.id} to device (${sendDuration}ms)`);
         } else {
           errors++;
+          if (shouldMarkAsFailed) {
+            console.warn(`[${new Date().toISOString()}] ⚠️  Failed to send push notification ${item.id} after ${newRetryCount} attempts (3 retries): ${result.error} (${sendDuration}ms)`);
+          } else {
+            console.warn(`[${new Date().toISOString()}] ⚠️  Failed to send push notification ${item.id}: ${result.error} (${sendDuration}ms, attempt ${newRetryCount}/4)`);
+          }
         }
       } catch (error) {
-        console.error('Error processing push notification:', error);
+        console.error(`[${new Date().toISOString()}] ❌ Error processing push notification ${item.id}:`, error);
         errors++;
 
-        // Mark as failed if retry limit reached
-        if (item.retry_count >= 3) {
+        // Mark as failed if retry limit reached (3 retries = 4 total attempts)
+        // retryCount represents the number of failed attempts, so >= 4 means initial + 3 retries
+        const retryCount = (item.retry_count || 0) + 1;
+        if (retryCount >= 4) {
           await this.supabase
             .from('push_notification_queue')
             .update({
               status: 'failed',
+              retry_count: retryCount,
+              error_message: error.message
+            })
+            .eq('id', item.id);
+          console.error(`[${new Date().toISOString()}] ❌ Marked notification ${item.id} as failed after ${retryCount} attempts (3 retries)`);
+        } else {
+          // Update retry count but keep as pending
+          await this.supabase
+            .from('push_notification_queue')
+            .update({
+              retry_count: retryCount,
               error_message: error.message
             })
             .eq('id', item.id);

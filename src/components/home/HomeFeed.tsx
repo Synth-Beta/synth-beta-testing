@@ -1858,6 +1858,8 @@ interface FriendEventInterest {
             ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))`
             : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`,
           paddingBottom: 'var(--spacing-bottom-nav, 112px)',
+          // Add extra padding when onboarding reminder banner is visible (approximately 60px banner height)
+          marginTop: 'var(--onboarding-banner-height, 0px)',
         }}
       >
         {feedLocation && selectedFeedType !== 'events' && selectedFeedType !== 'reviews' && (
