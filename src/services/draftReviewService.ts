@@ -39,7 +39,7 @@ export interface DraftReviewData {
   contextTags?: string[];
   reactionEmoji?: string;
   selectedSetlist?: any;
-  customSetlist?: any;
+  customSetlists?: any;
 }
 
 export interface DraftReview {

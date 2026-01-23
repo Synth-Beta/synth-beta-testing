@@ -124,9 +124,10 @@ export function FollowingModal({
           <button
             onClick={onClose}
             className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#cc2486] flex items-center justify-center hover:bg-[#b01f75] transition-colors"
-            aria-label="Close"
+            aria-label="Close dialog"
+            type="button"
           >
-            <X className="w-4 h-4 text-white" />
+            <X className="w-4 h-4 text-white" aria-hidden="true" />
           </button>
         </DialogHeader>
         

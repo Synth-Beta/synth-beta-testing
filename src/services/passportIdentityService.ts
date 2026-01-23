@@ -68,14 +68,62 @@ export class PassportIdentityService {
    */
   static async getIdentity(userId: string): Promise<PassportIdentity | null> {
     try {
-      // Fetch identity first
+      // Fetch identity first - try with explicit column selection to avoid 406 errors
+      // PostgREST sometimes has issues with select('*') on certain tables
       const { data: identityData, error: identityError } = await supabase
         .from('passport_identity')
-        .select('*')
+        .select('user_id, fan_type, home_scene_id, join_year, calculated_at, updated_at')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
-      if (identityError && identityError.code !== 'PGRST116') throw identityError;
+      // Handle 406 (Not Acceptable) errors specifically
+      if (identityError) {
+        // If it's a 406 error, try an alternative approach using RPC or different query
+        if (identityError.code === '406' || identityError.message?.includes('406')) {
+          console.warn('Received 406 error for passport_identity query, trying alternative approach');
+          // Try without maybeSingle first
+          const { data: altData, error: altError } = await supabase
+            .from('passport_identity')
+            .select('user_id, fan_type, home_scene_id, join_year, calculated_at, updated_at')
+            .eq('user_id', userId)
+            .limit(1);
+          
+          if (altError) {
+            console.error('Alternative passport_identity query also failed:', altError);
+            throw altError;
+          }
+          
+          if (!altData || altData.length === 0) {
+            return null;
+          }
+          
+          // Use the first result
+          const firstResult = altData[0];
+          
+          // Get user's location city directly
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('location_city')
+            .eq('user_id', userId)
+            .maybeSingle();
+            
+          if (userError) {
+            console.error('Error fetching user location_city:', userError);
+          }
+
+          return {
+            ...firstResult,
+            home_scene: null, // Not using scenes anymore
+            home_city: userData?.location_city || null,
+          } as PassportIdentity;
+        }
+        
+        // For other errors, only throw if it's not a "not found" error
+        if (identityError.code !== 'PGRST116') {
+          throw identityError;
+        }
+      }
+      
       if (!identityData) return null;
 
       // Get user's location city directly
@@ -83,7 +131,7 @@ export class PassportIdentityService {
         .from('users')
         .select('location_city')
         .eq('user_id', userId)
-          .single();
+        .maybeSingle();
         
       if (userError) {
         console.error('Error fetching user location_city:', userError);

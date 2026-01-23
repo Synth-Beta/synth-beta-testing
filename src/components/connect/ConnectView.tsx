@@ -749,7 +749,10 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                           className="w-16 h-16 mb-2 cursor-pointer"
                           onClick={() => onNavigateToProfile?.(user.recommended_user_id)}
                         >
-                          <AvatarImage src={user.avatar_url || undefined} />
+                          <AvatarImage 
+                            src={user.avatar_url || undefined} 
+                            alt={user.name ? `${user.name}'s profile picture` : "User profile picture"} 
+                          />
                           <AvatarFallback className="text-lg">
                             {user.name
                               ? user.name
@@ -1145,7 +1148,10 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-3">
                   <Avatar className="w-10 h-10">
-                    <AvatarImage src={interest.userAvatar || undefined} />
+                    <AvatarImage 
+                      src={interest.userAvatar || undefined} 
+                      alt={`${interest.userName}'s profile picture`} 
+                    />
                     <AvatarFallback>
                       {interest.userName
                         .split(' ')
@@ -1444,7 +1450,20 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
             };
 
             return (
-              <Card key={chat.id} className={`border cursor-pointer hover:bg-muted/50 transition-colors ${hasUnread ? 'bg-synth-pink/5 border-synth-pink/20' : ''}`} onClick={openChat}>
+              <Card 
+                key={chat.id} 
+                className={`border cursor-pointer hover:bg-muted/50 transition-colors ${hasUnread ? 'bg-synth-pink/5 border-synth-pink/20' : ''}`} 
+                onClick={openChat}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openChat();
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label={`Open chat: ${chat.is_group_chat ? (chat.chat_name || 'Group Chat') : (chatUserNames.get(chat.id) || chat.chat_name || 'Chat')}`}
+              >
                 <CardContent className="p-2">
                   <div className="min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
@@ -1654,7 +1673,10 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
             <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
               <div className="flex items-center gap-3">
                 <Avatar className="w-10 h-10">
-                  <AvatarImage src={selectedReviewDetail.author?.avatar_url || undefined} />
+                  <AvatarImage 
+                    src={selectedReviewDetail.author?.avatar_url || undefined} 
+                    alt={selectedReviewDetail.author?.name ? `${selectedReviewDetail.author.name}'s profile picture` : "User profile picture"} 
+                  />
                   <AvatarFallback className="bg-gradient-to-br from-pink-500 to-purple-600 text-white">
                     {selectedReviewDetail.author?.name?.charAt(0) || 'U'}
                   </AvatarFallback>

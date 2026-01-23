@@ -19,6 +19,13 @@ export interface CustomSetlistSong {
   position: number;
 }
 
+export interface ReviewCustomSetlistPayload {
+  id: string;
+  title: string;
+  isAutoTitle: boolean;
+  songs: CustomSetlistSong[];
+}
+
 // Review system types with venue support
 export interface ReviewData {
   rating?: number; // Overall rating (calculated automatically)
@@ -44,7 +51,8 @@ export interface ReviewData {
   venue_tags?: string[]; // Venue-specific tags
   artist_tags?: string[]; // Artist-specific tags
   setlist?: any; // Selected setlist data from Setlist.fm (API verified)
-  custom_setlist?: CustomSetlistSong[]; // User-created custom setlist (review-only)
+  // User-created custom setlists (review-only). Stored as JSONB.
+  custom_setlist?: ReviewCustomSetlistPayload[];
   reaction_emoji?: string; // Emoji reaction to the review
   Event_date?: Date; // Event date - stored in reviews table as DATE type
 }
@@ -79,7 +87,8 @@ export interface UserReview {
   venue_tags?: string[];
   artist_tags?: string[];
   setlist?: any; // Selected setlist data from Setlist.fm (API verified)
-  custom_setlist?: CustomSetlistSong[]; // User-created custom setlist (review-only)
+  // User-created custom setlists (review-only). Stored as JSONB.
+  custom_setlist?: ReviewCustomSetlistPayload[];
   reaction_emoji?: string; // Emoji reaction to the review
   likes_count: number;
   comments_count: number;

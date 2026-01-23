@@ -30,7 +30,7 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
   const { user } = useAuth();
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
-  // Fetch unread messages count
+  // Fetch total unread messages count (sum across chats)
   useEffect(() => {
     const fetchUnreadMessages = async () => {
       if (!user) {
@@ -50,21 +50,23 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
           return;
         }
 
-        // Count unread messages across all chats
-        let totalUnread = 0;
+        // Count total unread messages across chats
+        let totalUnreadMessages = 0;
         for (const participant of participantData) {
           const lastRead = participant.last_read_at || '1970-01-01';
-          const { count } = await supabase
+          const { count, error } = await supabase
             .from('messages')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact', head: true })
             .eq('chat_id', participant.chat_id)
             .neq('sender_id', user.id)
             .gt('created_at', lastRead);
-          
-          totalUnread += count || 0;
+
+          if (!error && typeof count === 'number') {
+            totalUnreadMessages += count;
+          }
         }
 
-        setUnreadMessagesCount(totalUnread);
+        setUnreadMessagesCount(totalUnreadMessages);
       } catch (error) {
         console.error('Error fetching unread messages:', error);
       }
@@ -145,7 +147,8 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
         onViewChange('chat');
       },
       isActive: isMessages,
-      badgeCount: unreadMessagesCount,
+      // Hide badge when already on Messages tab; show total unread messages otherwise
+      badgeCount: isMessages ? 0 : unreadMessagesCount,
     },
     {
       id: 'profile',
@@ -195,21 +198,18 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
                 <div
                   style={{
                     position: 'absolute',
-                    top: 2,
-                    right: 2,
-                    backgroundColor: '#EF4444',
-                    color: '#fff',
+                    top: -9,
+                    right: -7,
+                    backgroundColor: '#CC2486',
+                    color: 'white',
                     borderRadius: '50%',
-                    minWidth: 16,
-                    height: 16,
+                    width: 20,
+                    height: 20,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: 10,
                     fontWeight: 600,
-                    paddingLeft: 4,
-                    paddingRight: 4,
-                    border: '2px solid var(--neutral-50)',
                   }}
                 >
                   {item.badgeCount > 99 ? '99+' : item.badgeCount}

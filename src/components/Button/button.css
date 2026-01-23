@@ -61,6 +61,8 @@
 /* Icon-only size (44px x 44px) */
 /* Icon-only buttons: 12px margin on all sides, icon centered, normal size (24px) */
 .synth-button--icon-only {
+  min-width: var(--size-input-height, 44px);
+  min-height: var(--size-input-height, 44px);
   width: var(--size-input-height, 44px);
   height: var(--size-input-height, 44px);
   padding: 0;

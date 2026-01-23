@@ -67,7 +67,19 @@ export const FollowersModal = ({
                     </AvatarFallback>
                   </Avatar>
                   
-                  <div className="flex-1 min-w-0 mr-2" onClick={() => onViewProfile && onViewProfile(friend)}>
+                  <div 
+                    className="flex-1 min-w-0 mr-2 cursor-pointer" 
+                    onClick={() => onViewProfile && onViewProfile(friend)}
+                    onKeyDown={(e) => {
+                      if ((e.key === 'Enter' || e.key === ' ') && onViewProfile) {
+                        e.preventDefault();
+                        onViewProfile(friend);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`View profile: ${friend.name}`}
+                  >
                     <p className="font-semibold text-sm truncate">{friend.name}</p>
                     <p className="text-xs text-muted-foreground truncate">@{friend.username}</p>
                     {friend.bio && (

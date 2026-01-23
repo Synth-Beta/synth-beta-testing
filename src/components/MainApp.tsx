@@ -54,6 +54,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [showOnboardingReminder, setShowOnboardingReminder] = useState(false);
   const [runTour, setRunTour] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger to refresh views when review is submitted
+  const [isChatSelected, setIsChatSelected] = useState(false); // Track if a chat is selected in UnifiedChatView
   const { toast } = useToast();
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
   const { accountInfo } = useAccountType();
@@ -518,6 +519,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       setChatId(undefined); // Clear group chat
     }
     setCurrentView('chat');
+    setIsChatSelected(false); // Reset chat selected state when navigating to chat view
   };
 
   const handleMenuToggle = () => {
@@ -638,6 +640,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             menuOpen={menuOpen}
             onMenuClick={handleMenuToggle}
             hideHeader={hideNavigation}
+            onChatSelected={setIsChatSelected}
           />
         );
       case 'analytics':
@@ -760,19 +763,20 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         </div>
       )}
       
-      <div style={{ backgroundColor: 'transparent' }}>
+      <main style={{ backgroundColor: 'transparent' }}>
         {renderCurrentView()}
-      </div>
+      </main>
 
       {/* New Bottom Navigation - replaces old Navigation */}
-      {!hideNavigation && showMainNav && (
+      {/* Show bottom nav on messages list, but hide when a chat is selected */}
+      {!hideNavigation && showMainNav && (currentView !== 'chat' || !isChatSelected) && (
         <BottomNavAdapter 
           currentView={currentView}
           onViewChange={handleViewChange}
           onOpenEventReview={() => setShowEventReviewModal(true)}
         />
       )}
-      {!hideNavigation && !showMainNav && currentView !== 'profile-edit' && (
+      {!hideNavigation && !showMainNav && currentView !== 'profile-edit' && (currentView !== 'chat' || !isChatSelected) && (
         <BottomNavAdapter 
           currentView={currentView}
           onViewChange={handleViewChange}

@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Music, ChevronDown, ChevronUp, ExternalLink, Calendar, MapPin, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { CustomSetlistSong } from '@/services/reviewService';
+import type { CustomSetlistSong, ReviewCustomSetlistPayload } from '@/services/reviewService';
 
 interface SetlistDisplayProps {
   setlist?: any; // SetlistData from setlistService (API verified)
-  customSetlist?: CustomSetlistSong[]; // User-created custom setlist
+  // User-created custom setlist(s). Supports legacy single-array-of-songs or new array-of-setlists shape.
+  customSetlist?: CustomSetlistSong[] | ReviewCustomSetlistPayload[];
   className?: string;
   compact?: boolean;
   type?: 'api' | 'custom'; // Type of setlist
@@ -25,7 +26,31 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
   
   // For custom setlists, we have a simpler structure
   if (actualType === 'custom') {
-    const songs = customSetlist || [];
+    const raw = customSetlist || [];
+
+    if (raw.length === 0) return null;
+
+    const isMulti =
+      Array.isArray(raw) &&
+      raw.length > 0 &&
+      (raw[0] as any)?.songs &&
+      Array.isArray((raw[0] as any).songs);
+
+    let songs: CustomSetlistSong[] = [];
+
+    if (isMulti) {
+      // Flatten multiple setlists into a single list for display, preserving song order
+      (raw as ReviewCustomSetlistPayload[]).forEach((set) => {
+        set.songs.forEach((song) => {
+          songs.push({
+            ...song,
+            position: songs.length + 1,
+          });
+        });
+      });
+    } else {
+      songs = raw as CustomSetlistSong[];
+    }
     const totalSongs = songs.length;
 
     if (totalSongs === 0) return null;

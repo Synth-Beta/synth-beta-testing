@@ -49,9 +49,10 @@ export class TourTrackerService {
 
       // Query events filtered by artist_id (UUID FK to artists.id)
       // This ensures we only get events for this specific artist
+      // Join with venues table to get normalized venue_name
       const { data, error } = await supabase
         .from('events')
-        .select('*')
+        .select('*, venues(name)')
         .eq('artist_id', artist.id) // Filter by UUID FK to artists table
         .gte('event_date', new Date().toISOString())
         .not('latitude', 'is', null)
@@ -71,6 +72,8 @@ export class TourTrackerService {
         longitude: Number(event.longitude),
         venue_city: event.venue_city || '',
         venue_state: event.venue_state || undefined,
+        // Use venue_name from venues table join if available, otherwise fallback to event.venue_name
+        venue_name: (event.venues?.name) || event.venue_name || '',
       })) as TourEvent[];
     } catch (error) {
       console.error('Error fetching artist tour events:', error);

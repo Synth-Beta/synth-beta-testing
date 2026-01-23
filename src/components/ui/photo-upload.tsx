@@ -372,8 +372,9 @@ export function SinglePhotoUpload({
                 onClick={handleRemove}
                 disabled={disabled || uploading}
                 className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                aria-label="Remove photo"
               >
-                <X className="w-6 h-6 text-white" />
+                <X className="w-6 h-6 text-white" aria-hidden="true" />
               </button>
             </>
           ) : (

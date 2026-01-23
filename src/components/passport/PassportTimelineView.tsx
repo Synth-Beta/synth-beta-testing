@@ -33,9 +33,14 @@ interface TimelineEntry {
 
 interface PassportTimelineViewProps {
   userId: string;
+  /**
+   * Whether the viewer is allowed to edit this user's timeline.
+   * On other users' profiles this should be false.
+   */
+  canEdit?: boolean;
 }
 
-export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ userId }) => {
+export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ userId, canEdit = true }) => {
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [pinnedCount, setPinnedCount] = useState(0);
@@ -61,13 +66,19 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
   };
 
   const handlePinToggle = async (timelineId: string, currentlyPinned: boolean) => {
+    // Editing (pin/unpin) is only allowed for the owner's own timeline
+    if (!canEdit) return;
+
     try {
       if (currentlyPinned) {
-        await PassportService.unpinTimelineEvent(userId, timelineId);
-        toast({
-          title: 'Unpinned',
-          description: 'Event removed from pinned timeline',
-        });
+        // Only unpin if it's a real timeline entry ID (not a generated review-* ID)
+        if (!timelineId.startsWith('review-')) {
+          await PassportService.unpinTimelineEvent(userId, timelineId);
+          toast({
+            title: 'Unpinned',
+            description: 'Event removed from pinned timeline',
+          });
+        }
       } else {
         if (pinnedCount >= 5) {
           toast({
@@ -183,21 +194,29 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
         <div className="text-center py-12 text-muted-foreground">
           <Sparkles className="w-12 h-12 mx-auto mb-4" style={{ color: 'var(--neutral-600)' }} />
           <p className="font-medium">No timeline highlights yet.</p>
-          <p className="text-sm mt-2">Mark special moments in your music journey.</p>
-          <Button onClick={handleAddMilestone} className="mt-4" variant="default">
-            Add Your First Milestone
-            <Plus className="w-4 h-4 ml-2" />
-          </Button>
+          <p className="text-sm mt-2">
+            {canEdit
+              ? 'Mark special moments in your music journey.'
+              : 'Highlights will appear here when this fan adds milestones.'}
+          </p>
+          {canEdit && (
+            <Button onClick={handleAddMilestone} className="mt-4" variant="default">
+              Add Your First Milestone
+              <Plus className="w-4 h-4 ml-2" />
+            </Button>
+          )}
         </div>
-        <TimelineEntryModal
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-          userId={userId}
-          existingReviewId={editingEntry?.review_id || undefined}
-          existingSignificance={editingEntry?.significance || undefined}
-          existingDescription={editingEntry?.description || undefined}
-          onSuccess={handleModalSuccess}
-        />
+        {canEdit && (
+          <TimelineEntryModal
+            isOpen={modalOpen}
+            onClose={() => setModalOpen(false)}
+            userId={userId}
+            existingReviewId={editingEntry?.review_id || undefined}
+            existingSignificance={editingEntry?.significance || undefined}
+            existingDescription={editingEntry?.description || undefined}
+            onSuccess={handleModalSuccess}
+          />
+        )}
       </>
     );
   }
@@ -205,23 +224,29 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
   return (
     <>
       <div className="relative">
-        {/* Add Milestone Button */}
-        <div className="mb-6 flex justify-end">
-          <Button onClick={handleAddMilestone} variant="outline" style={{
-            height: 'var(--size-button-height, 36px)',
-            paddingLeft: 'var(--spacing-small, 12px)',
-            paddingRight: 'var(--spacing-small, 12px)',
-            borderColor: 'var(--neutral-200)',
-            color: 'var(--neutral-900)',
-            fontFamily: 'var(--font-family)',
-            fontSize: 'var(--typography-meta-size, 16px)',
-            fontWeight: 'var(--typography-meta-weight, 500)',
-            lineHeight: 'var(--typography-meta-line-height, 1.5)'
-          }}>
-            <Plus size={16} style={{ marginRight: 'var(--spacing-inline, 6px)' }} />
-            Add Milestone
-          </Button>
-        </div>
+        {/* Add Milestone Button (only for own profile) */}
+        {canEdit && (
+          <div className="mb-6 flex justify-end">
+            <Button
+              onClick={handleAddMilestone}
+              variant="outline"
+              style={{
+                height: 'var(--size-button-height, 36px)',
+                paddingLeft: 'var(--spacing-small, 12px)',
+                paddingRight: 'var(--spacing-small, 12px)',
+                borderColor: 'var(--neutral-200)',
+                color: 'var(--neutral-900)',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+              }}
+            >
+              <Plus size={16} style={{ marginRight: 'var(--spacing-inline, 6px)' }} />
+              Add Milestone
+            </Button>
+          </div>
+        )}
 
         {/* Timeline line - positioned to align with center of nodes */}
         <div className="absolute left-7 sm:left-9 top-0 bottom-0 w-0.5 bg-gradient-to-b from-synth-pink/30 via-synth-pink/40 to-synth-pink/20" />
@@ -334,38 +359,51 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
                           Pinned
                         </Badge>
                       )}
-                      <div className="flex gap-1">
-                        {canEdit && (
+                      {canEdit && (
+                        <div className="flex gap-1">
+                          {/* Show edit button if entry has milestone, or add milestone button if it doesn't */}
+                          {entry.significance ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-synth-pink hover:bg-synth-pink/5"
+                              onClick={() => handleEditMilestone(entry)}
+                              title="Edit milestone"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-synth-pink hover:bg-synth-pink/5"
+                              onClick={() => handleEditMilestone(entry)}
+                              title="Add milestone"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-synth-pink hover:bg-synth-pink/5"
-                            onClick={() => handleEditMilestone(entry)}
-                            title="Edit milestone"
+                            className={cn(
+                              'h-8 w-8 p-0 rounded-full transition-all',
+                              entry.is_pinned
+                                ? 'text-synth-pink hover:bg-synth-pink/10'
+                                : 'text-gray-400 hover:text-synth-pink hover:bg-synth-pink/5',
+                            )}
+                            onClick={() => handlePinToggle(entry.id, entry.is_pinned)}
+                            disabled={!entry.is_pinned && pinnedCount >= 5}
+                            title={entry.is_pinned ? 'Unpin' : 'Pin to timeline'}
                           >
-                            <Edit2 className="w-4 h-4" />
+                            {entry.is_pinned ? (
+                              <Pin className="w-4 h-4 fill-current" />
+                            ) : (
+                              <Pin className="w-4 h-4" />
+                            )}
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn(
-                            "h-8 w-8 p-0 rounded-full transition-all",
-                            entry.is_pinned 
-                              ? "text-synth-pink hover:bg-synth-pink/10" 
-                              : "text-gray-400 hover:text-synth-pink hover:bg-synth-pink/5"
-                          )}
-                          onClick={() => handlePinToggle(entry.id, entry.is_pinned)}
-                          disabled={!entry.is_pinned && pinnedCount >= 5}
-                          title={entry.is_pinned ? "Unpin" : "Pin to timeline"}
-                        >
-                          {entry.is_pinned ? (
-                            <Pin className="w-4 h-4 fill-current" />
-                          ) : (
-                            <Pin className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -381,15 +419,17 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
       </div>
       </div>
       
-      <TimelineEntryModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        userId={userId}
-        existingReviewId={editingEntry?.review_id || undefined}
-        existingSignificance={editingEntry?.significance || undefined}
-        existingDescription={editingEntry?.description || undefined}
-        onSuccess={handleModalSuccess}
-      />
+      {canEdit && (
+        <TimelineEntryModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          userId={userId}
+          existingReviewId={editingEntry?.review_id || undefined}
+          existingSignificance={editingEntry?.significance || undefined}
+          existingDescription={editingEntry?.description || undefined}
+          onSuccess={handleModalSuccess}
+        />
+      )}
     </>
   );
 };

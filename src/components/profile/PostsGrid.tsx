@@ -73,7 +73,11 @@ export const PostsGrid = ({ posts, onPostClick }: PostsGridProps) => {
               <div className="relative w-full h-2/3 overflow-hidden">
                 <img 
                   src={imageSrc} 
-                  alt={post.title}
+                  alt={post.type === 'review' 
+                    ? `${post.title} review photo`
+                    : post.title 
+                      ? `${post.title} event photo`
+                      : "Post image"}
                   className={`w-full h-full object-cover transition-transform duration-500 ${hasUserImage ? '' : 'scale-105'}`}
                   loading="lazy"
                 />

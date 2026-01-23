@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, Share2, Star, Music, ChevronDown, Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
@@ -45,6 +45,8 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   const [upcomingShown, setUpcomingShown] = useState(INITIAL_UPCOMING_COUNT);
   const [pastShown, setPastShown] = useState(INITIAL_PAST_COUNT);
   const [reviewsShown, setReviewsShown] = useState(3);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (isOpen && artistId) {
@@ -54,6 +56,60 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
       setPastShown(INITIAL_PAST_COUNT);
     }
   }, [isOpen, artistId]);
+
+  // Focus management for accessibility
+  useEffect(() => {
+    if (isOpen) {
+      // Store the element that had focus before modal opened
+      previousFocusRef.current = document.activeElement as HTMLElement;
+      
+      // Focus first focusable element in modal
+      const firstFocusable = modalRef.current?.querySelector(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      ) as HTMLElement;
+      
+      // Use setTimeout to ensure modal is rendered
+      setTimeout(() => {
+        firstFocusable?.focus();
+      }, 0);
+
+      // Focus trap: prevent tabbing outside modal
+      const handleTabKey = (e: KeyboardEvent) => {
+        if (e.key !== 'Tab') return;
+        
+        const focusableElements = modalRef.current?.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        ) as NodeListOf<HTMLElement>;
+        
+        if (!focusableElements || focusableElements.length === 0) return;
+        
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        
+        if (e.shiftKey) {
+          // Shift + Tab
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          // Tab
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleTabKey);
+      
+      return () => {
+        document.removeEventListener('keydown', handleTabKey);
+        // Restore focus to previous element when modal closes
+        previousFocusRef.current?.focus();
+      };
+    }
+  }, [isOpen]);
 
   const loadArtistData = async () => {
     try {
@@ -307,6 +363,10 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
       
       {/* Modal Container */}
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Artist details: ${artistName}`}
         style={{
           ...iosModal,
           background: 'var(--neutral-50, #FCFCFC)',
@@ -321,8 +381,8 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
             paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
           }}
         >
-          <button onClick={onClose} style={{ ...iosIconButton, width: 40, height: 40 }} aria-label="Close">
-            <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} />
+          <button onClick={onClose} style={{ ...iosIconButton, width: 44, height: 44, minWidth: 44, minHeight: 44 }} aria-label="Close artist details" type="button">
+            <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
           </button>
           
           <h1
@@ -340,15 +400,19 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
             {artistName}
           </h1>
           
-          <button style={{ ...iosIconButton, width: 40, height: 40 }} aria-label="Share">
-            <Share2 size={20} style={{ color: 'var(--neutral-900)' }} />
+          <button style={{ ...iosIconButton, width: 44, height: 44, minWidth: 44, minHeight: 44 }} aria-label="Share" type="button">
+            <Share2 size={20} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
           </button>
         </div>
 
         {/* Content */}
         <div style={{ padding: 20, paddingBottom: 100 }}>
           {loading ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 0' }}>
+            <div 
+              aria-busy="true"
+              aria-live="polite"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 0' }}
+            >
               <div
                 style={{
                   width: 32,
@@ -359,6 +423,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                   animation: 'spin 1s linear infinite',
                 }}
               />
+              <span className="sr-only">Loading artist information...</span>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>

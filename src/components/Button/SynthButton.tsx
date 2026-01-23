@@ -150,11 +150,20 @@ export const SynthButton: React.FC<SynthButtonProps> = ({
     
     const iconSize = getIconSize();
     
-    // For icon-only buttons, don't pass alt to avoid redundancy with button aria-label
+    // Icons inside labeled buttons should be decorative to avoid double announcement.
+    // - Icon-only buttons rely on the button's aria-label
+    // - Text buttons already have visible text
+    const shouldHideIconFromSR =
+      isIconOnly ||
+      Boolean(children) ||
+      Boolean(props['aria-label']);
+
     return (
       <Icon
         name={icon}
         size={iconSize}
+        alt={shouldHideIconFromSR ? '' : undefined}
+        ariaHidden={shouldHideIconFromSR}
         className="synth-button__icon"
       />
     );

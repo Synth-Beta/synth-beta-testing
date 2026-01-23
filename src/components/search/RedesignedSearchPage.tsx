@@ -531,16 +531,23 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
               {activeTab === key && (
                 <>
                   {isTabLoading && (
-                    <div className="flex items-center justify-center py-16 text-muted-foreground">
-                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                      Searching {key}...
+                    <div 
+                      aria-busy="true"
+                      aria-live="polite"
+                      className="flex items-center justify-center py-16 text-muted-foreground"
+                    >
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" aria-hidden="true" />
+                      <span>Searching {key}...</span>
+                      <span className="sr-only">Loading search results for {key}...</span>
                     </div>
                   )}
 
                   {!isTabLoading && activeError && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{activeError}</AlertDescription>
-                    </Alert>
+                    <div aria-live="assertive" role="alert">
+                      <Alert variant="destructive">
+                        <AlertDescription>{activeError}</AlertDescription>
+                      </Alert>
+                    </div>
                   )}
 
                   {!isTabLoading && !activeError && debouncedQuery.length >= MIN_QUERY_LENGTH && 

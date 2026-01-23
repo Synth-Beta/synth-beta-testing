@@ -699,11 +699,11 @@ export function SwiftUIReviewCard({
           }}
         >
           {showBackButton && onBack ? (
-            <button onClick={onBack} style={{ ...iosIconButton, width: 40, height: 40 }} aria-label="Back">
-              <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} />
+            <button onClick={onBack} style={{ ...iosIconButton, width: 44, height: 44, minWidth: 44, minHeight: 44 }} aria-label="Go back" type="button">
+              <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
             </button>
           ) : (
-            <div style={{ width: 40 }} />
+            <div style={{ width: 44 }} />
           )}
           
           {/* User Info in Header */}
@@ -745,23 +745,24 @@ export function SwiftUIReviewCard({
           {/* Edit/Delete for owner, Report for others */}
           {isOwner ? (
             <div style={{ display: 'flex', gap: 4 }}>
-              <button onClick={handleEdit} style={{ ...iosIconButton, width: 36, height: 36 }} aria-label="Edit">
-                <Edit size={18} style={{ color: 'var(--neutral-600)' }} />
+              <button onClick={handleEdit} style={{ ...iosIconButton, width: 44, height: 44, minWidth: 44, minHeight: 44 }} aria-label="Edit review" type="button">
+                <Edit size={18} style={{ color: 'var(--neutral-600)' }} aria-hidden="true" />
               </button>
-              <button onClick={handleDelete} style={{ ...iosIconButton, width: 36, height: 36 }} aria-label="Delete">
-                <Trash2 size={18} style={{ color: '#EF4444' }} />
+              <button onClick={handleDelete} style={{ ...iosIconButton, width: 44, height: 44, minWidth: 44, minHeight: 44 }} aria-label="Delete review" type="button">
+                <Trash2 size={18} style={{ color: '#EF4444' }} aria-hidden="true" />
               </button>
             </div>
           ) : currentUserId ? (
             <button 
               onClick={() => setReportModalOpen(true)} 
-              style={{ ...iosIconButton, width: 40, height: 40 }} 
-              aria-label="Report"
+              style={{ ...iosIconButton, width: 44, height: 44, minWidth: 44, minHeight: 44 }} 
+              aria-label="Report review"
+              type="button"
             >
-              <Flag size={20} style={{ color: 'var(--neutral-600)' }} />
+              <Flag size={20} style={{ color: 'var(--neutral-600)' }} aria-hidden="true" />
             </button>
           ) : (
-            <div style={{ width: 40 }} />
+            <div style={{ width: 44 }} />
           )}
         </div>
 

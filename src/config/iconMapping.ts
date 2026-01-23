@@ -98,6 +98,7 @@ export const iconNameToLucide: Record<string, string> = {
   'exclamationTriangle': 'AlertTriangle',
   'ellipsis': 'Ellipsis',
   'moreHorizontal': 'Ellipsis',
+  'moreVertical': 'MoreVertical',
   'overflowMenu': 'Ellipsis',
   
   // Size 24px - Arrows & Navigation

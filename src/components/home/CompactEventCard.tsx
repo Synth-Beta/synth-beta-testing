@@ -168,7 +168,11 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
         <>
             <img 
               src={imageUrl} 
-              alt={event.title} 
+              alt={event.artist_name && event.venue_name 
+                ? `${event.title} - ${event.artist_name} at ${event.venue_name}`
+                : event.title 
+                  ? `${event.title} event photo`
+                  : "Event photo"} 
               className="w-full h-full object-cover"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
@@ -322,7 +326,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
               className="swift-ui-button swift-ui-button-secondary w-11 h-11"
               aria-label="Share event"
             >
-              <Send size={20} strokeWidth={2.5} />
+              <Send size={24} strokeWidth={2.5} />
             </button>
 
             {/* Ticket Link */}

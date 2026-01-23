@@ -17,6 +17,21 @@ export interface MobileHeaderProps {
    * Optional content to display in the center area
    */
   children?: React.ReactNode;
+  
+  /**
+   * Custom icon name for the right button (replaces hamburger menu)
+   */
+  rightIcon?: string;
+  
+  /**
+   * Callback when right button is clicked (if rightIcon is provided)
+   */
+  onRightIconClick?: () => void;
+  
+  /**
+   * Whether to align content to the left instead of center
+   */
+  alignLeft?: boolean;
 }
 
 /**
@@ -39,27 +54,32 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
   menuOpen = false,
   onMenuClick,
   children,
+  rightIcon,
+  onRightIconClick,
+  alignLeft = false,
 }) => {
   return (
     <header className="mobile-header" role="banner">
       <div className="mobile-header__container">
-        {/* Centered content area - can be used for logo, title, or custom content */}
-        <div className="mobile-header__center">
+        {/* Content area - can be centered or left-aligned */}
+        <div className={alignLeft ? "mobile-header__left" : "mobile-header__center"}>
           {children}
         </div>
 
-        {/* Hamburger/X button on the right - swaps icon based on menuOpen */}
+        {/* Right button - hamburger/X or custom icon */}
         <button
           className="mobile-header__menu-button"
-          onClick={onMenuClick}
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          onClick={rightIcon ? onRightIconClick : onMenuClick}
+          aria-label={rightIcon ? (rightIcon === "ellipsis" ? "More options" : "Menu") : (menuOpen ? "Close menu" : "Open menu")}
           aria-expanded={menuOpen}
           type="button"
         >
-          {menuOpen ? (
-            <Icon name="x" size={24} alt="" />
+          {rightIcon ? (
+            <Icon name={rightIcon} size={24} alt="" color="var(--neutral-900)" />
+          ) : menuOpen ? (
+            <Icon name="x" size={24} alt="" color="var(--neutral-900)" />
           ) : (
-            <Icon name="hamburgerMenu" size={24} alt="" />
+            <Icon name="hamburgerMenu" size={24} alt="" color="var(--neutral-900)" />
           )}
         </button>
       </div>

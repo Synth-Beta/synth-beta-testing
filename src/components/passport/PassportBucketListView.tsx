@@ -12,10 +12,15 @@ import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 
 interface PassportBucketListViewProps {
   userId: string;
+  /**
+   * Whether the viewer is allowed to edit this user's bucket list.
+   * On other users' profiles this should be false.
+   */
+  canEdit?: boolean;
 }
 
 
-export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ userId }) => {
+export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ userId, canEdit = true }) => {
   const [bucketList, setBucketList] = useState<BucketListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddArtist, setShowAddArtist] = useState(false);
@@ -40,6 +45,7 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
   };
 
   const handleArtistSelect = async (artist: Artist) => {
+    if (!canEdit) return;
     setAdding(true);
     try {
       const success = await BucketListService.addArtist(userId, artist.id, artist.name);
@@ -55,6 +61,7 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
   };
 
   const handleVenueSelect = async (venue: VenueSearchResult) => {
+    if (!canEdit) return;
     setAdding(true);
     try {
       const success = await BucketListService.addVenue(userId, venue.id, venue.name);
@@ -70,6 +77,7 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
   };
 
   const handleRemove = async (itemId: string) => {
+    if (!canEdit) return;
     try {
       const success = await BucketListService.removeItem(userId, itemId);
       if (success) {
@@ -126,69 +134,71 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
 
   return (
     <div className="space-y-4 overflow-visible">
-      {/* Add Items Section */}
-      <Card className={isSearching ? "mb-4" : ""} style={{ overflow: 'visible' }}>
-        <CardContent className="p-4" style={{ overflow: 'visible' }}>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowAddArtist(!showAddArtist);
-                setShowAddVenue(false);
-                setIsSearching(false);
-              }}
-              className="flex-1"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Artist
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowAddVenue(!showAddVenue);
-                setShowAddArtist(false);
-                setIsSearching(false);
-              }}
-              className="flex-1"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Venue
-            </Button>
-          </div>
-
-          {showAddArtist && (
-            <div className="mt-4 relative" style={{ zIndex: 1000 }}>
-              <ArtistSearchBox
-                onArtistSelect={handleArtistSelect}
-                placeholder="Search for an artist to add..."
-                onSearchStateChange={setIsSearching}
-              />
-              {adding && (
-                <div className="flex items-center justify-center mt-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mr-2" />
-                  <span className="text-sm text-muted-foreground">Adding...</span>
-                </div>
-              )}
+      {/* Add Items Section - only for own profile */}
+      {canEdit && (
+        <Card className={isSearching ? "mb-4" : ""} style={{ overflow: 'visible' }}>
+          <CardContent className="p-4" style={{ overflow: 'visible' }}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddArtist(!showAddArtist);
+                  setShowAddVenue(false);
+                  setIsSearching(false);
+                }}
+                className="flex-1"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Artist
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddVenue(!showAddVenue);
+                  setShowAddArtist(false);
+                  setIsSearching(false);
+                }}
+                className="flex-1"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Venue
+              </Button>
             </div>
-          )}
 
-          {showAddVenue && (
-            <div className="mt-4 relative" style={{ zIndex: 1000 }}>
-              <VenueSearchBox
-                onVenueSelect={handleVenueSelect}
-                placeholder="Search for a venue to add..."
-                onSearchStateChange={setIsSearching}
-              />
-              {adding && (
-                <div className="flex items-center justify-center mt-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mr-2" />
-                  <span className="text-sm text-muted-foreground">Adding...</span>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            {showAddArtist && (
+              <div className="mt-4 relative" style={{ zIndex: 1000 }}>
+                <ArtistSearchBox
+                  onArtistSelect={handleArtistSelect}
+                  placeholder="Search for an artist to add..."
+                  onSearchStateChange={setIsSearching}
+                />
+                {adding && (
+                  <div className="flex items-center justify-center mt-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mr-2" />
+                    <span className="text-sm text-muted-foreground">Adding...</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {showAddVenue && (
+              <div className="mt-4 relative" style={{ zIndex: 1000 }}>
+                <VenueSearchBox
+                  onVenueSelect={handleVenueSelect}
+                  placeholder="Search for a venue to add..."
+                  onSearchStateChange={setIsSearching}
+                />
+                {adding && (
+                  <div className="flex items-center justify-center mt-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mr-2" />
+                    <span className="text-sm text-muted-foreground">Adding...</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Bucket List Items - Hide when searching to prioritize search results */}
       {!isSearching && (
@@ -196,9 +206,13 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
           {bucketList.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground mb-2">Your bucket list is empty</p>
+                <p className="text-muted-foreground mb-2">
+                  {canEdit ? 'Your bucket list is empty' : 'No bucket list items yet'}
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  Add artists or venues to get notified when new shows are announced!
+                  {canEdit
+                    ? 'Add artists or venues to get notified when new shows are announced!'
+                    : 'Follow this fan to see more of their live music plans.'}
                 </p>
               </CardContent>
             </Card>
@@ -238,17 +252,19 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
                     <div className="flex items-center justify-between gap-2">
                       {/* Just show the name - no "Artist" or "Venue" label */}
                       <h4 className="font-semibold text-sm truncate">{item.entity_name}</h4>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 flex-shrink-0 hover:bg-red-100 hover:text-red-600"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemove(item.id);
-                        }}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 flex-shrink-0 hover:bg-red-100 hover:text-red-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemove(item.id);
+                          }}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs text-muted-foreground">

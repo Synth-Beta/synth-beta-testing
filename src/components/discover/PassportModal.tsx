@@ -36,6 +36,11 @@ interface PassportModalProps {
   userId: string;
   userName?: string;
   inline?: boolean; // If true, render without Dialog wrapper
+  /**
+   * Whether the viewer is looking at their own passport.
+   * Controls editability for timeline and bucket list.
+   */
+  isOwnProfile?: boolean;
 }
 
 export const PassportModal: React.FC<PassportModalProps> = ({
@@ -44,6 +49,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
   userId,
   userName,
   inline = false,
+  isOwnProfile = false,
 }) => {
   const [progress, setProgress] = useState<PassportProgress>({
     cities: [],
@@ -528,11 +534,11 @@ export const PassportModal: React.FC<PassportModalProps> = ({
             </TabsContent>
 
           <TabsContent value="timeline" className="mt-4 w-full max-w-full overflow-x-hidden px-1">
-            <PassportTimelineView userId={userId} />
+            <PassportTimelineView userId={userId} canEdit={isOwnProfile} />
           </TabsContent>
 
           <TabsContent value="bucket" className="mt-4 w-full max-w-full overflow-x-hidden px-1">
-            <PassportBucketListView userId={userId} />
+            <PassportBucketListView userId={userId} canEdit={isOwnProfile} />
           </TabsContent>
         </Tabs>
       )}

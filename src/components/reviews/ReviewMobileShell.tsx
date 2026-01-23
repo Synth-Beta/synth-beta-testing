@@ -66,39 +66,48 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
 
         {/* Bottom nav – purely visual, uses existing navigation outside this shell */}
         <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
-          <div className="pointer-events-auto flex items-center justify-between gap-6 rounded-2xl border border-gray-200 bg-[#f9d7e4] px-6 py-3 shadow-md w-[90%] max-w-[360px]">
+          {/* Decorative-only preview nav: hide from screen readers and remove from tab order */}
+          <div
+            className="pointer-events-auto flex items-center justify-between gap-6 rounded-2xl border border-gray-200 bg-[#f9d7e4] px-6 py-3 shadow-md w-[90%] max-w-[360px]"
+            aria-hidden="true"
+          >
             <button
               type="button"
               className="flex flex-col items-center text-xs text-[#cc2486]"
+              tabIndex={-1}
             >
-              <Home className="w-5 h-5" />
+              <Home className="w-5 h-5" aria-hidden="true" />
               <span className="mt-1">Home</span>
             </button>
             <button
               type="button"
               className="flex flex-col items-center text-xs text-[#cc2486]"
+              tabIndex={-1}
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-5 h-5" aria-hidden="true" />
               <span className="mt-1">Search</span>
             </button>
             <button
               type="button"
               className="flex items-center justify-center rounded-full bg-[#cc2486] text-white w-[70px] h-10 shadow-sm"
+              tabIndex={-1}
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-5 h-5" aria-hidden="true" />
             </button>
             <button
               type="button"
               className="flex flex-col items-center text-xs text-[#cc2486]"
+              tabIndex={-1}
             >
-              <MessageCircle className="w-5 h-5" />
+              <MessageCircle className="w-5 h-5" aria-hidden="true" />
               <span className="mt-1">Feed</span>
             </button>
             <button
               type="button"
               className="flex flex-col items-center text-xs text-[#cc2486]"
+              tabIndex={-1}
             >
-              <User className="w-5 h-5" />
+              <User className="w-5 h-5" aria-hidden="true" />
               <span className="mt-1">Profile</span>
             </button>
           </div>

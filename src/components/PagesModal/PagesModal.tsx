@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '@/components/Icon';
 import './PagesModal.css';
@@ -26,6 +26,62 @@ export const PagesModal: React.FC<PagesModalProps> = ({
   onClose,
 }) => {
   const navigate = useNavigate();
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  // Focus management for accessibility
+  useEffect(() => {
+    if (isOpen) {
+      // Store the element that had focus before modal opened
+      previousFocusRef.current = document.activeElement as HTMLElement;
+      
+      // Focus first focusable element in modal
+      const firstFocusable = modalRef.current?.querySelector(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      ) as HTMLElement;
+      
+      // Use setTimeout to ensure modal is rendered
+      setTimeout(() => {
+        firstFocusable?.focus();
+      }, 0);
+
+      // Focus trap: prevent tabbing outside modal
+      const handleTabKey = (e: KeyboardEvent) => {
+        if (e.key !== 'Tab') return;
+        
+        const focusableElements = modalRef.current?.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        ) as NodeListOf<HTMLElement>;
+        
+        if (!focusableElements || focusableElements.length === 0) return;
+        
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        
+        if (e.shiftKey) {
+          // Shift + Tab
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          // Tab
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleTabKey);
+      
+      return () => {
+        document.removeEventListener('keydown', handleTabKey);
+        // Restore focus to previous element when modal closes
+        previousFocusRef.current?.focus();
+      };
+    }
+  }, [isOpen]);
 
   if (!isOpen) {
     return null;
@@ -118,13 +174,13 @@ export const PagesModal: React.FC<PagesModalProps> = ({
       />
       
       {/* Modal */}
-      <div className="pages-modal" role="dialog" aria-modal="true" aria-label="All Pages">
+      <div ref={modalRef} className="pages-modal" role="dialog" aria-modal="true" aria-label="All Pages">
         {/* Header with X button */}
         <div className="pages-modal__header">
           <button
             className="pages-modal__close-button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label="Close dialog"
             type="button"
           >
             <Icon name="x" size={24} alt="" />

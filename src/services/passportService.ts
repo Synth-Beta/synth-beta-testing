@@ -275,13 +275,36 @@ export class PassportService {
    */
   static async getPassportIdentity(userId: string) {
     try {
+      // Use explicit column selection to avoid 406 errors with PostgREST
+      // Note: home_scene is no longer used, fetched from users.location_city instead
       const { data, error } = await supabase
         .from('passport_identity')
-        .select('*, home_scene:scenes(*)')
+        .select('user_id, fan_type, home_scene_id, join_year, calculated_at, updated_at')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      // Handle 406 (Not Acceptable) errors specifically
+      if (error) {
+        if (error.code === '406' || error.message?.includes('406')) {
+          console.warn('Received 406 error for passport_identity query, trying alternative approach');
+          // Try without maybeSingle as fallback
+          const { data: altData, error: altError } = await supabase
+            .from('passport_identity')
+            .select('user_id, fan_type, home_scene_id, join_year, calculated_at, updated_at')
+            .eq('user_id', userId)
+            .limit(1);
+          
+          if (altError) {
+            console.error('Alternative passport_identity query also failed:', altError);
+            throw altError;
+          }
+          
+          return altData && altData.length > 0 ? altData[0] : null;
+        }
+        
+        if (error.code !== 'PGRST116') throw error;
+      }
+      
       return data;
     } catch (error) {
       console.error('Error fetching passport identity:', error);
@@ -314,19 +337,142 @@ export class PassportService {
   }
 
   /**
-   * Get timeline highlights
+   * Get timeline highlights - includes ALL events user has reviewed, with milestones attached
    */
-  static async getTimeline(userId: string, limit: number = 20) {
+  static async getTimeline(userId: string, limit: number = 1000) {
     try {
-      const { data, error } = await supabase
-        .from('passport_timeline')
-        .select('*, review:reviews(*)')
+      // First, get all reviews the user has posted
+      const { data: reviews, error: reviewsError } = await supabase
+        .from('reviews')
+        .select(`
+          id,
+          rating,
+          review_text,
+          created_at,
+          event_id,
+          artist_id,
+          venue_id,
+          "Event_date"
+        `)
         .eq('user_id', userId)
+        .eq('is_draft', false)
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      if (error) throw error;
-      return data || [];
+      if (reviewsError) throw reviewsError;
+      if (!reviews || reviews.length === 0) return [];
+
+      // Get all timeline entries (milestones) for these reviews
+      const reviewIds = reviews.map(r => r.id);
+      const { data: timelineEntries, error: timelineError } = await supabase
+        .from('passport_timeline')
+        .select('*')
+        .eq('user_id', userId)
+        .in('review_id', reviewIds);
+
+      if (timelineError) throw timelineError;
+
+      // Create a map of review_id -> timeline entry for quick lookup
+      const timelineMap = new Map<string, any>();
+      (timelineEntries || []).forEach(entry => {
+        if (entry.review_id) {
+          timelineMap.set(entry.review_id, entry);
+        }
+      });
+
+      // Build event names for reviews
+      const reviewsWithDetails = await Promise.all(
+        reviews.map(async (review) => {
+          let artistName: string | null = null;
+          let venueName: string | null = null;
+          let eventName: string | null = null;
+
+          // Determine which IDs to use (prefer from event, fallback to review)
+          let artistId: string | null = null;
+          let venueId: string | null = null;
+
+          if (review.event_id) {
+            // Get event to find artist_uuid and venue_uuid (UUID foreign keys)
+            const { data: event } = await supabase
+              .from('events')
+              .select('artist_uuid, venue_uuid, artist_name, venue_name')
+              .eq('id', review.event_id)
+              .single();
+            
+            // Use UUID from event if available, otherwise use from review
+            artistId = event?.artist_uuid || review.artist_id;
+            venueId = event?.venue_uuid || review.venue_id;
+            
+            // Try to get names from event first
+            if (event?.artist_name && event?.venue_name) {
+              artistName = event.artist_name;
+              venueName = event.venue_name;
+              eventName = `${artistName} @ ${venueName}`;
+            }
+          } else {
+            artistId = review.artist_id;
+            venueId = review.venue_id;
+          }
+
+          // If we don't have names yet, fetch them
+          if (!artistName && artistId) {
+            const { data: artist } = await supabase
+              .from('artists')
+              .select('name')
+              .eq('id', artistId)
+              .single();
+            artistName = artist?.name || null;
+          }
+
+          if (!venueName && venueId) {
+            const { data: venue } = await supabase
+              .from('venues')
+              .select('name')
+              .eq('id', venueId)
+              .single();
+            venueName = venue?.name || null;
+          }
+
+          // Build event name if we have artist/venue
+          if (!eventName) {
+            if (artistName && venueName) {
+              eventName = `${artistName} @ ${venueName}`;
+            } else if (artistName) {
+              eventName = artistName;
+            } else if (venueName) {
+              eventName = venueName;
+            }
+          }
+
+          // Get timeline entry (milestone) if it exists
+          const timelineEntry = timelineMap.get(review.id);
+
+          // Build the timeline entry object
+          // Use timeline entry data if it exists, otherwise create a basic entry from review
+          // If there's no timeline entry, mark it as auto_selected (can't edit/delete, but can add milestone)
+          const hasTimelineEntry = !!timelineEntry;
+          
+          return {
+            id: timelineEntry?.id || `review-${review.id}`, // Use timeline ID if exists, otherwise generate one
+            review_id: review.id,
+            is_pinned: timelineEntry?.is_pinned || false,
+            is_auto_selected: hasTimelineEntry ? (timelineEntry.is_auto_selected || false) : true, // Auto-selected if no milestone
+            significance: timelineEntry?.significance || null,
+            description: timelineEntry?.description || null,
+            Event_name: timelineEntry?.Event_name || eventName,
+            created_at: timelineEntry?.created_at || review.created_at,
+            review: {
+              id: review.id,
+              rating: review.rating,
+              review_text: review.review_text,
+              Event_date: review.Event_date || review.created_at,
+              event_id: review.event_id,
+            },
+          };
+        })
+      );
+
+      return reviewsWithDetails;
     } catch (error) {
       console.error('Error fetching timeline:', error);
       return [];

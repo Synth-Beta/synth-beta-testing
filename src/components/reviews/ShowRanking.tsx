@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +21,9 @@ interface ShowRankingProps {
 }
 
 export function ShowRanking({ shows, onChange }: ShowRankingProps) {
+  const reactId = useId();
+  const showFieldId = (showId: string, field: 'show_name' | 'show_date' | 'venue_name') =>
+    `show-ranking-${reactId}-${showId}-${field}`;
   const groupedByRating = useMemo(() => {
     const map = new Map<number, ShowEntry[]>();
     for (const s of shows) {
@@ -110,16 +113,31 @@ export function ShowRanking({ shows, onChange }: ShowRankingProps) {
                 <div key={s.id} className="p-3 rounded-lg border bg-white">
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
                     <div className="md:col-span-2 space-y-2">
-                      <Label className="text-xs">Show name (optional)</Label>
-                      <Input value={s.show_name || ''} onChange={(e) => setField(s.id, 'show_name', e.target.value)} placeholder="e.g., Night 2, Tour Opener" />
+                      <Label className="text-xs" htmlFor={showFieldId(s.id, 'show_name')}>Show name (optional)</Label>
+                      <Input
+                        id={showFieldId(s.id, 'show_name')}
+                        value={s.show_name || ''}
+                        onChange={(e) => setField(s.id, 'show_name', e.target.value)}
+                        placeholder="e.g., Night 2, Tour Opener"
+                      />
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <Label className="text-xs flex items-center gap-1"><Calendar className="w-3 h-3" /> Date</Label>
-                          <Input type="date" value={s.show_date || ''} onChange={(e) => setField(s.id, 'show_date', e.target.value)} />
+                          <Label className="text-xs flex items-center gap-1" htmlFor={showFieldId(s.id, 'show_date')}><Calendar className="w-3 h-3" /> Date</Label>
+                          <Input
+                            id={showFieldId(s.id, 'show_date')}
+                            type="date"
+                            value={s.show_date || ''}
+                            onChange={(e) => setField(s.id, 'show_date', e.target.value)}
+                          />
                         </div>
                         <div>
-                          <Label className="text-xs flex items-center gap-1"><MapPin className="w-3 h-3" /> Venue (optional)</Label>
-                          <Input value={s.venue_name || ''} onChange={(e) => setField(s.id, 'venue_name', e.target.value)} placeholder="Venue name" />
+                          <Label className="text-xs flex items-center gap-1" htmlFor={showFieldId(s.id, 'venue_name')}><MapPin className="w-3 h-3" /> Venue (optional)</Label>
+                          <Input
+                            id={showFieldId(s.id, 'venue_name')}
+                            value={s.venue_name || ''}
+                            onChange={(e) => setField(s.id, 'venue_name', e.target.value)}
+                            placeholder="Venue name"
+                          />
                         </div>
                       </div>
                     </div>
