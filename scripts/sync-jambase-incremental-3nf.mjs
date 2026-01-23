@@ -735,92 +735,21 @@ class IncrementalSync3NF {
   }
 
   /**
-   * Search for events by artist name and sync them
-   */
-  async syncPriorityArtists(artistNames) {
-    if (!artistNames || artistNames.length === 0) {
-      return;
-    }
-
-    console.log(`\n🎵 Syncing ${artistNames.length} priority artist(s)...\n`);
-
-    for (const artistName of artistNames) {
-      try {
-        console.log(`  🔍 Searching for "${artistName}"...`);
-        
-        // Search JamBase API for events by artist name
-        const apiKey = this.syncService.jambaseApiKey;
-        const baseUrl = 'https://www.jambase.com/jb-api/v1/events';
-        const params = new URLSearchParams({
-          apikey: apiKey,
-          artistName: artistName,
-          expandExternalIdentifiers: 'true',
-          perPage: '50',
-          page: '1'
-        });
-        
-        const url = `${baseUrl}?${params.toString()}`;
-        const response = await fetch(url, {
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'Synth/1.0'
-          },
-          signal: AbortSignal.timeout(30000)
-        });
-        
-        if (!response.ok) {
-          console.log(`  ⚠️  Could not fetch events for "${artistName}" (${response.status})`);
-          continue;
-        }
-        
-        const data = await response.json();
-        
-        if (!data.success || !data.events || data.events.length === 0) {
-          console.log(`  ⚠️  No events found for "${artistName}"`);
-          continue;
-        }
-        
-        console.log(`  ✅ Found ${data.events.length} event(s) for "${artistName}"`);
-        
-        // Process the events (this will extract and sync artists)
-        await this.processPage3NF(data.events);
-        console.log(`  ✅ Synced "${artistName}" and ${data.events.length} event(s)`);
-        
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 200));
-      } catch (error) {
-        console.error(`  ❌ Error syncing "${artistName}":`, error.message);
-      }
-    }
-  }
-
-  /**
    * Run incremental sync
    */
   async run() {
     console.log('🔄 Starting Daily Incremental Sync (3NF Compliant)...\n');
 
-    // Priority artists to always sync (even if they don't have recently modified events)
-    const PRIORITY_ARTISTS = [
-      'Beyonce',
-      'Beach House',
-      'Glass Animals',
-      'Gracie Abrams'
-    ];
-
-    // Step 1: Sync priority artists first
-    await this.syncPriorityArtists(PRIORITY_ARTISTS);
-
-    // Step 2: Get last sync timestamp
+    // Get last sync timestamp
     const lastModifiedAt = await this.getLastSyncTimestamp();
     if (!lastModifiedAt) {
-      console.log('\n⚠️  No previous sync found. Run full sync first.');
+      console.log('⚠️  No previous sync found. Run full sync first.');
       return;
     }
 
-    console.log(`\n📅 Last sync: ${lastModifiedAt}\n`);
+    console.log(`📅 Last sync: ${lastModifiedAt}\n`);
 
-    // Step 3: Fetch events modified since last sync
+    // Fetch events modified since last sync
     const dateModifiedFrom = new Date(lastModifiedAt).toISOString();
     let currentPage = 1;
     let totalPages = 1;
