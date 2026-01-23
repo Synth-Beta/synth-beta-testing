@@ -199,20 +199,55 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName
             </p>
           </div>
         ) : (
-          <div className="flex flex-col sm:flex-row gap-2 w-full">
+          <div className="flex flex-col w-full">
+            <div className="flex flex-col" style={{ gap: '6px' }}>
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsSetlistModalOpen(true)}
-              className="flex items-center justify-center gap-2 w-full sm:w-auto flex-shrink-0"
+                className="flex items-center justify-center gap-2 w-full flex-shrink-0"
             >
               <Music className="w-4 h-4" />
               Import from setlist.fm
             </Button>
+              <button
+                type="button"
+                onClick={handleAddSetlist}
+                className="btn-synth-primary flex items-center justify-center gap-2 w-full"
+                style={{
+                  backgroundColor: 'var(--brand-pink-500, #FF3399)',
+                  borderColor: 'var(--brand-pink-500, #FF3399)',
+                  color: 'white',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--brand-pink-500, #FF3399)';
+                }}
+              >
+                <Plus style={{ width: 24, height: 24, color: 'white' }} />
+                <span style={{ 
+                  color: 'white',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                }}>
+                  {formData.customSetlists.length > 0 ? 'Add Another Setlist' : 'Add Setlist'}
+                </span>
+              </button>
+            </div>
+            <div style={{ marginTop: '12px' }}>
             <CustomSetlistInput
-              songs={formData.customSetlist}
-              onChange={handleCustomSetlistChange}
+                setlists={formData.customSetlists}
+                onChange={handleCustomSetlistsChange}
             />
+            </div>
           </div>
         )}
 
