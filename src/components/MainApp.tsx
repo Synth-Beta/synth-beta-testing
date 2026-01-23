@@ -765,7 +765,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       
       <div style={{ backgroundColor: 'transparent' }}>
         {renderCurrentView()}
-      </main>
+      </div>
 
       {/* New Bottom Navigation - replaces old Navigation */}
       {/* Show bottom nav on messages list, but hide when a chat is selected */}
