@@ -15,9 +15,10 @@ interface DraftToggleProps {
   onSelectDraft: (draft: DraftReview) => void;
   onNewReview: () => void;
   currentMode: 'new' | 'draft';
+  currentStep?: number;
 }
 
-export function DraftToggle({ userId, onSelectDraft, onNewReview, currentMode }: DraftToggleProps) {
+export function DraftToggle({ userId, onSelectDraft, onNewReview, currentMode, currentStep }: DraftToggleProps) {
   const [drafts, setDrafts] = useState<DraftReview[]>([]);
   const [showDraftsModal, setShowDraftsModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -93,15 +94,17 @@ export function DraftToggle({ userId, onSelectDraft, onNewReview, currentMode }:
   return (
     <>
       <div className="flex items-center gap-2 mb-4">
-        <Button
-          variant={currentMode === 'new' ? 'default' : 'outline'}
-          size="sm"
-          onClick={onNewReview}
-          className="flex items-center gap-2"
-        >
-          <Edit className="w-4 h-4" />
-          New Review
-        </Button>
+        {currentStep === 1 && (
+          <Button
+            variant={currentMode === 'new' ? 'default' : 'outline'}
+            size="sm"
+            onClick={onNewReview}
+            className="flex items-center gap-2"
+          >
+            <Edit className="w-4 h-4" />
+            New Review
+          </Button>
+        )}
         
         <Button
           variant={currentMode === 'draft' ? 'default' : 'outline'}

@@ -319,7 +319,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
                 e.stopPropagation();
                 handleShareClick(e);
               }}
-              className="swift-ui-button swift-ui-button-secondary w-14 h-14"
+              className="swift-ui-button swift-ui-button-secondary w-11 h-11"
               aria-label="Share event"
             >
               <Send size={20} strokeWidth={2.5} />

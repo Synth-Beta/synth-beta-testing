@@ -16,6 +16,8 @@ const buttonVariants = cva(
           "btn-synth-secondary", /* Use secondary button styling for outline variant */
         secondary:
           "btn-synth-secondary",
+        "secondary-neutral":
+          "btn-synth-secondary-neutral",
         ghost: "btn-ghost",
         link: "text-primary underline-offset-4 hover:underline",
         synth: "btn-synth-primary",

@@ -500,17 +500,6 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
                   onBlur={handleInputBlur}
                   id="event-search-input"
                 />
-                {query && !isSearching && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearSearch}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
-                )}
               </div>
               <Button
                 onClick={handleSearch}

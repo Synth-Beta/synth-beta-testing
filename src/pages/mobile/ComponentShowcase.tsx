@@ -1438,7 +1438,7 @@ const ComponentShowcase: React.FC = () => {
         </section>
 
         {/* Spacer for bottom nav */}
-        <div style={{ height: '112px' }} />
+        <div style={{ height: 'var(--spacing-bottom-nav, 32px)' }} />
       </main>
     </div>
   );

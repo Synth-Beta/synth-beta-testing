@@ -224,18 +224,46 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
       <section className="space-y-3 w-full max-w-full overflow-x-hidden">
         <p className="text-sm font-medium text-gray-900">Need inspiration? Tap a vibe:</p>
         <div className="flex flex-wrap gap-2">
-          {config.suggestions.map((suggestion) => (
+          {config.suggestions
+            .sort((a, b) => {
+              // Sort: positive (green) first, then negative (red)
+              if (a.sentiment === 'positive' && b.sentiment === 'negative') return -1;
+              if (a.sentiment === 'negative' && b.sentiment === 'positive') return 1;
+              return 0;
+            })
+            .map((suggestion) => (
             <Button
               key={suggestion.id}
               type="button"
-              variant={isSelected(suggestion) ? 'default' : 'outline'}
+              variant="tertiary"
               className={cn(
-                'px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-full border flex-shrink-0',
-                suggestion.sentiment === 'positive'
-                  ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                  : 'border-rose-200 text-rose-700 hover:bg-rose-50',
-                isSelected(suggestion) && 'bg-pink-500 text-white hover:bg-pink-600 border-transparent'
+                'flex-shrink-0',
+                isSelected(suggestion) && suggestion.sentiment === 'positive' && 'bg-emerald-500 text-white hover:bg-emerald-600 border-emerald-500',
+                isSelected(suggestion) && suggestion.sentiment === 'negative' && 'bg-rose-500 text-white hover:bg-rose-600 border-rose-500'
               )}
+              style={!isSelected(suggestion) ? {
+                height: '25px',
+                paddingLeft: 'var(--spacing-small, 12px)',
+                paddingRight: 'var(--spacing-small, 12px)',
+                backgroundColor: suggestion.sentiment === 'positive' ? '#ECFDF5' : '#FFF1F2',
+                color: suggestion.sentiment === 'positive' ? '#047857' : '#BE123C',
+                border: suggestion.sentiment === 'positive' ? '2px solid #10B981' : '2px solid #F43F5E',
+                borderRadius: '999px',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                boxShadow: 'none'
+              } : {
+                height: '25px',
+                paddingLeft: 'var(--spacing-small, 12px)',
+                paddingRight: 'var(--spacing-small, 12px)',
+                borderRadius: '999px',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+              }}
               onClick={() => applyRecommendation(suggestion)}
             >
               {suggestion.label}

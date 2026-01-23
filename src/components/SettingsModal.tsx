@@ -338,8 +338,15 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent 
+        className="max-w-md w-[95vw] max-h-[90vh]"
+        style={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}
+      >
+        <DialogHeader style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)', flexShrink: 0 }}>
           <DialogTitle className="flex items-center gap-2">
             {(view !== 'menu') && (
               <Button
@@ -359,8 +366,14 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
           </DialogTitle>
         </DialogHeader>
         
-        {view === 'menu' ? (
-          <div className="space-y-4">
+        <div style={{ 
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch'
+        }}>
+          {view === 'menu' ? (
+            <div className="space-y-6" style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: 'var(--spacing-small, 12px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
             {/* User Info */}
             {userEmail && (
               <div className="p-3 bg-muted/50 rounded-lg">
@@ -371,7 +384,9 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
               </div>
             )}
 
-            <Separator />
+            <div style={{ marginTop: 'var(--spacing-grouped, 24px)', marginBottom: 'var(--spacing-grouped, 24px)' }}>
+              <Separator />
+            </div>
 
             {/* Profile Visibility Toggle */}
             <div className="p-4 bg-muted/30 rounded-lg border">
@@ -405,7 +420,9 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
               </div>
             </div>
 
-            <Separator />
+            <div style={{ marginTop: 'var(--spacing-grouped, 24px)', marginBottom: 'var(--spacing-grouped, 24px)' }}>
+              <Separator />
+            </div>
 
             {/* Notification Preferences */}
             <div className="space-y-4">
@@ -452,7 +469,9 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
               </div>
             </div>
 
-            <Separator />
+            <div style={{ marginTop: 'var(--spacing-grouped, 24px)', marginBottom: 'var(--spacing-grouped, 24px)' }}>
+              <Separator />
+            </div>
 
             {/* Settings Options */}
             <div className="space-y-2">
@@ -461,8 +480,16 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
                 className="w-full justify-start gap-3 h-12"
                 onClick={() => setView('onboarding-preferences')}
               >
-                <User className="w-5 h-5" />
-                <div className="text-left">
+                <User className="w-5 h-5" style={{ flexShrink: 0 }} />
+                <div 
+                  className="text-left"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    overflowWrap: 'break-word',
+                    wordBreak: 'normal'
+                  }}
+                >
                   <div className="font-medium">Profile & Preferences</div>
                   <div className="text-sm text-muted-foreground">Manage your profile information and preferences</div>
                 </div>
@@ -474,8 +501,16 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
                 className="w-full justify-start gap-3 h-12"
                 onClick={() => setView('security-actions')}
               >
-                <Shield className="w-5 h-5" />
-                <div className="text-left">
+                <Shield className="w-5 h-5" style={{ flexShrink: 0 }} />
+                <div 
+                  className="text-left"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    overflowWrap: 'break-word',
+                    wordBreak: 'normal'
+                  }}
+                >
                   <div className="font-medium">Security Actions</div>
                   <div className="text-sm text-muted-foreground">Change password, email, and security settings</div>
                 </div>
@@ -486,8 +521,16 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
                 className="w-full justify-start gap-3 h-12"
                 onClick={() => setView('verification')}
               >
-                <CheckCircle className="w-5 h-5" />
-                <div className="text-left">
+                <CheckCircle className="w-5 h-5" style={{ flexShrink: 0 }} />
+                <div 
+                  className="text-left"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    overflowWrap: 'break-word',
+                    wordBreak: 'normal'
+                  }}
+                >
                   <div className="font-medium flex items-center gap-2">
                     Verification Status
                     {isVerified && <span className="text-xs text-green-600">✓ Verified</span>}
@@ -498,42 +541,110 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
 
             </div>
 
-            <Separator />
+            <div style={{ marginTop: 'var(--spacing-grouped, 24px)', marginBottom: 'var(--spacing-grouped, 24px)' }}>
+              <Separator />
+            </div>
 
             {/* Sign Out Button */}
-            <Button
-              variant="destructive"
-              className="w-full gap-3 h-12"
-              onClick={handleSignOut}
-              disabled={isSigningOut}
-            >
-              <LogOut className="w-5 h-5" />
-              <span className="font-medium">
-                {isSigningOut ? 'Signing out...' : 'Sign Out'}
-              </span>
-            </Button>
-          </div>
-        ) : view === 'onboarding-preferences' ? (
-          <OnboardingPreferencesSettings onClose={handleBack} />
-        ) : view === 'verification' ? (
-          <div className="p-4">
-            {user?.id && (
-              <VerificationStatusCard
-                userId={user.id}
-                accountType={accountType}
-                verified={isVerified}
-              />
-            )}
-          </div>
-        ) : view === 'security-actions' ? (
-          <div className="space-y-6">
+            <div style={{ paddingTop: 'var(--spacing-grouped, 24px)' }}>
+              <Button
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                style={{
+                  width: '100%',
+                  height: 'var(--size-button-height, 36px)',
+                  backgroundColor: isSigningOut ? 'var(--state-disabled-bg)' : 'var(--brand-pink-500)',
+                  color: isSigningOut ? 'var(--neutral-600)' : 'var(--neutral-50)',
+                  borderRadius: 'var(--radius-corner, 10px)',
+                  boxShadow: isSigningOut ? 'none' : '0 4px 4px 0 var(--shadow-color)',
+                  paddingLeft: 'var(--spacing-small, 12px)',
+                  paddingRight: 'var(--spacing-small, 12px)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 'var(--spacing-small, 12px)',
+                  cursor: isSigningOut ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease',
+                  opacity: 1,
+                  pointerEvents: isSigningOut ? 'none' : 'auto',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSigningOut) {
+                    e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSigningOut) {
+                    e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
+                  }
+                }}
+                onMouseDown={(e) => {
+                  if (!isSigningOut) {
+                    e.currentTarget.style.backgroundColor = 'var(--brand-pink-700)';
+                    e.currentTarget.style.transform = 'scale(0.98)';
+                  }
+                }}
+                onMouseUp={(e) => {
+                  if (!isSigningOut) {
+                    e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }
+                }}
+              >
+                <LogOut 
+                  className="w-5 h-5" 
+                  style={{ 
+                    color: isSigningOut ? 'var(--neutral-600)' : 'var(--neutral-50)',
+                    width: '20px',
+                    height: '20px'
+                  }} 
+                />
+                <span style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  color: isSigningOut ? 'var(--neutral-600)' : 'var(--neutral-50)'
+                }}>
+                  {isSigningOut ? 'Signing out...' : 'Sign Out'}
+                </span>
+              </Button>
+            </div>
+            </div>
+          ) : view === 'onboarding-preferences' ? (
+            <div style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
+              <OnboardingPreferencesSettings onClose={handleBack} />
+            </div>
+          ) : view === 'verification' ? (
+            <div style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
+              {user?.id && (
+                <VerificationStatusCard
+                  userId={user.id}
+                  accountType={accountType}
+                  verified={isVerified}
+                />
+              )}
+            </div>
+          ) : view === 'security-actions' ? (
+            <div className="space-y-6" style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
             {/* Header */}
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Shield className="w-5 h-5 text-primary" />
+                <Shield className="w-5 h-5 text-primary" style={{ flexShrink: 0 }} />
                 <h3 className="text-lg font-semibold">Security Actions</h3>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p 
+                className="text-sm text-muted-foreground"
+                style={{
+                  overflowWrap: 'break-word',
+                  wordBreak: 'normal'
+                }}
+              >
                 Manage your account security settings
               </p>
             </div>
@@ -617,8 +728,9 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
                 </div>
               </div>
             </div>
-          </div>
-        ) : null}
+            </div>
+          ) : null}
+        </div>
       </DialogContent>
     </Dialog>
   );

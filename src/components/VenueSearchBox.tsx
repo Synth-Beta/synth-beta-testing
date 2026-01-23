@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, MapPin, X } from 'lucide-react';
+import { Loader2, Search, MapPin } from 'lucide-react';
 import { UnifiedVenueSearchService } from '@/services/unifiedVenueSearchService';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import { cn } from '@/lib/utils';
@@ -222,17 +222,6 @@ export function VenueSearchBox({
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
           {isLoading && (
             <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-          )}
-          {query && !isLoading && !hideClearButton && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={clearSearch}
-              className="h-6 w-6 p-0 hover:bg-gray-100"
-            >
-              <X className="w-3 h-3" />
-            </Button>
           )}
         </div>
       </div>

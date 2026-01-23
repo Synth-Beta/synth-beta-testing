@@ -95,7 +95,7 @@ export function TimeSelectionStep({ reviewDuration, onSelectDuration }: TimeSele
               <div className="flex items-center gap-3 mb-3">
                 <Clock
                   className="w-5 h-5"
-                  style={{ color: isSelected ? 'var(--brand-pink-500)' : 'var(--neutral-400)' }}
+                  style={{ color: isSelected ? 'var(--brand-pink-500)' : 'var(--neutral-900)' }}
                 />
                 <div>
                   <h3
@@ -129,12 +129,12 @@ export function TimeSelectionStep({ reviewDuration, onSelectDuration }: TimeSele
                   fontSize: 'var(--typography-meta-size, 16px)',
                   fontWeight: 'var(--typography-meta-weight, 500)',
                   lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                  color: 'var(--neutral-600)'
+                  color: 'var(--brand-pink-500)'
                 }}
               >
                 {option.description}
               </p>
-              <ul className="space-y-1.5">
+              <ul className="space-y-1.5" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {option.features.map((feature, idx) => (
                   <li
                     key={idx}
@@ -151,14 +151,20 @@ export function TimeSelectionStep({ reviewDuration, onSelectDuration }: TimeSele
                       style={{
                         width: 'var(--spacing-inline, 6px)',
                         height: 'var(--spacing-inline, 6px)',
-                        backgroundColor: 'var(--brand-pink-500)',
+                        backgroundColor: 'var(--neutral-600)',
                         borderRadius: '999px',
                         display: 'inline-block',
                         marginTop: 'var(--spacing-inline, 6px)',
                         flexShrink: 0
                       }}
                     />
-                    <span>{feature}</span>
+                    <span style={{
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                      color: 'var(--neutral-600)'
+                    }}>{feature}</span>
                   </li>
                 ))}
               </ul>

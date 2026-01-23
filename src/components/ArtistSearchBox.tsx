@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { SearchBar } from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Music, X, Star } from 'lucide-react';
+import { Loader2, Music, Star } from 'lucide-react';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import type { Artist, ArtistSearchResult } from '@/types/concertSearch';
 import { cn } from '@/lib/utils';
@@ -201,17 +201,6 @@ export function ArtistSearchBox({
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
           {isLoading && (
             <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-          )}
-          {query && !isLoading && !hideClearButton && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={clearSearch}
-              className="h-6 w-6 p-0 hover:bg-gray-100"
-            >
-              <X className="w-3 h-3" />
-            </Button>
           )}
         </div>
       </div>

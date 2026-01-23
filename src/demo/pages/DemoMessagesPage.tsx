@@ -88,7 +88,7 @@ export const DemoMessagesPage: React.FC<DemoMessagesPageProps> = ({
             <h1 className="font-bold text-[24px] text-[#0e0e0e] leading-[normal]">Messages</h1>
           </MobileHeader>
 
-          <div className="flex-1 overflow-y-auto px-5" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px + 12px)', paddingBottom: 'var(--spacing-bottom-nav, 112px)' }}>
+          <div className="flex-1 overflow-y-auto px-5" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px + 12px)', paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
             <div className="space-y-2">
               {DEMO_CHATS.map((chat) => (
                 <div
@@ -186,7 +186,7 @@ export const DemoMessagesPage: React.FC<DemoMessagesPageProps> = ({
         </MobileHeader>
 
         {/* Messages - EXACT same structure as production */}
-        <div className="flex-1 overflow-y-auto px-5" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px + 12px)', paddingBottom: 'var(--spacing-bottom-nav, 112px)', backgroundColor: 'var(--color-off-white, #FCFCFC)' }}>
+        <div className="flex-1 overflow-y-auto px-5" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px + 12px)', paddingBottom: 'var(--spacing-bottom-nav, 32px)', backgroundColor: 'var(--color-off-white, #FCFCFC)' }}>
           <div className="flex flex-col" style={{ maxWidth: '353px', margin: '0 auto' }}>
             {messageGroups.map((group, groupIndex) => {
               const firstMessage = group[0];

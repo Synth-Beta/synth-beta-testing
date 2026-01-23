@@ -92,7 +92,7 @@ export const DemoDiscoverPage: React.FC<DemoDiscoverPageProps> = ({
       </MobileHeader>
 
       {/* Content - EXACT same structure as production */}
-      <div className="max-w-7xl mx-auto space-y-2" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px + 12px)', paddingBottom: 'var(--spacing-bottom-nav, 112px)' }}>
+      <div className="max-w-7xl mx-auto space-y-2" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px + 12px)', paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
         {/* Browse Vibes and Location Filter - EXACT same as production */}
         <div className="mb-2 flex items-center gap-2 flex-wrap overflow-x-auto pt-4">
           <Button

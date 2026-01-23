@@ -127,9 +127,27 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName
           className="resize-none text-sm sm:text-base w-full max-w-full min-w-0"
           maxLength={maxCharacters}
         />
-        <div className="flex justify-between items-center text-xs text-gray-500">
-          <span className="break-words">Keep it brief - 1-2 sentences is perfect.</span>
-          <span className={cn(isNearLimit ? 'text-orange-600' : 'text-gray-500', 'flex-shrink-0 ml-2')}>
+        <div className="flex justify-between items-center" style={{
+          fontFamily: 'var(--font-family)',
+          fontSize: 'var(--typography-meta-size, 16px)',
+          fontWeight: 'var(--typography-meta-weight, 500)',
+          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+          color: 'var(--neutral-600)'
+        }}>
+          <span className="break-words" style={{
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-meta-size, 16px)',
+            fontWeight: 'var(--typography-meta-weight, 500)',
+            lineHeight: 'var(--typography-meta-line-height, 1.5)',
+            color: 'var(--neutral-900)'
+          }}>Keep it brief - 1-2 sentences is perfect.</span>
+          <span className={cn('flex-shrink-0 ml-2')} style={{
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-meta-size, 16px)',
+            fontWeight: 'var(--typography-meta-weight, 500)',
+            lineHeight: 'var(--typography-meta-line-height, 1.5)',
+            color: isNearLimit ? 'var(--status-warning-500, #B88900)' : 'var(--neutral-600)'
+          }}>
             {characterCount}/{maxCharacters}
           </span>
         </div>
@@ -166,25 +184,6 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName
             <p className="text-xs text-gray-500 mt-1">
               {formData.selectedSetlist.songCount || (formData.selectedSetlist.songs?.length || 0)} songs
             </p>
-          </div>
-        ) : formData.customSetlist.length > 0 ? (
-          <div className="p-3 sm:p-4 bg-pink-50 rounded-lg border border-pink-200 w-full max-w-full overflow-x-hidden">
-            <div className="flex items-center justify-between mb-2 gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <Music className="w-4 h-4 sm:w-5 sm:h-5 text-pink-600 flex-shrink-0" />
-                <span className="font-semibold text-gray-900 text-sm sm:text-base truncate">Custom Setlist</span>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => onUpdateFormData({ customSetlist: [] })}
-                className="h-8 w-8 p-0 flex-shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-            <p className="text-xs sm:text-sm text-gray-600">{formData.customSetlist.length} songs</p>
           </div>
         ) : (
           <div className="flex flex-col sm:flex-row gap-2 w-full">

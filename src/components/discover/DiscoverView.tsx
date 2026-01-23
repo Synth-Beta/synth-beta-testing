@@ -383,7 +383,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
           paddingRight: 'var(--spacing-screen-margin-x, 20px)', 
           paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, 
-          paddingBottom: 'var(--spacing-bottom-nav, 112px)',
+          paddingBottom: 'var(--spacing-bottom-nav, 32px)',
           overflow: 'visible',
           minHeight: 'auto',
           position: 'relative',

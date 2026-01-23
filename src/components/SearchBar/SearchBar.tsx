@@ -84,7 +84,7 @@ export interface SearchBarProps {
  * - 10px border radius
  * - Off-white background with 2px inside stroke light grey border
  * - Search icon on left (dark grey, 24px)
- * - Clear (X) icon on right when typing (off-black, 16px in 44x44 touch target)
+ * - Clear (X) icon on right when typing (off-black, 19px in 44x44 touch target, turns pink on hover)
  * - Placeholder: "Search…" (meta typography, dark grey)
  * - Text color: dark grey (placeholder) → off-black (typing)
  * 
@@ -187,7 +187,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           aria-label="Clear search"
           id={`${id || 'search-input'}-clear-button`}
         >
-          <Icon name="x" size={16} alt="" aria-hidden="true" />
+          <Icon name="x" size={19} alt="" aria-hidden="true" />
         </button>
       )}
     </div>

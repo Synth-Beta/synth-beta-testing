@@ -134,17 +134,29 @@
   padding: 0;
   margin: 0;
   -webkit-tap-highlight-color: transparent;
-  /* Icon color: neutral-900 */
+  /* Icon color: neutral-900 (off-black) */
   color: var(--neutral-900);
-  transition: opacity 0.2s ease;
+  transition: color 0.2s ease;
 }
 
-.synth-search-bar__clear:hover {
-  opacity: 0.7;
+/* Clear icon color: neutral-900 - target all icon elements */
+.synth-search-bar__clear .synth-icon,
+.synth-search-bar__clear svg,
+.synth-search-bar__clear .synth-icon svg {
+  color: var(--neutral-900) !important;
+  transition: color 0.2s ease;
 }
 
-.synth-search-bar__clear:active {
-  opacity: 0.5;
+.synth-search-bar__clear:hover .synth-icon,
+.synth-search-bar__clear:hover svg,
+.synth-search-bar__clear:hover .synth-icon svg {
+  color: var(--brand-pink-500) !important;
+}
+
+.synth-search-bar__clear:active .synth-icon,
+.synth-search-bar__clear:active svg,
+.synth-search-bar__clear:active .synth-icon svg {
+  color: var(--brand-pink-600) !important;
 }
 
 .synth-search-bar__clear:focus-visible {
@@ -153,9 +165,9 @@
   border-radius: var(--radius-corner, 10px);
 }
 
-/* Ensure clear icon is properly sized */
+/* Ensure clear icon is properly sized - Small icon: 19px for clear buttons */
 .synth-search-bar__clear .synth-icon {
-  width: 16px;
-  height: 16px;
+  width: 19px;
+  height: 19px;
 }
 

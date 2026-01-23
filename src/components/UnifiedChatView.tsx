@@ -1773,7 +1773,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
 
         {/* Chat List */}
           {chats.length === 0 ? (
-            <div className="flex flex-col items-center justify-center min-h-full" style={{ gap: 'var(--spacing-big-section, 60px)', padding: 'var(--spacing-small, 12px)', paddingBottom: 'var(--spacing-bottom-nav, 112px)' }}>
+            <div className="flex flex-col items-center justify-center min-h-full" style={{ gap: 'var(--spacing-big-section, 60px)', padding: 'var(--spacing-small, 12px)', paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
               {/* New Chat Button - Already in header, but shown in empty state per Figma */}
               
               {/* Empty State Content */}
@@ -1851,7 +1851,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
               </div>
             </div>
           ) : (
-            <div style={{ paddingTop: 0, paddingBottom: 'var(--spacing-bottom-nav, 112px)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ paddingTop: 0, paddingBottom: 'var(--spacing-bottom-nav, 32px)', display: 'flex', flexDirection: 'column' }}>
               {chats.map((chat, index) => (
                 <div
                   key={chat.id}
