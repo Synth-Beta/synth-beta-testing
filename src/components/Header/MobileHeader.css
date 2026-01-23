@@ -48,6 +48,17 @@
   /* This ensures content is truly centered */
 }
 
+.mobile-header__left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  /* Respect 20px left margin for content */
+  padding-left: var(--spacing-screen-margin-x, 20px);
+  /* Right padding accounts for hamburger menu (44px) + 20px margin */
+  padding-right: calc(var(--size-input-height, 44px) + var(--spacing-screen-margin-x, 20px));
+}
+
 .mobile-header__menu-button {
   position: absolute;
   right: var(--spacing-screen-margin-x, 20px);

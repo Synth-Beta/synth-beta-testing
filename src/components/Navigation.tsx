@@ -62,8 +62,9 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
                 aria-label="Create"
                 className="h-[40px] w-[70px] bg-[#cc2486] rounded-[20px] flex items-center justify-center hover:bg-[#b01f75] transition-colors flex-shrink-0"
                 data-tour="create-review"
+                type="button"
               >
-                <Plus className="w-6 h-6 text-white" strokeWidth={2} />
+                <Plus className="w-6 h-6 text-white" strokeWidth={2} aria-hidden="true" />
               </button>
             );
           }
@@ -77,11 +78,13 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
                 aria-label={label}
                 aria-current={isActive ? "page" : undefined}
                 className="flex items-center justify-center w-6 h-6 transition-colors flex-shrink-0 relative"
+                type="button"
               >
                 <Home 
                   className="w-6 h-6 text-[#cc2486]" 
                   strokeWidth={2} 
                   fill={isActive ? "#cc2486" : "none"}
+                  aria-hidden="true"
                 />
               </button>
             );
@@ -96,6 +99,7 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
                 aria-label={label}
                 aria-current={isActive ? "page" : undefined}
                 className="flex items-center justify-center w-6 h-6 transition-colors flex-shrink-0 relative"
+                type="button"
               >
                 {isActive ? (
                   <svg 
@@ -113,7 +117,7 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
                     />
                   </svg>
                 ) : (
-                  <Compass className="w-6 h-6 text-[#cc2486]" strokeWidth={2} />
+                  <Compass className="w-6 h-6 text-[#cc2486]" strokeWidth={2} aria-hidden="true" />
                 )}
               </button>
             );
@@ -130,11 +134,13 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
               aria-current={isActive ? "page" : undefined}
               className="flex items-center justify-center w-6 h-6 transition-colors flex-shrink-0"
               data-tour={tourAttr}
+              type="button"
             >
               <Icon 
                 className="w-6 h-6 text-[#cc2486]" 
                 strokeWidth={2} 
                 fill={isActive ? "#cc2486" : "none"}
+                aria-hidden="true"
               />
             </button>
           );

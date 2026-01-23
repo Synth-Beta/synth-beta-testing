@@ -128,11 +128,16 @@ interface UnifiedChatViewProps {
   menuOpen?: boolean;
   onMenuClick?: () => void;
   hideHeader?: boolean;
+  onChatSelected?: (isSelected: boolean) => void;
 }
 
-export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMenuClick, hideHeader = false }: UnifiedChatViewProps) => {
+export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMenuClick, hideHeader = false, onChatSelected }: UnifiedChatViewProps) => {
   // Track chat view
   useViewTracking('view', 'chat', { source: 'messages' });
+
+  // Single source of truth for gap above composer safety box
+  // Messages end 6px above the safety box (the safety box itself accounts for all its own space)
+  const composerReservedSpace = `var(--spacing-inline, 12px)`;
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
@@ -147,9 +152,19 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [groupName, setGroupName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isFetchingMessages, setIsFetchingMessages] = useState(false);
+  const [liveAnnouncement, setLiveAnnouncement] = useState('');
   const [isEditingGroupName, setIsEditingGroupName] = useState(false);
   const [editedGroupName, setEditedGroupName] = useState('');
   const { toast } = useToast();
+  const lastAnnouncedMessageIdRef = useRef<string | null>(null);
+
+  // Total unread messages across all chats (for Messages header)
+  // Prefer unread_count (message count). Fall back to has_unread (treated as 1) when counts aren't available.
+  const unreadMessagesCount = chats.reduce((acc, chat) => {
+    if (typeof chat.unread_count === 'number') return acc + chat.unread_count;
+    return acc + (chat.has_unread ? 1 : 0);
+  }, 0);
 
   // Event details modal state
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
@@ -161,6 +176,8 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   const [showReviewDetailModal, setShowReviewDetailModal] = useState(false);
   const [selectedReviewDetail, setSelectedReviewDetail] = useState<UnifiedFeedItem | null>(null);
   const [loadingReviewDetails, setLoadingReviewDetails] = useState(false);
+  const [isDeleteChatModalOpen, setIsDeleteChatModalOpen] = useState(false);
+  const [chatPendingDeletion, setChatPendingDeletion] = useState<Chat | null>(null);
   const [reviewDetailData, setReviewDetailData] = useState<{
     photos: string[];
     videos: string[];
@@ -195,6 +212,25 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   // Auto-scroll ref for messages
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const closeDeleteChatModal = () => {
+    setIsDeleteChatModalOpen(false);
+    setChatPendingDeletion(null);
+  };
+
+  useEffect(() => {
+    if (!isDeleteChatModalOpen) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeDeleteChatModal();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isDeleteChatModalOpen]);
+
   useEffect(() => {
     fetchChats();
     fetchUsers();
@@ -209,7 +245,11 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
     console.log('🔍 selectedChat changed:', selectedChat);
     console.log('🔍 selectedChat exists:', !!selectedChat);
     console.log('🔍 selectedChat id:', selectedChat?.id);
-  }, [selectedChat]);
+    // Notify parent when chat selection changes
+    if (onChatSelected) {
+      onChatSelected(!!selectedChat);
+    }
+  }, [selectedChat, onChatSelected]);
 
   useEffect(() => {
     if (selectedChat) {
@@ -495,13 +535,13 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
     }
   };
 
-  const fetchChats = async () => {
+  const fetchChats = async (): Promise<Chat[] | null> => {
     try {
       const { data, error } = await fetchUserChats(currentUserId);
 
       if (error) {
         console.error('Error fetching chats:', error);
-        return;
+        return null;
       }
 
       // Get user's last_read_at for each chat from chat_participants
@@ -515,30 +555,40 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
         lastReadMap.set(p.chat_id, p.last_read_at);
       });
       
-      // Check for unread messages using simple existence queries (much faster than COUNT)
+      // Count unread messages per chat
       const chatsWithUnread = await Promise.all((data || []).map(async (chat) => {
         try {
           const lastReadAt = lastReadMap.get(chat.id);
           
-          // If no last_read_at, check if there are any messages not from current user
-          const query = supabase
+          // Build query to count unread messages
+          let countQuery = supabase
             .from('messages')
-            .select('id')
+            .select('*', { count: 'exact', head: true })
             .eq('chat_id', chat.id)
-            .neq('sender_id', currentUserId)
-            .limit(1);
+            .neq('sender_id', currentUserId);
           
-          // If we have a last_read_at timestamp, only check for messages after that
+          // If we have a last_read_at timestamp, only count messages after that
           if (lastReadAt) {
-            query.gt('created_at', lastReadAt);
+            countQuery = countQuery.gt('created_at', lastReadAt);
           }
           
-          const { data: unreadMessage } = await query.maybeSingle();
+          const { count, error: countError } = await countQuery;
           
+          if (countError) {
+            console.error('Error counting unread messages for chat:', chat.id, countError);
             return {
               ...chat,
-            has_unread: !!unreadMessage,
-            unread_count: 0 // Keep for backward compatibility
+              has_unread: false,
+              unread_count: 0
+            };
+          }
+          
+          const unreadCount = count || 0;
+          
+          return {
+            ...chat,
+            has_unread: unreadCount > 0,
+            unread_count: unreadCount
           };
         } catch (error) {
           console.error('Error checking unread status for chat:', chat.id, error);
@@ -729,8 +779,10 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
         }
       }
       setEventCreatedChats(eventCreatedChatIds);
+      return normalizedChats;
     } catch (error) {
       console.error('Error fetching chats:', error);
+      return null;
     } finally {
       // Add minimum loading time to show skeleton
       setTimeout(() => {
@@ -758,6 +810,8 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
 
   const fetchMessages = async (chatId: string) => {
     try {
+      setIsFetchingMessages(true);
+      setLiveAnnouncement('Loading messages…');
       const { data, error } = await supabase
         .from('messages')
         .select(`
@@ -821,8 +875,12 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
+      setLiveAnnouncement('Messages loaded.');
     } catch (error) {
       console.error('Error fetching messages:', error);
+      setLiveAnnouncement('Failed to load messages.');
+    } finally {
+      setIsFetchingMessages(false);
     }
   };
   
@@ -834,6 +892,26 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       }, 100);
     }
   }, [messages.length]);
+
+  // Polite announcements when new messages arrive
+  useEffect(() => {
+    if (!selectedChat) return;
+    if (messages.length === 0) return;
+
+    const last = messages[messages.length - 1];
+    if (!last?.id) return;
+
+    // Avoid announcing the same message repeatedly
+    if (lastAnnouncedMessageIdRef.current === last.id) return;
+    lastAnnouncedMessageIdRef.current = last.id;
+
+    // Avoid announcing the user's own sent message (toast already covers it)
+    if (last.sender_id === currentUserId) return;
+
+    // Keep the announcement short to reduce verbosity
+    const preview = (last.content || '').trim().slice(0, 80);
+    setLiveAnnouncement(`${last.sender_name}: ${preview || 'New message'}`);
+  }, [messages, selectedChat, currentUserId]);
 
   const sendMessage = async () => {
     // Track message send will be added after message is sent successfully
@@ -869,6 +947,8 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       // Real-time subscription will automatically update messages
       // But we can also manually refresh to ensure immediate update
       fetchMessages(selectedChat.id);
+      // Also refresh chat list to update latest message immediately
+      fetchChats();
       
       // Track message send
       try {
@@ -972,9 +1052,16 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
         return;
       }
 
-      // Refresh chats to get the new chat
-      fetchChats();
+      // Refresh chats and open the created/existing chat
+      const updatedChats = await fetchChats();
       setShowUserSearch(false);
+      const createdChat = updatedChats?.find(c => c.id === chatId) || null;
+      if (createdChat) {
+        setSelectedChat(createdChat);
+      } else {
+        // If the list hasn't refreshed yet for any reason, at least force a refresh and keep UX moving.
+        fetchChats();
+      }
       
       toast({
         title: "Chat Created! 💬",
@@ -1418,11 +1505,11 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   };
 
   const handleViewProfile = (userId: string) => {
-    // TODO: Implement view profile
-    toast({
-      title: 'View Profile',
-      description: 'Profile view functionality will be implemented soon',
+    // Navigate to user's profile using custom event (same pattern as ChatView)
+    const event = new CustomEvent('open-user-profile', {
+      detail: { userId }
     });
+    window.dispatchEvent(event);
   };
 
   const handleBlockUser = (userId: string) => {
@@ -1445,6 +1532,46 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
     if (linkedEvent) {
       setSelectedEvent(linkedEvent);
       setEventDetailsOpen(true);
+    }
+  };
+
+  const handleHeaderIdentityClick = () => {
+    if (!selectedChat) return;
+
+    // Direct chat → user's profile
+    if (!selectedChat.is_group_chat) {
+      const otherUserId = getOtherUserId(selectedChat);
+      if (otherUserId) {
+        handleViewProfile(otherUserId);
+      }
+      return;
+    }
+
+    // Group chats → route based on verified entity type
+    if (selectedChat.entity_type === 'event') {
+      const eventId = selectedChat.entity_uuid || selectedChat.entity_id || undefined;
+      if (eventId) {
+        // Use MainApp listener to open event details modal
+        window.dispatchEvent(new CustomEvent('open-event-details', { detail: { eventId } }));
+        setSelectedChat(null);
+        window.scrollTo(0, 0);
+        return;
+      }
+      // Fallback to linked event if we have it
+      handleViewEvent();
+      return;
+    }
+
+    if (selectedChat.entity_type === 'artist') {
+      const artistId = selectedChat.entity_uuid || selectedChat.entity_id || undefined;
+      if (artistId) {
+        // UnifiedFeed listens on document for this event and navigates to /artist/:id
+        document.dispatchEvent(new CustomEvent('open-artist-card', {
+          detail: { artistId, artistName: selectedChat.chat_name || getChatDisplayName(selectedChat) }
+        }));
+        setSelectedChat(null);
+        window.scrollTo(0, 0);
+      }
     }
   };
 
@@ -1473,21 +1600,30 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
     });
   };
 
-  const handleDeleteChat = async () => {
+  const requestDeleteChat = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!selectedChat) return;
-    
-    // Confirm deletion
-    const confirmed = window.confirm(
-      `Are you sure you want to delete this ${selectedChat.is_group_chat ? 'group' : 'chat'}? This action cannot be undone.`
-    );
-    
-    if (!confirmed) return;
+    setChatPendingDeletion(selectedChat);
+    // Close the dropdown menu first
+    setShowSettingsMenu(false);
+    // Small delay to ensure dropdown closes before dialog opens
+    setTimeout(() => {
+      setIsDeleteChatModalOpen(true);
+    }, 100);
+  };
+
+  const confirmDeleteChat = async () => {
+    const chatToDelete = chatPendingDeletion ?? selectedChat;
+    if (!chatToDelete) return;
     
     try {
       const { error } = await supabase
         .from('chats')
         .delete()
-        .eq('id', selectedChat.id);
+        .eq('id', chatToDelete.id);
       
       if (error) {
         console.error('Error deleting chat:', error);
@@ -1499,8 +1635,9 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
         return;
       }
       
-      // Close the chat and refresh list
+      // Close the chat and refresh list, then navigate back to messages
       setSelectedChat(null);
+      closeDeleteChatModal();
       fetchChats();
       
       toast({
@@ -1601,13 +1738,11 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
             >
               {isWithinWeek ? (
                 <>
-                  <span style={{ fontWeight: 'var(--typography-meta-weight, 700)' }}>{format(sessionDate, 'EEEE')}</span>
-                  <span style={{ fontWeight: 'var(--typography-meta-weight, 500)' }}> at {format(sessionDate, 'h:mm a')}</span>
+                  {format(sessionDate, 'EEEE')} at {format(sessionDate, 'h:mm a')}
                 </>
               ) : (
                 <>
-                  <span style={{ fontWeight: 'var(--typography-meta-weight, 700)' }}>{format(sessionDate, 'MMM d')}</span>
-                  <span style={{ fontWeight: 'var(--typography-meta-weight, 500)' }}> at {format(sessionDate, 'h:mm a')}</span>
+                  {format(sessionDate, 'MMM d')} at {format(sessionDate, 'h:mm a')}
                 </>
               )}
             </p>
@@ -1734,7 +1869,12 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   };
 
   if (loading) {
-    return <SynthLoadingScreen text="Loading messages..." />;
+    return (
+      <div aria-busy="true" aria-live="polite">
+        <div role="status" className="sr-only">Loading messages…</div>
+        <SynthLoadingScreen text="Loading messages..." />
+      </div>
+    );
   }
 
   return (
@@ -1743,9 +1883,152 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
     >
       {/* Mobile Header */}
       {!hideHeader && (
-      <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
-        <h1 style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', color: 'var(--neutral-900)' }}>Messages</h1>
-      </MobileHeader>
+        <MobileHeader 
+          menuOpen={menuOpen} 
+          onMenuClick={onMenuClick}
+          rightIcon={selectedChat ? "moreVertical" : undefined}
+          onRightIconClick={selectedChat ? () => setShowSettingsMenu(true) : undefined}
+          alignLeft={true}
+        >
+          {selectedChat ? (
+            <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+              <button
+                onClick={() => {
+                  setSelectedChat(null);
+                  window.scrollTo(0, 0);
+                }}
+                className="w-6 h-6 flex items-center justify-center cursor-pointer synth-focus rounded"
+                style={{ padding: 0, margin: 0, background: 'none', border: 'none' }}
+                type="button"
+                aria-label="Back to chats"
+              >
+                <ArrowLeft className="w-6 h-6" style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={handleHeaderIdentityClick}
+                className="flex items-center min-w-0 synth-focus rounded"
+                style={{
+                  gap: 'var(--spacing-inline, 6px)',
+                  padding: 0,
+                  margin: 0,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+                aria-label={selectedChat.is_group_chat ? 'Open chat info' : 'Open user profile'}
+              >
+                <Avatar className="w-8 h-8 flex-shrink-0">
+                  <AvatarImage 
+                    src={getChatAvatar(selectedChat) || undefined} 
+                    alt={selectedChat.is_group_chat 
+                      ? `${getChatDisplayName(selectedChat)} group chat avatar`
+                      : `${getChatDisplayName(selectedChat)}'s profile picture`} 
+                  />
+                  <AvatarFallback className="font-medium text-base" style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--neutral-50)' }}>
+                    {selectedChat.is_group_chat ? (
+                      <Users className="w-5 h-5" />
+                    ) : (
+                      getChatDisplayName(selectedChat).split(' ').map(n => n[0]).join('')
+                    )}
+                  </AvatarFallback>
+                </Avatar>
+                <h2 className="font-bold text-[24px] leading-[normal]" style={{ 
+                  color: 'var(--neutral-900)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  lineHeight: 'normal',
+                  maxHeight: 'calc(2 * 1.3em)' // Approximate 2 lines
+                }}>
+                  {getChatDisplayName(selectedChat)}
+                </h2>
+              </button>
+            </div>
+          ) : (
+            <h1 style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', color: 'var(--neutral-900)' }}>
+               {`Messages${unreadMessagesCount > 0 ? ` (${unreadMessagesCount})` : ''}`}
+            </h1>
+          )}
+        </MobileHeader>
+      )}
+      
+      {/* Settings Menu Dropdown - Positioned relative to header */}
+      {selectedChat && (
+        <DropdownMenu open={showSettingsMenu} onOpenChange={setShowSettingsMenu}>
+          <DropdownMenuTrigger asChild>
+            <button
+              style={{
+                position: 'fixed',
+                top: 'calc(var(--onboarding-banner-height, 0px) + env(safe-area-inset-top, 0px) + 12px)',
+                right: 'var(--spacing-screen-margin-x, 20px)',
+                width: 'var(--size-input-height, 44px)',
+                height: 'var(--size-input-height, 44px)',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                zIndex: 41
+              }}
+              aria-label="More options"
+            />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56" style={{ zIndex: 50 }}>
+            {selectedChat.is_group_chat && (
+              <DropdownMenuItem onClick={handleViewUsers}>
+                <Users className="mr-2 h-4 w-4" />
+                <span>View Users</span>
+              </DropdownMenuItem>
+            )}
+            
+            {!selectedChat.is_group_chat && (
+              <>
+                <DropdownMenuItem onClick={() => handleViewProfile(getOtherUserId(selectedChat))}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>View Profile</span>
+                </DropdownMenuItem>
+                
+                <DropdownMenuItem onClick={() => handleBlockUser(getOtherUserId(selectedChat))}>
+                  <UserX className="mr-2 h-4 w-4" />
+                  <span>Block User</span>
+                </DropdownMenuItem>
+              </>
+            )}
+            
+            <DropdownMenuItem onClick={handleMuteNotifications}>
+              {isMuted ? (
+                <Bell className="mr-2 h-4 w-4" />
+              ) : (
+                <BellOff className="mr-2 h-4 w-4" />
+              )}
+              <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>
+            </DropdownMenuItem>
+            
+            {linkedEvent && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleViewEvent}>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  <span>View Event</span>
+                </DropdownMenuItem>
+              </>
+            )}
+            
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onSelect={(e) => {
+                e.preventDefault();
+                requestDeleteChat();
+              }}
+              className="text-red-600 focus:text-red-600"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              <span>Delete Chat</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
       
       {/* Left Sidebar - Chat List */}
@@ -1899,7 +2182,12 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                         className="flex-1 flex items-center gap-4 cursor-pointer min-w-0"
                     >
                       <Avatar className="w-12 h-12 flex-shrink-0">
-                          <AvatarImage src={getChatAvatar(chat) || undefined} />
+                          <AvatarImage 
+                            src={getChatAvatar(chat) || undefined} 
+                            alt={chat.is_group_chat 
+                              ? `${getChatDisplayName(chat)} group chat avatar`
+                              : `${getChatDisplayName(chat)}'s profile picture`} 
+                          />
                         <AvatarFallback className="font-medium" style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--neutral-50)' }}>
                             {chat.is_group_chat ? (
                               <Users className="w-6 h-6" />
@@ -1907,44 +2195,39 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                               getChatDisplayName(chat).split(' ').map(n => n[0]).join('')
                             )}
                           </AvatarFallback>
-                        </Avatar>
+                      </Avatar>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                          <h3 className="font-semibold break-words" style={{ 
+                          <div className="mb-1">
+                          <h3 className="font-semibold" style={{ 
                             fontFamily: 'var(--font-family)',
                             fontSize: 'var(--typography-body-size, 20px)',
                             fontWeight: 'var(--typography-body-weight, 500)',
                             lineHeight: 'var(--typography-body-line-height, 1.5)',
-                            color: 'var(--neutral-900)' 
+                            color: 'var(--neutral-900)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            wordBreak: 'break-word'
                           }}>
                               {getChatDisplayName(chat)}
                             </h3>
-                            {chat.latest_message_created_at && (
-                            <span className="text-xs flex-shrink-0 font-medium whitespace-nowrap" style={{ 
-                              fontFamily: 'var(--font-family)',
-                              fontSize: 'var(--typography-meta-size, 16px)',
-                              fontWeight: 'var(--typography-meta-weight, 500)',
-                              lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                              color: 'var(--neutral-600)' 
-                            }}>
-                                {formatChatTimestamp(chat.latest_message_created_at)}
-                              </span>
-                            )}
                           </div>
-                        <p className="text-sm break-words mb-1" style={{ 
+                        <p className="text-sm mb-1" style={{ 
                           fontFamily: 'var(--font-family)',
                           fontSize: 'var(--typography-meta-size, 16px)',
                           fontWeight: 'var(--typography-meta-weight, 500)',
                           lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                          color: 'var(--neutral-600)' 
+                          color: 'var(--neutral-600)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          wordBreak: 'break-word'
                         }}>
-                            {chat.latest_message ? (
-                              <span>
-                                <span className="font-medium">{chat.latest_message_sender_name}:</span> {chat.latest_message}
-                              </span>
-                            ) : (
-                            <span style={{ color: 'var(--neutral-600)' }}>No messages yet</span>
-                            )}
+                            {chat.latest_message || 'No messages yet'}
                           </p>
                           {chat.is_group_chat && chat.is_verified && (
                             <div className="flex items-center gap-2 mt-2">
@@ -1969,7 +2252,9 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          deleteChat(chat.id);
+                          // Do not delete immediately — open confirmation modal
+                          setChatPendingDeletion(chat);
+                          setIsDeleteChatModalOpen(true);
                         }}
                       className="hover:text-red-500 hover:bg-red-50 p-2 flex-shrink-0 rounded-lg transition-all duration-200" 
                       style={{ color: 'var(--neutral-600)' }}
@@ -1988,116 +2273,11 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       {selectedChat && (
         <div className="w-full flex flex-col" style={{ backgroundColor: 'var(--neutral-50)', minHeight: '100dvh', position: 'relative' }}>
           <>
-            {/* Chat Header - Fixed below MobileHeader */}
-            <div 
-              className="h-[44px] flex items-center justify-between flex-shrink-0" 
-              style={{ 
-                position: 'fixed',
-                top: hideHeader 
-                  ? `calc(env(safe-area-inset-top, 0px))` 
-                  : `calc(env(safe-area-inset-top, 0px) + 68px)`,
-                left: 0,
-                right: 0,
-                maxWidth: '393px',
-                margin: '0 auto',
-                paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
-                paddingRight: 'var(--spacing-screen-margin-x, 20px)', 
-                backgroundColor: 'var(--neutral-50)', 
-                boxShadow: '0px 4px 4px 0px var(--shadow-color)',
-                zIndex: 40
-              }}
-            >
-              <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-                <button
-                  onClick={() => setSelectedChat(null)}
-                  className="w-6 h-6 flex items-center justify-center cursor-pointer"
-                >
-                  <ArrowLeft className="w-6 h-6" style={{ color: 'var(--neutral-900)' }} />
-                </button>
-                <Avatar className="w-8 h-8 flex-shrink-0">
-                    <AvatarImage src={getChatAvatar(selectedChat) || undefined} />
-                  <AvatarFallback className="font-medium text-base" style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--neutral-50)' }}>
-                      {selectedChat.is_group_chat ? (
-                      <Users className="w-5 h-5" />
-                      ) : (
-                        getChatDisplayName(selectedChat).split(' ').map(n => n[0]).join('')
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
-                <h2 className="font-bold text-[24px] leading-[normal]" style={{ color: 'var(--neutral-900)' }}>
-                            {getChatDisplayName(selectedChat)}
-                          </h2>
-                </div>
-                
-              {/* Info Icon */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" style={{
-                    width: 'var(--size-input-height, 44px)',
-                    height: 'var(--size-input-height, 44px)',
-                    padding: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <MoreVertical size={24} style={{ color: 'var(--neutral-900)' }} />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56" style={{ zIndex: 50 }}>
-                    {selectedChat.is_group_chat && (
-                      <>
-                        <DropdownMenuItem onClick={handleViewUsers}>
-                          <Users className="mr-2 h-4 w-4" />
-                          <span>View Users</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-                    
-                    <DropdownMenuItem onClick={() => handleViewProfile(getOtherUserId(selectedChat))}>
-                      <User className="mr-2 h-4 w-4" />
-                      <span>View Profile</span>
-                    </DropdownMenuItem>
-                    
-                    <DropdownMenuItem onClick={() => handleBlockUser(getOtherUserId(selectedChat))}>
-                      <UserX className="mr-2 h-4 w-4" />
-                      <span>Block User</span>
-                    </DropdownMenuItem>
-                    
-                    <DropdownMenuItem onClick={handleMuteNotifications}>
-                      {isMuted ? (
-                        <Bell className="mr-2 h-4 w-4" />
-                      ) : (
-                        <BellOff className="mr-2 h-4 w-4" />
-                      )}
-                      <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>
-                    </DropdownMenuItem>
-                    
-                    {linkedEvent && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleViewEvent}>
-                          <Calendar className="mr-2 h-4 w-4" />
-                          <span>View Event</span>
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={handleDeleteChat}
-                      className="text-red-600 focus:text-red-600"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      <span>Delete Chat</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-
             {/* Messages */}
               <div 
                 className="flex-1 overflow-y-auto"
+                aria-busy={isFetchingMessages}
+                aria-label="Chat messages"
                 style={{ 
                   maxWidth: '353px', 
                   width: '100%', 
@@ -2105,34 +2285,14 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                   paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
                   paddingRight: 'var(--spacing-screen-margin-x, 20px)', 
                   paddingTop: hideHeader 
-                    ? `calc(env(safe-area-inset-top, 0px) + 44px + var(--spacing-small, 12px))` 
-                    : `calc(env(safe-area-inset-top, 0px) + 68px + 44px + var(--spacing-small, 12px))`, 
-                  paddingBottom: `calc(44px + var(--spacing-grouped, 24px) + env(safe-area-inset-bottom, 0px) + 80px)`
+                    ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` 
+                    : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, 
+                  paddingBottom: composerReservedSpace
                 }}
               >
+              <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
               {selectedChat.is_group_chat ? (
                 <>
-                  {/* Back Button - 12px below header, 20px from left */}
-                  <div style={{
-                    position: 'absolute',
-                    top: hideHeader ? 'var(--spacing-small, 12px)' : 'calc(68px + var(--spacing-small, 12px))',
-                    left: 'var(--spacing-screen-margin-x, 20px)',
-                    zIndex: 10
-                  }}>
-                    <SynthButton
-                      variant="secondary"
-                      icon="leftArrow"
-                      iconPosition="left"
-                      onClick={() => {
-                        window.scrollTo(0, 0);
-                        if (onBack) {
-                          onBack();
-                        }
-                      }}
-                    >
-                      Back
-                    </SynthButton>
-                  </div>
                   <div className="flex items-center justify-center h-full">
                     <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
                       {/* Large icon (60px), dark grey */}
@@ -2188,47 +2348,60 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                   }}>Start the conversation!</p>
                 </div>
               ) : (
-                  <div className="flex flex-col" style={{ paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-small, 12px)' }}>
+                  <div
+                    className="flex flex-col"
+                    role="log"
+                    aria-live="polite"
+                    aria-relevant="additions text"
+                    aria-atomic="false"
+                    style={{ paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 0 }}
+                  >
                 {renderGroupedMessages()}
                 <div ref={messagesEndRef} />
                 </div>
               )}
             </div>
 
-            {/* Message Input - Fixed flush at edge of navigation bar (80px nav height, not 112px) */}
+            {/* Message Input - Full-width safe background container */}
             {!selectedChat.is_group_chat && (
               <div 
                 style={{ 
                   position: 'fixed',
-                  bottom: `calc(80px + env(safe-area-inset-bottom, 0px))`,
+                  bottom: `env(safe-area-inset-bottom, 0px)`,
                   left: 0,
                   right: 0,
-                  maxWidth: '393px',
-                  margin: '0 auto',
-                  paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
-                  paddingRight: 'var(--spacing-screen-margin-x, 20px)', 
-                  paddingTop: 0,
-                  paddingBottom: 0,
+                  width: '100%',
+                  paddingTop: 'var(--spacing-grouped, 24px)',
+                  paddingBottom: 'var(--spacing-grouped, 24px)',
+                  backgroundColor: 'var(--neutral-50)',
                   zIndex: 40
                 }}
               >
                 <div 
-                  className="border-2 rounded-[10px] flex items-center justify-between h-[44px] pl-5 pr-[1px]" 
                   style={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    borderColor: 'rgba(236, 72, 153, 0.2)',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+                    maxWidth: '393px',
+                    margin: '0 auto',
+                    paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
+                    paddingRight: 'var(--spacing-screen-margin-x, 20px)'
                   }}
                 >
+                  <div 
+                    className="border-2 rounded-[10px] flex items-center justify-between h-[44px] pl-5 pr-[1px]" 
+                    style={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                      backdropFilter: 'blur(20px)',
+                      WebkitBackdropFilter: 'blur(20px)',
+                      borderColor: 'rgba(236, 72, 153, 0.2)',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+                    }}
+                  >
                   <Input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
                     onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                    className="bg-transparent border-0 flex-1 h-full text-[16px] focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
-                    style={{ color: 'var(--neutral-600)' }}
+                    className="bg-transparent border-0 flex-1 h-full text-[16px] px-0 synth-focus"
+                    style={{ color: 'var(--neutral-900)' }}
                     id="chat-message-input"
                     aria-label="Type a message"
                     aria-describedby="chat-send-button"
@@ -2252,6 +2425,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                   {!newMessage.trim() && (
                     <span id="chat-send-disabled-hint" className="sr-only">Message input is empty</span>
                   )}
+                  </div>
                 </div>
               </div>
             )}
@@ -2270,12 +2444,14 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                     setSelectedUsers([]);
                     setSearchQuery('');
                   }}
-              className="absolute top-3 right-3 w-6 h-6 flex items-center justify-center cursor-pointer rounded transition-colors"
+              className="absolute top-3 right-3 w-6 h-6 flex items-center justify-center cursor-pointer rounded transition-colors synth-focus"
               style={{ color: 'var(--neutral-900)' }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--neutral-100)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              type="button"
+              aria-label="Close dialog"
                 >
-              <X className="w-5 h-5" style={{ color: 'var(--neutral-900)' }} />
+              <X className="w-5 h-5" style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
             </button>
             
             {/* Main Content */}
@@ -2348,7 +2524,10 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                         {/* Profile Picture and Name */}
                         <div className="flex items-center gap-[6px] flex-1 min-w-0">
                           <Avatar className="w-10 h-10 flex-shrink-0">
-                        <AvatarImage src={user.avatar_url || undefined} />
+                        <AvatarImage 
+                          src={user.avatar_url || undefined} 
+                          alt={`${user.name}'s profile picture`} 
+                        />
                             <AvatarFallback className="bg-synth-beige/50 text-synth-black font-medium text-sm">
                           {user.name.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
@@ -2442,7 +2621,10 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
             <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--neutral-200)', backgroundColor: 'var(--neutral-50)' }}>
               <div className="flex items-center gap-3">
                 <Avatar className="w-10 h-10">
-                  <AvatarImage src={selectedReviewDetail.author?.avatar_url || undefined} />
+                  <AvatarImage 
+                    src={selectedReviewDetail.author?.avatar_url || undefined} 
+                    alt={selectedReviewDetail.author?.name ? `${selectedReviewDetail.author.name}'s profile picture` : "User profile picture"} 
+                  />
                   <AvatarFallback style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--neutral-50)' }}>
                     {selectedReviewDetail.author?.name?.charAt(0) || 'U'}
                   </AvatarFallback>
@@ -2643,7 +2825,10 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                         }}
                       >
                         <Avatar className="w-10 h-10 flex-shrink-0">
-                          <AvatarImage src={participant.avatar_url || undefined} />
+                          <AvatarImage 
+                            src={participant.avatar_url || undefined} 
+                            alt={`${participant.name}'s profile picture`} 
+                          />
                           <AvatarFallback className="font-medium" style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--neutral-50)' }}>
                             {participant.name.split(' ').map(n => n[0]).join('')}
                           </AvatarFallback>
@@ -2703,6 +2888,120 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
             </div>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Delete Chat Confirmation Modal (custom, fixed + centered to guarantee visibility) */}
+      {isDeleteChatModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: 'var(--overlay-50, rgba(14, 14, 14, 0.5))',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+            paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+          }}
+          role="presentation"
+          onMouseDown={(e) => {
+            // Click outside modal closes it
+            if (e.target === e.currentTarget) {
+              closeDeleteChatModal();
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Delete chat confirmation"
+            style={{
+              width: '100%',
+              maxWidth: 'var(--size-popup-width, calc(100vw - 40px))',
+              backgroundColor: 'var(--neutral-50)',
+              border: '1px solid var(--neutral-200)',
+              borderRadius: 'var(--radius-corner, 10px)',
+              boxShadow: '0 4px 12px 0 var(--shadow-color)',
+              position: 'relative',
+              paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+              paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+              paddingTop: 'var(--spacing-grouped, 24px)',
+              paddingBottom: 'var(--spacing-grouped, 24px)',
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {/* Close X button in top right */}
+            <button
+              onClick={() => {
+                closeDeleteChatModal();
+              }}
+              style={{
+                position: 'absolute',
+                top: 'var(--spacing-grouped, 24px)',
+                right: 'var(--spacing-screen-margin-x, 20px)',
+                width: '44px',
+                height: '44px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                margin: 0,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+              aria-label="Close dialog"
+              type="button"
+            >
+              <X size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+            </button>
+
+            {/* Title */}
+            <h2
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-body-size, 20px)',
+                fontWeight: 'var(--typography-bold-weight, 700)',
+                lineHeight: 'var(--typography-body-line-height, 1.5)',
+                color: 'var(--neutral-900)',
+                margin: 0,
+                marginBottom: 'var(--spacing-small, 12px)',
+                paddingRight: '44px', // Account for X button space
+              }}
+            >
+              Are you sure you want to delete this chat?
+            </h2>
+
+            {/* Subtitle */}
+            <p
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--neutral-600)',
+                margin: 0,
+                marginBottom: 'var(--spacing-small, 12px)',
+              }}
+            >
+              This action cannot be undone
+            </p>
+
+            {/* Delete Button */}
+            <SynthButton
+              variant="primary"
+              size="standard"
+              icon="trash"
+              iconPosition="left"
+              onClick={confirmDeleteChat}
+              style={{ width: '100%' }}
+            >
+              Delete
+            </SynthButton>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -33,6 +33,13 @@ export interface IconProps {
    * Optional but recommended for meaningful icons
    */
   alt?: string;
+
+  /**
+   * Marks the icon as decorative. When true (or when alt === ''),
+   * the icon will be hidden from screen readers to avoid double announcements
+   * (e.g., when placed inside a button that already has aria-label).
+   */
+  ariaHidden?: boolean;
   
   /**
    * Additional CSS classes
@@ -66,8 +73,10 @@ export const Icon: React.FC<IconProps> = ({
   size = 24,
   color,
   alt,
+  ariaHidden = false,
   className,
 }) => {
+  const isDecorative = ariaHidden || alt === '';
   const shouldUseSvg = shouldKeepAsSvg(name);
   const iconSrc = shouldUseSvg
     ? bottomNavSelectedIcons[name as keyof typeof bottomNavSelectedIcons]
@@ -99,7 +108,8 @@ export const Icon: React.FC<IconProps> = ({
     return (
       <img
         src={iconSrc}
-        alt={alt || `${name} icon`}
+        alt={isDecorative ? '' : (alt ?? `${name} icon`)}
+        aria-hidden={isDecorative ? 'true' : undefined}
         width={size}
         height={size}
         className={`synth-icon ${className || ''}`}
@@ -158,8 +168,9 @@ export const Icon: React.FC<IconProps> = ({
         lineHeight: 0,
         color: color || undefined,
       }}
-      aria-label={alt || `${name} icon`}
-      role="img"
+      aria-hidden={isDecorative ? 'true' : undefined}
+      aria-label={isDecorative ? undefined : (alt ?? `${name} icon`)}
+      role={isDecorative ? undefined : 'img'}
     >
       <LucideIconComponent
         size={size}

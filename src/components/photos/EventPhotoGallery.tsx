@@ -64,7 +64,7 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
       <div className="relative">
         <img
           src={photo.photo_url}
-          alt={photo.caption || 'Event photo'}
+          alt={photo.caption || `${eventTitle} event photo by ${photo.user_name}`}
           className="w-full aspect-square object-cover cursor-pointer"
           onClick={() => {
             // Open photo in modal/lightbox (future enhancement)
@@ -83,7 +83,7 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
           {photo.user_avatar_url ? (
             <img
               src={photo.user_avatar_url}
-              alt={photo.user_name}
+              alt={`${photo.user_name}'s profile picture`}
               className="w-8 h-8 rounded-full"
             />
           ) : (

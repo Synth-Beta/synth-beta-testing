@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, Link2, MessageSquare, Mail, ArrowRight } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { InAppShareService, type ShareTarget } from '@/services/inAppShareService';
@@ -29,6 +29,8 @@ export function ReviewShareModal({
   const [loading, setLoading] = useState(false);
   const [sharing, setSharing] = useState(false);
   const { toast } = useToast();
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const reviewTitle = review.artist_name 
     ? `${review.artist_name}${review.venue_name ? ` at ${review.venue_name}` : ''}`
@@ -42,6 +44,60 @@ export function ReviewShareModal({
       setSearchQuery('');
     }
   }, [isOpen, currentUserId]);
+
+  // Focus management for accessibility
+  useEffect(() => {
+    if (isOpen) {
+      // Store the element that had focus before modal opened
+      previousFocusRef.current = document.activeElement as HTMLElement;
+      
+      // Focus first focusable element in modal
+      const firstFocusable = modalRef.current?.querySelector(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      ) as HTMLElement;
+      
+      // Use setTimeout to ensure modal is rendered
+      setTimeout(() => {
+        firstFocusable?.focus();
+      }, 0);
+
+      // Focus trap: prevent tabbing outside modal
+      const handleTabKey = (e: KeyboardEvent) => {
+        if (e.key !== 'Tab') return;
+        
+        const focusableElements = modalRef.current?.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        ) as NodeListOf<HTMLElement>;
+        
+        if (!focusableElements || focusableElements.length === 0) return;
+        
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        
+        if (e.shiftKey) {
+          // Shift + Tab
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          // Tab
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleTabKey);
+      
+      return () => {
+        document.removeEventListener('keydown', handleTabKey);
+        // Restore focus to previous element when modal closes
+        previousFocusRef.current?.focus();
+      };
+    }
+  }, [isOpen]);
 
   const loadShareTargets = async () => {
     try {
@@ -281,6 +337,10 @@ export function ReviewShareModal({
       }}
     >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Share review"
         style={{
           width: '100%',
           maxWidth: '100%',
@@ -335,8 +395,10 @@ export function ReviewShareModal({
               cursor: 'pointer',
               borderRadius: '16px',
             }}
+            type="button"
+            aria-label="Close share dialog"
           >
-            <X size={20} style={{ color: 'var(--neutral-900)' }} />
+            <X size={20} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
           </button>
         </div>
 
@@ -356,6 +418,7 @@ export function ReviewShareModal({
                 color: 'var(--neutral-400)',
                 pointerEvents: 'none',
               }}
+              aria-hidden="true"
             />
             <input
               type="text"
@@ -391,7 +454,11 @@ export function ReviewShareModal({
         >
           {/* Direct Share Contacts */}
           {loading ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
+            <div 
+              aria-busy="true"
+              aria-live="polite"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}
+            >
               <div
                 style={{
                   width: '24px',
@@ -402,6 +469,7 @@ export function ReviewShareModal({
                   animation: 'spin 0.8s linear infinite',
                 }}
               />
+              <span className="sr-only">Loading contacts...</span>
             </div>
           ) : allTargets.length > 0 ? (
             <div>
@@ -517,6 +585,7 @@ export function ReviewShareModal({
               {/* Copy Link */}
               <button
                 onClick={handleCopyLink}
+                type="button"
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -542,7 +611,7 @@ export function ReviewShareModal({
                     border: '2px solid rgba(0, 0, 0, 0.1)',
                   }}
                 >
-                  <Link2 size={28} style={{ color: 'var(--neutral-700)' }} />
+                  <Link2 size={28} style={{ color: 'var(--neutral-700)' }} aria-hidden="true" />
                 </div>
                 <span style={{ fontFamily: 'var(--font-family)', fontSize: '12px', color: 'var(--neutral-700)', textAlign: 'center' }}>
                   Copy link
@@ -552,6 +621,7 @@ export function ReviewShareModal({
               {/* Text Messages */}
               <button
                 onClick={handleTextMessage}
+                type="button"
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -577,7 +647,7 @@ export function ReviewShareModal({
                     border: '2px solid rgba(0, 0, 0, 0.1)',
                   }}
                 >
-                  <MessageSquare size={28} style={{ color: 'var(--neutral-700)' }} />
+                  <MessageSquare size={28} style={{ color: 'var(--neutral-700)' }} aria-hidden="true" />
                 </div>
                 <span style={{ fontFamily: 'var(--font-family)', fontSize: '12px', color: 'var(--neutral-700)', textAlign: 'center' }}>
                   Text Message
@@ -587,6 +657,7 @@ export function ReviewShareModal({
               {/* Email */}
               <button
                 onClick={handleEmail}
+                type="button"
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -612,7 +683,7 @@ export function ReviewShareModal({
                     border: '2px solid rgba(0, 0, 0, 0.1)',
                   }}
                 >
-                  <Mail size={28} style={{ color: 'var(--neutral-700)' }} />
+                  <Mail size={28} style={{ color: 'var(--neutral-700)' }} aria-hidden="true" />
                 </div>
                 <span style={{ fontFamily: 'var(--font-family)', fontSize: '12px', color: 'var(--neutral-700)', textAlign: 'center' }}>
                   Email
@@ -622,6 +693,8 @@ export function ReviewShareModal({
               {/* More options */}
               <button
                 onClick={handleMoreOptions}
+                type="button"
+                aria-label="More share options"
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -647,7 +720,7 @@ export function ReviewShareModal({
                     border: '2px solid rgba(0, 0, 0, 0.1)',
                   }}
                 >
-                  <ArrowRight size={24} style={{ color: 'var(--neutral-400)' }} />
+                  <ArrowRight size={24} style={{ color: 'var(--neutral-400)' }} aria-hidden="true" />
                 </div>
               </button>
             </div>
@@ -666,6 +739,7 @@ export function ReviewShareModal({
             <button
               onClick={handleShare}
               disabled={sharing}
+              type="button"
               style={{
                 width: '100%',
                 padding: '14px',

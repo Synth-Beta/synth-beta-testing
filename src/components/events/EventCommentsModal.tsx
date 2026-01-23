@@ -93,10 +93,15 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
           <DialogDescription>Discuss this event.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+        <div
+          className="space-y-4 max-h-[60vh] overflow-y-auto pr-1"
+          aria-busy={loading || loadingMore || submitting}
+          aria-live="polite"
+          aria-relevant="additions text"
+        >
           {loading ? (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading comments...
+            <div className="flex items-center justify-center py-8 text-muted-foreground" role="status" aria-live="polite">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" aria-hidden="true" /> Loading comments...
             </div>
           ) : error ? (
             <div className="text-sm text-red-600 py-4">{error}</div>

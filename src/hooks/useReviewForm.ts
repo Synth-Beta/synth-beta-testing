@@ -3,6 +3,13 @@ import type { Artist } from '@/types/concertSearch';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import type { CustomSetlistSong } from '@/services/reviewService';
 
+export interface ReviewCustomSetlist {
+  id: string;
+  title: string;
+  isAutoTitle: boolean;
+  songs: CustomSetlistSong[];
+}
+
 export interface ReviewFormData {
   // Step 0: Time Selection
   reviewDuration: '1min' | '3min' | '5min' | null;
@@ -12,7 +19,8 @@ export interface ReviewFormData {
   selectedVenue: VenueSearchResult | null;
   eventDate: string;
   selectedSetlist: any | null; // SetlistData from setlistService (API verified)
-  customSetlist: CustomSetlistSong[]; // User-created custom setlist
+  // Multiple user-created custom setlists for this review
+  customSetlists: ReviewCustomSetlist[];
   
   // Category steps: five independent rating sections
   artistPerformanceRating: number; // Artist performance quality (0.5-5.0)
@@ -71,7 +79,7 @@ const initialFormData: ReviewFormData = {
   selectedVenue: null,
   eventDate: '',
   selectedSetlist: null,
-  customSetlist: [],
+  customSetlists: [],
   artistPerformanceRating: 0,
   productionRating: 0,
   venueRating: 0,

@@ -196,7 +196,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
           <Label className="text-sm font-medium">Quick search existing event (optional)</Label>
           {onClose && (
             <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0" aria-label="Close">
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </Button>
           )}
         </div>
@@ -263,7 +263,14 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
                 <div>
                   <p className="text-sm font-medium text-green-800">{formData.selectedArtist.name}</p>
                 </div>
-                <button className="text-xs text-red-600" onClick={()=>{ onUpdateFormData({ selectedArtist: null }); setArtistLocked(false); }}>×</button>
+                <button
+                  type="button"
+                  className="text-xs text-red-600"
+                  onClick={() => { onUpdateFormData({ selectedArtist: null }); setArtistLocked(false); }}
+                  aria-label="Clear selected artist"
+                >
+                  ×
+                </button>
               </div>
             </div>
           )}
@@ -298,7 +305,14 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
                   <p className="text-xs text-green-700">{[formData.selectedVenue.address.addressLocality, formData.selectedVenue.address.addressRegion].filter(Boolean).join(', ')}</p>
                 )}
               </div>
-              <button className="text-xs text-red-600" onClick={()=>{ onUpdateFormData({ selectedVenue: null }); setVenueLocked(false); }}>×</button>
+              <button
+                type="button"
+                className="text-xs text-red-600"
+                onClick={() => { onUpdateFormData({ selectedVenue: null }); setVenueLocked(false); }}
+                aria-label="Clear selected venue"
+              >
+                ×
+              </button>
             </div>
           )}
           {errors.selectedVenue && (

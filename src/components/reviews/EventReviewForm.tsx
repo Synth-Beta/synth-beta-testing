@@ -184,8 +184,8 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     updateFormData({ selectedSetlist: null });
   };
 
-  const handleCustomSetlistChange = (songs: any[]) => {
-    updateFormData({ customSetlist: songs as any });
+  const handleCustomSetlistChange = (setlists: any[]) => {
+    updateFormData({ customSetlists: setlists as any });
   };
 
   // Auto-save functionality (saves to database automatically on every change)
@@ -450,7 +450,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             photos: review.photos || [],
             videos: review.videos || [],
             selectedSetlist: review.setlist || null,
-            customSetlist: (review as any).custom_setlist || [],
+            customSetlists: (review as any).custom_setlist || [],
             isPublic: review.is_public,
             reviewType: review.review_type || 'event',
           } as any);
@@ -1009,7 +1009,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         // Preserve existing setlist when editing if not explicitly changed
         // If selectedSetlist is null, user cleared it; if undefined, preserve existing
         setlist: formData.selectedSetlist !== undefined ? formData.selectedSetlist : ((existingReview as any)?.setlist || undefined),
-        custom_setlist: formData.customSetlist && formData.customSetlist.length > 0 ? formData.customSetlist : undefined,
+        custom_setlist: formData.customSetlists && formData.customSetlists.length > 0 ? (formData.customSetlists as any) : undefined,
         is_public: formData.isPublic,
       };
 
@@ -1020,7 +1020,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         setlistData: reviewData.setlist,
         formDataSelectedSetlist: formData.selectedSetlist,
         hasCustomSetlist: !!reviewData.custom_setlist,
-        customSetlistSongCount: reviewData.custom_setlist?.length || 0,
+        customSetlistSetCount: reviewData.custom_setlist?.length || 0,
         // Debug category ratings
         categoryRatings: {
           artist_performance_rating: reviewData.artist_performance_rating,

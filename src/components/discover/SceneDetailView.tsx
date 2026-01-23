@@ -1187,7 +1187,10 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                   <CardContent className="p-4">
                     <div className="flex flex-col items-center text-center space-y-2">
                       <Avatar className="w-12 h-12">
-                        <AvatarImage src={reviewer.avatar_url || undefined} />
+                        <AvatarImage 
+                          src={reviewer.avatar_url || undefined} 
+                          alt={`${reviewer.name}'s profile picture`} 
+                        />
                         <AvatarFallback className="bg-synth-pink/10 text-synth-pink">
                           {reviewer.name.charAt(0).toUpperCase()}
                         </AvatarFallback>

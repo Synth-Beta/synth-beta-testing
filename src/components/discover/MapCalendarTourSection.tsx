@@ -8,7 +8,7 @@ import type { Artist } from '@/types/concertSearch';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import { divIcon, latLngBounds } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Calendar } from '@/components/ui/calendar';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import type { VibeFilters } from '@/services/discoverVibeService';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { CompactEventCard } from '@/components/home/CompactEventCard';
+import { MapPin, Calendar as CalendarIcon, Building2 } from 'lucide-react';
 import { LocationService } from '@/services/locationService';
 import { UserEventService } from '@/services/userEventService';
 import { SynthLoadingInline } from '@/components/ui/SynthLoader';
@@ -503,13 +504,16 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         {/* Calendar View */}
         <TabsContent value="calendar" className="mt-8">
           {calendarLoading ? (
-            <SynthLoadingInline text="Loading calendar..." size="lg" />
+            <div aria-busy="true">
+              <div role="status" aria-live="polite" className="sr-only">Loading calendar…</div>
+              <SynthLoadingInline text="Loading calendar..." size="lg" />
+            </div>
           ) : (
             <div className="space-y-4 flex flex-col items-center justify-center">
               <div className="flex justify-center w-full">
                 <div className="swift-ui-card">
                   <div className="swift-ui-card-content">
-                    <Calendar
+                    <CalendarPicker
                       mode="single"
                       selected={selectedDate}
                       onSelect={handleDateSelect}
@@ -542,7 +546,20 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                   </h3>
                   <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
                     {selectedDateEvents.map((event) => (
-                      <Card key={event.id} className="cursor-pointer hover:shadow-md swift-ui-card" onClick={() => handleEventClick(event)}>
+                      <Card 
+                        key={event.id} 
+                        className="cursor-pointer hover:shadow-md swift-ui-card" 
+                        onClick={() => handleEventClick(event)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleEventClick(event);
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`View event: ${event.title} at ${event.venue_name || 'venue'}`}
+                      >
                         <div className="swift-ui-card-content">
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between">
@@ -678,7 +695,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                         {/* Clear Button */}
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={(e) => {
                             e.stopPropagation(); // Prevent navigation when clicking clear button
                             setSelectedArtist(null);
@@ -686,9 +703,16 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                             setTourRoute([]);
                             setGroupChats([]);
                           }}
+                          aria-label="Clear selected artist"
                           className="flex-shrink-0 text-muted-foreground hover:text-foreground"
+                          style={{
+                            minWidth: '44px',
+                            minHeight: '44px',
+                            width: '44px',
+                            height: '44px',
+                          }}
                         >
-                          <Icon name="x" size={16} color="var(--neutral-600)" />
+                          <Icon name="x" size={16} color="var(--neutral-600)" alt="" ariaHidden />
                         </Button>
                       </div>
                     </div>
@@ -699,7 +723,10 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
             )}
 
             {tourLoading ? (
-              <SynthLoadingInline text="Loading tour data..." size="lg" />
+              <div aria-busy="true">
+                <div role="status" aria-live="polite" className="sr-only">Loading tour data…</div>
+                <SynthLoadingInline text="Loading tour data..." size="lg" />
+              </div>
             ) : selectedArtist && tourEvents.length > 0 ? (
               <>
                 <div className="h-96 rounded-lg overflow-hidden border relative z-0">
@@ -803,74 +830,128 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
 
                 {/* Events Feed */}
                 <div className="mt-4">
-                  <h3 className="font-semibold mb-3">Tour Dates ({sortedTourEvents.length})</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-96 overflow-y-auto">
+                  <h3 className="font-semibold mb-3" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>Tour Dates ({sortedTourEvents.length})</h3>
+                  <div className="flex flex-col max-h-96 overflow-y-auto" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
                     {sortedTourEvents.map((event) => {
                       const isInterested = interestedEvents.has(event.id);
                       const interestedCount = eventInterestedCounts.get(event.id) || 0;
+                      const eventDate = event.event_date ? new Date(event.event_date) : null;
+                      const formatTourDate = (date: Date | null) => {
+                        if (!date) return '';
+                        return format(date, 'M/d/yy');
+                      };
+                      const venueLocation = event.venue_city 
+                        ? (event.venue_state ? `${event.venue_city}, ${event.venue_state}` : event.venue_city)
+                        : event.venue_state || '';
                       
                       return (
-                        <CompactEventCard
+                        <div
                           key={event.id}
-                          event={{
-                            id: event.id,
-                            title: event.title || '',
-                            artist_name: event.artist_name,
-                            venue_name: event.venue_name,
-                            event_date: event.event_date,
-                            venue_city: event.venue_city,
-                            image_url: event.images?.[0]?.url,
-                            poster_image_url: event.images?.[0]?.url,
-                          }}
-                          interestedCount={interestedCount}
-                          isInterested={isInterested}
-                          onInterestClick={async (e) => {
-                            e.stopPropagation();
-                            if (!currentUserId) return;
-                            
-                            const newInterestState = !isInterested;
-                            
-                            // Optimistically update UI
-                            setInterestedEvents(prev => {
-                              const next = new Set(prev);
-                              if (newInterestState) {
-                                next.add(event.id);
-                              } else {
-                                next.delete(event.id);
-                              }
-                              return next;
-                            });
-                            
-                            try {
-                              await UserEventService.setEventInterest(
-                                currentUserId,
-                                event.id,
-                                newInterestState
-                              );
-                              
-                              // Update count
-                              setEventInterestedCounts(prev => {
-                                const next = new Map(prev);
-                                const currentCount = next.get(event.id) || 0;
-                                next.set(event.id, newInterestState ? currentCount + 1 : Math.max(0, currentCount - 1));
-                                return next;
-                              });
-                            } catch (error) {
-                              console.error('Error toggling interest:', error);
-                              // Revert optimistic update
-                              setInterestedEvents(prev => {
-                                const next = new Set(prev);
-                                if (isInterested) {
-                                  next.add(event.id);
-                                } else {
-                                  next.delete(event.id);
-                                }
-                                return next;
-                              });
+                          onClick={() => handleEventClick(event)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleEventClick(event);
                             }
                           }}
-                          onClick={() => handleEventClick(event)}
-                        />
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`View event: ${selectedArtist?.name || event.artist_name || 'Artist'} at ${event.venue_name || 'venue'}`}
+                          className="cursor-pointer transition-colors"
+                          style={{
+                            paddingTop: 'var(--spacing-grouped, 24px)',
+                            paddingBottom: 'var(--spacing-grouped, 24px)',
+                            borderBottom: '1px solid var(--neutral-200)',
+                            backgroundColor: 'transparent',
+                          }}
+                        >
+                          <div className="flex flex-col w-full">
+                            <div className="mb-1">
+                              <h3 
+                                className="font-semibold break-words" 
+                                style={{
+                                  fontFamily: 'var(--font-family)',
+                                  fontSize: 'var(--typography-body-size, 20px)',
+                                  fontWeight: 'var(--typography-body-weight, 500)',
+                                  lineHeight: 'var(--typography-body-line-height, 1.5)',
+                                  color: 'var(--neutral-900)',
+                                }}
+                              >
+                                {selectedArtist?.name || event.artist_name || 'Artist'}
+                              </h3>
+                            </div>
+                            <div className="flex flex-col" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                                  {/* Location with icon */}
+                                  {venueLocation && (
+                                    <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                                      <MapPin size={20} style={{ color: 'var(--brand-pink-500)' }} />
+                                      <p 
+                                        className="text-sm truncate" 
+                                        style={{
+                                          fontFamily: 'var(--font-family)',
+                                          fontSize: 'var(--typography-meta-size, 16px)',
+                                          fontWeight: 'var(--typography-meta-weight, 500)',
+                                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                                          color: 'var(--neutral-600)',
+                                          whiteSpace: 'nowrap',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          margin: 0,
+                                        }}
+                                      >
+                                        {venueLocation}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Venue with building icon */}
+                                  {event.venue_name && (
+                                    <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                                      <Building2 size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                                      <p 
+                                        className="text-sm truncate" 
+                                        style={{
+                                          fontFamily: 'var(--font-family)',
+                                          fontSize: 'var(--typography-meta-size, 16px)',
+                                          fontWeight: 'var(--typography-meta-weight, 500)',
+                                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                                          color: 'var(--neutral-600)',
+                                          whiteSpace: 'nowrap',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          margin: 0,
+                                        }}
+                                      >
+                                        {event.venue_name}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Date with calendar icon */}
+                                  {eventDate && (
+                                    <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                                      <CalendarIcon size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                                      <p 
+                                        className="text-sm truncate" 
+                                        style={{
+                                          fontFamily: 'var(--font-family)',
+                                          fontSize: 'var(--typography-meta-size, 16px)',
+                                          fontWeight: 'var(--typography-meta-weight, 500)',
+                                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                                          color: 'var(--neutral-600)',
+                                          whiteSpace: 'nowrap',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          margin: 0,
+                                        }}
+                                      >
+                                        {formatTourDate(eventDate)}
+                                      </p>
+                                    </div>
+                                  )}
+                            </div>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -882,7 +963,20 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                     <h3 className="font-semibold mb-2">Related Group Chats</h3>
                     <div className="grid grid-cols-1 gap-2">
                       {groupChats.map((chat) => (
-                        <Card key={chat.id} className="cursor-pointer hover:shadow-md swift-ui-card" onClick={() => onNavigateToChat && chat.chat_id && onNavigateToChat(chat.chat_id)}>
+                        <Card 
+                          key={chat.id} 
+                          className="cursor-pointer hover:shadow-md swift-ui-card" 
+                          onClick={() => onNavigateToChat && chat.chat_id && onNavigateToChat(chat.chat_id)}
+                          onKeyDown={(e) => {
+                            if ((e.key === 'Enter' || e.key === ' ') && onNavigateToChat && chat.chat_id) {
+                              e.preventDefault();
+                              onNavigateToChat(chat.chat_id);
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`Open group chat: ${chat.name}`}
+                        >
                           <div className="swift-ui-card-content">
                           <CardContent className="p-4">
                             <div className="flex items-center justify-between">

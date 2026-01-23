@@ -133,7 +133,7 @@ export const ChatListItem: React.FC<ChatListItemProps> = ({
             aria-label="Delete chat"
             type="button"
           >
-            <Icon name="trash" size={24} alt="Delete" />
+            <Icon name="trash" size={24} alt="" ariaHidden />
           </button>
         )}
         {formattedTimestamp && (

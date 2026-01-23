@@ -1999,6 +1999,32 @@ export const UnifiedFeed = ({
                 setDetailsOpen(true);
               }
             }}
+            onKeyDown={async (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (e.defaultPrevented) return;
+                if (item.event_data) {
+                  const { PromotionTrackingService } = await import('@/services/promotionTrackingService');
+                  PromotionTrackingService.trackPromotionInteraction(item.event_data.id, currentUserId, 'click', {
+                    source: 'feed_event_card_click',
+                    artist_name: item.event_data.artist_name,
+                    venue_name: item.event_data.venue_name,
+                  });
+
+                  setSelectedEventForDetails(item.event_data);
+                  try {
+                    const interested = await UserEventService.isUserInterested(currentUserId, item.event_data.id);
+                    setSelectedEventInterested(interested);
+                  } catch {
+                    setSelectedEventInterested(false);
+                  }
+                  setDetailsOpen(true);
+                }
+              }
+            }}
+            tabIndex={0}
+            role="button"
+            aria-label={`View event: ${item.event_data?.title || item.event_data?.artist_name || 'Event'}`}
           >
             <CardContent className="p-6">
               {item.type !== 'event' && (
@@ -2381,7 +2407,7 @@ export const UnifiedFeed = ({
   }
 
   return (
-    <div className={outerClassName} style={outerStyle}>
+    <main className={outerClassName} style={outerStyle}>
       <div className={innerClassName}>
         {shouldRenderHeader && (
         <div className={headerSpacingClass}>
@@ -3595,7 +3621,7 @@ export const UnifiedFeed = ({
           contentTitle={flaggedEvent.title}
         />
       )}
-    </div>
+    </main>
   );
 };
 

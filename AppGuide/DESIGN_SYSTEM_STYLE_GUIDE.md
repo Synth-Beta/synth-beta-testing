@@ -197,6 +197,7 @@ var(--font-family) = 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Ro
 2. **Never use Tailwind typography classes**: Replace `text-4xl` → H1, `text-2xl` → H2, `text-xl/text-lg/text-base` → Body, `text-sm/text-xs` → Meta
 3. **Bold text**: Use `var(--typography-bold-weight, 700)` or `var(--typography-accent-weight, 700)` for bolded text
 4. **Inline styles**: When using inline styles, always include all three properties: `fontSize`, `fontWeight`, `lineHeight`
+5. **Typography vs Color are SEPARATE**: Typography refers ONLY to `fontSize`, `fontWeight`, and `lineHeight`. Text color (`color` property) is completely separate and independent. When asked to change typography, do NOT change text color. When asked to change text color, do NOT change typography properties.
 
 **Text Color Usage:**
 
@@ -676,7 +677,7 @@ import { type IconName } from '@/config/icons';
 - `6px` spacing between icon, heading, and description (`var(--spacing-inline, 6px)`)
 - Large icon (60px) in `var(--neutral-600)`
 - Heading: Body typography (20px, medium), `var(--neutral-900)` color
-- Description: Meta typography (16px, medium), `var(--neutral-600)` color
+- Description: Meta typography (16px, medium) - Note: Meta typography refers to the size, weight, and line-height. Color can vary based on context (commonly `var(--neutral-600)` for secondary text, but can be any color as needed)
 
 **Color Rules:**
 - Empty state text MUST NOT use disabled colors (`--neutral-400` or `--state-disabled-text`)

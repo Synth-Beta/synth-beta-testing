@@ -1042,12 +1042,15 @@ export function EventDetailsModal({
           onClick={onClose}
           style={{
             ...iosIconButton,
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
+            minWidth: 44,
+            minHeight: 44,
           }}
-          aria-label="Close"
+          aria-label="Close event details"
+          type="button"
         >
-          <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} />
+          <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
         </button>
         
         {/* Title */}
@@ -1071,12 +1074,15 @@ export function EventDetailsModal({
           onClick={() => {/* Share handler */}}
           style={{
             ...iosIconButton,
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
+            minWidth: 44,
+            minHeight: 44,
           }}
-          aria-label="Share"
+          aria-label="Share event"
+          type="button"
         >
-          <Share2 size={20} style={{ color: 'var(--neutral-900)' }} />
+          <Share2 size={20} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
         </button>
       </div>
 
@@ -1515,8 +1521,9 @@ export function EventDetailsModal({
                 Reviews {artistVenueReviews.length > 0 && `(${artistVenueReviews.length})`}
               </h3>
               {reviewsLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--brand-pink-500)' }} />
+                <div className="flex items-center justify-center py-8" aria-busy="true">
+                  <div role="status" aria-live="polite" className="sr-only">Loading reviews…</div>
+                  <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--brand-pink-500)' }} aria-hidden="true" />
                 </div>
               ) : artistVenueReviews.length > 0 ? (
                 <div className="flex flex-col gap-4">

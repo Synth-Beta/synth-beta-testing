@@ -221,7 +221,7 @@ export const TimelineEntryModal: React.FC<TimelineEntryModalProps> = ({
       }
     }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
           <DialogTitle>
             {existingReviewId ? 'Edit Timeline Milestone' : 'Add Timeline Milestone'}
           </DialogTitle>
@@ -230,7 +230,7 @@ export const TimelineEntryModal: React.FC<TimelineEntryModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: 'var(--spacing-small, 12px)', paddingBottom: 'var(--spacing-small, 12px)' }}>
           {!existingReviewId && (
             <div className="space-y-2">
               <Label htmlFor="review">Select Review</Label>
@@ -361,7 +361,7 @@ export const TimelineEntryModal: React.FC<TimelineEntryModalProps> = ({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', gap: 'var(--spacing-inline, 6px)' }}>
           <Button 
             type="button"
             variant="outline" 

@@ -52,9 +52,11 @@ class AppleSignInHandler: NSObject, ASAuthorizationControllerDelegate, ASAuthori
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else {
             // Fallback to key window if available
-            if let keyWindow = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) {
-                return keyWindow
-            }
+            let keyWindow = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first(where: { $0.isKeyWindow })
+            if let keyWindow = keyWindow { return keyWindow }
             fatalError("No window available for Apple Sign In presentation")
         }
         return window

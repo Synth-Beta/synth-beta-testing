@@ -47,6 +47,7 @@ export const lucideIconMap: Record<string, LucideIcon> = {
   'AlertTriangle': LucideIcons.AlertTriangle,
   'CheckCircle2': LucideIcons.CheckCircle2,
   'Ellipsis': LucideIcons.MoreHorizontal,
+  'MoreVertical': LucideIcons.MoreVertical,
   
   // Size 24px - Arrows & Navigation
   'ArrowDown': LucideIcons.ArrowDown,

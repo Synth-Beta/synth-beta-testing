@@ -29,9 +29,17 @@ export function ArtistSearchBox({
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
+  const isSelectingRef = useRef(false);
+  const skipSearchRef = useRef(false);
 
   // Debounced search
   useEffect(() => {
+    // Skip search if we just selected an artist
+    if (skipSearchRef.current) {
+      skipSearchRef.current = false;
+      return;
+    }
+
     if (!query.trim()) {
       setSearchResults(null);
       setIsOpen(false);
@@ -131,6 +139,8 @@ export function ArtistSearchBox({
   };
 
   const handleArtistSelect = (artist: Artist) => {
+    isSelectingRef.current = true;
+    skipSearchRef.current = true; // Prevent search from running when we set the query
     try {
       const artistUuid = (artist as any).id || null;
       trackInteraction.click(
@@ -141,13 +151,20 @@ export function ArtistSearchBox({
       );
     } catch {}
     onArtistSelect(artist);
-    setQuery(artist.name);
+    // Close dropdown immediately before setting query
     setIsOpen(false);
+    setSearchResults(null);
     setSelectedIndex(-1);
     onSearchStateChange?.(false);
+    // Set query after closing dropdown
+    setQuery(artist.name);
     // Blur the search input
     const input = document.getElementById('artist-search-input') as HTMLInputElement;
     input?.blur();
+    // Reset the flag after a short delay
+    setTimeout(() => {
+      isSelectingRef.current = false;
+    }, 200);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,17 +172,23 @@ export function ArtistSearchBox({
   };
 
   const handleInputFocus = () => {
+    // Don't reopen if we just selected an artist
+    if (isSelectingRef.current) {
+      return;
+    }
     if (searchResults && searchResults.artists.length > 0) {
       setIsOpen(true);
     }
   };
 
   const handleInputBlur = () => {
-    // Delay closing to allow for click events
+    // Delay closing to allow for click events, but skip if we're selecting an artist
     setTimeout(() => {
-      setIsOpen(false);
-      setSelectedIndex(-1);
-      onSearchStateChange?.(false);
+      if (!isSelectingRef.current) {
+        setIsOpen(false);
+        setSelectedIndex(-1);
+        onSearchStateChange?.(false);
+      }
     }, 150);
   };
 
@@ -225,7 +248,10 @@ export function ArtistSearchBox({
                     "hover:bg-gray-50",
                     selectedIndex === index && "bg-blue-50"
                   )}
-                  onClick={() => handleArtistSelect(artist)}
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // Prevent input blur before click
+                    handleArtistSelect(artist);
+                  }}
                   onMouseEnter={() => setSelectedIndex(index)}
                 >
                   {/* Blue accent bar for selected item */}

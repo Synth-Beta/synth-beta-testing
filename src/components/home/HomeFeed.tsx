@@ -1849,7 +1849,7 @@ interface FriendEventInterest {
       {!hideHeader && selectedFeedType === 'events' && (
         <JamBaseHeaderAttribution />
       )}
-      <div
+      <main
         className="max-w-7xl mx-auto"
         style={{
           paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
@@ -2384,10 +2384,9 @@ interface FriendEventInterest {
                 />
               ))}
             </div>
-              )}
-                  </div>
           )}
-      </div>
+          </div>
+        )}
 
       {/* Event Details Modal */}
       {eventDetailsOpen && selectedEvent && (
@@ -2531,6 +2530,7 @@ interface FriendEventInterest {
           currentUserId={currentUserId}
         />
       )}
+    </main>
     </div>
   );
 };

@@ -16,7 +16,7 @@ import { format } from 'date-fns';
 // JamBaseService removed - using database queries directly
 import { EventReviewModal } from '../reviews/EventReviewModal';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { SwiftUIReviewCard } from '../reviews/SwiftUIReviewCard';
+import { ReviewDetailView } from '../reviews/ReviewDetailView';
 import type { Artist } from '@/types/concertSearch';
 import { ReviewService } from '@/services/reviewService';
 import { UserEventService } from '@/services/userEventService';
@@ -1664,8 +1664,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     >
       {/* Mobile Header with person's name */}
       {!hideHeader && (
-      <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
-        <h1 className="font-bold truncate text-center" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
+      <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick} alignLeft={true}>
+        <h1 className="font-bold truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
             {profile.username ? `@${profile.username}` : profile.name || 'Profile'}
           </h1>
       </MobileHeader>
@@ -2404,33 +2404,61 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                             const event = attendance.jambase_events;
                             
                             return (
-                              <Card key={`unreviewed-${attendance.id}`} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {
-                                // Ensure we have complete event data for the modal
-                                // Handle both direct event objects and nested jambase_event objects
-                                const eventData = event.jambase_event || event;
-                                const completeEvent = {
-                                  ...eventData,
-                                  // Ensure all required fields are present with proper fallbacks
-                                  id: eventData.id || event.id || attendance.event_id,
-                                  title: eventData.title || event.title || 'Unknown Event',
-                                  artist_name: eventData.artist_name || event.artist_name || 'Unknown Artist',
-                                  venue_name: eventData.venue_name || event.venue_name || 'Unknown Venue',
-                                  event_date: eventData.event_date || event.event_date || new Date().toISOString(),
-                                  venue_city: eventData.venue_city || event.venue_city || null,
-                                  venue_state: eventData.venue_state || event.venue_state || null,
-                                  setlist: eventData.setlist || event.setlist || null,
-                                  setlist_song_count: eventData.setlist_song_count || event.setlist_song_count || null,
-                                  setlist_fm_url: eventData.setlist_fm_url || event.setlist_fm_url || null
-                                };
-                                
-                                console.log('ProfileView: Complete event data for modal:', {
-                                  originalEvent: event,
-                                  completeEvent,
-                                  attendanceEventId: attendance.event_id
-                                });
-                                setSelectedEvent(completeEvent);
-                                setDetailsOpen(true);
-                              }}>
+                              <Card 
+                                key={`unreviewed-${attendance.id}`} 
+                                className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" 
+                                onClick={() => {
+                                  // Ensure we have complete event data for the modal
+                                  // Handle both direct event objects and nested jambase_event objects
+                                  const eventData = event.jambase_event || event;
+                                  const completeEvent = {
+                                    ...eventData,
+                                    // Ensure all required fields are present with proper fallbacks
+                                    id: eventData.id || event.id || attendance.event_id,
+                                    title: eventData.title || event.title || 'Unknown Event',
+                                    artist_name: eventData.artist_name || event.artist_name || 'Unknown Artist',
+                                    venue_name: eventData.venue_name || event.venue_name || 'Unknown Venue',
+                                    event_date: eventData.event_date || event.event_date || new Date().toISOString(),
+                                    venue_city: eventData.venue_city || event.venue_city || null,
+                                    venue_state: eventData.venue_state || event.venue_state || null,
+                                    setlist: eventData.setlist || event.setlist || null,
+                                    setlist_song_count: eventData.setlist_song_count || event.setlist_song_count || null,
+                                    setlist_fm_url: eventData.setlist_fm_url || event.setlist_fm_url || null
+                                  };
+                                  
+                                  console.log('ProfileView: Complete event data for modal:', {
+                                    originalEvent: event,
+                                    completeEvent,
+                                    attendanceEventId: attendance.event_id
+                                  });
+                                  setSelectedEvent(completeEvent);
+                                  setDetailsOpen(true);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    const eventData = event.jambase_event || event;
+                                    const completeEvent = {
+                                      ...eventData,
+                                      id: eventData.id || event.id || attendance.event_id,
+                                      title: eventData.title || event.title || 'Unknown Event',
+                                      artist_name: eventData.artist_name || event.artist_name || 'Unknown Artist',
+                                      venue_name: eventData.venue_name || event.venue_name || 'Unknown Venue',
+                                      event_date: eventData.event_date || event.event_date || new Date().toISOString(),
+                                      venue_city: eventData.venue_city || event.venue_city || null,
+                                      venue_state: eventData.venue_state || event.venue_state || null,
+                                      setlist: eventData.setlist || event.setlist || null,
+                                      setlist_song_count: eventData.setlist_song_count || event.setlist_song_count || null,
+                                      setlist_fm_url: eventData.setlist_fm_url || event.setlist_fm_url || null
+                                    };
+                                    setSelectedEvent(completeEvent);
+                                    setDetailsOpen(true);
+                                  }
+                                }}
+                                tabIndex={0}
+                                role="button"
+                                aria-label={`Review event: ${event.title || 'Event'}`}
+                              >
                                 <CardContent className="p-6">
                                   <div className="flex items-start justify-between mb-4">
                                     <div className="flex-1">
@@ -2518,24 +2546,50 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                             const draft = item.data;
                             
                             return (
-                              <Card key={`draft-${draft.id}`} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {
-                                // Create a mock event object for the draft
-                                const draftEvent = {
-                                  id: draft.event_id,
-                                  title: draft.event_title || 'Draft Review',
-                                  artist_name: draft.artist_name || 'Unknown Artist',
-                                  venue_name: draft.venue_name || 'Unknown Venue',
-                                  event_date: draft.event_date || new Date().toISOString(),
-                                  venue_city: null,
-                                  venue_state: null,
-                                  setlist: null,
-                                  setlist_song_count: null,
-                                  setlist_fm_url: null
-                                };
-                                
-                                setReviewModalEvent(draftEvent);
-                                setShowAddReview(true);
-                              }}>
+                              <Card 
+                                key={`draft-${draft.id}`} 
+                                className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" 
+                                onClick={() => {
+                                  // Create a mock event object for the draft
+                                  const draftEvent = {
+                                    id: draft.event_id,
+                                    title: draft.event_title || 'Draft Review',
+                                    artist_name: draft.artist_name || 'Unknown Artist',
+                                    venue_name: draft.venue_name || 'Unknown Venue',
+                                    event_date: draft.event_date || new Date().toISOString(),
+                                    venue_city: null,
+                                    venue_state: null,
+                                    setlist: null,
+                                    setlist_song_count: null,
+                                    setlist_fm_url: null
+                                  };
+                                  
+                                  setReviewModalEvent(draftEvent);
+                                  setShowAddReview(true);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    const draftEvent = {
+                                      id: draft.event_id,
+                                      title: draft.event_title || 'Draft Review',
+                                      artist_name: draft.artist_name || 'Unknown Artist',
+                                      venue_name: draft.venue_name || 'Unknown Venue',
+                                      event_date: draft.event_date || new Date().toISOString(),
+                                      venue_city: null,
+                                      venue_state: null,
+                                      setlist: null,
+                                      setlist_song_count: null,
+                                      setlist_fm_url: null
+                                    };
+                                    setReviewModalEvent(draftEvent);
+                                    setShowAddReview(true);
+                                  }
+                                }}
+                                tabIndex={0}
+                                role="button"
+                                aria-label={`Edit draft review: ${draft.event_title || 'Draft Review'}`}
+                              >
                                 <CardContent className="p-6">
                                   <div className="flex items-start justify-between mb-4">
                                     <div className="flex-1">
@@ -2948,6 +3002,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 userId={targetUserId}
                 userName={profile?.name || undefined}
                 inline={true}
+                isOwnProfile={isViewingOwnProfile}
               />
             ) : (
               <div className="text-center py-8 text-muted-foreground">
@@ -2974,83 +3029,60 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       {/* Review View Dialog - Belli-style layout */}
       {viewReviewOpen && selectedReview && (
         <Dialog open={viewReviewOpen} onOpenChange={setViewReviewOpen}>
-          <DialogContent className="max-w-5xl w-[90vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden bg-transparent border-none shadow-none">
+          <DialogContent
+            className="fixed inset-0 z-[100] max-w-none w-full h-full m-0 p-0 overflow-hidden rounded-none"
+            style={{
+              left: 0,
+              top: 0,
+              transform: 'none',
+              width: '100vw',
+              height: '100vh',
+              maxWidth: '100vw',
+              maxHeight: '100vh',
+              borderRadius: 0,
+              border: 'none',
+              boxShadow: 'none',
+              backgroundColor: 'var(--neutral-50)',
+            }}
+          >
             <DialogHeader className="sr-only">
-              <DialogTitle>Review</DialogTitle>
-              <DialogDescription>
-                View concert review details
-              </DialogDescription>
+              <DialogTitle>Review Details</DialogTitle>
+              <DialogDescription>Detailed view of a review</DialogDescription>
             </DialogHeader>
-            {/* SwiftUIReviewCard inside dialog */}
-            <div className="w-full h-full overflow-y-auto p-2">
-              <SwiftUIReviewCard
-                review={{
-                  id: selectedReview.id,
-                  user_id: selectedReview.user_id || profile?.user_id || '',
-                  event_id: selectedReview.event_id || '',
-                  rating: selectedReview.rating || 0,
-                  review_text: selectedReview.review_text || '',
-                  is_public: selectedReview.is_public ?? true,
-                  created_at: selectedReview.created_at,
-                  updated_at: selectedReview.updated_at || selectedReview.created_at,
-                  likes_count: selectedReview.likes_count || 0,
-                  comments_count: selectedReview.comments_count || 0,
-                  shares_count: selectedReview.shares_count || 0,
-                  is_liked_by_user: (selectedReview as any).is_liked_by_user || false,
-                  reaction_emoji: selectedReview.reaction_emoji || '',
-                  photos: (selectedReview as any).photos || [],
-                  videos: (selectedReview as any).videos || [],
-                  mood_tags: (selectedReview as any).mood_tags || [],
-                  genre_tags: (selectedReview as any).genre_tags || [],
-                  context_tags: (selectedReview as any).context_tags || [],
-                  artist_name: selectedReview.jambase_events?.artist_name,
-                  venue_name: selectedReview.jambase_events?.venue_name,
-                  artist_performance_rating: (selectedReview as any).artist_performance_rating,
-                  production_rating: (selectedReview as any).production_rating,
-                  venue_rating: (selectedReview as any).venue_rating,
-                  location_rating: (selectedReview as any).location_rating,
-                  value_rating: (selectedReview as any).value_rating,
-                  artist_performance_feedback: (selectedReview as any).artist_performance_feedback,
-                  production_feedback: (selectedReview as any).production_feedback,
-                  venue_feedback: (selectedReview as any).venue_feedback,
-                  location_feedback: (selectedReview as any).location_feedback,
-                  value_feedback: (selectedReview as any).value_feedback,
-                  ticket_price_paid: (selectedReview as any).ticket_price_paid,
-                  setlist: (selectedReview as any).setlist || selectedReview.jambase_events?.setlist,
-                  custom_setlist: (selectedReview as any).custom_setlist
-                }}
-                mode="detail"
-                showBackButton={true}
-                onBack={() => setViewReviewOpen(false)}
-                currentUserId={currentUserId}
-                onLike={async (reviewId, isLiked) => {
-                  console.log('🔍 ProfileView SwiftUI onLike:', { reviewId, isLiked });
-                }}
-                onComment={() => {
-                  console.log('Comment on review from ProfileView');
-                }}
-                onShare={() => {
-                  console.log('Share review from ProfileView');
-                }}
-                onEdit={() => {
+
+            <ReviewDetailView
+              reviewId={selectedReview.id}
+              currentUserId={currentUserId}
+              onBack={() => setViewReviewOpen(false)}
+              onEdit={() => {
+                setViewReviewOpen(false);
+                handleEditReview(selectedReview);
+              }}
+              onDelete={async () => {
+                if (window.confirm('Are you sure you want to delete this review?')) {
+                  await handleDeleteReview(selectedReview.id);
                   setViewReviewOpen(false);
-                  handleEditReview(selectedReview);
-                }}
-                onDelete={async () => {
-                  if (window.confirm('Are you sure you want to delete this review?')) {
-                    await handleDeleteReview(selectedReview.id);
+                  setSelectedReview(null);
+                }
+              }}
+              onOpenProfile={(userId) => {
+                const event = new CustomEvent('open-user-profile', { detail: { userId } });
+                window.dispatchEvent(event);
+                setViewReviewOpen(false);
+              }}
+              onOpenArtist={(artistId, artistName) => {
+                if (artistName) {
+                  navigate(`/artist/${encodeURIComponent(artistName)}`);
                   setViewReviewOpen(false);
-                    setSelectedReview(null);
-                  }
-                }}
-                userProfile={{
-                  name: profile?.name || 'User',
-                  avatar_url: profile?.avatar_url,
-                  verified: profile?.verified,
-                  account_type: profile?.account_type as any
-                }}
-              />
-            </div>
+                }
+              }}
+              onOpenVenue={(venueId, venueName) => {
+                if (venueName) {
+                  navigate(`/venue/${encodeURIComponent(venueName)}`);
+                  setViewReviewOpen(false);
+                }
+              }}
+            />
           </DialogContent>
         </Dialog>
       )}

@@ -68,7 +68,7 @@ export const PassportIdentity: React.FC<PassportIdentityProps> = ({ userId, user
       <Card className="border-2 border-synth-pink/20 bg-gradient-to-br from-white to-pink-50/30">
         <CardHeader>
           <CardTitle className="text-2xl font-bold flex items-center gap-2">
-            <Music className="w-6 h-6 text-synth-pink" />
+            <Music className="w-6 h-6" style={{ color: 'var(--brand-pink-500)' }} />
             {userName ? `${userName}'s` : 'Your'} Passport
           </CardTitle>
         </CardHeader>
@@ -124,7 +124,13 @@ export const PassportIdentity: React.FC<PassportIdentityProps> = ({ userId, user
                 <MapPin className="w-4 h-4 text-muted-foreground" />
                 <div className="flex-1">
                   <span className="font-medium">Home Scene: </span>
-                  <span className="text-muted-foreground">{identity.home_city}</span>
+                  <span style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--neutral-600)'
+                  }}>{identity.home_city}</span>
                 </div>
               </div>
             )}

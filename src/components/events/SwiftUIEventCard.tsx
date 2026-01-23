@@ -398,7 +398,11 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
         >
           <img
             src={heroImageUrl}
-            alt={event.title}
+            alt={artistName && venueName 
+              ? `${event.title} - ${artistName} at ${venueName}`
+              : event.title 
+                ? `${event.title} event photo`
+                : "Event photo"}
             style={{
               width: '100%',
               height: '100%',
@@ -627,8 +631,10 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
                 padding: '8px 16px',
                 background: 'var(--brand-pink-500)',
                 color: '#fff',
-                fontSize: 14,
-                fontWeight: 600,
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
                 borderRadius: 10,
                 textDecoration: 'none',
                 transition: 'all 0.2s ease',
@@ -642,8 +648,14 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
                 e.currentTarget.style.transform = 'scale(1)';
               }}
             >
-              <Ticket size={14} />
-              <span>Tickets</span>
+              <Ticket size={24} style={{ color: '#fff' }} />
+              <span style={{ 
+                color: '#fff',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)'
+              }}>Tickets</span>
             </a>
           )}
         </div>
@@ -666,6 +678,7 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
                 <button
                   onClick={handleInterestToggle}
                   disabled={interestLoading}
+                  aria-label={isInterested ? 'Remove interest' : 'Mark as interested'}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -675,15 +688,23 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
                     color: isInterested ? '#fff' : 'var(--brand-pink-500)',
                     border: isInterested ? 'none' : '1px solid var(--brand-pink-500)',
                     borderRadius: 10,
-                    fontSize: 14,
-                    fontWeight: 500,
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     opacity: interestLoading ? 0.7 : 1,
                   }}
                 >
-                  <Heart size={16} fill={isInterested ? '#fff' : 'none'} />
-                  <span>{isInterested ? 'Interested' : 'Interested?'}</span>
+                  <Heart size={16} fill={isInterested ? '#fff' : 'none'} style={{ color: isInterested ? '#fff' : 'var(--brand-pink-500)' }} aria-hidden="true" />
+                  <span style={{ 
+                    color: isInterested ? '#fff' : 'var(--brand-pink-500)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                  }}>{isInterested ? 'Interested' : 'Interested?'}</span>
                 </button>
               )}
 
@@ -692,6 +713,7 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
                 <button
                   onClick={onAttendanceToggle ? handleAttendanceToggle : handleReview}
                   disabled={attendanceLoading}
+                  aria-label={isAttended || propHasReviewed ? 'Mark as not attended' : 'Mark as attended'}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -701,14 +723,16 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
                     color: isAttended || propHasReviewed ? '#fff' : 'var(--status-success-500)',
                     border: isAttended || propHasReviewed ? 'none' : '1px solid var(--status-success-500)',
                     borderRadius: 10,
-                    fontSize: 14,
-                    fontWeight: 500,
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     opacity: attendanceLoading ? 0.7 : 1,
                   }}
                 >
-                  <Star size={16} fill={isAttended || propHasReviewed ? '#fff' : 'none'} />
+                  <Star size={16} fill={isAttended || propHasReviewed ? '#fff' : 'none'} aria-hidden="true" />
                   <span>{isAttended || propHasReviewed ? 'I Was There!' : 'I Was There'}</span>
                 </button>
               )}
@@ -722,6 +746,7 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
                     e.stopPropagation();
                     onComment();
                   }}
+                  aria-label={`View comments${commentsCount !== undefined ? ` (${commentsCount})` : ''}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -733,7 +758,7 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
                     cursor: 'pointer',
                   }}
                 >
-                  <MessageCircle size={18} />
+                  <MessageCircle size={18} aria-hidden="true" />
                   {commentsCount !== undefined && <span style={{ fontSize: 14 }}>{commentsCount}</span>}
                 </button>
               )}
@@ -741,6 +766,7 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
               {/* Share */}
               <button
                 onClick={handleShare}
+                aria-label="Share event"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -752,7 +778,7 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                <Share2 size={18} />
+                <Share2 size={24} aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -765,6 +791,7 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
               e.stopPropagation();
               onOpenInterestedUsers(event.id);
             }}
+            aria-label={`View ${interestedCount} ${interestedCount === 1 ? 'person' : 'people'} interested in this event`}
             style={{
               display: 'flex',
               alignItems: 'center',

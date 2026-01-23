@@ -9,7 +9,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { ReviewService, type ReviewWithEngagement } from '@/services/reviewService';
 import { ReviewCommentsModal } from './ReviewCommentsModal';
 import { ReviewShareModal } from './ReviewShareModal';
+import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { useToast } from '@/hooks/use-toast';
+import { glassCardLight, textStyles } from '@/styles/glassmorphism';
 
 interface ReviewDetailViewProps {
   reviewId: string;
@@ -73,6 +75,8 @@ export function ReviewDetailView({
   const [isLiking, setIsLiking] = useState(false);
   const [commentsModalOpen, setCommentsModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [detailsExpanded, setDetailsExpanded] = useState(true);
   const [commentsCount, setCommentsCount] = useState(0);
   const { toast } = useToast();
 
@@ -315,26 +319,36 @@ export function ReviewDetailView({
       name: 'Artist Performance',
       rating: reviewData.artist_performance_rating || 0,
       feedback: reviewData.artist_performance_feedback,
+      icon: Music2,
+      iconColor: 'var(--brand-pink-500)', // Pink
     },
     {
       name: 'Production Quality',
       rating: reviewData.production_rating || 0,
       feedback: reviewData.production_feedback,
+      icon: Lightbulb,
+      iconColor: '#8B5CF6', // Purple
     },
     {
       name: 'Venue Experience',
       rating: reviewData.venue_rating || 0,
       feedback: reviewData.venue_feedback,
+      icon: Building2,
+      iconColor: '#3B82F6', // Blue
     },
     {
       name: 'Location & Logistics',
       rating: reviewData.location_rating || 0,
       feedback: reviewData.location_feedback,
+      icon: Compass,
+      iconColor: '#10B981', // Green
     },
     {
       name: 'Value for Ticket',
       rating: reviewData.value_rating || 0,
       feedback: reviewData.value_feedback,
+      icon: DollarSign,
+      iconColor: '#F59E0B', // Orange/Amber
     },
   ].filter(cat => cat.rating > 0);
 
@@ -698,6 +712,7 @@ export function ReviewDetailView({
               e.currentTarget.style.backgroundColor = 'var(--brand-pink-500, #FF3399)';
             }}
             onClick={handleShare}
+            aria-label="Share review"
           >
             <Share2 className="w-6 h-6" style={{ color: 'var(--neutral-50)' }} />
           </Button>
@@ -747,6 +762,26 @@ export function ReviewDetailView({
           currentUserId={currentUserId || ''}
           isOpen={shareModalOpen}
           onClose={() => setShareModalOpen(false)}
+        />
+      )}
+
+      {/* Report Modal */}
+      {reportModalOpen && reviewData && (
+        <ReportContentModal
+          open={reportModalOpen}
+          onClose={() => setReportModalOpen(false)}
+          contentType="review"
+          contentId={reviewId}
+          contentTitle={reviewData.event_info?.artist_name && reviewData.event_info?.venue_name
+            ? `${reviewData.event_info.artist_name} at ${reviewData.event_info.venue_name}`
+            : reviewData.event_info?.artist_name || 'Review'}
+          onReportSubmitted={() => {
+            setReportModalOpen(false);
+            toast({
+              title: "Review Reported",
+              description: "Thank you for reporting this review. We'll review it shortly.",
+            });
+          }}
         />
       )}
     </div>

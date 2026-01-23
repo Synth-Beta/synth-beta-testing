@@ -275,7 +275,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   }
 
   return (
-    <div 
+    <main 
       className="page-container" 
       style={{ 
         overflow: 'visible',
@@ -681,6 +681,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         isMobile={isMobile}
       />
 
-    </div>
+    </main>
   );
 };
