@@ -760,7 +760,13 @@ export const NotificationsPage = ({
                           {notification.title}
                         </h4>
                         {!notification.is_read && (
-                          <div className="w-2 h-2 gradient-badge rounded-full flex-shrink-0"></div>
+                          <div 
+                            className="w-2 h-2 rounded-full flex-shrink-0" 
+                            style={{
+                              background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 100%)',
+                              boxShadow: '0 2px 8px rgba(236, 72, 153, 0.3)'
+                            }}
+                          ></div>
                         )}
                       </div>
                       

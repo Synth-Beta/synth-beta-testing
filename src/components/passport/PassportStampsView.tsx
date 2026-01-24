@@ -63,9 +63,23 @@ export const PassportStampsView: React.FC<PassportStampsViewProps> = ({ stamps, 
     legendary: stamps.filter(s => s.rarity === 'legendary').length,
   };
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('PassportStampsView: Received props:', {
+      stampsCount: stamps.length,
+      achievementsCount: achievements.length,
+      loading,
+      stamps: stamps.slice(0, 3), // Log first 3 for debugging
+    });
+  }, [stamps, achievements, loading]);
+
   if (loading) {
     return <div className="text-center py-8 text-muted-foreground">Loading stamps...</div>;
   }
+
+  // Show different message if no stamps at all vs filtered out
+  const hasNoStamps = stamps.length === 0;
+  const hasStampsButFiltered = stamps.length > 0 && filteredStamps.length === 0;
 
   return (
     <div className="space-y-4">
@@ -142,9 +156,15 @@ export const PassportStampsView: React.FC<PassportStampsViewProps> = ({ stamps, 
             })}
           </div>
         )
-      ) : filteredStamps.length === 0 ? (
+      ) : hasNoStamps ? (
+        <div className="text-center py-8 text-muted-foreground">
+          <p className="mb-2">No stamps found.</p>
+          <p className="text-sm">Stamps are unlocked when you review events at venues, see artists, or visit cities.</p>
+        </div>
+      ) : hasStampsButFiltered ? (
         <div className="text-center py-8 text-muted-foreground">
           <p>No stamps found with selected filters.</p>
+          <p className="text-sm mt-2">Try adjusting your filters to see more stamps.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

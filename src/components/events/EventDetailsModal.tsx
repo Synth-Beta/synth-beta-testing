@@ -26,6 +26,8 @@ import {
   Building2
 } from 'lucide-react';
 import { EventCommentsModal } from './EventCommentsModal';
+import { EventShareModal } from './EventShareModal';
+import { EventInterestedUsersModal } from './EventInterestedUsersModal';
 import { ReportContentModal } from '../moderation/ReportContentModal';
 import { FriendsInterestedBadge } from '../social/FriendsInterestedBadge';
 import { TrendingBadge } from '../social/TrendingBadge';
@@ -143,6 +145,8 @@ export function EventDetailsModal({
   const [userWasThere, setUserWasThere] = useState<boolean | null>(null);
   const [attendanceCount, setAttendanceCount] = useState<number | null>(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [interestedModalOpen, setInterestedModalOpen] = useState(false);
   const { toast } = useToast();
   const { isCreator, isAdmin, isBusiness } = useAccountType();
 
@@ -1010,6 +1014,10 @@ export function EventDetailsModal({
   };
 
   if (!isOpen) return null;
+  const handleShareEvent = () => {
+    setShareModalOpen(true);
+  };
+  
 
   return (
     <>
@@ -1071,7 +1079,7 @@ export function EventDetailsModal({
         
         {/* Share button */}
         <button
-          onClick={() => {/* Share handler */}}
+          onClick={handleShareEvent}
           style={{
             ...iosIconButton,
             width: 44,
@@ -1082,7 +1090,7 @@ export function EventDetailsModal({
           aria-label="Share event"
           type="button"
         >
-          <Share2 size={20} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+          <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
         </button>
       </div>
 
@@ -1100,84 +1108,93 @@ export function EventDetailsModal({
           {actualEvent.title}
         </h2>
         {/* Action buttons row */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {isUpcomingEvent && onInterestToggle && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      console.log('Interest button clicked', { currentState: localIsInterested, eventId: actualEvent?.id });
-                      const newInterestState = !localIsInterested;
-                      
-                      // Update local state immediately for instant UI feedback
-                      setLocalIsInterested(newInterestState);
-                      
-                      // 🎯 TRACK: Interest toggle with event metadata
-                      try {
-                        const { getEventMetadata } = await import('@/utils/entityUuidResolver');
-                        trackInteraction.interest(
-                          'event',
-                          actualEvent.id,
-                          newInterestState,
-                          {
-                            ...getEventMetadata(actualEvent),
-                            source: 'event_modal_interest_button'
-                          },
-                          actualEvent.id
-                        );
-                      } catch (error) {
-                        console.error('Error tracking interest toggle:', error);
-                      }
-                      
-                      // 🎯 TRACK: Promotion interaction for interest toggle
-                      if (newInterestState) {
-                        // User is expressing interest - this is a conversion
-                        PromotionTrackingService.trackPromotionInteraction(
-                          actualEvent.id,
-                          currentUserId || '',
-                          'conversion',
-                          {
-                            source: 'event_modal_interest_button',
-                            action: 'interested'
-                          }
-                        );
-                      }
-                      
-                      // Call the original handler
-                      try {
-                        await onInterestToggle?.(actualEvent.id, newInterestState);
-                      } catch (error) {
-                        // Revert local state if there was an error
-                        console.error('Error toggling interest:', error);
-                        setLocalIsInterested(!newInterestState);
-                      }
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '10px 18px',
-                      fontSize: 15,
-                      fontWeight: 600,
-                      borderRadius: 12,
-                      border: localIsInterested ? 'none' : '1.5px solid var(--brand-pink-500)',
-                      background: localIsInterested 
-                        ? 'var(--brand-pink-500)' 
-                        : 'rgba(255, 255, 255, 0.8)',
-                      backdropFilter: 'blur(20px)',
-                      WebkitBackdropFilter: 'blur(20px)',
-                      color: localIsInterested ? '#fff' : 'var(--brand-pink-500)',
-                      cursor: 'pointer',
-                      transition: `all ${animations.standardDuration} ${animations.springTiming}`,
-                      boxShadow: localIsInterested 
-                        ? '0 4px 12px rgba(204, 36, 134, 0.3)' 
-                        : '0 2px 8px rgba(0, 0, 0, 0.08)',
-                    }}
-                  >
-                    <Heart size={18} fill={localIsInterested ? '#fff' : 'none'} />
-                    {localIsInterested ? 'Interested' : "I'm Interested"}
-                  </button>
-                )}
+        <div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+          {isUpcomingEvent && onInterestToggle && (
+  <Button
+    type="button"
+    variant="secondary"
+    size="sm"
+    aria-pressed={localIsInterested}
+    onClick={async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const newInterestState = !localIsInterested;
+
+      // Immediate UI feedback
+      setLocalIsInterested(newInterestState);
+
+      // Tracking stays the same
+      try {
+        const { getEventMetadata } = await import('@/utils/entityUuidResolver');
+        trackInteraction.interest(
+          'event',
+          actualEvent.id,
+          newInterestState,
+          {
+            ...getEventMetadata(actualEvent),
+            source: 'event_modal_interest_button'
+          },
+          actualEvent.id
+        );
+      } catch (error) {
+        console.error('Error tracking interest toggle:', error);
+      }
+
+      if (newInterestState) {
+        PromotionTrackingService.trackPromotionInteraction(
+          actualEvent.id,
+          currentUserId || '',
+          'conversion',
+          {
+            source: 'event_modal_interest_button',
+            action: 'interested'
+          }
+        );
+      }
+
+      try {
+        await onInterestToggle?.(actualEvent.id, newInterestState);
+      } catch (error) {
+        console.error('Error toggling interest:', error);
+        setLocalIsInterested(!newInterestState);
+      }
+    }}
+    style={{
+      height: 'var(--size-button-height, 36px)',
+      paddingLeft: 'var(--spacing-small, 12px)',
+      paddingRight: 'var(--spacing-small, 12px)',
+      borderRadius: 'var(--radius-corner, 10px)',
+      fontFamily: 'var(--font-family)',
+      fontSize: 'var(--typography-meta-size, 16px)',
+      fontWeight: 'var(--typography-meta-weight, 500)',
+      lineHeight: 'var(--typography-meta-line-height, 1.5)',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 'var(--spacing-inline, 6px)',
+      border: localIsInterested ? 'none' : '1.5px solid var(--brand-pink-500)',
+      background: localIsInterested ? 'var(--brand-pink-500)' : 'rgba(255, 255, 255, 0.8)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      boxShadow: '0 4px 4px 0 var(--shadow-color)',
+      transition: `all ${animations.standardDuration} ${animations.springTiming}`,
+    }}
+    className={localIsInterested ? 'event-interested-button' : ''}
+  >
+    <Heart size={24} fill={localIsInterested ? 'var(--neutral-0)' : 'none'} color={localIsInterested ? 'var(--neutral-0)' : 'var(--brand-pink-500)'} aria-hidden="true" />
+    <span style={{ 
+      color: localIsInterested ? 'var(--neutral-0)' : 'inherit',
+      fontFamily: 'var(--font-family)',
+      fontSize: 'var(--typography-meta-size, 16px)',
+      fontWeight: 'var(--typography-meta-weight, 500)',
+      lineHeight: 'var(--typography-meta-line-height, 1.5)'
+    }}>
+      {localIsInterested ? 'Interested' : "I'm Interested"}
+    </span>
+  </Button>
+)}
+
                 <Button
                   type="button"
                   variant="secondary"
@@ -1212,8 +1229,8 @@ export function EventDetailsModal({
                     position: 'relative'
                   }}
                 >
-                  <Flag size={16} style={{ color: 'var(--brand-pink-500)' }} />
-                  <span>Report</span>
+                  <Flag size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                  Report
                 </Button>
               </div>
           {/* Date/Time/Price Info Card - Glassmorphism */}
@@ -1236,7 +1253,7 @@ export function EventDetailsModal({
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Calendar size={18} style={{ color: 'var(--brand-pink-500)' }} />
+                  <Calendar size={24} style={{ color: 'var(--brand-pink-500)' }} />
                 </div>
                 <div>
                   <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
@@ -1256,7 +1273,7 @@ export function EventDetailsModal({
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Clock size={18} style={{ color: 'var(--brand-pink-500)' }} />
+                  <Clock size={24} style={{ color: 'var(--brand-pink-500)' }} />
                 </div>
                 <div>
                   <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
@@ -1300,7 +1317,7 @@ export function EventDetailsModal({
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}>
-                        <Ticket size={18} style={{ color: 'var(--brand-pink-500)' }} />
+                        <Ticket size={24} style={{ color: 'var(--brand-pink-500)' }} />
                       </div>
                       <div>
                         <span style={{ ...textStyles.callout, fontWeight: 600, color: 'var(--neutral-900)' }}>
@@ -1355,7 +1372,7 @@ export function EventDetailsModal({
                   cursor: 'pointer',
                 }}
               >
-                <X size={16} />
+                <X size={24} />
                 Remove Interest
               </button>
             )}
@@ -1368,7 +1385,10 @@ export function EventDetailsModal({
 {/* Past Event badge removed per user request */}
 {/* Upcoming badge removed per user request */}
             <TrendingBadge eventId={actualEvent.id} />
-            <FriendsInterestedBadge eventId={actualEvent.id} />
+            <FriendsInterestedBadge
+              eventId={actualEvent.id}
+              onClick={() => setInterestedModalOpen(true)}
+            />
             <PopularityIndicator interestedCount={interestedCount || 0} attendanceCount={attendanceCount || 0} />
           </div>
 
@@ -1564,7 +1584,7 @@ export function EventDetailsModal({
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.5px',
                               }}>
-                                {reviewType === 'artist' ? <Music size={10} /> : <Building2 size={10} />}
+                                {reviewType === 'artist' ? <Music size={24} /> : <Building2 size={24} />}
                                 {reviewType === 'artist' ? 'Artist Review' : 'Venue Review'}
                               </div>
                             )}
@@ -1580,7 +1600,7 @@ export function EventDetailsModal({
                               fontSize: 14,
                               fontWeight: 600,
                             }}>
-                              {reviewType === 'artist' ? <Music size={14} /> : reviewType === 'venue' ? <Building2 size={14} /> : <Star size={14} fill="#fff" />}
+                              {reviewType === 'artist' ? <Music size={24} /> : reviewType === 'venue' ? <Building2 size={24} /> : <Star size={24} fill="#fff" />}
                               {(reviewType === 'artist' ? (artistPerfRating || review.rating) : reviewType === 'venue' ? (venueRating || review.rating) : review.rating)?.toFixed(1) || 'N/A'}
                             </div>
                             {/* Secondary: Location Rating for venue reviews */}
@@ -1725,7 +1745,7 @@ export function EventDetailsModal({
                   setShowBuddyFinder(false);
                 }}
               >
-                <Users size={16} style={{ marginRight: 'var(--spacing-inline, 6px)', color: showGroups ? 'var(--neutral-50)' : undefined }} />
+                <Users size={24} style={{ marginRight: 'var(--spacing-inline, 6px)', color: showGroups ? 'var(--neutral-50)' : undefined }} />
                 <span style={{ color: showGroups ? 'var(--neutral-50)' : undefined }}>Groups ({eventGroups.length + (verifiedChatInfo?.chat_id ? 1 : 0)})</span>
               </Button>
               {isUpcomingEvent && (
@@ -1858,7 +1878,7 @@ export function EventDetailsModal({
                           className="flex items-center gap-1"
                         >
                           <span>View on setlist.fm</span>
-                          <ExternalLink size={16} />
+                          <ExternalLink size={24} />
                         </a>
                       </Button>
                     )}
@@ -2158,6 +2178,9 @@ export function EventDetailsModal({
                         currentUserId={currentUserId}
                         onChatOpen={(chatId) => {
                           console.log('🟢 EventDetailsModal: Chat opened, navigating to chat:', chatId);
+                          // Close the event modal first
+                          onClose();
+                          // Then navigate to the chat
                           if (onNavigateToChat) {
                             onNavigateToChat(chatId);
                           } else {
@@ -2370,6 +2393,26 @@ export function EventDetailsModal({
         onClose={() => setVenueModalOpen(false)}
         venueId={actualEvent.venue_id}
         venueName={actualEvent.venue_name}
+        currentUserId={currentUserId}
+      />
+    )}
+
+    {/* Event Share Modal */}
+    {actualEvent && (
+      <EventShareModal
+        event={actualEvent}
+        currentUserId={currentUserId}
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+      />
+    )}
+
+    {/* Interested Users Modal */}
+    {actualEvent && (
+      <EventInterestedUsersModal
+        isOpen={interestedModalOpen}
+        onClose={() => setInterestedModalOpen(false)}
+        eventId={actualEvent.id}
         currentUserId={currentUserId}
       />
     )}

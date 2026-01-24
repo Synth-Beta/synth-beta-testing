@@ -4,7 +4,7 @@
  * Styles for MobileHeader component using design tokens.
  */
 
-.mobile-header {
+ .mobile-header {
   position: fixed;
   /* Position below onboarding banner if present (approximately 60px height) */
   /* Note: OnboardingReminderBanner already accounts for safe-area-inset-top in its paddingTop,
@@ -92,11 +92,11 @@
   border-radius: var(--radius-corner, 10px);
 }
 
-.mobile-header__left-button-inline {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+.mobile-header__left-button {
+  position: absolute;
+  left: var(--spacing-screen-margin-x, 20px);
+  width: var(--size-input-height, 44px);
+  height: var(--size-input-height, 44px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -107,17 +107,16 @@
   margin: 0;
   -webkit-tap-highlight-color: transparent;
   line-height: 0;
-  flex-shrink: 0;
 }
 
-.mobile-header__left-button-inline > * {
+.mobile-header__left-button > * {
   margin: 0;
   padding: 0;
   display: block;
   flex-shrink: 0;
 }
 
-.mobile-header__left-button-inline:focus-visible {
+.mobile-header__left-button:focus-visible {
   outline: 2px solid var(--brand-pink-500);
   outline-offset: 2px;
   border-radius: var(--radius-corner, 10px);

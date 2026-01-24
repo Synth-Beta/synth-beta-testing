@@ -140,9 +140,14 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
   // Sort timeline - must be called before early returns (hooks rule)
   const sortedTimeline = useMemo(() => {
     return [...timeline].sort((a, b) => {
+      // Pinned items always come first
       if (a.is_pinned && !b.is_pinned) return -1;
       if (!a.is_pinned && b.is_pinned) return 1;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      
+      // Sort by event date (most recent first), fallback to created_at if Event_date is not available
+      const dateA = a.review?.Event_date ? new Date(a.review.Event_date) : new Date(a.created_at);
+      const dateB = b.review?.Event_date ? new Date(b.review.Event_date) : new Date(b.created_at);
+      return dateB.getTime() - dateA.getTime();
     });
   }, [timeline]);
 

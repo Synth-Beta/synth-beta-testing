@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Star, ThumbsUp, MessageCircle, Share2, Edit, Trash2, MapPin, ChevronLeft } from 'lucide-react';
+import { Star, ThumbsUp, MessageCircle, Share2, Edit, Trash2, MapPin, ChevronLeft, Music2, Lightbulb, Building2, Compass, DollarSign } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';

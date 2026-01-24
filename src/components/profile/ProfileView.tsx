@@ -54,6 +54,9 @@ import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import { UserInfo } from './UserInfo';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
 import { MobileHeader } from '@/components/Header/MobileHeader';
+import instagramLogo from '@/assets/icons/Instagram_Logo.svg';
+import appleMusicLogo from '@/assets/icons/Apple-Music-Logo.svg';
+import spotifyLogo from '@/assets/icons/Spotify-Logo.svg';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -183,6 +186,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     artists: 0,
     scenes: 0,
   });
+  const [passportRefreshTrigger, setPassportRefreshTrigger] = useState(0);
   const { toast } = useToast();
   const { user, sessionExpired } = useAuth();
   const navigate = useNavigate();
@@ -1240,7 +1244,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         
         console.log(`✅ ProfileView: Deletion complete - ${successfulDeletions} successful, ${failedDeletions.length} failed`);
       }
-      
+       
       // Step 3: Use only the drafts we kept (deleted drafts are already excluded)
       const validDrafts = draftsToKeep;
       
@@ -1748,15 +1752,44 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           )}
         </div>
       )}
-      <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
-        {/* Profile Header */}
-        <div 
-          className="mb-6 relative w-full max-w-full" 
-          style={{ 
-            padding: 'var(--spacing-grouped, 24px) 0',
-            border: 'none'
+<div style={{ position: 'relative' }}>
+<div
+    aria-hidden="true"
+    style={{
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      width: '100vw',
+      backgroundColor: 'var(--neutral-050)',
+      zIndex: 0
+    }}
+  />
+        <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
+          {/* Profile Card */}
+        <Card 
+          className="w-full max-w-full mb-[60px] swift-ui-card"
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            borderRadius: 'var(--radius-corner, 10px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 4px 4px 0 var(--shadow-color)',
+            paddingTop: '24px',
+            paddingBottom: '24px',
+            paddingLeft: 0,
+            paddingRight: 0,
           }}
         >
+          <CardContent className="w-full max-w-full" style={{ padding: '0 var(--spacing-grouped, 24px)' }}>
+            {/* Profile Header */}
+            <div 
+              className="relative w-full max-w-full" 
+              style={{ 
+                padding: 0
+              }}
+            >
           {/* Main Profile Row */}
           <div className="flex flex-col items-start gap-4 mb-4 w-full max-w-full">
             {/* UserInfo with userProfile variant */}
@@ -1781,14 +1814,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                       </Badge>
                     ) : undefined}
                   />
-              {/* Online status indicator */}
-              {!isViewingOwnProfile && profile.last_active_at && (
-                    <div className="absolute bottom-0 left-0 w-6 h-6 rounded-full border-2" style={{ backgroundColor: 'var(--status-success-500)', borderColor: 'var(--neutral-50)' }}>
-                      <div className="w-full h-full flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--neutral-50)' }}></div>
-                </div>
-            </div>
-              )}
 
             </div>
                 {/* Verification Badge - positioned next to name */}
@@ -1808,7 +1833,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             <div className="w-full max-w-full">
               
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-2 w-full max-w-full">
+              <div className="flex items-center w-full max-w-full" style={{ gap: '6px' }}>
                 {isViewingOwnProfile ? (
                   <>
                     <Button 
@@ -1825,7 +1850,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                         fontWeight: 'var(--typography-meta-weight, 500)',
                         lineHeight: 'var(--typography-meta-line-height, 1.5)',
                         boxShadow: '0 4px 4px 0 var(--shadow-color)',
-                        border: 'none'
+                        border: 'none',
+                        flex: 1,
+                        minWidth: 0,
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
@@ -1857,7 +1884,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     </Button>
                   </>
                 ) : (
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center w-full" style={{ gap: '6px' }}>
                     {friendStatus === 'none' && (
                       <Button 
                         onClick={sendFriendRequest} 
@@ -1873,7 +1900,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                           fontWeight: 'var(--typography-meta-weight, 500)',
                           lineHeight: 'var(--typography-meta-line-height, 1.5)',
                           borderColor: 'var(--neutral-200)',
-                          borderWidth: '1px'
+                          borderWidth: '1px',
+                          flex: 1,
+                          minWidth: 0,
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.borderColor = 'var(--neutral-200)';
@@ -1899,7 +1928,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                           fontFamily: 'var(--font-family)',
                           fontSize: 'var(--typography-meta-size, 16px)',
                           fontWeight: 'var(--typography-meta-weight, 500)',
-                          lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          flex: 1,
+                          minWidth: 0,
                         }}>
                           Friend Request Sent
                         </Button>
@@ -1949,7 +1980,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                           borderColor: 'var(--info-blue-500)',
                           color: 'var(--info-blue-500)',
                           backgroundColor: 'var(--state-disabled-bg)',
-                          cursor: 'not-allowed'
+                          cursor: 'not-allowed',
+                          flex: 1,
+                          minWidth: 0,
                         }}
                         aria-label="Friend request already sent"
                         aria-disabled="true"
@@ -1970,7 +2003,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                           fontSize: 'var(--typography-meta-size, 16px)',
                           fontWeight: 'var(--typography-meta-weight, 500)',
                           lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                          boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                          boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                          flex: 1,
+                          minWidth: 0,
                         }}
                         aria-label="Unfriend user"
                       >
@@ -1998,9 +2033,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                           fontSize: 'var(--typography-meta-size, 16px)',
                           fontWeight: 'var(--typography-meta-weight, 500)',
                           lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                          marginLeft: '6px',
                           borderColor: 'var(--neutral-200)',
-                          borderWidth: '1px'
+                          borderWidth: '1px',
+                          flex: 1,
+                          minWidth: 0,
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.borderColor = 'var(--neutral-200)';
@@ -2025,7 +2061,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           <div style={{ paddingTop: 'var(--spacing-grouped, 24px)' }}>
             {profile.bio && (
               <div className="mb-4">
-                <p className="leading-relaxed" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>{profile.bio}</p>
+                <p className="leading-relaxed" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-900)' }}>{profile.bio}</p>
               </div>
             )}
 
@@ -2033,73 +2069,86 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             <div className="flex flex-wrap gap-3">
               {profile.instagram_handle && (
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="secondary"
+                  size="icon"
                   onClick={() => window.open(`https://instagram.com/${profile.instagram_handle}`, '_blank')}
                   style={{
-                    borderColor: 'var(--neutral-200)',
-                    color: 'var(--neutral-900)'
+                    width: '44px',
+                    height: '44px',
+                    border: '2px solid var(--neutral-200)',
+                    backgroundColor: 'var(--neutral-50)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0
                   }}
+                  aria-label={`Instagram: @${profile.instagram_handle}`}
                 >
-                  <Instagram size={16} className="mr-2" />
-                  @{profile.instagram_handle}
+                  <img src={instagramLogo} alt="Instagram" width={24} height={24} />
                 </Button>
               )}
               
-              {/* Show streaming profile link only if viewing someone else's profile */}
-              {!isViewingOwnProfile && profile.music_streaming_profile && (() => {
+              {/* Show streaming profile link */}
+              {profile.music_streaming_profile && (() => {
                 const serviceType = detectStreamingServiceType(profile.music_streaming_profile);
                 const isSpotify = serviceType === 'spotify';
                 const isAppleMusic = serviceType === 'apple-music';
                 
                 let href = profile.music_streaming_profile;
-                let displayText = profile.music_streaming_profile;
+                let ariaLabel = 'Music streaming profile';
                 
                 if (isSpotify) {
                   href = profile.music_streaming_profile.startsWith('http') 
                     ? profile.music_streaming_profile 
                     : `https://open.spotify.com/user/${profile.music_streaming_profile}`;
-                  displayText = 'Spotify Profile';
+                  ariaLabel = 'Spotify Profile';
                 } else if (isAppleMusic) {
                   href = profile.music_streaming_profile.startsWith('http') 
                     ? profile.music_streaming_profile 
                     : profile.music_streaming_profile;
-                  displayText = 'Apple Music Profile';
+                  ariaLabel = 'Apple Music Profile';
+                } else {
+                  ariaLabel = 'Music Streaming Profile';
                 }
                 
                 return (
                   <Button
-                    variant="outline"
+                    variant="secondary"
+                    size="icon"
                     onClick={() => window.open(href, '_blank')}
                     style={{
-                      height: 'var(--size-button-height, 36px)',
-                      paddingLeft: 'var(--spacing-small, 12px)',
-                      paddingRight: 'var(--spacing-small, 12px)',
-                      borderColor: 'var(--neutral-200)',
-                      color: 'var(--neutral-900)',
-                      fontFamily: 'var(--font-family)',
-                      fontSize: 'var(--typography-meta-size, 16px)',
-                      fontWeight: 'var(--typography-meta-weight, 500)',
-                      lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                      width: '44px',
+                      height: '44px',
+                      border: '2px solid var(--neutral-200)',
+                      backgroundColor: 'var(--neutral-50)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 0
                     }}
+                    aria-label={ariaLabel}
                   >
-                    <Music size={16} style={{ marginRight: 'var(--spacing-inline, 6px)' }} />
-                    {displayText}
+                    {isSpotify ? (
+                      <img src={spotifyLogo} alt="Spotify" width={24} height={24} />
+                    ) : isAppleMusic ? (
+                      <img src={appleMusicLogo} alt="Apple Music" width={24} height={24} />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--neutral-900)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-list-music" style={{ width: '24px', height: '24px', flexShrink: 0 }}>
+                        <path d="M16 5H3"/>
+                        <path d="M11 12H3"/>
+                        <path d="M11 19H3"/>
+                        <path d="M21 16V5"/>
+                        <circle cx="18" cy="16" r="3"/>
+                      </svg>
+                    )}
                   </Button>
                 );
               })()}
             </div>
-            <div
-              aria-hidden="true"
-              style={{
-                height: '1px',
-                backgroundColor: 'var(--neutral-200)',
-                width: '100%',
-                marginTop: 'var(--spacing-grouped, 24px)'
-              }}
-            />
           </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Drafts summary card – visible only on own profile when drafts exist */}
         {isViewingOwnProfile && !draftReviewsLoading && Array.isArray(draftReviews) && draftReviews.length > 0 && (
@@ -2110,8 +2159,11 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             />
           </div>
         )}
+        </div>
+      </div>
 
-        {/* Instagram-style Content Tabs */}
+      {/* Instagram-style Content Tabs */}
+      <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
         <Tabs value={activeTab} onValueChange={(tab) => {
           // Track profile tab switch
           try {
@@ -3081,6 +3133,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 userName={profile?.name || undefined}
                 inline={true}
                 isOwnProfile={isViewingOwnProfile}
+                refreshTrigger={passportRefreshTrigger}
               />
             ) : (
               <div className="text-center py-8 text-muted-foreground">

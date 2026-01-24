@@ -574,7 +574,25 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                     ? (results.users.length > 0 || results.artists.length > 0 || results.events.length > 0 || results.venues.length > 0)
                     : activeResults.length > 0) && (
                     <div className="space-y-4">
-                      {key === 'all' && <AllResults results={results} onNavigateToProfile={_onNavigateToProfile} onEventClick={onEventClick} onTabChange={setActiveTab} debouncedQuery={debouncedQuery} />}
+                      {key === 'all' && (
+                        <AllResults 
+                          results={results} 
+                          onNavigateToProfile={_onNavigateToProfile} 
+                          onEventClick={onEventClick} 
+                          onTabChange={setActiveTab} 
+                          debouncedQuery={debouncedQuery}
+                          onArtistClick={(artistId, artistName) => {
+                            setSelectedArtistId(artistId);
+                            setSelectedArtistName(artistName);
+                            setArtistModalOpen(true);
+                          }}
+                          onVenueClick={(venueId, venueName) => {
+                            setSelectedVenueId(venueId);
+                            setSelectedVenueName(venueName);
+                            setVenueModalOpen(true);
+                          }}
+                        />
+                      )}
                       {key === 'users' && (
                         <>
                           <UserResults results={results.users} onNavigateToProfile={_onNavigateToProfile} />
@@ -603,7 +621,14 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                       )}
                       {key === 'artists' && (
                         <>
-                          <ArtistResults results={results.artists} />
+                          <ArtistResults 
+                            results={results.artists}
+                            onArtistClick={(artistId, artistName) => {
+                              setSelectedArtistId(artistId);
+                              setSelectedArtistName(artistName);
+                              setArtistModalOpen(true);
+                            }}
+                          />
                           {pagination.artists.hasMore && (
                             <div className="flex justify-center pt-4">
                               <Button
@@ -655,7 +680,14 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                       )}
                       {key === 'venues' && (
                         <>
-                          <VenueResults results={results.venues} />
+                          <VenueResults 
+                            results={results.venues}
+                            onVenueClick={(venueId, venueName) => {
+                              setSelectedVenueId(venueId);
+                              setSelectedVenueName(venueName);
+                              setVenueModalOpen(true);
+                            }}
+                          />
                           {pagination.venues.hasMore && (
                             <div className="flex justify-center pt-4">
                               <Button
@@ -882,7 +914,10 @@ const UserResults: React.FC<{
     ))}
   </>
 );
-const ArtistResults: React.FC<{ results: ArtistSearchResult[] }> = ({ results }) => {
+const ArtistResults: React.FC<{ 
+  results: ArtistSearchResult[];
+  onArtistClick: (artistId: string, artistName: string) => void;
+}> = ({ results, onArtistClick }) => {
   const navigate = useNavigate();
   // Track if touch event was handled to prevent onClick from firing
   const touchHandledRef = useRef<{ [key: string]: boolean }>({});
@@ -909,9 +944,7 @@ const ArtistResults: React.FC<{ results: ArtistSearchResult[] }> = ({ results })
               touchHandledRef.current[artist.id] = false;
               return;
             }
-            setSelectedArtistId(artist.id);
-            setSelectedArtistName(artist.name);
-            setArtistModalOpen(true);
+            onArtistClick(artist.id, artist.name);
           }}
           onTouchEnd={(e) => {
             // Ensure touch events work on mobile
@@ -919,9 +952,7 @@ const ArtistResults: React.FC<{ results: ArtistSearchResult[] }> = ({ results })
             e.stopPropagation();
             // Mark as handled to prevent onClick from firing
             touchHandledRef.current[artist.id] = true;
-            setSelectedArtistId(artist.id);
-            setSelectedArtistName(artist.name);
-            setArtistModalOpen(true);
+            onArtistClick(artist.id, artist.name);
             // Reset after a short delay to allow for potential onClick cancellation
             setTimeout(() => {
               touchHandledRef.current[artist.id] = false;
@@ -1107,7 +1138,10 @@ const EventResults: React.FC<{ results: EventSearchResult[]; onEventClick?: (eve
   );
 };
 
-const VenueResults: React.FC<{ results: VenueSearchResult[] }> = ({ results }) => {
+const VenueResults: React.FC<{ 
+  results: VenueSearchResult[];
+  onVenueClick: (venueId: string, venueName: string) => void;
+}> = ({ results, onVenueClick }) => {
   const navigate = useNavigate();
   // Track if touch event was handled to prevent onClick from firing
   const touchHandledRef = useRef<{ [key: string]: boolean }>({});
@@ -1123,9 +1157,7 @@ const VenueResults: React.FC<{ results: VenueSearchResult[] }> = ({ results }) =
               touchHandledRef.current[venue.id] = false;
               return;
             }
-            setSelectedVenueId(venue.id);
-            setSelectedVenueName(venue.name);
-            setVenueModalOpen(true);
+            onVenueClick(venue.id, venue.name);
           }}
           onTouchEnd={(e) => {
             // Ensure touch events work on mobile - use onTouchEnd for consistency with other result types
@@ -1133,9 +1165,7 @@ const VenueResults: React.FC<{ results: VenueSearchResult[] }> = ({ results }) =
             e.stopPropagation();
             // Mark as handled to prevent onClick from firing
             touchHandledRef.current[venue.id] = true;
-            setSelectedVenueId(venue.id);
-            setSelectedVenueName(venue.name);
-            setVenueModalOpen(true);
+            onVenueClick(venue.id, venue.name);
             // Reset after a short delay to allow for potential onClick cancellation
             setTimeout(() => {
               touchHandledRef.current[venue.id] = false;
@@ -1186,7 +1216,11 @@ const AllResults: React.FC<{
   onNavigateToProfile?: (userId: string) => void;
   onEventClick?: (event: EventSearchResult) => void;
   onTabChange: (tab: TabKey) => void;
-}> = ({ results, onNavigateToProfile, onEventClick, onTabChange }) => {
+  debouncedQuery?: string;
+  onArtistClick?: (artistId: string, artistName: string) => void;
+  onVenueClick?: (venueId: string, venueName: string) => void;
+}> = ({ results, onNavigateToProfile, onEventClick, onTabChange, debouncedQuery, onArtistClick, onVenueClick }) => {
+  const touchHandledRef = useRef<{ [key: string]: boolean }>({});
   const totalCount = results.users.length + results.artists.length + results.events.length + results.venues.length;
   
   return (
@@ -1320,7 +1354,13 @@ const AllResults: React.FC<{
               <Card 
                 key={artist.id} 
                 className="hover:shadow-sm transition-shadow cursor-pointer"
-                onClick={() => onTabChange('artists')}
+                onClick={() => {
+                  if (onArtistClick) {
+                    onArtistClick(artist.id, artist.name);
+                  } else {
+                    onTabChange('artists');
+                  }
+                }}
               >
                 <CardContent className="p-3 flex items-center gap-3">
                   <div className="flex-shrink-0">
@@ -1422,7 +1462,13 @@ const AllResults: React.FC<{
               <Card 
                 key={venue.id} 
                 className="hover:shadow-sm transition-shadow cursor-pointer"
-                onClick={() => onTabChange('venues')}
+                onClick={() => {
+                  if (onVenueClick) {
+                    onVenueClick(venue.id, venue.name);
+                  } else {
+                    onTabChange('venues');
+                  }
+                }}
               >
                 <CardContent className="p-3 flex items-center gap-3">
                   <div className="flex-shrink-0">

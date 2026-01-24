@@ -793,6 +793,14 @@
     transform: scale(0.98);
   }
   
+  .event-interested-button.btn-synth-secondary {
+    color: var(--neutral-0) !important;
+  }
+  
+  .event-interested-button.btn-synth-secondary svg {
+    color: var(--neutral-0) !important;
+  }
+  
   .btn-synth-secondary:disabled {
     background-color: var(--neutral-50);
     border-color: var(--state-disabled-bg);

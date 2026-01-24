@@ -2385,13 +2385,37 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                     paddingRight: 'var(--spacing-screen-margin-x, 20px)'
                   }}
                 >
+                  <style>{`
+                    #chat-message-input-container {
+                      border-color: rgba(236, 72, 153, 0.2) !important;
+                      border-width: 2px !important;
+                    }
+                    #chat-message-input {
+                      outline: none !important;
+                      box-shadow: none !important;
+                      border: none !important;
+                      height: 44px !important;
+                      min-height: 44px !important;
+                      max-height: 44px !important;
+                    }
+                    #chat-message-input:focus {
+                      outline: none !important;
+                      box-shadow: none !important;
+                      border: none !important;
+                      height: 44px !important;
+                      min-height: 44px !important;
+                      max-height: 44px !important;
+                    }
+                  `}</style>
                   <div 
+                    id="chat-message-input-container"
                     className="border-2 rounded-[10px] flex items-center justify-between h-[44px] pl-5 pr-[1px]" 
                     style={{ 
                       backgroundColor: 'rgba(255, 255, 255, 0.9)',
                       backdropFilter: 'blur(20px)',
                       WebkitBackdropFilter: 'blur(20px)',
                       borderColor: 'rgba(236, 72, 153, 0.2)',
+                      borderWidth: '2px',
                       boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
                     }}
                   >
@@ -2400,8 +2424,19 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
                     onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                    className="bg-transparent border-0 flex-1 h-full text-[16px] px-0 synth-focus"
-                    style={{ color: 'var(--neutral-900)' }}
+                    className="bg-transparent border-0 flex-1 text-[16px] px-0"
+                    style={{ 
+                      color: 'var(--neutral-900)',
+                      height: '44px',
+                      minHeight: '44px',
+                      maxHeight: '44px',
+                      outline: 'none',
+                      boxShadow: 'none'
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.outline = 'none';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                     id="chat-message-input"
                     aria-label="Type a message"
                     aria-describedby="chat-send-button"
