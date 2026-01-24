@@ -48,6 +48,11 @@ export interface UserInfoProps {
   onFollowersClick?: () => void;
   onFollowingClick?: () => void;
   onEventsClick?: () => void;
+
+  /**
+   * Optional custom content to show instead of username (e.g., activity pill).
+   */
+  customSubtitle?: React.ReactNode;
 }
 
 export const UserInfo: React.FC<UserInfoProps> = ({
@@ -63,6 +68,7 @@ export const UserInfo: React.FC<UserInfoProps> = ({
   onEventsClick,
   imageUrl,
   className,
+  customSubtitle,
 }) => {
   // Determine avatar configuration based on variant
   let pictureSize: 32 | 45 | 75 = 45;
@@ -114,8 +120,10 @@ export const UserInfo: React.FC<UserInfoProps> = ({
         {/* Show only the name - username is shown in header */}
         <p className="user-info__name">{name}</p>
 
-        {/* Conditionally show username if showUsername is true (for backwards compatibility) */}
-        {showUsername && (
+        {/* Show custom subtitle if provided, otherwise show username */}
+        {customSubtitle ? (
+          <div className="user-info__subtitle">{customSubtitle}</div>
+        ) : showUsername && (
           <p className="user-info__username">@{username}</p>
         )}
 

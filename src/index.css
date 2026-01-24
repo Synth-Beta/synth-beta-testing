@@ -1400,13 +1400,10 @@
   .swift-ui-feed {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-grouped, 24px);
-    padding: var(--spacing-screen-margin-x, 20px);
-    padding-bottom: var(--spacing-bottom-nav, 32px);
+    gap: 0;
+    padding-left: var(--spacing-screen-margin-x, 20px);
+    padding-right: var(--spacing-screen-margin-x, 20px);
     width: 100%;
-    height: calc(100vh - 280px);
-    min-height: 500px;
-    max-height: calc(100vh - 280px);
     overflow-y: auto !important;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -1419,12 +1416,12 @@
     will-change: scroll-position;
     position: relative;
     scroll-snap-type: y mandatory;
-    scroll-padding: var(--spacing-screen-margin-x, 20px);
+    scroll-padding-top: 12px;
+    scroll-padding-bottom: 12px;
   }
 
   .swift-ui-feed-item {
     width: 100%;
-    min-height: calc(100vh - 240px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1433,6 +1430,7 @@
     scroll-snap-stop: always;
     flex-shrink: 0;
     position: relative;
+    margin-bottom: 0;
   }
 
   .swift-ui-feed::before,

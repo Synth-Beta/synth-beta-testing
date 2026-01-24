@@ -62,6 +62,10 @@
   margin-top: 2px;
 }
 
+.user-info__subtitle {
+  margin-top: 2px;
+}
+
 /* Stats row for userProfile variant */
 .user-info__stats {
   display: flex;

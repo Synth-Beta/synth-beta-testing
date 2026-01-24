@@ -29,9 +29,24 @@ export interface MobileHeaderProps {
   onRightIconClick?: () => void;
   
   /**
+   * Custom right button element (replaces hamburger menu button entirely)
+   */
+  rightButton?: React.ReactNode;
+  
+  /**
    * Whether to align content to the left instead of center
    */
   alignLeft?: boolean;
+  
+  /**
+   * Custom icon name for the left button (e.g., "chevronLeft")
+   */
+  leftIcon?: string;
+  
+  /**
+   * Callback when left button is clicked (if leftIcon is provided)
+   */
+  onLeftIconClick?: () => void;
 }
 
 /**
@@ -57,31 +72,69 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
   rightIcon,
   onRightIconClick,
   alignLeft = false,
+  leftIcon,
+  onLeftIconClick,
+  rightButton,
 }) => {
   return (
     <header className="mobile-header" role="banner">
       <div className="mobile-header__container">
         {/* Content area - can be centered or left-aligned */}
-        <div className={alignLeft ? "mobile-header__left" : "mobile-header__center"}>
+        <div className={alignLeft ? "mobile-header__left" : "mobile-header__center"} style={leftIcon ? { 
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          paddingLeft: 'var(--spacing-screen-margin-x, 20px)'
+        } : undefined}>
+          {/* Left button - if provided, render inline with content */}
+          {leftIcon && onLeftIconClick && (
+            <button
+              className="mobile-header__left-button-inline"
+              onClick={onLeftIconClick}
+              aria-label="Back"
+              type="button"
+            >
+              <Icon name={leftIcon} size={35} alt="" color="var(--neutral-900)" />
+            </button>
+          )}
           {children}
         </div>
 
         {/* Right button - hamburger/X or custom icon */}
-        <button
-          className="mobile-header__menu-button"
-          onClick={rightIcon ? onRightIconClick : onMenuClick}
-          aria-label={rightIcon ? (rightIcon === "ellipsis" ? "More options" : "Menu") : (menuOpen ? "Close menu" : "Open menu")}
-          aria-expanded={menuOpen}
-          type="button"
-        >
-          {rightIcon ? (
-            <Icon name={rightIcon} size={24} alt="" color="var(--neutral-900)" />
-          ) : menuOpen ? (
-            <Icon name="x" size={24} alt="" color="var(--neutral-900)" />
-          ) : (
-            <Icon name="hamburgerMenu" size={24} alt="" color="var(--neutral-900)" />
-          )}
-        </button>
+        {rightButton ? (
+          rightButton
+        ) : !rightIcon ? (
+          <button
+            className="mobile-header__menu-button"
+            onClick={onMenuClick}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            type="button"
+          >
+            {menuOpen ? (
+              <Icon name="x" size={24} alt="" color="var(--neutral-900)" />
+            ) : (
+              <Icon name="hamburgerMenu" size={24} alt="" color="var(--neutral-900)" />
+            )}
+          </button>
+        ) : (
+          <button
+            className="mobile-header__menu-button"
+            onClick={onRightIconClick}
+            aria-label="More options"
+            type="button"
+          >
+            {rightIcon === 'ellipsisVertical' ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--neutral-900)' }}>
+                <circle cx="12" cy="12" r="1"/>
+                <circle cx="12" cy="5" r="1"/>
+                <circle cx="12" cy="19" r="1"/>
+              </svg>
+            ) : (
+              <Icon name={rightIcon} size={24} alt="" color="var(--neutral-900)" />
+            )}
+          </button>
+        )}
       </div>
     </header>
   );

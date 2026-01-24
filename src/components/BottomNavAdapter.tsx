@@ -9,6 +9,7 @@ interface BottomNavAdapterProps {
   currentView: 'feed' | 'search' | 'profile' | 'profile-edit' | 'analytics' | 'events' | 'chat' | 'notifications' | 'onboarding';
   onViewChange: (view: 'feed' | 'search' | 'profile' | 'analytics' | 'events' | 'chat') => void;
   onOpenEventReview?: () => void;
+  profileUserId?: string; // If provided and different from current user, don't mark profile as selected
 }
 
 /**
@@ -26,6 +27,7 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
   currentView,
   onViewChange,
   onOpenEventReview,
+  profileUserId,
 }) => {
   const { user } = useAuth();
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
@@ -91,7 +93,8 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
   const isHome = currentView === 'feed';
   const isDiscover = currentView === 'search';
   const isMessages = currentView === 'chat';
-  const isProfile = currentView === 'profile';
+  // Profile is only selected if we're on profile view AND viewing own profile (or no profileUserId specified)
+  const isProfile = currentView === 'profile' && (!profileUserId || profileUserId === user?.id);
 
   const handleNavClick = (onClick: () => void, isActive: boolean, skipReloadWhenActive?: boolean) => {
     if (isActive && !skipReloadWhenActive) {

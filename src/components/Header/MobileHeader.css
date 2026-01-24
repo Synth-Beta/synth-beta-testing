@@ -92,3 +92,33 @@
   border-radius: var(--radius-corner, 10px);
 }
 
+.mobile-header__left-button-inline {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+.mobile-header__left-button-inline > * {
+  margin: 0;
+  padding: 0;
+  display: block;
+  flex-shrink: 0;
+}
+
+.mobile-header__left-button-inline:focus-visible {
+  outline: 2px solid var(--brand-pink-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-corner, 10px);
+}

@@ -413,6 +413,21 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   const handleBack = () => {
+    // Check if we came from profile when in chat
+    if (currentView === 'chat') {
+      const chatFromProfile = sessionStorage.getItem('chatFromProfile');
+      const chatFromProfileUserId = sessionStorage.getItem('chatFromProfileUserId');
+      if (chatFromProfile === 'true' && chatFromProfileUserId) {
+        // Return to profile
+        sessionStorage.removeItem('chatFromProfile');
+        sessionStorage.removeItem('chatFromProfileUserId');
+        setProfileUserId(chatFromProfileUserId);
+        setCurrentView('profile');
+        setChatUserId(undefined);
+        return;
+      }
+    }
+    
     // Use browser history navigation if available, otherwise fallback to feed
     // This allows back button to return to previous screen instead of always going to feed
     if (window.history.length > 1) {
@@ -607,6 +622,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onNavigateToProfile={handleNavigateToProfile}
             onNavigateToChat={handleNavigateToChat}
             onNavigateToNotifications={handleNavigateToNotifications}
+            onNavigateToDiscover={profileUserId ? () => setCurrentView('search') : undefined}
             menuOpen={menuOpen}
             onMenuClick={handleMenuToggle}
             refreshTrigger={refreshTrigger}
@@ -774,6 +790,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           currentView={currentView}
           onViewChange={handleViewChange}
           onOpenEventReview={() => setShowEventReviewModal(true)}
+          profileUserId={profileUserId}
         />
       )}
       {!hideNavigation && !showMainNav && currentView !== 'profile-edit' && (currentView !== 'chat' || !isChatSelected) && (
@@ -781,6 +798,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           currentView={currentView}
           onViewChange={handleViewChange}
           onOpenEventReview={() => setShowEventReviewModal(true)}
+          profileUserId={profileUserId}
         />
       )}
 

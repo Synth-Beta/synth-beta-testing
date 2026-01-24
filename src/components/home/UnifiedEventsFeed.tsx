@@ -10,6 +10,7 @@ import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import type { PersonalizedFeedFilters } from '@/services/personalizedFeedService';
 import { useIntersectionTrackingList } from '@/hooks/useIntersectionTracking';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
+import { useViewportHeight } from '@/hooks/useViewportHeight';
 
 interface UnifiedEventItem {
   event_id: string;
@@ -54,6 +55,13 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
   const [followingArtists, setFollowingArtists] = useState<Set<string>>(new Set());
   const [followingVenues, setFollowingVenues] = useState<Set<string>>(new Set());
+
+  // Calculate available viewport height for cards
+  const { availableHeight } = useViewportHeight({
+    bottomNavHeight: 80,
+    topGap: 12,
+    bottomGap: 12,
+  });
 
   // Track event impressions using intersection observer
   const attachObserver = useIntersectionTrackingList(
@@ -600,7 +608,16 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
 
   return (
     <div className="swift-ui-feed-container">
-      <div className="swift-ui-feed" ref={feedRef}>
+      <div 
+        className="swift-ui-feed" 
+        ref={feedRef}
+        style={{
+          height: availableHeight > 0 ? `${availableHeight}px` : undefined,
+          maxHeight: availableHeight > 0 ? `${availableHeight}px` : undefined,
+          paddingTop: '12px',
+          paddingBottom: '12px',
+        }}
+      >
         {events.map((event, index) => {
           const imageUrl = getImageUrl(event);
           const isInterested = interestedEvents.has(event.event_id) || event.user_is_interested || false;
@@ -612,6 +629,10 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
               key={`${event.event_id}-${index}`} 
               className="swift-ui-feed-item"
               ref={(el) => attachObserver(el, event.event_id)}
+              style={{
+                minHeight: availableHeight > 0 ? `${availableHeight}px` : undefined,
+                maxHeight: availableHeight > 0 ? `${availableHeight}px` : undefined,
+              }}
             >
               <CompactEventCard
                 event={{
@@ -627,6 +648,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
                 reason={event.reason}
                 interestedCount={interestedCount}
                 isInterested={isInterested}
+                maxHeight={availableHeight > 0 ? availableHeight : undefined}
                 onInterestClick={(e) => handleInterestToggle(event.event_id, e)}
                 onShareClick={(e) => onShareClick?.(event, e)}
                 onClick={() => onEventClick?.(event.event_id)}
