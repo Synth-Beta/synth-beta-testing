@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +36,7 @@ import { useNavigate } from 'react-router-dom';
 import { UserVisibilityService } from '@/services/userVisibilityService';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { BlockUserModal } from '@/components/moderation/BlockUserModal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { FriendActivityFeed } from '@/components/social/FriendActivityFeed';
 import { WorkingConnectionBadge } from '../WorkingConnectionBadge';
 import { VerificationBadge } from '@/components/verification/VerificationBadge';
@@ -53,6 +54,9 @@ import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import { UserInfo } from './UserInfo';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
 import { MobileHeader } from '@/components/Header/MobileHeader';
+import instagramLogo from '@/assets/icons/Instagram_Logo.svg';
+import appleMusicLogo from '@/assets/icons/Apple-Music-Logo.svg';
+import spotifyLogo from '@/assets/icons/Spotify-Logo.svg';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -64,6 +68,7 @@ interface ProfileViewProps {
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
   onNavigateToNotifications?: () => void;
+  onNavigateToDiscover?: () => void; // Callback to navigate back to discover page
   menuOpen?: boolean;
   onMenuClick?: () => void;
   hideHeader?: boolean;
@@ -139,7 +144,7 @@ interface ConcertReview {
   };
 }
 
-export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat, onNavigateToNotifications, menuOpen = false, onMenuClick, hideHeader = false, refreshTrigger = 0 }: ProfileViewProps) => {
+export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat, onNavigateToNotifications, onNavigateToDiscover, menuOpen = false, onMenuClick, hideHeader = false, refreshTrigger = 0 }: ProfileViewProps) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<JamBaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,6 +164,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   // 🏆 Achievements state (removed - now in Passport)
   const [canViewInterested, setCanViewInterested] = useState<boolean>(true);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [viewReviewOpen, setViewReviewOpen] = useState(false); // Only declare once
   const [selectedReview, setSelectedReview] = useState<any>(null);
@@ -169,6 +175,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [followersModalType, setFollowersModalType] = useState<'followers' | 'following' | 'friends'>('friends');
   const [showFollowingModal, setShowFollowingModal] = useState(false);
   const [friendStatus, setFriendStatus] = useState<'none' | 'friends' | 'pending_sent' | 'pending_received'>('none');
+  const friendButtonRef = useRef<HTMLButtonElement>(null);
+  const messageButtonRef = useRef<HTMLButtonElement>(null);
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const [followedArtistsCount, setFollowedArtistsCount] = useState(0);
   const [followedVenuesCount, setFollowedVenuesCount] = useState(0);
@@ -178,6 +186,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     artists: 0,
     scenes: 0,
   });
+  const [passportRefreshTrigger, setPassportRefreshTrigger] = useState(0);
   const { toast } = useToast();
   const { user, sessionExpired } = useAuth();
   const navigate = useNavigate();
@@ -324,6 +333,16 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       }
     })();
   }, [user, currentUserId]);
+
+  // Override button text colors to neutral-600
+  useEffect(() => {
+    if (friendButtonRef.current) {
+      friendButtonRef.current.style.setProperty('color', 'var(--neutral-600)', 'important');
+    }
+    if (messageButtonRef.current) {
+      messageButtonRef.current.style.setProperty('color', 'var(--neutral-600)', 'important');
+    }
+  }, [friendStatus]);
 
   const fetchProfile = async () => {
     try {
@@ -743,6 +762,22 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       console.error('❌ ProfileView: Error fetching reviews:', error);
       setReviews([]);
     }
+  };
+
+  // Helper function to open event and check if current user is interested
+  const handleOpenEvent = async (event: any) => {
+    setSelectedEvent(event);
+    
+    // Check if current user is interested in this event (not the profile user)
+    try {
+      const interested = await UserEventService.isUserInterested(currentUserId, event.id);
+      setSelectedEventInterested(interested);
+    } catch (error) {
+      console.error('Error checking interest:', error);
+      setSelectedEventInterested(false);
+    }
+    
+    setDetailsOpen(true);
   };
 
   const fetchReviewsCount = async () => {
@@ -1209,7 +1244,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         
         console.log(`✅ ProfileView: Deletion complete - ${successfulDeletions} successful, ${failedDeletions.length} failed`);
       }
-      
+       
       // Step 3: Use only the drafts we kept (deleted drafts are already excluded)
       const validDrafts = draftsToKeep;
       
@@ -1664,31 +1699,107 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     >
       {/* Mobile Header with person's name */}
       {!hideHeader && (
-      <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick} alignLeft={true}>
-        <h1 className="font-bold truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
-            {profile.username ? `@${profile.username}` : profile.name || 'Profile'}
-          </h1>
-      </MobileHeader>
+        <div style={{ position: 'relative' }}>
+          {!isViewingOwnProfile ? (
+            <DropdownMenu>
+              <MobileHeader 
+                menuOpen={menuOpen} 
+                onMenuClick={onMenuClick} 
+                alignLeft={true}
+                leftIcon={onNavigateToDiscover ? "left" : undefined}
+                onLeftIconClick={onNavigateToDiscover ? onNavigateToDiscover : undefined}
+                rightButton={
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="mobile-header__menu-button"
+                      aria-label="More options"
+                      type="button"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--neutral-900)' }}>
+                        <circle cx="12" cy="12" r="1"/>
+                        <circle cx="12" cy="5" r="1"/>
+                        <circle cx="12" cy="19" r="1"/>
+                      </svg>
+                    </button>
+                  </DropdownMenuTrigger>
+                }
+              >
+                <h1 className="font-bold truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
+                    {profile.username ? `@${profile.username}` : profile.name || 'Profile'}
+                  </h1>
+              </MobileHeader>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setBlockModalOpen(true)}>
+                  <Ban size={16} className="mr-2" />
+                  Block
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setReportModalOpen(true)}>
+                  <Flag size={16} className="mr-2" />
+                  Report
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <MobileHeader 
+              menuOpen={menuOpen} 
+              onMenuClick={onMenuClick} 
+              alignLeft={true}
+            >
+              <h1 className="font-bold truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
+                  {profile.username ? `@${profile.username}` : profile.name || 'Profile'}
+                </h1>
+            </MobileHeader>
+          )}
+        </div>
       )}
-      <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
-        {/* Profile Header */}
-        <div 
-          className="mb-6 relative w-full max-w-full" 
-          style={{ 
-            padding: 'var(--spacing-grouped, 24px) 0',
-            border: 'none'
+<div style={{ position: 'relative' }}>
+<div
+    aria-hidden="true"
+    style={{
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      width: '100vw',
+      backgroundColor: 'var(--neutral-050)',
+      zIndex: 0
+    }}
+  />
+        <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
+          {/* Profile Card */}
+        <Card 
+          className="w-full max-w-full mb-[60px] swift-ui-card"
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            borderRadius: 'var(--radius-corner, 10px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 4px 4px 0 var(--shadow-color)',
+            paddingTop: '24px',
+            paddingBottom: '24px',
+            paddingLeft: 0,
+            paddingRight: 0,
           }}
         >
+          <CardContent className="w-full max-w-full" style={{ padding: '0 var(--spacing-grouped, 24px)' }}>
+            {/* Profile Header */}
+            <div 
+              className="relative w-full max-w-full" 
+              style={{ 
+                padding: 0
+              }}
+            >
           {/* Main Profile Row */}
-          <div className="flex flex-col items-center gap-4 mb-4 w-full max-w-full">
+          <div className="flex flex-col items-start gap-4 mb-4 w-full max-w-full">
             {/* UserInfo with userProfile variant */}
-            <div className="w-full flex justify-center">
+            <div className="w-full flex justify-start">
               <div className="relative" style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
             <div className="relative">
                   <UserInfo
                     variant="userProfile"
                     name={profile.name}
-                    username={profile.username || undefined}
+                    username={isViewingOwnProfile ? (profile.username || undefined) : undefined}
                     initial={profile.name.charAt(0).toUpperCase()}
                     imageUrl={profile.avatar_url}
                     followers={friends.length}
@@ -1696,15 +1807,13 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     events={reviewsCount}
                     onFollowersClick={() => { setFollowersModalType('friends'); setShowFollowersModal(true); }}
                     onFollowingClick={() => setShowFollowingModal(true)}
+                    customSubtitle={!isViewingOwnProfile && profile.last_active_at ? (
+                      <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-700 border-green-200" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', width: 'fit-content' }}>
+                        <Clock size={16} />
+                        {UserVisibilityService.formatLastActive(profile.last_active_at)}
+                      </Badge>
+                    ) : undefined}
                   />
-              {/* Online status indicator */}
-              {!isViewingOwnProfile && profile.last_active_at && (
-                    <div className="absolute bottom-0 left-0 w-6 h-6 rounded-full border-2" style={{ backgroundColor: 'var(--status-success-500)', borderColor: 'var(--neutral-50)' }}>
-                      <div className="w-full h-full flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--neutral-50)' }}></div>
-                </div>
-            </div>
-              )}
 
             </div>
                 {/* Verification Badge - positioned next to name */}
@@ -1719,22 +1828,12 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   )}
               </div>
                 </div>
-                
-                {/* Status Badges */}
-                {!isViewingOwnProfile && profile.last_active_at && (
-              <div className="w-full flex justify-center">
-                <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-700 border-green-200" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-                    <Clock size={16} />
-                    {UserVisibilityService.formatLastActive(profile.last_active_at)}
-                  </Badge>
-              </div>
-            )}
               
             {/* Profile Info */}
             <div className="w-full max-w-full">
               
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-2 w-full max-w-full">
+              <div className="flex items-center w-full max-w-full" style={{ gap: '6px' }}>
                 {isViewingOwnProfile ? (
                   <>
                     <Button 
@@ -1751,7 +1850,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                         fontWeight: 'var(--typography-meta-weight, 500)',
                         lineHeight: 'var(--typography-meta-line-height, 1.5)',
                         boxShadow: '0 4px 4px 0 var(--shadow-color)',
-                        border: 'none'
+                        border: 'none',
+                        flex: 1,
+                        minWidth: 0,
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
@@ -1783,24 +1884,37 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     </Button>
                   </>
                 ) : (
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center w-full" style={{ gap: '6px' }}>
                     {friendStatus === 'none' && (
                       <Button 
                         onClick={sendFriendRequest} 
-                        variant="default" 
+                        variant="secondary" 
                         size="sm" 
-                        className="shadow-md" 
+                        ref={friendButtonRef}
                         style={{ 
-                          backgroundColor: 'var(--status-success-500)',
-                          color: 'var(--neutral-50)'
+                          height: 'var(--size-button-height, 36px)',
+                          paddingLeft: 'var(--spacing-small, 12px)',
+                          paddingRight: 'var(--spacing-small, 12px)',
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          borderColor: 'var(--neutral-200)',
+                          borderWidth: '1px',
+                          flex: 1,
+                          minWidth: 0,
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                          e.currentTarget.style.setProperty('color', 'var(--neutral-600)', 'important');
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                          e.currentTarget.style.setProperty('color', 'var(--neutral-600)', 'important');
+                        }}
                         aria-label="Send friend request"
                       >
-                        {/* ACCESSIBILITY: Status button - use status tokens instead of gradient */}
-                        <Plus size={16} className="mr-2" />
-                        Add Friend
+                        Friend
                       </Button>
                     )}
                     {friendStatus === 'pending_sent' && (
@@ -1814,7 +1928,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                           fontFamily: 'var(--font-family)',
                           fontSize: 'var(--typography-meta-size, 16px)',
                           fontWeight: 'var(--typography-meta-weight, 500)',
-                          lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          flex: 1,
+                          minWidth: 0,
                         }}>
                           Friend Request Sent
                         </Button>
@@ -1864,7 +1980,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                           borderColor: 'var(--info-blue-500)',
                           color: 'var(--info-blue-500)',
                           backgroundColor: 'var(--state-disabled-bg)',
-                          cursor: 'not-allowed'
+                          cursor: 'not-allowed',
+                          flex: 1,
+                          minWidth: 0,
                         }}
                         aria-label="Friend request already sent"
                         aria-disabled="true"
@@ -1875,64 +1993,64 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     {friendStatus === 'friends' && (
                       <Button 
                         onClick={() => unfriendUser(targetUserId)} 
-                        variant="outline" 
+                        variant="default" 
                         size="sm"
-                        className="border"
                         style={{ 
-                          color: 'var(--status-error-500)',
-                          borderColor: 'var(--status-error-500)'
-                        }}
-                        onMouseEnter={(e) => { 
-                          e.currentTarget.style.backgroundColor = 'var(--status-error-050)';
-                          e.currentTarget.style.color = 'var(--status-error-500)';
-                        }}
-                        onMouseLeave={(e) => { 
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.color = 'var(--status-error-500)';
+                          height: 'var(--size-button-height, 36px)',
+                          paddingLeft: 'var(--spacing-small, 12px)',
+                          paddingRight: 'var(--spacing-small, 12px)',
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                          flex: 1,
+                          minWidth: 0,
                         }}
                         aria-label="Unfriend user"
                       >
                         Unfriend
                       </Button>
                     )}
-                    <div className="flex items-center gap-1">
+                    {(friendStatus === 'none' || friendStatus === 'friends') && (
                       <Button
-                        variant="ghost"
+                        variant="secondary"
                         size="sm"
-                        onClick={() => setBlockModalOpen(true)}
-                        className="p-2" 
-                        style={{ color: 'var(--neutral-600)' }}
-                        onMouseEnter={(e) => { 
-                          e.currentTarget.style.color = 'var(--status-error-500)';
-                          e.currentTarget.style.backgroundColor = 'var(--status-error-050)';
+                        onClick={() => {
+                          if (onNavigateToChat) {
+                            // Store that we came from profile so back button returns here
+                            sessionStorage.setItem('chatFromProfile', 'true');
+                            sessionStorage.setItem('chatFromProfileUserId', targetUserId || '');
+                            onNavigateToChat(targetUserId);
+                          }
                         }}
-                        onMouseLeave={(e) => { 
-                          e.currentTarget.style.color = 'var(--neutral-600)';
-                          e.currentTarget.style.backgroundColor = 'transparent';
+                        ref={messageButtonRef}
+                        style={{ 
+                          height: 'var(--size-button-height, 36px)',
+                          paddingLeft: 'var(--spacing-small, 12px)',
+                          paddingRight: 'var(--spacing-small, 12px)',
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          borderColor: 'var(--neutral-200)',
+                          borderWidth: '1px',
+                          flex: 1,
+                          minWidth: 0,
                         }}
-                        aria-label="Block user"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                          e.currentTarget.style.setProperty('color', 'var(--neutral-600)', 'important');
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--neutral-200)';
+                          e.currentTarget.style.setProperty('color', 'var(--neutral-600)', 'important');
+                        }}
+                        aria-label="Message user"
                       >
-                        <Ban size={16} />
+                        Message
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setReportModalOpen(true)}
-                        className="p-2" 
-                        style={{ color: 'var(--neutral-600)' }}
-                        onMouseEnter={(e) => { 
-                          e.currentTarget.style.color = 'var(--status-error-500)';
-                          e.currentTarget.style.backgroundColor = 'var(--status-error-050)';
-                        }}
-                        onMouseLeave={(e) => { 
-                          e.currentTarget.style.color = 'var(--neutral-600)';
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                        }}
-                        aria-label="Block user"
-                      >
-                        <Flag size={16} />
-                      </Button>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1943,7 +2061,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           <div style={{ paddingTop: 'var(--spacing-grouped, 24px)' }}>
             {profile.bio && (
               <div className="mb-4">
-                <p className="leading-relaxed" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>{profile.bio}</p>
+                <p className="leading-relaxed" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-900)' }}>{profile.bio}</p>
               </div>
             )}
 
@@ -1951,73 +2069,86 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             <div className="flex flex-wrap gap-3">
               {profile.instagram_handle && (
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="secondary"
+                  size="icon"
                   onClick={() => window.open(`https://instagram.com/${profile.instagram_handle}`, '_blank')}
                   style={{
-                    borderColor: 'var(--neutral-200)',
-                    color: 'var(--neutral-900)'
+                    width: '44px',
+                    height: '44px',
+                    border: '2px solid var(--neutral-200)',
+                    backgroundColor: 'var(--neutral-50)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0
                   }}
+                  aria-label={`Instagram: @${profile.instagram_handle}`}
                 >
-                  <Instagram size={16} className="mr-2" />
-                  @{profile.instagram_handle}
+                  <img src={instagramLogo} alt="Instagram" width={24} height={24} />
                 </Button>
               )}
               
-              {/* Show streaming profile link only if viewing someone else's profile */}
-              {!isViewingOwnProfile && profile.music_streaming_profile && (() => {
+              {/* Show streaming profile link */}
+              {profile.music_streaming_profile && (() => {
                 const serviceType = detectStreamingServiceType(profile.music_streaming_profile);
                 const isSpotify = serviceType === 'spotify';
                 const isAppleMusic = serviceType === 'apple-music';
                 
                 let href = profile.music_streaming_profile;
-                let displayText = profile.music_streaming_profile;
+                let ariaLabel = 'Music streaming profile';
                 
                 if (isSpotify) {
                   href = profile.music_streaming_profile.startsWith('http') 
                     ? profile.music_streaming_profile 
                     : `https://open.spotify.com/user/${profile.music_streaming_profile}`;
-                  displayText = 'Spotify Profile';
+                  ariaLabel = 'Spotify Profile';
                 } else if (isAppleMusic) {
                   href = profile.music_streaming_profile.startsWith('http') 
                     ? profile.music_streaming_profile 
                     : profile.music_streaming_profile;
-                  displayText = 'Apple Music Profile';
+                  ariaLabel = 'Apple Music Profile';
+                } else {
+                  ariaLabel = 'Music Streaming Profile';
                 }
                 
                 return (
                   <Button
-                    variant="outline"
+                    variant="secondary"
+                    size="icon"
                     onClick={() => window.open(href, '_blank')}
                     style={{
-                      height: 'var(--size-button-height, 36px)',
-                      paddingLeft: 'var(--spacing-small, 12px)',
-                      paddingRight: 'var(--spacing-small, 12px)',
-                      borderColor: 'var(--neutral-200)',
-                      color: 'var(--neutral-900)',
-                      fontFamily: 'var(--font-family)',
-                      fontSize: 'var(--typography-meta-size, 16px)',
-                      fontWeight: 'var(--typography-meta-weight, 500)',
-                      lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                      width: '44px',
+                      height: '44px',
+                      border: '2px solid var(--neutral-200)',
+                      backgroundColor: 'var(--neutral-50)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 0
                     }}
+                    aria-label={ariaLabel}
                   >
-                    <Music size={16} style={{ marginRight: 'var(--spacing-inline, 6px)' }} />
-                    {displayText}
+                    {isSpotify ? (
+                      <img src={spotifyLogo} alt="Spotify" width={24} height={24} />
+                    ) : isAppleMusic ? (
+                      <img src={appleMusicLogo} alt="Apple Music" width={24} height={24} />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--neutral-900)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-list-music" style={{ width: '24px', height: '24px', flexShrink: 0 }}>
+                        <path d="M16 5H3"/>
+                        <path d="M11 12H3"/>
+                        <path d="M11 19H3"/>
+                        <path d="M21 16V5"/>
+                        <circle cx="18" cy="16" r="3"/>
+                      </svg>
+                    )}
                   </Button>
                 );
               })()}
             </div>
-            <div
-              aria-hidden="true"
-              style={{
-                height: '1px',
-                backgroundColor: 'var(--neutral-200)',
-                width: '100%',
-                marginTop: 'var(--spacing-grouped, 24px)'
-              }}
-            />
           </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Drafts summary card – visible only on own profile when drafts exist */}
         {isViewingOwnProfile && !draftReviewsLoading && Array.isArray(draftReviews) && draftReviews.length > 0 && (
@@ -2028,8 +2159,11 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             />
           </div>
         )}
+        </div>
+      </div>
 
-        {/* Instagram-style Content Tabs */}
+      {/* Instagram-style Content Tabs */}
+      <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
         <Tabs value={activeTab} onValueChange={(tab) => {
           // Track profile tab switch
           try {
@@ -2431,8 +2565,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                     completeEvent,
                                     attendanceEventId: attendance.event_id
                                   });
-                                  setSelectedEvent(completeEvent);
-                                  setDetailsOpen(true);
+                                  handleOpenEvent(completeEvent);
                                 }}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter' || e.key === ' ') {
@@ -2451,8 +2584,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                       setlist_song_count: eventData.setlist_song_count || event.setlist_song_count || null,
                                       setlist_fm_url: eventData.setlist_fm_url || event.setlist_fm_url || null
                                     };
-                                    setSelectedEvent(completeEvent);
-                                    setDetailsOpen(true);
+                                    handleOpenEvent(completeEvent);
                                   }
                                 }}
                                 tabIndex={0}
@@ -2518,8 +2650,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                             setlist_song_count: eventData.setlist_song_count || event.setlist_song_count || null,
                                             setlist_fm_url: eventData.setlist_fm_url || event.setlist_fm_url || null
                                           };
-                                          setSelectedEvent(completeEvent);
-                                          setDetailsOpen(true);
+                                          handleOpenEvent(completeEvent);
                                         }}
                                       >
                                         <ExternalLink className="w-4 h-4 mr-2" />
@@ -2853,8 +2984,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                             venue_state: completeEvent.venue_state
                           });
                           
-                          setSelectedEvent(completeEvent); 
-                          setDetailsOpen(true); 
+                          handleOpenEvent(completeEvent);
                         }}
                       >
                         <div className="h-full flex flex-col">
@@ -3003,6 +3133,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 userName={profile?.name || undefined}
                 inline={true}
                 isOwnProfile={isViewingOwnProfile}
+                refreshTrigger={passportRefreshTrigger}
               />
             ) : (
               <div className="text-center py-8 text-muted-foreground">
@@ -3141,12 +3272,14 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         currentUserId={currentUserId}
         isOpen={detailsOpen}
         onClose={() => setDetailsOpen(false)}
-        isInterested={true}
+        isInterested={selectedEventInterested}
         onInterestToggle={async (eventId, interested) => {
           console.log('🎯 Interest toggled in profile view:', eventId, interested);
           try {
             // Use setEventInterest for consistency (handles both add and remove)
             await UserEventService.setEventInterest(currentUserId, eventId, interested);
+            // Update local state
+            setSelectedEventInterested(interested);
             // Close the modal if removing interest
             if (!interested) {
               setDetailsOpen(false);

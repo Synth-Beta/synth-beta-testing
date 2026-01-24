@@ -97,6 +97,7 @@ export const iconNameToLucide: Record<string, string> = {
   'infoCircle': 'Info',
   'exclamationTriangle': 'AlertTriangle',
   'ellipsis': 'Ellipsis',
+  'ellipsisVertical': 'MoreVertical',
   'moreHorizontal': 'Ellipsis',
   'moreVertical': 'MoreVertical',
   'overflowMenu': 'Ellipsis',

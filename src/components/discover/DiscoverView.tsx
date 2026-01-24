@@ -402,7 +402,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             size="sm"
             data-tour="discover-vibes"
           >
-            <Icon name="mediumShootingStar" size={16} color="var(--neutral-50)" />
+            <Icon name="mediumShootingStar" size={24} color="var(--neutral-50)" />
             Browse Vibes
           </Button>
 
@@ -414,14 +414,14 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 paddingLeft: 'var(--spacing-small, 12px)',
                 paddingRight: 'var(--spacing-small, 12px)',
                 borderColor: 'var(--neutral-200)',
-                color: 'var(--neutral-900)',
+                color: 'var(--neutral-900) !important',
                 fontFamily: 'var(--font-family)',
                 fontSize: 'var(--typography-meta-size, 16px)',
                 fontWeight: 'var(--typography-meta-weight, 500)',
                 lineHeight: 'var(--typography-meta-line-height, 1.5)'
               }}>
-                <Icon name="location" size={16} color="var(--neutral-900)" />
-                <span style={{ color: 'var(--neutral-900)' }}>Location</span>
+                <Icon name="location" size={24} color="var(--neutral-900)" />
+                Location
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80 swift-ui-card" align="start">

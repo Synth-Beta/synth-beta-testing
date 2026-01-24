@@ -317,6 +317,8 @@ export class PassportService {
    */
   static async getStampsByRarity(userId: string, rarity?: 'common' | 'uncommon' | 'legendary') {
     try {
+      console.log('PassportService.getStampsByRarity: Fetching stamps for userId:', userId, 'rarity:', rarity);
+      
       let query = supabase
         .from('passport_entries')
         .select('*')
@@ -328,10 +330,24 @@ export class PassportService {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
-      return (data || []) as PassportEntry[];
+      
+      if (error) {
+        console.error('PassportService.getStampsByRarity: Database error:', {
+          error,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        });
+        throw error;
+      }
+      
+      const stamps = (data || []) as PassportEntry[];
+      console.log('PassportService.getStampsByRarity: Successfully fetched', stamps.length, 'stamps');
+      
+      return stamps;
     } catch (error) {
-      console.error('Error fetching stamps by rarity:', error);
+      console.error('PassportService.getStampsByRarity: Error fetching stamps by rarity:', error);
       return [];
     }
   }

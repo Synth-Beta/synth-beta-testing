@@ -1,6 +1,6 @@
 # Design System + Style Guide
 
-## Purpose
+## Purpose 
 
 This document is the authoritative design system and style guide for the Synth app. It defines the intended UI rules, tokens, and patterns that all code should follow.
 

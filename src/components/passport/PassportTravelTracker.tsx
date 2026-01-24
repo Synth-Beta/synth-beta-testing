@@ -87,6 +87,15 @@ const MapBoundsFitter = ({ reviews }: { reviews: ReviewWithLocation[] }) => {
   return null;
 };
 
+const guessCityFromVenueName = (name: string | null) => {
+  if (!name) return null;
+  const words = name.trim().split(/\s+/);
+  if (words.length < 2) return null;
+  // Take last 2 words as a city guess, works for "Las Vegas", "New York", etc.
+  return `${words[words.length - 2]} ${words[words.length - 1]}`;
+};
+
+
 export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ userId }) => {
   const [reviews, setReviews] = useState<ReviewWithLocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -318,6 +327,63 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
                 text-overflow: ellipsis;
               }
               .leaflet-control-attribution a { color: #666 !important; }
+              
+              /* Travel Tracker Popup Styling */
+              .travel-tracker-popup .leaflet-popup-content-wrapper {
+                padding: 0 !important;
+              }
+              
+              .travel-tracker-popup .leaflet-popup-content {
+                margin: 0 !important;
+                padding: 0 !important;
+                position: relative;
+              }              
+              
+              .travel-tracker-popup .leaflet-popup-close-button {
+                top: 12px !important;
+                right: 20px !important;
+                width: 24px !important;
+                height: 24px !important;
+                font-size: 24px !important;
+                line-height: 24px !important;
+                color: var(--neutral-900) !important;
+                z-index: 10;
+              }
+              
+              .travel-tracker-popup-content {
+                padding-left: 20px !important;
+                padding-right: 20px !important;
+                padding-bottom: 12px !important;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+              }
+              .travel-tracker-popup-review {
+                margin-top: 8px !important;
+                margin-bottom: 12px !important;
+                color: var(--neutral-900) !important;
+              }
+              
+              
+              .travel-tracker-popup-title {
+                /* Close button: top 12px + height 24px = 36px. Add 12px spacing => 48px */
+                margin-top: 48px !important;
+                padding-right: 28px !important;
+                font-family: var(--font-family) !important;
+                font-size: var(--typography-body-size, 18px) !important;
+                font-weight: var(--typography-body-weight, 500) !important;
+                line-height: var(--typography-body-line-height, 1.5) !important;
+                color: var(--neutral-900) !important;
+              }
+              
+              
+              .travel-tracker-popup-meta {
+                font-family: var(--font-family) !important;
+                font-size: var(--typography-meta-size, 16px) !important;
+                font-weight: var(--typography-meta-weight, 500) !important;
+                line-height: var(--typography-meta-line-height, 1.5) !important;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+              }
             `}</style>
             <MapContainer
               center={mapCenter}
@@ -341,28 +407,55 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
                     },
                   }}
                 >
-                  <Popup maxWidth={300}>
-                    <div className="p-2">
-                      <div className="font-semibold text-sm mb-1">
+                  <Popup maxWidth={300} className="travel-tracker-popup"> 
+                    <div className="travel-tracker-popup-content">
+                      <div className="travel-tracker-popup-title">
                         {review.venue_name || 'Show'}
                       </div>
                       {review.venue_state && (
-                        <div className="text-xs text-gray-600 mb-1">
-                          {review.venue_state}
-                        </div>
-                      )}
-                      <div className="text-xs text-gray-500 mb-2">
-                        {format(new Date(review.Event_date), 'MMM d, yyyy')}
+  <div
+    className="travel-tracker-popup-meta"
+    style={{
+      color: 'var(--neutral-600)',
+      marginTop: '4px',
+      marginBottom: '4px'
+    }}
+  >
+    {review.venue_state}
+  </div>
+)}
+                      <div className="travel-tracker-popup-meta" style={{ color: 'var(--neutral-600)', marginTop: '4px', marginBottom: '4px' }}>
+                        {format(new Date(review.Event_date), 'MMMM d, yyyy')}
                       </div>
                       {review.rating && (
-                        <div className="flex items-center gap-1 text-xs">
-                          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                        <div className="travel-tracker-popup-meta" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', marginBottom: '4px' }}>
+                          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" style={{ flexShrink: 0 }} />
                           <span>{review.rating.toFixed(1)}</span>
                         </div>
                       )}
+                      {review.review_text && (
+                        <div className="travel-tracker-popup-meta travel-tracker-popup-review">
+                        {review.review_text}
+                      </div>                      
+                      )}
                       <button
                         onClick={() => setSelectedReview(review)}
-                        className="mt-2 text-xs text-synth-pink hover:underline"
+                        className="travel-tracker-popup-meta"
+                        style={{ 
+                          marginTop: '8px', 
+                          color: 'var(--brand-pink-500)', 
+                          background: 'none', 
+                          border: 'none', 
+                          padding: 0, 
+                          cursor: 'pointer',
+                          textDecoration: 'underline'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = 'var(--brand-pink-600)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = 'var(--brand-pink-500)';
+                        }}
                       >
                         View Review →
                       </button>
@@ -377,31 +470,69 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
 
       {/* Review Detail Modal */}
       <Dialog open={!!selectedReview} onOpenChange={() => setSelectedReview(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+  className="max-w-2xl max-h-[90vh] overflow-y-auto"
+  style={{
+    paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+    paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+    paddingTop: 'var(--spacing-screen-margin-x, 20px)',
+    paddingBottom: 'var(--spacing-screen-margin-x, 20px)',
+    borderRadius: 'var(--radius-corner, 10px)'
+  }}
+>
+
           {selectedReview && (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Music className="w-5 h-5 text-synth-pink" />
-                  {selectedReview.venue_name || 'Show Review'}
-                </DialogTitle>
+              <DialogHeader
+  className="p-0 !text-left"
+  style={{
+    textAlign: 'left',
+    paddingTop: '36px'
+  }}
+>
+
+  <DialogTitle
+    className="flex items-start gap-2 !text-left font-bold"
+    style={{ textAlign: 'left', width: '100%', margin: 0, fontFamily: 'var(--font-family)',
+    fontSize: 'var(--typography-h2-size, 24px)',
+    fontWeight: 'var(--typography-h2-weight, 700)',
+    lineHeight: 'var(--typography-h2-line-height, 1.3)',
+    color: 'var(--neutral-900)',
+     }}
+  >
+
+              <Music
+  className="w-5 h-5 text-synth-pink"
+  style={{ marginTop: 2, flexShrink: 0 }}
+  aria-hidden="true"
+/>
+
+  <span style={{ display: 'block' }}>
+    {selectedReview.venue_name || 'Show Review'}
+  </span>
+</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 {/* Event Info */}
                 <div className="space-y-2">
-                  {selectedReview.venue_name && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <MapPin className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-medium">{selectedReview.venue_name}</span>
-                      {selectedReview.venue_state && (
-                        <span className="text-muted-foreground">
-                          {selectedReview.venue_state}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                {selectedReview.venue_name && (
+  <div className="flex items-start gap-2 text-sm">
+    <MapPin className="w-4 h-4 text-muted-foreground" style={{ marginTop: 2, flexShrink: 0 }} aria-hidden="true" />
+    <span style={{ display: 'block' }}>
+      <span className="font-medium">
+        {guessCityFromVenueName(selectedReview.venue_name) || selectedReview.venue_name}
+      </span>
+      {selectedReview.venue_state && (
+        <span className="text-muted-foreground">
+          {`, ${selectedReview.venue_state}`}
+        </span>
+      )}
+    </span>
+  </div>
+)}
+
+                  <div className="flex items-start gap-2 text-sm">
+  <Calendar className="w-4 h-4 text-muted-foreground" style={{ marginTop: 2, flexShrink: 0 }} aria-hidden="true" />
                     <span>{format(new Date(selectedReview.Event_date), 'MMMM d, yyyy')}</span>
                   </div>
                   {selectedReview.rating && (
@@ -414,10 +545,16 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
 
                 {/* Review Text */}
                 {selectedReview.review_text && (
-                  <div className="pt-2 border-t">
-                    <p className="text-sm whitespace-pre-wrap">{selectedReview.review_text}</p>
-                  </div>
-                )}
+  <div
+    className="pt-2 border-t"
+    style={{ paddingBottom: 'var(--spacing-small, 12px)' }}
+  >
+    <p className="text-sm whitespace-pre-wrap" style={{ margin: 0 }}>
+      {selectedReview.review_text}
+    </p>
+  </div>
+)}
+
 
                 {/* Tags */}
                 {(selectedReview.mood_tags?.length || selectedReview.genre_tags?.length) && (

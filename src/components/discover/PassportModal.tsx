@@ -41,6 +41,10 @@ interface PassportModalProps {
    * Controls editability for timeline and bucket list.
    */
   isOwnProfile?: boolean;
+  /**
+   * Refresh trigger - when this value changes, achievements and passport data will be reloaded
+   */
+  refreshTrigger?: number;
 }
 
 export const PassportModal: React.FC<PassportModalProps> = ({
@@ -50,6 +54,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
   userName,
   inline = false,
   isOwnProfile = false,
+  refreshTrigger = 0,
 }) => {
   const [progress, setProgress] = useState<PassportProgress>({
     cities: [],
@@ -72,7 +77,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
     if (isOpen || inline) {
       loadPassportData();
     }
-  }, [isOpen, inline, userId]);
+  }, [isOpen, inline, userId, refreshTrigger]);
 
   // Add event listeners for artist and venue card opening
   // Set up listeners when modal is open or inline - keep listeners active even after modal closes
@@ -227,6 +232,36 @@ export const PassportModal: React.FC<PassportModalProps> = ({
           nextToUnlock: nextToUnlockError,
         },
       });
+
+      // Log detailed stamp information for debugging
+      if (stampsData.length > 0) {
+        console.log('PassportModal: Stamps loaded:', {
+          total: stampsData.length,
+          byType: {
+            city: stampsData.filter(s => s.type === 'city').length,
+            venue: stampsData.filter(s => s.type === 'venue').length,
+            artist: stampsData.filter(s => s.type === 'artist').length,
+            scene: stampsData.filter(s => s.type === 'scene').length,
+          },
+          sample: stampsData.slice(0, 3).map(s => ({
+            id: s.id,
+            type: s.type,
+            entity_name: s.entity_name,
+            rarity: s.rarity,
+          })),
+        });
+      } else {
+        console.warn('PassportModal: No stamps loaded. This could indicate:', {
+          possibleCauses: [
+            'No passport entries exist for this user',
+            'RLS policy blocking access',
+            'Database query error',
+            'User has not unlocked any stamps yet',
+          ],
+          userId,
+          stampsError: stampsError || 'No error reported',
+        });
+      }
       
       setProgress(progressData);
       setAllStamps(stampsData);

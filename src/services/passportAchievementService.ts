@@ -42,19 +42,27 @@ export class PassportAchievementService {
       console.log('PassportAchievementService: Fetching achievements for userId:', userId);
 
       // Recalculate achievements to ensure they're up to date
+      // This is critical - it recalculates all achievement progress from scratch
       try {
-        const { error: recalcError } = await supabase.rpc('check_all_achievements', { 
+        console.log('PassportAchievementService: Calling check_all_achievements for userId:', userId);
+        const { data: recalcData, error: recalcError } = await supabase.rpc('check_all_achievements', { 
           p_user_id: userId 
         });
         if (recalcError) {
-          console.warn('PassportAchievementService: Error recalculating achievements:', recalcError);
-          // Continue anyway - might be a new function that doesn't exist yet
+          console.error('PassportAchievementService: Error recalculating achievements:', recalcError);
+          console.error('PassportAchievementService: Error details:', JSON.stringify(recalcError, null, 2));
+          // Log but continue - might be a temporary issue
+          console.warn('PassportAchievementService: Continuing with potentially stale achievement data');
         } else {
           console.log('PassportAchievementService: Successfully recalculated achievements');
+          if (recalcData) {
+            console.log('PassportAchievementService: Recalculation returned:', recalcData);
+          }
         }
       } catch (recalcErr) {
-        console.warn('PassportAchievementService: check_all_achievements function may not exist yet:', recalcErr);
-        // Continue anyway - function might not be deployed yet
+        console.error('PassportAchievementService: Exception calling check_all_achievements:', recalcErr);
+        // Continue anyway - function might not be deployed yet or there's a temporary issue
+        console.warn('PassportAchievementService: Continuing despite recalculation error');
       }
 
       // Get all active achievements
@@ -89,6 +97,24 @@ export class PassportAchievementService {
       }
 
       console.log(`PassportAchievementService: Found ${userProgress?.length || 0} progress records for user`);
+      
+      // Log genre-related achievements for debugging
+      if (userProgress && userProgress.length > 0) {
+        const genreAchievements = userProgress.filter(p => {
+          const achievement = allAchievements?.find(a => a.id === p.achievement_id);
+          return achievement && (achievement.achievement_key === 'genre_curator' || achievement.achievement_key === 'genre_specialist');
+        });
+        if (genreAchievements.length > 0) {
+          console.log('PassportAchievementService: Genre achievement progress:', genreAchievements.map(p => {
+            const achievement = allAchievements?.find(a => a.id === p.achievement_id);
+            return {
+              key: achievement?.achievement_key,
+              progress: p.current_progress,
+              tier: p.highest_tier_achieved
+            };
+          }));
+        }
+      }
 
       // Create a map of progress by achievement_id
       const progressMap = new Map<string, any>();
@@ -181,6 +207,19 @@ export class PassportAchievementService {
         unlocked: sortedAchievements.filter(a => a.unlocked).length,
         locked: sortedAchievements.filter(a => !a.unlocked).length,
       });
+      
+      // Log genre achievements specifically for debugging
+      const genreAchievements = sortedAchievements.filter(a => a.type === 'genre_curator' || a.type === 'genre_specialist');
+      if (genreAchievements.length > 0) {
+        console.log('PassportAchievementService: Genre achievements:', genreAchievements.map(a => ({
+          type: a.type,
+          name: a.name,
+          progress: a.progress,
+          goal: a.goal,
+          unlocked: a.unlocked,
+          tier: a.tier
+        })));
+      }
 
       return sortedAchievements;
     } catch (error) {
