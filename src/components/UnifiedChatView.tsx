@@ -1879,7 +1879,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
 
   return (
     <div 
-      className="flex min-h-screen w-full max-w-[393px] mx-auto" style={{ backgroundColor: 'var(--neutral-50)' }}
+      className="flex w-full max-w-[393px] mx-auto" style={{ backgroundColor: 'var(--neutral-50)', minHeight: '100dvh' }}
     >
       {/* Mobile Header */}
       {!hideHeader && (
@@ -2056,7 +2056,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
 
         {/* Chat List */}
           {chats.length === 0 ? (
-            <div className="flex flex-col items-center justify-center min-h-full" style={{ gap: 'var(--spacing-big-section, 60px)', padding: 'var(--spacing-small, 12px)', paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
+            <div className="flex flex-col items-center justify-center min-h-full" style={{ gap: 'var(--spacing-big-section, 60px)', padding: 'var(--spacing-small, 12px)', paddingBottom: 'calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))' }}>
               {/* New Chat Button - Already in header, but shown in empty state per Figma */}
               
               {/* Empty State Content */}
@@ -2134,7 +2134,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
               </div>
             </div>
           ) : (
-            <div style={{ paddingTop: 0, paddingBottom: 'var(--spacing-bottom-nav, 32px)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ paddingTop: 0, paddingBottom: 'calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column' }}>
               {chats.map((chat, index) => (
                 <div
                   key={chat.id}
@@ -2367,12 +2367,12 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
               <div 
                 style={{ 
                   position: 'fixed',
-                  bottom: `env(safe-area-inset-bottom, 0px)`,
+                  bottom: 0,
                   left: 0,
                   right: 0,
                   width: '100%',
                   paddingTop: 'var(--spacing-grouped, 24px)',
-                  paddingBottom: 'var(--spacing-grouped, 24px)',
+                  paddingBottom: 'calc(var(--spacing-grouped, 24px) + env(safe-area-inset-bottom, 0px))',
                   backgroundColor: 'var(--neutral-50)',
                   zIndex: 40
                 }}

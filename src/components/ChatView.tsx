@@ -1070,7 +1070,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
               </div>
 
               {/* Message Input */}
-              <div className="p-4 border-t border-gray-200 bg-white/70 backdrop-blur-sm">
+              <div className="p-4 border-t border-gray-200 bg-white/70 backdrop-blur-sm" style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}>
                 <div className="flex gap-2">
                   <Input
                     placeholder="Type a message..."

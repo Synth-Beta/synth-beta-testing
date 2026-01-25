@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
+import { nativeStorage } from '@/lib/nativeStorage';
 
 // Get Supabase credentials from environment variables
 // These MUST be set at build time (npm run build) for mobile apps
@@ -59,14 +60,16 @@ const supabaseConfig: any = {
   auth: {
     // Auto-refresh session - ensures tokens are refreshed before expiry
     autoRefreshToken: true,
-    // Persist session in storage (uses WebView localStorage which persists in Capacitor)
+    // Persist session in storage
     persistSession: true,
+    // Use native storage on mobile for persistent sessions across app restarts
+    storage: nativeStorage,
     // Detect session from URL (for deep links) - only on web
-    detectSessionInUrl: !isMobile, // Disable on mobile, we handle deep links manually
+    detectSessionInUrl: !isMobile,
     // Redirect URLs based on platform
     redirectTo: isMobile 
-      ? 'synth://' // Mobile deep link scheme
-      : typeof window !== 'undefined' ? window.location.origin : 'https://synth-beta-testing.vercel.app', // Web origin
+      ? 'synth://'
+      : typeof window !== 'undefined' ? window.location.origin : 'https://synth-beta-testing.vercel.app',
   },
 };
 
