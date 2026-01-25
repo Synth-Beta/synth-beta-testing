@@ -409,7 +409,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           {/* Location Filter */}
           <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="gap-2 flex-shrink-0" style={{
+              <Button variant="secondary-neutral" className="gap-2 flex-shrink-0" style={{
                 height: 'var(--size-button-height, 36px)',
                 paddingLeft: 'var(--spacing-small, 12px)',
                 paddingRight: 'var(--spacing-small, 12px)',
