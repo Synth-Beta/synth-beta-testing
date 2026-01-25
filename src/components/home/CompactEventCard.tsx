@@ -25,7 +25,6 @@ interface CompactEventCardProps {
   isInterested?: boolean;
   isCommunityPhoto?: boolean;
   reason?: EventReason;
-  maxHeight?: number; // Maximum height constraint for the card
   onInterestClick?: (e: React.MouseEvent) => void;
   onShareClick?: (e: React.MouseEvent) => void;
   onClick?: () => void;
@@ -38,7 +37,6 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
   isInterested = false,
   isCommunityPhoto = false,
   reason,
-  maxHeight,
   onInterestClick,
   onShareClick,
   onClick,
@@ -145,29 +143,14 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
     }
   };
 
-  // Calculate card height constraints
-  const cardStyle: React.CSSProperties = {
-    width: '100%',
-    height: maxHeight ? `${maxHeight}px` : '100%',
-    maxHeight: maxHeight ? `${maxHeight}px` : undefined,
-    display: 'flex',
-    flexDirection: 'column',
-  };
-
-  // Content overlay takes up space for: title (up to 2 lines ~60px), location/date (~80px), actions (~60px), padding (~40px)
-  // Total: ~240px for content overlay
-  const contentOverlayHeight = 240;
-  const imageMaxHeight = maxHeight ? Math.max(150, maxHeight - contentOverlayHeight) : undefined;
-
   return (
     <div
       className={cn(
         'swift-ui-card flex flex-col overflow-hidden',
         'relative group cursor-pointer',
-        'w-full',
+        'w-full h-full max-h-[85vh]',
         className
       )}
-      style={cardStyle}
       onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -180,15 +163,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       aria-label={`View event: ${event.title}`}
     >
       {/* Event Image */}
-      <div 
-        className="relative w-full overflow-hidden"
-        style={{
-          flex: imageMaxHeight ? `0 1 ${imageMaxHeight}px` : '1 1 auto',
-          maxHeight: imageMaxHeight ? `${imageMaxHeight}px` : undefined,
-          minHeight: imageMaxHeight ? Math.min(150, imageMaxHeight) : undefined,
-          flexShrink: 1,
-        }}
-      >
+      <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden">
       {imageUrl ? (
         <>
             <img 
@@ -198,12 +173,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
                 : event.title 
                   ? `${event.title} event photo`
                   : "Event photo"} 
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                display: 'block',
-              }}
+              className="w-full h-full object-cover"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 // Fallback to a generic fallback image if the primary image fails
@@ -251,13 +221,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       </div>
 
       {/* Content Overlay */}
-      <div 
-        className="absolute bottom-0 left-0 right-0 swift-ui-card-content" 
-        style={{ 
-          zIndex: 40,
-          flexShrink: 0,
-        }}
-      >
+      <div className="absolute bottom-0 left-0 right-0 swift-ui-card-content" style={{ zIndex: 40 }}>
       <div
           className="absolute inset-0"
         style={{
