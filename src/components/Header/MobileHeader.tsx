@@ -47,6 +47,11 @@ export interface MobileHeaderProps {
    * Callback when left button is clicked (if leftIcon is provided)
    */
   onLeftIconClick?: () => void;
+  
+  /**
+   * Optional badge count to display on the hamburger menu button
+   */
+  badgeCount?: number;
 }
 
 /**
@@ -75,6 +80,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
   leftIcon,
   onLeftIconClick,
   rightButton,
+  badgeCount,
 }) => {
   return (
     <header className="mobile-header" role="banner">
@@ -110,11 +116,42 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
             type="button"
+            style={{ position: 'relative', overflow: 'visible' }}
           >
             {menuOpen ? (
               <Icon name="x" size={24} alt="" color="var(--neutral-900)" />
             ) : (
-              <Icon name="hamburgerMenu" size={24} alt="" color="var(--neutral-900)" />
+              <div style={{ position: 'relative', display: 'inline-flex' }}>
+                <Icon name="hamburgerMenu" size={24} alt="" color="var(--neutral-900)" />
+                {typeof badgeCount === 'number' && badgeCount > 0 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -6,
+                      right: -6,
+                      backgroundColor: '#EF4444',
+                      color: '#fff',
+                      borderRadius: 10,
+                      minWidth: 20,
+                      height: 20,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      paddingLeft: 6,
+                      paddingRight: 6,
+                      boxSizing: 'border-box',
+                      zIndex: 1000,
+                      border: '2px solid #fff',
+                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {badgeCount > 99 ? '99+' : badgeCount}
+                  </div>
+                )}
+              </div>
             )}
           </button>
         ) : (

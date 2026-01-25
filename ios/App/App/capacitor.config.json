@@ -20,6 +20,7 @@
 	},
 	"packageClassList": [
 		"AppPlugin",
+		"PreferencesPlugin",
 		"PushNotificationsPlugin",
 		"SplashScreenPlugin",
 		"StatusBarPlugin"

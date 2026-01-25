@@ -1037,8 +1037,8 @@ export function EventDetailsModal({
       }}
     >
       {/* iOS-style Header with glassmorphism */}
-      <div 
-        style={{
+        <div
+          style={{
           ...iosHeader,
           position: 'sticky',
           top: 0,
@@ -1074,13 +1074,13 @@ export function EventDetailsModal({
             color: 'var(--neutral-900)',
           }}
         >
-          {actualEvent.title}
-        </h1>
+                {actualEvent.title}
+          </h1>
         
         {/* Share button */}
-        <button
+          <button
           onClick={handleShareEvent}
-          style={{
+              style={{
             ...iosIconButton,
             width: 44,
             height: 44,
@@ -1091,8 +1091,8 @@ export function EventDetailsModal({
           type="button"
         >
           <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-        </button>
-      </div>
+          </button>
+        </div>
 
       {/* Content area with iOS padding */}
       <div style={{ padding: '0 20px', paddingTop: 16 }}>
@@ -1110,9 +1110,9 @@ export function EventDetailsModal({
         {/* Action buttons row */}
         <div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-          {isUpcomingEvent && onInterestToggle && (
-  <Button
-    type="button"
+                {isUpcomingEvent && onInterestToggle && (
+                  <Button
+                    type="button"
     variant="secondary"
     size="sm"
     aria-pressed={localIsInterested}
@@ -1120,52 +1120,52 @@ export function EventDetailsModal({
       e.preventDefault();
       e.stopPropagation();
 
-      const newInterestState = !localIsInterested;
-
+                      const newInterestState = !localIsInterested;
+                      
       // Immediate UI feedback
-      setLocalIsInterested(newInterestState);
-
+                      setLocalIsInterested(newInterestState);
+                      
       // Tracking stays the same
-      try {
-        const { getEventMetadata } = await import('@/utils/entityUuidResolver');
-        trackInteraction.interest(
-          'event',
-          actualEvent.id,
-          newInterestState,
-          {
-            ...getEventMetadata(actualEvent),
-            source: 'event_modal_interest_button'
-          },
-          actualEvent.id
-        );
-      } catch (error) {
-        console.error('Error tracking interest toggle:', error);
-      }
-
-      if (newInterestState) {
-        PromotionTrackingService.trackPromotionInteraction(
-          actualEvent.id,
-          currentUserId || '',
-          'conversion',
-          {
-            source: 'event_modal_interest_button',
-            action: 'interested'
-          }
-        );
-      }
-
-      try {
-        await onInterestToggle?.(actualEvent.id, newInterestState);
-      } catch (error) {
-        console.error('Error toggling interest:', error);
-        setLocalIsInterested(!newInterestState);
-      }
-    }}
-    style={{
+                      try {
+                        const { getEventMetadata } = await import('@/utils/entityUuidResolver');
+                        trackInteraction.interest(
+                          'event',
+                          actualEvent.id,
+                          newInterestState,
+                          {
+                            ...getEventMetadata(actualEvent),
+                            source: 'event_modal_interest_button'
+                          },
+                          actualEvent.id
+                        );
+                      } catch (error) {
+                        console.error('Error tracking interest toggle:', error);
+                      }
+                      
+                      if (newInterestState) {
+                        PromotionTrackingService.trackPromotionInteraction(
+                          actualEvent.id,
+                          currentUserId || '',
+                          'conversion',
+                          {
+                            source: 'event_modal_interest_button',
+                            action: 'interested'
+                          }
+                        );
+                      }
+                      
+                      try {
+                        await onInterestToggle?.(actualEvent.id, newInterestState);
+                      } catch (error) {
+                        console.error('Error toggling interest:', error);
+                        setLocalIsInterested(!newInterestState);
+                      }
+                    }}
+                    style={{
       height: 'var(--size-button-height, 36px)',
-      paddingLeft: 'var(--spacing-small, 12px)',
-      paddingRight: 'var(--spacing-small, 12px)',
-      borderRadius: 'var(--radius-corner, 10px)',
+                      paddingLeft: 'var(--spacing-small, 12px)',
+                      paddingRight: 'var(--spacing-small, 12px)',
+                      borderRadius: 'var(--radius-corner, 10px)',
       fontFamily: 'var(--font-family)',
       fontSize: 'var(--typography-meta-size, 16px)',
       fontWeight: 'var(--typography-meta-weight, 500)',
@@ -1177,7 +1177,7 @@ export function EventDetailsModal({
       background: localIsInterested ? 'var(--brand-pink-500)' : 'rgba(255, 255, 255, 0.8)',
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
-      boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                      boxShadow: '0 4px 4px 0 var(--shadow-color)',
       transition: `all ${animations.standardDuration} ${animations.springTiming}`,
     }}
     className={localIsInterested ? 'event-interested-button' : ''}
@@ -1190,10 +1190,10 @@ export function EventDetailsModal({
       fontWeight: 'var(--typography-meta-weight, 500)',
       lineHeight: 'var(--typography-meta-line-height, 1.5)'
     }}>
-      {localIsInterested ? 'Interested' : "I'm Interested"}
+                    {localIsInterested ? 'Interested' : "I'm Interested"}
     </span>
-  </Button>
-)}
+                  </Button>
+                )}
 
                 <Button
                   type="button"
@@ -1278,7 +1278,7 @@ export function EventDetailsModal({
                 <div>
                   <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
                     {formatTime(actualEvent.event_date)}
-                    {actualEvent.doors_time && (
+                {actualEvent.doors_time && (
                       <span style={{ color: 'var(--neutral-600)', marginLeft: 8 }}>
                         Doors: {formatDoorsTime(actualEvent.doors_time)}
                       </span>
@@ -1288,25 +1288,25 @@ export function EventDetailsModal({
               </div>
               
               {/* Price */}
-              {(() => {
-                const event = actualEvent as any;
-                const priceRange = event?.price_range;
-                const priceMin = event?.ticket_price_min ?? event?.price_min;
-                const priceMax = event?.ticket_price_max ?? event?.price_max;
-                
-                if (priceRange || priceMin || priceMax) {
-                  let priceDisplay = '';
-                  if (priceRange) {
-                    priceDisplay = formatPrice(priceRange);
-                  } else if (priceMin && priceMax) {
-                    priceDisplay = `$${priceMin} - $${priceMax}`;
-                  } else if (priceMin) {
-                    priceDisplay = `$${priceMin}+`;
-                  } else if (priceMax) {
-                    priceDisplay = `Up to $${priceMax}`;
-                  }
+                {(() => {
+                  const event = actualEvent as any;
+                  const priceRange = event?.price_range;
+                  const priceMin = event?.ticket_price_min ?? event?.price_min;
+                  const priceMax = event?.ticket_price_max ?? event?.price_max;
                   
-                  return (
+                  if (priceRange || priceMin || priceMax) {
+                    let priceDisplay = '';
+                    if (priceRange) {
+                      priceDisplay = formatPrice(priceRange);
+                    } else if (priceMin && priceMax) {
+                      priceDisplay = `$${priceMin} - $${priceMax}`;
+                    } else if (priceMin) {
+                      priceDisplay = `$${priceMin}+`;
+                    } else if (priceMax) {
+                      priceDisplay = `Up to $${priceMax}`;
+                    }
+                    
+                    return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{
                         width: 36,
@@ -1325,18 +1325,18 @@ export function EventDetailsModal({
                         </span>
                       </div>
                     </div>
-                  );
-                }
-                return null;
-              })()}
+                    );
+                  }
+                  return null;
+                })()}
             </div>
-          </div>
+            </div>
             
           {/* Remove Interest Button for Past Events */}
             {isPastEvent && onInterestToggle && localIsInterested && (
               <button
                 type="button"
-                onClick={async () => {
+                  onClick={async () => {
                   console.log('Remove interest button clicked');
                   // Track interest removal
                   try {
@@ -1376,7 +1376,7 @@ export function EventDetailsModal({
                 Remove Interest
               </button>
             )}
-          </div>
+      </div>
 
           {/* Event Status Badges */}
           <div className="flex flex-wrap gap-1.5" style={{

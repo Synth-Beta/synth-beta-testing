@@ -546,11 +546,11 @@ export function EventShareModal({
                       >
                         {target.name}
                       </span>
-                    </div>
+              </div>
                   );
                 })}
               </div>
-            </div>
+              </div>
           ) : null}
 
           {/* External Share Options */}
@@ -596,7 +596,7 @@ export function EventShareModal({
                   }}
                 >
                   <Link2 size={28} style={{ color: 'var(--neutral-700)' }} aria-hidden="true" />
-                </div>
+              </div>
                 <span style={{ fontFamily: 'var(--font-family)', fontSize: '12px', color: 'var(--neutral-700)', textAlign: 'center' }}>
                   Copy link
                 </span>
@@ -632,7 +632,7 @@ export function EventShareModal({
                   }}
                 >
                   <MessageSquare size={28} style={{ color: 'var(--neutral-700)' }} aria-hidden="true" />
-                </div>
+                  </div>
                 <span style={{ fontFamily: 'var(--font-family)', fontSize: '12px', color: 'var(--neutral-700)', textAlign: 'center' }}>
                   Text Message
                 </span>
@@ -668,7 +668,7 @@ export function EventShareModal({
                   }}
                 >
                   <Mail size={28} style={{ color: 'var(--neutral-700)' }} aria-hidden="true" />
-                </div>
+                    </div>
                 <span style={{ fontFamily: 'var(--font-family)', fontSize: '12px', color: 'var(--neutral-700)', textAlign: 'center' }}>
                   Email
                 </span>
@@ -709,7 +709,7 @@ export function EventShareModal({
               </button>
             </div>
           </div>
-        </div>
+          </div>
 
         {/* Share Button */}
         {selectedTargets.size > 0 && (

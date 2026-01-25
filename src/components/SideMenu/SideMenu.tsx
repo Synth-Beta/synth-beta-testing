@@ -125,7 +125,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
           .from('notifications')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
-          .eq('read', false)
+          .eq('is_read', false)
           .not('type', 'eq', 'friend_request');
         
         setUnreadNotificationsCount(notifCount || 0);
@@ -135,7 +135,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
           .from('notifications')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
-          .eq('read', false)
+          .eq('is_read', false)
           .eq('type', 'friend_request');
         
         setPendingFriendRequestsCount(friendReqCount || 0);

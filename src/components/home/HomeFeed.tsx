@@ -47,6 +47,7 @@ import { InAppShareService } from '@/services/inAppShareService';
 import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
 import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
 import { useNavigate } from 'react-router-dom';
+import { NotificationService } from '@/services/notificationService';
 
 // Helper function to format member count - guaranteed to return clean string
 const formatMemberCount = (count: number | string | null | undefined): string => {
@@ -194,6 +195,8 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [sentFriendRequests, setSentFriendRequests] = useState<Set<string>>(new Set());
   const [joiningGroupChats, setJoiningGroupChats] = useState<Set<string>>(new Set());
   const [joinedGroupChats, setJoinedGroupChats] = useState<Set<string>>(new Set());
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [unreadFriendRequestsCount, setUnreadFriendRequestsCount] = useState(0);
   const [recommendedGroupChats, setRecommendedGroupChats] = useState<Array<{
     id: string;
     chat_name: string;
@@ -318,6 +321,58 @@ interface FriendEventInterest {
   useEffect(() => {
     loadUserCity();
     loadFeedLocation(); // Also load location for feed filtering
+  }, [currentUserId]);
+
+  // Fetch unread notifications count for header badge (includes friend requests in total)
+  useEffect(() => {
+    const fetchNotificationCounts = async () => {
+      try {
+        // Fetch unread notifications count (excluding friend requests)
+        const { count: notifCount } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', currentUserId)
+          .eq('is_read', false)
+          .not('type', 'eq', 'friend_request');
+        
+        // Fetch unread friend requests count
+        const { count: friendReqCount } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', currentUserId)
+          .eq('is_read', false)
+          .eq('type', 'friend_request');
+        
+        setUnreadNotificationsCount(notifCount || 0);
+        setUnreadFriendRequestsCount(friendReqCount || 0);
+      } catch (error) {
+        console.error('HomeFeed: Error fetching notification counts', error);
+      }
+    };
+
+    if (currentUserId) {
+      fetchNotificationCounts();
+      
+      // Set up real-time subscription for notification updates
+      const channel = supabase
+        .channel('home-feed-notifications')
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'notifications',
+            filter: `user_id=eq.${currentUserId}`
+          }, 
+          () => {
+            fetchNotificationCounts();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
   }, [currentUserId]);
 
   // Check for selectedEvent in localStorage (from notification navigation)
@@ -1743,7 +1798,7 @@ interface FriendEventInterest {
     >
             {/* Mobile Header with dropdown aligned to left content edge */}
       {!hideHeader && (
-        <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
+        <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick} badgeCount={unreadNotificationsCount + unreadFriendRequestsCount}>
           <div
             style={{
               width: '100%',

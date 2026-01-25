@@ -63,38 +63,44 @@ export const MenuCategory: React.FC<MenuCategoryProps> = ({
     .join(' ');
 
   const content = (
-    <div className="menu-category__content" style={{ position: 'relative' }}>
-      <div style={{ position: 'relative', display: 'inline-flex' }}>
-        <IconText
-          text={label}
-          icon={icon}
-          iconPosition="left"
-          className="menu-category__icon-text"
-        />
-        {typeof badgeCount === 'number' && badgeCount > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              top: -4,
-              left: 14,
-              backgroundColor: '#EF4444',
-              color: '#fff',
-              borderRadius: 10,
-              minWidth: 18,
-              height: 18,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 11,
-              fontWeight: 600,
-              paddingLeft: 5,
-              paddingRight: 5,
-              boxSizing: 'border-box',
-            }}
-          >
-            {badgeCount > 99 ? '99+' : badgeCount}
-          </div>
-        )}
+    <div className="menu-category__content" style={{ position: 'relative', overflow: 'visible' }}>
+      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', overflow: 'visible' }}>
+        <div style={{ position: 'relative', display: 'inline-flex' }}>
+          <IconText
+            text={label}
+            icon={icon}
+            iconPosition="left"
+            className="menu-category__icon-text"
+          />
+          {typeof badgeCount === 'number' && badgeCount > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                top: -6,
+                left: 20,
+                backgroundColor: '#EF4444',
+                color: '#fff',
+                borderRadius: 10,
+                minWidth: 20,
+                height: 20,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 11,
+                fontWeight: 600,
+                paddingLeft: 6,
+                paddingRight: 6,
+                boxSizing: 'border-box',
+                zIndex: 1000,
+                border: '2px solid #fff',
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)',
+                pointerEvents: 'none',
+              }}
+            >
+              {badgeCount > 99 ? '99+' : badgeCount}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

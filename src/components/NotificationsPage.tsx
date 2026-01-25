@@ -12,16 +12,24 @@ import {
   Star,
   ArrowLeft,
   Check,
-  X
+  X,
+  ChevronLeft
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { SynthSLogo } from '@/components/SynthSLogo';
 import { NotificationService } from '@/services/notificationService';
 import type { NotificationWithDetails } from '@/types/notifications';
-import { SkeletonNotificationCard } from '@/components/skeleton/SkeletonNotificationCard';
 import { useViewTracking } from '@/hooks/useViewTracking';
+import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
+import { 
+  iosHeader, 
+  iosIconButton,
+  glassCard,
+  glassCardLight,
+  textStyles,
+  animations
+} from '@/styles/glassmorphism';
 
 
 interface NotificationsPageProps {
@@ -649,171 +657,295 @@ export const NotificationsPage = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen synth-gradient-card p-4" style={{ paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
-        <div className="max-w-2xl mx-auto space-y-6">
-          {/* Header skeleton */}
-          <div className="glass-card inner-glow text-center space-y-3 p-4 mb-6 floating-shadow">
-            <div className="flex items-center justify-center gap-4">
-              <SynthSLogo size="md" className="hover-icon animate-breathe" />
-              <div className="h-8 bg-gray-200 rounded animate-pulse w-36"></div>
-            </div>
-          </div>
-
-          {/* Notifications skeleton */}
-          <div className="space-y-3">
-            <SkeletonNotificationCard />
-            <SkeletonNotificationCard />
-            <SkeletonNotificationCard />
-            <SkeletonNotificationCard />
-            <SkeletonNotificationCard />
-          </div>
-        </div>
-      </div>
+      <SynthLoadingScreen
+        text={filter === 'friends_only' ? 'Loading friend requests...' : 'Loading notifications...'}
+      />
     );
   }
 
   return (
     <div 
-      className="min-h-screen synth-gradient-card"
       style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 1) 100%)',
         paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
-        paddingRight: 'var(--spacing-screen-margin-x, 20px)',
-        paddingBottom: 'var(--spacing-bottom-nav, 32px)'
+        paddingBottom: 'var(--spacing-bottom-nav, 80px)'
       }}
     >
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="glass-card inner-glow text-center space-y-3 p-4 mb-6 floating-shadow" style={{ marginTop: 'var(--spacing-small, 12px)' }}>
-          <div className="flex items-center justify-center gap-4">
-            <Button variant="ghost" size="sm" onClick={onBack} className="hover-button absolute left-4">
-              <ArrowLeft className="w-4 h-4 hover-icon" />
-            </Button>
-            <SynthSLogo size="md" className="hover-icon" />
-            <h1 className="gradient-text text-2xl font-bold">
-              {filter === 'friends_only' ? 'Friend Requests' : 'Notifications'}
-            </h1>
-            {unreadCount > 0 && (
-              <Badge variant="default" className="gradient-badge">
-                {unreadCount} unread
-              </Badge>
-            )}
-          </div>
+      {/* iOS-style Header */}
+      <div 
+        style={{
+          ...iosHeader,
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+        }}
+      >
+        <button
+          onClick={onBack}
+          style={{
+            ...iosIconButton,
+            width: 44,
+            height: 44,
+          }}
+          aria-label="Back"
+        >
+          <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+        </button>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'center' }}>
+          <h1 style={{
+            ...textStyles.title1,
+            color: 'var(--neutral-900)',
+            margin: 0,
+            fontWeight: 600,
+          }}>
+            {filter === 'friends_only' ? 'Friend Requests' : 'Notifications'}
+          </h1>
+          {unreadCount > 0 && (
+            <div
+              style={{
+                backgroundColor: '#EF4444',
+                color: '#fff',
+                borderRadius: 12,
+                minWidth: 24,
+                height: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 12,
+                fontWeight: 600,
+                paddingLeft: 6,
+                paddingRight: 6,
+                boxSizing: 'border-box',
+                border: '2px solid #fff',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+              }}
+            >
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </div>
+          )}
         </div>
+        
+        <div style={{ width: 44 }} /> {/* Spacer for centering */}
+      </div>
 
+      {/* Content area with iOS padding */}
+      <div style={{ padding: '16px' }}>
         {/* Actions */}
         {notifications.length > 0 && unreadCount > 0 && (
-          <div className="glass-card inner-glow p-4 mb-6 floating-shadow">
-            <Button 
-              variant="outline" 
-              size="sm" 
+          <div style={{
+            ...glassCardLight,
+            padding: '12px 16px',
+            marginBottom: 16,
+          }}>
+            <button
               onClick={markAllAsRead}
-              className="hover-button w-full border-gray-200 hover:border-pink-400 hover:text-pink-500"
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '10px 16px',
+                background: 'rgba(255, 255, 255, 0.8)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(204, 36, 134, 0.2)',
+                borderRadius: 12,
+                color: 'var(--brand-pink-500)',
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-body-size, 16px)',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: `all ${animations.standardDuration} ${animations.springTiming}`,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(204, 36, 134, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)';
+              }}
             >
-              <Check className="w-4 h-4 mr-2 hover-icon" />
-              Mark all as read
-            </Button>
+              <Check size={18} style={{ color: 'var(--brand-pink-500)' }} />
+              <span>Mark all as read</span>
+            </button>
           </div>
         )}
 
         {/* Notifications List */}
         {notifications.length === 0 ? (
-          <Card className="glass-card inner-glow floating-shadow">
-            <CardContent className="text-center py-12">
-              {filter === 'friends_only' ? (
-                <UserPlus className="w-12 h-12 mx-auto mb-4 hover-icon" style={{ color: 'var(--brand-pink-500)' }} />
-              ) : (
-                <Bell className="w-12 h-12 mx-auto mb-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-              )}
-              <h3 className="text-lg font-semibold mb-2 gradient-text">
-                {filter === 'friends_only' ? 'No friend requests' : 'No notifications yet'}
-              </h3>
-              <p className="text-gray-500">
-                {filter === 'friends_only' 
-                  ? "When someone sends you a friend request, it will appear here."
-                  : "When you get event updates or review activity, they'll appear here."
-                }
-              </p>
-            </CardContent>
-          </Card>
+          <div style={{
+            ...glassCard,
+            padding: '48px 24px',
+            textAlign: 'center',
+          }}>
+            {filter === 'friends_only' ? (
+              <UserPlus size={48} style={{ color: 'var(--brand-pink-500)', margin: '0 auto 16px' }} />
+            ) : (
+              <Bell size={48} style={{ color: 'var(--brand-pink-500)', margin: '0 auto 16px' }} />
+            )}
+            <h3 style={{
+              ...textStyles.title2,
+              color: 'var(--neutral-900)',
+              marginBottom: 8,
+            }}>
+              {filter === 'friends_only' ? 'No friend requests' : 'No notifications yet'}
+            </h3>
+            <p style={{
+              ...textStyles.body,
+              color: 'var(--neutral-600)',
+            }}>
+              {filter === 'friends_only' 
+                ? "When someone sends you a friend request, it will appear here."
+                : "When you get event updates or review activity, they'll appear here."
+              }
+            </p>
+          </div>
         ) : (
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {notifications.map((notification) => (
-              <Card 
-                key={notification.id} 
-                className={`glass-card inner-glow hover-card cursor-pointer floating-shadow ${
-                  !notification.is_read ? 'border-pink-300' : ''
-                }`}
+              <div
+                key={notification.id}
                 onClick={() => handleNotificationClick(notification)}
+                style={{
+                  ...glassCard,
+                  padding: 16,
+                  cursor: 'pointer',
+                  border: !notification.is_read ? '1px solid rgba(204, 36, 134, 0.3)' : '1px solid rgba(255, 255, 255, 0.3)',
+                  transition: `all ${animations.standardDuration} ${animations.springTiming}`,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 12px 40px 0 rgba(0, 0, 0, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = `
+                    0 8px 32px 0 rgba(0, 0, 0, 0.1),
+                    inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
+                    inset 0 -1px 0 0 rgba(0, 0, 0, 0.05)
+                  `.trim();
+                }}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 hover-icon">
-                      {React.cloneElement(getNotificationIcon(notification.type), {
-                        style: { background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }
-                      })}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 40,
+                    height: 40,
+                    background: 'rgba(204, 36, 134, 0.1)',
+                    borderRadius: 10,
+                    flexShrink: 0,
+                  }}>
+                    {React.cloneElement(getNotificationIcon(notification.type), {
+                      style: { color: 'var(--brand-pink-500)', width: 20, height: 20 }
+                    })}
+                  </div>
+                  
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <h4 style={{
+                        ...textStyles.title3,
+                        color: 'var(--neutral-900)',
+                        margin: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {notification.title}
+                      </h4>
+                      {!notification.is_read && (
+                        <div 
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            backgroundColor: '#EF4444',
+                            flexShrink: 0,
+                            marginLeft: 8,
+                            boxShadow: '0 2px 4px rgba(239, 68, 68, 0.4)',
+                          }}
+                        />
+                      )}
                     </div>
                     
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-semibold text-sm truncate gradient-text">
-                          {notification.title}
-                        </h4>
-                        {!notification.is_read && (
-                          <div 
-                            className="w-2 h-2 rounded-full flex-shrink-0" 
-                            style={{
-                              background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 100%)',
-                              boxShadow: '0 2px 8px rgba(236, 72, 153, 0.3)'
+                    <p style={{
+                      ...textStyles.body,
+                      color: 'var(--neutral-600)',
+                      marginBottom: 8,
+                    }}>
+                      {notification.message}
+                    </p>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{
+                        ...textStyles.footnote,
+                        color: 'var(--neutral-500)',
+                        background: 'rgba(255, 255, 255, 0.6)',
+                        padding: '4px 8px',
+                        borderRadius: 6,
+                      }}>
+                        {formatTimeAgo(notification.created_at)}
+                      </span>
+                      
+                      {notification.type === 'friend_request' && (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              await handleAcceptFriendRequest((notification.data as any)?.request_id);
                             }}
-                          ></div>
-                        )}
-                      </div>
-                      
-                      <p className="text-sm text-gray-600 mb-2">
-                        {notification.message}
-                      </p>
-                      
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500 bg-white/30 px-2 py-1 rounded backdrop-blur-sm">
-                          {formatTimeAgo(notification.created_at)}
-                        </span>
-                        
-                        {notification.type === 'friend_request' && (
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="default" 
-                              className="hover-button gradient-button h-6 px-2"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                await handleAcceptFriendRequest((notification.data as any)?.request_id);
-                              }}
-                            >
-                              <Check className="w-3 h-3 mr-1 hover-icon" />
-                              Accept
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="hover-button h-6 px-2 border-gray-200 hover:border-red-400 hover:text-red-500"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                await handleDeclineFriendRequest((notification.data as any)?.request_id);
-                              }}
-                            >
-                              <X className="w-3 h-3 mr-1 hover-icon" />
-                              Decline
-                            </Button>
-                          </div>
-                        )}
-                      </div>
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              padding: '6px 12px',
+                              background: 'var(--brand-pink-500)',
+                              color: '#fff',
+                              borderRadius: 8,
+                              border: 'none',
+                              fontFamily: 'var(--font-family)',
+                              fontSize: 12,
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Check size={14} />
+                            Accept
+                          </button>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              await handleDeclineFriendRequest((notification.data as any)?.request_id);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              padding: '6px 12px',
+                              background: 'rgba(255, 255, 255, 0.8)',
+                              color: 'var(--neutral-700)',
+                              borderRadius: 8,
+                              border: '1px solid rgba(0, 0, 0, 0.1)',
+                              fontFamily: 'var(--font-family)',
+                              fontSize: 12,
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <X size={14} />
+                            Decline
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
         )}

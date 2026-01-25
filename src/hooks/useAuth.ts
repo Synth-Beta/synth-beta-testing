@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { PreferenceSignalsService } from '@/services/preferenceSignalsService';
+import { Capacitor } from '@capacitor/core';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -11,46 +12,40 @@ export function useAuth() {
   const preferenceRefreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
+    // Get initial session - user stays logged in until they explicitly log out
+    const getInitialSession = async (retryCount = 0): Promise<void> => {
+      const maxRetries = Capacitor.isNativePlatform() ? 3 : 1;
+      const retryDelay = 500;
+
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
+        
         if (error) {
+          // On mobile, retry if storage might still be loading
+          if (retryCount < maxRetries - 1 && Capacitor.isNativePlatform()) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            return getInitialSession(retryCount + 1);
+          }
           console.error('Error getting session:', error);
-          setSessionExpired(true);
           setSession(null);
           setUser(null);
         } else if (session) {
-          // Check if session is expired
-          const now = Math.floor(Date.now() / 1000);
-          if (session.expires_at && session.expires_at < now) {
-            console.log('Initial session expired');
-            setSessionExpired(true);
-            setSession(null);
-            setUser(null);
-          } else {
-            setSessionExpired(false);
-            setSession(session);
-            setUser(session.user);
-            // Refresh preference signals at session start (debounced)
-            if (preferenceRefreshTimeoutRef.current) {
-              clearTimeout(preferenceRefreshTimeoutRef.current);
-            }
-            preferenceRefreshTimeoutRef.current = setTimeout(() => {
-              PreferenceSignalsService.refreshIfNeeded().catch(err => {
-                console.warn('Failed to refresh preference signals:', err);
-              });
-              preferenceRefreshTimeoutRef.current = null;
-            }, 1000);
-          }
+          // Session found - user is logged in
+          setSession(session);
+          setUser(session.user);
+          // Refresh preference signals
+          schedulePreferenceRefresh();
         } else {
-          setSessionExpired(false);
+          // No session - user not logged in
           setSession(null);
           setUser(null);
         }
       } catch (error) {
+        if (retryCount < maxRetries - 1 && Capacitor.isNativePlatform()) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return getInitialSession(retryCount + 1);
+        }
         console.error('Error in getInitialSession:', error);
-        setSessionExpired(true);
         setSession(null);
         setUser(null);
       } finally {
@@ -58,85 +53,42 @@ export function useAuth() {
       }
     };
 
+    // Helper to schedule preference signal refresh with debouncing
+    const schedulePreferenceRefresh = () => {
+      if (preferenceRefreshTimeoutRef.current) {
+        clearTimeout(preferenceRefreshTimeoutRef.current);
+      }
+      preferenceRefreshTimeoutRef.current = setTimeout(() => {
+        PreferenceSignalsService.refreshIfNeeded().catch(err => {
+          console.warn('Failed to refresh preference signals:', err);
+        });
+        preferenceRefreshTimeoutRef.current = null;
+      }, 1000);
+    };
+
     getInitialSession();
 
-    // Periodic session check every 30 seconds for testing (change back to 5 minutes in production)
-    const sessionCheckInterval = setInterval(async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('Error checking session:', error);
-          setSessionExpired(true);
-          setSession(null);
-          setUser(null);
-        } else if (session) {
-          // Check if session is expired
-          const now = Math.floor(Date.now() / 1000);
-          if (session.expires_at && session.expires_at < now) {
-            console.log('Session expired during periodic check');
-            setSessionExpired(true);
-            setSession(null);
-            setUser(null);
-          }
-        }
-      } catch (error) {
-        console.error('Error in periodic session check:', error);
-      }
-    }, 5 * 60 * 1000); // Check every 5 minutes (optimized from 30 seconds)
-
-    // Listen for auth changes
+    // Listen for auth changes - only log out when user explicitly signs out
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id);
-        
-        // Handle different auth events
+      (event, session) => {
+        // Only handle explicit sign out - ignore token expiration
         if (event === 'SIGNED_OUT') {
-          console.log('User signed out');
+          console.log('👋 User signed out');
           setSessionExpired(false);
-          setSession(null);
-          setUser(null);
-        } else if (event === 'TOKEN_REFRESHED' && !session) {
-          console.log('Session expired - no valid session after token refresh');
-          setSessionExpired(true);
           setSession(null);
           setUser(null);
         } else if (session) {
-          // Check if session is expired
-          const now = Math.floor(Date.now() / 1000);
-          if (session.expires_at && session.expires_at < now) {
-            console.log('Session expired - expires_at is in the past');
-            setSessionExpired(true);
-            setSession(null);
-            setUser(null);
-          } else {
-            console.log('Valid session found');
-            setSessionExpired(false);
-            setSession(session);
-            setUser(session.user);
-            // Refresh preference signals when a new session is established
-            // Debounce to prevent multiple rapid calls
-            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-              // Clear any existing timeout
-              if (preferenceRefreshTimeoutRef.current) {
-                clearTimeout(preferenceRefreshTimeoutRef.current);
-              }
-              
-              // Set new timeout with 1 second debounce
-              preferenceRefreshTimeoutRef.current = setTimeout(() => {
-                PreferenceSignalsService.refreshIfNeeded().catch(err => {
-                  console.warn('Failed to refresh preference signals:', err);
-                });
-                preferenceRefreshTimeoutRef.current = null;
-              }, 1000);
-            }
-          }
-        } else {
-          // No session available
-          console.log('No session available');
+          // User is logged in (new sign in, token refresh, etc.)
           setSessionExpired(false);
-          setSession(null);
-          setUser(null);
+          setSession(session);
+          setUser(session.user);
+          
+          if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+            schedulePreferenceRefresh();
+          }
         }
+        // Note: We intentionally don't clear session on token expiration
+        // User stays "logged in" until they explicitly click logout
         
         setLoading(false);
       }
@@ -144,8 +96,6 @@ export function useAuth() {
 
     return () => {
       subscription.unsubscribe();
-      clearInterval(sessionCheckInterval);
-      // Clear any pending preference refresh timeout
       if (preferenceRefreshTimeoutRef.current) {
         clearTimeout(preferenceRefreshTimeoutRef.current);
         preferenceRefreshTimeoutRef.current = null;
@@ -156,6 +106,8 @@ export function useAuth() {
   const signOut = async () => {
     try {
       setLoading(true);
+      
+      // Sign out from Supabase (this clears the session from storage)
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Error signing out:', error);

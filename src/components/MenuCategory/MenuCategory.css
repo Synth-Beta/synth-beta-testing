@@ -17,6 +17,7 @@
   justify-content: flex-start;
   gap: 10px;
   box-sizing: border-box;
+  overflow: visible;
 }
 
 /* Ensure ALL icons in MenuCategory are DarkGrey */
@@ -48,6 +49,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  overflow: visible;
 }
 
 .menu-category__icon-text {

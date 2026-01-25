@@ -88,7 +88,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
   onNavigateToChat,
 }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'calendar' | 'leaderboards' | 'tour'>('calendar');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'tour'>('calendar');
   
   // Calendar view state
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
@@ -467,7 +467,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
         <TabsList 
-          className="grid w-full grid-cols-3" 
+          className="grid w-full grid-cols-2" 
           style={{ 
             marginBottom: 0,
             backgroundColor: 'rgba(255, 255, 255, 0.85)',
@@ -475,26 +475,22 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
             WebkitBackdropFilter: 'blur(20px)',
             border: '1px solid rgba(236, 72, 153, 0.2)',
             borderRadius: 'var(--radius-corner, 10px)',
-            padding: '4px'
+            padding: '4px',
+            gap: '6px'
           }}
         >
           <TabsTrigger 
             value="calendar" 
-            className="flex items-center gap-2 discover-tab-trigger"
+            className="flex items-center discover-tab-trigger"
+            style={{ gap: '12px', padding: '8px 12px' }}
           >
             <Icon name="calendar" size={16} />
             Calendar
           </TabsTrigger>
           <TabsTrigger 
-            value="leaderboards" 
-            className="flex items-center gap-2 discover-tab-trigger"
-          >
-            <Icon name="ribbonAward" size={16} />
-            Leaderboards
-          </TabsTrigger>
-          <TabsTrigger 
             value="tour" 
-            className="flex items-center gap-2 discover-tab-trigger"
+            className="flex items-center discover-tab-trigger"
+            style={{ gap: '12px', padding: '8px 12px' }}
           >
             <Icon name="route" size={16} />
             Tour Tracker
@@ -506,7 +502,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
           {calendarLoading ? (
             <div aria-busy="true">
               <div role="status" aria-live="polite" className="sr-only">Loading calendar…</div>
-              <SynthLoadingInline text="Loading calendar..." size="lg" />
+            <SynthLoadingInline text="Loading calendar..." size="lg" />
             </div>
           ) : (
             <div className="space-y-4 flex flex-col items-center justify-center">
@@ -585,19 +581,6 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
               )}
             </div>
           )}
-        </TabsContent>
-
-        {/* Leaderboards View */}
-        <TabsContent value="leaderboards" className="mt-8">
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center space-y-2">
-              <Icon name="ribbonAward" size={60} className="mx-auto" color="var(--neutral-600)" />
-              <h3 className="text-lg font-semibold">Coming Soon</h3>
-              <p className="text-sm text-muted-foreground">
-                Leaderboards are still in development
-              </p>
-            </div>
-          </div>
         </TabsContent>
 
         {/* Tour Tracker View */}
@@ -725,7 +708,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
             {tourLoading ? (
               <div aria-busy="true">
                 <div role="status" aria-live="polite" className="sr-only">Loading tour data…</div>
-                <SynthLoadingInline text="Loading tour data..." size="lg" />
+              <SynthLoadingInline text="Loading tour data..." size="lg" />
               </div>
             ) : selectedArtist && tourEvents.length > 0 ? (
               <>
@@ -748,10 +731,10 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                     style={{ height: '100%', width: '100%', zIndex: 0 }}
                     boundsOptions={{ padding: [50, 50] }}
                   >
-                    <TileLayer
+                        <TileLayer
                       url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY || 'pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w'}`}
-                      attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    />
+                          attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        />
                     <MapBoundsFitter events={sortedTourEvents} />
                     
                     {/* Draw route lines with arrowheads (based on grouped venues) */}

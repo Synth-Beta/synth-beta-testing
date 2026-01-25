@@ -248,11 +248,11 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
       // Calculate average rating (prefer venue_rating, fallback to rating)
       if (uniqueReviews.length > 0) {
         const ratings = uniqueReviews
-          .map(r => r.venue_rating || r.rating)
-          .filter((r): r is number => typeof r === 'number' && !isNaN(r) && r > 0);
-        if (ratings.length > 0) {
-          const avgRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
-          setAverageRating(avgRating);
+            .map(r => r.venue_rating || r.rating)
+            .filter((r): r is number => typeof r === 'number' && !isNaN(r) && r > 0);
+          if (ratings.length > 0) {
+            const avgRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
+            setAverageRating(avgRating);
         }
         setTotalReviews(uniqueReviews.length);
       }
@@ -386,7 +386,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
       >
         {/* iOS-style Header */}
         <div
-          style={{
+      style={{
             ...iosHeader,
             position: 'sticky',
             top: 0,
@@ -415,11 +415,11 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
           <button style={{ ...iosIconButton, width: 44, height: 44, minWidth: 44, minHeight: 44 }} aria-label="Share" type="button">
             <Share2 size={20} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
           </button>
-        </div>
-
+          </div>
+      
         {/* Content */}
         <div style={{ padding: 20, paddingBottom: 100 }}>
-          {loading ? (
+        {loading ? (
             <div 
               aria-busy="true"
               aria-live="polite"
@@ -436,8 +436,8 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                 }}
               />
               <span className="sr-only">Loading venue information...</span>
-            </div>
-          ) : (
+          </div>
+        ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               {/* Hero Section - Venue Info */}
               <div
@@ -465,7 +465,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                   }}
                 >
                   <Building2 size={36} color="#fff" />
-                </div>
+              </div>
                 
                 {/* Venue Name */}
                 <h2 style={{ ...textStyles.title1, color: 'var(--neutral-900)', marginBottom: 8 }}>
@@ -514,16 +514,16 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                 )}
                 
                 {/* Follow Button */}
-                <VenueFollowButton
-                  venueName={venueName}
-                  venueCity={venueCity || undefined}
-                  venueState={venueState || undefined}
-                  userId={currentUserId}
-                />
-              </div>
+                  <VenueFollowButton
+                    venueName={venueName}
+                    venueCity={venueCity || undefined}
+                    venueState={venueState || undefined}
+                    userId={currentUserId}
+                  />
+            </div>
 
               {/* Map Section */}
-              {latitude && longitude && (
+            {latitude && longitude && (
                 <div
                   style={{
                     ...glassCardLight,
@@ -533,25 +533,25 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                     borderRadius: 16,
                   }}
                 >
-                  <EventMap
-                    center={[latitude, longitude]}
-                    zoom={15}
-                    events={[{
-                      id: venueId,
-                      jambase_event_id: venueId,
-                      title: venueName,
-                      artist_name: venueName,
-                      artist_id: '',
-                      venue_name: venueName,
-                      venue_id: venueId,
-                      event_date: new Date().toISOString(),
-                      latitude,
-                      longitude,
-                    }]}
-                    onEventClick={() => {}}
-                  />
-                </div>
-              )}
+                <EventMap
+                  center={[latitude, longitude]}
+                  zoom={15}
+                  events={[{
+                    id: venueId,
+                    jambase_event_id: venueId,
+                    title: venueName,
+                    artist_name: venueName,
+                    artist_id: '',
+                    venue_name: venueName,
+                    venue_id: venueId,
+                    event_date: new Date().toISOString(),
+                    latitude,
+                    longitude,
+                  }]}
+                  onEventClick={() => {}}
+                />
+              </div>
+            )}
 
               {/* Reviews Section - Yelp/Google style (ABOVE events) */}
               <div>
@@ -692,7 +692,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                     <p style={{ ...textStyles.body, color: 'var(--neutral-600)' }}>
                       No reviews yet for {venueName}
                     </p>
-                  </div>
+              </div>
                 )}
               </div>
 
@@ -712,7 +712,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                         compact={true}
                       />
                     ))}
-                  </div>
+              </div>
                   {hasMoreUpcoming && (
                     <button
                       onClick={() => setUpcomingShown(prev => prev + LOAD_MORE_COUNT)}
@@ -722,12 +722,12 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                       Load More ({upcomingEvents.length - upcomingShown} remaining)
                     </button>
                   )}
-                </div>
+            </div>
               )}
 
               {/* Past Events Section */}
               {pastEvents.length > 0 && (
-                <div>
+              <div>
                   <h3 style={{ ...textStyles.title2, color: 'var(--neutral-900)', marginBottom: 16 }}>
                     Past Events ({pastEvents.length})
                   </h3>
@@ -751,8 +751,8 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                       Load More ({pastEvents.length - pastShown} remaining)
                     </button>
                   )}
-                </div>
-              )}
+              </div>
+            )}
 
               {/* Empty State */}
               {events.length === 0 && (
@@ -769,10 +769,10 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                   </p>
                 </div>
               )}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+    </div>
     </>
   );
 };

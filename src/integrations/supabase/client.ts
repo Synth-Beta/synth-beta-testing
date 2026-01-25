@@ -57,14 +57,12 @@ const isMobile = Capacitor.isNativePlatform();
 // Configure Supabase client with mobile-specific settings
 const supabaseConfig: any = {
   auth: {
-    // Auto-refresh session
+    // Auto-refresh session - ensures tokens are refreshed before expiry
     autoRefreshToken: true,
-    // Persist session in mobile app storage
+    // Persist session in storage (uses WebView localStorage which persists in Capacitor)
     persistSession: true,
     // Detect session from URL (for deep links) - only on web
     detectSessionInUrl: !isMobile, // Disable on mobile, we handle deep links manually
-    // Storage adapter for mobile (uses Capacitor Preferences)
-    // Let Supabase use default storage which works on both web and mobile
     // Redirect URLs based on platform
     redirectTo: isMobile 
       ? 'synth://' // Mobile deep link scheme

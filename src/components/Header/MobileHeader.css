@@ -76,6 +76,7 @@
   /* No hover/active effects - just the icon */
   /* Ensure icon is perfectly centered regardless of SVG viewBox differences */
   line-height: 0;
+  overflow: visible;
 }
 
 .mobile-header__menu-button > * {
