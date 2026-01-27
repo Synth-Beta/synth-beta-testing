@@ -3201,17 +3201,21 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                 window.dispatchEvent(event);
                 setViewReviewOpen(false);
               }}
-              onOpenArtist={(artistId, artistName) => {
-                if (artistName) {
-                  navigate(`/artist/${encodeURIComponent(artistName)}`);
-                  setViewReviewOpen(false);
-                }
+             onOpenArtist={(artistId, artistName) => {
+                window.dispatchEvent(
+                  new CustomEvent('open-artist-card', {
+                    detail: { artistId, artistName },
+                  })
+                );
+                setViewReviewOpen(false);
               }}
               onOpenVenue={(venueId, venueName) => {
-                if (venueName) {
-                  navigate(`/venue/${encodeURIComponent(venueName)}`);
-                  setViewReviewOpen(false);
-                }
+                window.dispatchEvent(
+                  new CustomEvent('open-venue-card', {
+                    detail: { venueId, venueName },
+                  })
+                );
+                setViewReviewOpen(false);
               }}
             />
           </DialogContent>

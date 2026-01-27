@@ -1026,10 +1026,18 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                 }
               }}
               onOpenArtist={(artistId, artistName) => {
-                navigate(`/artist/${encodeURIComponent(artistName)}`);
+                window.dispatchEvent(
+                  new CustomEvent('open-artist-card', {
+                    detail: { artistId, artistName },
+                  })
+                );
               }}
               onOpenVenue={(venueId, venueName) => {
-                navigate(`/venue/${encodeURIComponent(venueName)}`);
+                window.dispatchEvent(
+                  new CustomEvent('open-venue-card', {
+                    detail: { venueId, venueName },
+                  })
+                );
               }}
             />
             {(index + 1) % 5 === 0 && renderPeopleYouMightKnowCard()}
