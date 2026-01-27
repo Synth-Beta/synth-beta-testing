@@ -100,6 +100,78 @@ class IncrementalSync3NF {
   }
 
   /**
+   * Create location-based key for venue matching
+   * This MUST match the algorithm used in backfill-venue-ids.mjs
+   * Used to ensure venues created during backfill are found during sync
+   * 
+   * Note: Uses explicit null checks for coordinates to handle valid 0,0 coordinates
+   */
+  createLocationKey(venueData) {
+    // Support both primary fields (from venue data) and fallback fields (from event data)
+    // This ensures venues created by backfill with event data can be found by sync with venue data
+    const name = (venueData.name || venueData.venue_name || '').toLowerCase().trim();
+    const city = (venueData.city || venueData.venue_city || '').toLowerCase().trim();
+    const state = (venueData.state || venueData.venue_state || '').toLowerCase().trim();
+    
+    // Use explicit null/undefined checks to handle valid 0,0 coordinates
+    const hasLat = venueData.latitude != null && !isNaN(parseFloat(venueData.latitude));
+    const hasLon = venueData.longitude != null && !isNaN(parseFloat(venueData.longitude));
+    
+    if (hasLat && hasLon) {
+      // Use coordinates for precise matching (round to 0.01 degrees ≈ 1km)
+      const lat = Math.round(parseFloat(venueData.latitude) * 100) / 100;
+      const lon = Math.round(parseFloat(venueData.longitude) * 100) / 100;
+      // Include name if available, otherwise use empty string (coordinates are primary)
+      return `coord:${lat}:${lon}:${name || ''}`;
+    } else if (city && state) {
+      // Use name + city + state (name can be empty if not available)
+      return `location:${name || ''}|${city}|${state}`;
+    } else if (name) {
+      // Fallback to name only (only if name is available)
+      return `name:${name}`;
+    } else {
+      // No name and no location data - return null to indicate we can't create a key
+      return null;
+    }
+  }
+
+  /**
+   * Generate all possible location keys for a venue (for lookup)
+   * This ensures we can find venues stored with different key formats
+   */
+  generateAllLocationKeys(venueData) {
+    const keys = [];
+    const name = (venueData.name || venueData.venue_name || '').toLowerCase().trim();
+    const city = (venueData.city || venueData.venue_city || '').toLowerCase().trim();
+    const state = (venueData.state || venueData.venue_state || '').toLowerCase().trim();
+    
+    // Use explicit null/undefined checks to handle valid 0,0 coordinates
+    const hasLat = venueData.latitude != null && !isNaN(parseFloat(venueData.latitude));
+    const hasLon = venueData.longitude != null && !isNaN(parseFloat(venueData.longitude));
+    
+    // Add coordinate key if available
+    if (hasLat && hasLon) {
+      const lat = Math.round(parseFloat(venueData.latitude) * 100) / 100;
+      const lon = Math.round(parseFloat(venueData.longitude) * 100) / 100;
+      // Include name if available, otherwise use empty string (coordinates are primary)
+      keys.push(`coord:${lat}:${lon}:${name || ''}`);
+    }
+    
+    // Add location key if city and state available
+    if (city && state) {
+      // Include name if available, otherwise use empty string (city+state are primary)
+      keys.push(`location:${name || ''}|${city}|${state}`);
+    }
+    
+    // Add name key as fallback (only if name is available)
+    if (name) {
+      keys.push(`name:${name}`);
+    }
+    
+    return keys;
+  }
+
+  /**
    * Batch upsert artists using external_entity_ids for deduplication
    * Returns: Map<jambase_artist_id, artist_uuid>
    */
@@ -347,7 +419,8 @@ class IncrementalSync3NF {
       // Insert new venues
       if (newVenues.length > 0) {
         // Remove jambase_venue_id from data (it's not a column, just used for deduplication)
-        const venuesToInsert = newVenues.map(venue => {
+        // But keep track of it for mapping after insertion
+        const venuesToInsert = newVenues.map((venue, index) => {
           const { jambase_venue_id, ...venueData } = venue;
           return {
             ...venueData,
@@ -367,15 +440,43 @@ class IncrementalSync3NF {
         }
 
         if (inserted) {
-          for (const venue of inserted) {
-            // Extract Jambase ID from identifier (format: "jambase:12345")
-            const jambaseId = venue.identifier?.replace(/^jambase:/, '');
-            if (jambaseId) {
-              venueUuidMap.set(jambaseId, venue.id);
+          // Match inserted venues back to original venue data by identifier
+          // This is safer than assuming insertion order is preserved
+          const originalVenuesByIdentifier = new Map();
+          for (const venue of newVenues) {
+            if (venue.identifier) {
+              originalVenuesByIdentifier.set(venue.identifier, venue);
+            }
+          }
+          
+          for (const insertedVenue of inserted) {
+            // Match by identifier (most reliable)
+            const originalVenue = insertedVenue.identifier 
+              ? originalVenuesByIdentifier.get(insertedVenue.identifier)
+              : null;
+            
+            // Fallback: if no identifier match, try to extract jambase ID from identifier
+            let jambaseVenueId = null;
+            if (originalVenue) {
+              jambaseVenueId = originalVenue.jambase_venue_id;
+            } else if (insertedVenue.identifier) {
+              // Extract from identifier as fallback
+              const jambaseId = insertedVenue.identifier.replace(/^jambase:/, '');
+              if (jambaseId) {
+                jambaseVenueId = jambaseId;
+              }
+            }
+            
+            if (jambaseVenueId) {
+              // Add to map using the jambase_venue_id
+              venueUuidMap.set(jambaseVenueId, insertedVenue.id);
               this.stats.venuesNew++;
 
               // Create external_entity_ids entry
-              await this.upsertExternalId(venue.id, 'jambase', 'venue', jambaseId);
+              await this.upsertExternalId(insertedVenue.id, 'jambase', 'venue', jambaseVenueId);
+            } else {
+              const venueName = originalVenue?.name || insertedVenue.identifier || 'unknown';
+              console.warn(`  ⚠️  Venue inserted but no JamBase ID found: ${insertedVenue.id} (${venueName})`);
             }
           }
         }
@@ -403,36 +504,128 @@ class IncrementalSync3NF {
       }
     }
 
-    // Handle venues without Jambase IDs (name-based lookup)
+    // Handle venues without Jambase IDs (location-based matching)
     for (const venueData of venuesWithoutId) {
       // Remove jambase_venue_id from data (it's not a column)
       const { jambase_venue_id, ...venueDataClean } = venueData;
       
-      const { data: existing } = await this.syncService.supabase
-        .from('venues')
-        .select('id')
-        .eq('name', venueDataClean.name)
-        .is('identifier', null)
-        .maybeSingle();
+      // Create location-based key for matching
+      const locationKey = this.createLocationKey(venueDataClean);
+      
+      // Try to find existing venue using location-based matching
+      let existingVenue = null;
+      
+      // Use explicit null/undefined checks to handle valid 0,0 coordinates
+      const hasLat = venueDataClean.latitude != null && !isNaN(parseFloat(venueDataClean.latitude));
+      const hasLon = venueDataClean.longitude != null && !isNaN(parseFloat(venueDataClean.longitude));
+      
+      if (hasLat && hasLon) {
+        // Match by coordinates (within 0.01 degrees ≈ 1km)
+        const lat = parseFloat(venueDataClean.latitude);
+        const lon = parseFloat(venueDataClean.longitude);
+        const latMin = lat - 0.01;
+        const latMax = lat + 0.01;
+        const lonMin = lon - 0.01;
+        const lonMax = lon + 0.01;
+        
+        const { data: venues, error } = await this.syncService.supabase
+          .from('venues')
+          .select('id, name, city, state, street_address, zip, latitude, longitude')
+          .eq('name', venueDataClean.name)
+          .is('identifier', null) // No JamBase ID
+          .gte('latitude', latMin)
+          .lte('latitude', latMax)
+          .gte('longitude', lonMin)
+          .lte('longitude', lonMax)
+          .limit(1)
+          .maybeSingle();
+        
+        if (error && error.code !== 'PGRST116') {
+          console.warn(`  ⚠️  Error finding venue by coordinates: ${error.message}`);
+        } else if (venues) {
+          existingVenue = venues;
+        }
+      }
+      
+      // If not found by coordinates, try name + city + state
+      if (!existingVenue && venueDataClean.city && venueDataClean.state) {
+        const { data: venues, error } = await this.syncService.supabase
+          .from('venues')
+          .select('id, name, city, state, street_address, zip, latitude, longitude')
+          .eq('name', venueDataClean.name)
+          .eq('city', venueDataClean.city)
+          .eq('state', venueDataClean.state)
+          .is('identifier', null) // No JamBase ID
+          .limit(1)
+          .maybeSingle();
+        
+        if (error && error.code !== 'PGRST116') {
+          console.warn(`  ⚠️  Error finding venue by location: ${error.message}`);
+        } else if (venues) {
+          existingVenue = venues;
+        }
+      }
+      
+      // If still not found, try name only (fallback)
+      if (!existingVenue) {
+        const { data: venues, error } = await this.syncService.supabase
+          .from('venues')
+          .select('id, name, city, state, street_address, zip, latitude, longitude')
+          .eq('name', venueDataClean.name)
+          .is('identifier', null) // No JamBase ID
+          .limit(1)
+          .maybeSingle();
+        
+        if (error && error.code !== 'PGRST116') {
+          console.warn(`  ⚠️  Error finding venue by name: ${error.message}`);
+        } else if (venues) {
+          existingVenue = venues;
+        }
+      }
 
       let venueUuid;
 
-      if (existing) {
-        // Update existing venue
-        const { data: updated, error } = await this.syncService.supabase
+      if (existingVenue) {
+        // Update existing venue with any missing data
+        const updateData = {
+          updated_at: new Date().toISOString(),
+          last_synced_at: new Date().toISOString()
+        };
+        
+        // Only update fields that are missing (consistent behavior for all fields)
+        // This prevents overwriting existing data with potentially incomplete new data
+        if (venueDataClean.city && !existingVenue.city) updateData.city = venueDataClean.city;
+        if (venueDataClean.state && !existingVenue.state) updateData.state = venueDataClean.state;
+        if (venueDataClean.street_address && !existingVenue.street_address) updateData.street_address = venueDataClean.street_address;
+        if (venueDataClean.zip && !existingVenue.zip) updateData.zip = venueDataClean.zip;
+        // Use explicit null checks for coordinates to handle valid 0,0 coordinates
+        if (venueDataClean.latitude != null && !isNaN(parseFloat(venueDataClean.latitude)) && existingVenue.latitude == null) {
+          updateData.latitude = parseFloat(venueDataClean.latitude);
+        }
+        if (venueDataClean.longitude != null && !isNaN(parseFloat(venueDataClean.longitude)) && existingVenue.longitude == null) {
+          updateData.longitude = parseFloat(venueDataClean.longitude);
+        }
+        
+        // Always update last_synced_at to track sync metadata, even if no other fields changed
+        // Check if we have updates beyond just timestamps
+        const hasFieldUpdates = Object.keys(updateData).length > 2; // More than just timestamps
+        
+        // Always perform update to refresh last_synced_at (important for sync tracking)
+        const { error: updateError } = await this.syncService.supabase
           .from('venues')
-          .update({
-            ...venueDataClean,
-            updated_at: new Date().toISOString(),
-            last_synced_at: new Date().toISOString()
-          })
-          .eq('id', existing.id)
-          .select('id')
-          .single();
-
-        if (error) throw error;
-        venueUuid = updated.id;
-        this.stats.venuesUpdated++;
+          .update(updateData)
+          .eq('id', existingVenue.id);
+        
+        if (updateError) {
+          console.warn(`  ⚠️  Error updating venue: ${updateError.message}`);
+        } else {
+          // Only increment stats if actual field updates occurred (not just timestamp refresh)
+          if (hasFieldUpdates) {
+            this.stats.venuesUpdated++;
+          }
+        }
+        
+        venueUuid = existingVenue.id;
       } else {
         // Insert new venue
         const { data: inserted, error } = await this.syncService.supabase
@@ -451,7 +644,50 @@ class IncrementalSync3NF {
         this.stats.venuesNew++;
       }
 
-      venueUuidMap.set(`name:${venueDataClean.name}`, venueUuid);
+      // Store venue with all possible location keys, but prioritize more specific keys
+      // Key specificity order: coord: > location: > name:
+      // A more specific key can overwrite a less specific one, but not vice versa
+      // This prevents collisions when multiple venues share the same name while still
+      // allowing lookups with varying data completeness
+      const allKeys = this.generateAllLocationKeys(venueDataClean);
+      
+      // Helper to get key specificity (higher number = more specific)
+      const getKeySpecificity = (key) => {
+        if (key.startsWith('coord:')) return 3;
+        if (key.startsWith('location:')) return 2;
+        if (key.startsWith('name:')) return 1;
+        return 0;
+      };
+      
+      // Check if this venue has any keys more specific than name:
+      const hasMoreSpecificKey = allKeys.some(key => getKeySpecificity(key) > 1);
+      
+      for (const key of allKeys) {
+        const keySpecificity = getKeySpecificity(key);
+        const existingVenueId = venueUuidMap.get(key);
+        
+        if (!existingVenueId) {
+          // Key doesn't exist - always set it
+          venueUuidMap.set(key, venueUuid);
+        } else if (existingVenueId === venueUuid) {
+          // Same venue - no need to update
+          continue;
+        } else {
+          // Key exists for different venue - check if we should overwrite
+          if (keySpecificity > 1) {
+            // This is coord: or location: - can overwrite less specific keys
+            venueUuidMap.set(key, venueUuid);
+          } else if (keySpecificity === 1 && hasMoreSpecificKey) {
+            // This is name: but we have more specific keys (coord: or location:)
+            // We can overwrite because we have better identifying information
+            venueUuidMap.set(key, venueUuid);
+          } else {
+            // This is name: and we don't have more specific keys
+            // Don't overwrite - keep the existing mapping (which might be from a venue with more specific data)
+            console.warn(`  ⚠️  Location key collision: "${key}" already maps to venue ${existingVenueId}, keeping existing mapping (venue ${venueUuid} has only name, no coordinates or city+state)`);
+          }
+        }
+      }
     }
 
     return venueUuidMap;
@@ -713,9 +949,26 @@ class IncrementalSync3NF {
       const jambaseArtistId = headliner?.identifier?.replace(/^jambase:/, '');
       const jambaseVenueId = venue?.identifier?.replace(/^jambase:/, '');
       
-      // Get UUIDs from maps (will be null if not found, which is handled in upsert)
+      // Get UUIDs from maps
       const artistUuid = jambaseArtistId ? artistUuidMap.get(jambaseArtistId) : null;
-      const venueUuid = jambaseVenueId ? venueUuidMap.get(jambaseVenueId) : null;
+      
+      // For venues: if no JamBase ID, use location-based key to find venue
+      let venueUuid = null;
+      if (jambaseVenueId) {
+        venueUuid = venueUuidMap.get(jambaseVenueId);
+      } else if (venue) {
+        // No JamBase venue ID - use location-based matching
+        // Try all possible key formats to handle varying data completeness
+        const venueData = this.syncService.extractVenueData(venue);
+        if (venueData) {
+          const allKeys = this.generateAllLocationKeys(venueData);
+          // Try keys from most specific to least specific
+          for (const key of allKeys) {
+            venueUuid = venueUuidMap.get(key);
+            if (venueUuid) break; // Found it!
+          }
+        }
+      }
 
       const eventData = this.syncService.extractEventData(
         jambaseEvent,
