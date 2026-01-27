@@ -37,6 +37,8 @@ import { EventReviewModal } from './EventReviewModal';
 import { SynthLoadingScreen } from './ui/SynthLoader';
 import { PushTokenService } from '@/services/pushTokenService';
 import { UserEventService } from '@/services/userEventService';
+import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
+import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
 
 type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events' | 'onboarding';
 
@@ -274,8 +276,90 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [showEventReviewModal, setShowEventReviewModal] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Global Artist/Venue detail modals (used across Discover + review pills)
+  const [artistDetail, setArtistDetail] = useState<{ open: boolean; artistId: string | null; artistName: string }>({
+    open: false,
+    artistId: null,
+    artistName: '',
+  });
+  const [venueDetail, setVenueDetail] = useState<{ open: boolean; venueId: string | null; venueName: string }>({
+    open: false,
+    venueId: null,
+    venueName: '',
+  });
+
   // Lock body scroll when menu is open
   useLockBodyScroll(menuOpen);
+
+  // Listen globally so artist/venue modals open from anywhere (review pills, links, etc.)
+  useEffect(() => {
+    const openArtist = async (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      let artistId: string | null = detail.artistId || null;
+      let artistName: string = detail.artistName || '';
+
+      // If we have an ID but no name, resolve name for better modal UX.
+      if (artistId && !artistName) {
+        try {
+          const { data } = await supabase.from('artists').select('name').eq('id', artistId).maybeSingle();
+          if (data?.name) artistName = data.name;
+        } catch {
+          // Non-fatal; modal can still open with fallback name
+        }
+      }
+
+      // If we don't have an ID, try resolving by name.
+      if (!artistId && artistName) {
+        try {
+          const { data } = await supabase.from('artists').select('id, name').ilike('name', artistName).limit(1).maybeSingle();
+          if (data?.id) artistId = data.id;
+          if (data?.name) artistName = data.name;
+        } catch {
+          // Ignore
+        }
+      }
+
+      if (artistId) {
+        setArtistDetail({ open: true, artistId, artistName: artistName || 'Artist' });
+      }
+    };
+
+    const openVenue = async (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      let venueId: string | null = detail.venueId || null;
+      let venueName: string = detail.venueName || '';
+
+      if (venueId && !venueName) {
+        try {
+          const { data } = await supabase.from('venues').select('name').eq('id', venueId).maybeSingle();
+          if (data?.name) venueName = data.name;
+        } catch {
+          // Non-fatal
+        }
+      }
+
+      if (!venueId && venueName) {
+        try {
+          const { data } = await supabase.from('venues').select('id, name').ilike('name', venueName).limit(1).maybeSingle();
+          if (data?.id) venueId = data.id;
+          if (data?.name) venueName = data.name;
+        } catch {
+          // Ignore
+        }
+      }
+
+      if (venueId) {
+        setVenueDetail({ open: true, venueId, venueName: venueName || 'Venue' });
+      }
+    };
+
+    window.addEventListener('open-artist-card', openArtist as EventListener);
+    window.addEventListener('open-venue-card', openVenue as EventListener);
+    return () => {
+      window.removeEventListener('open-artist-card', openArtist as EventListener);
+      window.removeEventListener('open-venue-card', openVenue as EventListener);
+    };
+  }, []);
 
   const handleForceLogin = () => {
     setShowAuth(true);
@@ -782,6 +866,26 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       <div style={{ backgroundColor: 'transparent' }}>
         {renderCurrentView()}
       </div>
+
+      {/* Global Artist/Venue Detail Modals */}
+      {user?.id && artistDetail.open && artistDetail.artistId && (
+        <ArtistDetailModal
+          isOpen={artistDetail.open}
+          onClose={() => setArtistDetail({ open: false, artistId: null, artistName: '' })}
+          artistId={artistDetail.artistId}
+          artistName={artistDetail.artistName || 'Artist'}
+          currentUserId={user.id}
+        />
+      )}
+      {user?.id && venueDetail.open && venueDetail.venueId && (
+        <VenueDetailModal
+          isOpen={venueDetail.open}
+          onClose={() => setVenueDetail({ open: false, venueId: null, venueName: '' })}
+          venueId={venueDetail.venueId}
+          venueName={venueDetail.venueName || 'Venue'}
+          currentUserId={user.id}
+        />
+      )}
 
       {/* New Bottom Navigation - replaces old Navigation */}
       {/* Show bottom nav on messages list, but hide when a chat is selected */}

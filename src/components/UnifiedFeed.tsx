@@ -692,39 +692,8 @@ export const UnifiedFeed = ({
     };
   }, []);
 
-  // Add event listeners for artist and venue card opening
-  useEffect(() => {
-    const openVenue = (e: Event) => {
-      const detail = (e as CustomEvent).detail || {};
-      const venueId = detail.venueId || detail.venueName;
-      
-      // Navigate to full venue profile page
-      if (venueId) {
-        navigate(`/venue/${encodeURIComponent(venueId)}`);
-      }
-    };
-
-    const openArtist = async (e: Event) => {
-      const detail = (e as CustomEvent).detail || {};
-      if (detail.artistName) {
-        // Use artistId if available, otherwise use artistName as fallback
-        const artistId = detail.artistId && detail.artistId !== 'manual' 
-          ? detail.artistId 
-          : encodeURIComponent(detail.artistName);
-        
-        // Navigate to full artist profile page
-        navigate(`/artist/${artistId}`);
-      }
-    };
-
-    document.addEventListener('open-venue-card', openVenue as EventListener);
-    document.addEventListener('open-artist-card', openArtist as EventListener);
-    
-    return () => {
-      document.removeEventListener('open-venue-card', openVenue as EventListener);
-      document.removeEventListener('open-artist-card', openArtist as EventListener);
-    };
-  }, [navigate]);
+  // Artist/Venue detail modals are now opened by a global listener in `MainApp`
+  // so they can be opened from anywhere with consistent header/footer.
 
   // Load followed artists and venues for filtering
   const loadFollowedData = async () => {
@@ -2351,10 +2320,18 @@ export const UnifiedFeed = ({
                 setShowReviewDetailModal(true);
               }}
               onOpenArtist={(artistId, artistName) => {
-                navigate(`/artist/${encodeURIComponent(artistName)}`);
+                window.dispatchEvent(
+                  new CustomEvent('open-artist-card', {
+                    detail: { artistId, artistName },
+                  })
+                );
               }}
               onOpenVenue={(venueId, venueName) => {
-                navigate(`/venue/${encodeURIComponent(venueName)}`);
+                window.dispatchEvent(
+                  new CustomEvent('open-venue-card', {
+                    detail: { venueId, venueName },
+                  })
+                );
               }}
             />
           );
