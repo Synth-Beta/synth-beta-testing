@@ -59,6 +59,13 @@ export interface ReviewFormState {
   errors: Record<string, string>;
   isLoading: boolean;
   isValid: boolean;
+  /**
+   * Highest step the user has reached in this session.
+   * Used so that when the user navigates back, we still
+   * treat later steps as "completed" and allow jumping
+   * back forward to them.
+   */
+  maxStepReached: number;
 }
 
 // Dynamic step calculation based on review duration
@@ -108,6 +115,7 @@ export function useReviewForm() {
     errors: {},
     isLoading: false,
     isValid: false,
+    maxStepReached: 1,
   });
 
   // Helper to get current flow based on duration
@@ -287,18 +295,32 @@ export function useReviewForm() {
       ) {
         newFormData.rating = calculateOverallRating(newFormData);
       }
-      
+
+      // If the review duration (flow) changes, reset the "furthest reached"
+      // step so that newly introduced steps are not marked as completed.
+      let newMaxStepReached = prev.maxStepReached;
+      if (
+        updates.reviewDuration &&
+        updates.reviewDuration !== prev.formData.reviewDuration
+      ) {
+        const totalForNewDuration = getTotalStepsForDuration(updates.reviewDuration);
+        const maxForNewDuration = totalForNewDuration > 0 ? totalForNewDuration : REVIEW_FORM_TOTAL_STEPS;
+        const clampedCurrent = Math.min(prev.currentStep, maxForNewDuration);
+        newMaxStepReached = clampedCurrent;
+      }
+
       const stepErrors = validateStep(prev.currentStep, newFormData);
       const isValid = Object.keys(stepErrors).length === 0;
       
       console.log('🔄 useReviewForm: Step validation errors:', stepErrors);
       console.log('🔄 useReviewForm: Form is valid:', isValid);
-      
+
       return {
         ...prev,
         formData: newFormData,
         errors: stepErrors,
         isValid,
+        maxStepReached: newMaxStepReached,
       };
     });
   }, [validateStep, calculateOverallRating]);
@@ -321,6 +343,8 @@ export function useReviewForm() {
       return {
         ...prev,
         currentStep: nextStepNumber,
+        // Once we've advanced, remember the furthest step reached
+        maxStepReached: Math.max(prev.maxStepReached, nextStepNumber),
         errors: {},
         isValid: true,
       };
@@ -340,9 +364,12 @@ export function useReviewForm() {
       const totalSteps = getTotalStepsForDuration(prev.formData.reviewDuration);
       const maxStep = totalSteps > 0 ? totalSteps : REVIEW_FORM_TOTAL_STEPS;
       return {
-      ...prev,
+        ...prev,
         currentStep: Math.max(1, Math.min(step, maxStep)),
-      errors: {},
+        // Do NOT change maxStepReached here; we want future steps
+        // that have already been completed to remain "done" even
+        // when navigating backwards.
+        errors: {},
       };
     });
   }, []);
@@ -358,6 +385,7 @@ export function useReviewForm() {
       errors: {},
       isLoading: false,
       isValid: false,
+      maxStepReached: 1,
     });
   }, []);
 
@@ -373,6 +401,19 @@ export function useReviewForm() {
       ) {
         newFormData.rating = calculateOverallRating(newFormData as ReviewFormData);
       }
+
+      // Also handle duration / flow changes when bulk-setting form data
+      let newMaxStepReached = prev.maxStepReached;
+      if (
+        data.reviewDuration &&
+        data.reviewDuration !== prev.formData.reviewDuration
+      ) {
+        const totalForNewDuration = getTotalStepsForDuration(data.reviewDuration);
+        const maxForNewDuration = totalForNewDuration > 0 ? totalForNewDuration : REVIEW_FORM_TOTAL_STEPS;
+        const clampedCurrent = Math.min(prev.currentStep, maxForNewDuration);
+        newMaxStepReached = clampedCurrent;
+      }
+
       const stepErrors = validateStep(prev.currentStep, newFormData);
       const isValid = Object.keys(stepErrors).length === 0;
       
@@ -381,6 +422,7 @@ export function useReviewForm() {
         formData: newFormData,
         errors: stepErrors,
         isValid,
+        maxStepReached: newMaxStepReached,
       };
     });
   }, [validateStep, calculateOverallRating]);

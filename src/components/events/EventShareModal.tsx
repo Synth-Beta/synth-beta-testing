@@ -405,10 +405,14 @@ export function EventShareModal({
               aria-hidden="true"
             />
             <input
+              id="event-share-search"
+              name="event_share_search"
               type="text"
               placeholder="Search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              autoComplete="off"
+              aria-label="Search people and chats to share with"
               style={{
                 width: '100%',
                 padding: '10px 12px 10px 40px',

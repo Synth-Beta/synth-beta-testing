@@ -312,11 +312,15 @@ export default function Admin() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
+                  id="admin-user-search"
+                  name="admin_user_search"
                   type="text"
                   placeholder="Search by name, username, or Instagram handle..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  autoComplete="off"
+                  aria-label="Search users by name, username, or Instagram handle"
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                 />
               </div>

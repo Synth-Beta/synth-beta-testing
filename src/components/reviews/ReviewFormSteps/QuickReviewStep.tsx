@@ -9,6 +9,8 @@ import { CustomSetlistInput } from '@/components/reviews/CustomSetlistInput';
 import { Button } from '@/components/ui/button';
 import { Music, X, Plus } from 'lucide-react';
 import type { ReviewCustomSetlist } from '@/hooks/useReviewForm';
+import { PhotoUpload, VideoUpload } from '@/components/ui/photo-upload';
+import { useAuth } from '@/hooks/useAuth';
 
 interface QuickReviewStepProps {
   formData: ReviewFormData;
@@ -22,6 +24,7 @@ interface QuickReviewStepProps {
 export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName, venueName, eventDate }: QuickReviewStepProps) {
   const [hoverValue, setHoverValue] = useState<number | null>(null);
   const [isSetlistModalOpen, setIsSetlistModalOpen] = useState(false);
+  const { user } = useAuth();
 
   const displayRating = hoverValue ?? formData.rating ?? 0;
   const characterCount = formData.reviewText.length;
@@ -126,53 +129,95 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName
         </div>
       </section>
 
-      {/* Review Text */}
-      <div className="space-y-3 w-full max-w-full overflow-x-hidden">
-        <Label htmlFor="reviewText" className="text-sm sm:text-base font-semibold text-gray-900">
-          Brief Review *
-        </Label>
-        <Textarea
-          id="reviewText"
-          placeholder="What made this night memorable? Share a quick recap."
-          value={formData.reviewText}
-          onChange={(event) => onUpdateFormData({ reviewText: event.target.value })}
-          rows={4}
-          className="resize-none text-sm sm:text-base w-full max-w-full min-w-0"
-          maxLength={maxCharacters}
-        />
-        <div className="flex justify-between items-center" style={{
-          fontFamily: 'var(--font-family)',
-          fontSize: 'var(--typography-meta-size, 16px)',
-          fontWeight: 'var(--typography-meta-weight, 500)',
-          lineHeight: 'var(--typography-meta-line-height, 1.5)',
-          color: 'var(--neutral-600)'
-        }}>
-          <span className="break-words" style={{
-            fontFamily: 'var(--font-family)',
-            fontSize: 'var(--typography-meta-size, 16px)',
-            fontWeight: 'var(--typography-meta-weight, 500)',
-            lineHeight: 'var(--typography-meta-line-height, 1.5)',
-            color: 'var(--neutral-900)'
-          }}>Keep it brief - 1-2 sentences is perfect.</span>
-          <span className={cn('flex-shrink-0 ml-2')} style={{
-            fontFamily: 'var(--font-family)',
-            fontSize: 'var(--typography-meta-size, 16px)',
-            fontWeight: 'var(--typography-meta-weight, 500)',
-            lineHeight: 'var(--typography-meta-line-height, 1.5)',
-            color: isNearLimit ? 'var(--status-warning-500, #B88900)' : 'var(--neutral-600)'
-          }}>
-            {characterCount}/{maxCharacters}
-          </span>
+      {/* Brief Review + Media */}
+      <div className="space-y-6 w-full max-w-full overflow-x-hidden">
+        <div className="space-y-3">
+          <Label htmlFor="quick-review-text" className="text-sm sm:text-base font-semibold text-gray-900">
+            Brief Review *
+          </Label>
+          <Textarea
+            id="quick-review-text"
+            placeholder="What made this night memorable? Share a quick recap."
+            value={formData.reviewText}
+            onChange={(event) => onUpdateFormData({ reviewText: event.target.value })}
+            rows={4}
+            className="resize-none text-sm sm:text-base w-full max-w-full min-w-0"
+            maxLength={maxCharacters}
+          />
+          <div
+            className="flex justify-between items-center"
+            style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+              color: 'var(--neutral-600)',
+            }}
+          >
+            <span
+              className="break-words"
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--neutral-900)',
+              }}
+            >
+              Keep it brief – 1–2 sentences is perfect.
+            </span>
+            <span
+              className={cn('flex-shrink-0 ml-2')}
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: isNearLimit ? 'var(--status-warning-500, #B88900)' : 'var(--neutral-600)',
+              }}
+            >
+              {characterCount}/{maxCharacters}
+            </span>
+          </div>
+          {errors.reviewText && (
+            <p className="text-xs sm:text-sm text-red-600 break-words">{errors.reviewText}</p>
+          )}
         </div>
-        {errors.reviewText && (
-          <p className="text-xs sm:text-sm text-red-600 break-words">{errors.reviewText}</p>
+
+        {user && (
+          <PhotoUpload
+            value={formData.photos || []}
+            onChange={(urls) => onUpdateFormData({ photos: urls })}
+            userId={user.id}
+            bucket="review-photos"
+            maxPhotos={5}
+            maxSizeMB={5}
+            label="Photos (Optional)"
+            helperText="Add up to 5 photos to give fans a feel for the night."
+          />
         )}
+
+        {user && (
+          <VideoUpload
+            value={formData.videos || []}
+            onChange={(videos) => onUpdateFormData({ videos })}
+            userId={user.id}
+            bucket="review-videos"
+            maxVideos={3}
+            maxSizeMB={100}
+            label="Videos (Optional)"
+            helperText="Add videos from the event (max 100MB per video)"
+          />
+        )}
+
       </div>
 
       {/* Optional Setlist */}
-      <div className="space-y-3 w-full max-w-full overflow-x-hidden">
-        <Label className="text-sm sm:text-base font-semibold text-gray-900">Setlist (Optional)</Label>
-        <p className="text-xs sm:text-sm text-gray-600 break-words">Add the setlist if you remember it</p>
+        <div className="space-y-3 w-full max-w-full overflow-x-hidden">
+        <p className="text-sm sm:text-base font-semibold text-gray-900">Setlist (Optional)</p>
+        <p className="text-xs sm:text-sm text-gray-600 break-words">
+          Option to upload photos &amp; video, plus add the setlist if you remember it.
+        </p>
         
         {formData.selectedSetlist ? (
           <div className="p-3 sm:p-4 bg-pink-50 rounded-lg border border-pink-200 w-full max-w-full overflow-x-hidden">

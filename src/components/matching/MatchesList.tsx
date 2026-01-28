@@ -272,12 +272,16 @@ export function MatchesList() {
               <div className="flex-shrink-0 p-4 border-t">
                 <div className="flex gap-2">
                   <input
+                    id="match-chat-message"
+                    name="match_chat_message"
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
                     className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                    autoComplete="off"
+                    aria-label="Type a new message to your match"
                   />
                   <Button 
                     onClick={sendMessage}

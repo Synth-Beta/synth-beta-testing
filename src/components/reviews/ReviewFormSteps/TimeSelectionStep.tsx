@@ -23,14 +23,14 @@ export function TimeSelectionStep({ reviewDuration, onSelectDuration }: TimeSele
       label: '3 Minutes',
       subtitle: 'Standard Review',
       description: 'Key ratings + text + photos',
-      features: ['Overall rating', 'Artist Performance & Venue ratings', 'Review text (400 chars)', 'Optional photos', 'Optional setlist'],
+      features: ['Overall rating', 'Artist Performance & Venue ratings', 'Review text (400 chars)', 'Option to upload photos & video', 'Optional setlist'],
     },
     {
       value: '5min' as const,
       label: '5 Minutes',
       subtitle: 'Detailed Review',
       description: 'Full detailed review',
-      features: ['All 5 category ratings', 'Category feedback', 'Full review text (500 chars)', 'Photos & videos', 'Optional setlist', 'Optional ticket price'],
+      features: ['All 5 category ratings', 'Category feedback', 'Full review text (500 chars)', 'Option to upload photos & video', 'Optional setlist', 'Optional ticket price'],
     },
   ];
 

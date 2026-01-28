@@ -284,6 +284,8 @@ export const ProfilePictureUpload = ({
         onChange={handleFileSelect}
         className="hidden"
         capture="environment" // Force camera on mobile
+        aria-hidden="true"
+        tabIndex={-1}
       />
       
       <input
@@ -292,6 +294,8 @@ export const ProfilePictureUpload = ({
         accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
         onChange={handleFileSelect}
         className="hidden"
+        aria-hidden="true"
+        tabIndex={-1}
       />
 
       {/* Upload Options Modal */}

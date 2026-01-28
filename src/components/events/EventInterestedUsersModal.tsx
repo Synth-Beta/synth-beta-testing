@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { X } from 'lucide-react';
@@ -169,6 +174,14 @@ export function EventInterestedUsersModal({
           overflow: 'hidden'
         }}
       >
+        {/* Accessible title/description for screen readers (Radix requirement) */}
+        <DialogTitle className="sr-only">
+          People interested in this event
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          A list of users who have marked themselves as interested in this event.
+        </DialogDescription>
+
         <div
           style={{
             position: 'relative',

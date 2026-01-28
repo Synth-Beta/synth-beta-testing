@@ -60,6 +60,16 @@ const DialogContent = React.forwardRef<
       }}
       {...props}
     >
+      {/* 
+        Fallback visually-hidden title to satisfy Radix's accessibility
+        requirement that every DialogContent has a DialogTitle. Individual
+        dialogs that want a richer title still render their own
+        DialogTitle/Description components inside {children}.
+      */}
+      <DialogPrimitive.Title className="sr-only">
+        Dialog
+      </DialogPrimitive.Title>
+
       <div style={{
         display: 'flex',
         flexDirection: 'column',

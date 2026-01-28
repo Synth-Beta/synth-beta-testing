@@ -38,9 +38,9 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
 
       {/* Artist Selection */}
       <div className="space-y-3">
-        <Label htmlFor="artist" className="text-sm font-medium">
+        <p className="text-sm font-medium">
           Artist or Band *
-        </Label>
+        </p>
         <ArtistSearchBox
           onArtistSelect={handleArtistSelect}
           placeholder="Search for an artist or band..."
@@ -70,9 +70,9 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
 
       {/* Venue Selection */}
       <div className="space-y-3">
-        <Label htmlFor="venue" className="text-sm font-medium">
+        <p className="text-sm font-medium">
           Venue *
-        </Label>
+        </p>
         <VenueSearchBox
           onVenueSelect={handleVenueSelect}
           placeholder="Search for a venue..."

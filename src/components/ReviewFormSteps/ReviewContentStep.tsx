@@ -49,7 +49,7 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
 
       {/* Emoji Reaction */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Quick Reaction</Label>
+        <p className="text-sm font-medium">Quick Reaction</p>
         <div className="flex items-center space-x-3">
           {formData.reactionEmoji ? (
             <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg border border-blue-200">

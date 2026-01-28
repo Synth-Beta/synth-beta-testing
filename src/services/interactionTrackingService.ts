@@ -303,6 +303,19 @@ class InteractionTrackingService {
         return;
       }
 
+      // Verify user exists in public.users table before logging interactions
+      // This prevents foreign key constraint violations
+      const { data: publicUser, error: userError } = await supabase
+        .from('users')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (userError || !publicUser) {
+        console.warn('User not found in public.users table, skipping interaction logging:', userError?.message || 'User not found');
+        return;
+      }
+
       // Track session metrics
       this.sessionInteractions++;
       if (normalizedEvent.eventType === 'view') {
@@ -336,9 +349,20 @@ class InteractionTrackingService {
         }]);
 
       if (error) {
-        await this.logError('interaction_logging_error', error, normalizedEvent);
-        console.error('Failed to log interaction:', error);
-        // Don't throw - logging failures shouldn't break the app
+        // Handle specific error cases
+        if (error.code === '23503') {
+          // Foreign key constraint violation - user doesn't exist
+          console.warn('Foreign key constraint violation: User may not exist in users table. Skipping interaction.');
+          return;
+        } else if (error.code === '23505' || error.message?.includes('409')) {
+          // Unique constraint violation or conflict - duplicate interaction
+          console.warn('Duplicate interaction detected (409 Conflict). Skipping.');
+          return;
+        } else {
+          await this.logError('interaction_logging_error', error, normalizedEvent);
+          console.error('Failed to log interaction:', error);
+          // Don't throw - logging failures shouldn't break the app
+        }
       }
     } catch (error) {
       await this.logError('interaction_logging_exception', error, normalizedEvent);
@@ -392,6 +416,19 @@ class InteractionTrackingService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.warn('No authenticated user for batch logging');
+        return;
+      }
+
+      // Verify user exists in public.users table before logging interactions
+      // This prevents foreign key constraint violations
+      const { data: publicUser, error: userError } = await supabase
+        .from('users')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (userError || !publicUser) {
+        console.warn('User not found in public.users table, skipping interaction logging:', userError?.message || 'User not found');
         return;
       }
 

@@ -7,6 +7,7 @@ import { trackInteraction } from '@/services/interactionTrackingService';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 import { Ticket, ExternalLink } from 'lucide-react';
+import { ClickableImage } from '@/components/modals/FullScreenImageModal';
 
 export type EventReason = 'recommended' | 'trending' | 'friend_interested' | 'following';
 
@@ -166,26 +167,36 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden">
       {imageUrl ? (
         <>
-            <img 
-              src={imageUrl} 
+            <ClickableImage
+              imageUrl={imageUrl}
               alt={event.artist_name && event.venue_name 
                 ? `${event.title} - ${event.artist_name} at ${event.venue_name}`
                 : event.title 
                   ? `${event.title} event photo`
-                  : "Event photo"} 
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                // Fallback to a generic fallback image if the primary image fails
-                const fallbackUrl = getFallbackEventImage(event.id);
-                if (target.src !== fallbackUrl) {
-                  target.src = fallbackUrl;
-                } else {
-                  // If fallback also fails, prevent infinite loop
-                  target.onerror = null;
-                }
-              }}
-            />
+                  : "Event photo"}
+              className="w-full h-full"
+            >
+              <img 
+                src={imageUrl} 
+                alt={event.artist_name && event.venue_name 
+                  ? `${event.title} - ${event.artist_name} at ${event.venue_name}`
+                  : event.title 
+                    ? `${event.title} event photo`
+                    : "Event photo"} 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  // Fallback to a generic fallback image if the primary image fails
+                  const fallbackUrl = getFallbackEventImage(event.id);
+                  if (target.src !== fallbackUrl) {
+                    target.src = fallbackUrl;
+                  } else {
+                    // If fallback also fails, prevent infinite loop
+                    target.onerror = null;
+                  }
+                }}
+              />
+            </ClickableImage>
             <div
               className="absolute inset-0"
               style={{

@@ -129,7 +129,8 @@ export const iosModal: CSSProperties = {
   overflowY: 'auto',
   overflowX: 'hidden',
   WebkitOverflowScrolling: 'touch',
-  zIndex: 100,
+  // Base z-index for modals; can be overridden per-usage to allow app chrome above them.
+  zIndex: 30,
 };
 
 /** iOS modal backdrop */
@@ -142,7 +143,7 @@ export const iosModalBackdrop: CSSProperties = {
   background: 'rgba(0, 0, 0, 0.4)',
   backdropFilter: 'blur(8px)',
   WebkitBackdropFilter: 'blur(8px)',
-  zIndex: 99,
+  zIndex: 999,
 };
 
 /** iOS-style navigation header */

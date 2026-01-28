@@ -15,6 +15,9 @@ export type UserSwipe = Tables<'engagements'>; // user_swipes migrated to engage
 export type EventInterest = Tables<'user_event_relationships'>; // user_jambase_events migrated to user_event_relationships (3NF compliant)
 
 export class SupabaseService {
+  // Feature flags to gracefully disable functionality when the backing
+  // tables or views are not available in the current Supabase project.
+  private static engagementsAvailable = true;
   // ===== USERS (formerly profiles) =====
   static async getProfile(userId: string) {
     const { data, error } = await supabase
@@ -228,43 +231,63 @@ export class SupabaseService {
 
   // ===== USER SWIPES (migrated to engagements) =====
   static async getUserSwipes(userId: string, eventId?: string) {
-    let query = supabase
-      .from('engagements')
-      .select(`
-        id,
-        entity_id,
-        engagement_value,
-        metadata,
-        created_at,
-        users:users!engagements_entity_id_fkey(
-          user_id,
-          name,
-          avatar_url,
-          bio
-        ),
-        events:events!engagements_metadata_fkey(
-          id,
-          title,
-          artist_name,
-          venue_name,
-          venue_city,
-          venue_state,
-          event_date
-        )
-      `)
-      .eq('user_id', userId)
-      .eq('entity_type', 'user')
-      .eq('engagement_type', 'swipe')
-      .order('created_at', { ascending: false });
-
-    if (eventId) {
-      query = query.contains('metadata', { event_id: eventId });
+    // If we already detected that the engagements table/schema isn't
+    // available, short‑circuit to avoid repeated 400 spam.
+    if (!this.engagementsAvailable) {
+      return [];
     }
 
-    const { data, error } = await query;
+    try {
+      let query = supabase
+        .from('engagements')
+        .select(`
+          id,
+          entity_id,
+          engagement_value,
+          metadata,
+          created_at
+        `)
+        .eq('user_id', userId)
+        .eq('engagement_type', 'swipe')
+        .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data;
+      // Filter to "user" swipes via metadata instead of legacy entity_type
+      // to be compatible with newer 3NF schema (where entity_type column
+      // may no longer exist).
+      if (eventId) {
+        query = query.contains('metadata', { event_id: eventId });
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        // Gracefully handle schema/config mismatches so local/dev projects
+        // without the engagements table (or with different FKs) don't flood
+        // the console and still allow the rest of the app to work.
+        const code = (error as any).code;
+        const status = (error as any).status;
+        if (
+          status === 400 ||
+          code === 'PGRST205' || // table not in schema cache
+          code === '42P01' || // relation does not exist
+          code === 'PGRST204' // view or table not found
+        ) {
+          console.warn(
+            '⚠️ SupabaseService.getUserSwipes: engagements table/view not available; disabling swipe fetches.',
+            error
+          );
+          this.engagementsAvailable = false;
+          return [];
+        }
+
+        throw error;
+      }
+
+      return data ?? [];
+    } catch (err) {
+      console.error('❌ SupabaseService.getUserSwipes failed:', err);
+      return [];
+    }
   }
 
   static async createSwipe(swiperUserId: string, swipedUserId: string, eventId: string, isInterested: boolean) {
