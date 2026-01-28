@@ -389,29 +389,43 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
               lineHeight: 'var(--typography-meta-line-height, 1.5)'
             }}>
               at{' '}
-              <button
+              <span
                 className="font-bold hover:text-blue-600 hover:underline cursor-pointer"
                 style={{
                   fontFamily: 'var(--font-family)',
                   fontSize: 'var(--typography-meta-size, 16px)',
                   fontWeight: 'var(--typography-bold-weight, 700)',
-                  lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
                 }}
+                role="button"
+                tabIndex={0}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  const ev = new CustomEvent('open-venue-card', { 
-                    detail: { 
-                      venueId: formData.selectedVenue?.id, 
-                      venueName: formData.selectedVenue?.name 
-                    } 
+                  const ev = new CustomEvent('open-venue-card', {
+                    detail: {
+                      venueId: formData.selectedVenue?.id,
+                      venueName: formData.selectedVenue?.name,
+                    },
+                  });
+                  window.dispatchEvent(ev);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const ev = new CustomEvent('open-venue-card', {
+                    detail: {
+                      venueId: formData.selectedVenue?.id,
+                      venueName: formData.selectedVenue?.name,
+                    },
                   });
                   window.dispatchEvent(ev);
                 }}
                 aria-label={`View venue ${formData.selectedVenue.name}`}
               >
                 {formData.selectedVenue.name}
-              </button>
+              </span>
             </p>
             <p style={{
               fontFamily: 'var(--font-family)',

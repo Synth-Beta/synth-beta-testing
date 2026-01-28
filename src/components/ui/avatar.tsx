@@ -28,9 +28,9 @@ Avatar.displayName = AvatarPrimitive.Root.displayName
 const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image> & {
-    clickable?: boolean; // If true, clicking the image opens full screen modal (default: true for non-placeholder images)
+    clickable?: boolean; // If true, clicking the image opens full screen modal (default: false)
   }
->(({ className, alt, onError, src, clickable = true, ...props }, ref) => {
+>(({ className, alt, onError, src, clickable = false, ...props }, ref) => {
   const imageSrc = src || SYNTH_PLACEHOLDER_AVATAR_SRC;
   const isPlaceholder = !src || imageSrc === SYNTH_PLACEHOLDER_AVATAR_SRC;
   

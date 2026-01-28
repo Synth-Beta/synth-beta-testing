@@ -47,10 +47,13 @@ interface FullReviewData {
   comments_count?: number;
   artist_id?: string | null;
   venue_id?: string | null;
-  attendees?: Array<
-    | { type: 'user'; user_id: string; name: string; avatar_url?: string }
-    | { type: 'phone'; phone: string; name?: string }
-  > | null;
+  attendees?:
+    | Array<
+        | { type: 'user'; user_id: string; name: string; avatar_url?: string }
+        | { type: 'phone'; phone: string; name?: string }
+      >
+    | string[]
+    | null;
   author?: {
     id: string;
     name: string;
@@ -88,6 +91,33 @@ export function ReviewDetailView({
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   const optionsMenuContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Normalize attendees: DB stores as TEXT[] (JSON strings), but UI expects attendee objects
+  const attendeesNormalized: any[] = useMemo(() => {
+    const raw = (reviewData as any)?.attendees;
+    if (!Array.isArray(raw)) return [];
+    if (typeof raw[0] === 'string') {
+      return (raw as string[])
+        .map((s) => {
+          try {
+            return JSON.parse(s);
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean);
+    }
+    return raw as any[];
+  }, [(reviewData as any)?.attendees]);
+
+  const taggedUserAttendees = useMemo(
+    () =>
+      attendeesNormalized.filter(
+        (a): a is { type: 'user'; user_id: string; name: string; avatar_url?: string } =>
+          a && (a as any).type === 'user' && typeof (a as any).user_id === 'string'
+      ),
+    [attendeesNormalized]
+  );
 
   useEffect(() => {
     const fetchReviewData = async () => {
@@ -694,18 +724,19 @@ export function ReviewDetailView({
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-grouped, 24px)' }}>
-          {/* Tagged Attendees Chips (if any) */}
-          {Array.isArray(reviewData.attendees) && reviewData.attendees.some(a => a && (a as any).type === 'user') && (
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 6,
-              }}
-            >
-              {reviewData.attendees
-                ?.filter((a): a is { type: 'user'; user_id: string; name: string; avatar_url?: string } => (a as any)?.type === 'user')
-                .map((attendee) => (
+          {/* Header section: tagged attendees 12px above title */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* Tagged Attendees Chips (users only) */}
+            {taggedUserAttendees.length > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 6,
+                  marginBottom: 12,
+                }}
+              >
+                {taggedUserAttendees.map((attendee) => (
                   <button
                     key={attendee.user_id}
                     type="button"
@@ -750,13 +781,14 @@ export function ReviewDetailView({
                     </span>
                   </button>
                 ))}
-            </div>
-          )}
+              </div>
+            )}
 
-          {/* {PersonName}'s Review Heading */}
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
-            {reviewData.author?.name ? `${reviewData.author.name.split(' ')[0]}'s Review` : "Review"}
-          </h1>
+            {/* {PersonName}'s Review Heading */}
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)', margin: 0 }}>
+              {reviewData.author?.name ? `${reviewData.author.name.split(' ')[0]}'s Review` : "Review"}
+            </h1>
+          </div>
 
           {/* Review Text Container */}
           {reviewData.review_text && (

@@ -25,6 +25,7 @@ export function EventShareModal({
   const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [friendsLoading, setFriendsLoading] = useState(false);
   const [sharing, setSharing] = useState(false);
   const { toast } = useToast();
   const modalRef = useRef<HTMLDivElement>(null);
@@ -32,7 +33,10 @@ export function EventShareModal({
 
   useEffect(() => {
     if (isOpen) {
+      setChats([]);
+      setFriends([]);
       loadShareTargets();
+      setFriendsLoading(true);
       loadFriends();
       setSelectedTargets(new Set());
       setSearchQuery('');
@@ -116,6 +120,8 @@ export function EventShareModal({
       setFriends(friendsList);
     } catch (error) {
       console.error('Error loading friends:', error);
+    } finally {
+      setFriendsLoading(false);
     }
   };
 
@@ -281,25 +287,29 @@ export function EventShareModal({
     friend.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const allTargets = [
-    ...filteredChats.map(chat => ({
-      id: chat.id,
-      name: chat.name,
-      avatar_url: chat.avatar_url,
-      type: 'group',
-      isGroup: true
-    })),
-    ...filteredFriends.map(friend => ({
-      id: `friend-${friend.user_id}`,
-      name: friend.name,
-      avatar_url: friend.avatar_url,
-      type: 'friend',
-      isGroup: false,
-      user_id: friend.user_id
-    }))
-  ];
+  const groupChatTargets = filteredChats.map(chat => ({
+    id: chat.id,
+    name: chat.name,
+    avatar_url: chat.avatar_url,
+    type: 'group' as const,
+    isGroup: true
+  }));
+
+  const friendTargets = filteredFriends.map(friend => ({
+    id: `friend-${friend.user_id}`,
+    name: friend.name,
+    avatar_url: friend.avatar_url,
+    type: 'friend' as const,
+    isGroup: false,
+    user_id: friend.user_id
+  }));
 
   if (!isOpen) return null;
+
+  // Gate all in-app chat sharing behind having friends.
+  // If the user has no friends, we show only external share options and a helper text.
+  const showInternalChatSection = friends.length > 0;
+  const internalLoading = loading || friendsLoading;
 
   return (
     <div
@@ -386,48 +396,50 @@ export function EventShareModal({
           </button>
         </div>
 
-        {/* Search Bar */}
-        <div
-          style={{
-            padding: '12px 20px',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-          }}
-        >
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Search
-              size={18}
-              style={{
-                position: 'absolute',
-                left: '12px',
-                color: 'var(--neutral-400)',
-                pointerEvents: 'none',
-              }}
-              aria-hidden="true"
-            />
-            <input
-              id="event-share-search"
-              name="event_share_search"
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              autoComplete="off"
-              aria-label="Search people and chats to share with"
-              style={{
-                width: '100%',
-                padding: '10px 12px 10px 40px',
-                borderRadius: '12px',
-                border: '1px solid rgba(0, 0, 0, 0.1)',
-                backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                fontFamily: 'var(--font-family)',
-                fontSize: '15px',
-                lineHeight: '1.4',
-                color: 'var(--neutral-900)',
-                outline: 'none',
-              }}
-            />
+        {/* Search Bar (only when in-app chat is available) */}
+        {showInternalChatSection && (
+          <div
+            style={{
+              padding: '12px 20px',
+              borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+            }}
+          >
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Search
+                size={18}
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  color: 'var(--neutral-400)',
+                  pointerEvents: 'none',
+                }}
+                aria-hidden="true"
+              />
+              <input
+                id="event-share-search"
+                name="event_share_search"
+                type="text"
+                placeholder="Search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoComplete="off"
+                aria-label="Search people and chats to share with"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px 10px 40px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(0, 0, 0, 0.1)',
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: '15px',
+                  lineHeight: '1.4',
+                  color: 'var(--neutral-900)',
+                  outline: 'none',
+                }}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Scrollable Content */}
         <div
@@ -440,121 +452,254 @@ export function EventShareModal({
             gap: '24px',
           }}
         >
-          {/* Direct Share Contacts */}
-          {loading ? (
-            <div 
-              aria-busy="true"
-              aria-live="polite"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}
+          {!showInternalChatSection && !friendsLoading && (
+            <div
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: '13px',
+                lineHeight: '1.4',
+                color: 'var(--neutral-600)',
+              }}
             >
-              <div
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  border: '2px solid var(--brand-pink-500)',
-                  borderTopColor: 'transparent',
-                  borderRadius: '50%',
-                  animation: 'spin 0.8s linear infinite',
-                }}
-              />
-              <span className="sr-only">Loading contacts...</span>
+              Add friends to send a chat.
             </div>
-          ) : allTargets.length > 0 ? (
-            <div>
+          )}
+
+          {/* Direct Share Contacts (in-app chat) */}
+          {showInternalChatSection ? (
+            internalLoading ? (
               <div
-                style={{
-                  display: 'flex',
-                  gap: '16px',
-                  overflowX: 'auto',
-                  paddingBottom: '8px',
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none',
-                }}
-                className="hide-scrollbar"
+                aria-busy="true"
+                aria-live="polite"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}
               >
-                {allTargets.map((target) => {
-                  const isSelected = selectedTargets.has(target.id);
-                  return (
+                <div
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    border: '2px solid var(--brand-pink-500)',
+                    borderTopColor: 'transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                  }}
+                />
+                <span className="sr-only">Loading contacts...</span>
+              </div>
+            ) : friendTargets.length > 0 || groupChatTargets.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* Section 1: Direct Messages (friends) */}
+                {friendTargets.length > 0 && (
+                  <div>
                     <div
-                      key={target.id}
-                      onClick={() => toggleTargetSelection(target.id)}
                       style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '8px',
-                        minWidth: '80px',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        borderRadius: '12px',
-                        backgroundColor: isSelected ? 'rgba(236, 72, 153, 0.1)' : 'transparent',
+                        marginBottom: '6px',
+                        fontFamily: 'var(--font-family)',
+                        fontSize: '13px',
+                        lineHeight: '1.3',
+                        color: 'var(--neutral-900)',
                       }}
                     >
-                      <div style={{ position: 'relative', width: '64px', height: '64px' }}>
-                        <Avatar
-                          style={{
-                            width: '64px',
-                            height: '64px',
-                            border: isSelected ? '3px solid var(--brand-pink-500)' : '2px solid rgba(0, 0, 0, 0.1)',
-                            borderRadius: '50%',
-                          }}
-                        >
-                          <AvatarImage src={target.avatar_url || undefined} />
-                          <AvatarFallback
-                            style={{
-                              backgroundColor: 'var(--brand-pink-050)',
-                              color: 'var(--brand-pink-500)',
-                              fontSize: '24px',
-                              fontWeight: '600',
-                            }}
-                          >
-                            {target.isGroup ? (
-                              <Users size={28} style={{ color: 'var(--brand-pink-500)' }} />
-                            ) : (
-                              target.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-                            )}
-                          </AvatarFallback>
-                        </Avatar>
-                        {isSelected && (
+                      Direct Messages
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '16px',
+                        overflowX: 'auto',
+                        paddingBottom: '8px',
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                      }}
+                      className="hide-scrollbar"
+                    >
+                      {friendTargets.map((target) => {
+                        const isSelected = selectedTargets.has(target.id);
+                        return (
                           <div
+                            key={target.id}
+                            onClick={() => toggleTargetSelection(target.id)}
                             style={{
-                              position: 'absolute',
-                              bottom: '-2px',
-                              right: '-2px',
-                              width: '24px',
-                              height: '24px',
-                              borderRadius: '50%',
-                              backgroundColor: 'var(--brand-pink-500)',
                               display: 'flex',
+                              flexDirection: 'column',
                               alignItems: 'center',
-                              justifyContent: 'center',
-                              border: '2px solid white',
+                              gap: '8px',
+                              minWidth: '80px',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              borderRadius: '12px',
+                              backgroundColor: isSelected ? 'rgba(236, 72, 153, 0.1)' : 'transparent',
                             }}
                           >
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'white' }} />
+                            <div style={{ position: 'relative', width: '64px', height: '64px' }}>
+                              <Avatar
+                                style={{
+                                  width: '64px',
+                                  height: '64px',
+                                  border: isSelected ? '3px solid var(--brand-pink-500)' : '2px solid rgba(0, 0, 0, 0.1)',
+                                  borderRadius: '50%',
+                                }}
+                              >
+                                <AvatarImage src={target.avatar_url || undefined} />
+                                <AvatarFallback
+                                  style={{
+                                    backgroundColor: 'var(--brand-pink-050)',
+                                    color: 'var(--brand-pink-500)',
+                                    fontSize: '24px',
+                                    fontWeight: '600',
+                                  }}
+                                >
+                                  {target.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                </AvatarFallback>
+                              </Avatar>
+                              {isSelected && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    bottom: '-2px',
+                                    right: '-2px',
+                                    width: '24px',
+                                    height: '24px',
+                                    borderRadius: '50%',
+                                    backgroundColor: 'var(--brand-pink-500)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: '2px solid white',
+                                  }}
+                                >
+                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'white' }} />
+                                </div>
+                              )}
+                            </div>
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-family)',
+                                fontSize: '12px',
+                                lineHeight: '1.3',
+                                color: 'var(--neutral-700)',
+                                textAlign: 'center',
+                                maxWidth: '80px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {target.name}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-family)',
-                          fontSize: '12px',
-                          lineHeight: '1.3',
-                          color: 'var(--neutral-700)',
-                          textAlign: 'center',
-                          maxWidth: '80px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {target.name}
-                      </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Section 2: Group Chats */}
+                {groupChatTargets.length > 0 && (
+                  <div>
+                    <div
+                      style={{
+                        marginBottom: '6px',
+                        fontFamily: 'var(--font-family)',
+                        fontSize: '13px',
+                        lineHeight: '1.3',
+                        color: 'var(--neutral-900)',
+                      }}
+                    >
+                      Group Chats
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '16px',
+                        overflowX: 'auto',
+                        paddingBottom: '8px',
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                      }}
+                      className="hide-scrollbar"
+                    >
+                      {groupChatTargets.map((target) => {
+                        const isSelected = selectedTargets.has(target.id);
+                        return (
+                          <div
+                            key={target.id}
+                            onClick={() => toggleTargetSelection(target.id)}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '8px',
+                              minWidth: '80px',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              borderRadius: '12px',
+                              backgroundColor: isSelected ? 'rgba(236, 72, 153, 0.1)' : 'transparent',
+                            }}
+                          >
+                            <div style={{ position: 'relative', width: '64px', height: '64px' }}>
+                              <Avatar
+                                style={{
+                                  width: '64px',
+                                  height: '64px',
+                                  border: isSelected ? '3px solid var(--brand-pink-500)' : '2px solid rgba(0, 0, 0, 0.1)',
+                                  borderRadius: '50%',
+                                }}
+                              >
+                                <AvatarImage src={target.avatar_url || undefined} />
+                                <AvatarFallback
+                                  style={{
+                                    backgroundColor: 'var(--brand-pink-050)',
+                                    color: 'var(--brand-pink-500)',
+                                    fontSize: '24px',
+                                    fontWeight: '600',
+                                  }}
+                                >
+                                  <Users size={28} style={{ color: 'var(--brand-pink-500)' }} />
+                                </AvatarFallback>
+                              </Avatar>
+                              {isSelected && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    bottom: '-2px',
+                                    right: '-2px',
+                                    width: '24px',
+                                    height: '24px',
+                                    borderRadius: '50%',
+                                    backgroundColor: 'var(--brand-pink-500)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: '2px solid white',
+                                  }}
+                                >
+                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'white' }} />
+                                </div>
+                              )}
+                            </div>
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-family)',
+                                fontSize: '12px',
+                                lineHeight: '1.3',
+                                color: 'var(--neutral-700)',
+                                textAlign: 'center',
+                                maxWidth: '80px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {target.name}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-                  );
-                })}
-              </div>
-              </div>
+            ) : null
           ) : null}
 
           {/* External Share Options */}

@@ -107,6 +107,26 @@ export function SwiftUIReviewCard({
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
 
+  // Normalize attendees: DB stores as TEXT[] (JSON strings), but UI expects attendee objects
+  const attendeesRaw = (review as any).attendees;
+  const attendeesNormalized: any[] = Array.isArray(attendeesRaw)
+    ? (typeof attendeesRaw[0] === 'string'
+        ? (attendeesRaw as string[])
+            .map((s) => {
+              try {
+                return JSON.parse(s);
+              } catch {
+                return null;
+              }
+            })
+            .filter(Boolean)
+        : (attendeesRaw as any[]))
+    : [];
+  const taggedUserAttendees = attendeesNormalized.filter(
+    (a): a is { type: 'user'; user_id: string; name: string; avatar_url?: string } =>
+      a && (a as any).type === 'user' && typeof (a as any).user_id === 'string'
+  );
+
   // Fetch artist image if not provided and no photos
   useEffect(() => {
     if (!artistImageUrl && photos.length === 0 && review.artist_id) {
@@ -337,7 +357,9 @@ export function SwiftUIReviewCard({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    flex: 1,
+    flex: '1 1 0',
+    minWidth: 0,
+    flexShrink: 1,
     padding: '12px 16px',
     fontSize: 14,
     fontWeight: 600,
@@ -529,6 +551,61 @@ export function SwiftUIReviewCard({
                   </div>
                 )}
               </div>
+
+              {/* Tagged attendees (users only) */}
+              {taggedUserAttendees.length > 0 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 6,
+                  }}
+                >
+                  {taggedUserAttendees.map((attendee) => (
+                    <div
+                      key={attendee.user_id}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 12px',
+                        borderRadius: 999,
+                        border: '1px solid var(--neutral-200)',
+                        background: 'var(--neutral-100)',
+                        maxWidth: '100%',
+                      }}
+                    >
+                      <Avatar className="w-5 h-5" style={{ border: '1.5px solid var(--brand-pink-500)' }}>
+                        <AvatarImage src={attendee.avatar_url || undefined} alt={attendee.name} />
+                        <AvatarFallback
+                          style={{
+                            background: 'var(--brand-pink-500)',
+                            color: '#fff',
+                            fontSize: 10,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {attendee.name?.charAt(0).toUpperCase() || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 14,
+                          fontWeight: 600,
+                          lineHeight: 1.2,
+                          color: 'var(--neutral-800)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {attendee.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Review text preview */}
               {review.review_text && review.review_text !== 'ATTENDANCE_ONLY' && (
@@ -768,6 +845,61 @@ export function SwiftUIReviewCard({
 
         {/* Content */}
         <div style={{ padding: 20, paddingBottom: 120 }}>
+          {/* Tagged attendees (users only) */}
+          {taggedUserAttendees.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 6,
+                marginBottom: 12,
+              }}
+            >
+              {taggedUserAttendees.map((attendee) => (
+                <div
+                  key={attendee.user_id}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 12px',
+                    borderRadius: 999,
+                    border: '2px solid var(--brand-pink-500, #FF3399)',
+                    background: '#FFFFFF',
+                    maxWidth: '100%',
+                  }}
+                >
+                  <Avatar className="w-7 h-7" style={{ border: '2px solid var(--brand-pink-500, #FF3399)' }}>
+                    <AvatarImage src={attendee.avatar_url || undefined} alt={attendee.name} />
+                    <AvatarFallback
+                      style={{
+                        background: 'var(--brand-pink-500, #FF3399)',
+                        color: '#FFFFFF',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {attendee.name?.charAt(0).toUpperCase() || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                      color: 'var(--brand-pink-500, #FF3399)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {attendee.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Review Text */}
           {review.review_text && review.review_text !== 'ATTENDANCE_ONLY' && (
             <div
@@ -1023,9 +1155,12 @@ export function SwiftUIReviewCard({
             bottom: 0,
             left: 0,
             right: 0,
-            maxWidth: 390,
-            margin: '0 auto',
-            padding: '12px 20px',
+            width: '100%',
+            boxSizing: 'border-box',
+            minWidth: 0,
+            paddingTop: 12,
+            paddingLeft: 'calc(20px + env(safe-area-inset-left, 0px))',
+            paddingRight: 'calc(20px + env(safe-area-inset-right, 0px))',
             paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 34px))',
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(20px)',
@@ -1048,7 +1183,9 @@ export function SwiftUIReviewCard({
           >
             <ThumbsUp size={18} fill={isLiked ? 'currentColor' : 'none'} />
             <span>{likesCount}</span>
-            <span>Helpful</span>
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              Helpful
+            </span>
           </button>
 
           {/* Comments Button */}
@@ -1062,7 +1199,9 @@ export function SwiftUIReviewCard({
           >
             <MessageCircle size={18} />
             <span>{commentsCount}</span>
-            <span>Comments</span>
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              Comments
+            </span>
           </button>
 
           {/* Share Button */}
@@ -1072,7 +1211,7 @@ export function SwiftUIReviewCard({
               ...actionButtonStyle,
               background: 'var(--brand-pink-500)',
               color: '#fff',
-              flex: 0.5,
+              flex: '0.5 1 0',
             }}
           >
             <Share2 size={18} />

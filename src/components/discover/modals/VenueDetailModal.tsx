@@ -397,7 +397,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
           width: '100%',
           maxWidth: 390,
           // Constrain between fixed header and fixed bottom nav.
-          top: 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px + var(--spacing-small, 12px))',
+          top: 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
           bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
           overflowY: 'auto',
           overflowX: 'hidden',
@@ -411,7 +411,9 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
           style={{
             paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
             paddingRight: 'var(--spacing-screen-margin-x, 20px)',
-            paddingTop: 0,
+            // Keep the same visual gap under the app header, but render it
+            // inside the modal so it uses the modal background (not page gradient).
+            paddingTop: 'var(--spacing-small, 12px)',
             paddingBottom: 'var(--spacing-bottom-nav, 32px)',
           }}
         >

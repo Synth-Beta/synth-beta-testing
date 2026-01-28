@@ -161,7 +161,8 @@ export const iosHeader: CSSProperties = {
   backdropFilter: 'blur(20px) saturate(180%)',
   WebkitBackdropFilter: 'blur(20px) saturate(180%)',
   borderBottom: '0.5px solid rgba(0, 0, 0, 0.1)',
-  zIndex: 10,
+  // Keep above all modal content (avoid sticky header being under buttons/sections).
+  zIndex: 200,
 };
 
 /** iOS-style bottom action bar */

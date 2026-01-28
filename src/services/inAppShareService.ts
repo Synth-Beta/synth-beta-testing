@@ -55,15 +55,24 @@ export class InAppShareService {
         throw error;
       }
 
-      // Transform to ShareTarget format
-      // Note: users array is kept for backward compatibility but is populated from chat_participants by RPC
-      const targets: ShareTarget[] = (chats || []).map((chat: any) => ({
-        id: chat.id,
-        name: chat.chat_name,
-        type: chat.is_group_chat ? 'group' : 'direct',
-        users: chat.users || [], // Populated by get_user_chats RPC from chat_participants
-        avatar_url: null // Can be enhanced to show user avatars for direct chats
-      }));
+      // Transform to ShareTarget format.
+      // IMPORTANT: We intentionally exclude direct chats here.
+      // Direct chats are handled via the "friends" picker (which can create/resolve DMs),
+      // and direct chats often have a placeholder chat_name like "Direct Chat".
+      const targets: ShareTarget[] = (chats || [])
+        .filter((chat: any) => Boolean(chat?.is_group_chat))
+        .map((chat: any) => {
+          const rawName = typeof chat.chat_name === 'string' ? chat.chat_name.trim() : '';
+          const name = rawName || 'Group Chat';
+
+          return {
+            id: chat.id,
+            name,
+            type: 'group',
+            users: chat.users || [], // Populated by chatService from chat_participants
+            avatar_url: null // Can be enhanced to show group/event avatars
+          };
+        });
 
       return targets;
     } catch (error) {

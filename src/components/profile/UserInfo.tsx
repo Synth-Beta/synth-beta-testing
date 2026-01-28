@@ -39,6 +39,12 @@ export interface UserInfoProps {
   imageUrl?: string | null;
 
   /**
+   * If true, allows opening the avatar in the full-screen image modal.
+   * Defaults to false (opt-in).
+   */
+  clickable?: boolean;
+
+  /**
    * Optional additional classes for root container.
    */
   className?: string;
@@ -68,6 +74,7 @@ export const UserInfo: React.FC<UserInfoProps> = ({
   onFollowingClick,
   onEventsClick,
   imageUrl,
+  clickable = false,
   className,
   customSubtitle,
 }) => {
@@ -118,7 +125,7 @@ export const UserInfo: React.FC<UserInfoProps> = ({
   return (
     <div className={rootClasses}>
       <div className="user-info__avatar">
-        {variant === 'userProfile' && pictureVariant === 'image' && imageUrl ? (
+        {variant === 'userProfile' && pictureVariant === 'image' && imageUrl && clickable ? (
           <ClickableImage imageUrl={imageUrl} alt={name}>
             {avatar}
           </ClickableImage>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { X } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 
 interface InterestedUser {
   user_id: string;
@@ -21,20 +20,22 @@ interface EventInterestedUsersModalProps {
   isOpen: boolean;
   onClose: () => void;
   eventId: string;
-  currentUserId?: string;
+  loading: boolean;
+  error: string | null;
+  allUsers: InterestedUser[];
+  friendUsers: InterestedUser[];
 }
 
 export function EventInterestedUsersModal({
   isOpen,
   onClose,
   eventId,
-  currentUserId
+  loading,
+  error,
+  allUsers,
+  friendUsers,
 }: EventInterestedUsersModalProps) {
   const [activeTab, setActiveTab] = useState<'friends' | 'all'>('friends');
-  const [allUsers, setAllUsers] = useState<InterestedUser[]>([]);
-  const [friendUsers, setFriendUsers] = useState<InterestedUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const sortedAllUsers = useMemo(() => {
     return [...allUsers].sort((a, b) => {
@@ -51,88 +52,6 @@ export function EventInterestedUsersModal({
       return nameA.localeCompare(nameB);
     });
   }, [friendUsers]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setActiveTab('friends');
-      setAllUsers([]);
-      setFriendUsers([]);
-      setLoading(true);
-      setError(null);
-      return;
-    }
-
-    const loadInterestedUsers = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        let viewerId = currentUserId;
-        if (!viewerId) {
-          const { data: { user } } = await supabase.auth.getUser();
-          viewerId = user?.id || undefined;
-        }
-
-        if (!viewerId) {
-          setError('Unable to load users');
-          setLoading(false);
-          return;
-        }
-
-        const { data: friendsData } = await supabase
-          .from('user_relationships')
-          .select('user_id, related_user_id')
-          .eq('relationship_type', 'friend')
-          .eq('status', 'accepted')
-          .or(`user_id.eq.${viewerId},related_user_id.eq.${viewerId}`);
-
-        const friendIds = (friendsData || [])
-          .map((f) => (f.user_id === viewerId ? f.related_user_id : f.user_id))
-          .filter(Boolean) as string[];
-
-        const { data: interestedRows, error: interestedError } = await supabase
-          .from('user_event_relationships')
-          .select('user_id')
-          .eq('event_id', eventId)
-          .eq('relationship_type', 'interested');
-
-        if (interestedError) {
-          throw interestedError;
-        }
-
-        const interestedIds = Array.from(
-          new Set((interestedRows || []).map((row) => row.user_id).filter(Boolean))
-        ) as string[];
-
-        if (interestedIds.length === 0) {
-          setAllUsers([]);
-          setFriendUsers([]);
-          setLoading(false);
-          return;
-        }
-
-        const { data: profiles, error: profilesError } = await supabase
-          .from('users')
-          .select('user_id, name, username, avatar_url')
-          .in('user_id', interestedIds);
-
-        if (profilesError) {
-          throw profilesError;
-        }
-
-        const sanitizedProfiles = (profiles || []).filter((profile) => profile.user_id);
-        setAllUsers(sanitizedProfiles);
-        setFriendUsers(sanitizedProfiles.filter((profile) => friendIds.includes(profile.user_id)));
-      } catch (loadError) {
-        console.error('Error loading interested users:', loadError);
-        setError('Failed to load interested users');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadInterestedUsers();
-  }, [isOpen, eventId, currentUserId]);
 
   const renderUserRow = (user: InterestedUser) => {
     return (
