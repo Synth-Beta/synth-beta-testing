@@ -11,6 +11,7 @@ import { Event } from '@/types/concertSearch';
 import { useAuth } from '@/hooks/useAuth';
 import { VerificationBadge } from '@/components/verification/VerificationBadge';
 import type { AccountType } from '@/utils/verificationUtils';
+import { calculateAge } from '@/utils/calculateAge';
 
 // Union type to handle both old and new event formats
 type EventData = DBEvent | Event;
@@ -485,13 +486,8 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
                     {currentUser.birthday && (
                       <Badge variant="secondary" className="text-xs">
                         {(() => {
-                          const birthDate = new Date(currentUser.birthday);
-                          const today = new Date();
-                          let age = today.getFullYear() - birthDate.getFullYear();
-                          const monthDiff = today.getMonth() - birthDate.getMonth();
-                          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                            age--;
-                          }
+                          const age = calculateAge(currentUser.birthday);
+                          if (age === null) return null;
                           return `${age} years old`;
                         })()}
                       </Badge>

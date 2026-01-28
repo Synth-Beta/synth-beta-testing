@@ -175,8 +175,11 @@
 /* Button text */
 .synth-button__text {
   display: inline-block;
-  line-height: inherit;
-  color: inherit; /* Inherit color from button variant */
+  font-family: var(--font-family);
+  font-size: var(--typography-meta-size, 16px);
+  font-weight: var(--typography-meta-weight, 500);
+  line-height: var(--typography-meta-line-height, 1.5);
+  color: inherit; /* Inherit color from button variant by default, but can be overridden */
 }
 
 /* Icon styling */

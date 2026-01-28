@@ -143,7 +143,7 @@ export function ShowRanking({ shows, onChange }: ShowRankingProps) {
                     </div>
 
                     <div className="md:col-span-2">
-                      <Label className="text-xs">Artist rating</Label>
+                      <p className="text-xs font-medium text-gray-900">Artist rating</p>
                       <div className="flex items-center gap-1 mt-1">
                         {Array.from({ length: 5 }, (_, i) => {
                           const starVal = i + 1;

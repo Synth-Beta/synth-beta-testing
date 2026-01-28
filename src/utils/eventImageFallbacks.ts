@@ -1,4 +1,4 @@
-import synthPlaceholderImage from '@/assets/Synth_Placeholder.png';
+import synthPlaceholderImage from '@src/assets/Synth_Placeholder.png';
 
 // JamBase placeholder image URL that should be replaced
 const JAMBASE_PLACEHOLDER_URL = 'https://www.jambase.com/wp-content/uploads/2021/08/jambase-default-band-image-bw-1480x832.png';

@@ -15,6 +15,7 @@ import {
   UserMinus
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { calculateAge } from '@/utils/calculateAge';
 
 interface FriendProfileCardProps {
   friend: {
@@ -88,20 +89,15 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
                     {friend.gender}
                   </Badge>
                 )}
-                {friend.birthday && (
-                  <Badge variant="secondary" className="text-xs">
-                    {(() => {
-                      const birthDate = new Date(friend.birthday);
-                      const today = new Date();
-                      let age = today.getFullYear() - birthDate.getFullYear();
-                      const monthDiff = today.getMonth() - birthDate.getMonth();
-                      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                        age--;
-                      }
-                      return `${age} years old`;
-                    })()}
-                  </Badge>
-                )}
+                {friend.birthday && (() => {
+                  const age = calculateAge(friend.birthday);
+                  if (age === null) return null;
+                  return (
+                    <Badge variant="secondary" className="text-xs">
+                      {age} years old
+                    </Badge>
+                  );
+                })()}
               </div>
             )}
             

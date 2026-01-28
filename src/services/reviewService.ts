@@ -216,6 +216,64 @@ export type VenueTag = typeof VENUE_TAGS[number];
 export type ArtistTag = typeof ARTIST_TAGS[number];
 
 export class ReviewService {
+  private static isPlaceholderEntityImage(imageUrl: string | null | undefined): boolean {
+    if (!imageUrl) return true;
+    const url = String(imageUrl);
+    return (
+      url.includes('jambase-default-band-image-bw-1480x832.png') ||
+      url.includes('/Synth_Placeholder.png') ||
+      url.includes('Synth_Placeholder.png') ||
+      url.includes('/placeholder.svg')
+    );
+  }
+
+  private static async promoteReviewPhotoToEntityImage(params: {
+    artistId?: string;
+    venueId?: string;
+    photoUrl?: string;
+    isPublic?: boolean | null;
+  }): Promise<void> {
+    const { artistId, venueId, photoUrl, isPublic } = params;
+    if (!isPublic) return;
+    if (!photoUrl) return;
+
+    // Prefer artist first, then venue (both can be updated if present).
+    const tryUpdateArtist = async () => {
+      if (!artistId || !isValidUuid(artistId)) return;
+      const { data } = await supabase
+        .from('artists')
+        .select('image_url')
+        .eq('id', artistId)
+        .maybeSingle();
+      if (!this.isPlaceholderEntityImage((data as any)?.image_url)) return;
+      await supabase
+        .from('artists')
+        .update({ image_url: photoUrl, updated_at: new Date().toISOString() })
+        .eq('id', artistId);
+    };
+
+    const tryUpdateVenue = async () => {
+      if (!venueId || !isValidUuid(venueId)) return;
+      const { data } = await supabase
+        .from('venues')
+        .select('image_url')
+        .eq('id', venueId)
+        .maybeSingle();
+      if (!this.isPlaceholderEntityImage((data as any)?.image_url)) return;
+      await supabase
+        .from('venues')
+        .update({ image_url: photoUrl, updated_at: new Date().toISOString() })
+        .eq('id', venueId);
+    };
+
+    try {
+      await Promise.all([tryUpdateArtist(), tryUpdateVenue()]);
+    } catch (error) {
+      // Non-critical: image promotion shouldn't block review publishing.
+      console.warn('⚠️ ReviewService: Failed to promote review photo to entity image:', error);
+    }
+  }
+
   /**
    * Create or update a review for an event, venue, or artist
    */
@@ -730,6 +788,15 @@ export class ReviewService {
           }
           }
           
+          // If this is a public review with photos, promote the first photo to artist/venue image_url
+          // when the current image is missing or a placeholder.
+          await ReviewService.promoteReviewPhotoToEntityImage({
+            artistId: (data as any)?.artist_id || normalizedArtistId,
+            venueId: (data as any)?.venue_id || normalizedVenueId,
+            photoUrl: Array.isArray((data as any)?.photos) ? (data as any).photos[0] : undefined,
+            isPublic: (data as any)?.is_public,
+          });
+
           return data as any as UserReview;
         }
       }
@@ -948,6 +1015,15 @@ export class ReviewService {
         venue_feedback: (data as any)?.venue_feedback,
         location_feedback: (data as any)?.location_feedback,
         value_feedback: (data as any)?.value_feedback,
+      });
+
+      // If this is a public review with photos, promote the first photo to artist/venue image_url
+      // when the current image is missing or a placeholder.
+      await ReviewService.promoteReviewPhotoToEntityImage({
+        artistId: (data as any)?.artist_id || normalizedArtistId,
+        venueId: (data as any)?.venue_id || normalizedVenueId,
+        photoUrl: Array.isArray((data as any)?.photos) ? (data as any).photos[0] : undefined,
+        isPublic: (data as any)?.is_public,
       });
       
       // CRITICAL: Delete ALL drafts for this event immediately after creating published review

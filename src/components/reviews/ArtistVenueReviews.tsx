@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Star, Music, MapPin, ChevronDown, ChevronUp, User, Calendar } from 'lucide-react';
 import { ReviewService } from '@/services/reviewService';
 import { supabase } from '@/integrations/supabase/client';
-import SynthPlaceholder from '@/assets/Synth_Placeholder.png';
+import SynthPlaceholder from '@src/assets/Synth_Placeholder.png';
 
 interface ArtistVenueReviewsProps {
   artistName: string;

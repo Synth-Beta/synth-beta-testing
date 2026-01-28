@@ -376,7 +376,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
                       artistName: formData.selectedArtist?.name 
                     } 
                   });
-                  document.dispatchEvent(ev);
+                  window.dispatchEvent(ev);
                 }}
                 aria-label={`View artist ${formData.selectedArtist.name}`}
               >
@@ -406,7 +406,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
                       venueName: formData.selectedVenue?.name 
                     } 
                   });
-                  document.dispatchEvent(ev);
+                  window.dispatchEvent(ev);
                 }}
                 aria-label={`View venue ${formData.selectedVenue.name}`}
               >

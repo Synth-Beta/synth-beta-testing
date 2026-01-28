@@ -14,8 +14,6 @@ import { UnifiedVenueSearchService, VenueSearchResult } from '@/services/unified
 import { format, parseISO } from 'date-fns';
 import { EventMap } from '@/components/events/EventMap';
 import { trackInteraction } from '@/services/interactionTrackingService';
-import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
-import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
 
 interface RedesignedSearchPageProps {
   userId: string;
@@ -34,6 +32,8 @@ interface RedesignedSearchPageProps {
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
   onEventClick?: (event: EventSearchResult) => void;
+  onArtistClick?: (artistId: string, artistName: string) => void;
+  onVenueClick?: (venueId: string, venueName: string) => void;
 }
 
 type TabKey = 'all' | 'users' | 'artists' | 'events' | 'venues';
@@ -132,6 +132,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
   onNavigateToProfile: _onNavigateToProfile,
   onNavigateToChat: _onNavigateToChat,
   onEventClick,
+  onArtistClick,
+  onVenueClick,
 }) => {
   const isCompact = layout === 'compact';
   const isEmbedded = mode === 'embedded';
@@ -157,13 +159,13 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
   });
   const [errors, setErrors] = useState<Partial<Record<TabKey, string>>>({});
   
-  // Modal states for artist/venue detail
-  const [artistModalOpen, setArtistModalOpen] = useState(false);
-  const [venueModalOpen, setVenueModalOpen] = useState(false);
-  const [selectedArtistId, setSelectedArtistId] = useState<string | null>(null);
-  const [selectedArtistName, setSelectedArtistName] = useState<string>('');
-  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
-  const [selectedVenueName, setSelectedVenueName] = useState<string>('');
+  const handleArtistClick = (artistId: string, artistName: string) => {
+    onArtistClick?.(artistId, artistName);
+  };
+
+  const handleVenueClick = (venueId: string, venueName: string) => {
+    onVenueClick?.(venueId, venueName);
+  };
 
   const [pagination, setPagination] = useState<Record<TabKey, { page: number; hasMore: boolean }>>({
     all: { page: 1, hasMore: false },
@@ -581,16 +583,8 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                           onEventClick={onEventClick} 
                           onTabChange={setActiveTab} 
                           debouncedQuery={debouncedQuery}
-                          onArtistClick={(artistId, artistName) => {
-                            setSelectedArtistId(artistId);
-                            setSelectedArtistName(artistName);
-                            setArtistModalOpen(true);
-                          }}
-                          onVenueClick={(venueId, venueName) => {
-                            setSelectedVenueId(venueId);
-                            setSelectedVenueName(venueName);
-                            setVenueModalOpen(true);
-                          }}
+                          onArtistClick={handleArtistClick}
+                          onVenueClick={handleVenueClick}
                         />
                       )}
                       {key === 'users' && (
@@ -623,11 +617,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                         <>
                           <ArtistResults 
                             results={results.artists}
-                            onArtistClick={(artistId, artistName) => {
-                              setSelectedArtistId(artistId);
-                              setSelectedArtistName(artistName);
-                              setArtistModalOpen(true);
-                            }}
+                            onArtistClick={handleArtistClick}
                           />
                           {pagination.artists.hasMore && (
                             <div className="flex justify-center pt-4">
@@ -682,11 +672,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                         <>
                           <VenueResults 
                             results={results.venues}
-                            onVenueClick={(venueId, venueName) => {
-                              setSelectedVenueId(venueId);
-                              setSelectedVenueName(venueName);
-                              setVenueModalOpen(true);
-                            }}
+                            onVenueClick={handleVenueClick}
                           />
                           {pagination.venues.hasMore && (
                             <div className="flex justify-center pt-4">
@@ -721,35 +707,6 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
         )}
       </div>
 
-      {/* Artist Detail Modal */}
-      {artistModalOpen && selectedArtistId && (
-        <ArtistDetailModal
-          isOpen={artistModalOpen}
-          onClose={() => {
-            setArtistModalOpen(false);
-            setSelectedArtistId(null);
-            setSelectedArtistName('');
-          }}
-          artistId={selectedArtistId}
-          artistName={selectedArtistName}
-          currentUserId={userId}
-        />
-      )}
-
-      {/* Venue Detail Modal */}
-      {venueModalOpen && selectedVenueId && (
-        <VenueDetailModal
-          isOpen={venueModalOpen}
-          onClose={() => {
-            setVenueModalOpen(false);
-            setSelectedVenueId(null);
-            setSelectedVenueName('');
-          }}
-          venueId={selectedVenueId}
-          venueName={selectedVenueName}
-          currentUserId={userId}
-        />
-      )}
     </div>
   );
 };

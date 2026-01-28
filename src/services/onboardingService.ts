@@ -157,16 +157,21 @@ export class OnboardingService {
 
   /**
    * Mark onboarding as skipped
+   * Uses upsert to ensure the row exists even if it wasn't created by the trigger
    */
   static async skipOnboarding(userId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
         .from('users')
         .update({
           onboarding_skipped: true,
-          updated_at: new Date().toISOString(),
+          onboarding_completed: false,
+          updated_at: now,
         })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .select('onboarding_completed,onboarding_skipped,tour_completed')
+        .single();
 
       if (error) {
         // If column doesn't exist, just log and return true (graceful degradation)
@@ -175,6 +180,18 @@ export class OnboardingService {
           return true;
         }
         throw error;
+      }
+
+      // Verify the write actually happened
+      if (!data) {
+        console.error('skipOnboarding: No data returned from upsert');
+        return false;
+      }
+
+      // Verify onboarding_skipped is actually true
+      if (data.onboarding_skipped !== true) {
+        console.error('skipOnboarding: onboarding_skipped is not true after upsert', data);
+        return false;
       }
 
       return true;
@@ -186,17 +203,21 @@ export class OnboardingService {
 
   /**
    * Mark onboarding as completed
+   * Uses upsert to ensure the row exists even if it wasn't created by the trigger
    */
   static async completeOnboarding(userId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
         .from('users')
         .update({
           onboarding_completed: true,
           onboarding_skipped: false,
-          updated_at: new Date().toISOString(),
+          updated_at: now,
         })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .select('onboarding_completed,onboarding_skipped,tour_completed')
+        .single();
 
       if (error) {
         // If column doesn't exist, just log and return true (graceful degradation)
@@ -205,6 +226,18 @@ export class OnboardingService {
           return true;
         }
         throw error;
+      }
+
+      // Verify the write actually happened
+      if (!data) {
+        console.error('completeOnboarding: No data returned from upsert');
+        return false;
+      }
+
+      // Verify onboarding_completed is actually true
+      if (data.onboarding_completed !== true) {
+        console.error('completeOnboarding: onboarding_completed is not true after upsert', data);
+        return false;
       }
 
       return true;
@@ -265,72 +298,145 @@ export class OnboardingService {
   }
 
   /**
-   * Save music preferences to user_preference_signals table
-   * This is used during onboarding to save genre and artist preferences
+   * Ensure user exists in public.users table
+   * Creates a user row if it doesn't exist (for cases where trigger didn't fire)
+   */
+  static async ensureUserExists(userId: string): Promise<boolean> {
+    try {
+      // Fetch user first and return early if it exists.
+      // IMPORTANT: Never modify username for existing users.
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id, username')
+        .eq('user_id', userId)
+        .single();
+
+      if (existingUser) {
+        return true;
+      }
+
+      // Only generate username on true first-time insert (i.e., user row does not exist).
+      // If we got some other error (RLS/network/etc), don't attempt username generation/insert here.
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.warn('Error checking user existence:', checkError);
+        throw checkError;
+      }
+
+      // Get auth user info to create public.users row
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        throw new Error('No authenticated user found');
+      }
+
+      // Create user row in public.users
+      const userName =
+        authUser.user_metadata?.name ||
+        authUser.user_metadata?.full_name ||
+        authUser.email?.split('@')[0] ||
+        'User';
+      
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+          user_id: userId,
+          name: userName,
+          username: userName.toLowerCase().replace(/[^a-z0-9]/g, '') + Math.random().toString(36).substring(2, 8),
+          bio: 'Music lover looking to connect at events!',
+          is_public_profile: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        // If it's a conflict, user might have been created between check and insert
+        if (insertError.code === '23505') {
+          console.log('User was created by another process, continuing...');
+          return true;
+        }
+        throw insertError;
+      }
+
+      return true;
+    } catch (error: any) {
+      console.error('Error ensuring user exists:', error);
+      throw new Error(`Failed to create user record: ${error.message}`);
+    }
+  }
+
+  /**
+   * Save onboarding music preferences as preference signals.
+   *
+   * IMPORTANT:
+   * - Do NOT write to user_preferences.preferred_artists / preferred_genres (columns do not exist)
+   * - Do ONE bulk insert into public.user_preference_signals
+   * - Do NOT modify onboarding flags or navigate views
    */
   static async saveMusicPreferences(
     userId: string,
     genres: string[],
     artists: { name: string; id?: string }[]
-  ): Promise<boolean> {
+  ): Promise<void> {
     try {
-      const signals: any[] = [];
+      // Ensure user exists in public.users before saving preferences
+      await OnboardingService.ensureUserExists(userId);
+
+      // IMPORTANT: use existing DB enum values; do not invent new strings
+      const PREFERENCE_ENTITY_TYPE = {
+        ARTIST: 'artist',
+        GENRE: 'genre',
+      } as const;
+
+      const PREFERENCE_SIGNAL_TYPE = {
+        ARTIST_MANUAL_PREFERENCE: 'artist_manual_preference',
+        GENRE_MANUAL_PREFERENCE: 'genre_manual_preference',
+      } as const;
+
       const now = new Date().toISOString();
 
-      // Save genre preferences
-      genres.forEach((genre, index) => {
-        // Top 3 genres get higher weight (10, 9, 8), rest get decreasing weights
-        const weight = Math.max(10 - index, 1);
-        signals.push({
-          user_id: userId,
-          signal_type: 'genre_manual_preference',
-          entity_type: 'genre',
-          entity_id: null,
-          entity_name: genre,
-          signal_weight: weight,
-          genre: genre,
-          context: { source: 'onboarding', order: index + 1 },
-          occurred_at: now,
-          created_at: now,
-          updated_at: now,
-        });
-      });
+      const insertRows = [
+        ...genres
+          .filter((g) => typeof g === 'string' && g.trim().length > 0)
+          .map((genre) => ({
+            user_id: userId,
+            signal_type: PREFERENCE_SIGNAL_TYPE.GENRE_MANUAL_PREFERENCE,
+            entity_type: PREFERENCE_ENTITY_TYPE.GENRE,
+            entity_id: null as string | null,
+            entity_name: null as string | null,
+            genre,
+            signal_weight: 1.0,
+            occurred_at: now,
+          })),
+        ...artists
+          .filter((a) => typeof a?.name === 'string' && a.name.trim().length > 0)
+          .map((artist) => ({
+            user_id: userId,
+            signal_type: PREFERENCE_SIGNAL_TYPE.ARTIST_MANUAL_PREFERENCE,
+            entity_type: PREFERENCE_ENTITY_TYPE.ARTIST,
+            entity_id: artist.id ?? null,
+            entity_name: artist.id ? null : artist.name,
+            genre: null as string | null,
+            signal_weight: 1.0,
+            occurred_at: now,
+          })),
+      ];
 
-      // Save artist preferences
-      artists.forEach((artist, index) => {
-        // Top 3 artists get higher weight (10, 9, 8), rest get decreasing weights
-        const weight = Math.max(10 - index, 1);
-        signals.push({
-          user_id: userId,
-          signal_type: 'artist_manual_preference',
-          entity_type: 'artist',
-          entity_id: artist.id || null,
-          entity_name: artist.name,
-          signal_weight: weight,
-          genre: null,
-          context: { source: 'onboarding', order: index + 1 },
-          occurred_at: now,
-          created_at: now,
-          updated_at: now,
-        });
-      });
+      if (insertRows.length === 0) return;
 
-      // Insert all signals in a batch
-      if (signals.length > 0) {
-        const { error } = await supabase
-          .from('user_preference_signals')
-          .insert(signals);
-
-        if (error) {
-          console.error('Error saving music preferences:', error);
-          return false;
-        }
-      }
-
-      return true;
-    } catch (error) {
+      const { error } = await supabase.from('user_preference_signals').insert(insertRows);
+      if (error) throw error;
+    } catch (error: any) {
       console.error('Error saving music preferences:', error);
-      return false;
+      // Re-throw with a more descriptive message
+      if (error?.code === '23503') {
+        throw new Error('User not found. Please try logging in again.');
+      } else if (error?.code === '23505') {
+        throw new Error('Some signals already exist. This is okay - continuing...');
+      } else if (error?.message) {
+        throw new Error(`Failed to save music preferences: ${error.message}`);
+      }
+      throw new Error('Failed to save music preferences. Please try again.');
     }
   }
 }

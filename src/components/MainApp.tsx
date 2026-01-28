@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SideMenu } from '@/components/SideMenu/SideMenu';
 import { BottomNavAdapter } from './BottomNavAdapter';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
@@ -37,12 +37,47 @@ import { EventReviewModal } from './EventReviewModal';
 import { SynthLoadingScreen } from './ui/SynthLoader';
 import { PushTokenService } from '@/services/pushTokenService';
 import { UserEventService } from '@/services/userEventService';
+import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
+import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
+import { MobileHeader } from '@/components/Header/MobileHeader';
+import { ShareService } from '@/services/shareService';
 
-type ViewType = 'feed' | 'search' | 'profile' | 'profile-edit' | 'notifications' | 'chat' | 'analytics' | 'events' | 'onboarding';
+type ViewType =
+  | 'feed'
+  | 'search'
+  | 'profile'
+  | 'profile-edit'
+  | 'notifications'
+  | 'chat'
+  | 'analytics'
+  | 'events'
+  | 'onboarding'
+  | 'auth';
 
 interface MainAppProps {
   onSignOut?: () => void;
 }
+
+type GlobalDetailModalState =
+  | { open: false }
+  | {
+      open: true;
+      type: 'artist';
+      artistId: string;
+      artistName: string;
+    }
+  | {
+      open: true;
+      type: 'venue';
+      venueId: string;
+      venueName: string;
+    }
+  | {
+      open: true;
+      type: 'profile';
+      userId: string;
+      userName: string;
+    };
 
 export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [currentView, setCurrentView] = useState<ViewType>('feed');
@@ -58,6 +93,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const { toast } = useToast();
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
   const { accountInfo } = useAccountType();
+  
+  // Guard to prevent redirecting back into onboarding after skip/complete
+  const onboardingExitInProgressRef = useRef(false);
   
   // Track user activity (updates last_active_at periodically)
   useActivityTracker();
@@ -114,14 +152,31 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     const checkOnboardingStatus = async () => {
       if (!user) return;
 
+      // Don't redirect to onboarding if exit is in progress
+      if (onboardingExitInProgressRef.current) {
+        return;
+      }
+
       const status = await OnboardingService.checkOnboardingStatus(user.id);
       if (status) {
+        // If onboarding_skipped is true, reset the guard after confirming it's persisted
+        if (status.onboarding_skipped === true) {
+          // Reset guard after confirming skip is persisted
+          setTimeout(() => {
+            onboardingExitInProgressRef.current = false;
+          }, 2000);
+        }
+
         // If user hasn't completed onboarding and hasn't skipped it, redirect to onboarding
         if (!status.onboarding_completed && !status.onboarding_skipped) {
           setCurrentView('onboarding');
         } else if (status.onboarding_skipped && !status.onboarding_completed) {
           // Show reminder banner if they skipped
           setShowOnboardingReminder(true);
+          // Start tour if not completed (tour should start after skip too)
+          if (!status.tour_completed && currentView === 'feed') {
+            setTimeout(() => setRunTour(true), 1500);
+          }
         } else if (status.onboarding_completed && !status.tour_completed) {
           // If onboarding is complete but tour is not, trigger it after a short delay
           // Only trigger if we're already on the feed view (not onboarding)
@@ -273,9 +328,100 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [showSettings, setShowSettings] = useState(false);
   const [showEventReviewModal, setShowEventReviewModal] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Global detail modal state shared across views (artist/venue + future profile popups)
+  const [detailModal, setDetailModal] = useState<GlobalDetailModalState>({ open: false });
+  // Track whether any EventDetailsModal is open anywhere in the app so we can
+  // hide underlying page headers (Profile/Home/etc) and avoid double headers.
+  const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
 
   // Lock body scroll when menu is open
   useLockBodyScroll(menuOpen);
+
+  // Listen globally so artist/venue modals open from anywhere (review pills, links, etc.)
+  useEffect(() => {
+    const openArtist = async (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      let artistId: string | null = detail.artistId || null;
+      let artistName: string = detail.artistName || '';
+
+      // If we have an ID but no name, resolve name for better modal UX.
+      if (artistId && !artistName) {
+        try {
+          const { data } = await supabase.from('artists').select('name').eq('id', artistId).maybeSingle();
+          if (data?.name) artistName = data.name;
+        } catch {
+          // Non-fatal; modal can still open with fallback name
+        }
+      }
+
+      // If we don't have an ID, try resolving by name.
+      if (!artistId && artistName) {
+        try {
+          const { data } = await supabase.from('artists').select('id, name').ilike('name', artistName).limit(1).maybeSingle();
+          if (data?.id) artistId = data.id;
+          if (data?.name) artistName = data.name;
+        } catch {
+          // Ignore
+        }
+      }
+
+      if (artistId) {
+        setDetailModal({
+          open: true,
+          type: 'artist',
+          artistId,
+          artistName: artistName || 'Artist',
+        });
+      }
+    };
+
+    const openVenue = async (e: Event) => {
+      const detail = (e as CustomEvent).detail || {};
+      let venueId: string | null = detail.venueId || null;
+      let venueName: string = detail.venueName || '';
+
+      if (venueId && !venueName) {
+        try {
+          const { data } = await supabase.from('venues').select('name').eq('id', venueId).maybeSingle();
+          if (data?.name) venueName = data.name;
+        } catch {
+          // Non-fatal
+        }
+      }
+
+      if (!venueId && venueName) {
+        try {
+          const { data } = await supabase.from('venues').select('id, name').ilike('name', venueName).limit(1).maybeSingle();
+          if (data?.id) venueId = data.id;
+          if (data?.name) venueName = data.name;
+        } catch {
+          // Ignore
+        }
+      }
+
+      if (venueId) {
+        setDetailModal({
+          open: true,
+          type: 'venue',
+          venueId,
+          venueName: venueName || 'Venue',
+        });
+      }
+    };
+
+    window.addEventListener('open-artist-card', openArtist as EventListener);
+    window.addEventListener('open-venue-card', openVenue as EventListener);
+    const handleEventDetailsOpen = () => setIsEventDetailsOpen(true);
+    const handleEventDetailsClose = () => setIsEventDetailsOpen(false);
+    window.addEventListener('event-details-open', handleEventDetailsOpen as EventListener);
+    window.addEventListener('event-details-close', handleEventDetailsClose as EventListener);
+    return () => {
+      window.removeEventListener('open-artist-card', openArtist as EventListener);
+      window.removeEventListener('open-venue-card', openVenue as EventListener);
+      window.removeEventListener('event-details-open', handleEventDetailsOpen as EventListener);
+      window.removeEventListener('event-details-close', handleEventDetailsClose as EventListener);
+    };
+  }, []);
 
   const handleForceLogin = () => {
     setShowAuth(true);
@@ -284,6 +430,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const handleAuthSuccess = async () => {
     setShowAuth(false);
     resetSessionExpired(); // Reset session expired state on successful login
+    onboardingExitInProgressRef.current = false; // Re-enable onboarding redirects after auth
+    if (currentView === 'auth') {
+      setCurrentView('feed');
+    }
   };
 
   const loadEvents = async () => {
@@ -546,16 +696,24 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   const handleOnboardingComplete = async () => {
+    // Set guard to prevent immediate redirect back to onboarding
+    onboardingExitInProgressRef.current = true;
+    
     setCurrentView('feed');
     setShowOnboardingReminder(false);
     
-    // Check if user should see the tour
+    // Check if user should see the tour (works for both completed and skipped)
     if (user) {
       const status = await OnboardingService.checkOnboardingStatus(user.id);
       if (status && !status.tour_completed) {
         // Delay tour start slightly so feed loads first
         setTimeout(() => setRunTour(true), 1000);
       }
+      
+      // Reset guard after 3 seconds or after confirming status is persisted
+      setTimeout(() => {
+        onboardingExitInProgressRef.current = false;
+      }, 3000);
     }
   };
 
@@ -579,8 +737,18 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const renderCurrentView = () => {
     // Rendering current view
     switch (currentView) {
+      case 'auth':
+        return <Auth onAuthSuccess={handleAuthSuccess} />;
       case 'onboarding':
-        return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+        return (
+          <OnboardingFlow
+            onComplete={handleOnboardingComplete}
+            onExit={() => {
+              onboardingExitInProgressRef.current = true;
+              setCurrentView('auth');
+            }}
+          />
+        );
       case 'feed':
         return (
           <HomeFeed
@@ -594,6 +762,11 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onViewChange={handleViewChange}
             menuOpen={menuOpen}
             onMenuClick={handleMenuToggle}
+            hideHeader={
+              (detailModal.open &&
+                (detailModal.type === 'artist' || detailModal.type === 'venue')) ||
+              isEventDetailsOpen
+            }
             refreshTrigger={refreshTrigger}
           />
         );
@@ -625,6 +798,11 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onNavigateToDiscover={profileUserId ? () => setCurrentView('search') : undefined}
             menuOpen={menuOpen}
             onMenuClick={handleMenuToggle}
+            hideHeader={
+              (detailModal.open &&
+                (detailModal.type === 'artist' || detailModal.type === 'venue')) ||
+              isEventDetailsOpen
+            }
             refreshTrigger={refreshTrigger}
           />
         );
@@ -722,15 +900,50 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     }
   };
 
-  // Don't show normal UI if in onboarding
-  if (currentView === 'onboarding') {
+  // Don't show normal UI if in onboarding/auth landing
+  if (currentView === 'onboarding' || currentView === 'auth') {
     return renderCurrentView();
   }
 
   const showMainNav = ['feed', 'search', 'profile', 'chat'].includes(currentView);
+  // When a global artist/venue detail modal is open (for example, opened from a review),
+  // we don't want any bottom nav tab to appear selected. We reuse the 'onboarding' view
+  // here because BottomNavAdapter does not mark any tab as active for that value.
+  const navViewForBottomNav: ViewType =
+    detailModal.open && (detailModal.type === 'artist' || detailModal.type === 'venue')
+      ? 'onboarding'
+      : currentView;
   
   // Hide header and bottom nav when review modal is open
   const hideNavigation = showEventReviewModal;
+
+  const isGlobalArtistOrVenueOpen =
+    detailModal.open && (detailModal.type === 'artist' || detailModal.type === 'venue');
+
+  const handleCloseGlobalDetail = () => {
+    setDetailModal({ open: false });
+  };
+
+  const handleShareGlobalDetail = async () => {
+    if (!detailModal.open) return;
+    try {
+      if (detailModal.type === 'artist') {
+        await ShareService.shareArtist(
+          detailModal.artistId,
+          `${detailModal.artistName} on Synth`,
+          `Check out ${detailModal.artistName} on Synth.`
+        );
+      } else if (detailModal.type === 'venue') {
+        await ShareService.shareVenue(
+          detailModal.venueId,
+          `${detailModal.venueName} on Synth`,
+          `Check out ${detailModal.venueName} on Synth.`
+        );
+      }
+    } catch (error) {
+      console.error('Error sharing detail:', error);
+    }
+  };
 
   return (
     <div 
@@ -747,7 +960,75 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     >
       {/* Onboarding Reminder Banner */}
       {showOnboardingReminder && !hideNavigation && (
-        <OnboardingReminderBanner onComplete={() => setCurrentView('onboarding')} />
+        <OnboardingReminderBanner
+          onComplete={() => setCurrentView('onboarding')}
+          onDismiss={() => setShowOnboardingReminder(false)}
+        />
+      )}
+
+      {/* Global Discover-style header for artist/venue detail modals opened from anywhere */}
+      {isGlobalArtistOrVenueOpen && (
+        <MobileHeader
+          alignLeft={true}
+          leftIcon="left"
+          onLeftIconClick={handleCloseGlobalDetail}
+          rightButton={
+            <button
+              className="mobile-header__menu-button"
+              onClick={handleShareGlobalDetail}
+              aria-label="Share"
+              type="button"
+            >
+              <span
+                style={{
+                  display: 'inline-flex',
+                  width: 24,
+                  height: 24,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--neutral-900)',
+                }}
+              >
+                {/* Using an inline SVG here to avoid additional icon imports */}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+              </span>
+            </button>
+          }
+        >
+          <h1
+            className="font-bold truncate"
+            style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-h2-size, 24px)',
+              fontWeight: 'var(--typography-h2-weight, 700)',
+              lineHeight: 'var(--typography-h2-line-height, 1.3)',
+              color: 'var(--neutral-900)',
+            }}
+          >
+            {detailModal.type === 'artist'
+              ? detailModal.artistName
+              : detailModal.type === 'venue'
+              ? detailModal.venueName
+              : ''}
+          </h1>
+        </MobileHeader>
       )}
 
       {/* API Key Error Banner - Only show if there's actually an API key issue */}
@@ -778,16 +1059,36 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           </div>
         </div>
       )}
-      
+
       <div style={{ backgroundColor: 'transparent' }}>
         {renderCurrentView()}
       </div>
+
+      {/* Global Artist/Venue Detail Modals */}
+      {user?.id && detailModal.open && detailModal.type === 'artist' && detailModal.artistId && (
+        <ArtistDetailModal
+          isOpen={detailModal.open}
+          onClose={handleCloseGlobalDetail}
+          artistId={detailModal.artistId}
+          artistName={detailModal.artistName || 'Artist'}
+          currentUserId={user.id}
+        />
+      )}
+      {user?.id && detailModal.open && detailModal.type === 'venue' && detailModal.venueId && (
+        <VenueDetailModal
+          isOpen={detailModal.open}
+          onClose={handleCloseGlobalDetail}
+          venueId={detailModal.venueId}
+          venueName={detailModal.venueName || 'Venue'}
+          currentUserId={user.id}
+        />
+      )}
 
       {/* New Bottom Navigation - replaces old Navigation */}
       {/* Show bottom nav on messages list, but hide when a chat is selected */}
       {!hideNavigation && showMainNav && (currentView !== 'chat' || !isChatSelected) && (
         <BottomNavAdapter 
-          currentView={currentView}
+          currentView={navViewForBottomNav}
           onViewChange={handleViewChange}
           onOpenEventReview={() => setShowEventReviewModal(true)}
           profileUserId={profileUserId}
@@ -795,7 +1096,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       )}
       {!hideNavigation && !showMainNav && currentView !== 'profile-edit' && (currentView !== 'chat' || !isChatSelected) && (
         <BottomNavAdapter 
-          currentView={currentView}
+          currentView={navViewForBottomNav}
           onViewChange={handleViewChange}
           onOpenEventReview={() => setShowEventReviewModal(true)}
           profileUserId={profileUserId}

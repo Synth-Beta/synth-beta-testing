@@ -8,7 +8,8 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import NotFound from "./pages/NotFound";
 import SpotifyCallback from "./pages/SpotifyCallback";
 import AppPage from "./pages/App";
-// ArtistEvents and VenueEvents removed - using detail modals instead
+import ArtistPage from "./pages/ArtistPage";
+import VenuePage from "./pages/VenuePage";
 import { StreamingStatsPage } from "./pages/StreamingStatsPage";
 import { ArtistFollowingPage } from "./pages/ArtistFollowingPage";
 import Admin from "./pages/Admin";
@@ -232,13 +233,16 @@ const App = () => {
             <Routes>
               <Route path="/" element={<AppPage />} />
               <Route path="/admin" element={<Admin />} />
-              {/* Artist/Venue routes removed - using detail modals instead */}
+              {/* Artist/Venue info pages (support id or name) */}
+              <Route path="/artist/:artistIdOrName" element={<ArtistPage />} />
+              <Route path="/venue/:venueIdOrName" element={<VenuePage />} />
               <Route path="/streaming-stats" element={<StreamingStatsPage />} />
               {/* Following routes for artists and venues */}
               <Route path="/following" element={<ArtistFollowingPage />} />
               <Route path="/following/:userId" element={<ArtistFollowingPage />} />
               <Route path="/auth/spotify/callback" element={<SpotifyCallback />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/not-found" element={<NotFound />} />
               {/* Component showcase route */}
               <Route path="/components" element={<ComponentShowcase />} />
               {/* Mobile preview route for beta testing */}

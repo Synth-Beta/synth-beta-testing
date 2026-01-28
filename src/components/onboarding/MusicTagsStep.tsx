@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { X, Music, User as UserIcon, Loader2 } from 'lucide-react';
 import { MUSIC_GENRES } from '@/data/musicGenres';
 import {
@@ -236,20 +235,31 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip }: MusicTagsStepProps) =>
         {selectedGenres.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {selectedGenres.map((genre, index) => (
-              <Badge
+              <div
                 key={genre}
-                variant={index < 3 ? 'default' : 'secondary'}
-                className="px-3 py-1"
+                className="inline-flex items-center gap-1.5"
+                style={{
+                  height: '25px',
+                  paddingLeft: 'var(--spacing-small, 12px)',
+                  paddingRight: 'var(--spacing-small, 12px)',
+                  backgroundColor: 'var(--brand-pink-500)',
+                  borderRadius: '999px',
+                }}
               >
-                {genre}
+                <span className="button-text-meta" style={{ color: 'var(--neutral-50)' }}>{genre}</span>
                 <button
                   type="button"
                   onClick={() => handleRemoveGenre(genre)}
-                  className="ml-2 hover:text-destructive"
+                  className="flex items-center justify-center hover:opacity-80 transition-opacity"
+                  style={{
+                    color: 'var(--neutral-50)',
+                    width: '24px',
+                    height: '24px',
+                  }}
                 >
-                  <X className="w-3 h-3" />
+                  <X style={{ width: '24px', height: '24px', color: 'var(--neutral-50)' }} />
                 </button>
-              </Badge>
+              </div>
             ))}
           </div>
         )}
@@ -346,20 +356,31 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip }: MusicTagsStepProps) =>
         {selectedArtists.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {selectedArtists.map((artist, index) => (
-              <Badge
+              <div
                 key={artist}
-                variant={index < 3 ? 'default' : 'secondary'}
-                className="px-3 py-1"
+                className="inline-flex items-center gap-1.5"
+                style={{
+                  height: '25px',
+                  paddingLeft: 'var(--spacing-small, 12px)',
+                  paddingRight: 'var(--spacing-small, 12px)',
+                  backgroundColor: 'var(--brand-pink-500)',
+                  borderRadius: '999px',
+                }}
               >
-                {artist}
+                <span className="button-text-meta" style={{ color: 'var(--neutral-50)' }}>{artist}</span>
                 <button
                   type="button"
                   onClick={() => handleRemoveArtist(artist)}
-                  className="ml-2 hover:text-destructive"
+                  className="flex items-center justify-center hover:opacity-80 transition-opacity"
+                  style={{
+                    color: 'var(--neutral-50)',
+                    width: '24px',
+                    height: '24px',
+                  }}
                 >
-                  <X className="w-3 h-3" />
+                  <X style={{ width: '24px', height: '24px', color: 'var(--neutral-50)' }} />
                 </button>
-              </Badge>
+              </div>
             ))}
           </div>
         )}

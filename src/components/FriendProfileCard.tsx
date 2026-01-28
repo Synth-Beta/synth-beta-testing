@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { 
   User, 
@@ -19,6 +19,8 @@ import { format, parseISO } from 'date-fns';
 import { UserVisibilityService } from '@/services/userVisibilityService';
 import { VerificationBadge } from '@/components/verification/VerificationBadge';
 import type { AccountType } from '@/utils/verificationUtils';
+import { calculateAge } from '@/utils/calculateAge';
+import { ClickableAvatar } from '@/components/common/ClickableAvatar';
 
 interface FriendProfileCardProps {
   friend: {
@@ -76,12 +78,20 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
         <CardContent className="space-y-4">
           {/* Profile Header */}
           <div className="text-center">
-            <Avatar className="w-20 h-20 mx-auto mb-3">
-              <AvatarImage src={friend.avatar_url || undefined} />
-              <AvatarFallback className="text-xl">
-                {friend.name ? friend.name.split(' ').map(n => n[0]).join('') : 'F'}
-              </AvatarFallback>
-            </Avatar>
+            {friend.avatar_url ? (
+              <ClickableAvatar
+                src={friend.avatar_url}
+                alt={friend.name || "Friend avatar"}
+                className="w-20 h-20 mx-auto mb-3"
+                imageClassName="object-cover"
+              />
+            ) : (
+              <Avatar className="w-20 h-20 mx-auto mb-3">
+                <AvatarFallback className="text-xl">
+                  {friend.name ? friend.name.split(' ').map(n => n[0]).join('') : 'F'}
+                </AvatarFallback>
+              </Avatar>
+            )}
             
             <div className="flex items-center justify-center gap-2 mb-1">
               <h2 className="text-xl font-bold text-gray-900">{friend.name}</h2>
@@ -103,20 +113,15 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
                     {friend.gender}
                   </Badge>
                 )}
-                {friend.birthday && (
-                  <Badge variant="secondary" className="text-xs">
-                    {(() => {
-                      const birthDate = new Date(friend.birthday);
-                      const today = new Date();
-                      let age = today.getFullYear() - birthDate.getFullYear();
-                      const monthDiff = today.getMonth() - birthDate.getMonth();
-                      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                        age--;
-                      }
-                      return `${age} years old`;
-                    })()}
-                  </Badge>
-                )}
+                {friend.birthday && (() => {
+                  const age = calculateAge(friend.birthday);
+                  if (age === null) return null;
+                  return (
+                    <Badge variant="secondary" className="text-xs">
+                      {age} years old
+                    </Badge>
+                  );
+                })()}
               </div>
             )}
             

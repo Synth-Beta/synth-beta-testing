@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, Share2, Star, MapPin, Building2, ChevronDown, Camera } from 'lucide-react';
+import { Star, MapPin, Building2, ChevronDown, Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 import { EventMap } from '@/components/EventMap';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import type { ReviewWithEngagement } from '@/services/reviewService';
+import { JamBaseAttribution } from '@/components/attribution';
 import {
   iosModal,
   iosModalBackdrop,
-  iosHeader,
-  iosIconButton,
   glassCard,
   glassCardLight,
   textStyles,
   animations,
 } from '@/styles/glassmorphism';
+import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 
 interface VenueDetailModalProps {
   isOpen: boolean;
@@ -49,6 +49,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
   const [upcomingShown, setUpcomingShown] = useState(INITIAL_UPCOMING_COUNT);
   const [pastShown, setPastShown] = useState(INITIAL_PAST_COUNT);
   const [reviewsShown, setReviewsShown] = useState(3);
+  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -371,54 +372,49 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
   return (
     <>
       {/* Backdrop */}
-      <div style={iosModalBackdrop} onClick={onClose} />
+      <div
+        style={{
+          ...iosModalBackdrop,
+          // Keep app chrome (header + bottom nav) above the overlay.
+          zIndex: 25,
+          top: 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+        }}
+        onClick={onClose}
+      />
       
-      {/* Modal Container */}
+      {/* Detail overlay (scrolls between header and bottom nav) */}
       <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Venue details: ${venueName}`}
         style={{
-          ...iosModal,
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          margin: '0 auto',
+          width: '100%',
+          maxWidth: 390,
+          // Constrain between fixed header and fixed bottom nav.
+          top: 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px + var(--spacing-small, 12px))',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
           background: 'var(--neutral-50, #FCFCFC)',
+          zIndex: 26,
         }}
       >
-        {/* iOS-style Header */}
+        {/* Content */}
         <div
-      style={{
-            ...iosHeader,
-            position: 'sticky',
-            top: 0,
-            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+          style={{
+            paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+            paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+            paddingTop: 0,
+            paddingBottom: 'var(--spacing-bottom-nav, 32px)',
           }}
         >
-          <button onClick={onClose} style={{ ...iosIconButton, width: 44, height: 44, minWidth: 44, minHeight: 44 }} aria-label="Close venue details" type="button">
-            <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-          </button>
-          
-          <h1
-            style={{
-              ...textStyles.title2,
-              flex: 1,
-              textAlign: 'center',
-              margin: '0 12px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              color: 'var(--neutral-900)',
-            }}
-          >
-            {venueName}
-          </h1>
-          
-          <button style={{ ...iosIconButton, width: 44, height: 44, minWidth: 44, minHeight: 44 }} aria-label="Share" type="button">
-            <Share2 size={20} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-          </button>
-          </div>
-      
-        {/* Content */}
-        <div style={{ padding: 20, paddingBottom: 100 }}>
         {loading ? (
             <div 
               aria-busy="true"
@@ -448,6 +444,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                   flexDirection: 'column',
                   alignItems: 'center',
                   textAlign: 'center',
+                  gap: 12,
                 }}
               >
                 {/* Venue Icon */}
@@ -568,10 +565,12 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                         return (
                           <div
                             key={review.id}
+                            onClick={() => setSelectedReviewId(review.id)}
                             style={{
                               ...glassCardLight,
                               padding: 16,
                               borderRadius: 12,
+                              cursor: 'pointer',
                             }}
                           >
                             {/* Rating Row - Venue Ratings Only */}
@@ -628,8 +627,11 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                             
                             {/* User Profile Button with Avatar */}
                             <button
-                              onClick={() => {
-                                window.dispatchEvent(new CustomEvent('open-user-profile', { detail: { userId: review.user_id } }));
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.dispatchEvent(
+                                  new CustomEvent('open-user-profile', { detail: { userId: review.user_id } })
+                                );
                               }}
                               style={{
                                 display: 'flex',
@@ -769,10 +771,54 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                   </p>
                 </div>
               )}
+
+              {/* JamBase Attribution – match event details footer spacing/style */}
+              <div
+                className="pt-4 mt-4 border-t"
+                style={{ borderColor: 'var(--neutral-200)' }}
+              >
+                <JamBaseAttribution variant="footer" />
+              </div>
           </div>
         )}
+        </div>
       </div>
-    </div>
+
+      {/* Full-screen review detail overlay when a review is selected */}
+      {selectedReviewId && (
+        <ReviewDetailView
+          reviewId={selectedReviewId}
+          currentUserId={currentUserId}
+          onBack={() => setSelectedReviewId(null)}
+          onOpenArtist={(artistId, artistName) => {
+            // Close the review detail overlay and open the standard artist card
+            setSelectedReviewId(null);
+            window.dispatchEvent(
+              new CustomEvent('open-artist-card', {
+                detail: { artistId, artistName },
+              })
+            );
+          }}
+          onOpenVenue={(venueId, venueName) => {
+            // Close the review detail overlay so the standard venue card header/layout is used
+            setSelectedReviewId(null);
+            window.dispatchEvent(
+              new CustomEvent('open-venue-card', {
+                detail: { venueId, venueName },
+              })
+            );
+          }}
+          onOpenProfile={(userId) => {
+            // Close the review detail overlay and open the tapped user's profile
+            setSelectedReviewId(null);
+            window.dispatchEvent(
+              new CustomEvent('open-user-profile', {
+                detail: { userId },
+              })
+            );
+          }}
+        />
+      )}
     </>
   );
 };
