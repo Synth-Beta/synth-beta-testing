@@ -1766,10 +1766,10 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       zIndex: 0
     }}
   />
-        <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 'var(--spacing-bottom-nav, 32px)' }}>
+        <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 0 }}>
           {/* Profile Card */}
         <Card 
-          className="w-full max-w-full mb-[60px] swift-ui-card"
+          className="w-full max-w-full mb-0 swift-ui-card"
           style={{
             position: 'relative',
             zIndex: 1,
@@ -2149,21 +2149,11 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             </div>
           </CardContent>
         </Card>
-
-        {/* Drafts summary card – visible only on own profile when drafts exist */}
-        {isViewingOwnProfile && !draftReviewsLoading && Array.isArray(draftReviews) && draftReviews.length > 0 && (
-          <div className="mb-6">
-            <ProfileDraftsSummary
-              draftCount={draftReviews.length}
-              onClick={() => setRankingMode('unreviewed')}
-            />
-          </div>
-        )}
         </div>
       </div>
 
       {/* Instagram-style Content Tabs */}
-      <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
+      <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', marginTop: 'var(--spacing-grouped, 24px)' }}>
         <Tabs value={activeTab} onValueChange={(tab) => {
           // Track profile tab switch
           try {
@@ -2193,6 +2183,16 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               Passport
             </TabsTrigger>
           </TabsList>
+
+          {/* Drafts summary card – visible only on own profile when drafts exist (keep below segmented control) */}
+          {activeTab === 'my-events' && isViewingOwnProfile && !draftReviewsLoading && Array.isArray(draftReviews) && draftReviews.length > 0 && (
+            <div className="mb-6">
+              <ProfileDraftsSummary
+                draftCount={draftReviews.length}
+                onClick={() => setRankingMode('unreviewed')}
+              />
+            </div>
+          )}
 
 
           {/* My Events Tab - Show attended events with review/ranking toggle */}
