@@ -2153,6 +2153,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         </Card>
         </div>
       </div>
+      </div>
 
       {/* Instagram-style Content Tabs */}
       <div
@@ -3380,3 +3381,5 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
     </div>
   );
+
+};
