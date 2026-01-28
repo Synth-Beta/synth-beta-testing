@@ -1047,17 +1047,25 @@ class IncrementalSync3NF {
 async function main() {
   // Ensure output is not buffered for launchd
   if (process.stdout.isTTY === false) {
+    // Use relative path for logging (logs directory in project root)
+    const path = require('path');
+    const fs = require('fs');
+    const projectRoot = path.resolve(__dirname, '..');
+    const logPath = path.join(projectRoot, 'logs', 'launchd-sync.log');
+    
+    // Ensure logs directory exists
+    const logsDir = path.dirname(logPath);
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+    
     process.stdout.write = ((originalWrite) => {
       return function(chunk, encoding, callback) {
         originalWrite.call(process.stdout, chunk, encoding, callback);
         // Force flush
         if (typeof chunk === 'string') {
           try {
-            require('fs').appendFileSync(
-              '/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/logs/launchd-sync.log',
-              chunk,
-              { flag: 'a' }
-            );
+            fs.appendFileSync(logPath, chunk, { flag: 'a' });
           } catch (e) {
             // Ignore file write errors
           }
