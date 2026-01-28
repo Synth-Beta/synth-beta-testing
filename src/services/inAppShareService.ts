@@ -137,29 +137,79 @@ export class InAppShareService {
       // This avoids column name issues and database query errors
       const defaultMessage = customMessage || `Check out this event!`;
 
-      // Insert the message with event share data
+      // Insert the message with event share data (encrypted)
       // 3NF COMPLIANT: Only store message-specific metadata, not duplicated event data
       // Event data should be retrieved via shared_event_id FK join
       // Note: shared_event_id may reference either 'events' or 'jambase_events' table
       // depending on migration state, so we handle FK errors gracefully
       // Try with shared_event_id first, then fall back to null + metadata if FK constraint fails
-      const { data: message, error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          chat_id: chatId,
-          sender_id: userId,
-          content: defaultMessage,
-          message_type: 'event_share',
-          shared_event_id: eventId, // Try with actual event ID first
-          metadata: {
-            custom_message: customMessage,
-            share_context: 'in_app_share'
-            // DO NOT store: event_title, artist_name, venue_name, event_date
-            // These are available via shared_event_id FK join with events table
+      // Use encryption service for consistency
+      const { sendEncryptedMessage } = await import('./chatService');
+      const { data: message, error: messageError } = await sendEncryptedMessage(
+        chatId,
+        userId,
+        defaultMessage
+      );
+      
+      // If encryption succeeded, update the message with event share metadata
+      if (!messageError && message?.data?.id) {
+        const { error: updateError } = await supabase
+          .from('messages')
+          .update({
+            message_type: 'event_share',
+            shared_event_id: eventId,
+            metadata: {
+              custom_message: customMessage,
+              share_context: 'in_app_share'
+            }
+          })
+          .eq('id', message.data.id);
+        
+        // If update failed due to FK constraint, retry without shared_event_id
+        if (updateError && (updateError.code === '23503' || updateError.message?.includes('foreign key') || updateError.code === '42703')) {
+          console.warn('FK constraint error on update, retrying without shared_event_id FK');
+          const { error: retryUpdateError } = await supabase
+            .from('messages')
+            .update({
+              message_type: 'event_share',
+              shared_event_id: null,
+              metadata: {
+                custom_message: customMessage,
+                share_context: 'in_app_share',
+                event_id: eventId
+              }
+            })
+            .eq('id', message.data.id);
+          
+          if (retryUpdateError) {
+            console.warn('Failed to update message with event share metadata (retry):', retryUpdateError);
           }
-        })
-        .select('id, chat_id')
-        .single();
+        } else if (updateError) {
+          console.warn('Failed to update message with event share metadata:', updateError);
+        }
+        
+        // Track the share for analytics (non-blocking - don't fail if this errors)
+        try {
+          await supabase
+            .from('event_shares')
+            .insert({
+              event_id: eventId,
+              sharer_user_id: userId,
+              chat_id: chatId,
+              message_id: message.data.id,
+              share_type: 'direct_chat'
+            });
+        } catch (analyticsError) {
+          // Don't fail the share if analytics tracking fails
+          console.warn('Failed to track event share in analytics (non-critical):', analyticsError);
+        }
+
+        return {
+          success: true,
+          message_id: message.data.id,
+          chat_id: chatId
+        };
+      }
 
       if (messageError) {
         console.error('Error creating share message:', messageError);
@@ -167,12 +217,30 @@ export class InAppShareService {
         // If it's a foreign key constraint error or column error, try without the FK (store in metadata instead)
         if (messageError.code === '23503' || messageError.message?.includes('foreign key') || messageError.code === '42703') {
           console.warn('FK constraint or column error, retrying without shared_event_id FK');
-          const { data: retryMessage, error: retryError } = await supabase
+          // Retry with encryption but without shared_event_id FK
+          const { data: retryMessageData, error: retryError } = await sendEncryptedMessage(
+            chatId,
+            userId,
+            defaultMessage
+          );
+          
+          if (retryError) {
+            return {
+              success: false,
+              error: 'Failed to share event: ' + (retryError.message || 'Unknown error')
+            };
+          }
+          
+          if (!retryMessageData?.data?.id) {
+            return {
+              success: false,
+              error: 'Failed to share event: Message was not created'
+            };
+          }
+          
+          const { data: retryMessage, error: updateError } = await supabase
             .from('messages')
-            .insert({
-              chat_id: chatId,
-              sender_id: userId,
-              content: defaultMessage,
+            .update({
               message_type: 'event_share',
               shared_event_id: null, // Set to null to bypass FK constraint
               metadata: {
@@ -181,13 +249,14 @@ export class InAppShareService {
                 event_id: eventId // Store in metadata as fallback
               }
             })
+            .eq('id', retryMessageData.data.id)
             .select('id, chat_id')
             .single();
-            
-          if (retryError) {
+          
+          if (updateError || !retryMessage) {
             return {
               success: false,
-              error: 'Failed to share event: ' + (retryError.message || 'Unknown error')
+              error: 'Failed to share event: ' + (updateError?.message || 'Unknown error')
             };
           }
           

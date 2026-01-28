@@ -17,6 +17,10 @@ export interface User {
   music_streaming_profile: string | null;
   gender: string | null;
   birthday: string | null; // DATE
+  age_verified?: boolean | null; // BOOLEAN - Indicates if age has been verified
+  is_minor?: boolean | null; // BOOLEAN - Indicates if user is under 18
+  parental_controls_enabled?: boolean | null; // BOOLEAN - Parental controls enabled
+  dm_restricted?: boolean | null; // BOOLEAN - Restrict DMs to mutual followers only
   account_type: 'user' | 'creator' | 'business' | 'admin';
   business_info: Record<string, any> | null; // JSONB
   is_public_profile: boolean;
@@ -457,6 +461,7 @@ export interface Message {
   chat_id: string; // UUID - references chats(id)
   sender_id: string; // UUID - references users(user_id)
   content: string;
+  is_encrypted?: boolean; // Indicates if message content is encrypted
   created_at: string;
 }
 

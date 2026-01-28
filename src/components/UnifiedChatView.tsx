@@ -50,7 +50,7 @@ import { ReviewMessageCard } from '@/components/chat/ReviewMessageCard';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
-import { fetchUserChats } from '@/services/chatService';
+import { fetchUserChats, sendEncryptedMessage, decryptChatMessage } from '@/services/chatService';
 import type { ReviewWithEngagement } from '@/services/reviewService';
 import type { UnifiedFeedItem } from '@/services/unifiedFeedService';
 import { VerifiedChatService } from '@/services/verifiedChatService';
@@ -106,6 +106,7 @@ interface Message {
   chat_id: string;
   sender_id: string;
   content: string;
+  is_encrypted?: boolean;
   created_at: string;
   sender_name: string;
   sender_avatar: string | null;
@@ -819,6 +820,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
           chat_id,
           sender_id,
           content,
+          is_encrypted,
           created_at,
           message_type,
           shared_event_id,
@@ -840,13 +842,30 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
         .select('user_id, name, avatar_url')
         .in('user_id', senderIds);
 
-      const transformedMessages = (data || []).map(msg => {
+      // Decrypt encrypted messages
+      const transformedMessages = await Promise.all((data || []).map(async (msg) => {
         const profile = profiles?.find(p => p.user_id === msg.sender_id);
+        
+        // Decrypt message content if encrypted
+        let decryptedContent = msg.content;
+        if (msg.is_encrypted) {
+          try {
+            decryptedContent = await decryptChatMessage(
+              { content: msg.content, chat_id: msg.chat_id, is_encrypted: msg.is_encrypted },
+              currentUserId
+            );
+          } catch (error) {
+            console.error('Error decrypting message:', error);
+            decryptedContent = '[Unable to decrypt message]';
+          }
+        }
+        
         return {
           id: msg.id,
           chat_id: msg.chat_id,
           sender_id: msg.sender_id,
-          content: msg.content,
+          content: decryptedContent,
+          is_encrypted: msg.is_encrypted,
           created_at: msg.created_at,
           sender_name: profile?.name || 'Unknown',
           sender_avatar: profile?.avatar_url || null,
@@ -855,7 +874,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
           shared_review_id: msg.shared_review_id,
           metadata: msg.metadata
         };
-      });
+      }));
 
       // Ensure message_type is assigned to the allowed union type
       setMessages(
@@ -921,16 +940,12 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
     setNewMessage('');
 
     try {
-      // Insert message into database
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({
-          chat_id: selectedChat.id,
-          sender_id: currentUserId,
-          content: messageText
-        })
-        .select()
-        .single();
+      // Encrypt and send message
+      const { data, error } = await sendEncryptedMessage(
+        selectedChat.id,
+        currentUserId,
+        messageText
+      );
 
       if (error) {
         console.error('Error sending message:', error);
@@ -969,6 +984,8 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       });
     } catch (error) {
       console.error('Error sending message:', error);
+      // Restore message text on error
+      setNewMessage(messageText);
       toast({
         title: "Error",
         description: "Failed to send message. Please try again.",

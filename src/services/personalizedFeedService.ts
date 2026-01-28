@@ -3,6 +3,7 @@ import { normalizeCityName } from '@/utils/cityNormalization';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { cacheService, CacheTTL } from './cacheService';
 import { logger } from '@/utils/logger';
+import { filterContentForMinors } from '@/utils/contentFilter';
 
 /**
  * Row returned by the Supabase personalized feed RPC.
@@ -443,21 +444,26 @@ export class PersonalizedFeedService {
       const finishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const duration = finishedAt - startedAt;
 
+      // Apply content filtering for minors
+      const userAge = await this.getUserAge(userId);
+      const filteredEvents = filterContentForMinors(events, userAge);
+
       // Cache the result (only for first page)
       if (shouldCache && cacheKey) {
-        cacheService.set(cacheKey, events, CacheTTL.REVIEWS); // Use 3 min TTL (same as reviews)
+        cacheService.set(cacheKey, filteredEvents, CacheTTL.REVIEWS); // Use 3 min TTL (same as reviews)
       }
 
       logger.log('✅ Personalized feed (RPC):', {
         userId,
-        count: events.length,
+        count: filteredEvents.length,
+        originalCount: events.length,
         limit,
         offset,
         loadTimeMs: Math.round(duration),
         cached: shouldCache && !!cacheKey,
       });
 
-      return events;
+      return filteredEvents;
     } catch (rpcException) {
       logger.error('❌ get_personalized_feed_v2 exception:', rpcException);
       return this.getFallbackFeed(userId, limit, offset, includePast, normalizedFilters);
@@ -1120,6 +1126,38 @@ export class PersonalizedFeedService {
       created_at: row.created_at ?? null,
       updated_at: row.updated_at ?? null,
     };
+  }
+
+  /**
+   * Get user's age from their birthday
+   * Returns null if birthday is not set or user is not found
+   */
+  private static async getUserAge(userId: string): Promise<number | null> {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('birthday')
+        .eq('user_id', userId)
+        .single();
+
+      if (error || !data?.birthday) {
+        return null;
+      }
+
+      const birthDate = new Date(data.birthday);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+
+      return age;
+    } catch (error) {
+      console.error('Error getting user age:', error);
+      return null;
+    }
   }
 }
 

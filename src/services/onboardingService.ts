@@ -73,7 +73,30 @@ export class OnboardingService {
         // Username should be lowercase and trimmed, stored as TEXT
         updateData.username = String(data.username).toLowerCase().trim();
       }
-      if (data.birthday !== undefined) updateData.birthday = data.birthday;
+      if (data.birthday !== undefined) {
+        updateData.birthday = data.birthday;
+        
+        // Calculate age and set age verification flags
+        if (data.birthday) {
+          const birthDate = new Date(data.birthday);
+          const today = new Date();
+          let age = today.getFullYear() - birthDate.getFullYear();
+          const monthDiff = today.getMonth() - birthDate.getMonth();
+          
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+          }
+          
+          // Set age verification flags
+          updateData.age_verified = true;
+          updateData.is_minor = age < 18;
+          // Auto-enable parental controls for minors
+          if (age < 18) {
+            updateData.parental_controls_enabled = true;
+            updateData.dm_restricted = true; // Default to restricted for minors
+          }
+        }
+      }
       if (data.gender !== undefined) updateData.gender = data.gender;
       if (data.bio !== undefined) updateData.bio = data.bio;
       if (data.avatar_url !== undefined) updateData.avatar_url = data.avatar_url;

@@ -393,6 +393,7 @@ export class SupabaseService {
       .select(`
         id,
         content,
+        is_encrypted,
         created_at,
         sender_id,
         sender:users!messages_sender_id_fkey(

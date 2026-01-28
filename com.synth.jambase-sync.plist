@@ -7,25 +7,25 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/scripts/run-daily-sync.sh</string>
+        <string>__PROJECT_DIR__/scripts/run-daily-sync.sh</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
-        <integer>2</integer>
+        <integer>9</integer>
         <key>Minute</key>
-        <integer>0</integer>
+        <integer>30</integer>
     </dict>
     <key>RunAtLoad</key>
     <false/>
     <key>KeepAlive</key>
     <false/>
     <key>StandardOutPath</key>
-    <string>/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/logs/launchd-sync.log</string>
+    <string>__PROJECT_DIR__/logs/launchd-sync.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/logs/launchd-sync-error.log</string>
+    <string>__PROJECT_DIR__/logs/launchd-sync-error.log</string>
     <key>WorkingDirectory</key>
-    <string>/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main</string>
+    <string>__PROJECT_DIR__</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>

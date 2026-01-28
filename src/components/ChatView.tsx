@@ -25,13 +25,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { ContentModerationService } from '@/services/contentModerationService';
-import { fetchUserChats } from '@/services/chatService';
+import { fetchUserChats, sendEncryptedMessage, decryptChatMessage } from '@/services/chatService';
 
 interface ChatMessage {
   id: string;
   chat_id: string;
   sender_id: string;
   message: string;
+  is_encrypted?: boolean;
   created_at: string;
   sender: {
     name: string;
@@ -350,6 +351,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
           chat_id,
           sender_id,
           content,
+          is_encrypted,
           created_at
         `)
         .eq('chat_id', chatId)
@@ -381,30 +383,62 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
       if (profilesError) {
         console.error('Error fetching sender profiles:', profilesError);
         // Still set messages but without sender info
-        const transformedMessages = data.map(msg => ({
-          ...msg,
-          message: msg.content,
-          sender: {
-            name: 'Unknown',
-            avatar_url: null
+        const transformedMessages = await Promise.all(data.map(async (msg) => {
+          // Decrypt message content if encrypted
+          let decryptedContent = msg.content;
+          if (msg.is_encrypted) {
+            try {
+              decryptedContent = await decryptChatMessage(
+                { content: msg.content, chat_id: msg.chat_id, is_encrypted: msg.is_encrypted },
+                currentUserId
+              );
+            } catch (error) {
+              console.error('Error decrypting message:', error);
+              decryptedContent = '[Unable to decrypt message]';
+            }
           }
+          
+          return {
+            ...msg,
+            message: decryptedContent,
+            sender: {
+              name: 'Unknown',
+              avatar_url: null
+            }
+          };
         }));
         setMessages(transformedMessages);
         return;
       }
 
-      // Transform the data to match the expected interface
-      const transformedMessages = data.map(msg => {
+      // Transform the data to match the expected interface and decrypt encrypted messages
+      const transformedMessages = await Promise.all(data.map(async (msg) => {
         const profile = profiles?.find(p => p.user_id === msg.sender_id);
+        
+        // Decrypt message content if encrypted
+        let decryptedContent = msg.content;
+        if (msg.is_encrypted) {
+          try {
+            decryptedContent = await decryptChatMessage(
+              { content: msg.content, chat_id: msg.chat_id, is_encrypted: msg.is_encrypted },
+              currentUserId
+            );
+          } catch (error) {
+            console.error('Error decrypting message:', error);
+            decryptedContent = '[Unable to decrypt message]';
+          }
+        }
+        
         return {
           ...msg,
-          message: msg.content, // Map content to message for compatibility
+          message: decryptedContent, // Map content to message for compatibility
+          is_encrypted: msg.is_encrypted,
           sender: {
             name: profile?.name || 'Unknown',
             avatar_url: profile?.avatar_url || null
           }
         };
-      });
+      }));
 
       setMessages(transformedMessages);
     } catch (error) {
@@ -415,17 +449,21 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedChat) return;
 
+    const messageText = newMessage.trim();
+    setNewMessage('');
+
     try {
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          chat_id: selectedChat.id,
-          sender_id: currentUserId,
-          content: newMessage.trim()
-        });
+      // Encrypt and send message
+      const { data, error } = await sendEncryptedMessage(
+        selectedChat.id,
+        currentUserId,
+        messageText
+      );
 
       if (error) {
         console.error('Error sending message:', error);
+        // Restore message text on error
+        setNewMessage(messageText);
         toast({
           title: "Error",
           description: "Failed to send message. Please try again.",
@@ -434,11 +472,12 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         return;
       }
 
-      setNewMessage('');
       // Refresh messages
       fetchMessages(selectedChat.id);
     } catch (error) {
       console.error('Error sending message:', error);
+      // Restore message text on error
+      setNewMessage(messageText);
       toast({
         title: "Error",
         description: "Failed to send message. Please try again.",

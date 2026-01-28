@@ -517,14 +517,20 @@ export class MatchingService {
       }
 
       // Send welcome message (non-critical, log error but don't fail)
-      const { error: messageError } = await supabase.from('messages').insert({
-        chat_id: chat.id,
-        sender_id: user1Id, // System message
-        content: `🎉 You matched! Start chatting about ${eventData?.title || 'the event'}!`,
-      });
+      // Use encryption service for consistency
+      try {
+        const { sendEncryptedMessage } = await import('./chatService');
+        const { error: messageError } = await sendEncryptedMessage(
+          chat.id,
+          user1Id, // System message sent as user1
+          `🎉 You matched! Start chatting about ${eventData?.title || 'the event'}!`
+        );
 
-      if (messageError) {
-        console.warn('Failed to send welcome message, but chat was created successfully:', messageError);
+        if (messageError) {
+          console.warn('Failed to send welcome message, but chat was created successfully:', messageError);
+        }
+      } catch (error) {
+        console.warn('Failed to send encrypted welcome message, but chat was created successfully:', error);
       }
     } catch (error) {
       console.error('Error creating match chat:', error);
@@ -826,20 +832,18 @@ export class MatchingService {
   }
 
   /**
-   * Send a message in a chat
+   * Send a message in a chat (encrypted)
    */
   static async sendMessage(chatId: string, message: string): Promise<void> {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('User not authenticated');
 
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          chat_id: chatId,
-          sender_id: user.id,
-          content: message,
-        });
+      // Import encryption service dynamically to avoid circular dependencies
+      const { sendEncryptedMessage } = await import('./chatService');
+      
+      // Encrypt and send message
+      const { error } = await sendEncryptedMessage(chatId, user.id, message);
 
       if (error) throw error;
 

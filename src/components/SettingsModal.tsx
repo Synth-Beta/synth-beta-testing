@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { UserVisibilityService } from '@/services/userVisibilityService';
 import { useAuth } from '@/hooks/useAuth';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
+import { ParentalControlsSettings } from '@/components/ParentalControlsSettings';
 import { 
   getUserSettingsPreferences, 
   updateUserSettingsPreferences,
@@ -33,7 +34,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
   useViewTracking('view', 'settings', { source: 'settings' }, undefined, { enabled: isOpen });
 
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [view, setView] = useState<'menu' | 'onboarding-preferences' | 'security-actions' | 'verification'>('menu');
+  const [view, setView] = useState<'menu' | 'onboarding-preferences' | 'security-actions' | 'verification' | 'parental-controls'>('menu');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState('');
@@ -539,6 +540,26 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
                 </div>
               </Button>
 
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 h-12"
+                onClick={() => setView('parental-controls')}
+              >
+                <Shield className="w-5 h-5" style={{ flexShrink: 0 }} />
+                <div 
+                  className="text-left"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    overflowWrap: 'break-word',
+                    wordBreak: 'normal'
+                  }}
+                >
+                  <div className="font-medium">Parental Controls</div>
+                  <div className="text-sm text-muted-foreground">Age verification and safety settings</div>
+                </div>
+              </Button>
+
             </div>
 
             <div style={{ marginTop: 'var(--spacing-grouped, 24px)', marginBottom: 'var(--spacing-grouped, 24px)' }}>
@@ -629,6 +650,10 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
                   verified={isVerified}
                 />
               )}
+            </div>
+          ) : view === 'parental-controls' ? (
+            <div style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
+              <ParentalControlsSettings />
             </div>
           ) : view === 'security-actions' ? (
             <div className="space-y-6" style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>

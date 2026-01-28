@@ -114,7 +114,21 @@ async function checkLastSync() {
 
     // Check log files if they exist
     console.log(`\n📄 Sync Schedule:`);
-    console.log(`   Scheduled daily at 1:00 AM (via launchd)`);
+    console.log(`   Scheduled daily at 9:30 AM (via launchd)`);
+    
+    // Check if sync ran today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const lastSyncDate = lastSync ? new Date(lastSync) : null;
+    if (lastSyncDate) {
+      lastSyncDate.setHours(0, 0, 0, 0);
+      if (lastSyncDate.getTime() === today.getTime()) {
+        console.log(`\n✅ Sync ran TODAY!`);
+      } else {
+        const daysDiff = Math.floor((today - lastSyncDate) / (1000 * 60 * 60 * 24));
+        console.log(`\n⚠️  Last sync was ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago`);
+      }
+    }
     
   } catch (error) {
     console.error('\n❌ Error:', error.message);
