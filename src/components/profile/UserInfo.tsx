@@ -1,5 +1,6 @@
 import React from 'react';
 import { ProfilePicture, type ProfilePictureVariant } from './ProfilePicture';
+import { ClickableImage } from '@/components/modals/FullScreenImageModal';
 import './UserInfo.css';
 
 export type UserInfoVariant = 'user' | 'artist' | 'userProfile' | 'chat';
@@ -104,16 +105,26 @@ export const UserInfo: React.FC<UserInfoProps> = ({
     { key: 'events', label: 'Events', value: events },
   ];
 
+  const avatar = (
+    <ProfilePicture
+      size={pictureSize}
+      variant={pictureVariant}
+      initial={initial}
+      imageUrl={imageUrl}
+      alt={name}
+    />
+  );
+
   return (
     <div className={rootClasses}>
       <div className="user-info__avatar">
-        <ProfilePicture
-          size={pictureSize}
-          variant={pictureVariant}
-          initial={initial}
-          imageUrl={imageUrl}
-          alt={name}
-        />
+        {variant === 'userProfile' && pictureVariant === 'image' && imageUrl ? (
+          <ClickableImage imageUrl={imageUrl} alt={name}>
+            {avatar}
+          </ClickableImage>
+        ) : (
+          avatar
+        )}
       </div>
 
       <div className="user-info__content">
