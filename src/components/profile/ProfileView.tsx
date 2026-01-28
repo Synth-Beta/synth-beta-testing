@@ -1766,7 +1766,11 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       zIndex: 0
     }}
   />
+<<<<<<< Updated upstream
         <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 0 }}>
+=======
+        <div className="w-full max-w-full overflow-visible" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 0 }}>
+>>>>>>> Stashed changes
           {/* Profile Card */}
         <Card 
           className="w-full max-w-full mb-0 swift-ui-card"
@@ -1802,6 +1806,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                     username={isViewingOwnProfile ? (profile.username || undefined) : undefined}
                     initial={profile.name.charAt(0).toUpperCase()}
                     imageUrl={profile.avatar_url}
+                    clickable={true}
                     followers={friends.length}
                     following={followedArtistsCount + followedVenuesCount}
                     events={reviewsCount}
@@ -2153,7 +2158,14 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       </div>
 
       {/* Instagram-style Content Tabs */}
-      <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', marginTop: 'var(--spacing-grouped, 24px)' }}>
+      <div
+        className="w-full max-w-full overflow-x-hidden box-border"
+        style={{
+          paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+          paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+          marginTop: 'var(--spacing-grouped, 24px)',
+        }}
+      >
         <Tabs value={activeTab} onValueChange={(tab) => {
           // Track profile tab switch
           try {
@@ -2167,18 +2179,27 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           }
           setActiveTab(tab);
         }} className="w-full">
-          <TabsList className={`glass-card inner-glow grid w-full max-w-full mb-4 p-1 floating-shadow overflow-x-hidden ${canViewInterested ? 'grid-cols-3' : 'grid-cols-2'}`}>
-            <TabsTrigger value="my-events" className="flex items-center gap-2">
+          <TabsList className={`glass-card inner-glow grid w-full max-w-full mb-4 p-1 floating-shadow box-border ${canViewInterested ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            <TabsTrigger
+              value="my-events"
+              className="flex items-center gap-2 data-[state=active]:text-[var(--brand-pink-500)] data-[state=active]:bg-[var(--brand-pink-050)]"
+            >
               <Calendar className="w-4 h-4" />
               Events
             </TabsTrigger>
             {canViewInterested && (
-              <TabsTrigger value="interested" className="flex items-center gap-2">
+              <TabsTrigger
+                value="interested"
+                className="flex items-center gap-2 data-[state=active]:text-[var(--brand-pink-500)] data-[state=active]:bg-[var(--brand-pink-050)]"
+              >
                 <Heart size={16} />
                 Interested
               </TabsTrigger>
             )}
-            <TabsTrigger value="passport" className="flex items-center gap-2">
+            <TabsTrigger
+              value="passport"
+              className="flex items-center gap-2 data-[state=active]:text-[var(--brand-pink-500)] data-[state=active]:bg-[var(--brand-pink-050)]"
+            >
               <Sparkles size={16} />
               Passport
             </TabsTrigger>

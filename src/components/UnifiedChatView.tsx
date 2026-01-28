@@ -1250,7 +1250,9 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
     // For direct chats, find the specific other user for this chat (Bug 1 fix)
     const otherUserId = getOtherUserId(chat);
     if (!otherUserId) {
-      return chat.chat_name || 'Unknown User';
+      const raw = typeof chat.chat_name === 'string' ? chat.chat_name.trim() : '';
+      if (raw && raw.toLowerCase() !== 'direct chat') return raw;
+      return 'Unknown User';
     }
 
     const otherUser = users.find(u => u.user_id === otherUserId);

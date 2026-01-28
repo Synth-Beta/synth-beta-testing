@@ -147,6 +147,20 @@ export function EventDetailsModal({
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [interestedModalOpen, setInterestedModalOpen] = useState(false);
+  const [guestListLoading, setGuestListLoading] = useState(false);
+  const [guestListError, setGuestListError] = useState<string | null>(null);
+  const [guestListAllUsers, setGuestListAllUsers] = useState<Array<{
+    user_id: string;
+    name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+  }>>([]);
+  const [guestListFriendUsers, setGuestListFriendUsers] = useState<Array<{
+    user_id: string;
+    name: string | null;
+    username: string | null;
+    avatar_url: string | null;
+  }>>([]);
   const { toast } = useToast();
   const { isCreator, isAdmin, isBusiness } = useAccountType();
 
@@ -717,6 +731,76 @@ export function EventDetailsModal({
     };
     fetchInterestedCount();
   }, [actualEvent?.id, currentUserId]);
+
+  // Keep guest list data in sync with the Interested Users popup (same query/data source).
+  useEffect(() => {
+    const shouldLoad = Boolean(actualEvent?.id) && (showBuddyFinder || interestedModalOpen);
+    if (!shouldLoad) return;
+
+    const loadGuestList = async () => {
+      if (!actualEvent?.id || !currentUserId) return;
+
+      try {
+        setGuestListLoading(true);
+        setGuestListError(null);
+
+        const { data: friendsData } = await supabase
+          .from('user_relationships')
+          .select('user_id, related_user_id')
+          .eq('relationship_type', 'friend')
+          .eq('status', 'accepted')
+          .or(`user_id.eq.${currentUserId},related_user_id.eq.${currentUserId}`);
+
+        const friendIds = (friendsData || [])
+          .map((f) => (f.user_id === currentUserId ? f.related_user_id : f.user_id))
+          .filter(Boolean) as string[];
+
+        const { data: interestedRows, error: interestedError } = await supabase
+          .from('user_event_relationships')
+          .select('user_id')
+          .eq('event_id', actualEvent.id)
+          .eq('relationship_type', 'interested');
+
+        if (interestedError) {
+          throw interestedError;
+        }
+
+        const interestedIds = Array.from(
+          new Set((interestedRows || []).map((row) => row.user_id).filter(Boolean))
+        ) as string[];
+
+        if (interestedIds.length === 0) {
+          setGuestListAllUsers([]);
+          setGuestListFriendUsers([]);
+          return;
+        }
+
+        const { data: profiles, error: profilesError } = await supabase
+          .from('users')
+          .select('user_id, name, username, avatar_url')
+          .in('user_id', interestedIds);
+
+        if (profilesError) {
+          throw profilesError;
+        }
+
+        const sanitizedProfiles = (profiles || []).filter((profile) => profile.user_id);
+        setGuestListAllUsers(sanitizedProfiles);
+        setGuestListFriendUsers(
+          sanitizedProfiles.filter((profile) => friendIds.includes(profile.user_id))
+        );
+      } catch (e) {
+        console.error('Error loading interested users (guest list):', e);
+        setGuestListError('Failed to load interested users');
+        setGuestListAllUsers([]);
+        setGuestListFriendUsers([]);
+      } finally {
+        setGuestListLoading(false);
+      }
+    };
+
+    loadGuestList();
+  }, [actualEvent?.id, currentUserId, showBuddyFinder, interestedModalOpen]);
   
   if (!actualEvent) return null;
   // All data is real; no demo flags
@@ -1043,7 +1127,7 @@ export function EventDetailsModal({
     
     {/* Modal Container (also below bottom nav z-index 40) */}
     <div 
-      className="fixed inset-0 overflow-y-auto overflow-x-hidden"
+      className="fixed inset-0 overflow-x-hidden"
       style={{
         ...iosModal,
         zIndex: 35,
@@ -1250,7 +1334,6 @@ export function EventDetailsModal({
                     fontWeight: 'var(--typography-meta-weight, 500)',
                     lineHeight: 'var(--typography-meta-line-height, 1.5)',
                     pointerEvents: 'auto',
-                    zIndex: 100,
                     position: 'relative'
                   }}
                 >
@@ -1831,6 +1914,8 @@ export function EventDetailsModal({
                 eventId={actualEvent.id}
                 eventTitle={actualEvent.title}
                 {...(interestedCount !== null && { interestedCount })}
+                guestListTotalCount={guestListLoading ? null : guestListAllUsers.length}
+                onOpenGuestList={() => setInterestedModalOpen(true)}
                 onMatchCreated={(matchedUser) => {
                   toast({
                     title: 'New Match! 🎉',
@@ -1909,7 +1994,7 @@ export function EventDetailsModal({
                     )}
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="px-6 pb-6 max-h-96 overflow-y-auto">
+                <AccordionContent className="px-6 pb-6">
                   {fetchingSetlist ? (
                     <div className="text-center py-8">
                       <Music size={35} className="text-purple-500 mx-auto mb-3 animate-pulse" />
@@ -2438,7 +2523,10 @@ export function EventDetailsModal({
         isOpen={interestedModalOpen}
         onClose={() => setInterestedModalOpen(false)}
         eventId={actualEvent.id}
-        currentUserId={currentUserId}
+        loading={guestListLoading}
+        error={guestListError}
+        allUsers={guestListAllUsers}
+        friendUsers={guestListFriendUsers}
       />
     )}
     </>

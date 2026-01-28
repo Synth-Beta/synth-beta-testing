@@ -20,6 +20,8 @@ interface ConcertBuddySwiperProps {
   eventId: string;
   eventTitle: string;
   interestedCount?: number | null;
+  guestListTotalCount?: number | null;
+  onOpenGuestList?: () => void;
   onMatchCreated?: (matchedUser: any) => void;
   onNavigateToProfile?: (userId: string) => void;
 }
@@ -28,6 +30,8 @@ export function ConcertBuddySwiper({
   eventId,
   eventTitle,
   interestedCount,
+  guestListTotalCount,
+  onOpenGuestList,
   onMatchCreated,
   onNavigateToProfile,
 }: ConcertBuddySwiperProps) {
@@ -194,17 +198,30 @@ export function ConcertBuddySwiper({
   }
 
   const currentUser = potentialMatches[currentIndex];
+  const totalGuestsLoaded = guestListTotalCount;
+  const progressLabel =
+    totalGuestsLoaded === null || totalGuestsLoaded === undefined
+      ? `${currentIndex + 1} of …`
+      : `${Math.min(currentIndex + 1, totalGuestsLoaded)} of ${totalGuestsLoaded}`;
 
   return (
     <div className="max-w-md mx-auto">
       {/* Progress Indicator */}
       <div className="mb-4 flex items-center justify-between text-sm text-gray-600">
-        <span>
-          {currentIndex + 1} of {potentialMatches.length}
-        </span>
-        <span className="text-purple-600 font-medium">
-          Meet People Going to {eventTitle}
-        </span>
+        <span aria-hidden="true" />
+        <div className="flex flex-col items-end">
+          <span className="font-semibold text-neutral-900">
+            Meet People Going to {eventTitle}
+          </span>
+          <button
+            type="button"
+            className="mt-3 underline cursor-pointer"
+            style={{ color: 'var(--neutral-600)' }}
+            onClick={() => onOpenGuestList?.()}
+          >
+            {progressLabel}
+          </button>
+        </div>
       </div>
 
       {/* User Card */}

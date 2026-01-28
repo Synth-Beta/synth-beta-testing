@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Icon } from '@/components/Icon/Icon';
 import { Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { UserEventService } from '@/services/userEventService';
-import { ClickableAvatar } from '@/components/common/ClickableAvatar';
 
 interface AllDetailModalProps {
   isOpen: boolean;
@@ -151,20 +150,15 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
         <div className="space-y-6">
           {/* Header Section */}
           <div className="flex items-start gap-4">
-            {result.image ? (
-              <ClickableAvatar
-                src={result.image}
-                alt={result.name}
-                className="w-24 h-24"
-                imageClassName="object-cover"
-              />
-            ) : (
-              <Avatar className="w-24 h-24">
+            <Avatar className="w-24 h-24">
+              {result.image ? (
+                <AvatarImage src={result.image} alt={result.name} className="object-cover" />
+              ) : (
                 <AvatarFallback className="text-2xl">
                   {result.name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
-              </Avatar>
-            )}
+              )}
+            </Avatar>
             <div className="flex-1">
               <h2 className="text-2xl font-bold mb-2">{result.name}</h2>
               {rating !== null && (

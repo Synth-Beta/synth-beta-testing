@@ -437,6 +437,21 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             ? String(eventDetails.event_date).split('T')[0]
             : (event?.event_date ? String(event.event_date).split('T')[0] : (review.created_at || '').split('T')[0]);
 
+          // Normalize attendees: DB stores as TEXT[] (JSON strings), but the form expects attendee objects
+          const attendees = Array.isArray((review as any).attendees)
+            ? (typeof (review as any).attendees[0] === 'string'
+                ? ((review as any).attendees as string[])
+                    .map((s) => {
+                      try {
+                        return JSON.parse(s);
+                      } catch {
+                        return null;
+                      }
+                    })
+                    .filter(Boolean)
+                : ((review as any).attendees as any[]))
+            : [];
+
           setFormData({
             selectedArtist: null,
             selectedVenue: null,
@@ -461,7 +476,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             isPublic: review.is_public,
             reviewType: review.review_type || 'event',
             // Preserve tagged attendees + met_on_synth flag when editing
-            attendees: review.attendees || [],
+            attendees,
             metOnSynth: (review as any).met_on_synth ?? false,
           } as any);
           

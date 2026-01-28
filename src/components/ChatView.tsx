@@ -590,9 +590,21 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
     );
   };
 
-  // Fix chat name display by removing " Group Chat" suffix
-  const getChatDisplayName = (chatName: string) => {
-    return chatName.replace(/\s+Group\s+Chat\s*$/, '');
+  // Fix chat name display by removing " Group Chat" suffix.
+  // Also ensure we never surface placeholder chat names like "Direct Chat".
+  const getChatDisplayName = (chat: Chat) => {
+    if (chat.type === 'group') {
+      const name = (chat.name || 'Group Chat').replace(/\s+Group\s+Chat\s*$/, '');
+      return name || 'Group Chat';
+    }
+
+    // Direct chat: prefer participant name; never show "Direct Chat" placeholder.
+    const participantName = chat.participants?.[0]?.name?.trim();
+    if (participantName) return participantName;
+
+    const raw = (chat.name || '').trim();
+    if (raw && raw.toLowerCase() !== 'direct chat') return raw;
+    return 'Unknown User';
   };
 
   // Fetch event information for group chats
@@ -928,9 +940,9 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold gradient-text truncate">
-                            {getChatDisplayName(chat.name || 'Direct Chat')}
-                          </h3>
+                        <h3 className="font-semibold gradient-text truncate">
+                          {getChatDisplayName(chat)}
+                        </h3>
                           {mutedChats.has(chat.id) && (
                             <BellOff className="w-4 h-4 text-gray-400" />
                           )}
@@ -974,7 +986,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                     </div>
                     <div>
                       <h2 className="font-semibold text-gray-900">
-                        {getChatDisplayName(selectedChat.name || 'Direct Chat')}
+                        {getChatDisplayName(selectedChat)}
                       </h2>
                       <p className="text-sm text-gray-600">
                         {selectedChat.type === 'group' 

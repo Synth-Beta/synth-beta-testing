@@ -505,6 +505,11 @@ export class ReviewService {
         throw checkError;
       }
 
+      // reviews.attendees is TEXT[] in DB, but UI may send attendee objects
+      const attendeesForDb = reviewData.attendees?.map((a) =>
+        typeof a === 'string' ? a : JSON.stringify(a)
+      );
+
       if (existingReview) {
         const isDraft = existingReview.is_draft === true;
         
@@ -618,8 +623,7 @@ export class ReviewService {
           setlist: reviewData.setlist !== undefined ? reviewData.setlist : (existingReviewData?.setlist || null),
           // Preserve custom_setlist if not explicitly provided
           custom_setlist: reviewData.custom_setlist !== undefined ? reviewData.custom_setlist : (existingReviewData?.custom_setlist || null),
-          attendees: reviewData.attendees, // Add attendees field
-          met_on_synth: reviewData.met_on_synth, // Add met_on_synth field
+          attendees: attendeesForDb, // Add attendees field
           was_there: true, // If someone writes a review, they obviously attended
           updated_at: new Date().toISOString()
           };
@@ -838,8 +842,7 @@ export class ReviewService {
         artist_tags: reviewData.artist_tags,
         photos: reviewData.photos, // Add photos field
         setlist: reviewData.setlist || null, // Add setlist field (JSONB - Supabase handles conversion)
-        attendees: reviewData.attendees, // Add attendees field
-        met_on_synth: reviewData.met_on_synth, // Add met_on_synth field
+        attendees: attendeesForDb, // Add attendees field
         was_there: true // If someone writes a review, they obviously attended
       } as any;
 
@@ -983,6 +986,7 @@ export class ReviewService {
           ticket_price_paid: reviewData.ticket_price_paid,
           photos: reviewData.photos,
           setlist: reviewData.setlist || null, // JSONB field (Supabase handles conversion)
+          attendees: attendeesForDb,
           was_there: true
         };
 

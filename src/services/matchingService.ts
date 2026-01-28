@@ -94,11 +94,10 @@ export class MatchingService {
         .from('engagements')
         .select('*')
         .eq('user_id', user2_id)
-        .eq('entity_type', 'user')
-        .eq('entity_id', user1_id)
         .eq('engagement_type', 'swipe')
         .eq('engagement_value', 'right')
         .eq('metadata->>event_id', event_id)
+        .eq('metadata->>swiped_user_id', user1_id)
         .single();
 
       if (reciprocalSwipe) {
@@ -234,10 +233,9 @@ export class MatchingService {
             .from('engagements')
             .select('id')
             .eq('user_id', user.id)
-            .eq('entity_type', 'user')
-            .eq('entity_id', profile.user_id)
             .eq('engagement_type', 'swipe')
             .eq('metadata->>event_id', eventId)
+            .eq('metadata->>swiped_user_id', profile.user_id)
             .single();
 
           if (existingSwipe) return null;
@@ -664,10 +662,9 @@ export class MatchingService {
         .from('engagements')
         .select('id')
         .eq('user_id', user.id)
-        .eq('entity_type', 'user')
-        .eq('entity_id', userId)
         .eq('engagement_type', 'swipe')
         .eq('metadata->>event_id', eventId)
+        .eq('metadata->>swiped_user_id', userId)
         .single();
 
       return !!data;
