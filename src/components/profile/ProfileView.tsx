@@ -3380,4 +3380,3 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
     </div>
   );
-};
