@@ -198,6 +198,9 @@ class JambaseSyncService {
     // Extract street address
     const streetAddress = address.streetAddress || address['x-streetAddress'] || null;
 
+    // Extract city/locality
+    const city = address.addressLocality || null;
+
     // Extract state/region - handle string, object with name, or empty object
     let state = null;
     if (address.addressRegion) {
@@ -237,6 +240,7 @@ class JambaseSyncService {
       url: location.url || null,
       image_url: this.replaceJambasePlaceholder(location.image) || null,
       street_address: streetAddress,
+      city: city,
       state: state,
       country: country,
       zip: zip,
