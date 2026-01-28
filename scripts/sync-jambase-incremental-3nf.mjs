@@ -16,6 +16,18 @@
 import JambaseSyncService from '../backend/jambase-sync-service.mjs';
 import { fetchGenresForArtist, isEmptyGenres } from './fetch-artist-genres.mjs';
 
+/**
+ * Event genres: if and only if the event's genres are empty, use the artist's genres.
+ * Never overwrite non-empty event genres.
+ * @param {*} eventGenres - genres from the event
+ * @param {*} artistGenres - genres from the artist (may be undefined if not fetched)
+ * @returns genres to store on the event
+ */
+function eventGenresFromArtistIfEmpty(eventGenres, artistGenres) {
+  if (!isEmptyGenres(eventGenres)) return eventGenres;
+  return !isEmptyGenres(artistGenres) ? artistGenres : eventGenres;
+}
+
 class IncrementalSync3NF {
   constructor(syncService) {
     this.syncService = syncService;
@@ -784,14 +796,9 @@ class IncrementalSync3NF {
           ...eventDataClean 
         } = eventData;
 
-        // Use event genres if available, otherwise use artist genres
-        let finalGenres = eventGenres;
-        if (isEmptyGenres(eventGenres) && artistUuid) {
-          const artistGenres = artistGenresMap.get(artistUuid);
-          if (!isEmptyGenres(artistGenres)) {
-            finalGenres = artistGenres;
-          }
-        }
+        // If and only if event genres are empty, use artist genres; never overwrite non-empty event genres
+        const artistGenres = artistUuid ? artistGenresMap.get(artistUuid) : undefined;
+        const finalGenres = eventGenresFromArtistIfEmpty(eventGenres, artistGenres);
 
         return {
           ...eventDataClean,
@@ -875,14 +882,9 @@ class IncrementalSync3NF {
         ...eventDataClean 
       } = data;
 
-      // Use event genres if available, otherwise use artist genres
-      let finalGenres = eventGenres;
-      if (isEmptyGenres(eventGenres) && artistUuid) {
-        const artistGenres = updateArtistGenresMap.get(artistUuid);
-        if (!isEmptyGenres(artistGenres)) {
-          finalGenres = artistGenres;
-        }
-      }
+      // If and only if event genres are empty, use artist genres; never overwrite non-empty event genres
+      const artistGenres = artistUuid ? updateArtistGenresMap.get(artistUuid) : undefined;
+      const finalGenres = eventGenresFromArtistIfEmpty(eventGenres, artistGenres);
 
       const updateData = {
         ...eventDataClean,
@@ -890,8 +892,7 @@ class IncrementalSync3NF {
         venue_id: venueUuid, // UUID FK to venues(id)
         updated_at: new Date().toISOString()
       };
-      
-      // Only update genres if we have valid genres (don't overwrite with empty)
+      // Only write genres when we have a value (don't overwrite DB with empty)
       if (!isEmptyGenres(finalGenres)) {
         updateData.genres = finalGenres;
       }

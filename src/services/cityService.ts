@@ -6,9 +6,11 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export interface CityData {
+  id?: string;
   name: string;
   normalized_name?: string;
   state?: string;
+  country?: string;
   center_latitude?: number;
   center_longitude?: number;
   event_count?: number;
@@ -63,6 +65,55 @@ export class CityService {
       console.error('Error in getAvailableCities:', error);
       return [];
     }
+  }
+
+  /**
+   * Search city_centers by name/aliases using trigram similarity (fast fuzzy search).
+   * Used by discover location filter search bar.
+   * @param query Search text (min 2 chars recommended)
+   * @param limit Max results (default 20)
+   */
+  static async searchCities(query: string, limit: number = 20): Promise<CityData[]> {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+    try {
+      const { data, error } = await supabase.rpc('search_city_centers', {
+        query: trimmed,
+        max_results: limit,
+      });
+      if (error) {
+        console.warn('search_city_centers RPC failed, falling back to getAvailableCities:', error.message);
+        const all = await this.getAvailableCities(0, limit);
+        const arr = Array.isArray(all) ? all : [];
+        const cityData = arr.filter((c): c is CityData => typeof c === 'object' && c !== null && 'name' in c);
+        return this.filterCitiesByQuery(cityData, trimmed).slice(0, limit);
+      }
+      if (!data || !Array.isArray(data)) return [];
+      return data.map((row: any) => ({
+        id: row.id,
+        name: row.normalized_name || row.name || '',
+        normalized_name: row.normalized_name,
+        state: row.state ?? undefined,
+        country: row.country ?? undefined,
+        center_latitude: row.center_latitude != null ? Number(row.center_latitude) : undefined,
+        center_longitude: row.center_longitude != null ? Number(row.center_longitude) : undefined,
+        event_count: row.event_count,
+        aliases: row.aliases ?? [],
+      }));
+    } catch (err) {
+      console.error('CityService.searchCities:', err);
+      return [];
+    }
+  }
+
+  private static filterCitiesByQuery(cities: CityData[], query: string): CityData[] {
+    const q = query.toLowerCase();
+    return cities.filter(
+      (c) =>
+        (c.name && c.name.toLowerCase().includes(q)) ||
+        (c.normalized_name && c.normalized_name.toLowerCase().includes(q)) ||
+        (c.aliases && c.aliases.some((a) => a.toLowerCase().includes(q)))
+    );
   }
 
   /**
