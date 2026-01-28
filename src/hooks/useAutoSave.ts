@@ -39,15 +39,20 @@ export function useAutoSave({
 
     const effectiveEventId = targetEventId || eventId;
     
-    // If no event ID yet, we can't save to database - save to localStorage as fallback
+    // If no valid event ID yet, we can't save to database - save to localStorage as fallback
     if (!effectiveEventId || !isValidUUID(effectiveEventId)) {
       console.log('💾 Auto-save: No valid event ID yet, saving to localStorage as fallback');
       try {
-        const storageKey = `review_draft_${userId}_new`;
+        // Use the best available identifier for the storage key:
+        // 1) targetEventId if provided
+        // 2) eventId from hook props
+        // 3) "new" as a final fallback
+        const storageEventId = targetEventId ?? eventId ?? 'new';
+        const storageKey = `review_draft_${userId}_${storageEventId}`;
         localStorage.setItem(storageKey, JSON.stringify({
           data,
           timestamp: Date.now(),
-          eventId: null
+          eventId: effectiveEventId ?? null
         }));
         onSave?.(true);
         lastSavedDataRef.current = JSON.stringify(data);
@@ -59,8 +64,7 @@ export function useAutoSave({
     }
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(effectiveEventId)) {
+    if (!isValidUUID(effectiveEventId)) {
       console.log('🚫 Auto-save skipped: Invalid event ID format:', effectiveEventId);
       return;
     }
@@ -170,8 +174,21 @@ export function useAutoSave({
   // Load draft from localStorage
   const loadDraft = useCallback((eventId?: string) => {
     try {
-      const storageKey = `review_draft_${userId}_${eventId || 'new'}`;
-      const stored = localStorage.getItem(storageKey);
+      // Use the same key selection logic as saveDraft's localStorage fallback:
+      // prefer the provided eventId, otherwise fall back to "new".
+      const storageEventId = eventId ?? 'new';
+      const storageKey = `review_draft_${userId}_${storageEventId}`;
+      let stored = localStorage.getItem(storageKey);
+
+      // Backwards compatibility: also check legacy "new" key if nothing found
+      if (!stored && storageEventId !== 'new') {
+        const legacyKey = `review_draft_${userId}_new`;
+        stored = localStorage.getItem(legacyKey);
+        if (stored) {
+          console.log('📂 Loaded draft from legacy localStorage key:', legacyKey);
+        }
+      }
+
       if (stored) {
         const parsed = JSON.parse(stored);
         console.log('📂 Loaded draft from localStorage:', storageKey);
@@ -186,7 +203,8 @@ export function useAutoSave({
   // Clear draft from localStorage
   const clearDraft = useCallback((eventId?: string) => {
     try {
-      const storageKey = `review_draft_${userId}_${eventId || 'new'}`;
+      const storageEventId = eventId ?? 'new';
+      const storageKey = `review_draft_${userId}_${storageEventId}`;
       localStorage.removeItem(storageKey);
       console.log('🗑️ Cleared draft from localStorage:', storageKey);
     } catch (error) {

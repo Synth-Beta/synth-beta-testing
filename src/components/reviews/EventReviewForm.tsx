@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { useReviewForm, REVIEW_FORM_TOTAL_STEPS, getTotalSteps } from '@/hooks/useReviewForm';
@@ -23,8 +24,10 @@ import { DraftToggle } from './DraftToggle';
 import { SMSInvitationService } from '@/services/smsInvitationService';
 import { SetlistModal } from '@/components/reviews/SetlistModal';
 import { CustomSetlistInput } from '@/components/reviews/CustomSetlistInput';
-import { Music, DollarSign } from 'lucide-react';
+import { Music, DollarSign, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AttendeeSelector } from '@/components/reviews/AttendeeSelector';
+import { useAuth } from '@/hooks/useAuth';
 
 const ARTIST_SUGGESTIONS: CategoryConfig['suggestions'] = [
   { id: 'artist-electric', label: 'Electric energy', description: 'The band fed off the crowd with nonstop energy.', sentiment: 'positive' },
@@ -87,6 +90,7 @@ interface EventReviewFormProps {
 
 export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose }: EventReviewFormProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const {
     formData,
     errors,
@@ -102,7 +106,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     canGoBack,
     isLastStep,
     totalSteps,
-    currentFlow
+    currentFlow,
+    setStep,
+    maxStepReached,
   } = useReviewForm();
 
   const [existingReview, setExistingReview] = useState<UserReview | null>(null);
@@ -399,8 +405,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
         // Load draft data from localStorage if no existing review
         if (!review) {
-          // Try to load existing draft from localStorage
-          const draftData = loadDraft(event.id);
+          // Try to load existing draft from localStorage using the best available identifier
+          const draftIdentifier = actualEventId || event.id;
+          const draftData = loadDraft(draftIdentifier);
           if (draftData) {
             console.log('📂 Loaded draft from localStorage for event:', event.id);
             setFormData(draftData as any);
@@ -453,6 +460,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             customSetlists: (review as any).custom_setlist || [],
             isPublic: review.is_public,
             reviewType: review.review_type || 'event',
+            // Preserve tagged attendees + met_on_synth flag when editing
+            attendees: review.attendees || [],
+            metOnSynth: (review as any).met_on_synth ?? false,
           } as any);
           
           // Pre-populate selected artist and venue from event details
@@ -1011,6 +1021,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         setlist: formData.selectedSetlist !== undefined ? formData.selectedSetlist : ((existingReview as any)?.setlist || undefined),
         custom_setlist: formData.customSetlists && formData.customSetlists.length > 0 ? (formData.customSetlists as any) : undefined,
         is_public: formData.isPublic,
+        // Persist tagged attendees + met_on_synth flag on save
+        attendees: formData.attendees && formData.attendees.length > 0 ? formData.attendees : undefined,
+        met_on_synth: formData.metOnSynth ?? undefined,
       };
 
       console.log('🎵 EventReviewForm: Review data being saved:', {
@@ -1593,7 +1606,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         )}
 
         <CustomSetlistInput
-          songs={(formData.customSetlist as any) || []}
+          setlists={formData.customSetlists}
           onChange={handleCustomSetlistChange}
           disabled={!!formData.selectedSetlist}
           className="mt-2"
@@ -1679,7 +1692,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         )}
 
         <CustomSetlistInput
-          songs={(formData.customSetlist as any) || []}
+          setlists={formData.customSetlists}
           onChange={handleCustomSetlistChange}
           disabled={!!formData.selectedSetlist}
           className="mt-2"
@@ -1737,6 +1750,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               isLoading={isLoading}
               averageRating={formData.rating}
               categoryBreakdown={[]}
+              submitLabel={existingReview ? 'Save Changes' : 'Submit Review'}
             />
           );
         }
@@ -1807,6 +1821,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                 { label: 'Artist Performance', rating: formData.artistPerformanceRating },
                 { label: 'Venue', rating: formData.venueRating },
               ]}
+              submitLabel={existingReview ? 'Save Changes' : 'Submit Review'}
             />
           );
         }
@@ -1924,6 +1939,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             isLoading={isLoading}
             averageRating={averageRatingForSummary}
             categoryBreakdown={categoryBreakdown}
+            submitLabel={existingReview ? 'Save Changes' : 'Submit Review'}
           />
         );
     }
@@ -2044,24 +2060,34 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                 {getStepLabels(currentFlow || 'detailed').map((label, index) => {
                   const stepNumber = index + 1;
                   const isActive = stepNumber === currentStep;
-                  const isComplete = stepNumber < currentStep;
+                  // A step is considered "completed" if we've ever reached it,
+                  // even if we're currently viewing an earlier step.
+                  const isComplete = stepNumber <= (maxStepReached || currentStep) && !isActive;
+                  const isClickable = isComplete;
                   return (
-                    <span
+                    <button
                       key={`${label}-${index}`}
+                      type="button"
+                      onClick={() => {
+                        if (isClickable) {
+                          setStep(stepNumber);
+                        }
+                      }}
+                      disabled={!isClickable}
                       className={cn(
                         'px-2 sm:px-3 py-1 text-xs font-medium transition-colors flex-shrink-0',
                         isActive
-                          ? 'bg-pink-500 text-white shadow-sm'
+                          ? 'bg-pink-500 text-white shadow-sm cursor-default'
                           : isComplete
-                            ? 'bg-pink-100 text-pink-700'
-                            : 'bg-gray-100 text-gray-500'
+                            ? 'bg-pink-100 text-pink-700 hover:bg-pink-200 cursor-pointer'
+                            : 'bg-gray-100 text-gray-500 cursor-default'
                       )}
                       style={{
                         borderRadius: 'var(--radius-corner, 10px)'
                       }}
                     >
                       {stepNumber}. {label}
-                    </span>
+                    </button>
                   );
                 })}
               </div>
@@ -2099,56 +2125,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             </div>
           </div>
 
-          {existingReview && (
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  console.log('🗑️ Deleting review:', { reviewId: existingReview?.id, eventId: event.id, userId });
-                  try {
-                    if (!existingReview?.id) {
-                      throw new Error('No review ID found');
-                    }
-                    await ReviewService.deleteEventReview(userId, existingReview.id);
-                    console.log('✅ Review deleted successfully');
-
-                    try {
-                      trackInteraction.click('review', event.id, { action: 'delete', source: 'event_review_form' }, event.id);
-                    } catch {}
-
-                    toast({
-                      title: 'Review Deleted',
-                      description: 'Your review has been deleted.'
-                    });
-
-                    setExistingReview(null);
-                    resetForm();
-                    setIsReviewSubmitted(false); // Reset submission state after deletion
-
-                    if (onDeleted) {
-                      console.log('📢 Calling onDeleted callback');
-                      // Await the callback if it returns a Promise (async function)
-                      const result = onDeleted();
-                      if (result instanceof Promise) {
-                        await result;
-                      }
-                    }
-                  } catch (e) {
-                    console.error('❌ Error deleting review:', e);
-                    const errorMsg = e instanceof Error ? e.message : 'Unknown error';
-                    toast({
-                      title: 'Error',
-                      description: `Failed to delete review: ${errorMsg}`,
-                      variant: 'destructive'
-                    });
-                  }
-                }}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                Delete Review
-              </Button>
-            </div>
-          )}
         </div>
       </div>
 

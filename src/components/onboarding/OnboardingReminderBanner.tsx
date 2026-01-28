@@ -1,45 +1,23 @@
-import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface OnboardingReminderBannerProps {
   onComplete: () => void;
+  onDismiss: () => void;
 }
 
 const DISMISSED_KEY = 'onboarding_reminder_dismissed';
-const DISMISS_DURATION = 3 * 24 * 60 * 60 * 1000; // 3 days in milliseconds
-
-export const OnboardingReminderBanner = ({ onComplete }: OnboardingReminderBannerProps) => {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    // Check if banner was recently dismissed
-    const dismissedAt = localStorage.getItem(DISMISSED_KEY);
-    if (dismissedAt) {
-      const dismissedTime = parseInt(dismissedAt, 10);
-      const now = Date.now();
-      
-      // Show again after 3 days
-      if (now - dismissedTime < DISMISS_DURATION) {
-        return;
-      }
-    }
-
-    setVisible(true);
-  }, []);
+export const OnboardingReminderBanner = ({ onComplete, onDismiss }: OnboardingReminderBannerProps) => {
 
   const handleDismiss = () => {
     localStorage.setItem(DISMISSED_KEY, Date.now().toString());
-    setVisible(false);
+    onDismiss();
   };
 
   const handleComplete = () => {
-    setVisible(false);
     onComplete();
   };
-
-  if (!visible) return null;
 
   return (
     <Alert 

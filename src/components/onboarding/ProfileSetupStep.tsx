@@ -10,10 +10,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Upload, Camera, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { calculateAge } from '@/utils/calculateAge';
+import { SinglePhotoUpload } from '@/components/ui/photo-upload';
 
 interface ProfileSetupStepProps {
   initialData?: {
@@ -24,6 +25,14 @@ interface ProfileSetupStepProps {
     bio?: string;
     avatar_url?: string;
   };
+  onChange?: (data: {
+    username: string;
+    location_city: string;
+    birthday: string;
+    gender: string;
+    bio: string;
+    avatar_url: string;
+  }) => void;
   onNext: (data: {
     username?: string;
     location_city?: string;
@@ -35,7 +44,7 @@ interface ProfileSetupStepProps {
   onSkip: () => void;
 }
 
-export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupStepProps) => {
+export const ProfileSetupStep = ({ initialData, onChange, onNext, onSkip }: ProfileSetupStepProps) => {
   const [formData, setFormData] = useState({
     username: initialData?.username || '',
     location_city: initialData?.location_city || '',
@@ -46,9 +55,7 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -57,6 +64,12 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
   const hasSuggestedRef = React.useRef(false);
   const isGeneratingRef = React.useRef(false);
   
+  // Persist draft form state up to parent (OnboardingFlow) so it survives
+  // step unmounts (e.g., when showing loading UI for skip/complete).
+  useEffect(() => {
+    onChange?.(formData);
+  }, [formData, onChange]);
+
   useEffect(() => {
     const generateSuggestedUsername = async () => {
       const isEmpty = !formData.username;
@@ -90,72 +103,6 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
     // Only depend on user name - don't include formData.username to avoid circular dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.user_metadata?.name]);
-
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !user) return;
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Invalid file type",
-        description: "Please select a JPEG, PNG, or WebP image.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate file size (5MB limit)
-    const maxSize = 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      toast({
-        title: "File too large",
-        description: "Please select an image smaller than 5MB.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsUploadingPhoto(true);
-
-    try {
-      // Generate unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-      // Upload to Supabase storage
-      const { data, error } = await supabase.storage
-        .from('profile-avatars')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (error) throw error;
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('profile-avatars')
-        .getPublicUrl(data.path);
-
-      setFormData({ ...formData, avatar_url: urlData.publicUrl });
-      
-      toast({
-        title: "Photo uploaded",
-        description: "Your profile photo has been uploaded successfully.",
-      });
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast({
-        title: "Upload failed",
-        description: "Failed to upload photo. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploadingPhoto(false);
-    }
-  };
 
   const checkUsernameAvailability = async (username: string): Promise<{ available: boolean; error?: string }> => {
     if (!username.trim()) {
@@ -284,16 +231,10 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
       newErrors.birthday = 'Birthday is required';
     } else {
       // Validate age (must be at least 13 years old)
-      const birthDate = new Date(formData.birthday);
       const today = new Date();
-      const age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        if (age - 1 < 13) {
-          newErrors.birthday = 'You must be at least 13 years old';
-        }
-      } else if (age < 13) {
+      const age = calculateAge(formData.birthday, today);
+
+      if (age === null || age < 13) {
         newErrors.birthday = 'You must be at least 13 years old';
       }
     }
@@ -334,11 +275,11 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
                 @
               </div>
-            <Input
-              id="username"
+              <Input
+                id="username"
                 placeholder="username"
-              value={formData.username}
-              onChange={(e) => {
+                value={formData.username}
+                onChange={(e) => {
                   // Sanitize input inline to match sanitizeUsername utility exactly
                   let value = e.target.value.toLowerCase().trim();
                   // Allow alphanumeric, underscore, period only
@@ -347,16 +288,17 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
                   value = value.replace(/^[_.]+|[_.]+$/g, '');
                   // Replace multiple consecutive periods or underscores with single (matches sanitizeUsername)
                   value = value.replace(/[_.]{2,}/g, (match) => match[0]);
-                setFormData({ ...formData, username: value });
-                // Clear error when user starts typing
-                if (errors.username) {
-                  setErrors({ ...errors, username: '' });
-                }
-              }}
-              onBlur={handleUsernameBlur}
+                  setFormData({ ...formData, username: value });
+                  // Clear error when user starts typing
+                  if (errors.username) {
+                    setErrors({ ...errors, username: '' });
+                  }
+                }}
+                onBlur={handleUsernameBlur}
                 maxLength={30}
+                autoComplete="username"
                 className={`bg-white pl-8 ${errors.username ? 'border-destructive' : ''}`}
-            />
+              />
             </div>
             {isCheckingUsername && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -380,57 +322,17 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
         {/* Profile Photo (Optional) */}
         <div className="space-y-2">
           <Label>Profile Photo (Optional)</Label>
-          <div className="flex items-center gap-4">
-            {formData.avatar_url ? (
-              <img
-                src={formData.avatar_url}
-                alt="Profile"
-                className="w-20 h-20 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-                <Upload className="w-8 h-8 text-muted-foreground" />
-              </div>
-            )}
-            <div className="flex-1 space-y-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,image/webp"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploadingPhoto}
-                className="w-full"
-              >
-                {isUploadingPhoto ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Camera className="w-4 h-4 mr-2" />
-                    Upload Photo
-                  </>
-                )}
-              </Button>
-              <Input
-                type="url"
-                placeholder="Or paste image URL"
-                value={formData.avatar_url}
-                onChange={(e) =>
-                  setFormData({ ...formData, avatar_url: e.target.value })
-                }
-                disabled={isUploadingPhoto}
-                className="bg-white"
-              />
-            </div>
-          </div>
+          <SinglePhotoUpload
+            value={formData.avatar_url ? formData.avatar_url : null}
+            onChange={(url) => setFormData((prev) => ({ ...prev, avatar_url: url ?? '' }))}
+            userId={user?.id ?? ''}
+            bucket="profile-avatars"
+            maxSizeMB={5}
+            label=""
+            helperText="Upload and crop a photo (optional)"
+            disabled={!user}
+            aspectRatio="circle"
+          />
           <p className="text-xs text-muted-foreground">
             You can add a photo now or skip and add it later
           </p>
@@ -448,6 +350,7 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
             onChange={(e) =>
               setFormData({ ...formData, location_city: e.target.value })
             }
+            autoComplete="address-level2"
             className={`bg-white ${errors.location_city ? 'border-destructive' : ''}`}
           />
           {errors.location_city && (
@@ -470,6 +373,7 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
             onChange={(e) =>
               setFormData({ ...formData, birthday: e.target.value })
             }
+            autoComplete="bday"
             className={`bg-white ${errors.birthday ? 'border-destructive' : ''}`}
           />
           {errors.birthday && (
@@ -482,7 +386,7 @@ export const ProfileSetupStep = ({ initialData, onNext, onSkip }: ProfileSetupSt
 
         {/* Gender (Optional) */}
         <div className="space-y-2">
-          <Label htmlFor="gender">Gender (Optional)</Label>
+          <Label>Gender (Optional)</Label>
           <Select
             value={formData.gender}
             onValueChange={(value) =>

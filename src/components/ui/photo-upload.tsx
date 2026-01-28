@@ -4,6 +4,60 @@ import { Camera, X, Loader2, Image as ImageIcon, Video, Play } from 'lucide-reac
 import { cn } from '@/lib/utils';
 import { storageService, type BucketName } from '@/services/storageService';
 import { useToast } from '@/hooks/use-toast';
+import Cropper, { type Area } from 'react-easy-crop';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Slider } from '@/components/ui/slider';
+
+function createImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener('load', () => resolve(image));
+    image.addEventListener('error', () => reject(new Error('Failed to load image')));
+    image.src = url;
+  });
+}
+
+async function getCroppedBlob(
+  imageSrc: string,
+  croppedAreaPixels: Area,
+  options: { mimeType?: string; quality?: number } = {}
+): Promise<Blob> {
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to create canvas context');
+
+  const mimeType = options.mimeType ?? 'image/jpeg';
+  const quality = options.quality ?? 0.9;
+
+  canvas.width = Math.round(croppedAreaPixels.width);
+  canvas.height = Math.round(croppedAreaPixels.height);
+
+  ctx.drawImage(
+    image,
+    croppedAreaPixels.x,
+    croppedAreaPixels.y,
+    croppedAreaPixels.width,
+    croppedAreaPixels.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => {
+        if (b) resolve(b);
+        else reject(new Error('Failed to crop image'));
+      },
+      mimeType,
+      quality
+    );
+  });
+
+  return blob;
+}
 
 export interface PhotoUploadProps {
   value: string[];
@@ -197,6 +251,8 @@ export function PhotoUpload({
         onChange={handleFileSelect}
         className="hidden"
         disabled={disabled || uploading}
+        aria-hidden="true"
+        tabIndex={-1}
       />
 
       {/* Info Text */}
@@ -239,6 +295,12 @@ export function SinglePhotoUpload({
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
+  const [isCropOpen, setIsCropOpen] = useState(false);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+
   // Detect if user is on mobile device
   const isMobile = () => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
@@ -264,6 +326,16 @@ export function SinglePhotoUpload({
     }
   };
 
+  const resetCropState = () => {
+    setIsCropOpen(false);
+    setPendingImageSrc(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -282,41 +354,30 @@ export function SinglePhotoUpload({
       return;
     }
 
-    setUploading(true);
-
-    try {
-      // Delete old photo if exists
-      if (value) {
-        const oldPath = storageService.getPathFromUrl(value, bucket);
-        if (oldPath) {
-          await storageService.deletePhoto(bucket, oldPath).catch(console.error);
-        }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = reader.result as string | null;
+      if (!src) {
+        toast({
+          title: 'Upload failed',
+          description: 'Failed to read image',
+          variant: 'destructive',
+        });
+        resetCropState();
+        return;
       }
-
-      // Upload new photo
-      const result = await storageService.uploadPhoto(file, bucket, userId, { maxSizeMB });
-      onChange(result.url);
-
-      toast({
-        title: 'Upload successful',
-        description: 'Photo uploaded successfully',
-      });
-    } catch (error) {
-      console.error('Upload error:', error);
+      setPendingImageSrc(src);
+      setIsCropOpen(true);
+    };
+    reader.onerror = () => {
       toast({
         title: 'Upload failed',
-        description: error instanceof Error ? error.message : 'Failed to upload photo',
+        description: 'Failed to read image',
         variant: 'destructive',
       });
-    } finally {
-      setUploading(false);
-      if (galleryInputRef.current) {
-        galleryInputRef.current.value = '';
-      }
-      if (cameraInputRef.current) {
-        cameraInputRef.current.value = '';
-      }
-    }
+      resetCropState();
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleRemove = async () => {
@@ -340,6 +401,48 @@ export function SinglePhotoUpload({
         description: 'Failed to delete photo',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleCropSave = async () => {
+    if (!pendingImageSrc || !croppedAreaPixels) return;
+
+    setUploading(true);
+    try {
+      const blob = await getCroppedBlob(pendingImageSrc, croppedAreaPixels, {
+        mimeType: 'image/jpeg',
+        quality: 0.9,
+      });
+
+      const croppedFile = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+
+      // Upload cropped photo
+      const result = await storageService.uploadPhoto(croppedFile, bucket, userId, { maxSizeMB });
+      onChange(result.url);
+
+      // Delete old photo (after successful upload)
+      if (value) {
+        const oldPath = storageService.getPathFromUrl(value, bucket);
+        if (oldPath) {
+          await storageService.deletePhoto(bucket, oldPath).catch(console.error);
+        }
+      }
+
+      toast({
+        title: 'Upload successful',
+        description: 'Photo uploaded successfully',
+      });
+
+      resetCropState();
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: 'Upload failed',
+        description: error instanceof Error ? error.message : 'Failed to upload photo',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -418,6 +521,8 @@ export function SinglePhotoUpload({
         className="hidden"
         disabled={disabled || uploading}
         capture="environment"
+        aria-hidden="true"
+        tabIndex={-1}
       />
       
       <input
@@ -427,6 +532,8 @@ export function SinglePhotoUpload({
         onChange={handleFileSelect}
         className="hidden"
         disabled={disabled || uploading}
+        aria-hidden="true"
+        tabIndex={-1}
       />
 
       {/* Upload Options Modal */}
@@ -467,6 +574,85 @@ export function SinglePhotoUpload({
           </div>
         </div>
       )}
+
+      {/* Crop Modal */}
+      <Dialog
+        open={isCropOpen}
+        onOpenChange={(open) => {
+          if (!open) resetCropState();
+          else setIsCropOpen(true);
+        }}
+      >
+        <DialogContent
+          hideCloseButton
+          className="rounded-none border-0"
+          style={{
+            left: 0,
+            top: 0,
+            transform: 'none',
+            width: '100vw',
+            height: '100vh',
+            maxWidth: '100vw',
+            maxHeight: '100vh',
+            borderRadius: 0,
+          }}
+        >
+          <div className="flex flex-col h-full w-full">
+            <div className="flex-1 relative bg-black">
+              {pendingImageSrc && (
+                <Cropper
+                  image={pendingImageSrc}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  cropShape={aspectRatio === 'circle' ? 'round' : 'rect'}
+                  showGrid={false}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={(_, areaPixels) => setCroppedAreaPixels(areaPixels)}
+                />
+              )}
+            </div>
+
+            <div className="px-5 py-4 bg-background">
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Zoom</div>
+                <Slider
+                  value={[zoom]}
+                  min={1}
+                  max={3}
+                  step={0.05}
+                  onValueChange={(v) => setZoom(v[0] ?? 1)}
+                  trackClassName="h-4"
+                />
+              </div>
+            </div>
+
+            <div className="px-5 pb-6 bg-background">
+              <div className="flex items-center justify-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={resetCropState}
+                  disabled={uploading}
+                >
+                  Cancel
+                </Button>
+                <Button type="button" onClick={handleCropSave} disabled={uploading || !croppedAreaPixels}>
+                  {uploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -670,6 +856,8 @@ export function VideoUpload({
         onChange={handleFileSelect}
         className="hidden"
         disabled={disabled || uploading}
+        aria-hidden="true"
+        tabIndex={-1}
       />
 
       {/* Info Text */}

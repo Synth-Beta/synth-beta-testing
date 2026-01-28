@@ -181,6 +181,8 @@ export function UploadEventPhotoModal({
                   onChange={handleFileSelect}
                   className="hidden"
                   disabled={isUploading}
+                  aria-hidden="true"
+                  tabIndex={-1}
                 />
               </div>
             )}

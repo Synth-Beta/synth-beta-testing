@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Star, ThumbsUp, MessageCircle, Share2, Edit, Trash2, MapPin, ChevronLeft, Music2, Lightbulb, Building2, Compass, DollarSign } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Star, ThumbsUp, MessageCircle, Share2, MapPin, ChevronLeft, Music2, Lightbulb, Building2, Compass, DollarSign, EllipsisVertical, SquarePen, Trash2, Flag, Ban, X } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
@@ -12,6 +12,7 @@ import { ReviewShareModal } from './ReviewShareModal';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { useToast } from '@/hooks/use-toast';
 import { glassCardLight, textStyles } from '@/styles/glassmorphism';
+import { ContentModerationService } from '@/services/contentModerationService';
 
 interface ReviewDetailViewProps {
   reviewId: string;
@@ -46,6 +47,10 @@ interface FullReviewData {
   comments_count?: number;
   artist_id?: string | null;
   venue_id?: string | null;
+  attendees?: Array<
+    | { type: 'user'; user_id: string; name: string; avatar_url?: string }
+    | { type: 'phone'; phone: string; name?: string }
+  > | null;
   author?: {
     id: string;
     name: string;
@@ -78,7 +83,11 @@ export function ReviewDetailView({
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(true);
   const [commentsCount, setCommentsCount] = useState(0);
+  const [optionsMenuOpen, setOptionsMenuOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
+  const optionsMenuContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchReviewData = async () => {
@@ -110,7 +119,8 @@ export function ReviewDetailView({
             comments_count,
             event_id,
             artist_id,
-            venue_id
+            venue_id,
+            attendees
           `)
           .eq('id', reviewId)
           .single();
@@ -186,60 +196,28 @@ export function ReviewDetailView({
         // Check if user has liked this review
         if (currentUserId) {
           try {
-            // Get entity_id for this review first (entity_id is FK to entities.id, not reviewId)
-            const { data: entityData, error: entityError } = await supabase
-              .from('entities')
-              .select('id')
-              .eq('entity_type', 'review')
-              .eq('entity_uuid', reviewId)
-              .single();
-            
-            let isLiked = false;
-            
-            if (entityError) {
-              // Only ignore "not found" errors (PGRST116), log others
-              if ((entityError as any).code !== 'PGRST116') {
-                console.error('Error fetching entity for review like check:', entityError);
-              }
-              
-              // Entity not found - check old format as fallback (for migration compatibility)
-              // Old format: entity_id directly stores reviewId, or metadata->>review_id
-              const [oldFormatResult, metadataResult] = await Promise.all([
-                supabase
-                  .from('engagements')
-                  .select('id')
-                  .eq('user_id', currentUserId)
-                  .eq('entity_id', reviewId)
-                  .eq('engagement_type', 'like')
-                  .maybeSingle(),
-                supabase
-                  .from('engagements')
-                  .select('id')
-                  .eq('user_id', currentUserId)
-                  .is('entity_id', null)
-                  .eq('engagement_type', 'like')
-                  .eq('metadata->>review_id', reviewId)
-                  .maybeSingle()
-              ]);
-              
-              isLiked = !!(oldFormatResult.data || metadataResult.data);
-            } else if (entityData?.id) {
-              // Query engagements using the entity_id from entities table (new format)
-              const { data: likeData, error: likeError } = await supabase
+            // Avoid querying the entities table (can be blocked by RLS); instead, look directly in engagements.
+            // 1) Primary path: engagements where entity_id is the reviewId
+            // 2) Fallback: legacy records with metadata->>review_id and null entity_id
+            const [byEntityId, byMetadata] = await Promise.all([
+              supabase
                 .from('engagements')
                 .select('id')
                 .eq('user_id', currentUserId)
-                .eq('entity_id', entityData.id)
+                .eq('entity_id', reviewId)
                 .eq('engagement_type', 'like')
-                .maybeSingle();
-              
-              isLiked = !!likeData;
-              
-              if (likeError) {
-                console.error('Error checking if review is liked:', likeError);
-              }
-            }
-            
+                .maybeSingle(),
+              supabase
+                .from('engagements')
+                .select('id')
+                .eq('user_id', currentUserId)
+                .is('entity_id', null)
+                .eq('engagement_type', 'like')
+                .eq('metadata->>review_id', reviewId)
+                .maybeSingle()
+            ]);
+
+            const isLiked = !!(byEntityId.data || byMetadata.data);
             setIsLiked(isLiked);
           } catch (likeCheckError) {
             // If like check fails, just set to false and continue - don't block review display
@@ -301,6 +279,111 @@ export function ReviewDetailView({
     setCommentsCount(count);
   };
 
+  const timeAgo = reviewData
+    ? formatDistanceToNow(new Date(reviewData.created_at), { addSuffix: true })
+    : '';
+  const isOwner = !!reviewData && currentUserId === reviewData.user_id;
+  
+  useEffect(() => {
+    if (!optionsMenuOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (optionsMenuContainerRef.current?.contains(target)) return;
+      setOptionsMenuOpen(false);
+    };
+    window.addEventListener('pointerdown', handlePointerDown, { capture: true });
+    return () => window.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
+  }, [optionsMenuOpen]);
+
+  const menuItems = useMemo(() => {
+    if (isOwner) {
+      return [
+        { key: 'edit', label: 'Edit', icon: SquarePen },
+        { key: 'delete', label: 'Delete', icon: Trash2 },
+      ] as const;
+    }
+    return [
+      { key: 'report', label: 'Report', icon: Flag },
+      { key: 'block', label: 'Block User', icon: Ban },
+    ] as const;
+  }, [isOwner]);
+
+  const handleMenuAction = async (key: 'edit' | 'delete' | 'report' | 'block') => {
+    setOptionsMenuOpen(false);
+    if (!reviewData) return;
+
+    if (key === 'edit') {
+      onEdit?.();
+      return;
+    }
+
+    if (key === 'delete') {
+      setDeleteConfirmOpen(true);
+      return;
+    }
+
+    if (key === 'report') {
+      setReportModalOpen(true);
+      return;
+    }
+
+    // block
+    if (!currentUserId) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in to block users.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await ContentModerationService.blockUser({ blocked_user_id: reviewData.user_id });
+      toast({
+        title: 'User blocked',
+        description: 'You will no longer see their content.',
+      });
+      onBack();
+    } catch (error) {
+      console.error('Error blocking user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to block user',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    setDeleteConfirmOpen(false);
+  };
+
+  const confirmDelete = async () => {
+    if (!currentUserId || !reviewData || isDeleting) return;
+    try {
+      setIsDeleting(true);
+      await ReviewService.deleteEventReview(currentUserId, reviewId);
+      await onDelete?.();
+      toast({
+        title: 'Deleted',
+        description: 'Your post has been deleted.',
+      });
+      setDeleteConfirmOpen(false);
+      onBack();
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete post',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (loading || !reviewData) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-50, #fcfcfc)' }}>
@@ -311,9 +394,6 @@ export function ReviewDetailView({
     );
   }
 
-  const timeAgo = formatDistanceToNow(new Date(reviewData.created_at), { addSuffix: true });
-  const isOwner = currentUserId === reviewData.user_id;
-  
   const ratingCategories = [
     {
       name: 'Artist Performance',
@@ -377,54 +457,140 @@ export function ReviewDetailView({
       >
         <div className="max-w-2xl mx-auto" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
           {/* Top Header Row: Back Chevron, Avatar, Username */}
-          <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-small, 12px)', paddingBottom: 'var(--spacing-small, 12px)' }}>
-            {/* Back Chevron */}
-            <button
-              onClick={onBack}
-              style={{ 
-                background: 'none', 
-                border: 'none', 
-                padding: 0, 
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <ChevronLeft style={{ width: '35px', height: '35px', color: 'var(--neutral-900)' }} />
-            </button>
-            
-            {/* Avatar */}
-            <button
-              onClick={() => onOpenProfile?.(reviewData.user_id)}
-              className="shrink-0"
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-            >
-              <Avatar className="w-14 h-14">
-                <AvatarImage src={reviewData.author?.avatar_url || undefined} alt={reviewData.author?.name} />
-                <AvatarFallback className="text-white font-bold text-lg" style={{ backgroundColor: '#FF3399' }}>
-                  {reviewData.author?.name?.charAt(0).toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-            </button>
-            
-            {/* Username */}
-            <button
-              onClick={() => onOpenProfile?.(reviewData.user_id)}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                fontFamily: 'var(--font-family)',
-                fontSize: 'var(--typography-body-size, 20px)',
-                fontWeight: 'var(--typography-body-weight, 500)',
-                lineHeight: 'var(--typography-body-line-height, 1.5)',
-                color: 'var(--neutral-600)',
-              }}
-            >
-              {reviewData.author?.name || 'User'}
-            </button>
+          <div className="flex items-center justify-between" style={{ gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-small, 12px)', paddingBottom: 'var(--spacing-small, 12px)' }}>
+            <div className="flex items-center min-w-0" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+              {/* Back Chevron */}
+              <button
+                onClick={onBack}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  padding: 0, 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ChevronLeft style={{ width: '35px', height: '35px', color: 'var(--neutral-900)' }} />
+              </button>
+              
+              {/* Avatar */}
+              <button
+                onClick={() => onOpenProfile?.(reviewData.user_id)}
+                className="shrink-0"
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+              >
+                <Avatar className="w-14 h-14">
+                  <AvatarImage src={reviewData.author?.avatar_url || undefined} alt={reviewData.author?.name} />
+                  <AvatarFallback className="text-white font-bold text-lg" style={{ backgroundColor: '#FF3399' }}>
+                    {reviewData.author?.name?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+              
+              {/* Username */}
+              <button
+                onClick={() => onOpenProfile?.(reviewData.user_id)}
+                className="min-w-0"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-body-size, 20px)',
+                  fontWeight: 'var(--typography-body-weight, 500)',
+                  lineHeight: 'var(--typography-body-line-height, 1.5)',
+                  color: 'var(--neutral-600)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {reviewData.author?.name || 'User'}
+              </button>
+            </div>
+
+            {/* Options menu */}
+            <div ref={optionsMenuContainerRef} style={{ position: 'relative', flexShrink: 0 }}>
+              <button
+                type="button"
+                aria-label="More options"
+                onClick={() => setOptionsMenuOpen((v) => !v)}
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  margin: 0,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <EllipsisVertical size={24} style={{ color: 'var(--neutral-900)' }} />
+              </button>
+
+              {optionsMenuOpen && (
+                <div
+                  role="menu"
+                  style={{
+                    position: 'absolute',
+                    top: '48px',
+                    right: 0,
+                    width: '220px',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    boxShadow: '0 4px 12px 0 var(--shadow-color)',
+                    background: 'var(--neutral-50, #fcfcfc)',
+                    border: '1px solid rgba(0, 0, 0, 0.06)',
+                    overflow: 'hidden',
+                    zIndex: 50,
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  {menuItems.map((item, idx) => {
+                    const Icon = item.icon;
+                    const isLast = idx === menuItems.length - 1;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => handleMenuAction(item.key)}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12,
+                          padding: '14px 16px',
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottom: isLast ? 'none' : '1px solid rgba(0, 0, 0, 0.06)',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <Icon size={24} style={{ color: 'var(--neutral-600)', flexShrink: 0 }} />
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-family)',
+                            fontSize: 'var(--typography-meta-size, 16px)',
+                            fontWeight: 'var(--typography-meta-weight, 500)',
+                            lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                            color: 'var(--neutral-900)',
+                          }}
+                        >
+                          {item.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Pills Row - Directly below header row */}
@@ -517,8 +683,76 @@ export function ReviewDetailView({
       </div>
 
       {/* Main Content */}
-      <div className="max-w-2xl mx-auto" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
+      <div
+        className="max-w-2xl mx-auto"
+        style={{
+          paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+          paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+          // Start content 12px below the header, per info modal layout
+          paddingTop: 12,
+          paddingBottom: 'var(--spacing-grouped, 24px)',
+        }}
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-grouped, 24px)' }}>
+          {/* Tagged Attendees Chips (if any) */}
+          {Array.isArray(reviewData.attendees) && reviewData.attendees.some(a => a && (a as any).type === 'user') && (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 6,
+              }}
+            >
+              {reviewData.attendees
+                ?.filter((a): a is { type: 'user'; user_id: string; name: string; avatar_url?: string } => (a as any)?.type === 'user')
+                .map((attendee) => (
+                  <button
+                    key={attendee.user_id}
+                    type="button"
+                    onClick={() => onOpenProfile?.(attendee.user_id)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 12px',
+                      borderRadius: 999,
+                      border: '2px solid var(--brand-pink-500, #FF3399)',
+                      background: '#FFFFFF',
+                      cursor: 'pointer',
+                      maxWidth: '100%',
+                    }}
+                  >
+                    <Avatar className="w-7 h-7" style={{ border: '2px solid var(--brand-pink-500, #FF3399)' }}>
+                      <AvatarImage src={attendee.avatar_url || undefined} alt={attendee.name} />
+                      <AvatarFallback
+                        style={{
+                          background: 'var(--brand-pink-500, #FF3399)',
+                          color: '#FFFFFF',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {attendee.name?.charAt(0).toUpperCase() || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        color: 'var(--brand-pink-500, #FF3399)',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {attendee.name}
+                    </span>
+                  </button>
+                ))}
+            </div>
+          )}
+
           {/* {PersonName}'s Review Heading */}
           <h1 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
             {reviewData.author?.name ? `${reviewData.author.name.split(' ')[0]}'s Review` : "Review"}
@@ -783,6 +1017,108 @@ export function ReviewDetailView({
             });
           }}
         />
+      )}
+
+      {/* Delete Confirm Modal (matches chat delete styling) */}
+      {deleteConfirmOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.30)',
+            paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+            paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+          }}
+          onMouseDown={() => {
+            closeDeleteModal();
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 460,
+              backgroundColor: 'var(--neutral-50, #fcfcfc)',
+              borderRadius: 'var(--radius-corner, 10px)',
+              boxShadow: '0 4px 12px 0 var(--shadow-color)',
+              position: 'relative',
+              paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+              paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+              paddingTop: 'var(--spacing-grouped, 24px)',
+              paddingBottom: 'var(--spacing-grouped, 24px)',
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {/* Close X button in top right */}
+            <button
+              onClick={() => closeDeleteModal()}
+              style={{
+                position: 'absolute',
+                top: 'var(--spacing-grouped, 24px)',
+                right: 'var(--spacing-screen-margin-x, 20px)',
+                width: '44px',
+                height: '44px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                margin: 0,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+              aria-label="Close dialog"
+              type="button"
+              disabled={isDeleting}
+            >
+              <X size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+            </button>
+
+            {/* Title */}
+            <h2
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-body-size, 20px)',
+                fontWeight: 'var(--typography-bold-weight, 700)',
+                lineHeight: 'var(--typography-body-line-height, 1.5)',
+                color: 'var(--neutral-900)',
+                margin: 0,
+                marginBottom: 'var(--spacing-small, 12px)',
+                paddingRight: '44px', // Account for X button space
+              }}
+            >
+              Are you sure you want to delete this post?
+            </h2>
+
+            {/* Subtitle */}
+            <p
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                color: 'var(--neutral-600)',
+                margin: 0,
+                marginBottom: 'var(--spacing-small, 12px)',
+              }}
+            >
+              This action cannot be undone
+            </p>
+
+            {/* Delete Button */}
+            <Button
+              className="btn-synth-primary w-full"
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              style={{
+                backgroundColor: 'var(--brand-pink-500, #FF3399)',
+                color: 'var(--neutral-50)',
+                height: 'var(--size-input-height, 44px)',
+                boxShadow: '0 4px 4px 0 var(--shadow-color)',
+              }}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

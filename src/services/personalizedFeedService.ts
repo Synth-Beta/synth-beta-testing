@@ -129,6 +129,10 @@ type NormalizedFilters = {
 };
 
 export class PersonalizedFeedService {
+  // When the user_preferences table or its music_preference_signals column
+  // is missing in a given Supabase project, we treat music data as
+  // unavailable and short‑circuit future checks to avoid repeated 400s.
+  private static userPreferencesAvailable = true;
   /**
    * Fetch unified personalized feed v3 (events, reviews, friend suggestions, group chats)
    * Uses the new unified feed structure with multiple content types
@@ -738,6 +742,11 @@ export class PersonalizedFeedService {
   }
   
   static async userHasMusicData(userId: string): Promise<boolean> {
+    // If we already know user_preferences isn't available, skip querying.
+    if (!this.userPreferencesAvailable) {
+      return false;
+    }
+
     try {
       const { data, error } = await supabase
         .from('user_preferences')
@@ -745,8 +754,27 @@ export class PersonalizedFeedService {
         .eq('user_id', userId)
         .maybeSingle();
       
-      if (error) throw error;
-      const signals = data?.music_preference_signals || [];
+      if (error) {
+        const code = (error as any).code;
+        const status = (error as any).status;
+        if (
+          status === 400 || // Bad request due to missing column/table
+          code === 'PGRST205' || // table not in schema cache
+          code === '42P01' || // relation does not exist
+          code === 'PGRST204' // view or table not found
+        ) {
+          logger.warn(
+            '⚠️ user_preferences table or music_preference_signals not available; disabling music‑based personalization.',
+            { code, status, message: (error as any).message }
+          );
+          this.userPreferencesAvailable = false;
+          return false;
+        }
+
+        throw error;
+      }
+
+      const signals = (data as any)?.music_preference_signals || [];
       return Array.isArray(signals) && signals.length > 0;
     } catch (error) {
       logger.error('❌ Error checking music data:', error);

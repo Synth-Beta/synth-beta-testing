@@ -18,6 +18,10 @@ import type { VibeFilters } from '@/services/discoverVibeService';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import { SearchBar } from '@/components/SearchBar/SearchBar';
 import { useViewTracking } from '@/hooks/useViewTracking';
+import { Share2 } from 'lucide-react';
+import { ShareService } from '@/services/shareService';
+import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
+import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
 
 interface DiscoverViewProps {
   currentUserId: string;
@@ -57,6 +61,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const [selectedLocationName, setSelectedLocationName] = useState<string>('');
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  const [detailView, setDetailView] = useState<
+    | { type: 'artist'; id: string; name: string }
+    | { type: 'venue'; id: string; name: string }
+    | null
+  >(null);
 
   // Track discover view
   useViewTracking('view', 'discover', { source: 'discover' });
@@ -177,6 +187,27 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   const handleBackFromVibe = () => {
     setSelectedVibe(null);
+  };
+
+  const handleCloseDetail = () => {
+    setDetailView(null);
+  };
+
+  const handleShareDetail = async () => {
+    if (!detailView) return;
+    if (detailView.type === 'artist') {
+      await ShareService.shareArtist(
+        detailView.id,
+        `${detailView.name} on Synth`,
+        `Check out ${detailView.name} on Synth.`
+      );
+      return;
+    }
+    await ShareService.shareVenue(
+      detailView.id,
+      `${detailView.name} on Synth`,
+      `Check out ${detailView.name} on Synth.`
+    );
   };
 
   const handleUseCurrentLocation = async () => {
@@ -357,25 +388,56 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       </div>
       {/* Mobile Header with SearchBar */}
       {!hideHeader && (
-      <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '6px', 
-          width: '100%', 
-          maxWidth: '100%'
-        }}>
-          <SearchBar 
-            value={searchQuery}
-            onChange={(value) => {
-              setSearchQuery(value);
-              setIsSearchActive(value.trim().length >= 2);
-            }}
-            placeholder='Try "Radiohead"'
-            widthVariant="flex"
-          />
-        </div>
-      </MobileHeader>
+        detailView ? (
+          <MobileHeader
+            alignLeft={true}
+            leftIcon="left"
+            onLeftIconClick={handleCloseDetail}
+            rightButton={
+              <button
+                className="mobile-header__menu-button"
+                onClick={handleShareDetail}
+                aria-label="Share"
+                type="button"
+              >
+                <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+              </button>
+            }
+          >
+            <h1
+              className="font-bold truncate"
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-h2-size, 24px)',
+                fontWeight: 'var(--typography-h2-weight, 700)',
+                lineHeight: 'var(--typography-h2-line-height, 1.3)',
+                color: 'var(--neutral-900)',
+              }}
+            >
+              {detailView.name}
+            </h1>
+          </MobileHeader>
+        ) : (
+          <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px', 
+              width: '100%', 
+              maxWidth: '100%'
+            }}>
+              <SearchBar 
+                value={searchQuery}
+                onChange={(value) => {
+                  setSearchQuery(value);
+                  setIsSearchActive(value.trim().length >= 2);
+                }}
+                placeholder='Try "Radiohead"'
+                widthVariant="flex"
+              />
+            </div>
+          </MobileHeader>
+        )
       )}
       <div 
         className="max-w-7xl mx-auto" 
@@ -635,6 +697,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               showResults={true}
             onNavigateToProfile={onNavigateToProfile}
             onNavigateToChat={onNavigateToChat}
+            onArtistClick={(artistId, artistName) => setDetailView({ type: 'artist', id: artistId, name: artistName })}
+            onVenueClick={(venueId, venueName) => setDetailView({ type: 'venue', id: venueId, name: venueName })}
           />
         </div>
         )}
@@ -680,6 +744,27 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         onSelectVibe={handleSelectVibe}
         isMobile={isMobile}
       />
+
+      {/* Artist/Venue detail overlays (single Discover header drives navigation) */}
+      {detailView?.type === 'artist' && (
+        <ArtistDetailModal
+          isOpen={true}
+          onClose={handleCloseDetail}
+          artistId={detailView.id}
+          artistName={detailView.name}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      {detailView?.type === 'venue' && (
+        <VenueDetailModal
+          isOpen={true}
+          onClose={handleCloseDetail}
+          venueId={detailView.id}
+          venueName={detailView.name}
+          currentUserId={currentUserId}
+        />
+      )}
 
     </main>
   );

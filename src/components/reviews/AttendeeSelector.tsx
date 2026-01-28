@@ -32,6 +32,7 @@ export function AttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnS
   const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneName, setPhoneName] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const baseId = useRef(`attendee-selector-${Math.random().toString(36).slice(2, 9)}`);
 
   // Search users with debounce
   useEffect(() => {
@@ -128,85 +129,92 @@ export function AttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnS
 
   return (
     <div className="space-y-3">
-      {/* Search Input */}
+      {/* Search Input + Dropdown */}
       <div className="relative" ref={containerRef}>
         <SearchBar
           value={searchQuery}
           onChange={(value) => setSearchQuery(value)}
           placeholder="Search Synth users or invite by phone..."
           widthVariant="full"
+          id={`${baseId.current}-search`}
+          name="attendee_search"
         />
-      </div>
 
-      {/* Search Results - Inline so they scroll with the page */}
-      {searchQuery && (
-        <div className="w-full bg-white border-2 border-pink-200 rounded-lg shadow-2xl max-h-[500px] overflow-y-auto">
-          {isSearching ? (
-            <div className="p-4 text-center text-sm text-gray-500">Searching...</div>
-          ) : searchResults.length > 0 ? (
-            <>
-              {searchResults.map((user) => {
-                const isAlreadyAdded = value.some(
-                  a => a.type === 'user' && a.user_id === user.user_id
-                );
+        {/* Search Results Dropdown */}
+        {searchQuery && (
+          <div className="absolute z-[999] mt-2 w-full bg-white border-2 border-pink-200 rounded-lg shadow-2xl max-h-[500px] overflow-y-auto">
+            {isSearching ? (
+              <div className="p-4 text-center text-sm text-gray-500">Searching...</div>
+            ) : searchResults.length > 0 ? (
+              <>
+                {searchResults.map((user) => {
+                  const isAlreadyAdded = value.some(
+                    a => a.type === 'user' && a.user_id === user.user_id
+                  );
+                  
+                  return (
+                    <button
+                      key={user.user_id}
+                      onClick={() => handleAddUser(user)}
+                      disabled={isAlreadyAdded}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.avatar_url} alt={user.name} />
+                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 text-left">
+                        <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                      </div>
+                      {isAlreadyAdded && (
+                        <span className="text-xs text-green-600">Added</span>
+                      )}
+                    </button>
+                  );
+                })}
                 
-                return (
-                  <button
-                    key={user.user_id}
-                    onClick={() => handleAddUser(user)}
-                    disabled={isAlreadyAdded}
-                    className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.avatar_url} alt={user.name} />
-                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                    </div>
-                    {isAlreadyAdded && (
-                      <span className="text-xs text-green-600">Added</span>
-                    )}
-                  </button>
-                );
-              })}
-              
-              {/* Invite to Synth Option */}
-              <div className="border-t border-gray-200 p-3 bg-gray-50">
-                <Label className="text-xs font-semibold text-gray-700 mb-2 block">Add by Phone</Label>
-                <div className="space-y-2">
+                {/* Invite to Synth Option */}
+                <div className="border-t border-gray-200 p-3 bg-gray-50">
+                  <p className="text-xs font-semibold text-gray-700 mb-2 block">Add by Phone</p>
+                  <div className="space-y-2">
                   <Input
+                    id={`${baseId.current}-phone`}
+                    name="attendee_phone"
                     type="tel"
                     placeholder="Phone: +1234567890"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     className="text-sm"
+                    autoComplete="tel"
                   />
-                  <Input
-                    type="text"
-                    placeholder="Name (optional)"
-                    value={phoneName}
-                    onChange={(e) => setPhoneName(e.target.value)}
-                    className="text-sm"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleInviteByPhone}
-                    disabled={!phoneNumber.trim()}
-                    className="w-full text-sm"
-                  >
-                    Add Contact
-                  </Button>
+                    <Input
+                      id={`${baseId.current}-phone-name`}
+                      name="attendee_phone_name"
+                      type="text"
+                      placeholder="Name (optional)"
+                      value={phoneName}
+                      onChange={(e) => setPhoneName(e.target.value)}
+                      className="text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleInviteByPhone}
+                      disabled={!phoneNumber.trim()}
+                      className="w-full text-sm"
+                    >
+                      Add Contact
+                    </Button>
+                  </div>
                 </div>
+              </>
+            ) : (
+              <div className="p-4 text-center text-sm text-gray-500">
+                No users found. Use the phone option below to add them.
               </div>
-            </>
-          ) : (
-            <div className="p-4 text-center text-sm text-gray-500">
-              No users found. Use the phone option below to add them.
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Selected Attendees */}
       {value.length > 0 && (
@@ -214,7 +222,7 @@ export function AttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnS
           {value.map((attendee, index) => (
             <div
               key={index}
-              className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full"
+              className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-xl"
             >
               {attendee.type === 'user' ? (
                 <>

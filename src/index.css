@@ -648,6 +648,21 @@
     font-family: var(--font-family);
   }
 
+  /* Ensure all button inner text uses Meta typography by default.
+     - Automatically applies to any <span> or <p> inside a <button>
+     - Or apply .button-text-meta directly to any element that should look like button text
+     - Typography is explicitly set, color inherits by default but can be overridden
+  */
+  .button-text-meta,
+  button span,
+  button p {
+    font-family: var(--font-family);
+    font-size: var(--typography-meta-size, 16px);
+    font-weight: var(--typography-meta-weight, 500);
+    line-height: var(--typography-meta-line-height, 1.5);
+    /* Color inherits by default from button variant, but can be overridden with inline styles or classes */
+  }
+
   /* Legacy Typography Classes (for backward compatibility) */
   .synth-heading {
     @apply font-bold;

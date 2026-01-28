@@ -3,9 +3,11 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Star, Globe, Lock, Check, Info, Calendar } from 'lucide-react';
+import { Star, Globe, Lock, Check, Info, Calendar, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
+import { AttendeeSelector } from '@/components/reviews/AttendeeSelector';
+import { useAuth } from '@/hooks/useAuth';
 
 interface CategorySummary {
   label: string;
@@ -21,6 +23,7 @@ interface PrivacySubmitStepProps {
   isLoading: boolean;
   averageRating: number;
   categoryBreakdown: CategorySummary[];
+  submitLabel?: string;
 }
 
 export function PrivacySubmitStep({
@@ -30,7 +33,8 @@ export function PrivacySubmitStep({
   onSubmit,
   isLoading,
   averageRating,
-  categoryBreakdown
+  categoryBreakdown,
+  submitLabel = 'Submit Review',
 }: PrivacySubmitStepProps) {
   const handlePrivacyChange = (isPublic: boolean) => {
     onUpdateFormData({ isPublic });
@@ -93,6 +97,8 @@ export function PrivacySubmitStep({
     formData.ticketPricePaid && !Number.isNaN(Number(formData.ticketPricePaid))
       ? Number(formData.ticketPricePaid).toFixed(2)
       : null;
+
+  const { user } = useAuth();
 
   return (
     <div className="space-y-8">
@@ -214,8 +220,39 @@ export function PrivacySubmitStep({
         </CardContent>
       </Card>
 
+      {user && (
+        <Card className="border-2 border-pink-100 bg-gradient-to-br from-pink-50/50 to-purple-50/30 overflow-visible relative z-20">
+          <CardContent className="p-6 sm:p-8 pb-10 sm:pb-12">
+            <div className="flex items-center gap-2 mb-6">
+              <Users className="w-6 h-6 text-pink-600" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                Who tagged along? (Optional)
+              </h3>
+            </div>
+            <AttendeeSelector
+              value={formData.attendees}
+              onChange={(attendees) => onUpdateFormData({ attendees })}
+              userId={user.id}
+              metOnSynth={formData.metOnSynth}
+              onMetOnSynthChange={(metOnSynth) => onUpdateFormData({ metOnSynth })}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <div className="space-y-4">
-        <Label className="text-sm font-medium text-gray-900">Who can see this review?</Label>
+        <p
+          className="text-sm font-medium"
+          style={{
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-body-size, 20px)',
+            fontWeight: 'var(--typography-body-weight, 500)',
+            lineHeight: 'var(--typography-body-line-height, 1.5)',
+            color: 'var(--neutral-900)',
+          }}
+        >
+          Who can see this review?
+        </p>
 
         <div className="space-y-3">
           <div className="relative">
@@ -329,12 +366,12 @@ export function PrivacySubmitStep({
           {isLoading ? (
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Submitting Review...</span>
+              <span>{submitLabel === 'Save Changes' ? 'Saving Changes...' : 'Submitting Review...'}</span>
             </div>
           ) : (
             <div className="flex items-center space-x-2">
               <Check className="w-6 h-6" style={{ color: 'var(--neutral-50)' }} />
-              <span style={{ color: 'var(--neutral-50)' }}>Submit Review</span>
+              <span style={{ color: 'var(--neutral-50)' }}>{submitLabel}</span>
             </div>
           )}
         </Button>

@@ -444,6 +444,17 @@ export function EventDetailsModal({
     }
   }, [isOpen, actualEvent?.id, actualEvent?.artist_id, actualEvent?.venue_id, actualEvent?.artist_name, actualEvent?.venue_name]);
 
+  // Notify MainApp when any EventDetailsModal is open/closed so it can
+  // switch header variants and hide underlying page headers.
+  useEffect(() => {
+    if (isOpen) {
+      window.dispatchEvent(new CustomEvent('event-details-open'));
+      return () => {
+        window.dispatchEvent(new CustomEvent('event-details-close'));
+      };
+    }
+  }, [isOpen]);
+
   // Load attendance data for past events
   useEffect(() => {
     if (actualEvent && isOpen) {
@@ -1021,17 +1032,21 @@ export function EventDetailsModal({
 
   return (
     <>
-    {/* Backdrop */}
+    {/* Backdrop (kept below bottom nav so nav stays visually on top) */}
     <div 
-      style={iosModalBackdrop}
+      style={{
+        ...iosModalBackdrop,
+        zIndex: 30,
+      }}
       onClick={onClose}
     />
     
-    {/* Modal Container */}
+    {/* Modal Container (also below bottom nav z-index 40) */}
     <div 
-      className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden"
+      className="fixed inset-0 overflow-y-auto overflow-x-hidden"
       style={{
         ...iosModal,
+        zIndex: 35,
         background: 'var(--neutral-50, #FCFCFC)',
         pointerEvents: 'auto',
       }}
@@ -1066,6 +1081,7 @@ export function EventDetailsModal({
           style={{
             ...textStyles.title2,
             flex: 1,
+            minWidth: 0,
             textAlign: 'center',
             margin: '0 12px',
             overflow: 'hidden',
@@ -1074,8 +1090,8 @@ export function EventDetailsModal({
             color: 'var(--neutral-900)',
           }}
         >
-                {actualEvent.title}
-          </h1>
+          {actualEvent.title}
+        </h1>
         
         {/* Share button */}
           <button
@@ -1094,8 +1110,17 @@ export function EventDetailsModal({
           </button>
         </div>
 
-      {/* Content area with iOS padding */}
-      <div style={{ padding: '0 20px', paddingTop: 16 }}>
+      {/* Content area with iOS padding (start 12px below header).
+          Ensure the scrollable content clears the fixed bottom nav and
+          still leaves at least 32px of whitespace visible below the last
+          content row when fully scrolled. The bottom nav is ~80px tall. */}
+      <div
+        style={{
+          padding: '0 20px',
+          paddingTop: 12,
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px + 32px)',
+        }}
+      >
         {/* Event Title (larger, below header) */}
         <h2 
           style={{

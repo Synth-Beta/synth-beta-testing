@@ -571,12 +571,16 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
               <div className="border-t border-gray-200/50 pt-4">
                 <div className="flex items-center gap-2">
                   <input
+                    id="custom-genre-input"
+                    name="custom_genre"
                     type="text"
                     placeholder="Other: _____"
                     value={customGenre}
                     onChange={(e) => setCustomGenre(e.target.value)}
                     onKeyPress={handleCustomGenreKeyPress}
                     className="synth-input flex-1 h-9 text-sm"
+                    autoComplete="off"
+                    aria-label="Add custom genre"
                   />
                   <Button
                     size="sm"
@@ -658,6 +662,8 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                     </span>
                   </div>
                   <input
+                    id="search-radius"
+                    name="search_radius_miles"
                     type="range"
                     min="5"
                     max="100"
@@ -670,6 +676,10 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                       });
                     }}
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-synth-pink"
+                    aria-valuemin={5}
+                    aria-valuemax={100}
+                    aria-valuenow={filters.radiusMiles || 25}
+                    aria-label="Search radius in miles"
                   />
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>5 mi</span>

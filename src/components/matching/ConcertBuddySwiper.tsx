@@ -14,6 +14,7 @@ import MatchingService, { PotentialMatch } from '@/services/matchingService';
 import { supabase } from '@/integrations/supabase/client';
 import { PushNotificationService } from '@/services/pushNotificationService';
 import { trackInteraction } from '@/services/interactionTrackingService';
+import { calculateAge } from '@/utils/calculateAge';
 
 interface ConcertBuddySwiperProps {
   eventId: string;
@@ -287,7 +288,8 @@ export function ConcertBuddySwiper({
                       </Badge>
                     )}
                     {currentUser.birthday && (() => {
-                      const age = new Date().getFullYear() - new Date(currentUser.birthday).getFullYear();
+                      const age = calculateAge(currentUser.birthday);
+                      if (age === null) return null;
                       return (
                         <Badge variant="outline" className="text-xs">
                           {age} years old

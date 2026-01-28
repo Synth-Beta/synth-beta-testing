@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, Share2, Star, Music, ChevronDown, Camera } from 'lucide-react';
+import { Star, Music, ChevronDown, Camera } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ArtistFollowButton } from '@/components/artists/ArtistFollowButton';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import type { ReviewWithEngagement } from '@/services/reviewService';
+import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
+import { JamBaseAttribution } from '@/components/attribution';
+import { ClickableImage } from '@/components/modals/FullScreenImageModal';
 import {
-  iosModal,
   iosModalBackdrop,
-  iosHeader,
-  iosIconButton,
   glassCard,
   glassCardLight,
   textStyles,
@@ -45,6 +45,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   const [upcomingShown, setUpcomingShown] = useState(INITIAL_UPCOMING_COUNT);
   const [pastShown, setPastShown] = useState(INITIAL_PAST_COUNT);
   const [reviewsShown, setReviewsShown] = useState(3);
+  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -359,54 +360,49 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   return (
     <>
       {/* Backdrop */}
-      <div style={iosModalBackdrop} onClick={onClose} />
+      <div
+        style={{
+          ...iosModalBackdrop,
+          // Keep app chrome (header + bottom nav) above the overlay.
+          zIndex: 25,
+          top: 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+        }}
+        onClick={onClose}
+      />
       
-      {/* Modal Container */}
+      {/* Detail overlay (scrolls between header and bottom nav) */}
       <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Artist details: ${artistName}`}
         style={{
-          ...iosModal,
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          margin: '0 auto',
+          width: '100%',
+          maxWidth: 390,
+          // Constrain between fixed header and fixed bottom nav.
+          top: 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px + var(--spacing-small, 12px))',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
           background: 'var(--neutral-50, #FCFCFC)',
+          zIndex: 26,
         }}
       >
-        {/* iOS-style Header */}
+        {/* Content */}
         <div
           style={{
-            ...iosHeader,
-            position: 'sticky',
-            top: 0,
-            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+            paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+            paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+            paddingTop: 0,
+            paddingBottom: 'var(--spacing-bottom-nav, 32px)',
           }}
         >
-          <button onClick={onClose} style={{ ...iosIconButton, width: 44, height: 44, minWidth: 44, minHeight: 44 }} aria-label="Close artist details" type="button">
-            <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-          </button>
-          
-          <h1
-            style={{
-              ...textStyles.title2,
-              flex: 1,
-              textAlign: 'center',
-              margin: '0 12px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              color: 'var(--neutral-900)',
-            }}
-          >
-            {artistName}
-          </h1>
-          
-          <button style={{ ...iosIconButton, width: 44, height: 44, minWidth: 44, minHeight: 44 }} aria-label="Share" type="button">
-            <Share2 size={20} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div style={{ padding: 20, paddingBottom: 100 }}>
           {loading ? (
             <div 
               aria-busy="true"
@@ -436,23 +432,27 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                   flexDirection: 'column',
                   alignItems: 'center',
                   textAlign: 'center',
+                  gap: 12,
                 }}
               >
                 {/* Artist Image */}
                 {artistImage ? (
-                  <img
-                    src={artistImage}
-                    alt={artistName}
-                    style={{
-                      width: 100,
-                      height: 100,
-                      borderRadius: '50%',
-                      objectFit: 'cover',
-                      marginBottom: 16,
-                      border: '3px solid rgba(255, 255, 255, 0.5)',
-                      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
-                    }}
-                  />
+                  <ClickableImage imageUrl={artistImage} alt={artistName}>
+                    <img
+                      src={artistImage}
+                      alt={artistName}
+                      style={{
+                        width: 100,
+                        height: 100,
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        marginBottom: 16,
+                        border: '3px solid rgba(255, 255, 255, 0.5)',
+                        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+                        cursor: 'pointer',
+                      }}
+                    />
+                  </ClickableImage>
                 ) : (
                   <div
                     style={{
@@ -522,10 +522,12 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                         return (
                           <div
                             key={review.id}
+                            onClick={() => setSelectedReviewId(review.id)}
                             style={{
                               ...glassCardLight,
                               padding: 16,
                               borderRadius: 12,
+                              cursor: 'pointer',
                             }}
                           >
                             {/* Rating Row - Artist Performance Only */}
@@ -566,8 +568,11 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                             
                             {/* User Profile Button with Avatar */}
                             <button
-                              onClick={() => {
-                                window.dispatchEvent(new CustomEvent('open-user-profile', { detail: { userId: review.user_id } }));
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.dispatchEvent(
+                                  new CustomEvent('open-user-profile', { detail: { userId: review.user_id } })
+                                );
                               }}
                               style={{
                                 display: 'flex',
@@ -754,10 +759,54 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                   </p>
                 </div>
               )}
+
+              {/* JamBase Attribution – match event details footer spacing/style */}
+              <div
+                className="pt-4 mt-4 border-t"
+                style={{ borderColor: 'var(--neutral-200)' }}
+              >
+                <JamBaseAttribution variant="footer" />
+              </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Full-screen review detail overlay when a review is selected */}
+      {selectedReviewId && (
+        <ReviewDetailView
+          reviewId={selectedReviewId}
+          currentUserId={currentUserId}
+          onBack={() => setSelectedReviewId(null)}
+          onOpenArtist={(artistId, artistName) => {
+            // Close the review detail overlay so the standard artist card header/layout is used
+            setSelectedReviewId(null);
+            window.dispatchEvent(
+              new CustomEvent('open-artist-card', {
+                detail: { artistId, artistName },
+              })
+            );
+          }}
+          onOpenVenue={(venueId, venueName) => {
+            // Close the review detail overlay and open the standard venue card
+            setSelectedReviewId(null);
+            window.dispatchEvent(
+              new CustomEvent('open-venue-card', {
+                detail: { venueId, venueName },
+              })
+            );
+          }}
+          onOpenProfile={(userId) => {
+            // Close the review detail overlay and open the tapped user's profile
+            setSelectedReviewId(null);
+            window.dispatchEvent(
+              new CustomEvent('open-user-profile', {
+                detail: { userId },
+              })
+            );
+          }}
+        />
+      )}
     </>
   );
 };
