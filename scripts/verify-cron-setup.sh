@@ -76,7 +76,7 @@ echo ""
 
 # Summary
 echo "📋 Summary:"
-echo "   - Cron job should run at 1 AM CST (2 AM EST) daily"
+echo "   - Cron job should run at 1:00 AM EST daily (when installed via install-cron-1am-est.sh)"
 echo "   - Check logs/sync-YYYY-MM-DD.log for daily sync results"
 echo "   - Check logs/cron-executions.log for cron execution tracking"
 echo "   - If sync didn't run, check:"

@@ -12,6 +12,7 @@ import { BecauseYouLikeSection } from './BecauseYouLikeSection';
 import { ScenesSection } from './ScenesSection';
 import { MapCalendarTourSection } from './MapCalendarTourSection';
 import { LocationService } from '@/services/locationService';
+import { CityService, type CityData } from '@/services/cityService';
 import { supabase } from '@/integrations/supabase/client';
 import type { VibeType } from '@/services/discoverVibeService';
 import type { VibeFilters } from '@/services/discoverVibeService';
@@ -54,6 +55,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   });
   const [locationPopoverOpen, setLocationPopoverOpen] = useState(false);
   const [customCityInput, setCustomCityInput] = useState('');
+  const [citySuggestions, setCitySuggestions] = useState<CityData[]>([]);
+  const [isSearchingCities, setIsSearchingCities] = useState(false);
   const [selectedLocationName, setSelectedLocationName] = useState<string>('');
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -75,6 +78,25 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   useEffect(() => {
     loadUserLocation();
   }, [currentUserId]);
+
+  // Debounced trigram city search (discover location filter)
+  useEffect(() => {
+    const q = customCityInput.trim();
+    if (q.length < 2) {
+      setCitySuggestions([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setIsSearchingCities(true);
+      try {
+        const results = await CityService.searchCities(q, 15);
+        setCitySuggestions(results);
+      } finally {
+        setIsSearchingCities(false);
+      }
+    }, 200);
+    return () => clearTimeout(t);
+  }, [customCityInput]);
 
   const loadUserLocation = async () => {
     try {
@@ -212,23 +234,49 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     }
   };
 
-  const handleCitySearch = () => {
+  const applyCity = (city: CityData) => {
+    const lat = city.center_latitude;
+    const lng = city.center_longitude;
+    if (lat == null || lng == null) return;
+    setFilters({
+      ...filters,
+      latitude: Number(lat),
+      longitude: Number(lng),
+      radiusMiles: filters.radiusMiles || 30,
+    });
+    const label = [city.name, city.state, city.country].filter(Boolean).join(', ');
+    setSelectedLocationName(label);
+    setCustomCityInput('');
+    setCitySuggestions([]);
+    setLocationPopoverOpen(false);
+  };
+
+  const handleSelectCitySuggestion = (city: CityData) => {
+    applyCity(city);
+  };
+
+  const handleCitySearch = async () => {
     const cityName = customCityInput.trim();
     if (!cityName) return;
 
-    const city = LocationService.searchCity(cityName);
-    if (city) {
+    const results = await CityService.searchCities(cityName, 5);
+    if (results.length > 0) {
+      applyCity(results[0]);
+      return;
+    }
+    const fallback = LocationService.searchCity(cityName);
+    if (fallback) {
       setFilters({
         ...filters,
-        latitude: city.lat,
-        longitude: city.lng,
+        latitude: fallback.lat,
+        longitude: fallback.lng,
         radiusMiles: filters.radiusMiles || 30,
       });
-      setSelectedLocationName(city.state ? `${city.name}, ${city.state}` : city.name);
+      setSelectedLocationName(fallback.state ? `${fallback.name}, ${fallback.state}` : fallback.name);
       setCustomCityInput('');
       setLocationPopoverOpen(false);
     } else {
-      alert(`City "${cityName}" not found. Please try a major city name.`);
+      alert(`City "${cityName}" not found. Try another spelling or pick from the suggestions.`);
     }
   };
 
@@ -451,10 +499,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
                 <div className="text-sm text-center" style={{ color: 'var(--neutral-600)' }}>or</div>
 
-                {/* City Input */}
-              <div className="space-y-2">
+                {/* City Input + trigram typeahead */}
+              <div className="space-y-2 relative">
                   <Input
-                    placeholder="Enter city name (e.g., New York, Los Angeles)"
+                    placeholder="Search city (e.g., New York, Los Angeles)"
                     value={customCityInput}
                     onChange={(e) => setCustomCityInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -462,7 +510,36 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                         handleCitySearch();
                       }
                     }}
-                      />
+                  />
+                  {isSearchingCities && (
+                    <div className="text-sm mt-0.5" style={{ color: 'var(--neutral-500)' }}>
+                      Searching…
+                    </div>
+                  )}
+                  {citySuggestions.length > 0 && customCityInput.trim().length >= 2 && (
+                    <ul
+                      className="absolute z-50 w-full mt-1 rounded-md border bg-white shadow-lg max-h-48 overflow-auto"
+                      style={{
+                        borderColor: 'var(--neutral-200)',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                      }}
+                    >
+                      {citySuggestions.map((city) => (
+                        <li key={city.id ?? `${city.name}-${city.state ?? ''}-${city.country ?? ''}`}>
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-100"
+                            style={{ color: 'var(--neutral-900)' }}
+                            onClick={() => handleSelectCitySuggestion(city)}
+                          >
+                            {[city.name, city.state, city.country].filter(Boolean).join(', ')}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   <Button
                     onClick={handleCitySearch}
                     disabled={!customCityInput.trim()}

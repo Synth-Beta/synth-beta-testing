@@ -6,8 +6,8 @@
     <string>com.synth.daily-sync</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/opt/homebrew/bin/node</string>
-        <string>/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/scripts/sync-jambase-incremental-3nf.mjs</string>
+        <string>/bin/bash</string>
+        <string>/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/scripts/run-daily-sync.sh</string>
     </array>
     <key>WorkingDirectory</key>
     <string>/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main</string>
@@ -28,6 +28,8 @@
     <dict>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>TZ</key>
+        <string>America/New_York</string>
     </dict>
 </dict>
 </plist>

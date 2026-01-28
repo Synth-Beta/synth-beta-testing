@@ -37,7 +37,7 @@ echo ""
 echo "📊 Job status:"
 if launchctl list | grep -q "$PLIST_NAME"; then
     echo "   ✅ Job is loaded and scheduled"
-    echo "   ⏰ Will run daily at 1:00 AM CST (2:00 AM EST)"
+    echo "   ⏰ Will run daily at 1:00 AM local (set system timezone to Eastern for 1am EST)"
 else
     echo "   ⚠️  Job may not be loaded correctly"
 fi

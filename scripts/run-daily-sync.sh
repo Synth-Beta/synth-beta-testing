@@ -1,10 +1,17 @@
 #!/bin/bash
 # Daily Jambase Sync Script
-# Runs incremental sync and logs output
+# Runs incremental sync and logs output.
+# With RUN_AT_1AM_EST=1 (e.g. from cron), only runs when current hour in America/New_York is 01.
 
 # Set full paths to avoid PATH issues in cron
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 NODE_PATH="/opt/homebrew/bin/node"
+
+# When scheduled for 1am EST: only run at that hour (cron may run every hour)
+if [ -n "$RUN_AT_1AM_EST" ]; then
+  H=$(TZ=America/New_York date +%H)
+  if [ "$H" != "01" ]; then exit 0; fi
+fi
 
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
