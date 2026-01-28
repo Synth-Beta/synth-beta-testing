@@ -1766,11 +1766,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       zIndex: 0
     }}
   />
-<<<<<<< Updated upstream
         <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 0 }}>
-=======
         <div className="w-full max-w-full overflow-visible" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 0 }}>
->>>>>>> Stashed changes
           {/* Profile Card */}
         <Card 
           className="w-full max-w-full mb-0 swift-ui-card"
