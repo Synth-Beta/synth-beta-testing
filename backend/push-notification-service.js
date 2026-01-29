@@ -273,10 +273,15 @@ class PushNotificationService {
 
       // Step 4: Check which (notification_id, device_token) pairs are already queued
       const notificationIds = enabledNotifications.map(n => n.id);
-      const { data: existing } = await this.supabase
+      const { data: existing, error: existingError } = await this.supabase
         .from('push_notification_queue')
         .select('notification_id, device_token')
         .in('notification_id', notificationIds);
+
+      if (existingError) {
+        console.error('Error fetching existing queue entries:', existingError);
+        return { queued: 0, error: existingError.message };
+      }
 
       const existingSet = new Set(
         (existing || []).map(e => `${e.notification_id}:${e.device_token}`)
