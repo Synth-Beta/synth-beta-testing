@@ -234,8 +234,10 @@ export const DemoMessagesPage: React.FC<DemoMessagesPageProps> = ({
                     return (
                       <div key={message.id} className={`flex flex-col ${msgIndex > 0 ? 'mt-[6px]' : ''}`}>
                         <div
-                          className="max-w-[172px] p-[12px]"
+                          className={`${isSent ? 'self-end' : 'self-start'} max-w-[172px] p-[12px]`}
                           style={{
+                            display: 'inline-block',
+                            width: 'fit-content',
                             borderRadius: '10px',
                             backgroundColor: message.sender_id === DEMO_USER.id
                               ? 'var(--brand-pink-500)'
@@ -243,6 +245,9 @@ export const DemoMessagesPage: React.FC<DemoMessagesPageProps> = ({
                             border: message.sender_id === DEMO_USER.id
                               ? 'none'
                               : '1px solid var(--neutral-200)',
+                            overflowWrap: 'anywhere',
+                            wordWrap: 'break-word',
+                            whiteSpace: 'pre-wrap',
                           }}
                         >
                           <p style={{
