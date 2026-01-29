@@ -195,40 +195,58 @@ class PushNotificationService {
    * Queue pending notifications directly (no database function needed)
    * Call this periodically to queue notifications that need push
    * Respects user_settings_preferences.enable_push_notifications
+   *
+   * Uses a two-query approach: notifications and device_tokens have no direct FK
+   * (both reference users via user_id), so we fetch them separately and join in code.
    */
   async queuePendingNotifications(limit = 100) {
     try {
-      // Get unread notifications with active device tokens
-      // Note: We'll filter by user preferences after fetching since Supabase query builder
-      // doesn't easily support complex JOINs with OR conditions
-      const { data: notifications, error } = await this.supabase
+      // Step 1: Fetch unread notifications (no embed - no FK between notifications and device_tokens)
+      const { data: notifications, error: notifError } = await this.supabase
         .from('notifications')
-        .select(`
-          id,
-          user_id,
-          title,
-          message,
-          data,
-          device_tokens!inner(device_token)
-        `)
+        .select('id, user_id, title, message, data')
         .eq('is_read', false)
-        .eq('device_tokens.is_active', true)
-        .eq('device_tokens.platform', 'ios')
-        .limit(limit * 2); // Fetch more to account for filtering
+        .order('created_at', { ascending: true })
+        .limit(limit * 2);
 
-      if (error) {
-        console.error('Error fetching pending notifications:', error);
-        return { queued: 0, error: error.message };
+      if (notifError) {
+        console.error('Error fetching pending notifications:', notifError);
+        return { queued: 0, error: notifError.message };
       }
 
       if (!notifications || notifications.length === 0) {
         return { queued: 0 };
       }
 
-      // Get unique user IDs from notifications
       const userIds = [...new Set(notifications.map(n => n.user_id))];
-      
-      // Fetch user preferences for all users
+
+      // Step 2: Fetch active iOS device tokens for those users
+      const { data: deviceTokens, error: tokensError } = await this.supabase
+        .from('device_tokens')
+        .select('user_id, device_token')
+        .in('user_id', userIds)
+        .eq('is_active', true)
+        .eq('platform', 'ios');
+
+      if (tokensError) {
+        console.error('Error fetching device tokens:', tokensError);
+        return { queued: 0, error: tokensError.message };
+      }
+
+      if (!deviceTokens || deviceTokens.length === 0) {
+        return { queued: 0 };
+      }
+
+      // Group device tokens by user_id for lookup
+      const tokensByUser = new Map();
+      for (const row of deviceTokens) {
+        if (!tokensByUser.has(row.user_id)) {
+          tokensByUser.set(row.user_id, []);
+        }
+        tokensByUser.get(row.user_id).push(row.device_token);
+      }
+
+      // Step 3: Fetch user preferences (enable_push_notifications)
       const { data: userPreferences, error: prefError } = await this.supabase
         .from('user_settings_preferences')
         .select('user_id, enable_push_notifications')
@@ -238,25 +256,22 @@ class PushNotificationService {
         console.warn('Error fetching user preferences (will default to enabled):', prefError);
       }
 
-      // Create a map of user_id -> enable_push_notifications
-      // Default to true if preferences don't exist (NULL means enabled by default)
       const pushEnabledMap = new Map();
       userIds.forEach(userId => {
         const pref = userPreferences?.find(p => p.user_id === userId);
-        // If preference exists and is false, disable. Otherwise enable (true or NULL)
         pushEnabledMap.set(userId, pref ? pref.enable_push_notifications !== false : true);
       });
 
-      // Filter notifications to only include users with push notifications enabled
+      // Filter to notifications for users who have push enabled and at least one device token
       const enabledNotifications = notifications.filter(n => {
-        return pushEnabledMap.get(n.user_id) === true;
+        return pushEnabledMap.get(n.user_id) === true && (tokensByUser.get(n.user_id) || []).length > 0;
       });
 
       if (enabledNotifications.length === 0) {
         return { queued: 0 };
       }
 
-      // Check which are already queued
+      // Step 4: Check which (notification_id, device_token) pairs are already queued
       const notificationIds = enabledNotifications.map(n => n.id);
       const { data: existing } = await this.supabase
         .from('push_notification_queue')
@@ -267,15 +282,16 @@ class PushNotificationService {
         (existing || []).map(e => `${e.notification_id}:${e.device_token}`)
       );
 
-      // Queue new notifications
+      // Step 5: Build queue items (notification x device_token per user)
       const queueItems = [];
       for (const notification of enabledNotifications) {
-        for (const device of notification.device_tokens) {
-          const key = `${notification.id}:${device.device_token}`;
+        const tokens = tokensByUser.get(notification.user_id) || [];
+        for (const deviceToken of tokens) {
+          const key = `${notification.id}:${deviceToken}`;
           if (!existingSet.has(key)) {
             queueItems.push({
               user_id: notification.user_id,
-              device_token: device.device_token,
+              device_token: deviceToken,
               notification_id: notification.id,
               title: notification.title,
               body: notification.message,
@@ -290,7 +306,6 @@ class PushNotificationService {
         return { queued: 0 };
       }
 
-      // Insert into queue
       const { error: insertError } = await this.supabase
         .from('push_notification_queue')
         .insert(queueItems);
