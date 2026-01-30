@@ -680,7 +680,7 @@ export function SwiftUIReviewCard({
                 {/* Comments button */}
                 <Button
                   variant="secondary-neutral"
-                  className="flex items-center gap-2 flex-1"
+                  className="flex items-center gap-2 shrink-0"
                   style={{
                     height: 'var(--size-input-height, 44px)',
                   }}
@@ -698,13 +698,6 @@ export function SwiftUIReviewCard({
                     fontWeight: 'var(--typography-meta-weight, 500)',
                     lineHeight: 'var(--typography-meta-line-height, 1.5)',
                   }}>{commentsCount}</span>
-                  <span style={{ 
-                    color: 'var(--neutral-900)',
-                    fontFamily: 'var(--font-family)',
-                    fontSize: 'var(--typography-meta-size, 16px)',
-                    fontWeight: 'var(--typography-meta-weight, 500)',
-                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                  }}>Comments</span>
                 </Button>
 
                 {/* Share button */}

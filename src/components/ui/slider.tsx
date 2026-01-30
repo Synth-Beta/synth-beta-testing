@@ -30,8 +30,11 @@ const Slider = React.forwardRef<
       <SliderPrimitive.Range className={cn("absolute h-full bg-primary", rangeClassName)} />
     </SliderPrimitive.Track>
     <SliderPrimitive.Thumb
+      // iOS Safari/WebView can occasionally render the thumb as an oval when
+      // it ends up in a scaled/rounded transform context. Force a square box.
+      style={{ width: 20, height: 20, aspectRatio: "1 / 1" }}
       className={cn(
-        "block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        "block h-5 w-5 shrink-0 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
         thumbClassName
       )}
     />

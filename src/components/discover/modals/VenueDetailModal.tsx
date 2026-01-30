@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Star, MapPin, Building2, ChevronDown, Camera } from 'lucide-react';
+import { Star, MapPin, Building2, ChevronDown, Camera, Share2, ChevronLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 import { EventMap } from '@/components/EventMap';
@@ -15,6 +15,7 @@ import {
   animations,
 } from '@/styles/glassmorphism';
 import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
+import { ShareService } from '@/services/shareService';
 
 interface VenueDetailModalProps {
   isOpen: boolean;
@@ -50,6 +51,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
   const [pastShown, setPastShown] = useState(INITIAL_PAST_COUNT);
   const [reviewsShown, setReviewsShown] = useState(3);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const [hasOuterMobileHeader, setHasOuterMobileHeader] = useState(true);
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -61,6 +63,34 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
       setPastShown(INITIAL_PAST_COUNT);
     }
   }, [isOpen, venueId, venueName]);
+
+  // If this modal is opened from a context that doesn't render the standard MobileHeader
+  // (for example, inside the EventDetailsModal), render an internal header so we never
+  // "inherit" an event-style header above.
+  useEffect(() => {
+    if (!isOpen) return;
+    const check = () => {
+      const el = document.querySelector('.mobile-header');
+      setHasOuterMobileHeader(Boolean(el));
+    };
+    check();
+    const t = window.setTimeout(check, 0);
+    return () => window.clearTimeout(t);
+  }, [isOpen]);
+
+  const useInternalHeader = isOpen && !hasOuterMobileHeader;
+
+  const handleShareVenue = async () => {
+    try {
+      await ShareService.shareVenue(
+        venueId,
+        `${venueName} on Synth`,
+        `Check out ${venueName} on Synth.`
+      );
+    } catch (error) {
+      console.error('Error sharing venue:', error);
+    }
+  };
 
   // Focus management for accessibility
   useEffect(() => {
@@ -376,8 +406,10 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
         style={{
           ...iosModalBackdrop,
           // Keep app chrome (header + bottom nav) above the overlay.
-          zIndex: 25,
-          top: 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
+          zIndex: useInternalHeader ? 6000 : 25,
+          top: useInternalHeader
+            ? 'var(--onboarding-banner-height, 0px)'
+            : 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
           bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
         }}
         onClick={onClose}
@@ -397,15 +429,104 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
           width: '100%',
           maxWidth: 390,
           // Constrain between fixed header and fixed bottom nav.
-          top: 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
+          top: useInternalHeader
+            ? 'var(--onboarding-banner-height, 0px)'
+            : 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
           bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
           overflowY: 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
           background: 'var(--neutral-50, #FCFCFC)',
-          zIndex: 26,
+          zIndex: useInternalHeader ? 6001 : 26,
         }}
       >
+        {useInternalHeader && (
+          <div
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 7000,
+              backgroundColor: 'var(--neutral-50)',
+              boxShadow: '0 4px 4px 0 var(--shadow-color)',
+              paddingTop: 'var(--mobile-header-padding-top, env(safe-area-inset-top, 0px))',
+            }}
+          >
+            <div
+              style={{
+                height: 68,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+                paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+                paddingTop: 12,
+                paddingBottom: 12,
+                boxSizing: 'border-box',
+              }}
+            >
+              <button
+                onClick={onClose}
+                type="button"
+                aria-label="Back"
+                style={{
+                  width: 44,
+                  height: 44,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  margin: 0,
+                  cursor: 'pointer',
+                }}
+              >
+                <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+              </button>
+
+              <h1
+                style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-h2-size, 24px)',
+                  fontWeight: 'var(--typography-h2-weight, 700)',
+                  lineHeight: 'var(--typography-h2-line-height, 1.3)',
+                  color: 'var(--neutral-900)',
+                  margin: 0,
+                  flex: 1,
+                  textAlign: 'center',
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {venueName}
+              </h1>
+
+              <button
+                onClick={handleShareVenue}
+                type="button"
+                aria-label="Share"
+                style={{
+                  width: 44,
+                  height: 44,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  margin: 0,
+                  cursor: 'pointer',
+                }}
+              >
+                <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
         <div
           style={{
@@ -792,24 +913,6 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
           reviewId={selectedReviewId}
           currentUserId={currentUserId}
           onBack={() => setSelectedReviewId(null)}
-          onOpenArtist={(artistId, artistName) => {
-            // Close the review detail overlay and open the standard artist card
-            setSelectedReviewId(null);
-            window.dispatchEvent(
-              new CustomEvent('open-artist-card', {
-                detail: { artistId, artistName },
-              })
-            );
-          }}
-          onOpenVenue={(venueId, venueName) => {
-            // Close the review detail overlay so the standard venue card header/layout is used
-            setSelectedReviewId(null);
-            window.dispatchEvent(
-              new CustomEvent('open-venue-card', {
-                detail: { venueId, venueName },
-              })
-            );
-          }}
           onOpenProfile={(userId) => {
             // Close the review detail overlay and open the tapped user's profile
             setSelectedReviewId(null);

@@ -103,6 +103,8 @@ export function EventDetailsModal({
   const navigate = useNavigate();
   const [actualEvent, setActualEvent] = useState<any>(event);
   const [loading, setLoading] = useState(false);
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState<number>(0);
   // Local state for isInterested to allow immediate UI updates
   const [localIsInterested, setLocalIsInterested] = useState(isInterested);
   
@@ -192,6 +194,34 @@ export function EventDetailsModal({
   useEffect(() => {
     setLocalIsInterested(isInterested);
   }, [isInterested]);
+
+  // Keep header pinned above map layers (Leaflet controls often use z-index ~1000),
+  // and pad the scrollable content by the measured header height (incl. safe-area).
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const el = headerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const next = Math.ceil(el.getBoundingClientRect().height);
+      setHeaderHeight(prev => (prev === next ? prev : next));
+    };
+
+    measure();
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => measure());
+      ro.observe(el);
+    }
+
+    window.addEventListener('resize', measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+      ro?.disconnect();
+    };
+  }, [isOpen]);
   
   const loadVerifiedChat = async () => {
     if (!actualEvent?.id || !currentUserId || verifiedChatLoading) {
@@ -1113,6 +1143,10 @@ export function EventDetailsModal({
     setShareModalOpen(true);
   };
   
+  const headerHeightCss = headerHeight
+    ? `${headerHeight}px`
+    : 'calc(env(safe-area-inset-top, 0px) + 56px + 8px)';
+
 
   return (
     <>
@@ -1127,21 +1161,33 @@ export function EventDetailsModal({
     
     {/* Modal Container (also below bottom nav z-index 40) */}
     <div 
-      className="fixed inset-0 overflow-x-hidden"
+      className="fixed inset-0 overflow-hidden"
       style={{
         ...iosModal,
         zIndex: 35,
         background: 'var(--neutral-50, #FCFCFC)',
         pointerEvents: 'auto',
+        // Make content scroll independently so header never scrolls away.
+        overflowY: 'hidden',
+        paddingTop: 0,
+        paddingBottom: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        // Custom prop used for padding the scrollable body.
+        ['--event-details-modal-header-height' as any]: headerHeightCss,
       }}
     >
       {/* iOS-style Header with glassmorphism */}
         <div
+          ref={headerRef}
           style={{
           ...iosHeader,
           position: 'sticky',
           top: 0,
           paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+          // Ensure header stays above map/leaflet panes and controls.
+          zIndex: 5000,
+          flexShrink: 0,
         }}
       >
         {/* Back button */}
@@ -1200,8 +1246,15 @@ export function EventDetailsModal({
           content row when fully scrolled. The bottom nav is ~80px tall. */}
       <div
         style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
           padding: '0 20px',
-          paddingTop: 12,
+          // Header overlays the scroll region; pad by header height so content starts below it.
+          paddingTop: 'calc(var(--event-details-modal-header-height, 64px) + 12px)',
+          // Cancel out the in-flow header height so the scroll region begins at the top (behind header).
+          marginTop: 'calc(-1 * var(--event-details-modal-header-height, 64px))',
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px + 32px)',
         }}
       >
