@@ -127,6 +127,24 @@ Before deploying to production:
 - [ ] Apple Developer Portal: Push Notifications enabled for App ID
 - [ ] Test on physical device (not simulator - simulators don't receive push)
 
+## ⚠️ Push Worker Must Run on an Always-On Host
+
+The push notification worker (`backend/push-notification-worker.js`) is a **long-running Node process** that runs every 30 seconds. It does **not** run on Vercel or other serverless platforms (they run short-lived functions only).
+
+**Where to run the worker:**
+
+- **Railway / Render / Fly.io:** Deploy the backend (or a worker-only service) and run `node backend/push-notification-worker.js` as the start command, or use a separate worker process.
+- **VPS / EC2:** Use PM2 or systemd to keep the worker running, e.g. `pm2 start backend/push-notification-worker.js --name push-worker`.
+- **Root `package.json`:** Script is `npm run push:worker` (runs `node backend/push-notification-worker.js`).
+
+**Verification order (if APNs shows zero "Device Notifications Sent"):**
+
+1. **Worker running:** Confirm the worker process is actually running on your host (e.g. `pm2 list` or process manager).
+2. **APNs env on worker host:** On that same machine, set `APNS_KEY_PATH`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and run `node backend/test-apns-connection.js` (then with a device token from `device_tokens`).
+3. **Queue population:** The worker uses a two-query approach (notifications + device_tokens by `user_id`); no DB trigger required. If the queue stays empty, check that `notifications` has unread rows and `device_tokens` has active iOS tokens for those users.
+4. **Device tokens in Supabase:** In the `device_tokens` table, confirm rows exist for test users with `platform = 'ios'` and `is_active = true`. If empty, the app may not be calling `register_device_token` (check push permission and RPC/RLS).
+5. **NODE_ENV:** Use `NODE_ENV=production` on the worker host when the app is installed via TestFlight/App Store (production APNs).
+
 ## 🔍 Troubleshooting
 
 ### No device token in database
@@ -153,7 +171,7 @@ Before deploying to production:
 
 - ✅ `ios/App/App/AppDelegate.swift` - Enhanced device token bridging
 - ✅ `src/services/pushTokenService.ts` - Improved event listener handling
-- ✅ `backend/push-notification-service.js` - Made bundle ID configurable
+- ✅ `backend/push-notification-service.js` - Bundle ID configurable; queue uses two-query approach (notifications + device_tokens by user_id)
 - ✅ `backend/test-apns-connection.js` - NEW: APNs connection test script
 - ✅ `backend/test-push-notification.sql` - NEW: SQL test script
 

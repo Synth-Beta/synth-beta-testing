@@ -1835,11 +1835,15 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                         ) : (
                           <div
                             style={{
+                              display: 'inline-block',
+                              width: 'fit-content',
+                              alignSelf: isSent ? 'flex-end' : 'flex-start',
                               maxWidth: '172px',
                               padding: 'var(--spacing-small, 12px)',
                               borderRadius: 'var(--radius-corner, 10px)',
                               border: message.sender_id === currentUserId ? 'none' : '1px solid var(--neutral-200)',
                               backgroundColor: message.sender_id === currentUserId ? 'var(--brand-pink-500)' : 'var(--neutral-100)',
+                              overflowWrap: 'anywhere',
                               wordWrap: 'break-word',
                               whiteSpace: 'pre-wrap'
                             }}
