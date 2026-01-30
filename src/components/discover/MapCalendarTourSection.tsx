@@ -128,13 +128,18 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
       if (filters?.latitude && filters?.longitude && filters?.radiusMiles) {
         console.log('📅 [CALENDAR] Using RPC function with spatial index');
         
+        const singleUmbrella = filters?.genres?.length === 1
+          ? filters.genres[0].toLowerCase().replace(/\s+/g, '-').replace(/\s*&\s*/g, '-')
+          : null;
         const { data: events, error } = await supabase.rpc('get_calendar_events', {
           p_latitude: filters.latitude,
           p_longitude: filters.longitude,
           p_radius_miles: filters.radiusMiles,
           p_min_date: now.toISOString(),
-          p_genres: filters?.genres && filters.genres.length > 0 ? filters.genres : null,
-          p_limit: 1500
+          p_genres: singleUmbrella ? null : (filters?.genres && filters.genres.length > 0 ? filters.genres : null),
+          p_limit: 1500,
+          p_umbrella_slug: singleUmbrella,
+          p_max_depth: 5
         });
 
         if (error) throw error;
@@ -169,13 +174,18 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         // No location filter - use RPC function without location params
         console.log('📅 [CALENDAR] Using RPC function without location filter');
         
+        const singleUmbrellaNoLoc = filters?.genres?.length === 1
+          ? filters.genres[0].toLowerCase().replace(/\s+/g, '-').replace(/\s*&\s*/g, '-')
+          : null;
         const { data, error } = await supabase.rpc('get_calendar_events', {
           p_latitude: null,
           p_longitude: null,
           p_radius_miles: null,
           p_min_date: now.toISOString(),
-          p_genres: filters?.genres && filters.genres.length > 0 ? filters.genres : null,
-          p_limit: 10000
+          p_genres: singleUmbrellaNoLoc ? null : (filters?.genres && filters.genres.length > 0 ? filters.genres : null),
+          p_limit: 10000,
+          p_umbrella_slug: singleUmbrellaNoLoc,
+          p_max_depth: 5
         });
 
         if (error) throw error;

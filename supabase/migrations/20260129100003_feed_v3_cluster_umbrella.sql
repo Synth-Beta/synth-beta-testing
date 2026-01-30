@@ -1,38 +1,7 @@
--- Ensure get_personalized_feed_v3 function exists
--- This migration ensures the function is created even if the original migration wasn't applied
--- or if the function was dropped for some reason
-
--- Step 1: Ensure calculate_distance function exists (dependency)
-CREATE OR REPLACE FUNCTION public.calculate_distance(
-    lat1 FLOAT, 
-    lon1 FLOAT, 
-    lat2 FLOAT, 
-    lon2 FLOAT
-) RETURNS FLOAT AS $$
-BEGIN
-    RETURN (
-        3959 * acos(
-            cos(radians(lat1)) * 
-            cos(radians(lat2)) * 
-            cos(radians(lon2) - radians(lon1)) + 
-            sin(radians(lat1)) * 
-            sin(radians(lat2))
-        )
-    );
-END;
-$$ LANGUAGE plpgsql;
-
-GRANT EXECUTE ON FUNCTION public.calculate_distance(FLOAT, FLOAT, FLOAT, FLOAT) TO authenticated;
-
-COMMENT ON FUNCTION public.calculate_distance IS 'Calculates distance between two lat/lng coordinates in miles using Haversine formula';
-
--- Step 2: Drop any existing version of get_personalized_feed_v3 (any signature)
--- This allows us to recreate it with the correct signature
+-- Update get_personalized_feed_v3: add cluster match and umbrella-aware genre scoring.
+-- Requires: event_clusters view, user_cluster_affinity table, genre_paths, get_genres_under_umbrella, events_genres.
 DROP FUNCTION IF EXISTS public.get_personalized_feed_v3 CASCADE;
 
--- Step 3: Create the function
--- Note: The full function definition is identical to 20250325000000_create_personalized_feed_v3.sql
--- This ensures the function exists even if that migration wasn't applied
 CREATE OR REPLACE FUNCTION public.get_personalized_feed_v3(
   p_user_id        UUID,
   p_limit          INT DEFAULT 50,
@@ -879,5 +848,4 @@ GRANT EXECUTE ON FUNCTION public.get_personalized_feed_v3(
 ) TO authenticated;
 
 COMMENT ON FUNCTION public.get_personalized_feed_v3 IS 
-'Unified personalized feed v3: Returns events, reviews, friend suggestions, and group chats in a single feed with intelligent blending. Supports multiple content types with normalized scoring and social graph integration.';
-
+'Unified personalized feed v3: Returns events, reviews, friend suggestions, and group chats. Includes cluster match and umbrella-aware genre scoring.';

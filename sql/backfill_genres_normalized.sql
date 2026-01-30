@@ -1,0 +1,9 @@
+-- NOT USED: We do not modify artists.genres or events.genres.
+-- Those columns stay as-is (full and accurate).
+--
+-- Normalization is applied at read time via:
+--   - Views: artists_with_normalized_genres, events_with_normalized_genres
+--     (run sql/genre_views_read_only.sql to create them)
+--   - Or inline: normalize_genre_array(artists.genres), normalize_genre_array(events.genres)
+--
+-- Use the views or the function in co-occurrence, embeddings, taxonomy, and paths.

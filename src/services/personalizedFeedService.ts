@@ -79,6 +79,15 @@ export interface PersonalizedFeedFilters {
   filterByFollowing?: 'all' | 'following';
   radiusMiles?: number;
   city?: string;
+  /** V4-style: include past events (default false) */
+  includePast?: boolean;
+  /** V4-style: max days ahead for event date (default 90) */
+  maxDaysAhead?: number;
+  /** V4-style: state/region filter (e.g. venue_state) */
+  state?: string;
+  /** Direct lat/lng for geo filtering (faster than city string matching) */
+  latitude?: number;
+  longitude?: number;
 }
 
 // V3 Feed Types
@@ -103,6 +112,33 @@ export interface UnifiedFeedResponse {
   has_more: boolean;
 }
 
+// V5 Feed: sectioned events (following, recommending, trending)
+export type FeedV5Section = 'following' | 'recommending' | 'trending';
+
+export interface FeedV5Row {
+  section: FeedV5Section;
+  id: string;
+  score: number;
+  payload: Record<string, any>;
+  context: {
+    cluster_path_slug?: string | null;
+    total_interest_count?: number;
+    user_is_interested?: boolean;
+    [key: string]: any;
+  };
+}
+
+export interface FeedV5SectionResult {
+  events: PersonalizedEvent[];
+  hasMore: boolean;
+}
+
+export interface FeedV5Result {
+  following: FeedV5SectionResult;
+  recommending: FeedV5SectionResult;
+  trending: FeedV5SectionResult;
+}
+
 const DEFAULT_RADIUS_MILES = 50;
 const EARLIEST_DATE = new Date(0).toISOString();
 
@@ -119,8 +155,16 @@ type NormalizedFilters = {
   dateEnd?: Date;
   daysOfWeek?: number[];
   followingOnly: boolean;
+  /** V4-style: include past events */
+  includePast: boolean;
+  /** V4-style: max days ahead (default 90) */
+  maxDaysAhead: number;
+  /** V4-style: state filter */
+  state: string | null;
   debugSummary: {
     city: string | null;
+    lat?: number;
+    lng?: number;
     radius: number;
     genres: number;
     citiesSelected: number;
@@ -128,6 +172,307 @@ type NormalizedFilters = {
     followingOnly: boolean;
   };
 };
+
+/**
+ * Personalization Engine V5: unified randomized events feed.
+ * Calls get_personalized_feed_v5 RPC which returns all events in one randomized list.
+ */
+export class PersonalizationEngineV5 {
+  /**
+   * Fetch unified randomized feed - all events in one shuffled list.
+   */
+  static async getUnifiedFeed(
+    userId: string,
+    limit: number = 20,
+    offset: number = 0,
+    filters?: PersonalizedFeedFilters
+  ): Promise<{ events: (PersonalizedEvent & { event_type?: string })[]; hasMore: boolean }> {
+    const normalizedFilters = await PersonalizedFeedService['normalizeFilters'](filters);
+    const hasCoordinates = normalizedFilters.cityCoordinates?.lat != null && normalizedFilters.cityCoordinates?.lng != null;
+    
+    const rpcPayload = {
+      p_user_id: userId,
+      p_section: null, // null = unified feed
+      p_limit: limit,
+      p_offset: offset,
+      p_city_lat: normalizedFilters.cityCoordinates?.lat ?? null,
+      p_city_lng: normalizedFilters.cityCoordinates?.lng ?? null,
+      p_radius_miles: normalizedFilters.radiusMiles ?? DEFAULT_RADIUS_MILES,
+      p_include_past: normalizedFilters.includePast,
+      p_city_filter: hasCoordinates ? null : (normalizedFilters.city ?? null),
+      p_state_filter: hasCoordinates ? null : (normalizedFilters.state ?? null),
+      p_max_days_ahead: normalizedFilters.maxDaysAhead,
+    };
+    
+    console.log('🔍 [FeedV5] getUnifiedFeed RPC payload:', JSON.stringify(rpcPayload, null, 2));
+    
+    try {
+      const { data, error } = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
+      if (error) {
+        logger.error('❌ get_personalized_feed_v5 error:', error);
+        return { events: [], hasMore: false };
+      }
+      
+      const rows = (data ?? []) as FeedV5Row[];
+      console.log('🔍 [FeedV5] Raw RPC response:', rows.length, 'events');
+      
+      // Map rows to events, preserving event_type from context
+      const events = rows.map((row) => {
+        const event = PersonalizationEngineV5.rowToEvent(row);
+        return {
+          ...event,
+          event_type: row.context?.event_type ?? row.section ?? 'trending',
+        };
+      });
+      
+      return {
+        events,
+        hasMore: rows.length >= limit,
+      };
+    } catch (err) {
+      logger.error('❌ get_personalized_feed_v5 exception:', err);
+      return { events: [], hasMore: false };
+    }
+  }
+
+  /**
+   * Fetch one section of the v5 feed (following | recommending | trending).
+   * @deprecated Use getUnifiedFeed instead for the unified randomized feed.
+   */
+  static async getSection(
+    userId: string,
+    section: FeedV5Section,
+    limit: number = 20,
+    offset: number = 0,
+    filters?: PersonalizedFeedFilters
+  ): Promise<FeedV5SectionResult> {
+    const normalizedFilters = await PersonalizedFeedService['normalizeFilters'](filters);
+    const rpcPayload = {
+      p_user_id: userId,
+      p_section: section,
+      p_limit: limit,
+      p_offset: offset,
+      p_city_lat: normalizedFilters.cityCoordinates?.lat ?? null,
+      p_city_lng: normalizedFilters.cityCoordinates?.lng ?? null,
+      p_radius_miles: normalizedFilters.radiusMiles ?? DEFAULT_RADIUS_MILES,
+      p_include_past: normalizedFilters.includePast,
+      p_city_filter: normalizedFilters.city ?? null,
+      p_state_filter: normalizedFilters.state ?? null,
+      p_max_days_ahead: normalizedFilters.maxDaysAhead,
+    };
+    try {
+      const { data, error } = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
+      if (error) {
+        logger.error('❌ get_personalized_feed_v5 error:', { section, error });
+        return { events: [], hasMore: false };
+      }
+      const rows = (data ?? []) as FeedV5Row[];
+      const events = rows.map((row) => PersonalizationEngineV5.rowToEvent(row));
+      const filtered = PersonalizedFeedService['applyClientSideFilters'](
+        events.map((e) => PersonalizationEngineV5.eventToFeedRow(e)),
+        normalizedFilters,
+        normalizedFilters.includePast
+      );
+      const finalEvents = filtered.map((row) => PersonalizedFeedService['mapRowToEvent'](row));
+      return {
+        events: finalEvents,
+        hasMore: rows.length >= limit,
+      };
+    } catch (err) {
+      logger.error('❌ get_personalized_feed_v5 exception:', { section, err });
+      return { events: [], hasMore: false };
+    }
+  }
+
+  /**
+   * Fetch all three sections in one call (p_section NULL). Returns events grouped by section.
+   */
+  static async getAllSections(
+    userId: string,
+    limitPerSection: number = 20,
+    filters?: PersonalizedFeedFilters
+  ): Promise<FeedV5Result> {
+    const normalizedFilters = await PersonalizedFeedService['normalizeFilters'](filters);
+    // When we have lat/lng, skip city/state string filters (lat/lng is faster and more accurate)
+    const hasCoordinates = normalizedFilters.cityCoordinates?.lat != null && normalizedFilters.cityCoordinates?.lng != null;
+    const rpcPayload = {
+      p_user_id: userId,
+      p_section: null,
+      p_limit: limitPerSection,
+      p_offset: 0,
+      p_city_lat: normalizedFilters.cityCoordinates?.lat ?? null,
+      p_city_lng: normalizedFilters.cityCoordinates?.lng ?? null,
+      p_radius_miles: normalizedFilters.radiusMiles ?? DEFAULT_RADIUS_MILES,
+      p_include_past: normalizedFilters.includePast,
+      // Skip city/state filters when using lat/lng (faster)
+      p_city_filter: hasCoordinates ? null : (normalizedFilters.city ?? null),
+      p_state_filter: hasCoordinates ? null : (normalizedFilters.state ?? null),
+      p_max_days_ahead: normalizedFilters.maxDaysAhead,
+    };
+    console.log('🔍 [FeedV5] getAllSections RPC payload:', JSON.stringify(rpcPayload, null, 2));
+    console.log('🔍 [FeedV5] normalizedFilters:', normalizedFilters.debugSummary);
+    try {
+      const { data, error } = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
+      if (error) {
+        logger.error('❌ get_personalized_feed_v5 error:', error);
+        return {
+          following: { events: [], hasMore: false },
+          recommending: { events: [], hasMore: false },
+          trending: { events: [], hasMore: false },
+        };
+      }
+      const rows = (data ?? []) as FeedV5Row[];
+      console.log('🔍 [FeedV5] Raw RPC response: total rows =', rows.length);
+      console.log('🔍 [FeedV5] Raw rows sample (first 3):', rows.slice(0, 3).map(r => ({ section: r.section, id: r.id, score: r.score })));
+      
+      // Count rows by section
+      const sectionCounts: Record<string, number> = {};
+      for (const row of rows) {
+        sectionCounts[row.section] = (sectionCounts[row.section] || 0) + 1;
+      }
+      console.log('🔍 [FeedV5] Rows by section from RPC:', sectionCounts);
+      
+      const bySection: Record<FeedV5Section, PersonalizedEvent[]> = {
+        following: [],
+        recommending: [],
+        trending: [],
+      };
+      for (const row of rows) {
+        const section = row.section as FeedV5Section;
+        if (section in bySection) {
+          bySection[section].push(PersonalizationEngineV5.rowToEvent(row));
+        }
+      }
+      console.log('🔍 [FeedV5] After grouping - following:', bySection.following.length, 'recommending:', bySection.recommending.length, 'trending:', bySection.trending.length);
+      
+      const followingFiltered = PersonalizedFeedService['applyClientSideFilters'](
+        bySection.following.map((e) => PersonalizationEngineV5.eventToFeedRow(e)),
+        normalizedFilters,
+        normalizedFilters.includePast
+      );
+      const recommendingFiltered = PersonalizedFeedService['applyClientSideFilters'](
+        bySection.recommending.map((e) => PersonalizationEngineV5.eventToFeedRow(e)),
+        normalizedFilters,
+        normalizedFilters.includePast
+      );
+      const trendingFiltered = PersonalizedFeedService['applyClientSideFilters'](
+        bySection.trending.map((e) => PersonalizationEngineV5.eventToFeedRow(e)),
+        normalizedFilters,
+        normalizedFilters.includePast
+      );
+      console.log('🔍 [FeedV5] After client-side filtering - following:', followingFiltered.length, 'recommending:', recommendingFiltered.length, 'trending:', trendingFiltered.length);
+      
+      return {
+        following: {
+          events: followingFiltered.map((row) => PersonalizedFeedService['mapRowToEvent'](row)),
+          hasMore: bySection.following.length >= limitPerSection,
+        },
+        recommending: {
+          events: recommendingFiltered.map((row) => PersonalizedFeedService['mapRowToEvent'](row)),
+          hasMore: bySection.recommending.length >= limitPerSection,
+        },
+        trending: {
+          events: trendingFiltered.map((row) => PersonalizedFeedService['mapRowToEvent'](row)),
+          hasMore: bySection.trending.length >= limitPerSection,
+        },
+      };
+    } catch (err) {
+      logger.error('❌ get_personalized_feed_v5 exception:', err);
+      return {
+        following: { events: [], hasMore: false },
+        recommending: { events: [], hasMore: false },
+        trending: { events: [], hasMore: false },
+      };
+    }
+  }
+
+  private static rowToEvent(row: FeedV5Row): PersonalizedEvent {
+    const p = row.payload || {};
+    const ctx = row.context || {};
+    const eventId = p.id ?? row.id;
+    return {
+      id: eventId,
+      jambase_event_id: eventId,
+      title: p.title ?? 'Untitled Event',
+      artist_name: p.artist_name ?? null,
+      artist_id: p.artist_id ?? null,
+      venue_name: p.venue_name ?? null,
+      venue_id: p.venue_id ?? null,
+      venue_city: p.venue_city ?? null,
+      venue_state: p.venue_state ?? null,
+      venue_address: p.venue_address ?? null,
+      venue_zip: p.venue_zip ?? null,
+      event_date: p.event_date,
+      doors_time: p.doors_time ?? null,
+      description: p.description ?? null,
+      genres: Array.isArray(p.genres) ? p.genres : [],
+      latitude: p.latitude ?? null,
+      longitude: p.longitude ?? null,
+      ticket_urls: Array.isArray(p.ticket_urls) ? p.ticket_urls : [],
+      ticket_available: p.ticket_available ?? false,
+      price_range: p.price_range ?? null,
+      ticket_price_min: p.price_min ?? p.ticket_price_min ?? null,
+      ticket_price_max: p.price_max ?? p.ticket_price_max ?? null,
+      ticket_url: (Array.isArray(p.ticket_urls) && p.ticket_urls.length > 0) ? p.ticket_urls[0] : null,
+      setlist: null,
+      setlist_enriched: false,
+      setlist_song_count: null,
+      setlist_fm_id: null,
+      setlist_fm_url: null,
+      setlist_source: null,
+      setlist_last_updated: null,
+      tour_name: null,
+      created_at: p.created_at ?? new Date().toISOString(),
+      updated_at: p.updated_at ?? new Date().toISOString(),
+      relevance_score: typeof row.score === 'number' ? row.score : 0,
+      user_is_interested: ctx.user_is_interested ?? false,
+      interested_count: ctx.total_interest_count ?? 0,
+      friends_interested_count: null,
+      poster_image_url: p.poster_image_url ?? null,
+      event_media_url: p.event_media_url ?? (p.media_urls?.[0]) ?? null,
+      images: p.images ?? null,
+    } as PersonalizedEvent;
+  }
+
+  private static eventToFeedRow(event: PersonalizedEvent): PersonalizedFeedRow {
+    return {
+      event_id: event.id,
+      title: event.title ?? null,
+      artist_name: event.artist_name ?? null,
+      artist_id: event.artist_id ?? null,
+      artist_uuid: (event as any).artist_uuid ?? null,
+      venue_name: event.venue_name ?? null,
+      venue_id: event.venue_id ?? null,
+      venue_uuid: (event as any).venue_uuid ?? null,
+      venue_city: event.venue_city ?? null,
+      venue_state: event.venue_state ?? null,
+      venue_address: event.venue_address ?? null,
+      venue_zip: event.venue_zip ?? null,
+      event_date: event.event_date,
+      doors_time: event.doors_time ?? null,
+      description: event.description ?? null,
+      genres: event.genres ?? [],
+      latitude: event.latitude ?? null,
+      longitude: event.longitude ?? null,
+      ticket_urls: event.ticket_urls ?? [],
+      ticket_available: event.ticket_available ?? null,
+      price_range: event.price_range ?? null,
+      ticket_price_min: event.price_min ?? (event as any).ticket_price_min ?? null,
+      ticket_price_max: event.price_max ?? (event as any).ticket_price_max ?? null,
+      relevance_score: event.relevance_score ?? null,
+      friend_interest_count: event.friends_interested_count ?? null,
+      total_interest_count: event.interested_count ?? null,
+      is_promoted: (event as any).is_promoted ?? null,
+      promotion_tier: (event as any).promotion_tier ?? null,
+      distance_miles: event.distance_miles ?? null,
+      poster_image_url: event.poster_image_url ?? null,
+      images: event.images ?? null,
+      event_media_url: event.event_media_url ?? null,
+      created_at: event.created_at ?? null,
+      updated_at: event.updated_at ?? null,
+    };
+  }
+}
 
 export class PersonalizedFeedService {
   // When the user_preferences table or its music_preference_signals column
@@ -883,31 +1228,41 @@ export class PersonalizedFeedService {
         .filter(Boolean)
         .map((city) => normalizeCityName(city || '')) ?? undefined;
 
-    const baseCity = filters?.city ?? cleanedCities?.[0] ?? null;
+    // Use direct lat/lng if provided (fastest path - uses index directly)
+    let cityCoordinates: { lat: number; lng: number } | null = null;
+    if (filters?.latitude != null && filters?.longitude != null) {
+      cityCoordinates = { lat: filters.latitude, lng: filters.longitude };
+      logger.log(`📍 Using direct coordinates:`, cityCoordinates);
+    }
+
+    // Only look up city name if needed for string-based filtering
+    let baseCity = filters?.city ?? cleanedCities?.[0] ?? null;
     const normalizedCity = baseCity ? normalizeCityName(baseCity) : null;
-      
+    const firstCityRaw = filters?.selectedCities?.[0] ?? filters?.city;
+    const stateFromCity = typeof firstCityRaw === 'string' && firstCityRaw.includes(',') ? firstCityRaw.split(',')[1]?.trim() ?? null : null;
+
+    // If we have city name but no coordinates, try to look them up (slower path)
+    if (!cityCoordinates && baseCity) {
+      try {
+        const { RadiusSearchService } = await import('@/services/radiusSearchService');
+        cityCoordinates = await RadiusSearchService.getCityCoordinates(baseCity);
+        if (cityCoordinates) {
+          logger.log(`📍 Looked up coordinates for "${baseCity}":`, cityCoordinates);
+        }
+      } catch (error) {
+        logger.error('Error looking up city coordinates:', error);
+      }
+    }
+
     const genres = filters?.genres && filters.genres.length > 0 ? filters.genres : undefined;
     const daysOfWeek = filters?.daysOfWeek && filters.daysOfWeek.length > 0 ? filters.daysOfWeek : undefined;
     const followingOnly = filters?.filterByFollowing === 'following';
     const dateStartDate = filters?.dateRange?.from;
     const dateEndDate = filters?.dateRange?.to;
     const radiusMiles = filters?.radiusMiles ?? DEFAULT_RADIUS_MILES;
-
-    // Look up city coordinates if city is specified
-    let cityCoordinates: { lat: number; lng: number } | null = null;
-    if (baseCity) {
-      try {
-        const { RadiusSearchService } = await import('@/services/radiusSearchService');
-        cityCoordinates = await RadiusSearchService.getCityCoordinates(baseCity);
-        if (cityCoordinates) {
-          logger.log(`📍 Found coordinates for "${baseCity}":`, cityCoordinates);
-        } else {
-          logger.warn(`⚠️ No coordinates found for city: "${baseCity}"`);
-        }
-      } catch (error) {
-        logger.error('Error looking up city coordinates:', error);
-      }
-    }
+    const includePast = filters?.includePast ?? false;
+    const maxDaysAhead = filters?.maxDaysAhead ?? (dateEndDate ? Math.ceil((dateEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 90);
+    const state = filters?.state ?? stateFromCity ?? null;
 
     return {
       genres,
@@ -922,8 +1277,13 @@ export class PersonalizedFeedService {
       dateEnd: dateEndDate,
       daysOfWeek,
       followingOnly,
+      includePast,
+      maxDaysAhead,
+      state,
       debugSummary: {
         city: normalizedCity,
+        lat: cityCoordinates?.lat,
+        lng: cityCoordinates?.lng,
         radius: radiusMiles,
         genres: genres?.length ?? 0,
         citiesSelected: cleanedCities?.length ?? 0,

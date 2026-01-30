@@ -418,6 +418,15 @@ export class OnboardingService {
 
       const now = new Date().toISOString();
 
+      // Normalize genre for taxonomy: lowercase, trim, collapse spaces/dashes (matches DB normalize_genre_key)
+      const normalizeGenre = (raw: string) =>
+        raw
+          .trim()
+          .toLowerCase()
+          .replace(/[\s\-_]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim() || raw.trim();
+
       const insertRows = [
         ...genres
           .filter((g) => typeof g === 'string' && g.trim().length > 0)
@@ -427,8 +436,9 @@ export class OnboardingService {
             entity_type: PREFERENCE_ENTITY_TYPE.GENRE,
             entity_id: null as string | null,
             entity_name: null as string | null,
-            genre,
+            genre: normalizeGenre(genre),
             signal_weight: 1.0,
+            context: { source: 'onboarding' },
             occurred_at: now,
           })),
         ...artists
@@ -441,6 +451,7 @@ export class OnboardingService {
             entity_name: artist.id ? null : artist.name,
             genre: null as string | null,
             signal_weight: 1.0,
+            context: { source: 'onboarding' },
             occurred_at: now,
           })),
       ];

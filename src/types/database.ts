@@ -268,6 +268,35 @@ export interface EventInterest {
 }
 
 // ============================================
+// 5a. GENRES TABLE (normalized genres)
+// ============================================
+export interface Genre {
+  id: string; // UUID
+  name: string; // Display name (e.g., "Hip Hop")
+  normalized_key: string; // Dedup key (e.g., "hip hop")
+  slug: string; // URL-safe (e.g., "hip-hop")
+  created_at: string; // TIMESTAMPTZ
+}
+
+// ============================================
+// 5b. ARTISTS_GENRES JOIN TABLE
+// ============================================
+export interface ArtistGenre {
+  artist_id: string; // UUID - references artists(id)
+  genre_id: string; // UUID - references genres(id)
+  created_at: string; // TIMESTAMPTZ
+}
+
+// ============================================
+// 5c. EVENTS_GENRES JOIN TABLE
+// ============================================
+export interface EventGenre {
+  event_id: string; // UUID - references events(id)
+  genre_id: string; // UUID - references genres(id)
+  created_at: string; // TIMESTAMPTZ
+}
+
+// ============================================
 // 6. REVIEWS TABLE (from reviews)
 // ============================================
 export interface Review {
@@ -393,7 +422,39 @@ export interface AnalyticsDaily {
 }
 
 // ============================================
-// 11. USER_PREFERENCES TABLE (unified preferences table)
+// 11. USER_PREFERENCE_SIGNALS (personalization engine v5)
+// ============================================
+export type PreferenceSignalType =
+  | 'save'
+  | 'interest'
+  | 'follow'
+  | 'view'
+  | 'genre_manual_preference'
+  | 'artist_manual_preference'
+  | 'streaming_profile_synced'
+  | 'bucket_list'
+  | 'review'
+  | 'attendance';
+
+export type PreferenceEntityType = 'artist' | 'venue' | 'event' | 'genre';
+
+export interface UserPreferenceSignal {
+  id: string; // UUID
+  user_id: string; // UUID - references users(user_id)
+  signal_type: PreferenceSignalType;
+  entity_type: PreferenceEntityType;
+  entity_id: string | null; // UUID
+  entity_name: string | null;
+  signal_weight: number; // NUMERIC(5,2), default 1.0
+  genre: string | null;
+  context: Record<string, any> | null; // JSONB, e.g. { source, cluster_path_slug }
+  occurred_at: string; // TIMESTAMPTZ
+  created_at: string; // TIMESTAMPTZ
+  updated_at: string; // TIMESTAMPTZ
+}
+
+// ============================================
+// 12. USER_PREFERENCES TABLE (unified preferences table)
 // ============================================
 export interface UserPreferences {
   id: string; // UUID
@@ -410,10 +471,20 @@ export interface UserPreferences {
   recommendation_cache: Record<string, any>; // JSONB
   created_at: string; // TIMESTAMPTZ
   updated_at: string; // TIMESTAMPTZ
+  // Personalization engine v5 (aggregated from user_preference_signals)
+  genre_preference_scores?: Record<string, number> | null; // JSONB
+  artist_preference_scores?: Record<string, number> | null; // JSONB
+  venue_preference_scores?: Record<string, number> | null; // JSONB
+  top_genres?: string[] | null; // text[]
+  top_artists?: string[] | null; // UUID[]
+  top_venues?: string[] | null; // UUID[]
+  last_signal_at?: string | null; // TIMESTAMPTZ
+  signal_count?: number | null;
+  last_computed_at?: string | null; // TIMESTAMPTZ
 }
 
 // ============================================
-// 12. EXISTING TABLES (unchanged)
+// 13. EXISTING TABLES (unchanged)
 // ============================================
 
 export interface Chat {

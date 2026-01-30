@@ -38,8 +38,57 @@ class IncrementalSync3NF {
       artistsUpdated: 0,
       venuesNew: 0,
       venuesUpdated: 0,
+      genresNormalized: 0,
       apiCalls: 0
     };
+  }
+
+  /**
+   * Sync normalized genres for an artist by calling the database function
+   * @param {string} artistId - UUID of the artist
+   * @param {string[]} rawGenres - Array of raw genre strings
+   */
+  async syncArtistNormalizedGenres(artistId, rawGenres) {
+    if (!artistId || !rawGenres || rawGenres.length === 0) return;
+    
+    try {
+      const { error } = await this.syncService.supabase.rpc('sync_artist_genres', {
+        p_artist_id: artistId,
+        p_raw_genres: rawGenres
+      });
+      
+      if (error) {
+        console.warn(`  ⚠️  Error syncing normalized genres for artist ${artistId}: ${error.message}`);
+      } else {
+        this.stats.genresNormalized++;
+      }
+    } catch (err) {
+      console.warn(`  ⚠️  Exception syncing normalized genres for artist ${artistId}: ${err.message}`);
+    }
+  }
+
+  /**
+   * Sync normalized genres for an event by calling the database function
+   * @param {string} eventId - UUID of the event
+   * @param {string[]} rawGenres - Array of raw genre strings
+   */
+  async syncEventNormalizedGenres(eventId, rawGenres) {
+    if (!eventId || !rawGenres || rawGenres.length === 0) return;
+    
+    try {
+      const { error } = await this.syncService.supabase.rpc('sync_event_genres', {
+        p_event_id: eventId,
+        p_raw_genres: rawGenres
+      });
+      
+      if (error) {
+        console.warn(`  ⚠️  Error syncing normalized genres for event ${eventId}: ${error.message}`);
+      } else {
+        this.stats.genresNormalized++;
+      }
+    } catch (err) {
+      console.warn(`  ⚠️  Exception syncing normalized genres for event ${eventId}: ${err.message}`);
+    }
   }
 
   /**
@@ -291,6 +340,12 @@ class IncrementalSync3NF {
 
             // Create external_entity_ids entry
             await this.upsertExternalId(artist.id, 'jambase', 'artist', jambaseId);
+            
+            // Sync normalized genres for this artist
+            const originalArtist = newArtists.find(a => a.jambase_artist_id === jambaseId);
+            if (originalArtist?.genres) {
+              await this.syncArtistNormalizedGenres(artist.id, originalArtist.genres);
+            }
           }
         }
       }
@@ -377,6 +432,12 @@ class IncrementalSync3NF {
       }
 
       this.stats.artistsUpdated++;
+      
+      // Sync normalized genres for this artist
+      const finalGenres = updateData.genres || mergedGenres;
+      if (finalGenres && finalGenres.length > 0) {
+        await this.syncArtistNormalizedGenres(uuid, finalGenres);
+      }
     }
 
     return artistUuidMap;
@@ -828,6 +889,12 @@ class IncrementalSync3NF {
 
           // Create external_entity_ids entry
           await this.upsertExternalId(event.id, 'jambase', 'event', jambaseEventId);
+          
+          // Sync normalized genres for this event
+          const eventGenres = eventsWithUuids[i]?.genres;
+          if (eventGenres && eventGenres.length > 0) {
+            await this.syncEventNormalizedGenres(event.id, eventGenres);
+          }
         }
       }
     }
@@ -907,6 +974,11 @@ class IncrementalSync3NF {
       }
 
       this.stats.eventsUpdated++;
+      
+      // Sync normalized genres for this event
+      if (!isEmptyGenres(finalGenres)) {
+        await this.syncEventNormalizedGenres(uuid, finalGenres);
+      }
     }
   }
 
@@ -1039,6 +1111,7 @@ class IncrementalSync3NF {
     console.log(`   Events: ${this.stats.eventsNew} new, ${this.stats.eventsUpdated} updated`);
     console.log(`   Artists: ${this.stats.artistsNew} new, ${this.stats.artistsUpdated} updated`);
     console.log(`   Venues: ${this.stats.venuesNew} new, ${this.stats.venuesUpdated} updated`);
+    console.log(`   Genres normalized: ${this.stats.genresNormalized} entities`);
     console.log(`   API calls: ${this.syncService.getStats().apiCalls}`);
   }
 }

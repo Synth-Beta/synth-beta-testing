@@ -251,6 +251,38 @@ class InteractionTrackingService {
   }
 
   /**
+   * Write a preference signal for personalization (user_preference_signals).
+   * Only runs for preference-relevant events: interest, follow, view on event/artist/venue.
+   * Genre is filled by DB trigger auto_generate_genre_signals when entity_id is set.
+   */
+  private async upsertPreferenceSignal(userId: string, event: InteractionEvent | BatchedInteractionEvent): Promise<void> {
+    const PREFERENCE_EVENT_TYPES = ['interest', 'follow', 'view'] as const;
+    const PREFERENCE_ENTITY_TYPES = ['event', 'artist', 'venue'] as const;
+    if (!PREFERENCE_EVENT_TYPES.includes(event.eventType as any) || !PREFERENCE_ENTITY_TYPES.includes(event.entityType as any)) {
+      return;
+    }
+    const entityUuid = event.entityUuid ?? event.entityId ?? null;
+    if (!entityUuid && event.entityType !== 'genre') {
+      return;
+    }
+    const signalType = event.eventType === 'follow' ? 'follow' : event.eventType === 'view' ? 'view' : 'interest';
+    const weight = event.eventType === 'follow' ? 2.0 : event.eventType === 'view' ? 0.5 : 1.5;
+    const entityName = event.metadata?.artist_name ?? event.metadata?.venue_name ?? event.metadata?.event_name ?? null;
+    const now = new Date().toISOString();
+    await supabase.from('user_preference_signals').insert({
+      user_id: userId,
+      signal_type: signalType,
+      entity_type: event.entityType as 'event' | 'artist' | 'venue',
+      entity_id: entityUuid,
+      entity_name: entityName,
+      signal_weight: weight,
+      genre: null,
+      context: { source: 'app', event_type: event.eventType },
+      occurred_at: (event as BatchedInteractionEvent).timestamp ?? now,
+    });
+  }
+
+  /**
    * Calculate engagement score based on interaction patterns
    */
   private calculateEngagementScore(): number {
@@ -363,6 +395,10 @@ class InteractionTrackingService {
           console.error('Failed to log interaction:', error);
           // Don't throw - logging failures shouldn't break the app
         }
+      } else {
+        // Personalization path: write to user_preference_signals for preference-relevant events
+        // Genre is filled by DB trigger auto_generate_genre_signals when entity_id is set
+        this.upsertPreferenceSignal(user.id, normalizedEvent).catch(() => {});
       }
     } catch (error) {
       await this.logError('interaction_logging_exception', error, normalizedEvent);
@@ -510,6 +546,10 @@ class InteractionTrackingService {
         console.debug(`✅ Logged ${dbBatch.length} interactions`);
         if (invalidEvents.length > 0) {
           console.warn(`⚠️ Skipped ${invalidEvents.length} invalid interactions`);
+        }
+        // Personalization path: write preference signals for preference-relevant events
+        for (const ev of validEvents) {
+          this.upsertPreferenceSignal(user.id, ev).catch(() => {});
         }
       }
     } catch (error) {
