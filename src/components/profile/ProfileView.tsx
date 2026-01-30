@@ -1695,7 +1695,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   return (
     <div 
-      className="min-h-screen w-full max-w-[393px] mx-auto overflow-x-hidden" style={{ backgroundColor: 'var(--neutral-50)' }}
+      className="min-h-screen w-full overflow-x-hidden"
+      style={{ backgroundColor: 'var(--neutral-50)' }}
     >
       {/* Mobile Header with person's name */}
       {!hideHeader && (
@@ -1752,22 +1753,33 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           )}
         </div>
       )}
-<div style={{ position: 'relative' }}>
-<div
-    aria-hidden="true"
-    style={{
-      position: 'absolute',
-      top: 0,
-      bottom: 0,
-      left: '50%',
-      transform: 'translateX(-50%)',
-      width: '100vw',
-      backgroundColor: 'var(--neutral-050)',
-      zIndex: 0
-    }}
-  />
-        <div className="w-full max-w-full overflow-x-hidden" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 0 }}>
-        <div className="w-full max-w-full overflow-visible" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 0 }}>
+      {/* Content should start exactly 12px below the fixed MobileHeader */}
+      <div className="pt-[12px]">
+        <div style={{ position: 'relative' }}>
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '100vw',
+              backgroundColor: 'var(--neutral-050)',
+              zIndex: 0
+            }}
+          />
+          <div
+            className="w-full max-w-full overflow-visible"
+            style={{
+              paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+              paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+              paddingTop: hideHeader
+                ? 'env(safe-area-inset-top, 0px)'
+                : 'calc(env(safe-area-inset-top, 0px) + 68px)',
+              paddingBottom: 0,
+            }}
+          >
           {/* Profile Card */}
         <Card 
           className="w-full max-w-full mb-0 swift-ui-card"
@@ -2151,8 +2163,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             </div>
           </CardContent>
         </Card>
+          </div>
         </div>
-      </div>
       </div>
 
       {/* Instagram-style Content Tabs */}
@@ -3218,22 +3230,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               onOpenProfile={(userId) => {
                 const event = new CustomEvent('open-user-profile', { detail: { userId } });
                 window.dispatchEvent(event);
-                setViewReviewOpen(false);
-              }}
-             onOpenArtist={(artistId, artistName) => {
-                window.dispatchEvent(
-                  new CustomEvent('open-artist-card', {
-                    detail: { artistId, artistName },
-                  })
-                );
-                setViewReviewOpen(false);
-              }}
-              onOpenVenue={(venueId, venueName) => {
-                window.dispatchEvent(
-                  new CustomEvent('open-venue-card', {
-                    detail: { venueId, venueName },
-                  })
-                );
                 setViewReviewOpen(false);
               }}
             />

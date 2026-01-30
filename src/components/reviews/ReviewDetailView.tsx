@@ -464,6 +464,39 @@ export function ReviewDetailView({
 
   const mainImage = reviewData.photos && reviewData.photos.length > 0 ? reviewData.photos[0] : null;
 
+  const openArtistDetail = () => {
+    if (!reviewData.artist_id) return;
+    const artistName = reviewData.event_info?.artist_name || '';
+
+    // Always open the global Discover-style artist detail modal (not an event header layout).
+    // Close the review first so we don't keep the review header mounted behind the detail view.
+    onBack();
+    window.dispatchEvent(
+      new CustomEvent('open-artist-card', {
+        detail: { artistId: reviewData.artist_id, artistName },
+      })
+    );
+
+    // Backward-compatible hook (should not be used to navigate to an event-layout page).
+    onOpenArtist?.(reviewData.artist_id, artistName);
+  };
+
+  const openVenueDetail = () => {
+    if (!reviewData.venue_id) return;
+    const venueName = reviewData.event_info?.venue_name || '';
+
+    // Always open the global Discover-style venue detail modal (not an event header layout).
+    onBack();
+    window.dispatchEvent(
+      new CustomEvent('open-venue-card', {
+        detail: { venueId: reviewData.venue_id, venueName },
+      })
+    );
+
+    // Backward-compatible hook (should not be used to navigate to an event-layout page).
+    onOpenVenue?.(reviewData.venue_id, venueName);
+  };
+
   return (
     <div 
       className="fixed inset-0 z-50 overflow-y-auto"
@@ -629,11 +662,7 @@ export function ReviewDetailView({
               {/* Artist Button */}
               {reviewData.event_info?.artist_name && (
                 <button
-                  onClick={() => {
-                    if (onOpenArtist && reviewData.artist_id) {
-                      onOpenArtist(reviewData.artist_id, reviewData.event_info?.artist_name || '');
-                    }
-                  }}
+                  onClick={openArtistDetail}
                   className="swift-ui-button swift-ui-button-secondary"
                   style={{
                     display: 'flex',
@@ -672,11 +701,7 @@ export function ReviewDetailView({
               {/* Venue Button */}
               {reviewData.event_info?.venue_name && (
                 <button
-                  onClick={() => {
-                    if (onOpenVenue && reviewData.venue_id) {
-                      onOpenVenue(reviewData.venue_id, reviewData.event_info?.venue_name || '');
-                    }
-                  }}
+                  onClick={openVenueDetail}
                   className="swift-ui-button swift-ui-button-secondary"
                   style={{
                     display: 'flex',

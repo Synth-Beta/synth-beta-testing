@@ -2504,25 +2504,6 @@ interface FriendEventInterest {
               onDelete={() => {
                 // TODO: Implement delete functionality
               }}
-              onOpenArtist={(artistId, artistName) => {
-                // Close the review detail dialog so we don't keep the review header,
-                // then open the global artist detail card (which uses the standard header layout).
-                setReviewDetailOpen(false);
-                window.dispatchEvent(
-                  new CustomEvent('open-artist-card', {
-                    detail: { artistId, artistName },
-                  })
-                );
-              }}
-              onOpenVenue={(venueId, venueName) => {
-                // Close the review detail dialog and open the global venue detail card.
-                setReviewDetailOpen(false);
-                window.dispatchEvent(
-                  new CustomEvent('open-venue-card', {
-                    detail: { venueId, venueName },
-                  })
-                );
-              }}
               onOpenProfile={(userId) => {
                 if (onNavigateToProfile) {
                   onNavigateToProfile(userId);

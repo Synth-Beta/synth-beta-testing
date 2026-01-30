@@ -99,8 +99,16 @@ export const FullScreenImageModal: React.FC<FullScreenImageModalProps> = ({
           padding: 0,
         }}
       >
-        <div className="px-[20px] py-[20px] h-full flex items-center justify-center">
-          <div className="relative">
+        <div
+          className="px-[20px] py-[20px] h-full flex items-center justify-center"
+          onClick={() => onOpenChange(false)}
+        >
+          <div
+            className="relative"
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
+          >
             <img
               src={src}
               alt={alt || ""}

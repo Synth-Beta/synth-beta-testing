@@ -560,6 +560,11 @@
     @apply border-border;
   }
 
+  /* iOS Safari/WebView: keep Radix slider thumbs perfectly circular */
+  [role="slider"] {
+    aspect-ratio: 1 / 1;
+  }
+
   body {
     @apply antialiased;
     /* Use design tokens for font and colors */
