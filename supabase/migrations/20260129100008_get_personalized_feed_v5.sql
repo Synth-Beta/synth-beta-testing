@@ -80,33 +80,31 @@ BEGIN
   ),
   
   -- Calculate genre weights for recommended events
-  -- REQUIRED location filter: events MUST be within 50mi bounding box
+  -- All nearby events get base weight 1.0; total_weight = 1.0 + SUM(matching_genre_scores)
+  -- Location filter only when has_location: otherwise v_*_lat/lng are NULL and BETWEEN would filter out all rows
   event_weights AS (
-    SELECT 
+    SELECT
       e.id AS eid,
-      COALESCE(SUM(
-        COALESCE((v_genre_scores->>g.genre)::NUMERIC, 0) +
-        COALESCE((v_genre_scores->>LOWER(g.genre))::NUMERIC, 0) +
-        COALESCE((v_genre_scores->>REPLACE(g.genre, ' ', ''))::NUMERIC, 0)
-      ), 0.1) AS total_weight
+      (1.0 + COALESCE((
+        SELECT SUM(
+          COALESCE((v_genre_scores->>g.genre)::NUMERIC, 0) +
+          COALESCE((v_genre_scores->>LOWER(g.genre))::NUMERIC, 0) +
+          COALESCE((v_genre_scores->>REPLACE(g.genre, ' ', ''))::NUMERIC, 0)
+        )
+        FROM unnest(COALESCE(e.genres, ARRAY[]::TEXT[])) AS g(genre)
+      ), 0)) AS total_weight
     FROM events e
-    CROSS JOIN LATERAL unnest(e.genres) AS g(genre)
     WHERE e.event_date BETWEEN min_ts AND max_ts
       AND e.id NOT IN (SELECT eid FROM following)
-      -- REQUIRED: event must be within user's location radius
-      AND e.latitude IS NOT NULL 
-      AND e.longitude IS NOT NULL
-      AND e.latitude BETWEEN v_min_lat AND v_max_lat 
-      AND e.longitude BETWEEN v_min_lng AND v_max_lng
-    GROUP BY e.id
-    HAVING SUM(
-      COALESCE((v_genre_scores->>g.genre)::NUMERIC, 0) +
-      COALESCE((v_genre_scores->>LOWER(g.genre))::NUMERIC, 0) +
-      COALESCE((v_genre_scores->>REPLACE(g.genre, ' ', ''))::NUMERIC, 0)
-    ) > 0
+      AND (NOT has_location OR (
+        e.latitude IS NOT NULL AND e.longitude IS NOT NULL
+        AND e.latitude BETWEEN v_min_lat AND v_max_lat
+        AND e.longitude BETWEEN v_min_lng AND v_max_lng
+      ))
   ),
   
   -- 50 RECOMMENDED + extra to fill missing following (weighted by genre scores)
+  -- Location filter only when has_location
   recommended AS (
     SELECT 'recommending'::TEXT AS sec, e.id AS eid, e.*, a.name AS aname, v.name AS vname,
            ew.total_weight AS genre_weight
@@ -116,16 +114,16 @@ BEGIN
     LEFT JOIN venues v ON v.id = e.venue_id
     WHERE e.event_date BETWEEN min_ts AND max_ts
       AND e.id NOT IN (SELECT eid FROM following)
-      -- REQUIRED: event must be within user's location radius
-      AND e.latitude IS NOT NULL 
-      AND e.longitude IS NOT NULL
-      AND e.latitude BETWEEN v_min_lat AND v_max_lat 
-      AND e.longitude BETWEEN v_min_lng AND v_max_lng
+      AND (NOT has_location OR (
+        e.latitude IS NOT NULL AND e.longitude IS NOT NULL
+        AND e.latitude BETWEEN v_min_lat AND v_max_lat
+        AND e.longitude BETWEEN v_min_lng AND v_max_lng
+      ))
     ORDER BY -LN(RANDOM() + 0.0001) / (ew.total_weight + 1)
     LIMIT 50 + (25 - (SELECT cnt FROM following_count))
   ),
   
-  -- 25 TRENDING events (REQUIRED location filter)
+  -- 25 TRENDING events (location filter only when has_location)
   trending AS (
     SELECT 'trending'::TEXT AS sec, e.id AS eid, e.*, a.name AS aname, v.name AS vname,
            0::NUMERIC AS genre_weight
@@ -135,11 +133,11 @@ BEGIN
     WHERE e.event_date BETWEEN min_ts AND max_ts
       AND e.id NOT IN (SELECT eid FROM following)
       AND e.id NOT IN (SELECT eid FROM recommended)
-      -- REQUIRED: event must be within user's location radius
-      AND e.latitude IS NOT NULL 
-      AND e.longitude IS NOT NULL
-      AND e.latitude BETWEEN v_min_lat AND v_max_lat 
-      AND e.longitude BETWEEN v_min_lng AND v_max_lng
+      AND (NOT has_location OR (
+        e.latitude IS NOT NULL AND e.longitude IS NOT NULL
+        AND e.latitude BETWEEN v_min_lat AND v_max_lat
+        AND e.longitude BETWEEN v_min_lng AND v_max_lng
+      ))
     ORDER BY RANDOM()
     LIMIT 25
   ),
