@@ -2104,22 +2104,31 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               
               {/* Show streaming profile link */}
               {profile.music_streaming_profile && (() => {
-                const serviceType = detectStreamingServiceType(profile.music_streaming_profile);
-                const isSpotify = serviceType === 'spotify';
-                const isAppleMusic = serviceType === 'apple-music';
+                // Use explicit service type if set, otherwise fall back to detection
+                const explicitService = (profile as any).music_streaming_service;
+                const detectedService = detectStreamingServiceType(profile.music_streaming_profile);
+                
+                // Prioritize explicit selection over detection
+                const isSpotify = explicitService === 'spotify' || (!explicitService && detectedService === 'spotify');
+                const isAppleMusic = explicitService === 'apple_music' || (!explicitService && detectedService === 'apple-music');
                 
                 let href = profile.music_streaming_profile;
                 let ariaLabel = 'Music streaming profile';
                 
+                // Clean the username (remove @ if present)
+                const cleanUsername = profile.music_streaming_profile.replace(/^@/, '').trim();
+                
                 if (isSpotify) {
+                  // Construct Spotify URL if not already a full URL
                   href = profile.music_streaming_profile.startsWith('http') 
                     ? profile.music_streaming_profile 
-                    : `https://open.spotify.com/user/${profile.music_streaming_profile}`;
+                    : `https://open.spotify.com/user/${cleanUsername}`;
                   ariaLabel = 'Spotify Profile';
                 } else if (isAppleMusic) {
+                  // Construct Apple Music URL if not already a full URL
                   href = profile.music_streaming_profile.startsWith('http') 
                     ? profile.music_streaming_profile 
-                    : profile.music_streaming_profile;
+                    : `https://music.apple.com/profile/${cleanUsername}`;
                   ariaLabel = 'Apple Music Profile';
                 } else {
                   ariaLabel = 'Music Streaming Profile';

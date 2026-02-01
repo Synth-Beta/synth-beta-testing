@@ -1,4 +1,5 @@
 import { useToast } from "@/hooks/use-toast"
+import { useAccountType } from "@/hooks/useAccountType"
 import {
   Toast,
   ToastClose,
@@ -10,6 +11,15 @@ import {
 
 export function Toaster() {
   const { toasts } = useToast()
+  const { isAdmin, loading } = useAccountType()
+
+  // Only show toasts to admin users
+  // During loading, hide toasts (prevents non-admins from briefly seeing toasts)
+  // After loading, show toasts only if user is confirmed admin
+  // Toasts are queued in useToast() state, so admin users will see them once loading completes
+  if (loading || !isAdmin()) {
+    return null
+  }
 
   return (
     <ToastProvider>

@@ -16,37 +16,51 @@ const path = require('path');
 
 // Configuration from environment variables
 const APNS_KEY_PATH = process.env.APNS_KEY_PATH || './AuthKey_J764D4P5DU.p8';
+const APNS_KEY_CONTENT = process.env.APNS_KEY_CONTENT;
 const APNS_KEY_ID = process.env.APNS_KEY_ID || 'J764D4P5DU';
 const APNS_TEAM_ID = process.env.APNS_TEAM_ID || 'R6JXB945ND';
 const APNS_BUNDLE_ID = process.env.APNS_BUNDLE_ID || 'com.tejpatel.synth';
-const NODE_ENV = process.env.NODE_ENV || 'production';
+const production = process.env.APNS_PRODUCTION !== undefined
+  ? process.env.APNS_PRODUCTION === 'true' || process.env.APNS_PRODUCTION === '1'
+  : process.env.NODE_ENV === 'production';
 
 console.log('🧪 Testing APNs Connection...\n');
 console.log('Configuration:');
-console.log(`  Key Path: ${APNS_KEY_PATH}`);
+console.log(`  Key: ${APNS_KEY_CONTENT ? 'APNS_KEY_CONTENT (base64)' : `APNS_KEY_PATH: ${APNS_KEY_PATH}`}`);
 console.log(`  Key ID: ${APNS_KEY_ID}`);
 console.log(`  Team ID: ${APNS_TEAM_ID}`);
 console.log(`  Bundle ID: ${APNS_BUNDLE_ID}`);
-console.log(`  Environment: ${NODE_ENV === 'production' ? 'Production' : 'Sandbox'}\n`);
+console.log(`  Environment: ${production ? 'Production' : 'Sandbox'}\n`);
 
-// Check if key file exists
-if (!fs.existsSync(APNS_KEY_PATH)) {
-  console.error(`❌ APNs key file not found at: ${APNS_KEY_PATH}`);
-  console.error(`   Please ensure the .p8 file is in the backend directory.`);
-  process.exit(1);
-}
-
-// Read and verify key file
+// Get key buffer from APNS_KEY_CONTENT (base64) or APNS_KEY_PATH (file)
 let keyContent;
-try {
-  keyContent = fs.readFileSync(APNS_KEY_PATH);
-  if (!keyContent || keyContent.length === 0) {
-    throw new Error('Key file is empty');
+if (APNS_KEY_CONTENT) {
+  try {
+    keyContent = Buffer.from(APNS_KEY_CONTENT, 'base64');
+    if (!keyContent || keyContent.length === 0) {
+      throw new Error('Decoded key is empty');
+    }
+    console.log('✅ APNS_KEY_CONTENT decoded successfully');
+  } catch (error) {
+    console.error(`❌ Error decoding APNS_KEY_CONTENT (must be base64): ${error.message}`);
+    process.exit(1);
   }
-  console.log('✅ APNs key file found and readable');
-} catch (error) {
-  console.error(`❌ Error reading APNs key file: ${error.message}`);
-  process.exit(1);
+} else {
+  if (!fs.existsSync(APNS_KEY_PATH)) {
+    console.error(`❌ APNs key file not found at: ${APNS_KEY_PATH}`);
+    console.error(`   Please ensure the .p8 file exists or set APNS_KEY_CONTENT (base64).`);
+    process.exit(1);
+  }
+  try {
+    keyContent = fs.readFileSync(APNS_KEY_PATH);
+    if (!keyContent || keyContent.length === 0) {
+      throw new Error('Key file is empty');
+    }
+    console.log('✅ APNs key file found and readable');
+  } catch (error) {
+    console.error(`❌ Error reading APNs key file: ${error.message}`);
+    process.exit(1);
+  }
 }
 
 // Initialize APNs provider
@@ -58,7 +72,7 @@ try {
       keyId: APNS_KEY_ID,
       teamId: APNS_TEAM_ID
     },
-    production: NODE_ENV === 'production'
+    production
   };
 
   provider = new apn.Provider(options);

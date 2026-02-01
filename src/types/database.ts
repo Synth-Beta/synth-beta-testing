@@ -15,6 +15,7 @@ export interface User {
   bio: string | null;
   instagram_handle: string | null;
   music_streaming_profile: string | null;
+  music_streaming_service: 'spotify' | 'apple_music' | null; // User's preferred streaming service
   gender: string | null;
   birthday: string | null; // DATE
   age_verified?: boolean | null; // BOOLEAN - Indicates if age has been verified
