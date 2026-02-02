@@ -180,6 +180,84 @@ class SpotifyArtistSeed {
   }
 
   /**
+   * Escape special LIKE/ILIKE pattern characters for literal matching.
+   * PostgreSQL LIKE treats % as "any sequence" and _ as "any single char".
+   */
+  escapeLikePattern(str) {
+    if (!str) return str;
+    // Escape backslash first, then % and _
+    return str.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+  }
+
+  /**
+   * Find an artist by name (case-insensitive).
+   * Returns the artist UUID if found, null otherwise.
+   */
+  async findArtistByName(name) {
+    if (!name) return null;
+    const normalizedName = name.trim().toLowerCase();
+    // Escape LIKE special characters for literal matching
+    const escapedName = this.escapeLikePattern(normalizedName);
+    const { data, error } = await this.supabase
+      .from('artists')
+      .select('id')
+      .ilike('name', escapedName)
+      .limit(1);
+    if (error) {
+      console.warn(`Error checking artist by name "${name}": ${error.message}`);
+      return null;
+    }
+    return data && data.length > 0 ? data[0].id : null;
+  }
+
+  /**
+   * Link a Spotify ID to an existing artist (adds external_entity_ids entry).
+   * Returns: { success: boolean, skipped: boolean, reason?: string }
+   */
+  async linkSpotifyIdToArtist(artistUuid, spotifyId, artistName) {
+    // First, check if this artist already has a Spotify ID linked
+    const { data: existing, error: checkError } = await this.supabase
+      .from('external_entity_ids')
+      .select('external_id')
+      .eq('entity_uuid', artistUuid)
+      .eq('source', 'spotify')
+      .eq('entity_type', 'artist')
+      .maybeSingle();
+    
+    if (checkError) {
+      console.warn(`Error checking existing Spotify ID for ${artistUuid}: ${checkError.message}`);
+      return { success: false, skipped: false };
+    }
+    
+    if (existing) {
+      if (existing.external_id === spotifyId) {
+        // Same ID already linked - nothing to do
+        return { success: true, skipped: true, reason: 'already_linked' };
+      } else {
+        // Different Spotify ID already linked - don't overwrite (could be different artist with same name)
+        console.warn(`  ⚠️ Artist "${artistName}" already has Spotify ID ${existing.external_id}, skipping new ID ${spotifyId} (possible name collision)`);
+        return { success: false, skipped: true, reason: 'different_id_exists' };
+      }
+    }
+    
+    // No existing Spotify ID - safe to insert
+    const { error } = await this.supabase
+      .from('external_entity_ids')
+      .insert({
+        entity_type: 'artist',
+        entity_uuid: artistUuid,
+        source: 'spotify',
+        external_id: spotifyId,
+      });
+    
+    if (error) {
+      console.warn(`Error linking Spotify ID ${spotifyId} to artist ${artistUuid}: ${error.message}`);
+      return { success: false, skipped: false };
+    }
+    return { success: true, skipped: false };
+  }
+
+  /**
    * Fetch artist objects from Spotify (up to 50 per request).
    */
   async fetchArtists(spotifyIds) {
@@ -205,13 +283,43 @@ class SpotifyArtistSeed {
   }
 
   /**
-   * Insert one artist and one external_entity_ids row. Uses synthetic jambase_artist_id and identifier.
+   * Insert or link an artist.
+   * - If artist exists by name (from Jambase or other source) → Link Spotify ID to existing artist
+   * - If artist doesn't exist → Create new artist + link Spotify ID
    */
   async insertArtist(spotifyArtist) {
     const spotifyId = spotifyArtist.id;
+    const name = spotifyArtist.name || 'Unknown Artist';
+
+    // Check if artist already exists by name (from Jambase or previous imports)
+    const existingArtistUuid = await this.findArtistByName(name);
+    
+    if (existingArtistUuid) {
+      // Artist exists - try to link the Spotify ID to the existing artist
+      const result = await this.linkSpotifyIdToArtist(existingArtistUuid, spotifyId, name);
+      if (result.success) {
+        if (result.skipped && result.reason === 'already_linked') {
+          // Already linked with same ID - count as already in DB
+          this.stats.alreadyInDb++;
+        } else {
+          console.log(`  🔗 Linked Spotify ID to existing artist: "${name}"`);
+          this.stats.inserted++;
+        }
+        return;
+      } else if (result.skipped && result.reason === 'different_id_exists') {
+        // Different Spotify artist with same name - this is a legitimate different artist
+        // Fall through to create as new artist (don't return)
+        console.log(`  ➕ Creating new artist (name collision): "${name}"`);
+      } else {
+        console.warn(`  ⚠️ Failed to link Spotify ID to existing artist: "${name}"`);
+        this.stats.errors++;
+        return;
+      }
+    }
+
+    // Artist doesn't exist OR name collision detected - create new artist
     const jambaseArtistId = `spotify-${spotifyId}`;
     const identifier = `spotify:${spotifyId}`;
-    const name = spotifyArtist.name || 'Unknown Artist';
     const imageUrl = Array.isArray(spotifyArtist.images) && spotifyArtist.images.length
       ? spotifyArtist.images[0].url
       : null;

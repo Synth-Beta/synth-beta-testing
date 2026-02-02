@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { calculateAge } from '@/utils/calculateAge';
 import { SinglePhotoUpload } from '@/components/ui/photo-upload';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProfileSetupStepProps {
   initialData?: {
