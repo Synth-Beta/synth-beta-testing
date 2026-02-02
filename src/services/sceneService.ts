@@ -355,6 +355,30 @@ export class SceneService {
   }
 
   /**
+   * Refresh scene progress for all active scenes (safety net when trigger may not have fired).
+   * Call when opening Scenes section to ensure progress reflects latest reviews.
+   */
+  static async refreshAllSceneProgress(userId: string): Promise<void> {
+    try {
+      const { data: scenes } = await supabase
+        .from('scenes')
+        .select('id')
+        .eq('is_active', true);
+      if (!scenes?.length) return;
+      await Promise.all(
+        scenes.map((s) =>
+          supabase.rpc('calculate_scene_progress', {
+            p_user_id: userId,
+            p_scene_id: s.id,
+          })
+        )
+      );
+    } catch {
+      // Non-critical, fail silently
+    }
+  }
+
+  /**
    * Refresh user's scene progress (triggers calculation)
    * Returns false if the operation fails (non-critical)
    */

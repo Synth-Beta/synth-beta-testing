@@ -26,6 +26,10 @@ export const ScenesSection: React.FC<ScenesSectionProps> = ({
   const loadScenes = async () => {
     setLoading(true);
     try {
+      // Refresh progress (safety net if DB trigger didn't run) before fetching
+      if (currentUserId) {
+        await SceneService.refreshAllSceneProgress(currentUserId);
+      }
       const scenesFromDb = await SceneService.getScenes(10, currentUserId);
       setScenes(scenesFromDb);
     } catch (error) {

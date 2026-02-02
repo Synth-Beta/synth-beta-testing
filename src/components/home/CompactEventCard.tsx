@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Calendar, MapPin, Send, Check, Heart } from 'lucide-react';
-import { replaceJambasePlaceholder, getFallbackEventImage } from '@/utils/eventImageFallbacks';
+import { replaceJambasePlaceholder, getFallbackEventImage, getSynthPlaceholderImage } from '@/utils/eventImageFallbacks';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
@@ -186,12 +186,17 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
-                  // Fallback to a generic fallback image if the primary image fails
-                  const fallbackUrl = getFallbackEventImage(event.id);
-                  if (target.src !== fallbackUrl) {
-                    target.src = fallbackUrl;
+                  const synthPlaceholder = getSynthPlaceholderImage();
+                  const alreadyTriedFallback = target.src.includes('Generic') || target.src.includes('Generic%20Images');
+                  const alreadyTriedSynth = target.src.includes('Synth_Placeholder');
+                  if (!alreadyTriedFallback) {
+                    // First failure: try Generic Images from public folder
+                    target.src = getFallbackEventImage(event.id);
+                  } else if (!alreadyTriedSynth) {
+                    // Generic Images failed (e.g. ERR_CONNECTION_REFUSED); use bundled placeholder
+                    target.src = synthPlaceholder;
                   } else {
-                    // If fallback also fails, prevent infinite loop
+                    // Both failed; prevent infinite loop
                     target.onerror = null;
                   }
                 }}

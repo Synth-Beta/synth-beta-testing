@@ -43,6 +43,7 @@ import { VerificationBadge } from '@/components/verification/VerificationBadge';
 import type { AccountType } from '@/utils/verificationUtils';
 import { PageActions } from '@/components/PageActions';
 import { FriendsService } from '@/services/friendsService';
+import { FriendSuggestionsRail } from '@/components/feed/FriendSuggestionsRail';
 import { ProfileDraftsSummary } from './ProfileDraftsSummary';
 import { ProfileStarBuckets } from './ProfileStarBuckets';
 import { PassportModal } from '@/components/discover/PassportModal';
@@ -187,6 +188,15 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     scenes: 0,
   });
   const [passportRefreshTrigger, setPassportRefreshTrigger] = useState(0);
+  const [profileFriendSuggestions, setProfileFriendSuggestions] = useState<Array<{
+    user_id: string;
+    name: string;
+    avatar_url: string | null;
+    verified?: boolean;
+    connection_depth: number;
+    mutual_friends_count: number;
+    shared_genres_count?: number;
+  }>>([]);
   const { toast } = useToast();
   const { user, sessionExpired } = useAuth();
   const navigate = useNavigate();
@@ -247,7 +257,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             fetchFollowedArtistsCount(),
             loadPassportSummary(),
             // Only check friend status if viewing someone else's profile
-            !isViewingOwnProfile ? checkFriendStatus() : Promise.resolve()
+            !isViewingOwnProfile ? checkFriendStatus() : Promise.resolve(),
+            // Load friend suggestions (People to add) only on own profile
+            isViewingOwnProfile ? loadProfileFriendSuggestions() : Promise.resolve()
           ]);
           
           console.log('🔍 ProfileView: All data fetched successfully');
@@ -880,6 +892,30 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     } catch (error) {
       console.warn('Warning: Error fetching friends:', error);
       setFriends([]);
+    }
+  };
+
+  const loadProfileFriendSuggestions = async () => {
+    try {
+      const suggestions = await FriendsService.getSimilarUsersToFriend(currentUserId, 5);
+      setProfileFriendSuggestions(suggestions);
+    } catch (error) {
+      console.warn('Error loading profile friend suggestions:', error);
+      setProfileFriendSuggestions([]);
+    }
+  };
+
+  const handleSendFriendRequestFromProfile = async (userId: string) => {
+    try {
+      const { error } = await supabase.rpc('create_friend_request', {
+        receiver_user_id: userId
+      });
+      if (error) throw error;
+      setProfileFriendSuggestions(prev => prev.filter(s => s.user_id !== userId));
+      toast({ title: 'Friend request sent', variant: 'default' });
+    } catch (error: any) {
+      console.error('Error sending friend request:', error);
+      toast({ title: error?.message || 'Failed to send request', variant: 'destructive' });
     }
   };
 
@@ -2175,6 +2211,24 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           </div>
         </div>
       </div>
+
+      {/* People to add - compact friend suggestions (own profile only) */}
+      {isViewingOwnProfile && profileFriendSuggestions.length > 0 && (
+        <div
+          className="w-full"
+          style={{
+            paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+            paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+            marginTop: 'var(--spacing-grouped, 16px)',
+          }}
+        >
+          <FriendSuggestionsRail
+            suggestions={profileFriendSuggestions}
+            onUserClick={(userId) => onNavigateToProfile?.(userId)}
+            onAddFriend={handleSendFriendRequestFromProfile}
+          />
+        </div>
+      )}
 
       {/* Instagram-style Content Tabs */}
       <div

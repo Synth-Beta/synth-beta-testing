@@ -256,6 +256,11 @@ export class SpotifyService {
       // Save to streaming_profiles table to trigger database sync
       await this.saveToStreamingProfiles({
         topArtists: allTopArtists,
+        topArtistsByTimeRange: {
+          short_term: topArtistsShort.items,
+          medium_term: topArtistsMed.items,
+          long_term: topArtistsLong.items,
+        },
         topTracks: allTopTracks,
         recentlyPlayed: recentlyPlayed.items,
         userProfile
@@ -421,6 +426,11 @@ export class SpotifyService {
    */
   private async saveToStreamingProfiles(data: {
     topArtists: SpotifyArtist[];
+    topArtistsByTimeRange?: {
+      short_term: SpotifyArtist[];
+      medium_term: SpotifyArtist[];
+      long_term: SpotifyArtist[];
+    };
     topTracks: SpotifyTrack[];
     recentlyPlayed: any[];
     userProfile: SpotifyUser | null;
@@ -436,6 +446,7 @@ export class SpotifyService {
       // Prepare profile data for streaming_profiles table
       const profileData = {
         topArtists: data.topArtists,
+        topArtistsByTimeRange: data.topArtistsByTimeRange ?? null,
         topTracks: data.topTracks,
         recentlyPlayed: data.recentlyPlayed,
         userProfile: data.userProfile,

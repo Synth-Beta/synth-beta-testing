@@ -454,12 +454,15 @@ interface FriendEventInterest {
       loadTrendingEvents(true);
     } else if (selectedFeedType === 'friends') {
       loadNetworkEvents(true);
+    } else if (selectedFeedType === 'events') {
+      loadFriendSuggestionsForRail();
     } else if (selectedFeedType === 'group-chats') {
       loadRecommendedGroupChats();
       loadFriendSuggestionsForRail();
     } else if (selectedFeedType === 'reviews') {
       loadReviews();
       loadRecommendedFriends();
+      loadFriendSuggestionsForRail();
     } else if (selectedFeedType === 'recommended') {
       // PreferencesV4FeedSection handles its own data loading via useEffect on mount/filter changes
       // No explicit load call needed here as the component initializes automatically
@@ -1244,7 +1247,7 @@ interface FriendEventInterest {
 
   const loadFriendSuggestionsForRail = async () => {
     try {
-      const suggestions = await FriendsService.getRecommendedFriends(currentUserId);
+      const suggestions = await FriendsService.getSimilarUsersToFriend(currentUserId);
       // FriendsService.getRecommendedFriends already returns the correct format
       setFriendSuggestionsForRail(suggestions);
     } catch (error) {
@@ -1952,6 +1955,16 @@ interface FriendEventInterest {
             onInterestToggle={async (eventId, interested) => {
               console.log('Interest toggled:', eventId, interested);
             }}
+            insertSectionAfterIndex={0}
+            middleSection={
+              friendSuggestionsForRail.length > 0 ? (
+                <FriendSuggestionsRail
+                  suggestions={friendSuggestionsForRail}
+                  onUserClick={(userId) => onNavigateToProfile?.(userId)}
+                  onAddFriend={handleSendFriendRequestForRail}
+                />
+              ) : undefined
+            }
             onShareClick={async (event, e) => {
               e.stopPropagation();
               
@@ -2354,6 +2367,13 @@ interface FriendEventInterest {
         )}
         {selectedFeedType === 'reviews' && (
           <div className="space-y-4">
+          {friendSuggestionsForRail.length > 0 && (
+            <FriendSuggestionsRail
+              suggestions={friendSuggestionsForRail}
+              onUserClick={(userId) => onNavigateToProfile?.(userId)}
+              onAddFriend={handleSendFriendRequestForRail}
+            />
+          )}
           {loadingReviews ? (
             <div className="flex items-center justify-center py-12">
               <SynthLoadingInline />
@@ -2571,6 +2591,12 @@ interface FriendEventInterest {
           venueId={selectedVenueId}
           venueName={selectedVenueName}
           currentUserId={currentUserId}
+          onEventClick={(eventId) => {
+            setVenueModalOpen(false);
+            setSelectedVenueId(null);
+            setSelectedVenueName('');
+            handleEventClick(eventId);
+          }}
         />
       )}
     </main>

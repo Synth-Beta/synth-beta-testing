@@ -433,6 +433,7 @@ export type PreferenceSignalType =
   | 'genre_manual_preference'
   | 'artist_manual_preference'
   | 'streaming_profile_synced'
+  | 'spotify_genre'
   | 'bucket_list'
   | 'review'
   | 'attendance';

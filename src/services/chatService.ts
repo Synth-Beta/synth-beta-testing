@@ -6,6 +6,9 @@
 import { supabase } from '@/integrations/supabase/client';
 import { encryptMessage, decryptMessage, isEncrypted } from './chatEncryptionService';
 
+/** When true, artist and venue associated group chats are excluded from chat list (join-on-follow still works). Flip to false when ready to show them. */
+const HIDE_ENTITY_GROUP_CHATS = true;
+
 export interface UserChat {
   id: string;
   chat_name: string;
@@ -17,6 +20,8 @@ export interface UserChat {
   latest_message_sender_name?: string | null;
   group_admin_id?: string | null;
   member_count?: number | null; // Cached count from chat_participants (maintained by trigger)
+  entity_type?: 'event' | 'artist' | 'venue' | null;
+  entity_uuid?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -51,13 +56,15 @@ export async function fetchUserChats(
 
     const chatIds = participants.map(p => p.chat_id);
 
-    // Get chats with latest message info
+    // Get chats with latest message info (entity_type/entity_uuid for filtering verified/artist chats)
     const { data: chats, error: chatsError } = await supabase
       .from('chats')
       .select(`
         id,
         chat_name,
         is_group_chat,
+        entity_type,
+        entity_uuid,
         latest_message_id,
         group_admin_id,
         created_at,
@@ -132,12 +139,19 @@ export async function fetchUserChats(
         latest_message_created_at: chat.messages?.created_at || null,
         latest_message_sender_name: chat.messages?.users?.name || null,
         group_admin_id: chat.group_admin_id,
+        entity_type: chat.entity_type ?? null,
+        entity_uuid: chat.entity_uuid ?? null,
         created_at: chat.created_at,
         updated_at: chat.updated_at,
       };
     }));
 
-    return { data: userChats, error: null };
+    // Hide artist and venue group chats from list until feature is deployed (users are still joined on follow)
+    const filtered = HIDE_ENTITY_GROUP_CHATS
+      ? userChats.filter((c) => !(c.is_group_chat && (c.entity_type === 'artist' || c.entity_type === 'venue')))
+      : userChats;
+
+    return { data: filtered, error: null };
   } catch (error) {
     console.error('Error in fetchUserChats:', error);
     return { data: null, error };

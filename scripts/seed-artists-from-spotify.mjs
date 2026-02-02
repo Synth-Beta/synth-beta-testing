@@ -6,7 +6,8 @@
  *
  * Usage:
  *   node scripts/seed-artists-from-spotify.mjs [--limit=N] [--genres=rock,indie,pop]
- *   node scripts/seed-artists-from-spotify.mjs --top2025 [--limit=N]  # Pull from Top 50, Today's Top Hits, Viral Hits, etc.
+ *   node scripts/seed-artists-from-spotify.mjs --top2025 [--limit=N]  # Top 50 USA/Global, Billions Club, top hits 2025
+ *   node scripts/seed-artists-from-spotify.mjs --top1000 [--limit=N]  # Top N artists by Spotify popularity (default 1000)
  *
  * Environment (server-only; do not use VITE_ or expose in frontend):
  *   SPOTIFY_CLIENT_ID      - from Spotify Dashboard (same app as OAuth is fine)
@@ -31,14 +32,25 @@ async function loadEnv() {
 const SPOTIFY_ARTISTS_BATCH = 50;
 const SPOTIFY_SEARCH_LIMIT = 20;
 const DEFAULT_INSERT_LIMIT = 500;
+const TOP1000_DISCOVERY_POOL = 5000; // Discover this many, fetch all, sort by popularity, take top N
 const DELAY_MS = 300;
 const RETRY_AFTER_DEFAULT = 60;
 
-// Search queries for top/trending tracks 2025 (Spotify editorial playlists)
+// Curated playlist IDs (Top 50 USA, Top 50 Global, Billions Club)
+const CURATED_PLAYLIST_IDS = [
+  { id: '37i9dQZEVXbLRQDuF5jeBp', name: 'Top 50 - USA' },
+  { id: '37i9dQZEVXbMDoHDwVN2tF', name: 'Top 50 - Global' },
+  { id: '37i9dQZF1DX7iB3RCnBnN4', name: 'Billions Club (1B+ streams)' },
+];
+
+// Search queries for top/trending tracks 2025 (fallback when direct fetch fails)
 const TOP_2025_SEARCH_QUERIES = [
+  'top artists 2025 USA',
+  'top artists 2025 global',
   'top hits 2025',
   'top tracks 2025',
   "today's top hits",
+  'billions club 1 billion streams',
   'viral hits 2025',
   'top 50 global',
   'trending 2025',
@@ -49,12 +61,15 @@ function parseArgs() {
   let limit = DEFAULT_INSERT_LIMIT;
   let genres = ['rock', 'indie', 'pop', 'hip-hop', 'electronic'];
   let top2025 = false;
+  let top1000 = false;
   for (const arg of args) {
     if (arg.startsWith('--limit=')) limit = Math.max(1, parseInt(arg.slice(8), 10) || DEFAULT_INSERT_LIMIT);
     if (arg.startsWith('--genres=')) genres = arg.slice(9).split(',').map((g) => g.trim()).filter(Boolean);
     if (arg === '--top2025') top2025 = true;
+    if (arg === '--top1000') top1000 = true;
   }
-  return { limit, genres: genres.length ? genres : ['rock', 'indie', 'pop'], top2025 };
+  if (top1000 && limit === DEFAULT_INSERT_LIMIT) limit = 1000;
+  return { limit, genres: genres.length ? genres : ['rock', 'indie', 'pop'], top2025, top1000 };
 }
 
 class SpotifyArtistSeed {
@@ -123,10 +138,51 @@ class SpotifyArtistSeed {
   }
 
   /**
-   * Discover artist IDs from top 2025 playlists via search.
+   * Fetch artist IDs from a playlist by ID (handles pagination).
+   */
+  async fetchArtistsFromPlaylist(playlistId) {
+    const seen = new Set();
+    let offset = 0;
+    const limit = 100;
+    for (;;) {
+      const url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}&fields=items(track(artists(id)))`;
+      const res = await this.spotifyRequest(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const items = data.items || [];
+      for (const it of items) {
+        const artists = it?.track?.artists;
+        if (Array.isArray(artists)) {
+          for (const a of artists) {
+            if (a?.id) seen.add(a.id);
+          }
+        }
+      }
+      if (items.length < limit) break;
+      offset += limit;
+      await new Promise((r) => setTimeout(r, DELAY_MS));
+    }
+    return Array.from(seen);
+  }
+
+  /**
+   * Discover artist IDs from Top 50 USA, Top 50 Global, Billions Club, and top 2025 search.
    */
   async discoverFromTop2025(maxIds) {
     const seen = new Set();
+
+    // 1. Try curated playlists directly (Top 50 USA, Top 50 Global, Billions Club)
+    for (const { id, name } of CURATED_PLAYLIST_IDS) {
+      if (seen.size >= maxIds) break;
+      const ids = await this.fetchArtistsFromPlaylist(id);
+      if (ids && ids.length > 0) {
+        ids.forEach((x) => seen.add(x));
+        console.log(`  📀 ${name}: ${ids.length} artists`);
+      }
+      await new Promise((r) => setTimeout(r, DELAY_MS));
+    }
+
+    // 2. Search-based discovery (fallback / supplement)
     for (const query of TOP_2025_SEARCH_QUERIES) {
       if (seen.size >= maxIds) break;
       const searchRes = await this.spotifyRequest(
@@ -497,15 +553,31 @@ class SpotifyArtistSeed {
   }
 
   async run() {
-    const { limit, genres, top2025 } = parseArgs();
+    const { limit, genres, top2025, top1000 } = parseArgs();
     console.log('Phase One: Spotify artist seeding');
-    if (top2025) {
+    if (top1000) {
+      console.log('Mode: Top N by Spotify popularity (sort after fetch)');
+      console.log('Target:', limit, 'artists');
+    } else if (top2025) {
       console.log('Source: Top Tracks 2025 playlists (Top 50 Global, Today\'s Top Hits, Viral Hits, etc.)');
+      console.log('Insert limit:', limit);
     } else {
       console.log('Genres/keywords:', genres.join(', '));
+      console.log('Insert limit:', limit);
     }
-    console.log('Insert limit:', limit);
 
+    if (top1000) {
+      await this.runTop1000ByPopularity(limit);
+    } else {
+      await this.runStandard(limit, genres, top2025);
+    }
+
+    console.log('Done. Inserted:', this.stats.inserted);
+    console.log('Errors:', this.stats.errors);
+    if (this.stats.rateLimitHits) console.log('Rate limit hits:', this.stats.rateLimitHits);
+  }
+
+  async runStandard(limit, genres, top2025) {
     const maxIds = Math.max(limit * 2, 2000);
     const allIds = top2025
       ? await this.discoverFromTop2025(maxIds)
@@ -524,10 +596,48 @@ class SpotifyArtistSeed {
       await this.insertArtist(artists[i]);
       if ((i + 1) % 50 === 0) console.log('Inserted so far:', this.stats.inserted);
     }
+  }
 
-    console.log('Done. Inserted:', this.stats.inserted);
-    console.log('Errors:', this.stats.errors);
-    if (this.stats.rateLimitHits) console.log('Rate limit hits:', this.stats.rateLimitHits);
+  /**
+   * Discover from playlists, fetch all artist details (with popularity),
+   * sort by popularity desc, take top N, then insert/link.
+   */
+  async runTop1000ByPopularity(limit) {
+    const maxIds = Math.min(TOP1000_DISCOVERY_POOL, Math.max(limit * 3, 3000));
+    console.log('Discovering artist IDs from playlists (pool size:', maxIds, ')...');
+    const allIds = await this.discoverFromTop2025(maxIds);
+    console.log('Discovered:', allIds.length, 'artist IDs');
+
+    console.log('Fetching artist details (Get Several Artists, includes popularity)...');
+    const artists = await this.fetchArtists(allIds);
+    console.log('Fetched:', artists.length, 'artists');
+
+    // Sort by popularity descending (100 = most popular)
+    const byPopularity = [...artists].sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
+    const topN = byPopularity.slice(0, limit);
+    console.log('Top', topN.length, 'by popularity (range:', topN[topN.length - 1]?.popularity ?? '?', '-', topN[0]?.popularity ?? '?', ')');
+
+    // Filter out artists already in DB (by Spotify ID)
+    const existingIds = new Set();
+    const chunkSize = 100;
+    for (let i = 0; i < topN.length; i += chunkSize) {
+      const chunk = topN.slice(i, i + chunkSize).map((a) => a.id);
+      const { data } = await this.supabase
+        .from('external_entity_ids')
+        .select('external_id')
+        .eq('source', 'spotify')
+        .eq('entity_type', 'artist')
+        .in('external_id', chunk);
+      if (data) for (const row of data) existingIds.add(row.external_id);
+    }
+    this.stats.alreadyInDb = existingIds.size;
+    const toProcess = topN.filter((a) => !existingIds.has(a.id));
+    console.log('Already in DB:', existingIds.size, '| To insert:', toProcess.length);
+
+    for (let i = 0; i < toProcess.length; i++) {
+      await this.insertArtist(toProcess[i]);
+      if ((i + 1) % 50 === 0) console.log('Inserted so far:', this.stats.inserted);
+    }
   }
 }
 

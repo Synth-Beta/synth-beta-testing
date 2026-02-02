@@ -627,6 +627,16 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
         
         console.log('🔍 fetchChats: Chat entities:', chatEntities, 'Error:', chatEntitiesError);
         
+        // Populate entity_type/entity_uuid for all group chats (event, artist, venue)
+        chatEntities?.forEach((c) => {
+          if (c.id) {
+            entityDataMap.set(c.id, {
+              entity_type: c.entity_type ?? undefined,
+              entity_uuid: c.entity_uuid ?? undefined,
+            });
+          }
+        });
+        
         // For event-type chats, fetch artist image from artists table via event's artist relationship
         const eventChats = chatEntities?.filter(c => c.entity_type === 'event' && c.entity_uuid) || [];
         console.log('🔍 fetchChats: Event chats:', eventChats);
