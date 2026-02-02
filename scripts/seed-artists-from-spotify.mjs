@@ -6,6 +6,7 @@
  *
  * Usage:
  *   node scripts/seed-artists-from-spotify.mjs [--limit=N] [--genres=rock,indie,pop]
+ *   node scripts/seed-artists-from-spotify.mjs --top2025 [--limit=N]  # Pull from Top 50, Today's Top Hits, Viral Hits, etc.
  *
  * Environment (server-only; do not use VITE_ or expose in frontend):
  *   SPOTIFY_CLIENT_ID      - from Spotify Dashboard (same app as OAuth is fine)
@@ -33,15 +34,27 @@ const DEFAULT_INSERT_LIMIT = 500;
 const DELAY_MS = 300;
 const RETRY_AFTER_DEFAULT = 60;
 
+// Search queries for top/trending tracks 2025 (Spotify editorial playlists)
+const TOP_2025_SEARCH_QUERIES = [
+  'top hits 2025',
+  'top tracks 2025',
+  "today's top hits",
+  'viral hits 2025',
+  'top 50 global',
+  'trending 2025',
+];
+
 function parseArgs() {
   const args = process.argv.slice(2);
   let limit = DEFAULT_INSERT_LIMIT;
   let genres = ['rock', 'indie', 'pop', 'hip-hop', 'electronic'];
+  let top2025 = false;
   for (const arg of args) {
     if (arg.startsWith('--limit=')) limit = Math.max(1, parseInt(arg.slice(8), 10) || DEFAULT_INSERT_LIMIT);
     if (arg.startsWith('--genres=')) genres = arg.slice(9).split(',').map((g) => g.trim()).filter(Boolean);
+    if (arg === '--top2025') top2025 = true;
   }
-  return { limit, genres: genres.length ? genres : ['rock', 'indie', 'pop'] };
+  return { limit, genres: genres.length ? genres : ['rock', 'indie', 'pop'], top2025 };
 }
 
 class SpotifyArtistSeed {
@@ -107,6 +120,52 @@ class SpotifyArtistSeed {
       return this.spotifyRequest(url, retries - 1);
     }
     return res;
+  }
+
+  /**
+   * Discover artist IDs from top 2025 playlists via search.
+   */
+  async discoverFromTop2025(maxIds) {
+    const seen = new Set();
+    for (const query of TOP_2025_SEARCH_QUERIES) {
+      if (seen.size >= maxIds) break;
+      const searchRes = await this.spotifyRequest(
+        `https://api.spotify.com/v1/search?type=playlist&q=${encodeURIComponent(query)}&limit=${SPOTIFY_SEARCH_LIMIT}`
+      );
+      if (!searchRes.ok) {
+        console.warn(`Search "${query}": ${searchRes.status}`);
+        await new Promise((r) => setTimeout(r, DELAY_MS));
+        continue;
+      }
+      const searchData = await searchRes.json();
+      const playlists = searchData.playlists?.items || [];
+      await new Promise((r) => setTimeout(r, DELAY_MS));
+
+      for (const pl of playlists) {
+        if (seen.size >= maxIds) break;
+        if (!pl?.id) continue;
+        const tracksRes = await this.spotifyRequest(
+          `https://api.spotify.com/v1/playlists/${pl.id}/tracks?limit=100&fields=items(track(artists(id)))`
+        );
+        if (!tracksRes.ok) {
+          await new Promise((r) => setTimeout(r, DELAY_MS));
+          continue;
+        }
+        const tracksData = await tracksRes.json();
+        const items = tracksData.items || [];
+        for (const it of items) {
+          const artists = it?.track?.artists;
+          if (Array.isArray(artists)) {
+            for (const a of artists) {
+              if (a?.id && !seen.has(a.id)) seen.add(a.id);
+            }
+          }
+        }
+        await new Promise((r) => setTimeout(r, DELAY_MS));
+      }
+    }
+    this.stats.discovered = seen.size;
+    return Array.from(seen);
   }
 
   /**
@@ -328,7 +387,12 @@ class SpotifyArtistSeed {
       ? spotifyArtist.genres
       : null;
 
-    const row = {
+    // Try with jambase_artist_id first, fallback to without if schema cache issue
+    let inserted = null;
+    let error = null;
+    
+    // First attempt: with jambase_artist_id
+    const rowWithJambase = {
       jambase_artist_id: jambaseArtistId,
       name,
       identifier,
@@ -337,11 +401,33 @@ class SpotifyArtistSeed {
       ...(genres && { genres }),
     };
 
-    const { data: inserted, error } = await this.supabase
+    const result1 = await this.supabase
       .from('artists')
-      .insert(row)
+      .insert(rowWithJambase)
       .select('id')
       .single();
+    
+    if (result1.error && result1.error.message?.includes('schema cache')) {
+      // Schema cache issue - try without jambase_artist_id (might work if column is nullable in prod)
+      console.log(`  ℹ️ Schema cache issue, trying alternative insert for "${name}"`);
+      const rowWithoutJambase = {
+        name,
+        identifier,
+        url,
+        image_url: imageUrl,
+        ...(genres && { genres }),
+      };
+      const result2 = await this.supabase
+        .from('artists')
+        .insert(rowWithoutJambase)
+        .select('id')
+        .single();
+      inserted = result2.data;
+      error = result2.error;
+    } else {
+      inserted = result1.data;
+      error = result1.error;
+    }
 
     if (error) {
       if (error.code === '23505') {
@@ -411,12 +497,19 @@ class SpotifyArtistSeed {
   }
 
   async run() {
-    const { limit, genres } = parseArgs();
+    const { limit, genres, top2025 } = parseArgs();
     console.log('Phase One: Spotify artist seeding');
-    console.log('Genres/keywords:', genres.join(', '));
+    if (top2025) {
+      console.log('Source: Top Tracks 2025 playlists (Top 50 Global, Today\'s Top Hits, Viral Hits, etc.)');
+    } else {
+      console.log('Genres/keywords:', genres.join(', '));
+    }
     console.log('Insert limit:', limit);
 
-    const allIds = await this.discoverArtistIds(genres, Math.max(limit * 2, 2000));
+    const maxIds = Math.max(limit * 2, 2000);
+    const allIds = top2025
+      ? await this.discoverFromTop2025(maxIds)
+      : await this.discoverArtistIds(genres, maxIds);
     console.log('Discovered artist IDs:', allIds.length);
 
     const toInsert = await this.filterExistingSpotifyIds(allIds);

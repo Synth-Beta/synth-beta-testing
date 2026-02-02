@@ -114,12 +114,13 @@ async function checkLastSync() {
 
     // Check log files if they exist
     console.log(`\n📄 Sync Schedule:`);
-    console.log(`   Scheduled daily at 9:30 AM (via launchd)`);
+    console.log(`   macOS: launchd at 9:30 AM | Windows: run manually or Task Scheduler`);
     
-    // Check if sync ran today
+    // Check if sync ran today (use artists or venues last_synced_at)
+    const lastSyncVal = sampleData?.last_synced_at || venuesData?.last_synced_at;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const lastSyncDate = lastSync ? new Date(lastSync) : null;
+    const lastSyncDate = lastSyncVal ? new Date(lastSyncVal) : null;
     if (lastSyncDate) {
       lastSyncDate.setHours(0, 0, 0, 0);
       if (lastSyncDate.getTime() === today.getTime()) {

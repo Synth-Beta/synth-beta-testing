@@ -1,8 +1,45 @@
-# Daily Sync Setup - 9:30 AM
+# Daily Sync Setup
 
-The daily JamBase sync is configured to run automatically at **9:30 AM** every day using macOS launchd.
+The daily JamBase sync pulls events, artists, and venues from JamBase. On **macOS** it can run automatically via launchd; on **Windows** run manually or use Task Scheduler.
 
-## Quick Setup
+## Run Manually (Any OS)
+
+```bash
+node scripts/sync-jambase-incremental-3nf.mjs
+```
+
+Check last sync time:
+```bash
+node scripts/check-last-sync.mjs
+```
+
+## Python Dependencies (Genre Fetching)
+
+New artists get genres via a Python script. Install:
+
+```bash
+pip install -r scripts/requirements-sync.txt
+# or: pip install beautifulsoup4 requests
+```
+
+Without this, new artists get a default genre ("small artist") but sync still completes.
+
+## Windows: Scheduled Task
+
+To run the sync daily on Windows:
+
+1. Open **Task Scheduler** (taskschd.msc)
+2. **Create Basic Task** → Name: "Synth Jambase Sync"
+3. Trigger: **Daily** at your preferred time (e.g. 9:30 AM)
+4. Action: **Start a program**
+   - Program: `node`
+   - Arguments: `scripts/sync-jambase-incremental-3nf.mjs`
+   - Start in: `C:\Users\Owner\Desktop\synth-beta-testing-1` (your project path)
+5. Finish
+
+Ensure Node.js is in your system PATH, or use the full path to `node.exe`.
+
+## macOS: Quick Setup (launchd)
 
 Run the setup script from the project root:
 
