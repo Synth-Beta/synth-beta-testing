@@ -1,7 +1,6 @@
 -- ============================================================
--- get_similar_users_to_friend
--- Recommends users to add as friends based on shared artists, venues, genres.
--- Excludes: friends, blocked users, pending friend requests.
+-- Fix get_similar_users_to_friend: use user_venue_relationships
+-- instead of dropped venue_follows table (fixes "relation venue_follows does not exist").
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.get_similar_users_to_friend(
@@ -25,53 +24,42 @@ AS $$
 BEGIN
   RETURN QUERY
   WITH
-  -- Exclude: self
   excluded_ids AS (
     SELECT p_user_id AS user_id
     UNION
-    -- Already friends
     SELECT CASE WHEN ur.user_id = p_user_id THEN ur.related_user_id ELSE ur.user_id END
     FROM user_relationships ur
-    WHERE ur.relationship_type = 'friend'
-      AND ur.status = 'accepted'
+    WHERE ur.relationship_type = 'friend' AND ur.status = 'accepted'
       AND (ur.user_id = p_user_id OR ur.related_user_id = p_user_id)
     UNION
-    -- Pending friend requests (either direction)
     SELECT CASE WHEN ur.user_id = p_user_id THEN ur.related_user_id ELSE ur.user_id END
     FROM user_relationships ur
-    WHERE ur.relationship_type = 'friend'
-      AND ur.status = 'pending'
+    WHERE ur.relationship_type = 'friend' AND ur.status = 'pending'
       AND (ur.user_id = p_user_id OR ur.related_user_id = p_user_id)
     UNION
-    -- Blocked (either direction: I blocked them, or they blocked me)
     SELECT CASE WHEN ur.user_id = p_user_id THEN ur.related_user_id ELSE ur.user_id END
     FROM user_relationships ur
     WHERE ur.relationship_type = 'block'
       AND (ur.user_id = p_user_id OR ur.related_user_id = p_user_id)
   ),
-  -- Candidates: users who share at least one artist, venue, or genre with p_user_id
   candidates AS (
     SELECT DISTINCT other.user_id
     FROM (
-      -- Shared artists
       SELECT af2.user_id
       FROM artist_follows af1
       JOIN artist_follows af2 ON af1.artist_id = af2.artist_id AND af2.user_id != p_user_id
       WHERE af1.user_id = p_user_id
       UNION
-      -- Shared venues (user_venue_relationships - 3NF; venue_follows was dropped)
       SELECT uvr2.user_id
       FROM user_venue_relationships uvr1
       JOIN user_venue_relationships uvr2 ON uvr1.venue_id = uvr2.venue_id AND uvr2.user_id != p_user_id
       WHERE uvr1.user_id = p_user_id
       UNION
-      -- Shared genres (user_genre_interactions)
       SELECT ugi2.user_id
       FROM user_genre_interactions ugi1
       JOIN user_genre_interactions ugi2 ON ugi1.genre = ugi2.genre AND ugi2.user_id != p_user_id
       WHERE ugi1.user_id = p_user_id
       UNION
-      -- Shared genres (music_preference_signals)
       SELECT mps2.user_id
       FROM music_preference_signals mps1
       JOIN music_preference_signals mps2 ON mps1.preference_type = 'genre'
@@ -82,7 +70,6 @@ BEGIN
     ) other
     WHERE other.user_id NOT IN (SELECT user_id FROM excluded_ids)
   ),
-  -- Score each candidate
   scored AS (
     SELECT
       c.user_id,
@@ -159,8 +146,5 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_similar_users_to_friend(UUID, INT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_similar_users_to_friend(UUID, INT) TO service_role;
-
 COMMENT ON FUNCTION public.get_similar_users_to_friend(UUID, INT) IS
-  'Returns users to add as friends, ranked by shared artists, venues, genres. Excludes friends, blocked, and pending requests.';
+  'Returns users to add as friends, ranked by shared artists, venues (user_venue_relationships), genres. Excludes friends, blocked, and pending requests.';

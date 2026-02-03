@@ -39,7 +39,8 @@ interface UnifiedEventsFeedProps {
 }
 
 const PAGE_SIZE = 20;
-const BATCH_SIZE = 100; // Pre-fetch 100 events at once
+const INITIAL_FEED_SIZE = 40; // First load: fewer events for faster first paint
+const BATCH_SIZE = 100; // Load-more batches
 const PREFETCH_THRESHOLD = 60; // Start prefetching when 60 events are displayed (3rd load more)
 
 function personalEventToItem(event: PersonalizedEvent, eventType?: string): UnifiedEventItem {
@@ -171,14 +172,14 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
           
           console.log('🎯 [UnifiedEventsFeed] Feed filters:', feedFilters);
           
-          const result = await PersonalizationEngineV5.getUnifiedFeed(currentUserId, BATCH_SIZE, 0, feedFilters);
+          const result = await PersonalizationEngineV5.getUnifiedFeed(currentUserId, INITIAL_FEED_SIZE, 0, feedFilters);
           const items = result.events.map(e => personalEventToItem(e, (e as any).event_type));
           
           setAllFetchedEvents(items);
           setDisplayedEvents(items.slice(0, PAGE_SIZE));
           setHasMoreFromApi(result.hasMore);
           setApiOffset(items.length);
-          console.log('🎯 [UnifiedEventsFeed] Loaded', items.length, 'events');
+          console.log('🎯 [UnifiedEventsFeed] Loaded', items.length, 'events (initial)');
         } catch (error) {
           console.error('Error loading feed:', error);
         } finally {
