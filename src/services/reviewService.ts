@@ -60,7 +60,7 @@ export interface ReviewData {
 export interface UserReview {
   id: string;
   user_id: string;
-  event_id: string;
+  event_id?: string; // Optional - reviews are identified by artist_id + venue_id
   venue_id?: string;
   rating: number;
   artist_performance_rating?: number;
@@ -275,43 +275,109 @@ export class ReviewService {
   }
 
   /**
-   * Create or update a review for an event, venue, or artist
+   * Notify friends tagged in a review so they receive a notification and can write their own
+   * review with artist, venue, date, and friends pre-filled.
+   */
+  static async notifyTaggedFriendsInReview(params: {
+    actorUserId: string;
+    reviewData: ReviewData;
+    savedReview: any;
+    artistId?: string;
+    venueId?: string;
+    eventDate: string;
+  }): Promise<void> {
+    const { actorUserId, reviewData, savedReview, artistId, venueId, eventDate } = params;
+    const attendees = reviewData.attendees ?? [];
+    const userAttendees = attendees.filter(
+      (a): a is { type: 'user'; user_id: string; name: string; avatar_url?: string } =>
+        typeof a === 'object' && a !== null && (a as any).type === 'user' && typeof (a as any).user_id === 'string'
+    );
+    const taggedFriendIds = userAttendees
+      .map((a) => a.user_id)
+      .filter((id) => id && id !== actorUserId && isValidUuid(id));
+
+    if (taggedFriendIds.length === 0) return;
+
+    // Fetch actor (reviewer) name
+    let actorName = 'Someone';
+    try {
+      const { data: actor } = await supabase
+        .from('users')
+        .select('name')
+        .eq('user_id', actorUserId)
+        .maybeSingle();
+      if (actor?.name) actorName = actor.name;
+    } catch {
+      // Non-fatal
+    }
+
+    // Fetch artist and venue names for notification message
+    let artistName = '';
+    let venueName = '';
+    try {
+      if (artistId) {
+        const { data: a } = await supabase.from('artists').select('name').eq('id', artistId).maybeSingle();
+        artistName = (a as any)?.name ?? '';
+      }
+      if (venueId) {
+        const { data: v } = await supabase.from('venues').select('name').eq('id', venueId).maybeSingle();
+        venueName = (v as any)?.name ?? '';
+      }
+    } catch {
+      // Non-fatal
+    }
+
+    const eventDesc = [artistName, venueName].filter(Boolean).join(' at ') || 'a show';
+    const notifications = taggedFriendIds.map((friendUserId) => ({
+      user_id: friendUserId,
+      type: 'friend_tagged_in_review',
+      title: 'You were tagged in a review',
+      message: `${actorName} tagged you in their review of ${eventDesc}. Write your own review!`,
+      data: {
+        review_id: savedReview?.id,
+        artist_id: artistId,
+        artist_name: artistName,
+        venue_id: venueId,
+        venue_name: venueName,
+        event_date: eventDate,
+        actor_user_id: actorUserId,
+        actor_name: actorName,
+        attendees: userAttendees,
+      },
+      review_id: savedReview?.id,
+      actor_user_id: actorUserId,
+    }));
+
+    const { error } = await supabase.from('notifications').insert(notifications);
+    if (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Create or update a review - identified by artist_id + venue_id only.
+   * event_id is not used in the review submission flow.
    */
   static async setEventReview(
     userId: string,
-    eventId: string | undefined,
+    _eventId: string | undefined, // Deprecated - kept for API compatibility, never used
     reviewData: ReviewData,
     venueId?: string,
     artistId?: string
   ): Promise<UserReview> {
     try {
-      // Fetch event date from events table if eventId is provided
-      // Event_date is a Date type, but we need to convert it to YYYY-MM-DD string for database insertion
-      let eventDate: string | undefined = undefined;
+      // Event_date is required (NOT NULL) - from reviewData or fallback to today
+      let eventDate: string;
       if (reviewData.Event_date) {
-        // Convert Date to YYYY-MM-DD string format for PostgreSQL DATE type
         if (reviewData.Event_date instanceof Date) {
           eventDate = reviewData.Event_date.toISOString().split('T')[0];
         } else if (typeof reviewData.Event_date === 'string') {
-          // Handle string input (legacy support)
           eventDate = reviewData.Event_date;
+        } else {
+          eventDate = new Date().toISOString().split('T')[0];
         }
-      }
-      if (!eventDate && eventId && isValidUuid(eventId)) {
-        try {
-          const { data: eventData } = await supabase
-            .from('events')
-            .select('event_date')
-            .eq('id', eventId)
-            .maybeSingle();
-          if (eventData?.event_date) {
-            // Convert to date string (YYYY-MM-DD format) for PostgreSQL DATE type
-            const date = new Date(eventData.event_date);
-            eventDate = date.toISOString().split('T')[0];
-          }
-        } catch (error) {
-          console.warn('⚠️ ReviewService: Could not fetch event date:', error);
-        }
+      } else {
+        eventDate = new Date().toISOString().split('T')[0];
       }
       // Helper to ensure a valid INTEGER rating value (1..5) for inserts/updates
       const deriveRating = (data: ReviewData): number => {
@@ -347,10 +413,7 @@ export class ReviewService {
         return 3;
       };
 
-      // Check if user already has ANY review (draft OR published)
-      // If eventId is provided, check by event_id
-      // If eventId is not provided, check by artist_id + venue_id
-      const isUuid = eventId ? isValidUuid(eventId) : false;
+      // Check if user already has ANY review (draft OR published) by artist_id + venue_id
       const normalizedVenueId = isValidUuid(venueId) ? venueId : undefined;
       const normalizedArtistId = isValidUuid(artistId) ? artistId : undefined;
       
@@ -361,80 +424,14 @@ export class ReviewService {
         console.warn('⚠️ ReviewService: Received non-UUID artistId parameter, ignoring', artistId);
       }
       
-      // If no eventId and no artistId/venueId, we can't create a review
-      if (!isUuid && (!normalizedArtistId || !normalizedVenueId)) {
-        throw new Error('Either eventId or both artistId and venueId must be provided');
+      if (!normalizedArtistId || !normalizedVenueId) {
+        throw new Error('Both artistId and venueId must be provided');
       }
       
       let existingReview: any = null;
       let checkError: any = null;
       
-      if (isUuid) {
-        // Check by event_id (existing logic)
-        // CRITICAL: Check for BOTH published reviews AND drafts separately
-        // There might be both a draft AND a published review (bad state)
-        // We need to find the published one first, and delete any drafts
-        
-        // First, check for a published review
-        const publishedResult = await (supabase as any)
-          .from('reviews')
-          .select('id, is_draft')
-          .eq('user_id', userId)
-          .eq('event_id', eventId)
-          .eq('is_draft', false)
-          .maybeSingle();
-        
-        // Then, check for any drafts
-        const draftResult = await (supabase as any)
-          .from('reviews')
-          .select('id, is_draft')
-          .eq('user_id', userId)
-          .eq('event_id', eventId)
-          .eq('is_draft', true)
-          .maybeSingle();
-        
-        const publishedReview = publishedResult.data;
-        const draftReview = draftResult.data;
-        
-        console.log('🔍 ReviewService: Checked for existing reviews by event_id:', { 
-          published: !!publishedReview, 
-          published_id: publishedReview?.id,
-          draft: !!draftReview,
-          draft_id: draftReview?.id
-        });
-        
-        // If there's a published review, use that (and we'll delete drafts)
-        if (publishedReview) {
-          existingReview = publishedReview;
-          checkError = publishedResult.error;
-          
-          // Delete any drafts that exist for this event (cleanup bad state)
-          if (draftReview) {
-            console.log('⚠️ ReviewService: Found both published review and draft - deleting draft:', draftReview.id);
-            try {
-              const { error: deleteError } = await supabase
-                .from('reviews')
-                .delete()
-                .eq('id', draftReview.id);
-              if (deleteError) {
-                console.warn('⚠️ Failed to delete draft:', deleteError);
-              } else {
-                console.log('✅ Deleted draft:', draftReview.id);
-              }
-            } catch (error) {
-              console.warn('⚠️ Error deleting draft:', error);
-            }
-          }
-        } else if (draftReview) {
-          // Only a draft exists, use that
-          existingReview = draftReview;
-          checkError = draftResult.error;
-        } else {
-          // No review exists at all
-          existingReview = null;
-          checkError = null;
-        }
-      } else if (normalizedArtistId && normalizedVenueId) {
+      {
         // Check by artist_id + venue_id (when event_id is not provided)
         // First, check for a published review
         const publishedResult = await (supabase as any)
@@ -518,12 +515,13 @@ export class ReviewService {
         if (isDraft) {
           console.log('🗑️ ReviewService: Existing review is a draft - deleting it completely before creating published review:', existingReview.id);
           try {
-            // Delete ALL drafts for this event (including the one we found)
+            // Delete ALL drafts for this artist+venue (including the one we found)
             const { error: deleteError } = await supabase
               .from('reviews')
               .delete()
               .eq('user_id', userId)
-              .eq('event_id', eventId)
+              .eq('artist_id', normalizedArtistId)
+              .eq('venue_id', normalizedVenueId)
               .eq('is_draft', true);
             
             if (deleteError) {
@@ -541,25 +539,15 @@ export class ReviewService {
         } else {
           // Existing review is already published - just delete any other drafts and update it
           console.log('🔄 ReviewService: Existing review is already published - updating it:', existingReview.id);
-          if (isUuid) {
-            try {
-              // Delete all drafts (but not the published review we're updating)
-              let deleteQuery = supabase
-                .from('reviews')
-                .delete()
-                .eq('user_id', userId)
-                .eq('is_draft', true);
-              
-              if (isUuid && eventId) {
-                deleteQuery = deleteQuery.eq('event_id', eventId);
-              } else if (normalizedArtistId && normalizedVenueId) {
-                deleteQuery = deleteQuery
-                  .eq('artist_id', normalizedArtistId)
-                  .eq('venue_id', normalizedVenueId)
-                  .is('event_id', null);
-              }
-              
-              const { error: deleteError } = await deleteQuery;
+          try {
+            // Delete all drafts for this artist+venue (but not the published review we're updating)
+            const { error: deleteError } = await supabase
+              .from('reviews')
+              .delete()
+              .eq('user_id', userId)
+              .eq('artist_id', normalizedArtistId)
+              .eq('venue_id', normalizedVenueId)
+              .eq('is_draft', true);
               
               if (!deleteError) {
                 console.log('✅ Deleted all drafts before updating published review');
@@ -569,7 +557,6 @@ export class ReviewService {
             } catch (error) {
               console.warn('⚠️ Exception deleting drafts before update:', error);
             }
-          }
         }
         
         // If existingReview is null now (we deleted the draft), fall through to insert path below
@@ -596,8 +583,7 @@ export class ReviewService {
           is_draft: false, // Mark as published (not a draft)
           draft_data: null, // Clear draft data when publishing
           last_saved_at: null, // Clear last_saved_at when publishing
-          // Set Event_date from reviewData or fetched event date
-          ...(eventDate ? { Event_date: eventDate } : {}),
+          Event_date: eventDate, // Always set - required (NOT NULL)
           // All 5 category ratings (0.5-5.0, rounded to 1 decimal) - MUST be included
           // Only set if value is > 0, otherwise undefined (NULL in database)
           artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) && reviewData.artist_performance_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
@@ -704,10 +690,8 @@ export class ReviewService {
 
           if (error) throw error as any;
           
-          // CRITICAL: After updating an existing review (especially if converting from draft to published),
-          // we MUST ensure the draft is completely removed from the drafts list
-          // The update sets is_draft = false, but we also need to verify it worked and delete any remaining drafts
-          if (isUuid && data) {
+          // CRITICAL: After updating an existing review, ensure no drafts remain for this artist+venue
+          if (data) {
           try {
             // First, ensure the current review is definitely not a draft anymore
             // Sometimes the update might not have worked properly, so we verify and fix if needed
@@ -732,23 +716,14 @@ export class ReviewService {
               }
             }
             
-            // Delete ALL drafts (including any that might still be marked as drafts)
-            // This ensures the draft completely disappears from "Unreviewed" section
-            // We delete ALL drafts because the review is now published, not a draft
-            let deleteQuery = (supabase as any)
+            // Delete ALL drafts for this artist+venue
+            const deleteQuery = (supabase as any)
               .from('reviews')
               .delete()
               .eq('user_id', userId)
+              .eq('artist_id', normalizedArtistId)
+              .eq('venue_id', normalizedVenueId)
               .eq('is_draft', true);
-            
-            if (isUuid && eventId) {
-              deleteQuery = deleteQuery.eq('event_id', eventId);
-            } else if (normalizedArtistId && normalizedVenueId) {
-              deleteQuery = deleteQuery
-                .eq('artist_id', normalizedArtistId)
-                .eq('venue_id', normalizedVenueId)
-                .is('event_id', null);
-            }
             
             const deleteResult = await deleteQuery;
             
@@ -757,33 +732,24 @@ export class ReviewService {
             } else {
               const deletedCount = deleteResult.data?.length || 0;
               if (deletedCount > 0) {
-                console.log(`🧹 Deleted ${deletedCount} draft review(s) after submitting review for event:`, eventId);
+                console.log(`🧹 Deleted ${deletedCount} draft review(s) after submitting review for artist+venue`);
               } else {
                 console.log('✅ ReviewService: No drafts found to delete (review is now published)');
               }
               
-              // Final verification: check if any drafts still exist
-              let checkQuery = supabase
+              // Final verification: check if any drafts still exist for this artist+venue
+              const remainingDrafts = await supabase
                 .from('reviews')
                 .select('id, is_draft')
                 .eq('user_id', userId)
+                .eq('artist_id', normalizedArtistId)
+                .eq('venue_id', normalizedVenueId)
                 .eq('is_draft', true);
               
-              if (isUuid && eventId) {
-                checkQuery = checkQuery.eq('event_id', eventId);
-              } else if (normalizedArtistId && normalizedVenueId) {
-                checkQuery = checkQuery
-                  .eq('artist_id', normalizedArtistId)
-                  .eq('venue_id', normalizedVenueId)
-                  .is('event_id', null);
-              }
-              
-              const remainingDrafts = await checkQuery;
-              
               if (remainingDrafts.data && remainingDrafts.data.length > 0) {
-                console.warn(`⚠️ ReviewService: WARNING - ${remainingDrafts.data.length} draft(s) still exist after cleanup for event:`, eventId);
+                console.warn(`⚠️ ReviewService: WARNING - ${remainingDrafts.data.length} draft(s) still exist after cleanup for artist+venue`);
               } else {
-                console.log('✅ ReviewService: Verified - no drafts remain for this event');
+                console.log('✅ ReviewService: Verified - no drafts remain for this artist+venue');
               }
             }
           } catch (cleanupError) {
@@ -801,6 +767,16 @@ export class ReviewService {
             isPublic: (data as any)?.is_public,
           });
 
+          // Notify tagged friends so they can write their own review with artist, venue, date, and friends pre-filled
+          ReviewService.notifyTaggedFriendsInReview({
+            actorUserId: userId,
+            reviewData,
+            savedReview: data,
+            artistId: normalizedArtistId,
+            venueId: normalizedVenueId,
+            eventDate,
+          }).catch((err) => console.warn('Failed to notify tagged friends:', err));
+
           return data as any as UserReview;
         }
       }
@@ -811,7 +787,6 @@ export class ReviewService {
       // NOTE: Do NOT send rating - let the database trigger calculate it from category ratings
       const insertPayload: any = {
         user_id: userId,
-        ...(isUuid && eventId ? { event_id: eventId } : {}),
         ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
         ...(normalizedArtistId ? { artist_id: normalizedArtistId } : {}),
         // rating will be calculated by ensure_draft_no_rating trigger from category ratings
@@ -819,8 +794,7 @@ export class ReviewService {
         review_text: reviewData.review_text,
         is_public: reviewData.is_public ?? true,
         is_draft: false, // Explicitly mark as published (not a draft)
-        // Set Event_date from reviewData or fetched event date
-        ...(eventDate ? { Event_date: eventDate } : {}),
+        Event_date: eventDate, // Always set - required (NOT NULL)
         // All 5 category ratings (0.5-5.0, rounded to 1 decimal)
         // Only set if value is > 0, otherwise undefined (NULL in database)
         artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) && reviewData.artist_performance_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
@@ -861,58 +835,12 @@ export class ReviewService {
         value_feedback: insertPayload.value_feedback,
       });
 
-      // If eventId is provided, fetch event data to get artist_id
-      // Otherwise, use the provided artistId
-      if (isUuid && eventId) {
-        console.log('🔍 ReviewService: Checking event JamBase IDs for eventId:', eventId);
-        const { data: eventData, error: eventError } = await supabase
-          .from('events_with_artist_venue')
-          .select('id, artist_id, artist_name_normalized, venue_id, venue_name_normalized')
-          .eq('id', eventId)
-          .single();
-        
-        if (eventError) {
-          console.error('❌ ReviewService: Error fetching event data:', eventError);
-        } else {
-          console.log('🔍 ReviewService: Event data:', eventData);
-          
-          // Use JamBase artist_id directly (not UUID)
-          const eventArtistId = eventData?.artist_id;
-          if (eventArtistId && !normalizedArtistId) {
-            console.log('🔍 ReviewService: Using JamBase artist_id from event:', eventArtistId);
-            (insertPayload as any).artist_id = eventArtistId;
-          } else if (normalizedArtistId) {
-            console.log('🔍 ReviewService: Using provided artistId parameter:', normalizedArtistId);
-            (insertPayload as any).artist_id = normalizedArtistId;
-          } else {
-            console.log('⚠️ ReviewService: No artist_id found for event');
-          }
-          
-          // Use JamBase venue_id directly (not UUID)
-          if (normalizedVenueId) {
-            console.log('🔍 ReviewService: Using venueId parameter:', normalizedVenueId);
-            (insertPayload as any).venue_id = normalizedVenueId;
-          } else {
-            if (venueId) {
-              console.warn(
-                '⚠️ ReviewService: Ignoring non-UUID venueId parameter',
-                venueId
-              );
-            } else {
-              console.log('⚠️ ReviewService: No venueId parameter provided');
-            }
-          }
-        }
-      } else {
-        // No eventId - use provided artistId and venueId
-        if (normalizedArtistId) {
-          console.log('🔍 ReviewService: Using provided artistId (no event):', normalizedArtistId);
-          (insertPayload as any).artist_id = normalizedArtistId;
-        }
-        if (normalizedVenueId) {
-          console.log('🔍 ReviewService: Using provided venueId (no event):', normalizedVenueId);
-          (insertPayload as any).venue_id = normalizedVenueId;
-        }
+      // Use provided artistId and venueId - event_id is not used
+      if (normalizedArtistId) {
+        (insertPayload as any).artist_id = normalizedArtistId;
+      }
+      if (normalizedVenueId) {
+        (insertPayload as any).venue_id = normalizedVenueId;
       }
       
       // Debug: Log the final insert payload with all category data
@@ -942,14 +870,15 @@ export class ReviewService {
         .maybeSingle();
 
       if (error) {
-        // If duplicate key (user_id, event_id) already exists, fallback to update instead of failing
+        // If duplicate key (user_id, artist_id, venue_id) already exists, fallback to update instead of failing
         const err: any = error as any;
         if (err?.code === '23505' || /duplicate key/i.test(err?.message || '')) {
           const upd = await supabase
             .from('reviews')
             .update(insertPayload as any)
             .eq('user_id', userId)
-            .eq('event_id', eventId)
+            .eq('artist_id', normalizedArtistId)
+            .eq('venue_id', normalizedVenueId)
             .select()
             .maybeSingle();
           data = upd.data as any;
@@ -962,14 +891,13 @@ export class ReviewService {
         // Still include all category ratings and feedback - they're essential
         const minimalInsert: any = {
           user_id: userId,
-          event_id: eventId,
+          ...(normalizedArtistId ? { artist_id: normalizedArtistId } : {}),
           ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
           // rating will be calculated by database trigger from category ratings
           review_text: reviewData.review_text,
           is_public: reviewData.is_public ?? true,
           is_draft: false, // Explicitly mark as published
-          // Set Event_date from reviewData or fetched event date
-          ...(eventDate ? { Event_date: eventDate } : {}),
+          Event_date: eventDate, // Always set - required (NOT NULL)
           // All 5 category ratings (0.5-5.0, rounded to 1 decimal)
           // Only set if value is > 0, otherwise undefined (NULL in database)
           artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) && reviewData.artist_performance_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
@@ -1029,17 +957,28 @@ export class ReviewService {
         photoUrl: Array.isArray((data as any)?.photos) ? (data as any).photos[0] : undefined,
         isPublic: (data as any)?.is_public,
       });
+
+      // Notify tagged friends so they can write their own review with artist, venue, date, and friends pre-filled
+      ReviewService.notifyTaggedFriendsInReview({
+        actorUserId: userId,
+        reviewData,
+        savedReview: data,
+        artistId: normalizedArtistId,
+        venueId: normalizedVenueId,
+        eventDate,
+      }).catch((err) => console.warn('Failed to notify tagged friends:', err));
       
       // CRITICAL: Delete ALL drafts for this event immediately after creating published review
       // This is the nuclear option - delete ALL drafts, no exceptions
-      if (isUuid && data) {
+      // Only run when we have a valid eventId (event-based flow); artist+venue flow handles cleanup elsewhere
+      if (isValidUuid(_eventId) && data) {
         try {
           // Delete ALL drafts for this event (the published review has is_draft=false, so it's safe)
           const { error: deleteError, data: deletedData } = await supabase
             .from('reviews')
             .delete()
             .eq('user_id', userId)
-            .eq('event_id', eventId)
+            .eq('event_id', _eventId)
             .eq('is_draft', true)
             .select('id');
           
@@ -1056,7 +995,7 @@ export class ReviewService {
               .from('reviews')
               .select('id')
               .eq('user_id', userId)
-              .eq('event_id' , eventId)
+              .eq('event_id', _eventId)
               .eq('is_draft', true);
             
             if (verifyResult.data && verifyResult.data.length > 0) {
@@ -1066,7 +1005,7 @@ export class ReviewService {
                 .from('reviews')
                 .delete()
                 .eq('user_id', userId)
-                .eq('event_id', eventId)
+                .eq('event_id', _eventId)
                 .eq('is_draft', true);
             } else {
               console.log('✅ Verified: All drafts deleted successfully');
@@ -1080,7 +1019,7 @@ export class ReviewService {
               .from('reviews')
               .delete()
               .eq('user_id', userId)
-              .eq('event_id', eventId)
+              .eq('event_id', _eventId)
               .eq('is_draft', true);
           } catch (retryError) {
             console.error('❌ CRITICAL: Retry deletion also failed:', retryError);
@@ -1140,30 +1079,26 @@ export class ReviewService {
   static async getPreviousVenueReview(
     userId: string,
     venueId: string | null | undefined,
-    currentEventId: string
+    excludeReviewId?: string
   ): Promise<UserReview | null> {
     try {
       if (!venueId) return null;
 
-      // Validate UUID format for both venueId and currentEventId
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(venueId)) {
         return null;
       }
 
-      // If currentEventId is not a valid UUID (e.g., "new-review"), don't filter by it
-      // Just get all reviews at this venue
-      const query = supabase
+      let query = supabase
         .from('reviews')
         .select('*')
         .eq('user_id', userId)
         .eq('venue_id', venueId)
-        .eq('is_draft', false) // Only published reviews
+        .eq('is_draft', false)
         .order('created_at', { ascending: false });
 
-      // Only exclude current event if it's a valid UUID
-      if (currentEventId && uuidRegex.test(currentEventId)) {
-        query.neq('event_id', currentEventId);
+      if (excludeReviewId && uuidRegex.test(excludeReviewId)) {
+        query = query.neq('id', excludeReviewId);
       }
 
       const { data, error } = await query;

@@ -21,7 +21,6 @@ import { PostSubmitRankingModal } from './PostSubmitRankingModal';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { DraftReviewService, DraftReviewData, DraftReview } from '@/services/draftReviewService';
 import { DraftToggle } from './DraftToggle';
-import { SMSInvitationService } from '@/services/smsInvitationService';
 import { SetlistModal } from '@/components/reviews/SetlistModal';
 import { CustomSetlistInput } from '@/components/reviews/CustomSetlistInput';
 import { Music, DollarSign, Users } from 'lucide-react';
@@ -129,17 +128,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     return uuidRegex.test(value);
   };
 
-  const getInitialEventId = () => {
-    if (event.id?.startsWith('new-review')) {
-      return event.id;
-    }
-    if (isValidUUID(event.id)) {
-      return event.id!;
-    }
-    return '';
-  };
-
-  const [actualEventId, setActualEventId] = useState<string>(getInitialEventId());
   const [currentDraft, setCurrentDraft] = useState<DraftReview | null>(null);
   const [isSetlistModalOpen, setIsSetlistModalOpen] = useState(false);
   const [previousVenueReview, setPreviousVenueReview] = useState<UserReview | null>(null);
@@ -153,9 +141,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       }
 
       const venueId = formData.selectedVenue.id;
-      const eventId = actualEventId || event.id || '';
       
-      // Validate UUID format
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(venueId)) {
         setPreviousVenueReview(null);
@@ -163,7 +149,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       }
 
       try {
-        const prevReview = await ReviewService.getPreviousVenueReview(userId, venueId, eventId);
+        const prevReview = await ReviewService.getPreviousVenueReview(userId, venueId, existingReview?.id);
         setPreviousVenueReview(prevReview);
       } catch (error) {
         console.error('Error checking for previous venue review:', error);
@@ -172,7 +158,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     };
 
     checkPreviousVenueReview();
-  }, [formData.selectedVenue?.id, userId, actualEventId, event.id, existingReview]);
+  }, [formData.selectedVenue?.id, userId, existingReview]);
 
   const formatSetlistDate = (date?: string) => {
     if (!date) return '';
@@ -194,11 +180,15 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     updateFormData({ customSetlists: setlists as any });
   };
 
-  // Auto-save functionality (saves to database automatically on every change)
-  // CRITICAL: Disable auto-save after review is submitted to prevent creating new drafts
+  // Draft key based on artist+venue - event_id is not used for review submission
+  const draftKey = formData.selectedArtist && formData.selectedVenue
+    ? `artist_${(formData.selectedArtist as any)?.id || formData.selectedArtist?.name || 'x'}_venue_${(formData.selectedVenue as any)?.id || formData.selectedVenue?.name || 'x'}`
+    : 'new';
+  
+  // Auto-save functionality - uses localStorage with draftKey (event_id not used)
   const { manualSave, loadDraft, clearDraft } = useAutoSave({
     userId,
-    eventId: actualEventId || null,
+    eventId: draftKey,
     formData: formData as DraftReviewData,
     enabled: !isReviewSubmitted, // Disable auto-save after review is submitted
     debounceMs: 2000, // 2 second debounce
@@ -208,12 +198,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         setLastSaveTime(new Date());
       }
     },
-    onEventIdChange: (newEventId) => {
-      // Update actualEventId when it becomes available
-      if (newEventId && newEventId !== actualEventId) {
-        setActualEventId(newEventId);
-      }
-    }
   });
 
   const categoryConfigs = useMemo<Record<number, CategoryConfig>>(() => {
@@ -405,9 +389,11 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
         // Load draft data from localStorage if no existing review
         if (!review) {
-          // Try to load existing draft from localStorage using the best available identifier
-          const draftIdentifier = actualEventId || event.id;
-          const draftData = loadDraft(draftIdentifier);
+          // Draft key based on artist+venue from event (event_id not used)
+          const loadDraftKey = (event as any)?.artist_name || (event as any)?.artist_id
+            ? `artist_${(event as any).artist_id || (event as any).artist_name || 'x'}_venue_${(event as any).venue_id || (event as any).venue_name || 'x'}`
+            : 'new';
+          const draftData = loadDraft(loadDraftKey);
           if (draftData) {
             console.log('📂 Loaded draft from localStorage for event:', event.id);
             setFormData(draftData as any);
@@ -527,13 +513,14 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           resetForm();
           setIsReviewSubmitted(false); // Reset submission state for new review
           
-          // Prefill from the provided event context (artist, venue, date)
+          // Prefill from the provided event context (artist, venue, date, attendees for friend invite)
           try {
             const approxArtist = (event as any)?.artist_name || (event as any)?.artist?.name;
             const approxArtistId = (event as any)?.artist_id || (event as any)?.artist?.id || undefined;
             const approxVenue = (event as any)?.venue_name || (event as any)?.venue?.name;
             const approxVenueId = (event as any)?.venue_id || (event as any)?.venue?.id || undefined;
             const approxDate = (event as any)?.event_date || (event as any)?.date || undefined;
+            const approxAttendees = Array.isArray((event as any)?.attendees) ? (event as any).attendees : [];
 
             const selectedArtist = approxArtist
               ? ({ id: approxArtistId || `manual-${approxArtist}`, name: approxArtist, is_from_database: !!approxArtistId } as any)
@@ -548,6 +535,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               ...(selectedArtist ? { selectedArtist } : {}),
               ...(selectedVenue ? { selectedVenue } : {}),
               ...(eventDate ? { eventDate } : {}),
+              ...(approxAttendees.length > 0 ? { attendees: approxAttendees } : {}),
             });
           } catch {
             setFormData({ reviewType: 'event' });
@@ -707,10 +695,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       return;
     }
 
-    let eventId = isValidUUID(actualEventId)
-      ? actualEventId
-      : (isValidUUID(event.id) ? event.id : actualEventId || event.id);
-    // Resolve or cache artist in DB to obtain stable UUID for artists table
+    // Resolve artist and venue IDs - event_id is not used in review submission
     let artistProfileId: string | undefined;
     try {
       const artistCandidate: any = (formData.selectedArtist || (event as any)?.artist) || null;
@@ -791,150 +776,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
     if (venueId && !isValidUUID(venueId)) {
       venueId = undefined;
-    }
-
-    // ALWAYS create or find the correct event for the new artist/venue combination
-    // This ensures that when editing a review with different artist/venue, we use the correct event_id
-    const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(eventId);
-    
-    // Check if this is a new event (not a valid UUID or starts with 'new-review')
-    const isNewEvent = !looksLikeUuid || event?.id?.startsWith('new-review');
-    
-    // If editing an existing review, check if artist/venue has changed
-    const artistChanged = formData.selectedArtist && existingReview && formData.selectedArtist.name !== ((existingReview as any).artist_name || (event as any)?.artist_name);
-    const venueChanged = formData.selectedVenue && existingReview && formData.selectedVenue.name !== ((existingReview as any).venue_name || (event as any)?.venue_name);
-    
-    // We need to create a new event if it's a new event OR if the artist/venue has changed
-    const needsNewEvent = isNewEvent || artistChanged || venueChanged;
-    
-    // If event already exists and doesn't need recreation, verify and potentially update its date
-    if (looksLikeUuid && !event?.id?.startsWith('new-review') && !needsNewEvent) {
-      if (formData.eventDate && formData.eventDate.trim() !== '') {
-        try {
-          const eventDateTime = new Date(formData.eventDate + 'T20:00:00Z');
-          if (!isNaN(eventDateTime.getTime())) {
-            const { data: existingEvent } = await (supabase as any)
-              .from('events')
-              .select('event_date')
-              .eq('id', eventId)
-              .single();
-            
-            if (existingEvent) {
-              const existingDate = new Date(existingEvent.event_date);
-              const expectedDate = eventDateTime;
-              const daysDiff = Math.abs((expectedDate.getTime() - existingDate.getTime()) / (1000 * 60 * 60 * 24));
-              if (daysDiff > 1) {
-                console.log('🔧 Updating event date from', existingDate, 'to', expectedDate);
-                await (supabase as any)
-                  .from('events')
-                  .update({ event_date: eventDateTime.toISOString() })
-                  .eq('id', eventId);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('❌ Error updating event date:', error);
-        }
-      }
-    }
-    
-    if (needsNewEvent) {
-      try {
-        // Validate eventDate before creating Date object
-        if (!formData.eventDate || formData.eventDate.trim() === '') {
-          throw new Error('Event date is required');
-        }
-        
-        const eventDateTime = new Date(formData.eventDate + 'T20:00:00Z');
-        
-        // Validate that the date is actually valid
-        if (isNaN(eventDateTime.getTime())) {
-          throw new Error(`Invalid event date: ${formData.eventDate}`);
-        }
-        
-        // resolvedVenueId is a UUID from venues.id (not jambase_venue_id)
-        // Resolve venue_uuid only if we have a real UUID (user-created placeholders will fail Supabase)
-        const resolvedVenueId =
-          formData.selectedVenue?.is_from_database &&
-          isValidUUID(formData.selectedVenue.id)
-            ? formData.selectedVenue.id
-            : null;
-
-        // Attempt insert using normalized schema (artist_id and venue_id are UUID FKs, not names)
-        // Note: selectedArtist may have is_from_database property even though it's not in the base Artist type
-        const artistIsFromDatabase = (formData.selectedArtist as any)?.is_from_database;
-        const resolvedArtistId = artistProfileId || (artistIsFromDatabase && isValidUUID(formData.selectedArtist?.id) ? formData.selectedArtist.id : null);
-        
-        let insertPayload: any = {
-          title: `${formData.selectedArtist?.name || 'Concert'} at ${formData.selectedVenue?.name || 'Venue'}`,
-          // Use artist_id (UUID FK) instead of artist_name (column removed)
-          ...(resolvedArtistId ? { artist_id: resolvedArtistId } : {}),
-          // Use venue_id (UUID FK) instead of venue_name (column removed)
-          ...(resolvedVenueId ? { venue_id: resolvedVenueId } : {}),
-          venue_city: formData.selectedVenue?.address?.addressLocality || 'Unknown',
-          venue_state: formData.selectedVenue?.address?.addressRegion || 'Unknown',
-          event_date: eventDateTime.toISOString(),
-          description: `Concert by ${formData.selectedArtist?.name || ''} at ${formData.selectedVenue?.name || ''}`
-        };
-        // Users can no longer directly create events
-        // Submit a request instead
-        let ins: any = { data: null, error: null };
-        try {
-          const { MissingEntityRequestService } = await import('@/services/missingEntityRequestService');
-          await MissingEntityRequestService.submitRequest({
-            entity_type: 'event',
-            entity_name: insertPayload.title,
-            entity_date: insertPayload.event_date,
-            entity_location: `${insertPayload.venue_city}, ${insertPayload.venue_state}`,
-            additional_info: {
-              artist_id: resolvedArtistId,
-              venue_id: resolvedVenueId,
-            },
-          });
-          console.log('📝 Submitted request for missing event:', insertPayload.title);
-          toast({
-            title: "Event Request Submitted",
-            description: "Your event request has been submitted for review. You can still write your review.",
-          });
-          // Set a placeholder event ID so the review can proceed
-          // The actual event will need to be created by an admin
-          ins.data = { id: `pending-${Date.now()}` };
-        } catch (error) {
-          console.error('❌ Error submitting event request:', error);
-          ins.error = error;
-          toast({
-            title: "Request Submission Failed",
-            description: "Could not submit event request, but you can still write your review.",
-            variant: "destructive",
-          });
-          // Don't throw - allow user to continue with review
-        }
-        
-        // Note: venue_uuid column exists in events table
-        // The venueId will be passed directly to ReviewService
-        if (!ins.error && venueId) {
-          console.log('🔍 EventReviewForm: VenueId resolved for ReviewService:', venueId);
-        } else {
-          console.log('⚠️ EventReviewForm: No venueId resolved:', { venueId, hasError: !!ins.error });
-        }
-        if (ins.error) throw ins.error;
-        eventId = ins.data.id;
-        setActualEventId(ins.data.id);
-        
-        // If we're editing an existing review and the event changed, delete the old review
-        if (existingReview && (artistChanged || venueChanged)) {
-          console.log('🔄 EventReviewForm: Artist/venue changed, deleting old review and creating new one');
-          await supabase
-            .from('reviews')
-            .delete()
-            .eq('id', existingReview.id);
-          setExistingReview(null); // Treat as new review
-        }
-      } catch (e) {
-        console.error('Error creating event:', e);
-        toast({ title: 'Error', description: 'Failed to create event entry. Please try again.', variant: 'destructive' });
-        return;
-      }
     }
 
     setLoading(true);
@@ -1162,146 +1003,84 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         venueId = undefined;
       }
 
-      // Allow reviews without event_id if we have artist_id and venue_id
-      const safeEventId = isValidUUID(eventId) ? eventId : undefined;
       const safeVenueId = venueId && isValidUUID(venueId) ? venueId : undefined;
       const safeArtistId = artistProfileId && isValidUUID(artistProfileId) ? artistProfileId : undefined;
       
-      // Require either event_id OR both artist_id and venue_id
-      if (!safeEventId && (!safeArtistId || !safeVenueId)) {
-        throw new Error('Unable to determine a valid event ID or artist+venue combination for this review.');
+      if (!safeArtistId || !safeVenueId) {
+        throw new Error('Artist and venue must be selected from the database to submit a review.');
       }
 
-      // Get event date from formData or event object for Event_date field
-      // Event_date is a Date type, convert from string to Date object
-      let eventDateForReview: Date | undefined = undefined;
+      // Event_date is required (NOT NULL) - always include from first page (EventDetailsStep)
+      // Priority: formData.eventDate > event.event_date > today as fallback
+      let eventDateForReview: Date;
       if (formData.eventDate && formData.eventDate.trim() !== '') {
-        // Convert YYYY-MM-DD string to Date object
         const dateObj = new Date(formData.eventDate + 'T00:00:00Z');
-        if (!isNaN(dateObj.getTime())) {
-          eventDateForReview = dateObj;
-        }
+        eventDateForReview = !isNaN(dateObj.getTime()) ? dateObj : new Date();
       } else if ((event as any)?.event_date) {
-        eventDateForReview = new Date((event as any).event_date);
+        const dateObj = new Date((event as any).event_date);
+        eventDateForReview = !isNaN(dateObj.getTime()) ? dateObj : new Date();
+      } else {
+        eventDateForReview = new Date();
       }
       
-      // Add Event_date to reviewData (as Date object)
       const reviewDataWithEventDate = {
         ...reviewData,
-        ...(eventDateForReview ? { Event_date: eventDateForReview } : {}),
+        Event_date: eventDateForReview,
       };
       
-      const review = await ReviewService.setEventReview(userId, safeEventId, reviewDataWithEventDate, safeVenueId, safeArtistId);
+      const review = await ReviewService.setEventReview(userId, undefined, reviewDataWithEventDate, safeVenueId, safeArtistId);
       
-      // Clear localStorage draft after successful submission
-      if (safeEventId) {
-        clearDraft(safeEventId);
-      }
+      // Clear localStorage draft after successful submission (use draft key based on artist+venue)
+      const draftKey = safeArtistId && safeVenueId ? `artist_${safeArtistId}_venue_${safeVenueId}` : 'new';
+      clearDraft(draftKey);
       
-      // NUCLEAR OPTION: Delete ALL drafts for this user that match the same artist/venue/date
-      // This handles the case where a new event was created, leaving an old draft with a different event_id
+      // Delete drafts for this artist+venue combination
       try {
-        console.log('🗑️ EventReviewForm: Starting NUCLEAR draft deletion:', { eventId: safeEventId, artistId: safeArtistId, venueId: safeVenueId });
+        console.log('🗑️ EventReviewForm: Deleting drafts for artist+venue:', { artistId: safeArtistId, venueId: safeVenueId });
         
-        // First, delete drafts for this specific event (if eventId exists) or artist+venue (if no eventId)
-        let deleteQuery: any = supabase
+        const { error: deleteError, data: deletedData } = await supabase
           .from('reviews')
           .delete()
           .eq('user_id', userId)
-          .eq('is_draft', true);
-        
-        // Chain filters before executing
-        if (safeEventId) {
-          deleteQuery = deleteQuery.eq('event_id', safeEventId);
-        } else if (safeArtistId && safeVenueId) {
-          deleteQuery = deleteQuery
-            .eq('artist_id', safeArtistId)
-            .eq('venue_id', safeVenueId)
-            .is('event_id', null);
-        }
-        
-        // Add select after all filters
-        deleteQuery = deleteQuery.select('id');
-        
-        const { error: deleteError, data: deletedData } = await deleteQuery;
+          .eq('artist_id', safeArtistId)
+          .eq('venue_id', safeVenueId)
+          .eq('is_draft', true)
+          .select('id');
         
         if (deleteError) {
-          console.error('❌ EventReviewForm: First deletion failed:', deleteError);
+          console.error('❌ EventReviewForm: Draft deletion failed:', deleteError);
         } else {
           const deletedCount = deletedData?.length || 0;
           console.log(`🧹 EventReviewForm: Deleted ${deletedCount} draft(s)`);
         }
         
-        // CRITICAL: Also delete drafts that match the same artist/venue/date
-        // This handles drafts created with a different event_id before the final event was created
+        // Also delete drafts that match by artist/venue/date from draft_data (handles drafts with different IDs)
         if (formData.selectedArtist?.name && formData.selectedVenue?.name && formData.eventDate) {
-          console.log('🔍 EventReviewForm: Looking for matching drafts by artist/venue/date...');
-          
-          // Get all user's drafts
-          const { data: allDrafts, error: draftsError } = await supabase
+          const { data: allDrafts } = await supabase
             .from('reviews')
-            .select('id, event_id, draft_data, is_draft')
+            .select('id, draft_data')
             .eq('user_id', userId)
             .eq('is_draft', true);
           
-          if (!draftsError && allDrafts) {
+          if (allDrafts) {
             const matchingDrafts = allDrafts.filter(draft => {
               if (!draft.draft_data) return false;
               const draftData = draft.draft_data as any;
               const draftArtist = draftData?.selectedArtist?.name || draftData?.artist_name;
               const draftVenue = draftData?.selectedVenue?.name || draftData?.venue_name;
               const draftDate = draftData?.eventDate;
-              
-              const matches = draftArtist === formData.selectedArtist?.name &&
-                             draftVenue === formData.selectedVenue?.name &&
-                             draftDate === formData.eventDate;
-              
-              if (matches) {
-                console.log(`🎯 EventReviewForm: Found matching draft ${draft.id} for same concert (different event_id)`);
-              }
-              return matches;
+              return draftArtist === formData.selectedArtist?.name &&
+                     draftVenue === formData.selectedVenue?.name &&
+                     draftDate === formData.eventDate;
             });
             
-            // Delete matching drafts
             for (const draft of matchingDrafts) {
-              console.log(`🗑️ EventReviewForm: Deleting matching draft ${draft.id}`);
-              await supabase
-                .from('reviews')
-                .delete()
-                .eq('id', draft.id);
-            }
-            
-            if (matchingDrafts.length > 0) {
-              console.log(`🧹 EventReviewForm: Deleted ${matchingDrafts.length} matching draft(s) for same concert`);
+              await supabase.from('reviews').delete().eq('id', draft.id);
             }
           }
         }
-        
-        // Wait a moment for database to catch up
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // VERIFY: Check if drafts still exist for this event
-        const verifyResult = await supabase
-          .from('reviews')
-          .select('id, is_draft')
-          .eq('user_id', userId)
-          .eq('event_id', eventId)
-          .eq('is_draft', true);
-        
-        if (verifyResult.data && verifyResult.data.length > 0) {
-          console.error(`❌ EventReviewForm: ${verifyResult.data.length} draft(s) STILL EXIST! Force deleting...`, verifyResult.data);
-          // Force delete any remaining drafts
-          await supabase
-            .from('reviews')
-            .delete()
-            .eq('user_id', userId)
-            .eq('event_id', eventId)
-            .eq('is_draft', true);
-        } else {
-          console.log('✅ EventReviewForm: Verified - all drafts for this event successfully deleted');
-        }
       } catch (error) {
-        console.error('❌ EventReviewForm: CRITICAL error during draft deletion:', error);
+        console.error('❌ EventReviewForm: Error during draft deletion:', error);
       }
       
       // Update events table with API setlist data ONLY (not custom setlist)
@@ -1331,10 +1110,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           reviewedEntityType = 'venue';
           reviewedEntityId = safeVenueId;
           reviewedEntityUuid = safeVenueId;
-        } else if (safeEventId) {
-          reviewedEntityType = 'event';
-          reviewedEntityId = safeEventId;
-          reviewedEntityUuid = safeEventId;
         }
         
         // Build metadata object, only including reviewed entity info if we have valid data
@@ -1380,35 +1155,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         trackInteraction.formSubmit('review', reviewEntityId, true, formSubmitMetadata, reviewEntityUuid);
       } catch {}
       toast({ title: existingReview ? 'Review Updated' : 'Review Submitted! 🎉', description: existingReview ? 'Your review has been updated.' : 'Thanks for sharing your concert experience!' });
-      
-      // Send SMS invitations for phone numbers if any
-      if (formData.attendees && formData.attendees.length > 0) {
-        const phoneNumbers = formData.attendees
-          .filter((a): a is { type: 'phone'; phone: string; name?: string } => a.type === 'phone')
-          .map(a => a.phone);
-        
-        if (phoneNumbers.length > 0) {
-          try {
-            // Get user's profile name
-            const { data: profile } = await supabase
-              .from('users')
-              .select('name')
-              .eq('user_id', userId)
-              .single();
-            
-            const senderName = profile?.name || 'A friend';
-            
-            await SMSInvitationService.sendReviewInvitations(
-              phoneNumbers,
-              review.id,
-              senderName
-            );
-          } catch (error) {
-            console.error('Failed to send SMS invitations:', error);
-            // Don't block review submission if SMS fails
-          }
-        }
-      }
       
       // Check if we should show ranking modal (only for new reviews, not edits)
       if (!existingReview) {
@@ -1968,7 +1714,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   console.log('🔍 EventReviewForm render state:', {
     existingReview: !!existingReview,
     isLoading,
-    actualEventId,
+    draftKey,
     hasFormData: !!formData
   });
 

@@ -4,6 +4,7 @@ import { Star, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
 import { AttendeeSelector } from '@/components/reviews/AttendeeSelector';
+import { ShareAppCTA } from '@/components/share/ShareAppCTA';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -222,6 +223,9 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
               metOnSynth={formData.metOnSynth}
               onMetOnSynthChange={handleMetOnSynthChange}
             />
+            <div className="mt-6 pt-6 border-t border-pink-200">
+              <ShareAppCTA source="review_flow" compact />
+            </div>
           </CardContent>
         </Card>
       )}

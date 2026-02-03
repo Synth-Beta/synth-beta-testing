@@ -178,11 +178,17 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
     } catch (err) {
       console.error('Error fetching setlists:', err);
       if (err instanceof Error && err.name === 'SetlistServiceOfflineError') {
+        const isLocalhost = typeof window !== 'undefined' && 
+          (window.location.hostname === 'localhost' || window.location.hostname.startsWith('127.'));
         setErrorType('offline');
-        setError('Setlist import is offline. Start the local proxy or add the setlist manually in the form.');
+        setError(isLocalhost
+          ? 'Setlist import is offline. Start the local proxy or add the setlist manually in the form.'
+          : 'The setlist service is temporarily unavailable. Please try again in a moment, or add the songs manually below.');
         toast({
           title: 'Setlist import unavailable',
-          description: 'Run `npm run backend:dev` in another terminal or enter the songs manually.',
+          description: isLocalhost
+            ? 'Run `npm run backend:dev` in another terminal or enter the songs manually.'
+            : 'The service may be temporarily overloaded. Try again shortly or add the songs manually.',
           variant: 'destructive'
         });
       } else {
@@ -298,7 +304,7 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
                 {error}
               </p>
 
-              {errorType === 'offline' && (
+              {errorType === 'offline' && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.startsWith('127.'))) && (
                 <div className="bg-pink-50 border border-pink-100 rounded-lg p-4 text-left max-w-md mx-auto mb-6 text-sm text-pink-900">
                   <p className="font-medium mb-2">To import from setlist.fm locally:</p>
                   <ol className="list-decimal list-inside space-y-1">

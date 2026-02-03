@@ -493,6 +493,7 @@ export class NotificationService {
           friend_rsvp_changed: 0,
           friend_review_posted: 0,
           friend_attended_same_event: 0,
+          friend_tagged_in_review: 0,
           event_reminder: 0,
           group_chat_invite: 0,
           trending_in_network: 0,

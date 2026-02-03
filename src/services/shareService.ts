@@ -1,3 +1,14 @@
+/** App Store link for Synth. Append ?referral=<code> when available for attribution. */
+export const SYNTH_APP_STORE_URL = 'https://apps.apple.com/us/app/synth-for-live-music-lovers/id6757408095';
+
+/** Message when sharing from the review flow (who you went with). */
+export const SHARE_APP_MESSAGE_EVENT_TOGETHER =
+  "We went to an event together! I'm sharing it on Synth — check it out:";
+
+/** Default message for general app share (e.g. banner). */
+export const SHARE_APP_MESSAGE_DEFAULT =
+  "I've been using Synth to discover shows and share live music moments. Thought you'd like it — ";
+
 export class ShareService {
   private static getBaseUrl(): string {
     if (typeof window !== 'undefined' && window.location) {
@@ -75,6 +86,47 @@ export class ShareService {
         await navigator.share({ title: title || 'Synth Venue', text, url });
       } else if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
+      }
+    } catch {
+      // ignore user cancel
+    }
+    return url;
+  }
+
+  /** Share the Synth app (App Store link). Optional referralCode for ?referral= attribution. */
+  static getAppStoreUrl(referralCode?: string | null): string {
+    if (referralCode?.trim()) {
+      return `${SYNTH_APP_STORE_URL}?referral=${encodeURIComponent(referralCode.trim())}`;
+    }
+    return SYNTH_APP_STORE_URL;
+  }
+
+  /**
+   * Share the Synth app. Optional custom message; use SHARE_APP_MESSAGE_EVENT_TOGETHER for review flow.
+   * When openMessages is true, opens SMS/Messages with body pre-filled (user picks contact and sends).
+   */
+  static async shareApp(
+    referralCode?: string | null,
+    options?: { message?: string; openMessages?: boolean }
+  ): Promise<string> {
+    const url = this.getAppStoreUrl(referralCode);
+    const message = options?.message ?? SHARE_APP_MESSAGE_DEFAULT;
+    const text = `${message} ${url}`;
+
+    if (options?.openMessages && typeof window !== 'undefined') {
+      try {
+        window.location.href = `sms:?body=${encodeURIComponent(text)}`;
+      } catch {
+        // fallback to share sheet
+      }
+      return url;
+    }
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Synth: For Live Music Lovers', text, url });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
       }
     } catch {
       // ignore user cancel

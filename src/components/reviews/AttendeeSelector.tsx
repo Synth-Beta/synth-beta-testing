@@ -134,7 +134,7 @@ export function AttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnS
         <SearchBar
           value={searchQuery}
           onChange={(value) => setSearchQuery(value)}
-          placeholder="Search Synth users or invite by phone..."
+          placeholder="Search Synth users to tag..."
           widthVariant="full"
           id={`${baseId.current}-search`}
           name="attendee_search"

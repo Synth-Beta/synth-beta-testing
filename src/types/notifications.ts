@@ -20,6 +20,7 @@ export type NotificationType =
   | 'friend_rsvp_changed'
   | 'friend_review_posted'
   | 'friend_attended_same_event'
+  | 'friend_tagged_in_review'
   | 'event_reminder'
   | 'group_chat_invite'
   | 'trending_in_network'

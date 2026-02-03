@@ -8,6 +8,7 @@ import { PhotoUpload, VideoUpload } from '@/components/ui/photo-upload';
 import { useAuth } from '@/hooks/useAuth';
 import { Users } from 'lucide-react';
 import { AttendeeSelector } from '@/components/reviews/AttendeeSelector';
+import { ShareAppCTA } from '@/components/share/ShareAppCTA';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface ReviewContentStepProps {
@@ -115,6 +116,9 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData, maxChara
               metOnSynth={formData.metOnSynth}
               onMetOnSynthChange={(metOnSynth) => onUpdateFormData({ metOnSynth })}
             />
+            <div className="mt-6 pt-6 border-t border-pink-200">
+              <ShareAppCTA source="review_flow" compact />
+            </div>
           </CardContent>
         </Card>
       )}

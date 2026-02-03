@@ -19,7 +19,7 @@ export const JamBaseHeaderAttribution: React.FC<JamBaseHeaderAttributionProps> =
       className={cn('jambase-header-attribution', className)}
       style={{
         position: 'fixed',
-        top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+        top: 'calc(env(safe-area-inset-top, 0px) + var(--onboarding-banner-height, 0px) + 12px)',
         right: 'calc(var(--spacing-screen-margin-x, 20px) + 44px + 12px)',
         zIndex: 60,
         display: 'flex',

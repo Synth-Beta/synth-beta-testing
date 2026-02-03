@@ -91,8 +91,6 @@ export class SetlistService {
     
     // Always try setlist.fm API first via backend proxy
     try {
-      // Removed verbose logging - only log errors
-      
       const response = await fetch(url, {
         headers: {
           'Accept': 'application/json',
@@ -105,6 +103,13 @@ export class SetlistService {
           // Backend searched setlist.fm API but found nothing - silent return
           return null;
         }
+        // On 503/5xx, try database fallback before failing
+        if (response.status >= 500) {
+          const dbResults = await this.searchSetlistsFromDatabase(params);
+          if (dbResults && dbResults.length > 0) {
+            return dbResults;
+          }
+        }
         throw new Error(`Backend API error: ${response.status} ${response.statusText}`);
       }
       
@@ -115,16 +120,21 @@ export class SetlistService {
         return null;
       }
       
-      // Success - no console log needed
-      
-      // Data is already transformed by the backend
       return data.setlist;
       
     } catch (error: any) {
+      // On any error, try database fallback (cached setlists) before giving up
+      try {
+        const dbResults = await this.searchSetlistsFromDatabase(params);
+        if (dbResults && dbResults.length > 0) {
+          return dbResults;
+        }
+      } catch {
+        // Ignore fallback errors
+      }
       // Only log if it's not a connection refused (expected when backend isn't running)
       if (error?.message?.includes('Failed to fetch') || error?.message?.includes('ERR_CONNECTION_REFUSED')) {
         // Backend not running - expected in dev, don't spam console
-        // Error will be caught by caller and handled gracefully
       } else {
         console.warn('⚠️ Setlist service error:', error?.message || error);
       }

@@ -5,11 +5,17 @@ struct AppShellView: View {
     @State private var selectedTab: AppTab = .home
     @State private var activeModal: AppModal?
     @State private var menuOpen: Bool = false
+    @State private var showShareBanner: Bool = !isShareWithFriendsBannerDismissed()
 
     var body: some View {
         ZStack {
             NavigationStack(path: $path) {
-                currentTabView()
+                VStack(spacing: 0) {
+                    if showShareBanner {
+                        ShareWithFriendsBanner(referralCode: nil, isVisible: $showShareBanner)
+                    }
+                    currentTabView()
+                }
                     .navigationDestination(for: AppDestination.self) { destination in
                         destinationView(for: destination)
                     }
@@ -21,6 +27,7 @@ struct AppShellView: View {
                         )
                         .ignoresSafeArea(.keyboard, edges: .bottom)
                     }
+                }
             }
             .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $activeModal) { modal in
@@ -160,7 +167,7 @@ struct AppShellView: View {
         case .eventDetails:
             return AnyView(ModalPlaceholderView(title: "Event Details", description: "Event details modal with interest toggle and media."))
         case .eventReview:
-            return AnyView(ModalPlaceholderView(title: "Event Review", description: "Create a review for an event."))
+            return AnyView(EventReviewModalView())
         case .settings:
             return AnyView(ModalPlaceholderView(title: "Settings", description: "Settings modal for account and app preferences."))
         case .reviewDetail:
@@ -328,6 +335,39 @@ struct ModalPlaceholderView: View {
             }
             .padding(.horizontal, SynthSpacing.screenMarginX)
             .padding(.top, SynthSpacing.small)
+            .padding(.bottom, SynthSpacing.bottomNav)
+
+            Spacer()
+        }
+        .background(SynthColor.neutral50)
+    }
+}
+
+// Event Review modal: placeholder content + share-with-friends CTA at the end (same $50 offer)
+struct EventReviewModalView: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            SynthModalHeader(title: "Event Review")
+
+            VStack(alignment: .leading, spacing: SynthSpacing.grouped) {
+                VStack(alignment: .leading, spacing: SynthSpacing.small) {
+                    Text("Event Review").synth(.h2)
+                    Text("Coming soon!").synth(.body)
+                    Text("Create a review for an event.").synth(.meta, color: SynthColor.neutral600)
+                }
+                .padding(.horizontal, SynthSpacing.screenMarginX)
+                .padding(.top, SynthSpacing.small)
+
+                Divider()
+                    .padding(.horizontal, SynthSpacing.screenMarginX)
+
+                Text("Share with friends you went with")
+                    .synth(.accent, color: SynthColor.neutral900)
+                    .padding(.horizontal, SynthSpacing.screenMarginX)
+
+                ShareOfferView(referralCode: nil, source: "review_flow", compact: true)
+                    .padding(.horizontal, SynthSpacing.screenMarginX)
+            }
             .padding(.bottom, SynthSpacing.bottomNav)
 
             Spacer()

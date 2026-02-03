@@ -1,8 +1,7 @@
 -- ============================================================
 -- get_personalized_feed_v5: Fetch 100 events (50 recommended, 25 following, 25 trending)
--- with weighted genre sampling and fallback to recommended
+-- with weighted genre sampling - ALL nearby events included, genre matches weighted higher
 -- Distribution per 20: 10 recommended, 5 following, 5 trending (RANDOMIZED)
--- All event types filtered by location when location is provided
 -- ============================================================
 
 DROP FUNCTION IF EXISTS public.get_personalized_feed_v5(UUID, TEXT, INT, INT, NUMERIC, NUMERIC, NUMERIC);
@@ -43,7 +42,7 @@ DECLARE
   v_min_lng NUMERIC;
   v_max_lng NUMERIC;
 BEGIN
-  -- 50 mile bounding box (only calculated if location provided)
+  -- 50 mile bounding box
   IF has_location THEN
     v_min_lat := p_city_lat - (50.0 / 69.0);
     v_max_lat := p_city_lat + (50.0 / 69.0);
@@ -58,7 +57,7 @@ BEGIN
 
   RETURN QUERY
   WITH 
-  -- 25 FOLLOWING events (no location filter - show what user follows anywhere)
+  -- 25 FOLLOWING events
   following AS (
     SELECT 'following'::TEXT AS sec, e.id AS eid, e.*, a.name AS aname, v.name AS vname,
            0::NUMERIC AS genre_weight
@@ -79,34 +78,30 @@ BEGIN
     SELECT COUNT(*)::INT AS cnt FROM following
   ),
   
-  -- Calculate genre weights for recommended events
-  -- REQUIRED location filter: events MUST be within 50mi bounding box
+  -- Calculate genre weights for ALL nearby events (not just matching ones)
+  -- Base weight of 1 for all events, plus genre match bonus
   event_weights AS (
     SELECT 
       e.id AS eid,
-      COALESCE(SUM(
-        COALESCE((v_genre_scores->>g.genre)::NUMERIC, 0) +
-        COALESCE((v_genre_scores->>LOWER(g.genre))::NUMERIC, 0) +
-        COALESCE((v_genre_scores->>REPLACE(g.genre, ' ', ''))::NUMERIC, 0)
-      ), 0.1) AS total_weight
+      1.0 + COALESCE(
+        (SELECT SUM(
+          COALESCE((v_genre_scores->>g.genre)::NUMERIC, 0) +
+          COALESCE((v_genre_scores->>LOWER(g.genre))::NUMERIC, 0) +
+          COALESCE((v_genre_scores->>REPLACE(g.genre, ' ', ''))::NUMERIC, 0)
+        ) FROM unnest(e.genres) AS g(genre)),
+        0
+      ) AS total_weight
     FROM events e
-    CROSS JOIN LATERAL unnest(e.genres) AS g(genre)
     WHERE e.event_date BETWEEN min_ts AND max_ts
       AND e.id NOT IN (SELECT eid FROM following)
-      -- REQUIRED: event must be within user's location radius
       AND e.latitude IS NOT NULL 
       AND e.longitude IS NOT NULL
       AND e.latitude BETWEEN v_min_lat AND v_max_lat 
       AND e.longitude BETWEEN v_min_lng AND v_max_lng
-    GROUP BY e.id
-    HAVING SUM(
-      COALESCE((v_genre_scores->>g.genre)::NUMERIC, 0) +
-      COALESCE((v_genre_scores->>LOWER(g.genre))::NUMERIC, 0) +
-      COALESCE((v_genre_scores->>REPLACE(g.genre, ' ', ''))::NUMERIC, 0)
-    ) > 0
   ),
   
-  -- 50 RECOMMENDED + extra to fill missing following (weighted by genre scores)
+  -- 50 RECOMMENDED + extra to fill missing following
+  -- ALL nearby events included, genre matches weighted higher
   recommended AS (
     SELECT 'recommending'::TEXT AS sec, e.id AS eid, e.*, a.name AS aname, v.name AS vname,
            ew.total_weight AS genre_weight
@@ -116,7 +111,6 @@ BEGIN
     LEFT JOIN venues v ON v.id = e.venue_id
     WHERE e.event_date BETWEEN min_ts AND max_ts
       AND e.id NOT IN (SELECT eid FROM following)
-      -- REQUIRED: event must be within user's location radius
       AND e.latitude IS NOT NULL 
       AND e.longitude IS NOT NULL
       AND e.latitude BETWEEN v_min_lat AND v_max_lat 
@@ -125,7 +119,7 @@ BEGIN
     LIMIT 50 + (25 - (SELECT cnt FROM following_count))
   ),
   
-  -- 25 TRENDING events (REQUIRED location filter)
+  -- 25 TRENDING events
   trending AS (
     SELECT 'trending'::TEXT AS sec, e.id AS eid, e.*, a.name AS aname, v.name AS vname,
            0::NUMERIC AS genre_weight
@@ -135,7 +129,6 @@ BEGIN
     WHERE e.event_date BETWEEN min_ts AND max_ts
       AND e.id NOT IN (SELECT eid FROM following)
       AND e.id NOT IN (SELECT eid FROM recommended)
-      -- REQUIRED: event must be within user's location radius
       AND e.latitude IS NOT NULL 
       AND e.longitude IS NOT NULL
       AND e.latitude BETWEEN v_min_lat AND v_max_lat 
@@ -228,8 +221,7 @@ BEGIN
     jsonb_build_object(
       'event_type', f.sec,
       'genre_weight', f.genre_weight,
-      'page_num', f.page_num,
-      'has_location', has_location
+      'page_num', f.page_num
     ) AS context
   FROM final_ordered f
   ORDER BY f.final_pos
@@ -238,6 +230,6 @@ BEGIN
 END;
 $function$;
 
-COMMENT ON FUNCTION public.get_personalized_feed_v5 IS 'Batch fetch 100 events (50 rec, 25 fol, 25 tre). Each page of 20 has 10 rec + 5 fol + 5 tre, randomly shuffled. Location filter applied when provided.';
+COMMENT ON FUNCTION public.get_personalized_feed_v5 IS 'Batch fetch 100 events (50 rec, 25 fol, 25 tre). All nearby events included, genre matches weighted higher.';
 
 GRANT EXECUTE ON FUNCTION public.get_personalized_feed_v5(UUID, TEXT, INT, INT, NUMERIC, NUMERIC, NUMERIC, BOOLEAN, TEXT, TEXT, INT) TO authenticated;

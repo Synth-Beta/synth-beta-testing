@@ -10,6 +10,7 @@ import {
   UserPlus, 
   Calendar, 
   Star,
+  Users,
   ArrowLeft,
   Check,
   X,
@@ -512,6 +513,8 @@ export const NotificationsPage = ({
     switch (type) {
       case 'friend_request':
         return <UserPlus className="w-4 h-4" />;
+      case 'friend_tagged_in_review':
+        return <Users className="w-4 h-4" />;
       case 'event_interest':
         return <Heart className="w-4 h-4" />;
       case 'review_like':
@@ -595,6 +598,27 @@ export const NotificationsPage = ({
         if (data?.event_id && onNavigateToEvent) {
           onNavigateToEvent(data.event_id);
         }
+        break;
+
+      case 'friend_tagged_in_review':
+        // Open review form with artist, venue, date, and friends pre-filled
+        // Dispatch custom event that MainApp listens for to open EventReviewModal with prefill
+        if (data?.artist_id && data?.venue_id && data?.event_date) {
+          window.dispatchEvent(
+            new CustomEvent('open-review-invite', {
+              detail: {
+                artist_id: data.artist_id,
+                artist_name: data.artist_name,
+                venue_id: data.venue_id,
+                venue_name: data.venue_name,
+                event_date: data.event_date,
+                attendees: data.attendees,
+                review_id: data.review_id,
+              },
+            })
+          );
+        }
+        await markAsRead(notification.id);
         break;
 
       case 'event_interest':

@@ -16,6 +16,7 @@ import { NotificationsPage } from './NotificationsPage';
 import { UnifiedChatView } from './UnifiedChatView';
 import { MyEventsManagementPanel } from './events/MyEventsManagementPanel';
 import { OnboardingReminderBanner } from './onboarding/OnboardingReminderBanner';
+import { ShareWithFriendsBanner, isShareBannerDismissed } from './share/ShareWithFriendsBanner';
 import { OnboardingTour } from './onboarding/OnboardingTour';
 import { OnboardingFlow } from './onboarding/OnboardingFlow';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +35,8 @@ import { HomeFeed } from './home/HomeFeed';
 import { streamingSyncService } from '@/services/streamingSyncService';
 import { ToastAction } from '@/components/ui/toast';
 import { EventReviewModal } from './EventReviewModal';
+import { FriendTaggedReviewInviteModal, type PrefillEvent } from './reviews/FriendTaggedReviewInviteModal';
+import { NotificationService } from '@/services/notificationService';
 import { SynthLoadingScreen } from './ui/SynthLoader';
 import { PushTokenService } from '@/services/pushTokenService';
 import { UserEventService } from '@/services/userEventService';
@@ -87,6 +90,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [chatUserId, setChatUserId] = useState<string | undefined>(undefined);
   const [chatId, setChatId] = useState<string | undefined>(undefined);
   const [showOnboardingReminder, setShowOnboardingReminder] = useState(false);
+  const [showShareBanner, setShowShareBanner] = useState(() => !isShareBannerDismissed());
   const [runTour, setRunTour] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger to refresh views when review is submitted
   const [isChatSelected, setIsChatSelected] = useState(false); // Track if a chat is selected in UnifiedChatView
@@ -191,6 +195,47 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       checkOnboardingStatus();
     }
   }, [user, loading, currentView]);
+
+  // Check for unread friend-tagged-in-review notifications on login (popup on next login)
+  useEffect(() => {
+    if (!loading && user && !hasCheckedFriendTaggedInvite.current) {
+      hasCheckedFriendTaggedInvite.current = true;
+      NotificationService.getNotifications({
+        type: 'friend_tagged_in_review',
+        is_read: false,
+        limit: 1,
+      })
+        .then(({ notifications }) => {
+          const first = notifications[0];
+          if (first) {
+            setFriendTaggedInviteNotification(first);
+            setShowFriendTaggedInviteModal(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [loading, user]);
+
+  // Listen for open-review-invite (from NotificationsPage tap on friend_tagged_in_review)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && (detail as any).artist_id && (detail as any).venue_id) {
+        setEventReviewPrefill({
+          id: `invite-${(detail as any).review_id || 'tap'}`,
+          artist_id: (detail as any).artist_id,
+          artist_name: (detail as any).artist_name,
+          venue_id: (detail as any).venue_id,
+          venue_name: (detail as any).venue_name,
+          event_date: (detail as any).event_date,
+          attendees: (detail as any).attendees,
+        });
+        setShowEventReviewModal(true);
+      }
+    };
+    window.addEventListener('open-review-invite', handler);
+    return () => window.removeEventListener('open-review-invite', handler);
+  }, []);
 
   // Initialize push notifications when user is authenticated
   useEffect(() => {
@@ -327,6 +372,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [showAuth, setShowAuth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showEventReviewModal, setShowEventReviewModal] = useState(false);
+  const [eventReviewPrefill, setEventReviewPrefill] = useState<PrefillEvent | null>(null);
+  const [friendTaggedInviteNotification, setFriendTaggedInviteNotification] = useState<any>(null);
+  const [showFriendTaggedInviteModal, setShowFriendTaggedInviteModal] = useState(false);
+  const hasCheckedFriendTaggedInvite = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Global detail modal state shared across views (artist/venue + future profile popups)
   const [detailModal, setDetailModal] = useState<GlobalDetailModalState>({ open: false });
@@ -951,8 +1000,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       style={{
         paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
         backgroundColor: 'var(--neutral-50)',
-        // Set CSS variable for onboarding banner height so MobileHeader can position below it
-        '--onboarding-banner-height': showOnboardingReminder && !hideNavigation ? '60px' : '0px',
+        // Set CSS variable for top banner height (onboarding + share) so MobileHeader positions below it
+        '--onboarding-banner-height': !hideNavigation
+          ? `${(showOnboardingReminder ? 60 : 0) + (showShareBanner ? 56 : 0)}px`
+          : '0px',
         // Set CSS variable for header padding-top: when banner is visible, no safe area padding needed
         // (banner already accounts for it); when banner is not visible, header needs safe area padding
         '--mobile-header-padding-top': showOnboardingReminder && !hideNavigation ? '0px' : 'env(safe-area-inset-top, 0px)',
@@ -964,6 +1015,12 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           onComplete={() => setCurrentView('onboarding')}
           onDismiss={() => setShowOnboardingReminder(false)}
         />
+      )}
+      {/* Share with friends banner (dismissible, site-wide) */}
+      {showShareBanner && !hideNavigation && (
+        <div style={{ position: 'fixed', top: showOnboardingReminder ? 60 : 0, left: 0, right: 0, zIndex: 59 }}>
+          <ShareWithFriendsBanner onDismiss={() => setShowShareBanner(false)} />
+        </div>
       )}
 
       {/* Global Discover-style header for artist/venue detail modals opened from anywhere */}
@@ -1125,17 +1182,49 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         userEmail={user?.email}
       />
 
+      {/* Friend Tagged in Review Invite Modal - shows on login when user was tagged */}
+      {friendTaggedInviteNotification && (
+        <FriendTaggedReviewInviteModal
+          notification={friendTaggedInviteNotification}
+          isOpen={showFriendTaggedInviteModal}
+          onClose={async () => {
+            const notifId = friendTaggedInviteNotification?.id;
+            setShowFriendTaggedInviteModal(false);
+            setFriendTaggedInviteNotification(null);
+            if (notifId) {
+              try {
+                await NotificationService.markAsRead(notifId);
+              } catch {}
+            }
+          }}
+          onWriteReview={(prefillEvent) => {
+            const notifId = friendTaggedInviteNotification?.id;
+            setEventReviewPrefill(prefillEvent);
+            setShowEventReviewModal(true);
+            setShowFriendTaggedInviteModal(false);
+            setFriendTaggedInviteNotification(null);
+            if (notifId) {
+              NotificationService.markAsRead(notifId).catch(() => {});
+            }
+          }}
+        />
+      )}
+
       {/* Event Review Modal */}
       {user?.id && (
         <EventReviewModal
           isOpen={showEventReviewModal}
-          onClose={() => setShowEventReviewModal(false)}
-          event={{ id: 'new-review' } as any} // Placeholder event for creating a new review
+          onClose={() => {
+            setShowEventReviewModal(false);
+            setEventReviewPrefill(null);
+          }}
+          event={(eventReviewPrefill || { id: 'new-review' }) as any}
           userId={user.id}
           onReviewSubmitted={() => {
             setShowEventReviewModal(false);
+            setEventReviewPrefill(null);
             // Trigger refresh of profile and feed views
-            setRefreshTrigger(prev => prev + 1);
+            setRefreshTrigger((prev) => prev + 1);
           }}
         />
       )}
