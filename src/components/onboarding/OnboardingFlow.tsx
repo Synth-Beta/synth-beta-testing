@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ProfileSetupStep, type ProfileSetupStepRef } from './ProfileSetupStep';
 import { MusicTagsStep } from './MusicTagsStep';
 import { OnboardingService, ProfileSetupData } from '@/services/onboardingService';
+import { ArtistFollowService } from '@/services/artistFollowService';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -178,6 +179,13 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
           setLoading(false);
           return;
         }
+      }
+
+      // Immediately follow selected artists so they appear in the home feed
+      try {
+        await ArtistFollowService.followArtists(user.id, artistData);
+      } catch (followErr) {
+        console.warn('Onboarding: could not follow some artists (continuing):', followErr);
       }
 
       await OnboardingService.completeOnboarding(user.id);
