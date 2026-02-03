@@ -410,14 +410,14 @@ export function SwiftUIReviewCard({
           role="button"
           aria-label={`View review: ${reviewTitle}`}
         >
-          {/* Review Image */}
-          <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden">
+          {/* Review Image - contain so full photo is visible (no crop) */}
+          <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden bg-black flex items-center justify-center">
             {displayImageUrl ? (
               <>
                 <img 
                   src={displayImageUrl} 
                   alt={reviewTitle} 
-                  className="w-full h-full object-cover"
+                  className="max-w-full max-h-full w-auto h-auto object-contain object-center"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.onerror = null;

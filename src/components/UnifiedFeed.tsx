@@ -1863,8 +1863,8 @@ export const UnifiedFeed = ({
     // Rendering hero image
     if (!url) return null;
     return (
-      <div className="h-44 w-full overflow-hidden rounded-t-lg">
-        <img src={url} alt={item.event_info?.event_name || item.title} className="w-full h-full object-cover" loading="lazy" />
+      <div className="h-44 w-full overflow-hidden rounded-t-lg bg-black flex items-center justify-center">
+        <img src={url} alt={item.event_info?.event_name || item.title} className="max-w-full max-h-full w-auto h-auto object-contain object-center" loading="lazy" />
       </div>
     );
   };

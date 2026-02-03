@@ -47,11 +47,11 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       onClick={onClick}
     >
       {imageUrl && (
-        <div className="w-full h-32 bg-gray-200 overflow-hidden">
+        <div className="w-full h-32 bg-neutral-900 overflow-hidden flex items-center justify-center">
           <img
             src={imageUrl}
             alt={event.title || event.artist_name || 'Event'}
-            className="w-full h-full object-cover"
+            className="max-w-full max-h-full w-auto h-auto object-contain object-center"
           />
         </div>
       )}

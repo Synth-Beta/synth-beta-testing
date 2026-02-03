@@ -163,8 +163,8 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       role="button"
       aria-label={`View event: ${event.title}`}
     >
-      {/* Event Image */}
-      <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden">
+      {/* Event Image - overfill the card, centered; card clips overflow */}
+      <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden bg-black">
       {imageUrl ? (
         <>
             <ClickableImage
@@ -174,16 +174,18 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
                 : event.title 
                   ? `${event.title} event photo`
                   : "Event photo"}
-              className="w-full h-full"
+              className="absolute inset-0 flex items-center justify-center"
             >
-              <img 
-                src={imageUrl} 
-                alt={event.artist_name && event.venue_name 
-                  ? `${event.title} - ${event.artist_name} at ${event.venue_name}`
-                  : event.title 
-                    ? `${event.title} event photo`
-                    : "Event photo"} 
-                className="w-full h-full object-cover"
+              {/* Inner wrapper 120% size, centered, so image overfills card and card clips */}
+              <div className="absolute w-[120%] h-[120%] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                <img 
+                  src={imageUrl} 
+                  alt={event.artist_name && event.venue_name 
+                    ? `${event.title} - ${event.artist_name} at ${event.venue_name}`
+                    : event.title 
+                      ? `${event.title} event photo`
+                      : "Event photo"} 
+                  className="w-full h-full object-cover object-center"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   const synthPlaceholder = getSynthPlaceholderImage();
@@ -200,7 +202,8 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
                     target.onerror = null;
                   }
                 }}
-              />
+                />
+              </div>
             </ClickableImage>
             <div
               className="absolute inset-0"
@@ -255,11 +258,11 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
           <h2
             className="line-clamp-2"
             style={{
-          fontFamily: 'var(--font-family)',
+              fontFamily: 'var(--font-family)',
               fontSize: 'var(--typography-h2-size, 24px)',
               fontWeight: 'var(--typography-h2-weight, 700)',
               lineHeight: 'var(--typography-h2-line-height, 1.3)',
-          color: 'var(--neutral-900)',
+              color: 'var(--neutral-900)',
             }}
           >
           {event.title}

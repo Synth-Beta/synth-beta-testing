@@ -85,12 +85,12 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
           role="article"
           aria-label={`Event: ${event.title}`}
         >
-      {/* Event Image */}
-      <div className="relative h-72 overflow-hidden">
+      {/* Event Image - contain so full photo is visible (no crop) */}
+      <div className="relative h-72 overflow-hidden bg-black flex items-center justify-center">
         <img
           src={eventImage}
           alt={`${event.title} event image`}
-          className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+          className="max-w-full max-h-full w-auto h-auto object-contain object-center transition-transform duration-500 hover:scale-105"
           loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />

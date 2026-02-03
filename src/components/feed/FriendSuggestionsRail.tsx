@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { X, UserPlus, Verified, Check } from 'lucide-react';
+import { X, UserPlus, Verified } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -29,12 +29,12 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
   onDismiss,
   onAddFriend,
 }) => {
-  // Track which users have had friend requests sent (persist across reloads)
-  const [requestedUserIds, setRequestedUserIds] = useState<Set<string>>(new Set());
+  // Users to exclude from the list: already friends or pending (sent or received)
+  const [excludedUserIds, setExcludedUserIds] = useState<Set<string>>(new Set());
 
-  // Check for existing friend requests on mount and when suggestions change
+  // Check for existing relationships (pending or accepted) on mount and when suggestions change
   useEffect(() => {
-    const checkExistingRequests = async () => {
+    const checkExistingRelationships = async () => {
       if (suggestions.length === 0) return;
 
       try {
@@ -42,77 +42,64 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
         if (!user) return;
 
         const userIds = suggestions.map(s => s.user_id);
-        
-        // Check for pending friend requests in user_relationships table (3NF compliant)
-        // Check both directions: where current user sent (user_id = current user) 
-        // and where current user received (related_user_id = current user, user_id = suggested user)
-        const { data: sentRequests, error: sentError } = await supabase
+
+        // Exclude anyone we have any friend relationship with: pending (sent or received) or accepted
+        const { data: sent, error: sentError } = await supabase
           .from('user_relationships')
           .select('related_user_id')
           .eq('user_id', user.id)
           .eq('relationship_type', 'friend')
-          .eq('status', 'pending')
+          .in('status', ['pending', 'accepted'])
           .in('related_user_id', userIds);
 
         if (sentError) {
-          console.error('Error checking sent friend requests:', sentError);
+          console.error('Error checking sent friend relationships:', sentError);
         }
 
-        // Also check if any of these users sent requests to current user
-        const { data: receivedRequests, error: receivedError } = await supabase
+        const { data: received, error: receivedError } = await supabase
           .from('user_relationships')
           .select('user_id')
           .eq('related_user_id', user.id)
           .eq('relationship_type', 'friend')
-          .eq('status', 'pending')
+          .in('status', ['pending', 'accepted'])
           .in('user_id', userIds);
 
         if (receivedError) {
-          console.error('Error checking received friend requests:', receivedError);
+          console.error('Error checking received friend relationships:', receivedError);
         }
 
-        // Combine both sets - we want to show "Requested" if we sent it OR if they sent it to us
-        const requestedSet = new Set<string>();
-        if (sentRequests) {
-          sentRequests.forEach(r => requestedSet.add(r.related_user_id));
-        }
-        if (receivedRequests) {
-          receivedRequests.forEach(r => requestedSet.add(r.user_id));
-        }
+        const excluded = new Set<string>();
+        if (sent) sent.forEach(r => excluded.add(r.related_user_id));
+        if (received) received.forEach(r => excluded.add(r.user_id));
 
-        if (requestedSet.size > 0) {
-          setRequestedUserIds(requestedSet);
-        }
+        setExcludedUserIds(excluded);
       } catch (error) {
-        console.error('Error checking friend requests:', error);
+        console.error('Error checking friend relationships:', error);
       }
     };
 
-    checkExistingRequests();
+    checkExistingRelationships();
   }, [suggestions]);
 
   const handleAddFriend = async (userId: string) => {
-    if (requestedUserIds.has(userId)) {
-      return; // Already sent request
-    }
+    if (excludedUserIds.has(userId)) return;
 
     try {
       if (onAddFriend) {
         await onAddFriend(userId);
-        // Mark as requested on success
-        setRequestedUserIds(prev => new Set(prev).add(userId));
+        setExcludedUserIds(prev => new Set(prev).add(userId));
       }
     } catch (error: any) {
       console.error('Error sending friend request:', error);
-      // If error is "Friend request already sent", mark as requested anyway
       if (error?.message?.includes('already sent') || error?.message?.includes('Friend request already sent')) {
-        setRequestedUserIds(prev => new Set(prev).add(userId));
+        setExcludedUserIds(prev => new Set(prev).add(userId));
       }
-      // Don't mark as requested for other errors
     }
   };
 
-  if (suggestions.length === 0) {
+  const visibleSuggestions = suggestions.filter(s => !excludedUserIds.has(s.user_id));
+
+  if (visibleSuggestions.length === 0) {
     return null;
   }
 
@@ -137,8 +124,8 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
   };
 
   return (
-    <div className="mb-6 flex flex-col items-center">
-      {/* Header */}
+    <div className="mb-6 flex flex-col items-center" style={{ paddingTop: 'max(calc(env(safe-area-inset-top, 0px) + 8px), 16px)' }}>
+      {/* Header - extra top padding so section sits below header on iPhone */}
       <div className={cn(
         "flex items-center mb-3 px-1 w-full",
         onDismiss ? "justify-between" : "justify-center"
@@ -162,7 +149,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
       {/* Horizontal Scrollable Rail - centered when content is narrower than container */}
       <ScrollArea className="w-full">
         <div className="flex justify-center space-x-4 pb-4 pt-1">
-          {suggestions.map((suggestion) => (
+          {visibleSuggestions.map((suggestion) => (
             <div
               key={suggestion.user_id}
               className="flex flex-col items-center min-w-[120px] max-w-[120px] group cursor-pointer"
@@ -202,28 +189,15 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
               {onAddFriend && (
                 <Button
                   size="sm"
-                  variant={requestedUserIds.has(suggestion.user_id) ? "outline" : "outline"}
-                  className={cn(
-                    "mt-2 h-7 text-xs w-full",
-                    requestedUserIds.has(suggestion.user_id) && "border-synth-pink/30 bg-synth-pink/5"
-                  )}
-                  disabled={requestedUserIds.has(suggestion.user_id)}
+                  variant="outline"
+                  className="mt-2 h-7 text-xs w-full"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAddFriend(suggestion.user_id);
                   }}
                 >
-                  {requestedUserIds.has(suggestion.user_id) ? (
-                    <>
-                      <Check className="h-3 w-3 mr-1" />
-                      Requested
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="h-3 w-3 mr-1" />
-                      Add
-                    </>
-                  )}
+                  <UserPlus className="h-3 w-3 mr-1" />
+                  Add
                 </Button>
               )}
             </div>
