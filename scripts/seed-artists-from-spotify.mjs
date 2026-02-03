@@ -8,6 +8,7 @@
  *   node scripts/seed-artists-from-spotify.mjs [--limit=N] [--genres=rock,indie,pop]
  *   node scripts/seed-artists-from-spotify.mjs --top2025 [--limit=N]  # Top 50 USA/Global, Billions Club, top hits 2025
  *   node scripts/seed-artists-from-spotify.mjs --top1000 [--limit=N]  # Top N artists by Spotify popularity (default 1000)
+ *   node scripts/seed-artists-from-spotify.mjs --top1000 --limit=3000 --skip=2000  # Skip top 2000, add next 3000 (ranks 2001-5000)
  *
  * Environment (server-only; do not use VITE_ or expose in frontend):
  *   SPOTIFY_CLIENT_ID      - from Spotify Dashboard (same app as OAuth is fine)
@@ -32,7 +33,8 @@ async function loadEnv() {
 const SPOTIFY_ARTISTS_BATCH = 50;
 const SPOTIFY_SEARCH_LIMIT = 20;
 const DEFAULT_INSERT_LIMIT = 500;
-const TOP1000_DISCOVERY_POOL = 5000; // Discover this many, fetch all, sort by popularity, take top N
+const TOP1000_DISCOVERY_POOL = 5000; // Default pool size
+const TOP5000_DISCOVERY_POOL = 12000; // Larger pool for skip+limit > 5000
 const DELAY_MS = 300;
 const RETRY_AFTER_DEFAULT = 60;
 
@@ -44,6 +46,7 @@ const CURATED_PLAYLIST_IDS = [
 ];
 
 // Search queries for top/trending tracks 2025 (fallback when direct fetch fails)
+// Extra queries help reach 8000+ artists for --skip=2000 --limit=3000
 const TOP_2025_SEARCH_QUERIES = [
   'top artists 2025 USA',
   'top artists 2025 global',
@@ -54,6 +57,14 @@ const TOP_2025_SEARCH_QUERIES = [
   'viral hits 2025',
   'top 50 global',
   'trending 2025',
+  'spotify top artists',
+  'most streamed artists',
+  'indie pop 2025',
+  'hip hop 2025',
+  'country 2025',
+  'r&b 2025',
+  'latin pop 2025',
+  'electronic dance 2025',
 ];
 
 function parseArgs() {
@@ -553,11 +564,15 @@ class SpotifyArtistSeed {
   }
 
   async run() {
-    const { limit, genres, top2025, top1000 } = parseArgs();
+    const { limit, skip, genres, top2025, top1000 } = parseArgs();
     console.log('Phase One: Spotify artist seeding');
     if (top1000) {
       console.log('Mode: Top N by Spotify popularity (sort after fetch)');
-      console.log('Target:', limit, 'artists');
+      if (skip > 0) {
+        console.log('Skipping top', skip, 'artists, then inserting next', limit);
+      } else {
+        console.log('Target:', limit, 'artists');
+      }
     } else if (top2025) {
       console.log('Source: Top Tracks 2025 playlists (Top 50 Global, Today\'s Top Hits, Viral Hits, etc.)');
       console.log('Insert limit:', limit);
@@ -567,7 +582,7 @@ class SpotifyArtistSeed {
     }
 
     if (top1000) {
-      await this.runTop1000ByPopularity(limit);
+      await this.runTop1000ByPopularity(limit, skip);
     } else {
       await this.runStandard(limit, genres, top2025);
     }
@@ -600,12 +615,16 @@ class SpotifyArtistSeed {
 
   /**
    * Discover from playlists, fetch all artist details (with popularity),
-   * sort by popularity desc, take top N, then insert/link.
+   * sort by popularity desc, take slice [skip, skip+limit), then insert/link.
+   * Use --skip=2000 --limit=3000 to add artists ranked 2001-5000 (skip top 2000, add next 3000).
    */
-  async runTop1000ByPopularity(limit) {
-    const maxIds = Math.min(TOP1000_DISCOVERY_POOL, Math.max(limit * 3, 3000));
-    console.log('Discovering artist IDs from playlists (pool size:', maxIds, ')...');
-    const allIds = await this.discoverFromTop2025(maxIds);
+  async runTop1000ByPopularity(limit, skip = 0) {
+    const needTotal = skip + limit;
+    const poolSize = needTotal > 5000
+      ? Math.min(TOP5000_DISCOVERY_POOL, Math.max(needTotal * 2, 8000))
+      : Math.min(TOP1000_DISCOVERY_POOL, Math.max(needTotal * 2, 3000));
+    console.log('Discovering artist IDs from playlists (pool size:', poolSize, ')...');
+    const allIds = await this.discoverFromTop2025(poolSize);
     console.log('Discovered:', allIds.length, 'artist IDs');
 
     console.log('Fetching artist details (Get Several Artists, includes popularity)...');
@@ -614,14 +633,22 @@ class SpotifyArtistSeed {
 
     // Sort by popularity descending (100 = most popular)
     const byPopularity = [...artists].sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
-    const topN = byPopularity.slice(0, limit);
-    console.log('Top', topN.length, 'by popularity (range:', topN[topN.length - 1]?.popularity ?? '?', '-', topN[0]?.popularity ?? '?', ')');
+    const slice = byPopularity.slice(skip, skip + limit);
+    console.log(
+      'Slice [', skip, '-', skip + limit, '] by popularity:',
+      slice.length,
+      'artists (range:',
+      slice[slice.length - 1]?.popularity ?? '?',
+      '-',
+      slice[0]?.popularity ?? '?',
+      ')'
+    );
 
     // Filter out artists already in DB (by Spotify ID)
     const existingIds = new Set();
     const chunkSize = 100;
-    for (let i = 0; i < topN.length; i += chunkSize) {
-      const chunk = topN.slice(i, i + chunkSize).map((a) => a.id);
+    for (let i = 0; i < slice.length; i += chunkSize) {
+      const chunk = slice.slice(i, i + chunkSize).map((a) => a.id);
       const { data } = await this.supabase
         .from('external_entity_ids')
         .select('external_id')
@@ -631,7 +658,7 @@ class SpotifyArtistSeed {
       if (data) for (const row of data) existingIds.add(row.external_id);
     }
     this.stats.alreadyInDb = existingIds.size;
-    const toProcess = topN.filter((a) => !existingIds.has(a.id));
+    const toProcess = slice.filter((a) => !existingIds.has(a.id));
     console.log('Already in DB:', existingIds.size, '| To insert:', toProcess.length);
 
     for (let i = 0; i < toProcess.length; i++) {

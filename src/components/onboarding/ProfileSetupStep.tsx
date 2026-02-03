@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,15 @@ import { calculateAge } from '@/utils/calculateAge';
 import { SinglePhotoUpload } from '@/components/ui/photo-upload';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface ProfileSetupFormData {
+  username: string;
+  location_city: string;
+  birthday: string;
+  gender: string;
+  bio: string;
+  avatar_url: string;
+}
+
 interface ProfileSetupStepProps {
   initialData?: {
     username?: string;
@@ -26,15 +35,9 @@ interface ProfileSetupStepProps {
     bio?: string;
     avatar_url?: string;
   };
-  onChange?: (data: {
-    username: string;
-    location_city: string;
-    birthday: string;
-    gender: string;
-    bio: string;
-    avatar_url: string;
-  }) => void;
-  onNext: (data: {
+  onChange?: (data: ProfileSetupFormData) => void;
+  /** When provided, step shows Continue/Skip and calls onNext on submit. When omitted, step is headless (no buttons). */
+  onNext?: (data: {
     username?: string;
     location_city?: string;
     birthday?: string;
@@ -42,10 +45,17 @@ interface ProfileSetupStepProps {
     bio?: string;
     avatar_url?: string;
   }) => void;
-  onSkip: () => void;
+  onSkip?: () => void;
 }
 
-export const ProfileSetupStep = ({ initialData, onChange, onNext, onSkip }: ProfileSetupStepProps) => {
+export type ProfileSetupStepRef = {
+  validateAndGetData: () => Promise<{ valid: boolean; data?: ProfileSetupFormData; errors?: Record<string, string> }>;
+};
+
+export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStepProps>(function ProfileSetupStep(
+  { initialData, onChange, onNext, onSkip },
+  ref
+) {
   const [formData, setFormData] = useState({
     username: initialData?.username || '',
     location_city: initialData?.location_city || '',
@@ -187,9 +197,7 @@ export const ProfileSetupStep = ({ initialData, onChange, onNext, onSkip }: Prof
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const validateAndGetData = async () => {
     const newErrors: Record<string, string> = {};
 
     // Validate username (required)
@@ -246,14 +254,36 @@ export const ProfileSetupStep = ({ initialData, onChange, onNext, onSkip }: Prof
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      return { valid: false, errors: newErrors };
+    }
+
+    return {
+      valid: true,
+      data: {
+        ...formData,
+        username: finalUsername, // Use the sanitized username
+      },
+    };
+  };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      validateAndGetData,
+    }),
+    [formData]
+  );
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onNext) return;
+
+    const result = await validateAndGetData();
+    if (!result.valid || !result.data) {
       return;
     }
 
-    // Pass formData with sanitized username
-    onNext({
-      ...formData,
-      username: finalUsername, // Use the sanitized username
-    });
+    onNext(result.data);
   };
 
   return (
@@ -426,15 +456,21 @@ export const ProfileSetupStep = ({ initialData, onChange, onNext, onSkip }: Prof
           )}
         </div>
 
-        <div className="flex gap-3 pt-4">
-          <Button type="button" variant="ghost" onClick={onSkip} className="flex-1">
-            Skip
-          </Button>
-          <Button type="submit" className="flex-1">
-            Continue
-          </Button>
-        </div>
+        {(onNext != null || onSkip != null) && (
+          <div className="flex gap-3 pt-4">
+            {onSkip != null && (
+              <Button type="button" variant="ghost" onClick={onSkip} className="flex-1">
+                Skip
+              </Button>
+            )}
+            {onNext != null && (
+              <Button type="submit" className="flex-1">
+                Continue
+              </Button>
+            )}
+          </div>
+        )}
       </form>
     </div>
   );
-};
+});
