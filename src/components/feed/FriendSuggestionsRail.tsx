@@ -124,8 +124,14 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
   };
 
   return (
-    <div className="mb-6 flex flex-col items-center" style={{ paddingTop: 'max(calc(env(safe-area-inset-top, 0px) + 8px), 16px)' }}>
-      {/* Header - extra top padding so section sits below header on iPhone */}
+    <div
+      className="mb-6 flex flex-col items-center"
+      style={{
+        /* Push section below the app header (68px) + safe area so "Who you should know" is never covered */
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 72px)',
+      }}
+    >
+      {/* Section title - now starts beneath the header */}
       <div className={cn(
         "flex items-center mb-3 px-1 w-full",
         onDismiss ? "justify-between" : "justify-center"
