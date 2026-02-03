@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import NotFound from "./pages/NotFound";
 import SpotifyCallback from "./pages/SpotifyCallback";
@@ -27,6 +28,7 @@ const queryClient = new QueryClient();
 function DeepLinkHandlerInner() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Handle deep links from Supabase auth callbacks
@@ -75,7 +77,11 @@ function DeepLinkHandlerInner() {
               // Password reset - navigate to reset password page
               navigate('/reset-password', { replace: true });
             } else if (authType === 'signup' || authType === 'email') {
-              // Email confirmation - navigate to onboarding
+              // Email confirmation - show verified toast then navigate to onboarding
+              toast({
+                title: 'Email verified!',
+                description: 'Your account is verified. Complete your profile below.',
+              });
               navigate('/#onboarding', { replace: true });
             } else {
               // Default: navigate to home
@@ -140,6 +146,10 @@ function DeepLinkHandlerInner() {
                   if (type === 'recovery') {
                     navigate('/reset-password', { replace: true });
                   } else if (type === 'signup' || type === 'email') {
+                    toast({
+                      title: 'Email verified!',
+                      description: 'Your account is verified. Complete your profile below.',
+                    });
                     navigate('/#onboarding', { replace: true });
                   } else {
                     navigate('/', { replace: true });
@@ -178,6 +188,10 @@ function DeepLinkHandlerInner() {
                   if (type === 'recovery') {
                     navigate('/reset-password', { replace: true });
                   } else if (type === 'signup' || type === 'email') {
+                    toast({
+                      title: 'Email verified!',
+                      description: 'Your account is verified. Complete your profile below.',
+                    });
                     navigate('/#onboarding', { replace: true });
                   } else {
                     navigate('/', { replace: true });
@@ -213,7 +227,7 @@ function DeepLinkHandlerInner() {
     
     // Process auth callback on mount and when location changes
     handleAuthCallback();
-  }, [location, navigate]);
+  }, [location, navigate, toast]);
   
   return null;
 }

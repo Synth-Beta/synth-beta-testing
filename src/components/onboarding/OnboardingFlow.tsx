@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { ProfileSetupStep } from './ProfileSetupStep';
+import { ProfileSetupStep, type ProfileSetupStepRef } from './ProfileSetupStep';
 import { MusicTagsStep } from './MusicTagsStep';
-import { OnboardingSkipModal } from './OnboardingSkipModal';
 import { OnboardingService, ProfileSetupData } from '@/services/onboardingService';
+import { ArtistFollowService } from '@/services/artistFollowService';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
-import { ChevronLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -17,18 +17,14 @@ interface OnboardingFlowProps {
 }
 
 export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [showSkipModal, setShowSkipModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [musicData, setMusicData] = useState<{ genres: string[]; artists: string[] }>({ genres: [], artists: [] });
+  const profileStepRef = useRef<ProfileSetupStepRef>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const exitInProgressRef = useRef(false);
 
-  // Step data
   const [profileData, setProfileData] = useState<ProfileSetupData>({});
-
-  const totalSteps = 2;
-  const progress = (currentStep / totalSteps) * 100;
 
   const beginExit = useCallback(() => {
     exitInProgressRef.current = true;
@@ -40,18 +36,17 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     onExit();
   }, [beginExit, onExit]);
 
-  // Close onboarding on ESC (but don't override skip modal's own ESC behavior)
+  // Close onboarding on ESC
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      if (showSkipModal) return;
       event.preventDefault();
       handleExit();
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleExit, showSkipModal]);
+  }, [handleExit]);
 
   const handleProfileDraftChange = useCallback((draft: {
     username: string;
@@ -61,84 +56,93 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     bio: string;
     avatar_url: string;
   }) => {
-    // Keep the latest in-progress profile draft in parent state so it survives
-    // step unmounts (loading UI) and skip/complete flows.
-    setProfileData(draft);
+    setProfileData({
+      username: draft.username || undefined,
+      location_city: draft.location_city || undefined,
+      birthday: draft.birthday || undefined,
+      gender: draft.gender || undefined,
+      bio: draft.bio || undefined,
+      avatar_url: draft.avatar_url || undefined,
+    });
   }, []);
 
-  // Track onboarding step views
-  useViewTracking('view', `onboarding_step_${currentStep}`, {
-    step: currentStep === 1 ? 'profile_setup' : 'music_tags',
-    step_number: currentStep,
-    total_steps: totalSteps
+  const handleMusicDraftChange = useCallback((data: { genres: string[]; artists: string[] }) => {
+    setMusicData(data);
+  }, []);
+
+  useViewTracking('view', 'onboarding_one_page', {
+    step: 'onboarding_single_page',
   });
 
-  // Track onboarding completion
-  useEffect(() => {
-    if (currentStep === totalSteps) {
-      trackInteraction.formSubmit('form', 'onboarding_complete', true, {
-        completed: true,
-        total_steps: totalSteps
-      });
-    }
-  }, [currentStep, totalSteps]);
-
-  const handleProfileSetup = async (data: ProfileSetupData) => {
+  const handleCompleteSetup = async () => {
     if (!user) return;
+
+    // Validate profile via ref
+    const profileResult = await profileStepRef.current?.validateAndGetData();
+    if (!profileResult?.valid || !profileResult.data) {
+      if (profileResult?.errors && Object.keys(profileResult.errors).length > 0) {
+        const firstError = Object.values(profileResult.errors)[0];
+        toast({
+          title: 'Profile incomplete',
+          description: firstError,
+          variant: 'destructive',
+        });
+      }
+      return;
+    }
+
+    // Validate music (≥3 genres, ≥3 artists)
+    if (musicData.genres.length < 3) {
+      toast({
+        title: 'Music taste required',
+        description: 'Please select at least 3 genres.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (musicData.artists.length < 3) {
+      toast({
+        title: 'Music taste required',
+        description: 'Please add at least 3 artists.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setLoading(true);
     try {
-      const success = await OnboardingService.saveProfileSetup(user.id, data);
-      if (success) {
-        // Merge submitted data back into the persisted draft (sanitized username, etc.)
-        setProfileData((prev) => ({ ...prev, ...data }));
-        setCurrentStep(2);
-      } else {
+      // Save profile
+      const profilePayload: ProfileSetupData = {
+        username: profileResult.data.username,
+        location_city: profileResult.data.location_city,
+        birthday: profileResult.data.birthday,
+        gender: profileResult.data.gender || undefined,
+        bio: profileResult.data.bio || undefined,
+        avatar_url: profileResult.data.avatar_url || undefined,
+      };
+      const profileSuccess = await OnboardingService.saveProfileSetup(user.id, profilePayload);
+      if (!profileSuccess) {
         toast({
           title: 'Error',
           description: 'Failed to save profile data. Please try again.',
           variant: 'destructive',
         });
-      }
-    } catch (error: any) {
-      const errorMessage = error?.message || 'An error occurred. Please try again.';
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    } finally {
-      if (!exitInProgressRef.current) {
         setLoading(false);
+        return;
       }
-    }
-  };
 
-  const handleMusicTags = async (data: { genres: string[]; artists: string[] }) => {
-    if (!user) return;
-
-    setLoading(true);
-    try {
-      // For artists, we need to find or create them in the database
-      // Use trigram search to find existing artists
+      // Save music preferences (same logic as former handleMusicTags)
       const artistData: { name: string; id?: string }[] = [];
-      
-      for (const artistName of data.artists) {
+
+      for (const artistName of musicData.artists) {
         try {
-          // Search for existing artist using trigram search
           const searchResults = await UnifiedArtistSearchService.searchArtistsTrigram(artistName, 1);
-          
+
           if (searchResults.length > 0 && searchResults[0].name.toLowerCase() === artistName.toLowerCase()) {
-            // Found exact match
             artistData.push({ name: searchResults[0].name, id: searchResults[0].id });
           } else {
-            // No exact match found - artist will be created via missing entity request
-            // For now, save with just the name (entity_id will be null)
             artistData.push({ name: artistName });
-            
-            // Submit missing entity request
             try {
-              // IMPORTANT: do not block saving preference signals on this request
               void import('@/services/missingEntityRequestService')
                 .then(({ MissingEntityRequestService }) =>
                   MissingEntityRequestService.submitRequest({
@@ -155,25 +159,17 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
           }
         } catch (error) {
           console.warn(`Error searching for artist "${artistName}":`, error);
-          // Continue with just the name if search fails
           artistData.push({ name: artistName });
         }
       }
 
-      // Save preferences to user_preferences
       try {
-        await OnboardingService.saveMusicPreferences(
-          user.id,
-          data.genres,
-          artistData
-        );
+        await OnboardingService.saveMusicPreferences(user.id, musicData.genres, artistData);
       } catch (error: any) {
         console.error('Error saving music preferences:', error);
-        // Handle duplicate preferences gracefully (they're okay)
         if (error?.message?.includes('already exist') || error?.code === '23505') {
           console.warn('Some preferences already exist, continuing...');
         } else {
-          // Show the actual error message from the service
           const errorMessage = error?.message || 'Failed to save music preferences. Please try again.';
           toast({
             title: 'Error',
@@ -185,19 +181,29 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
         }
       }
 
-      // Mark onboarding as completed
+      // Immediately follow selected artists so they appear in the home feed
+      try {
+        await ArtistFollowService.followArtists(user.id, artistData);
+      } catch (followErr) {
+        console.warn('Onboarding: could not follow some artists (continuing):', followErr);
+      }
+
       await OnboardingService.completeOnboarding(user.id);
+
+      trackInteraction.formSubmit('form', 'onboarding_complete', true, {
+        completed: true,
+        total_steps: 1,
+      });
 
       toast({
         title: 'Welcome to Synth!',
-        description: 'Your profile is all set up. Let\'s explore the app!',
+        description: "Your profile is all set up. Let's explore the app!",
       });
 
-      // Prevent any further state updates/rerenders here; parent will navigate away.
       beginExit();
       onComplete();
     } catch (error) {
-      console.error('Error in handleMusicTags:', error);
+      console.error('Error in handleCompleteSetup:', error);
       toast({
         title: 'Error',
         description: 'An error occurred. Please try again.',
@@ -206,106 +212,27 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     } finally {
       if (!exitInProgressRef.current) {
         setLoading(false);
-      }
-    }
-  };
-
-  const handleSkip = () => {
-    // Show skip modal - allows skipping from any step
-    if (!exitInProgressRef.current) {
-      setShowSkipModal(true);
-    }
-  };
-
-  const handleConfirmSkip = async () => {
-    if (!user) return;
-
-    setLoading(true);
-    try {
-      // Save any profile data that was entered before skipping
-      if (Object.keys(profileData).length > 0) {
-        try {
-          await OnboardingService.saveProfileSetup(user.id, profileData);
-        } catch (error) {
-          console.warn('Error saving profile data before skip:', error);
-          // Continue with skip even if profile save fails
-        }
-      }
-
-      const skipSuccess = await OnboardingService.skipOnboarding(user.id);
-      if (!skipSuccess) {
-        toast({
-          title: 'Error',
-          description: 'Failed to skip onboarding. Please try again.',
-          variant: 'destructive',
-        });
-        if (!exitInProgressRef.current) {
-          setLoading(false);
-          setShowSkipModal(false);
-        }
-        return;
-      }
-      
-      toast({
-        title: 'Onboarding Skipped',
-        description: 'You can complete your profile anytime from settings.',
-      });
-      // Prevent any further state updates/rerenders here; parent will navigate away.
-      beginExit();
-      onComplete();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'An error occurred. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      if (!exitInProgressRef.current) {
-        setLoading(false);
-        setShowSkipModal(false);
       }
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 to-accent/10">
-      <Card className="w-full max-w-2xl">
-        <CardContent className="p-6 md:p-8">
-          {/* Progress Bar */}
-          <div className="mb-8 space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <button
-                type="button"
-                aria-label="Back"
-                onClick={handleExit}
-                className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-muted/60 active:bg-muted/80 transition-colors"
-              >
-                <ChevronLeft size={24} aria-hidden="true" />
-              </button>
-              <div className="flex-1 flex items-center justify-between">
-                <span>Step {currentStep} of {totalSteps}</span>
-                <span>{Math.round(progress)}% complete</span>
-              </div>
-            </div>
-            <div
-              className="w-full h-2 overflow-hidden"
-              style={{
-                backgroundColor: 'var(--neutral-100)',
-                borderRadius: 'var(--radius-corner, 10px)'
-              }}
+      <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <CardContent className="p-6 md:p-8 flex flex-col flex-1 min-h-0">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              type="button"
+              aria-label="Back"
+              onClick={handleExit}
+              className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-muted/60 active:bg-muted/80 transition-colors text-muted-foreground"
             >
-              <div
-                className="h-full transition-all duration-300"
-                style={{
-                  width: `${progress}%`,
-                  backgroundColor: 'var(--brand-pink-500)',
-                  borderRadius: 'var(--radius-corner, 10px)'
-                }}
-              />
-            </div>
+              ←
+            </button>
+            <h1 className="text-lg font-semibold text-center flex-1">Complete your profile</h1>
+            <div className="w-11" />
           </div>
 
-          {/* Step Content */}
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center space-y-4">
@@ -314,34 +241,38 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
               </div>
             </div>
           ) : (
-            <>
-              {currentStep === 1 && (
+            <div className="flex-1 overflow-y-auto space-y-10">
+              <section>
+                <h2 className="text-xl font-semibold mb-4">Your profile</h2>
                 <ProfileSetupStep
+                  ref={profileStepRef}
                   initialData={profileData}
                   onChange={handleProfileDraftChange}
-                  onNext={handleProfileSetup}
-                  onSkip={handleSkip}
                 />
-              )}
+              </section>
 
-              {currentStep === 2 && (
+              <section>
+                <h2 className="text-xl font-semibold mb-4">Music taste</h2>
                 <MusicTagsStep
-                  onNext={handleMusicTags}
-                  onBack={() => setCurrentStep(1)}
-                  onSkip={handleSkip}
+                  onChange={handleMusicDraftChange}
+                  showButtons={false}
                 />
-              )}
-            </>
+              </section>
+            </div>
+          )}
+
+          {!loading && (
+            <div className="pt-6 mt-4 border-t">
+              <Button
+                onClick={handleCompleteSetup}
+                className="w-full"
+              >
+                Complete setup
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
-
-      <OnboardingSkipModal
-        open={showSkipModal}
-        onOpenChange={setShowSkipModal}
-        onConfirmSkip={handleConfirmSkip}
-      />
     </div>
   );
 };
-

@@ -3,6 +3,7 @@ import { Star, MapPin, Building2, ChevronDown, Camera, Share2, ChevronLeft } fro
 import { supabase } from '@/integrations/supabase/client';
 import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
 import { EventMap } from '@/components/EventMap';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import type { ReviewWithEngagement } from '@/services/reviewService';
 import { JamBaseAttribution } from '@/components/attribution';
@@ -23,6 +24,8 @@ interface VenueDetailModalProps {
   venueId: string;
   venueName: string;
   currentUserId: string;
+  /** When provided, clicking an event card navigates to the event page/details. When omitted, dispatches 'open-event-details' for global handling (e.g. MainApp). */
+  onEventClick?: (eventId: string) => void;
 }
 
 const INITIAL_UPCOMING_COUNT = 5;
@@ -35,6 +38,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
   venueId,
   venueName,
   currentUserId,
+  onEventClick,
 }) => {
   const [venueCity, setVenueCity] = useState<string | null>(null);
   const [venueState, setVenueState] = useState<string | null>(null);
@@ -642,7 +646,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                   />
             </div>
 
-              {/* Map Section */}
+              {/* Map Section - wrapped in ErrorBoundary to prevent Leaflet _leaflet_pos crash from breaking event card clicks */}
             {latitude && longitude && (
                 <div
                   style={{
@@ -653,23 +657,25 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                     borderRadius: 16,
                   }}
                 >
-                <EventMap
-                  center={[latitude, longitude]}
-                  zoom={15}
-                  events={[{
-                    id: venueId,
-                    jambase_event_id: venueId,
-                    title: venueName,
-                    artist_name: venueName,
-                    artist_id: '',
-                    venue_name: venueName,
-                    venue_id: venueId,
-                    event_date: new Date().toISOString(),
-                    latitude,
-                    longitude,
-                  }]}
-                  onEventClick={() => {}}
-                />
+                <ErrorBoundary fallback={<div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-500)' }}>Map unavailable</div>}>
+                  <EventMap
+                    center={[latitude, longitude]}
+                    zoom={15}
+                    events={[{
+                      id: venueId,
+                      jambase_event_id: venueId,
+                      title: venueName,
+                      artist_name: venueName,
+                      artist_id: '',
+                      venue_name: venueName,
+                      venue_id: venueId,
+                      event_date: new Date().toISOString(),
+                      latitude,
+                      longitude,
+                    }]}
+                    onEventClick={() => {}}
+                  />
+                </ErrorBoundary>
               </div>
             )}
 
@@ -835,6 +841,15 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                         currentUserId={currentUserId}
                         showActions={false}
                         compact={true}
+                        onClick={() => {
+                          const eventId = event.id || event.event_id || event.jambase_event_id || '';
+                          if (!eventId) return;
+                          if (onEventClick) {
+                            onEventClick(eventId);
+                          } else {
+                            window.dispatchEvent(new CustomEvent('open-event-details', { detail: { eventId } }));
+                          }
+                        }}
                       />
                     ))}
               </div>
@@ -864,6 +879,15 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                         currentUserId={currentUserId}
                         showActions={false}
                         compact={true}
+                        onClick={() => {
+                          const eventId = event.id || event.event_id || event.jambase_event_id || '';
+                          if (!eventId) return;
+                          if (onEventClick) {
+                            onEventClick(eventId);
+                          } else {
+                            window.dispatchEvent(new CustomEvent('open-event-details', { detail: { eventId } }));
+                          }
+                        }}
                       />
                     ))}
                   </div>

@@ -137,10 +137,13 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
   };
 
   return (
-    <div className="mb-6">
+    <div className="mb-6 flex flex-col items-center">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3 px-1">
-        <div>
+      <div className={cn(
+        "flex items-center mb-3 px-1 w-full",
+        onDismiss ? "justify-between" : "justify-center"
+      )}>
+        <div className={onDismiss ? undefined : "text-center"}>
           <h2 className="text-lg font-semibold text-synth-black">Who You Should Know</h2>
           <p className="text-sm text-synth-black/60">People you may know</p>
         </div>
@@ -156,9 +159,9 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
         )}
       </div>
 
-      {/* Horizontal Scrollable Rail */}
+      {/* Horizontal Scrollable Rail - centered when content is narrower than container */}
       <ScrollArea className="w-full">
-        <div className="flex space-x-4 pb-4 pt-1">
+        <div className="flex justify-center space-x-4 pb-4 pt-1">
           {suggestions.map((suggestion) => (
             <div
               key={suggestion.user_id}

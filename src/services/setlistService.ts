@@ -98,19 +98,25 @@ export class SetlistService {
         }
       });
       
+      // Check content-type before parsing JSON
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('⚠️ Backend returned non-JSON response:', {
+          status: response.status,
+          contentType,
+          preview: text.substring(0, 200)
+        });
+        throw new Error(`Backend returned HTML instead of JSON. Is the backend server running on ${backendUrl}?`);
+      }
+      
       if (!response.ok) {
         if (response.status === 404) {
           // Backend searched setlist.fm API but found nothing - silent return
           return null;
         }
-        // On 503/5xx, try database fallback before failing
-        if (response.status >= 500) {
-          const dbResults = await this.searchSetlistsFromDatabase(params);
-          if (dbResults && dbResults.length > 0) {
-            return dbResults;
-          }
-        }
-        throw new Error(`Backend API error: ${response.status} ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(`Backend API error: ${response.status} ${response.statusText} - ${errorData.error || errorData.message || ''}`);
       }
       
       const data = await response.json();
@@ -123,18 +129,14 @@ export class SetlistService {
       return data.setlist;
       
     } catch (error: any) {
-      // On any error, try database fallback (cached setlists) before giving up
-      try {
-        const dbResults = await this.searchSetlistsFromDatabase(params);
-        if (dbResults && dbResults.length > 0) {
-          return dbResults;
-        }
-      } catch {
-        // Ignore fallback errors
-      }
-      // Only log if it's not a connection refused (expected when backend isn't running)
+      // Handle different error types
       if (error?.message?.includes('Failed to fetch') || error?.message?.includes('ERR_CONNECTION_REFUSED')) {
         // Backend not running - expected in dev, don't spam console
+        // Error will be caught by caller and handled gracefully
+      } else if (error?.message?.includes('Unexpected token') || error?.message?.includes('is not valid JSON')) {
+        // JSON parsing error - backend returned HTML or invalid JSON
+        console.warn('⚠️ Setlist service error: Backend returned invalid JSON. Make sure the backend server is running:', backendUrl);
+        console.warn('   Start it with: npm run backend:dev');
       } else {
         console.warn('⚠️ Setlist service error:', error?.message || error);
       }

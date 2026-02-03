@@ -161,6 +161,95 @@ class IncrementalSync3NF {
   }
 
   /**
+   * Escape special LIKE/ILIKE pattern characters for literal matching.
+   * PostgreSQL LIKE treats % as "any sequence" and _ as "any single char".
+   */
+  escapeLikePattern(str) {
+    if (!str) return str;
+    // Escape backslash first, then % and _
+    return str.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+  }
+
+  /**
+   * Safely link a Jambase ID to an existing artist.
+   * Checks if artist already has a Jambase ID to prevent name collision merges.
+   * Returns: { success: boolean, skipped: boolean, reason?: string }
+   */
+  async linkJambaseIdToArtist(artistUuid, jambaseId, artistName) {
+    // First, check if this artist already has a Jambase ID linked
+    const { data: existing, error: checkError } = await this.syncService.supabase
+      .from('external_entity_ids')
+      .select('external_id')
+      .eq('entity_uuid', artistUuid)
+      .eq('source', 'jambase')
+      .eq('entity_type', 'artist')
+      .maybeSingle();
+    
+    if (checkError) {
+      console.warn(`  ⚠️ Error checking existing Jambase ID for ${artistUuid}: ${checkError.message}`);
+      return { success: false, skipped: false };
+    }
+    
+    if (existing) {
+      if (existing.external_id === jambaseId) {
+        // Same ID already linked - nothing to do
+        return { success: true, skipped: true, reason: 'already_linked' };
+      } else {
+        // Different Jambase ID already linked - don't overwrite (could be different artist with same name)
+        console.warn(`  ⚠️ Artist "${artistName}" already has Jambase ID ${existing.external_id}, skipping new ID ${jambaseId} (possible name collision)`);
+        return { success: false, skipped: true, reason: 'different_id_exists' };
+      }
+    }
+    
+    // No existing Jambase ID - safe to insert
+    try {
+      await this.upsertExternalId(artistUuid, 'jambase', 'artist', jambaseId);
+      return { success: true, skipped: false };
+    } catch (error) {
+      console.warn(`  ⚠️ Error linking Jambase ID ${jambaseId} to artist ${artistUuid}: ${error.message}`);
+      return { success: false, skipped: false };
+    }
+  }
+
+  /**
+   * Find artists by name (case-insensitive) for multi-source deduplication.
+   * Used when an artist doesn't have a Jambase external ID but might exist from Spotify.
+   * Returns: Map<normalizedName, artistUuid>
+   */
+  async findArtistsByName(names) {
+    if (!names || names.length === 0) return new Map();
+    
+    // Keep original names for querying, but create a map with normalized keys
+    const uniqueNames = [...new Set(names.map(n => n?.trim()).filter(Boolean))];
+    if (uniqueNames.length === 0) return new Map();
+
+    const map = new Map();
+    
+    // Use ilike for case-insensitive matching
+    // Query each name individually since ilike doesn't work with .in()
+    for (const name of uniqueNames) {
+      const normalizedKey = name.toLowerCase();
+      
+      // Skip if we already found this name
+      if (map.has(normalizedKey)) continue;
+      
+      // Escape LIKE special characters for literal matching
+      const escapedName = this.escapeLikePattern(name);
+      const { data, error } = await this.syncService.supabase
+        .from('artists')
+        .select('id, name')
+        .ilike('name', escapedName)
+        .limit(1);
+      
+      if (!error && data && data.length > 0) {
+        map.set(normalizedKey, data[0].id);
+      }
+    }
+    
+    return map;
+  }
+
+  /**
    * Create location-based key for venue matching
    * This MUST match the algorithm used in backfill-venue-ids.mjs
    * Used to ensure venues created during backfill are found during sync
@@ -262,7 +351,7 @@ class IncrementalSync3NF {
     const newArtists = [];
     const updateArtists = [];
 
-    // Separate new vs existing artists
+    // Separate new vs existing artists (by Jambase ID)
     for (const artistData of artistsArray) {
       const jambaseArtistId = artistData.jambase_artist_id;
       const existingUuid = existingArtistsMap.get(jambaseArtistId);
@@ -272,15 +361,60 @@ class IncrementalSync3NF {
         updateArtists.push({ uuid: existingUuid, data: artistData });
         artistUuidMap.set(jambaseArtistId, existingUuid);
       } else {
-        // Will insert new
+        // Will insert new (or link to existing by name)
         newArtists.push(artistData);
       }
     }
 
-    // Insert new artists
+    // For "new" artists, check if they exist by name (from Spotify or other sources)
+    // If found by name, link Jambase ID instead of creating duplicate
+    const artistsToLink = [];
+    const trulyNewArtists = [];
+    
     if (newArtists.length > 0) {
-      // Fetch genres for new artists that have empty genres
+      const names = newArtists.map(a => a.name).filter(Boolean);
+      const nameToUuidMap = await this.findArtistsByName(names);
+      
       for (const artist of newArtists) {
+        const normalizedName = artist.name?.trim()?.toLowerCase();
+        const existingUuidByName = normalizedName ? nameToUuidMap.get(normalizedName) : null;
+        
+        if (existingUuidByName) {
+          // Artist exists by name - link Jambase ID to it
+          artistsToLink.push({ uuid: existingUuidByName, data: artist });
+          artistUuidMap.set(artist.jambase_artist_id, existingUuidByName);
+          console.log(`  🔗 Linking Jambase ID to existing artist: "${artist.name}"`);
+        } else {
+          // Truly new artist
+          trulyNewArtists.push(artist);
+        }
+      }
+      
+      // Link Jambase IDs to existing artists (with collision protection)
+      for (const { uuid, data } of artistsToLink) {
+        const result = await this.linkJambaseIdToArtist(uuid, data.jambase_artist_id, data.name);
+        if (result.success && !result.skipped) {
+          this.stats.artistsUpdated++;
+        } else if (result.skipped && result.reason === 'different_id_exists') {
+          // Name collision detected - this artist needs to be created as new instead
+          // Remove the incorrect mapping we set earlier
+          artistUuidMap.delete(data.jambase_artist_id);
+          trulyNewArtists.push(data);
+        } else if (!result.success && !result.skipped) {
+          // Error case - linking failed due to database error
+          // Remove the stale mapping and try to create as new artist
+          console.warn(`  ⚠️ Linking failed for "${data.name}", will create as new artist`);
+          artistUuidMap.delete(data.jambase_artist_id);
+          trulyNewArtists.push(data);
+        }
+        // If already_linked, the mapping is still correct, just skip silently
+      }
+    }
+
+    // Insert truly new artists
+    if (trulyNewArtists.length > 0) {
+      // Fetch genres for new artists that have empty genres
+      for (const artist of trulyNewArtists) {
         if (isEmptyGenres(artist.genres)) {
           console.log(`  🔍 Fetching genres for new artist: ${artist.name}`);
           try {
@@ -307,7 +441,7 @@ class IncrementalSync3NF {
       }
       
       // Remove jambase_artist_id and artist_data_source from data (they're not columns, just used for deduplication)
-      const artistsToInsert = newArtists.map(artist => {
+      const artistsToInsert = trulyNewArtists.map(artist => {
         const { jambase_artist_id, artist_data_source, ...artistData } = artist;
         return {
           ...artistData,
@@ -342,7 +476,7 @@ class IncrementalSync3NF {
             await this.upsertExternalId(artist.id, 'jambase', 'artist', jambaseId);
             
             // Sync normalized genres for this artist
-            const originalArtist = newArtists.find(a => a.jambase_artist_id === jambaseId);
+            const originalArtist = trulyNewArtists.find(a => a.jambase_artist_id === jambaseId);
             if (originalArtist?.genres) {
               await this.syncArtistNormalizedGenres(artist.id, originalArtist.genres);
             }

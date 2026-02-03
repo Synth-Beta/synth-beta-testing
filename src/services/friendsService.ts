@@ -195,6 +195,43 @@ export class FriendsService {
   }
 
   /**
+   * Get similar users to add as friends (shared artists, venues, genres).
+   * Excludes friends, blocked, and pending requests.
+   */
+  static async getSimilarUsersToFriend(userId: string, limit: number = 10): Promise<Array<{
+    user_id: string;
+    name: string;
+    avatar_url: string | null;
+    verified?: boolean;
+    connection_depth: number;
+    mutual_friends_count: number;
+    shared_genres_count?: number;
+  }>> {
+    try {
+      const { data, error } = await supabase.rpc('get_similar_users_to_friend', {
+        p_user_id: userId,
+        p_limit: limit,
+      });
+      if (error) {
+        console.warn('get_similar_users_to_friend RPC not available, falling back to connection-based:', error.message);
+        return this.getRecommendedFriends(userId, limit);
+      }
+      return (data || []).map((r: any) => ({
+        user_id: r.recommended_user_id,
+        name: r.name || 'Unknown User',
+        avatar_url: r.avatar_url ?? null,
+        verified: true,
+        connection_depth: r.connection_degree ?? 3,
+        mutual_friends_count: r.mutual_friends_count ?? 0,
+        shared_genres_count: r.shared_genres_count ?? 0,
+      }));
+    } catch (err) {
+      console.error('Error getting similar users:', err);
+      return this.getRecommendedFriends(userId, limit);
+    }
+  }
+
+  /**
    * Get recommended friends from 2nd and 3rd degree connections
    * @param userId - The user ID to get recommendations for
    * @param limit - Maximum number of recommendations (default: 10)

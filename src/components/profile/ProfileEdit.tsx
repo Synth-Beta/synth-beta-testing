@@ -37,6 +37,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
     bio: '',
     instagram_handle: '',
     music_streaming_profile: '',
+    music_streaming_service: '' as '' | 'spotify' | 'apple_music',
     avatar_url: null as string | null,
     gender: '',
     birthday: ''
@@ -69,7 +70,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
   const fetchProfile = async () => {
     try {
       console.log('Fetching profile for user:', currentUserId);
-      const selectFields = 'id, user_id, name, username, avatar_url, bio, instagram_handle, music_streaming_profile, gender, birthday, created_at, updated_at';
+      const selectFields = 'id, user_id, name, username, avatar_url, bio, instagram_handle, music_streaming_profile, music_streaming_service, gender, birthday, created_at, updated_at';
       const fetchProfileRecord = async (column: 'user_id' | 'id') => {
         console.log(`ProfileEdit: Attempting profile lookup by ${column}`);
         return await supabase
@@ -111,6 +112,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
             bio: '',
             instagram_handle: '',
             music_streaming_profile: '',
+            music_streaming_service: '',
             avatar_url: null,
             gender: '',
             birthday: ''
@@ -132,6 +134,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         bio: profileData.bio || '',
         instagram_handle: profileData.instagram_handle || '',
         music_streaming_profile: profileData.music_streaming_profile || '',
+        music_streaming_service: (profileData as any).music_streaming_service || '',
         avatar_url: profileData.avatar_url || null,
         gender: profileData.gender || '',
         birthday: profileData.birthday || ''
@@ -232,6 +235,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
         bio: formData.bio.trim() || null,
         instagram_handle: formData.instagram_handle.trim() || null,
         music_streaming_profile: formData.music_streaming_profile.trim() || null,
+        music_streaming_service: formData.music_streaming_service || null,
         avatar_url: formData.avatar_url || null,
         gender: formData.gender.trim() || null,
         birthday: formData.birthday.trim() || null,
@@ -545,17 +549,35 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
 
             {/* Music Streaming Profile Field */}
             <div className="space-y-2">
-              <Label htmlFor="music-streaming" className="flex items-center gap-2">
+              <Label htmlFor="music-streaming-service" className="flex items-center gap-2">
                 <Music className="w-4 h-4" />
                 Music Streaming Profile
               </Label>
-              <Input
-                id="music-streaming"
-                value={formData.music_streaming_profile}
-                onChange={(e) => handleInputChange('music_streaming_profile', e.target.value)}
-                placeholder="https://open.spotify.com/user/yourusername or @username"
-                maxLength={200}
-              />
+              <Select
+                value={formData.music_streaming_service || undefined}
+                onValueChange={(value) => handleInputChange('music_streaming_service', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your streaming service" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="spotify">Spotify</SelectItem>
+                  <SelectItem value="apple_music">Apple Music</SelectItem>
+                </SelectContent>
+              </Select>
+              {formData.music_streaming_service && (
+                <Input
+                  id="music-streaming"
+                  value={formData.music_streaming_profile}
+                  onChange={(e) => handleInputChange('music_streaming_profile', e.target.value)}
+                  placeholder={
+                    formData.music_streaming_service === 'spotify' 
+                      ? 'Your Spotify username (e.g., yourusername)' 
+                      : 'Your Apple Music username (e.g., yourusername)'
+                  }
+                  maxLength={200}
+                />
+              )}
               <p className="text-xs text-muted-foreground">
                 Share your Spotify, Apple Music, or other streaming profile link. Will display as a clickable link on your profile.
               </p>

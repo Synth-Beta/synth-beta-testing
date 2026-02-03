@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SideMenu } from '@/components/SideMenu/SideMenu';
 import { BottomNavAdapter } from './BottomNavAdapter';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
@@ -42,6 +42,7 @@ import { PushTokenService } from '@/services/pushTokenService';
 import { UserEventService } from '@/services/userEventService';
 import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
 import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
+import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import { ShareService } from '@/services/shareService';
 
@@ -382,9 +383,39 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   // Track whether any EventDetailsModal is open anywhere in the app so we can
   // hide underlying page headers (Profile/Home/etc) and avoid double headers.
   const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
+  // Event details when opened from venue modal (global VenueDetailModal)
+  const [selectedEventFromVenue, setSelectedEventFromVenue] = useState<any>(null);
+  const [eventDetailsFromVenueOpen, setEventDetailsFromVenueOpen] = useState(false);
+  const [selectedEventFromVenueInterested, setSelectedEventFromVenueInterested] = useState(false);
 
   // Lock body scroll when menu is open
   useLockBodyScroll(menuOpen);
+
+  const handleEventClickFromVenue = useCallback(async (eventId: string) => {
+    if (!eventId || !user?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*, artists(name), venues(name)')
+        .eq('id', eventId)
+        .single();
+
+      if (!error && data) {
+        const normalizedEvent = {
+          ...data,
+          artist_name: (data.artists as any)?.name || data.artist_name || null,
+          venue_name: (data.venues as any)?.name || data.venue_name || null,
+        };
+        setSelectedEventFromVenue(normalizedEvent);
+        const interested = await UserEventService.isUserInterested(user.id, eventId);
+        setSelectedEventFromVenueInterested(interested);
+        setDetailModal({ open: false });
+        setEventDetailsFromVenueOpen(true);
+      }
+    } catch (err) {
+      console.error('Error opening event from venue:', err);
+    }
+  }, [user?.id]);
 
   // Listen globally so artist/venue modals open from anywhere (review pills, links, etc.)
   useEffect(() => {
@@ -464,13 +495,21 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     const handleEventDetailsClose = () => setIsEventDetailsOpen(false);
     window.addEventListener('event-details-open', handleEventDetailsOpen as EventListener);
     window.addEventListener('event-details-close', handleEventDetailsClose as EventListener);
+    const handleOpenEventDetails = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { eventId?: string };
+      if (detail?.eventId) {
+        handleEventClickFromVenue(detail.eventId);
+      }
+    };
+    window.addEventListener('open-event-details', handleOpenEventDetails as EventListener);
     return () => {
       window.removeEventListener('open-artist-card', openArtist as EventListener);
       window.removeEventListener('open-venue-card', openVenue as EventListener);
       window.removeEventListener('event-details-open', handleEventDetailsOpen as EventListener);
       window.removeEventListener('event-details-close', handleEventDetailsClose as EventListener);
+      window.removeEventListener('open-event-details', handleOpenEventDetails as EventListener);
     };
-  }, []);
+  }, [handleEventClickFromVenue]);
 
   const handleForceLogin = () => {
     setShowAuth(true);
@@ -1138,6 +1177,31 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           venueId={detailModal.venueId}
           venueName={detailModal.venueName || 'Venue'}
           currentUserId={user.id}
+          onEventClick={handleEventClickFromVenue}
+        />
+      )}
+
+      {/* Event Details Modal (opened from global venue modal event cards) */}
+      {eventDetailsFromVenueOpen && selectedEventFromVenue && user?.id && (
+        <EventDetailsModal
+          isOpen={eventDetailsFromVenueOpen}
+          onClose={() => {
+            setEventDetailsFromVenueOpen(false);
+            setSelectedEventFromVenue(null);
+          }}
+          event={selectedEventFromVenue}
+          currentUserId={user.id}
+          isInterested={selectedEventFromVenueInterested}
+          onInterestToggle={async (eventId, interested) => {
+            try {
+              await UserEventService.setEventInterest(user.id, eventId, interested);
+              setSelectedEventFromVenueInterested(interested);
+            } catch (error) {
+              console.error('Error toggling interest:', error);
+            }
+          }}
+          onNavigateToProfile={handleNavigateToProfile}
+          onNavigateToChat={handleNavigateToChat}
         />
       )}
 

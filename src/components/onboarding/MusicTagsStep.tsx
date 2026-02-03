@@ -15,12 +15,16 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 
 interface MusicTagsStepProps {
-  onNext: (data: { genres: string[]; artists: string[] }) => void;
-  onBack: () => void;
-  onSkip: () => void;
+  onNext?: (data: { genres: string[]; artists: string[] }) => void;
+  onBack?: () => void;
+  onSkip?: () => void;
+  /** When true (default), show Back/Skip/Complete buttons. When false, step is a section only; parent owns submit. */
+  showButtons?: boolean;
+  /** Parent can receive current genres/artists for single-page submit. */
+  onChange?: (data: { genres: string[]; artists: string[] }) => void;
 }
 
-export const MusicTagsStep = ({ onNext, onBack, onSkip }: MusicTagsStepProps) => {
+export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onChange }: MusicTagsStepProps) => {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
   const [customGenre, setCustomGenre] = useState('');
@@ -31,6 +35,11 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip }: MusicTagsStepProps) =>
   const [isSearchingArtists, setIsSearchingArtists] = useState(false);
   const [artistSearchOpen, setArtistSearchOpen] = useState(false);
   const artistSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Report state to parent for single-page onboarding
+  useEffect(() => {
+    onChange?.({ genres: selectedGenres, artists: selectedArtists });
+  }, [selectedGenres, selectedArtists, onChange]);
 
   const handleAddGenre = (genre: string) => {
     if (selectedGenres.length >= 7) {
@@ -141,6 +150,8 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip }: MusicTagsStepProps) =>
   };
 
   const handleSubmit = () => {
+    if (!onNext) return;
+
     const newErrors: Record<string, string> = {};
 
     if (selectedGenres.length < 3) {
@@ -402,17 +413,25 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip }: MusicTagsStepProps) =>
         </p>
       </div>
 
-      <div className="flex gap-3 pt-4">
-        <Button type="button" variant="ghost" onClick={onBack} className="flex-1">
-          Back
-        </Button>
-        <Button type="button" variant="outline" onClick={onSkip} className="flex-1">
-          Skip
-        </Button>
-        <Button onClick={handleSubmit} className="flex-1">
-          Complete Setup
-        </Button>
-      </div>
+      {showButtons && (
+        <div className="flex gap-3 pt-4">
+          {onBack != null && (
+            <Button type="button" variant="ghost" onClick={onBack} className="flex-1">
+              Back
+            </Button>
+          )}
+          {onSkip != null && (
+            <Button type="button" variant="outline" onClick={onSkip} className="flex-1">
+              Skip
+            </Button>
+          )}
+          {onNext != null && (
+            <Button onClick={handleSubmit} className="flex-1">
+              Complete Setup
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -1089,6 +1089,31 @@ export function EventDetailsModal({
     }
   };
 
+  const handleEventClickFromVenue = async (eventId: string) => {
+    setVenueModalOpen(false);
+    try {
+      setLoading(true);
+      const { data: eventData, error } = await supabase
+        .from('events')
+        .select('*, artists(name), venues(name)')
+        .eq('id', eventId)
+        .single();
+
+      if (!error && eventData) {
+        const normalizedEvent = {
+          ...eventData,
+          artist_name: (eventData.artists as any)?.name || eventData.artist_name || null,
+          venue_name: (eventData.venues as any)?.name || eventData.venue_name || null,
+        };
+        setActualEvent(normalizedEvent);
+      }
+    } catch (err) {
+      console.error('Error fetching event from venue:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchInterestedUsers = async (page: number) => {
     try {
       const from = (page - 1) * pageSize;
@@ -2557,6 +2582,7 @@ export function EventDetailsModal({
         venueId={actualEvent.venue_id}
         venueName={actualEvent.venue_name}
         currentUserId={currentUserId}
+        onEventClick={handleEventClickFromVenue}
       />
     )}
 

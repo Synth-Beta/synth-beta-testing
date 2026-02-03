@@ -6,6 +6,9 @@
   "functions": {
     "api/setlists/search.ts": {
       "maxDuration": 10
+    },
+    "api/push-notification-webhook.ts": {
+      "maxDuration": 15
     }
   }
 }

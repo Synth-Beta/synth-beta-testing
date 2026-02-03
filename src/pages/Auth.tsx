@@ -106,7 +106,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -119,9 +119,25 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
 
       if (error) throw error;
 
+      // Supabase does not return an error when the email already exists; it returns success with empty identities.
+      if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
+        toast({
+          title: "Email already registered",
+          description: "This email is already in use. Try signing in or use a different email.",
+          variant: "destructive",
+          duration: 10000,
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (import.meta.env.DEV && data?.user) {
+        console.log("Sign-up success: user id:", data.user.id, "email confirmed:", !!data.user.email_confirmed_at);
+      }
+
       toast({
         title: "Check your email!",
-        description: "We sent you a confirmation link.",
+        description: "We sent you a confirmation link. You must click that link to verify your email before you can sign in.",
       });
     } catch (error: any) {
       const errorMsg = error?.message || error?.toString() || 'Sign up failed. Please try again.';
@@ -427,6 +443,9 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                 >
                   {loading ? 'Signing in...' : 'Sign In'}
                 </Button>
+                <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                  Can't sign in? Make sure you've clicked the verification link we sent to your email.
+                </p>
               </form>
             </TabsContent>
             
@@ -472,6 +491,9 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                   />
                 </div>
+                <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                  By signing up, you'll need to verify your email before you can sign in.
+                </p>
                 <Button 
                   type="submit" 
                   disabled={loading} 

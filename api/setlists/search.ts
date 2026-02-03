@@ -99,6 +99,9 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
+  // Always set JSON content type
+  res.setHeader('Content-Type', 'application/json');
+  
   // Enable CORS for all origins (needed for iOS, Android, localhost, and Vercel)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -116,6 +119,7 @@ export default async function handler(
 
   // Check for API key
   if (!SETLIST_FM_API_KEY) {
+    console.error('❌ SETLIST_FM_API_KEY is not set in environment variables');
     return res.status(503).json({ 
       error: 'Setlist.fm API not configured',
       message: 'SETLIST_FM_API_KEY is not set. Please configure it in Vercel environment variables to use setlist search.'
@@ -208,9 +212,14 @@ export default async function handler(
 
   } catch (error: any) {
     console.error('❌ Setlist.fm API error:', error);
+    // Ensure we return JSON even on errors
+    if (!res.headersSent) {
+      res.setHeader('Content-Type', 'application/json');
+    }
     return res.status(500).json({ 
       error: 'Failed to fetch setlists',
-      message: error.message 
+      message: error?.message || 'Unknown error',
+      stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
     });
   }
 }

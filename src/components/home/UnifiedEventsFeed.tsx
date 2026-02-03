@@ -33,6 +33,9 @@ interface UnifiedEventsFeedProps {
   onEventClick?: (eventId: string) => void;
   onInterestToggle?: (eventId: string, interested: boolean) => void;
   onShareClick?: (event: UnifiedEventItem, e: React.MouseEvent) => void;
+  /** Insert this ReactNode after N events (e.g. friend suggestions rail after 3 events) */
+  insertSectionAfterIndex?: number;
+  middleSection?: React.ReactNode;
 }
 
 const PAGE_SIZE = 20;
@@ -67,6 +70,8 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   onEventClick,
   onInterestToggle,
   onShareClick,
+  insertSectionAfterIndex,
+  middleSection,
 }) => {
   // All fetched events (batch of 100) and displayed events (paginated from batch)
   const [allFetchedEvents, setAllFetchedEvents] = useState<UnifiedEventItem[]>([]);
@@ -578,37 +583,49 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         }}
       >
         <div className="space-y-3 px-2">
-          {displayedEvents.map((event, index) => {
-            const imageUrl = getImageUrl(event);
-            const isInterested = interestedEvents.has(event.event_id) || event.user_is_interested || false;
-            const interestedCount = event.interested_count || 0;
+          {(() => {
+            const insertAt = insertSectionAfterIndex != null && middleSection != null ? insertSectionAfterIndex : -1;
+            const before = insertAt >= 0 ? displayedEvents.slice(0, insertAt) : displayedEvents;
+            const after = insertAt >= 0 ? displayedEvents.slice(insertAt) : [];
+            const renderEvent = (event: UnifiedEventItem, index: number, keySuffix: string) => {
+              const imageUrl = getImageUrl(event);
+              const isInterested = interestedEvents.has(event.event_id) || event.user_is_interested || false;
+              const interestedCount = event.interested_count || 0;
+              return (
+                <div
+                  key={`${event.event_id}-${keySuffix}`}
+                  className="swift-ui-feed-item"
+                  ref={(el) => attachObserver(el, event.event_id)}
+                >
+                  <CompactEventCard
+                    event={{
+                      id: event.event_id,
+                      title: event.title,
+                      artist_name: event.artist_name,
+                      venue_name: event.venue_name,
+                      event_date: event.event_date,
+                      venue_city: event.venue_city,
+                      image_url: imageUrl,
+                      poster_image_url: event.poster_image_url,
+                    }}
+                    reason={event.reason}
+                    interestedCount={interestedCount}
+                    isInterested={isInterested}
+                    onInterestClick={(e) => handleInterestToggle(event.event_id, e)}
+                    onShareClick={(e) => onShareClick?.(event, e)}
+                    onClick={() => onEventClick?.(event.event_id)}
+                  />
+                </div>
+              );
+            };
             return (
-              <div
-                key={`${event.event_id}-${index}`}
-                className="swift-ui-feed-item"
-                ref={(el) => attachObserver(el, event.event_id)}
-              >
-                <CompactEventCard
-                  event={{
-                    id: event.event_id,
-                    title: event.title,
-                    artist_name: event.artist_name,
-                    venue_name: event.venue_name,
-                    event_date: event.event_date,
-                    venue_city: event.venue_city,
-                    image_url: imageUrl,
-                    poster_image_url: event.poster_image_url,
-                  }}
-                  reason={event.reason}
-                  interestedCount={interestedCount}
-                  isInterested={isInterested}
-                  onInterestClick={(e) => handleInterestToggle(event.event_id, e)}
-                  onShareClick={(e) => onShareClick?.(event, e)}
-                  onClick={() => onEventClick?.(event.event_id)}
-                />
-              </div>
+              <>
+                {before.map((event, i) => renderEvent(event, i, `before-${i}`))}
+                {insertAt >= 0 && middleSection}
+                {after.map((event, i) => renderEvent(event, i, `after-${i}`))}
+              </>
             );
-          })}
+          })()}
         </div>
         
         {/* Load More Button - SwiftUI Glassmorphism Style with Synth Pink */}

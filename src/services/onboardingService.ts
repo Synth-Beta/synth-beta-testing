@@ -63,6 +63,9 @@ export class OnboardingService {
    */
   static async saveProfileSetup(userId: string, data: ProfileSetupData): Promise<boolean> {
     try {
+      // Ensure user exists in public.users before updating (row may not exist for new users)
+      await OnboardingService.ensureUserExists(userId);
+
       // Build update object with only fields that exist
       const updateData: any = {
         updated_at: new Date().toISOString(),
@@ -184,6 +187,9 @@ export class OnboardingService {
    */
   static async skipOnboarding(userId: string): Promise<boolean> {
     try {
+      // Ensure user exists in public.users before updating (row may not exist for new users)
+      await OnboardingService.ensureUserExists(userId);
+
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from('users')
@@ -230,6 +236,9 @@ export class OnboardingService {
    */
   static async completeOnboarding(userId: string): Promise<boolean> {
     try {
+      // Ensure user exists in public.users before updating (row may not exist for new users)
+      await OnboardingService.ensureUserExists(userId);
+
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from('users')

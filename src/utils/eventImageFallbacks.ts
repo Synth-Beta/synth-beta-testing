@@ -4,6 +4,9 @@ import synthPlaceholderImage from '@src/assets/Synth_Placeholder.png';
 const JAMBASE_PLACEHOLDER_URL = 'https://www.jambase.com/wp-content/uploads/2021/08/jambase-default-band-image-bw-1480x832.png';
 const SYNTH_PLACEHOLDER_PATH = synthPlaceholderImage;
 
+/** Bundled placeholder - always works even when public/Generic Images aren't reachable (e.g. ERR_CONNECTION_REFUSED). */
+export const getSynthPlaceholderImage = (): string => SYNTH_PLACEHOLDER_PATH;
+
 /**
  * Replace JamBase placeholder image URL with Synth placeholder
  * This should be called on any image URL before displaying or storing

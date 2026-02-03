@@ -182,6 +182,43 @@ export class ArtistFollowService {
   }
 
   /**
+   * Follow multiple artists (e.g. after onboarding). Uses ID when present, otherwise name.
+   * Failures for individual artists are logged but do not stop the batch.
+   * Deduplicates by id or by normalized name so each artist is only followed once.
+   * @param userId - The user UUID
+   * @param artistData - Array of { name, id? } from onboarding/preferences
+   */
+  static async followArtists(
+    userId: string,
+    artistData: { name: string; id?: string }[]
+  ): Promise<void> {
+    if (!artistData?.length) return;
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+    for (const artist of artistData) {
+      const name = artist?.name?.trim();
+      if (!name) continue;
+      if (artist.id) {
+        if (seenIds.has(artist.id)) continue;
+        seenIds.add(artist.id);
+      } else {
+        const key = name.toLowerCase();
+        if (seenNames.has(key)) continue;
+        seenNames.add(key);
+      }
+      try {
+        if (artist.id) {
+          await this.setArtistFollow(userId, artist.id, true);
+        } else {
+          await this.setArtistFollowByName(userId, name, undefined, true);
+        }
+      } catch (err) {
+        console.warn(`Onboarding: could not follow artist "${artist.name}":`, err);
+      }
+    }
+  }
+
+  /**
    * Check if user is following an artist
    * @param artistId - The artist UUID
    * @param userId - The user UUID

@@ -23,6 +23,8 @@ import { Share2 } from 'lucide-react';
 import { ShareService } from '@/services/shareService';
 import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
 import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
+import { EventDetailsModal } from '@/components/events/EventDetailsModal';
+import { UserEventService } from '@/services/userEventService';
 
 interface DiscoverViewProps {
   currentUserId: string;
@@ -70,6 +72,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     | { type: 'venue'; id: string; name: string }
     | null
   >(null);
+
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [selectedEventInterested, setSelectedEventInterested] = useState(false);
 
   // Track discover view
   useViewTracking('view', 'discover', { source: 'discover' });
@@ -213,6 +219,31 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   const handleCloseDetail = () => {
     setDetailView(null);
+  };
+
+  const handleEventClickFromVenue = async (eventId: string) => {
+    if (!eventId) return;
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*, artists(name), venues(name)')
+        .eq('id', eventId)
+        .single();
+
+      if (!error && data) {
+        const normalizedEvent = {
+          ...data,
+          artist_name: (data.artists as any)?.name || data.artist_name || null,
+          venue_name: (data.venues as any)?.name || data.venue_name || null,
+        };
+        setSelectedEvent(normalizedEvent);
+        const interested = await UserEventService.isUserInterested(currentUserId, eventId);
+        setSelectedEventInterested(interested);
+        setEventDetailsOpen(true);
+      }
+    } catch (err) {
+      console.error('Error opening event from venue:', err);
+    }
   };
 
   const handleShareDetail = async () => {
@@ -838,7 +869,35 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           venueId={detailView.id}
           venueName={detailView.name}
           currentUserId={currentUserId}
+          onEventClick={(eventId) => {
+            handleCloseDetail();
+            handleEventClickFromVenue(eventId);
+          }}
         />
+      )}
+
+      {/* Event Details Modal (opened from venue event cards) */}
+      {eventDetailsOpen && selectedEvent && (
+        <EventDetailsModal
+          isOpen={eventDetailsOpen}
+          onClose={() => {
+            setEventDetailsOpen(false);
+            setSelectedEvent(null);
+          }}
+          event={selectedEvent}
+          currentUserId={currentUserId}
+          isInterested={selectedEventInterested}
+          onInterestToggle={async (eventId, interested) => {
+            try {
+              await UserEventService.setEventInterest(currentUserId, eventId, interested);
+              setSelectedEventInterested(interested);
+            } catch (error) {
+              console.error('Error toggling interest:', error);
+            }
+          }}
+          onNavigateToProfile={onNavigateToProfile}
+          onNavigateToChat={onNavigateToChat}
+            />
       )}
 
     </main>

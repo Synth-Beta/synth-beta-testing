@@ -249,6 +249,15 @@ Indexes: `idx_user_cluster_affinity_user`, `idx_user_cluster_affinity_cluster_co
 
 Existing signals (artist follow, friend interest, raw genre_preferences, promoted, recency, distance, ticket_available) unchanged.
 
+### Feed V5 (main events feed — name-based only)
+
+The **main events feed** (UnifiedEventsFeed) uses **`get_personalized_feed_v5`**, not feed v3. V5 implements 50/25/25 (Recommended/Following/Trending), 50mi location filter, and weighted sampling, but **does not use** cluster affinity or umbrella-aware genre expansion.
+
+- **V5 Recommended scoring:** Uses only `user_preferences.genre_preference_scores` (genre **name** → score) and `events.genres` (raw text array). All nearby events get a base weight of 1.0; `total_weight = 1.0 + SUM(matching_genre_scores)`. Zero-match events are included with weight 1.0.
+- **Cluster/umbrella:** Feed v3 (above) uses `event_clusters`, `user_cluster_affinity`, and `get_genres_under_umbrella` for cluster + umbrella scoring. V5 can be extended later to add those terms if product goals align.
+
+**File:** `supabase/migrations/20260129100008_get_personalized_feed_v5.sql`. Client: `UnifiedEventsFeed.tsx` → `getUnifiedFeed` (PersonalizationEngineV5).
+
 ### Analytics rollups
 
 | View | Columns | Purpose |
@@ -263,10 +272,12 @@ Existing signals (artist follow, friend interest, raw genre_preferences, promote
 
 ## Run Order (SQL + Migrations)
 
-1. **Genre pipeline (sql/)** — run before or ensure objects exist for migrations that depend on them:
-   - `genres_schema.sql` → backfill parts 1–4 (or `genre_one_time_full_run.sql`)
-   - `genre_similarity_schema.sql` → refresh parts 1–3
-   - `genre_taxonomy_schema.sql` → seed_drop_list → seed_umbrellas → seed_mid_level → assign_from_similarity → build_paths → genre_taxonomy_helpers
+1. **Genre pipeline:** Core schema and helpers are in Supabase migrations (run automatically with `supabase db push` or equivalent):
+   - `20260128000050_genre_pipeline_core.sql` — genres, artists_genres, events_genres, normalize_genre_key, upsert_genre, sync_artist_genres, sync_event_genres
+   - `20260128000051_genre_similarity_schema.sql` — genre_cooccurrence_pairs, genre_marginals, genre_similarity_pmi, genre_similarity_edges
+   - `20260128000052_genre_taxonomy_schema.sql` — genre_taxonomy_roots, genre_parent, genre_paths, genre_taxonomy_exclude
+   - `20260128000053_genre_taxonomy_helpers.sql` — get_genres_under_umbrella, genre_cluster_keys
+   - **Backfill / taxonomy data:** To populate genres and paths (e.g. for calendar umbrella filter and event_clusters to return rows), run the `sql/` pipeline: `genres_schema.sql` → backfill parts 1–4, then similarity refresh, then taxonomy schema + seeds + build_paths + genre_taxonomy_helpers. See `sql/GENRE_SQL_RUN_ORDER.md`.
 2. **Supabase migrations (order):**
    - `20260129100000_calendar_events_umbrella_filter.sql`
    - `20260129100001_event_artist_clusters_views.sql`

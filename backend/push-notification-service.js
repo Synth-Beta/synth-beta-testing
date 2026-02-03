@@ -17,17 +17,30 @@ class PushNotificationService {
     );
 
     // Initialize APNs provider using Auth Key method
+    // Support both APNS_KEY_PATH (file) and APNS_KEY_CONTENT (base64-encoded key for cloud hosts)
+    let keyBuffer = null;
     const keyPath = process.env.APNS_KEY_PATH;
-    
-    if (!keyPath) {
-      console.warn('⚠️  APNS_KEY_PATH not set. Push notifications will not work.');
-      this.apnProvider = null;
-      return;
+    const keyContent = process.env.APNS_KEY_CONTENT;
+
+    if (keyContent) {
+      try {
+        keyBuffer = Buffer.from(keyContent, 'base64');
+      } catch (err) {
+        console.error('❌ Failed to decode APNS_KEY_CONTENT (must be base64):', err.message);
+        this.apnProvider = null;
+        return;
+      }
+    } else if (keyPath) {
+      if (!fs.existsSync(keyPath)) {
+        console.error(`❌ APNs key file not found at: ${keyPath}`);
+        this.apnProvider = null;
+        return;
+      }
+      keyBuffer = fs.readFileSync(keyPath);
     }
 
-    // Check if key file exists
-    if (!fs.existsSync(keyPath)) {
-      console.error(`❌ APNs key file not found at: ${keyPath}`);
+    if (!keyBuffer) {
+      console.warn('⚠️  APNS_KEY_PATH or APNS_KEY_CONTENT not set. Push notifications will not work.');
       this.apnProvider = null;
       return;
     }
@@ -41,14 +54,19 @@ class PushNotificationService {
         this.apnProvider = null;
         return;
       }
+
+      // APNS_PRODUCTION takes precedence over NODE_ENV for sandbox vs production
+      const production = process.env.APNS_PRODUCTION !== undefined
+        ? process.env.APNS_PRODUCTION === 'true' || process.env.APNS_PRODUCTION === '1'
+        : process.env.NODE_ENV === 'production';
       
       const options = {
         token: {
-          key: fs.readFileSync(keyPath), // Read .p8 key file
-          keyId: keyId, // Must be set via APNS_KEY_ID environment variable
-          teamId: teamId // Must be set via APNS_TEAM_ID environment variable
+          key: keyBuffer,
+          keyId: keyId,
+          teamId: teamId
         },
-        production: process.env.NODE_ENV === 'production' // true for production, false for sandbox
+        production
       };
 
       this.apnProvider = new apn.Provider(options);
