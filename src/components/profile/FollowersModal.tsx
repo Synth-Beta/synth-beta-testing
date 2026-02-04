@@ -1,8 +1,7 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Eye, UserPlus, MessageCircle, UserMinus, User } from 'lucide-react';
 
 interface Friend {
@@ -40,12 +39,12 @@ export const FollowersModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className="sm:max-w-lg w-[95vw] max-h-[80vh] flex flex-col" 
+        className="sm:max-w-lg w-[95vw] max-h-[80vh] flex flex-col min-h-0" 
       >
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-center">{title}</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-1 max-h-[60vh]">
+        <DialogBody className="flex-1 min-h-0 overscroll-contain">
           <div className="space-y-2 py-2">
             {friends.length === 0 ? (
               <div className="text-center py-8">
@@ -130,7 +129,7 @@ export const FollowersModal = ({
               ))
             )}
           </div>
-        </ScrollArea>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );
