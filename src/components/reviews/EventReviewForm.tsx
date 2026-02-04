@@ -1054,37 +1054,47 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       
       const review = await ReviewService.setEventReview(userId, undefined, reviewDataWithEventDate, safeVenueId, safeArtistId);
 
-      // Always generate + attempt to upload a derived thumbnail on submit (storage-only persistence).
-      // Bucket: `review-photos`
-      // Path: `${reviewId}/thumbnail.jpg`
-      // Non-fatal: if storage policy blocks it (403/401), we still submit the review and UI falls back to photos[0].
+      // Attempt to upload a review thumbnail to storage (no DB fields).
+      // Path: `${reviewId}/thumbnail.jpg` in bucket `review-photos`.
+      // Prefer a client-generated thumbnail blob (from the crop UI) if available; otherwise derive one from the chosen photo.
+      // Non-fatal: if storage policy blocks it (403/401), we still submit the review and UI falls back to photos[0]/artist image.
       if (review?.id && Array.isArray(formData.images) && formData.images.length > 0) {
-        const imgs = formData.images;
-        const thumb = imgs.find((i) => i.isThumbnail) ?? imgs[0];
-        const thumbUrl = thumb?.url;
-        if (thumbUrl) {
-          try {
-            const crop = thumb.thumbnailCrop ?? createDefaultCoverThumbnailCrop(REVIEW_THUMBNAIL_ASPECT_RATIO);
-            const blob = await generateThumbnailBlob({
-              imageUrl: thumbUrl,
-              crop,
-              outputWidth: 1412,
-              outputHeight: 1000,
-              mimeType: 'image/jpeg',
-              quality: 0.85,
-            });
-            const { error: thumbError } = await storageService.uploadReviewThumbnail(review.id, blob);
+        try {
+          if (pendingReviewThumbnailBlob) {
+            const { error: thumbError } = await storageService.uploadReviewThumbnail(review.id, pendingReviewThumbnailBlob);
             if (thumbError) {
-              console.warn('⚠️ EventReviewForm: Derived thumbnail upload failed:', {
+              console.warn('⚠️ EventReviewForm: Thumbnail upload failed:', {
                 code: (thumbError as any)?.statusCode ?? (thumbError as any)?.code,
                 message: (thumbError as any)?.message,
               });
             }
-          } catch (err: any) {
-            console.warn('⚠️ EventReviewForm: Derived thumbnail generation/upload failed:', {
-              message: err?.message ?? String(err),
-            });
+          } else {
+            const imgs = formData.images;
+            const thumb = imgs.find((i) => i.isThumbnail) ?? imgs[0];
+            const thumbUrl = thumb?.url;
+            if (thumbUrl) {
+              const crop = thumb.thumbnailCrop ?? createDefaultCoverThumbnailCrop(REVIEW_THUMBNAIL_ASPECT_RATIO);
+              const blob = await generateThumbnailBlob({
+                imageUrl: thumbUrl,
+                crop,
+                outputWidth: 1412,
+                outputHeight: 1000,
+                mimeType: 'image/jpeg',
+                quality: 0.85,
+              });
+              const { error: thumbError } = await storageService.uploadReviewThumbnail(review.id, blob);
+              if (thumbError) {
+                console.warn('⚠️ EventReviewForm: Derived thumbnail upload failed:', {
+                  code: (thumbError as any)?.statusCode ?? (thumbError as any)?.code,
+                  message: (thumbError as any)?.message,
+                });
+              }
+            }
           }
+        } catch (err: any) {
+          console.warn('⚠️ EventReviewForm: Thumbnail generation/upload failed:', {
+            message: err?.message ?? String(err),
+          });
         }
       }
       setPendingReviewThumbnailBlob(null);

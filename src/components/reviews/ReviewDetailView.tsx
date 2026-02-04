@@ -852,8 +852,15 @@ export function ReviewDetailView({
                 src={mainImage}
                 alt="Review"
                 className="w-full h-full object-cover"
-                onError={() => {
-                  if (!useFallbackThumb) setUseFallbackThumb(true);
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (!useFallbackThumb && fallbackThumbUrl) {
+                    setUseFallbackThumb(true);
+                    // Swap immediately while state updates.
+                    target.src = fallbackThumbUrl;
+                    return;
+                  }
+                  target.style.display = 'none';
                 }}
               />
             </div>

@@ -144,12 +144,45 @@ export function SwiftUIReviewCard({
     }
   }, [artistImageUrl, photos.length, review.artist_id]);
 
-  // Determine the image to display - derived thumbnail first, then first uploaded photo, then artist image
-  const { derivedUrl: derivedThumbUrl, fallbackUrl: fallbackThumbUrl } = getPreferredReviewThumbnailUrls(review);
+  // Determine the image to display - derived thumbnail first, then user photo, then artist image.
+  // We keep the derived thumbnail behavior, but incorporate upstream thumbnail_index + thumbnail_crop where available.
+  const { derivedUrl: derivedThumbUrl, fallbackUrl: baseFallbackThumbUrl } = getPreferredReviewThumbnailUrls(review);
   const [useFallbackThumb, setUseFallbackThumb] = useState(false);
+
+  const thumbIndexRaw = (review as any)?.thumbnail_index;
+  const thumbIndex =
+    typeof thumbIndexRaw === 'number' && Number.isFinite(thumbIndexRaw)
+      ? Math.max(0, Math.min(photos.length - 1, Math.floor(thumbIndexRaw)))
+      : 0;
+  const indexedFallbackPhoto = photos.length > 0 ? (photos[thumbIndex] ?? photos[0] ?? null) : null;
+  const fallbackThumbUrl = indexedFallbackPhoto || baseFallbackThumbUrl;
+
   const resolvedThumbUrl = useFallbackThumb ? fallbackThumbUrl : derivedThumbUrl;
   const displayImageUrl = resolvedThumbUrl || fallbackThumbUrl || (artistImageUrl || fetchedArtistImage);
   const isUserPhoto = Boolean(fallbackThumbUrl);
+
+  const thumbCropRaw = (review as any)?.thumbnail_crop as
+    | { xPct: number; yPct: number; zoom: number }
+    | null
+    | undefined;
+  const thumbCrop =
+    isUserPhoto &&
+    thumbCropRaw &&
+    typeof thumbCropRaw.xPct === 'number' &&
+    typeof thumbCropRaw.yPct === 'number' &&
+    typeof thumbCropRaw.zoom === 'number' &&
+    Number.isFinite(thumbCropRaw.xPct) &&
+    Number.isFinite(thumbCropRaw.yPct) &&
+    Number.isFinite(thumbCropRaw.zoom) &&
+    thumbCropRaw.zoom > 0
+      ? {
+          xPct: Math.max(0, Math.min(100, thumbCropRaw.xPct)),
+          yPct: Math.max(0, Math.min(100, thumbCropRaw.yPct)),
+          zoom: Math.max(0.1, Math.min(10, thumbCropRaw.zoom)),
+        }
+      : null;
+
+  const isDisplayingFallbackPhoto = Boolean(fallbackThumbUrl) && displayImageUrl === fallbackThumbUrl;
 
   // Fetch full review data if category ratings are missing
   useEffect(() => {
@@ -425,13 +458,23 @@ export function SwiftUIReviewCard({
                       src={displayImageUrl || undefined}
                       alt={reviewTitle}
                       className="w-full h-full object-cover object-center"
+                      style={
+                        isDisplayingFallbackPhoto && thumbCrop
+                          ? {
+                              transform: `translate(${50 - thumbCrop.xPct}%, ${50 - thumbCrop.yPct}%) scale(${thumbCrop.zoom})`,
+                              transformOrigin: 'center center',
+                              willChange: 'transform',
+                            }
+                          : undefined
+                      }
                       onError={(e) => {
-                        // If the derived thumbnail doesn't exist, fall back to the first uploaded photo.
-                        if (!useFallbackThumb) {
+                        const target = e.currentTarget;
+                        // If the derived thumbnail doesn't exist, fall back to the selected uploaded photo.
+                        if (!useFallbackThumb && fallbackThumbUrl && displayImageUrl === derivedThumbUrl) {
                           setUseFallbackThumb(true);
+                          target.src = fallbackThumbUrl;
                           return;
                         }
-                        const target = e.currentTarget;
                         target.onerror = null;
                       }}
                     />
@@ -955,6 +998,13 @@ export function SwiftUIReviewCard({
                         width: '100%',
                         height: '100%',
                         objectFit: 'cover',
+                        ...(photos.length === 1 && thumbCrop
+                          ? {
+                              transform: `translate(${50 - thumbCrop.xPct}%, ${50 - thumbCrop.yPct}%) scale(${thumbCrop.zoom})`,
+                              transformOrigin: 'center center',
+                              willChange: 'transform',
+                            }
+                          : {}),
                       }}
                     />
                     {idx === 3 && photos.length > 4 && (

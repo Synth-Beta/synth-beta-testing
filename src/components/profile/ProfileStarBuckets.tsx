@@ -101,8 +101,13 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
           alt={`${artistName} at ${venueName}`}
           className={`w-full h-full object-cover transition-transform duration-500 ${hasUserImage ? '' : 'scale-105'}`}
           loading="lazy"
-          onError={() => {
-            if (!useFallbackThumb) setUseFallbackThumb(true);
+          onError={(e) => {
+            const target = e.currentTarget;
+            if (!useFallbackThumb && fallbackThumbUrl) {
+              setUseFallbackThumb(true);
+              // Swap immediately to avoid showing a broken image while state updates.
+              target.src = fallbackThumbUrl;
+            }
           }}
         />
         <div
