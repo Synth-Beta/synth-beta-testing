@@ -125,7 +125,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
 
   return (
     <div
-      className="mb-6 flex flex-col items-center"
+      className="mb-6 flex w-full flex-col items-center"
       style={{
         marginTop: 12,
       }}
@@ -190,12 +190,54 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
                   color: 'var(--neutral-600)',
                 }}
               >
-                {suggestion.mutual_friends_count > 0 && (
-                  <p>{suggestion.mutual_friends_count} mutual friend{suggestion.mutual_friends_count !== 1 ? 's' : ''}</p>
-                )}
-                {(suggestion.shared_genres_count ?? 0) > 0 && (
-                  <p>{suggestion.shared_genres_count} shared genre{suggestion.shared_genres_count !== 1 ? 's' : ''}</p>
-                )}
+                {(() => {
+                  const mutualText =
+                    suggestion.mutual_friends_count > 0
+                      ? `${suggestion.mutual_friends_count} mutual friend${suggestion.mutual_friends_count !== 1 ? 's' : ''}`
+                      : '';
+                  const sharedGenresCount = suggestion.shared_genres_count ?? 0;
+                  const sharedText =
+                    sharedGenresCount > 0
+                      ? `${sharedGenresCount} shared genre${sharedGenresCount !== 1 ? 's' : ''}`
+                      : '';
+
+                  const metaPStyle: React.CSSProperties = {
+                    margin: 0,
+                    fontSize: 'var(--typography-meta-size)',
+                    fontWeight: 'var(--typography-meta-weight)',
+                    lineHeight: 'var(--typography-meta-line-height)',
+                    color: 'var(--neutral-600)',
+                  };
+
+                  // Always reserve space for 2 lines so the Add buttons align across cards.
+                  return (
+                    <>
+                      <div
+                        style={{
+                          ...metaPStyle,
+                          // Reserve exactly 2 lines of height (top-aligned), and clamp longer text.
+                          minHeight: '2lh',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {mutualText || '\u00A0'}
+                      </div>
+                      <p
+                        style={{
+                          ...metaPStyle,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {sharedText || '\u00A0'}
+                      </p>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Add friend button */}

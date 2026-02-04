@@ -6,6 +6,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { SetlistDisplay } from './SetlistDisplay';
 import { supabase } from '@/integrations/supabase/client';
+import { getPreferredReviewThumbnailUrls } from '@/utils/reviewImages';
 import { ReviewService, type ReviewWithEngagement } from '@/services/reviewService';
 import { ReviewCommentsModal } from './ReviewCommentsModal';
 import { ReviewShareModal } from './ReviewShareModal';
@@ -133,6 +134,7 @@ export function ReviewDetailView({
             review_text,
             rating,
             photos,
+            updated_at,
             created_at,
             artist_performance_rating,
             production_rating,
@@ -462,10 +464,9 @@ export function ReviewDetailView({
     },
   ].filter(cat => cat.rating > 0);
 
-  const fallbackPhotoUrl = reviewData.photos && reviewData.photos.length > 0 ? reviewData.photos[0] : null;
-  const mainImage = fallbackPhotoUrl
-    ? supabase.storage.from('review-photos').getPublicUrl(`${reviewData.id}/thumbnail.jpg`).data.publicUrl
-    : null;
+  const { derivedUrl: derivedThumbUrl, fallbackUrl: fallbackThumbUrl } = getPreferredReviewThumbnailUrls(reviewData);
+  const [useFallbackThumb, setUseFallbackThumb] = useState(false);
+  const mainImage = (useFallbackThumb ? fallbackThumbUrl : derivedThumbUrl) || fallbackThumbUrl;
 
   const openArtistDetail = () => {
     if (!reviewData.artist_id) return;
@@ -851,14 +852,8 @@ export function ReviewDetailView({
                 src={mainImage}
                 alt="Review"
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  // Prefer `${reviewId}/thumbnail.jpg` if present; otherwise fall back to first uploaded photo.
-                  if (fallbackPhotoUrl && target.src.includes('/thumbnail.jpg')) {
-                    target.src = fallbackPhotoUrl;
-                    return;
-                  }
-                  target.style.display = 'none';
+                onError={() => {
+                  if (!useFallbackThumb) setUseFallbackThumb(true);
                 }}
               />
             </div>
