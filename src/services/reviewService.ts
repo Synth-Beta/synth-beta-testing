@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { storageService } from '@/services/storageService';
 // Note: Types will need to be regenerated after migration
 // Using any for now until types.ts is regenerated from Supabase
 type Tables<T extends string> = any;
@@ -1688,6 +1689,20 @@ export class ReviewService {
   static async deleteEventReview(userId: string, reviewId: string): Promise<void> {
     try {
       console.log('🗑️ Deleting review:', { userId, reviewId });
+
+      // Best-effort cleanup of derived thumbnail (ignore failures, do not block delete).
+      try {
+        const { error: thumbRemoveError } = await storageService.removeReviewThumbnail(reviewId);
+        if (thumbRemoveError) {
+          console.warn('⚠️ ReviewService: Failed to remove derived thumbnail (non-fatal):', {
+            code: (thumbRemoveError as any)?.statusCode ?? (thumbRemoveError as any)?.code,
+            message: (thumbRemoveError as any)?.message,
+          });
+        }
+      } catch (err: any) {
+        console.warn('⚠️ ReviewService: Thumbnail removal threw (non-fatal):', err?.message ?? String(err));
+      }
+
       const { error } = await supabase
         .from('reviews')
         .delete()

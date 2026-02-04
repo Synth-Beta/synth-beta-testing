@@ -31,6 +31,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { SetlistDisplay } from './SetlistDisplay';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { supabase } from '@/integrations/supabase/client';
+import { getPreferredReviewThumbnailUrls } from '@/utils/reviewImages';
 import {
   iosModal,
   iosModalBackdrop,
@@ -143,21 +144,29 @@ export function SwiftUIReviewCard({
     }
   }, [artistImageUrl, photos.length, review.artist_id]);
 
-  // Determine the image to display - user photo first, then artist image
+  // Determine the image to display - derived thumbnail first, then user photo, then artist image.
+  // We keep the derived thumbnail behavior, but incorporate upstream thumbnail_index + thumbnail_crop where available.
+  const { derivedUrl: derivedThumbUrl, fallbackUrl: baseFallbackThumbUrl } = getPreferredReviewThumbnailUrls(review);
+  const [useFallbackThumb, setUseFallbackThumb] = useState(false);
+
   const thumbIndexRaw = (review as any)?.thumbnail_index;
   const thumbIndex =
     typeof thumbIndexRaw === 'number' && Number.isFinite(thumbIndexRaw)
       ? Math.max(0, Math.min(photos.length - 1, Math.floor(thumbIndexRaw)))
       : 0;
-  const displayPhoto = photos.length > 0 ? (photos[thumbIndex] ?? photos[0] ?? null) : null;
-  const displayImageUrl = displayPhoto || (artistImageUrl || fetchedArtistImage);
+  const indexedFallbackPhoto = photos.length > 0 ? (photos[thumbIndex] ?? photos[0] ?? null) : null;
+  const fallbackThumbUrl = indexedFallbackPhoto || baseFallbackThumbUrl;
+
+  const resolvedThumbUrl = useFallbackThumb ? fallbackThumbUrl : derivedThumbUrl;
+  const displayImageUrl = resolvedThumbUrl || fallbackThumbUrl || (artistImageUrl || fetchedArtistImage);
+  const isUserPhoto = Boolean(fallbackThumbUrl);
 
   const thumbCropRaw = (review as any)?.thumbnail_crop as
     | { xPct: number; yPct: number; zoom: number }
     | null
     | undefined;
   const thumbCrop =
-    photos.length === 1 &&
+    isUserPhoto &&
     thumbCropRaw &&
     typeof thumbCropRaw.xPct === 'number' &&
     typeof thumbCropRaw.yPct === 'number' &&
@@ -172,7 +181,8 @@ export function SwiftUIReviewCard({
           zoom: Math.max(0.1, Math.min(10, thumbCropRaw.zoom)),
         }
       : null;
-  const isUserPhoto = photos.length > 0;
+
+  const isDisplayingFallbackPhoto = Boolean(fallbackThumbUrl) && displayImageUrl === fallbackThumbUrl;
 
   // Fetch full review data if category ratings are missing
   useEffect(() => {
@@ -445,11 +455,11 @@ export function SwiftUIReviewCard({
                   {/* Inner wrapper 120% size, centered, so image overfills card and card clips */}
                   <div className="absolute w-[120%] h-[120%] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                     <img
-                      src={displayImageUrl}
+                      src={displayImageUrl || undefined}
                       alt={reviewTitle}
                       className="w-full h-full object-cover object-center"
                       style={
-                        isUserPhoto && thumbCrop
+                        isDisplayingFallbackPhoto && thumbCrop
                           ? {
                               transform: `translate(${50 - thumbCrop.xPct}%, ${50 - thumbCrop.yPct}%) scale(${thumbCrop.zoom})`,
                               transformOrigin: 'center center',
@@ -459,6 +469,12 @@ export function SwiftUIReviewCard({
                       }
                       onError={(e) => {
                         const target = e.currentTarget;
+                        // If the derived thumbnail doesn't exist, fall back to the selected uploaded photo.
+                        if (!useFallbackThumb && fallbackThumbUrl && displayImageUrl === derivedThumbUrl) {
+                          setUseFallbackThumb(true);
+                          target.src = fallbackThumbUrl;
+                          return;
+                        }
                         target.onerror = null;
                       }}
                     />

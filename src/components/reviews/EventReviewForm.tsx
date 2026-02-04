@@ -27,6 +27,12 @@ import { Music, DollarSign, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AttendeeSelector } from '@/components/reviews/AttendeeSelector';
 import { useAuth } from '@/hooks/useAuth';
+import { storageService } from '@/services/storageService';
+import {
+  createDefaultCoverThumbnailCrop,
+  generateThumbnailBlob,
+  REVIEW_THUMBNAIL_ASPECT_RATIO,
+} from '@/utils/reviewThumbnailCrop';
 
 const ARTIST_SUGGESTIONS: CategoryConfig['suggestions'] = [
   { id: 'artist-electric', label: 'Electric energy', description: 'The band fed off the crowd with nonstop energy.', sentiment: 'positive' },
@@ -457,7 +463,14 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             ticketPricePaid: review.ticket_price_paid ? String(review.ticket_price_paid) : '',
             rating: review.rating,
             reviewText: review.review_text || '',
-            photos: review.photos || [],
+            images: Array.isArray(review.photos)
+              ? (review.photos as string[]).map((url: string, idx: number) => ({
+                  id: `${review.id}-${idx}-${url}`,
+                  url,
+                  isThumbnail: idx === 0,
+                  thumbnailCrop: null,
+                }))
+              : [],
             videos: review.videos || [],
             selectedSetlist: review.setlist || null,
             customSetlists: (review as any).custom_setlist || [],
@@ -872,7 +885,16 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         value_feedback: valueFeedback,
         ticket_price_paid: typeof ticketPrice === 'number' && !Number.isNaN(ticketPrice) ? ticketPrice : undefined,
         review_text: (formData.reviewText.trim() + showsRankingBlock).trim() || undefined,
-        photos: formData.photos && formData.photos.length > 0 ? formData.photos : undefined,
+        photos:
+          Array.isArray(formData.images) && formData.images.length > 0
+            ? (() => {
+                const imgs = formData.images;
+                const thumb = imgs.find((i) => i.isThumbnail) ?? null;
+                if (!thumb) return imgs.map((i) => i.url);
+                const rest = imgs.filter((i) => i.id !== thumb.id);
+                return [thumb.url, ...rest.map((i) => i.url)];
+              })()
+            : undefined,
         videos: formData.videos && formData.videos.length > 0 ? formData.videos : undefined,
         // Preserve existing setlist when editing if not explicitly changed
         // If selectedSetlist is null, user cleared it; if undefined, preserve existing
@@ -1032,25 +1054,47 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       
       const review = await ReviewService.setEventReview(userId, undefined, reviewDataWithEventDate, safeVenueId, safeArtistId);
 
-      // Upload client-generated review thumbnail to storage (no DB fields).
+      // Attempt to upload a review thumbnail to storage (no DB fields).
       // Path: `${reviewId}/thumbnail.jpg` in bucket `review-photos`.
-      if (pendingReviewThumbnailBlob && review?.id && Array.isArray(formData.photos) && formData.photos.length > 0) {
+      // Prefer a client-generated thumbnail blob (from the crop UI) if available; otherwise derive one from the chosen photo.
+      // Non-fatal: if storage policy blocks it (403/401), we still submit the review and UI falls back to photos[0]/artist image.
+      if (review?.id && Array.isArray(formData.images) && formData.images.length > 0) {
         try {
-          const fileType = pendingReviewThumbnailBlob.type || 'image/jpeg';
-          const thumbFile = new File([pendingReviewThumbnailBlob], 'thumbnail.jpg', { type: fileType });
-          const uploadPath = `${review.id}/thumbnail.jpg`;
-
-          const { error: thumbError } = await supabase.storage.from('review-photos').upload(uploadPath, thumbFile, {
-            cacheControl: '3600',
-            upsert: true,
-            contentType: fileType,
-          } as any);
-
-          if (thumbError) {
-            console.warn('⚠️ EventReviewForm: Thumbnail upload failed:', thumbError);
+          if (pendingReviewThumbnailBlob) {
+            const { error: thumbError } = await storageService.uploadReviewThumbnail(review.id, pendingReviewThumbnailBlob);
+            if (thumbError) {
+              console.warn('⚠️ EventReviewForm: Thumbnail upload failed:', {
+                code: (thumbError as any)?.statusCode ?? (thumbError as any)?.code,
+                message: (thumbError as any)?.message,
+              });
+            }
+          } else {
+            const imgs = formData.images;
+            const thumb = imgs.find((i) => i.isThumbnail) ?? imgs[0];
+            const thumbUrl = thumb?.url;
+            if (thumbUrl) {
+              const crop = thumb.thumbnailCrop ?? createDefaultCoverThumbnailCrop(REVIEW_THUMBNAIL_ASPECT_RATIO);
+              const blob = await generateThumbnailBlob({
+                imageUrl: thumbUrl,
+                crop,
+                outputWidth: 1412,
+                outputHeight: 1000,
+                mimeType: 'image/jpeg',
+                quality: 0.85,
+              });
+              const { error: thumbError } = await storageService.uploadReviewThumbnail(review.id, blob);
+              if (thumbError) {
+                console.warn('⚠️ EventReviewForm: Derived thumbnail upload failed:', {
+                  code: (thumbError as any)?.statusCode ?? (thumbError as any)?.code,
+                  message: (thumbError as any)?.message,
+                });
+              }
+            }
           }
-        } catch (thumbUploadError) {
-          console.warn('⚠️ EventReviewForm: Thumbnail upload threw exception:', thumbUploadError);
+        } catch (err: any) {
+          console.warn('⚠️ EventReviewForm: Thumbnail generation/upload failed:', {
+            message: err?.message ?? String(err),
+          });
         }
       }
       setPendingReviewThumbnailBlob(null);
@@ -1520,6 +1564,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               formData={formData}
               errors={errors}
               onUpdateFormData={updateFormData}
+              onThumbnailBlobChange={setPendingReviewThumbnailBlob}
               artistName={formData.selectedArtist?.name}
               venueName={formData.selectedVenue?.name}
               eventDate={formData.eventDate}

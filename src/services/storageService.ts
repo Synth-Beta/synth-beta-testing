@@ -21,6 +21,51 @@ class StorageService {
   };
 
   /**
+   * Upload a derived review thumbnail to a stable path.
+   * Bucket: review-photos
+   * Path: `${reviewId}/thumbnail.jpg`
+   *
+   * IMPORTANT: This may fail (403/401) depending on Storage policies.
+   * Callers should treat failures as non-fatal.
+   */
+  async uploadReviewThumbnail(
+    reviewId: string,
+    blob: Blob,
+    options: { cacheControl?: string } = {}
+  ): Promise<{ path: string; error: any | null }> {
+    const path = `${reviewId}/thumbnail.jpg`;
+    const contentType = blob.type || 'image/jpeg';
+    const file = new File([blob], 'thumbnail.jpg', { type: contentType });
+    const cacheControl = options.cacheControl ?? '3600';
+
+    const { error } = await supabase.storage.from('review-photos').upload(path, file, {
+      cacheControl,
+      upsert: true,
+      contentType,
+    } as any);
+
+    return { path, error: error ?? null };
+  }
+
+  /**
+   * Best-effort remove of the derived review thumbnail.
+   * Bucket: review-photos
+   * Path: `${reviewId}/thumbnail.jpg`
+   */
+  async removeReviewThumbnail(reviewId: string): Promise<{ path: string; error: any | null }> {
+    const path = `${reviewId}/thumbnail.jpg`;
+    const { error } = await supabase.storage.from('review-photos').remove([path]);
+    return { path, error: error ?? null };
+  }
+
+  getReviewThumbnailPublicUrl(reviewId: string, versionKey?: string | number | null): string {
+    const { publicUrl } = supabase.storage.from('review-photos').getPublicUrl(`${reviewId}/thumbnail.jpg`).data;
+    if (versionKey === null || versionKey === undefined || `${versionKey}`.trim() === '') return publicUrl;
+    const v = encodeURIComponent(String(versionKey));
+    return `${publicUrl}?v=${v}`;
+  }
+
+  /**
    * Upload a photo to Supabase storage
    */
   async uploadPhoto(

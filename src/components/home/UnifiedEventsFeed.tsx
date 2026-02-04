@@ -588,15 +588,30 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
             const insertAt = insertSectionAfterIndex != null && middleSection != null ? insertSectionAfterIndex : -1;
             const before = insertAt >= 0 ? displayedEvents.slice(0, insertAt) : displayedEvents;
             const after = insertAt >= 0 ? displayedEvents.slice(insertAt) : [];
-            const renderEvent = (event: UnifiedEventItem, index: number, keySuffix: string) => {
+            const renderEvent = (event: UnifiedEventItem, index: number, keySuffix: string, opts?: { topAlign?: boolean }) => {
               const imageUrl = getImageUrl(event);
               const isInterested = interestedEvents.has(event.event_id) || event.user_is_interested || false;
               const interestedCount = event.interested_count || 0;
+              const topAlign = opts?.topAlign === true;
               return (
                 <div
                   key={`${event.event_id}-${keySuffix}`}
                   className="swift-ui-feed-item"
                   ref={(el) => attachObserver(el, event.event_id)}
+                  style={
+                    // When we inject a section (e.g. "Who You Should Know") before a card,
+                    // the next `swift-ui-feed-item` is vertically centered and can create a large
+                    // perceived gap on mobile due to `min-height` + `justify-content: center`.
+                    // Top-align just the first card *after* the injected section so spacing
+                    // matches the Review feed.
+                    topAlign
+                      ? {
+                          justifyContent: 'flex-start',
+                          alignItems: 'stretch',
+                          minHeight: 'auto',
+                        }
+                      : undefined
+                  }
                 >
                   <CompactEventCard
                     event={{
@@ -622,8 +637,24 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
             return (
               <>
                 {before.map((event, i) => renderEvent(event, i, `before-${i}`))}
-                {insertAt >= 0 && middleSection}
-                {after.map((event, i) => renderEvent(event, i, `after-${i}`))}
+                {insertAt >= 0 && middleSection && (
+                  // NOTE: `swift-ui-feed` uses mandatory scroll-snapping. If the inserted section
+                  // is not a snap point, the browser will snap past it to the first `.swift-ui-feed-item`,
+                  // making it appear "missing" at the top of the Events feed.
+                  <div
+                    className="w-full flex justify-center"
+                    style={{
+                      scrollSnapAlign: 'start',
+                      scrollSnapStop: 'always',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {middleSection}
+                  </div>
+                )}
+                {after.map((event, i) =>
+                  renderEvent(event, i, `after-${i}`, { topAlign: insertAt >= 0 && middleSection != null && i === 0 })
+                )}
               </>
             );
           })()}

@@ -430,6 +430,9 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
             
             <TabsContent value="signin" className="mt-6">
               <div className="space-y-4">
+                <p className="text-body font-bold text-left">
+                  Sign in with email is temporarily unavailable. Please sign in with Apple to continue.
+                </p>
                 <AppleAuthButton />
                 {!isIOS && (
                   <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>

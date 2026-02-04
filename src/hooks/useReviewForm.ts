@@ -10,6 +10,36 @@ export interface ReviewCustomSetlist {
   songs: CustomSetlistSong[];
 }
 
+export interface ReviewThumbnailCrop {
+  /**
+   * Relative zoom where 1 = cover the crop frame.
+   * Must be >= 1.
+   */
+  scale: number;
+  /**
+   * Normalized 0..1 offset where 0.5 = centered.
+   * (0 = furthest left, 1 = furthest right) within the allowed pan range.
+   */
+  offsetX: number;
+  /**
+   * Normalized 0..1 offset where 0.5 = centered.
+   * (0 = furthest up, 1 = furthest down) within the allowed pan range.
+   */
+  offsetY: number;
+  /**
+   * Aspect ratio of the crop frame (width / height) used when editing.
+   * Stored to preserve intent; rendering can still adapt to the actual container.
+   */
+  aspectRatio: number;
+}
+
+export interface ReviewImageItem {
+  id: string;
+  url: string; // Original uploaded image URL
+  isThumbnail: boolean;
+  thumbnailCrop: ReviewThumbnailCrop | null;
+}
+
 export interface ReviewFormData {
   // Step 0: Time Selection
   reviewDuration: '1min' | '3min' | '5min' | null;
@@ -41,7 +71,7 @@ export interface ReviewFormData {
   
   // Review Content
   reviewText: string;
-  photos: string[]; // Photo URLs uploaded to storage
+  images: ReviewImageItem[]; // Uploaded images + thumbnail selection + crop
   videos: string[]; // Video URLs uploaded to storage
   thumbnailIndex: number;
   thumbnailCrop: { xPct: number; yPct: number; zoom: number } | null;
@@ -102,7 +132,7 @@ const initialFormData: ReviewFormData = {
   ticketPricePaid: '',
   rating: 0,
   reviewText: '',
-  photos: [],
+  images: [],
   videos: [],
   thumbnailIndex: 0,
   thumbnailCrop: null,

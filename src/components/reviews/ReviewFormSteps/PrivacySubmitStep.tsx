@@ -211,10 +211,10 @@ export function PrivacySubmitStep({
               </div>
             )}
 
-            {Array.isArray(formData.photos) && formData.photos.length > 0 && (
+            {Array.isArray(formData.images) && formData.images.length > 0 && (
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-green-500" />
-                <span>{formData.photos.length} photo{formData.photos.length !== 1 ? 's' : ''} attached</span>
+                <span>{formData.images.length} photo{formData.images.length !== 1 ? 's' : ''} attached</span>
               </div>
             )}
           </div>

@@ -115,7 +115,8 @@ struct BottomNav: View {
                 IconView(.plus, size: iconSize, color: SynthColor.neutral50)
                     .frame(width: ctaWidth, height: ctaHeight)
                     .background(SynthColor.brandPink500)
-                    .clipShape(Capsule())
+                    // Avoid `Capsule()` so the corner radius is explicit and matches the visual height.
+                    .clipShape(RoundedRectangle(cornerRadius: ctaHeight / 2, style: .continuous))
             }
             .frame(width: touchTargetSize, height: touchTargetSize)
             .contentShape(Rectangle())

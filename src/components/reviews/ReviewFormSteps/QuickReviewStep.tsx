@@ -9,19 +9,21 @@ import { CustomSetlistInput } from '@/components/reviews/CustomSetlistInput';
 import { Button } from '@/components/ui/button';
 import { Music, X, Plus } from 'lucide-react';
 import type { ReviewCustomSetlist } from '@/hooks/useReviewForm';
-import { PhotoUpload, VideoUpload } from '@/components/ui/photo-upload';
+import { VideoUpload } from '@/components/ui/photo-upload';
 import { useAuth } from '@/hooks/useAuth';
+import { ReviewImagesUpload } from '@/components/ui/review-images-upload';
 
 interface QuickReviewStepProps {
   formData: ReviewFormData;
   errors: Record<string, string>;
   onUpdateFormData: (updates: Partial<ReviewFormData>) => void;
+  onThumbnailBlobChange?: (blob: Blob | null) => void;
   artistName?: string;
   venueName?: string;
   eventDate?: string;
 }
 
-export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName, venueName, eventDate }: QuickReviewStepProps) {
+export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnailBlobChange, artistName, venueName, eventDate }: QuickReviewStepProps) {
   const [hoverValue, setHoverValue] = useState<number | null>(null);
   const [isSetlistModalOpen, setIsSetlistModalOpen] = useState(false);
   const { user } = useAuth();
@@ -185,15 +187,16 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, artistName
         </div>
 
         {user && (
-          <PhotoUpload
-            value={formData.photos || []}
-            onChange={(urls) => onUpdateFormData({ photos: urls })}
+          <ReviewImagesUpload
+            images={formData.images || []}
+            onChange={(next) => onUpdateFormData({ images: next })}
             userId={user.id}
             bucket="review-photos"
             maxPhotos={5}
             maxSizeMB={5}
             label="Photos (Optional)"
             helperText="Add up to 5 photos to give fans a feel for the night."
+            onThumbnailBlobChange={onThumbnailBlobChange}
           />
         )}
 
