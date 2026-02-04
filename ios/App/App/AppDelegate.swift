@@ -240,9 +240,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             appleSignInHandler?.signIn { [weak self] result in
                 DispatchQueue.main.async {
                     switch result {
-                    case .success(let identityToken):
-                        // Send token to JavaScript via JavaScript evaluation
-                        self?.sendTokenToWebLayer(token: identityToken)
+                    case .success(let credential):
+                        // Send token + (optional) email/fullName to JavaScript
+                        self?.sendTokenToWebLayer(
+                            token: credential.identityToken,
+                            fullName: credential.fullName,
+                            email: credential.email
+                        )
                     case .failure(let error):
                         // Send error to JavaScript
                         self?.sendErrorToWebLayer(error: error.localizedDescription)
@@ -257,9 +261,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
     
     /// Sends Apple Sign In token to web layer
-    func sendTokenToWebLayer(token: String) {
+    func sendTokenToWebLayer(token: String, fullName: String? = nil, email: String? = nil) {
         // Escape token for JavaScript (handle quotes and newlines)
         let escapedToken = token.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+
+        // Escape optional fields for JavaScript
+        let escapedFullName = (fullName ?? "").replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+        
+        let escapedEmail = (email ?? "").replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "'", with: "\\'")
             .replacingOccurrences(of: "\n", with: "\\n")
             .replacingOccurrences(of: "\r", with: "\\r")
@@ -269,7 +284,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             (function() {
                 try {
                     window.dispatchEvent(new CustomEvent('AppleSignInTokenReceived', { 
-                        detail: { token: '\(escapedToken)' } 
+                        detail: { token: '\(escapedToken)', fullName: '\(escapedFullName)', email: '\(escapedEmail)' } 
                     }));
                 } catch(e) {
                     console.error('Error dispatching AppleSignInTokenReceived:', e);
@@ -281,7 +296,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         NotificationCenter.default.post(
             name: NSNotification.Name("AppleSignInTokenReceived"),
             object: nil,
-            userInfo: ["token": token]
+            userInfo: ["token": token, "fullName": fullName ?? "", "email": email ?? ""]
         )
         
         // Also try to evaluate JavaScript directly in web view (fallback)

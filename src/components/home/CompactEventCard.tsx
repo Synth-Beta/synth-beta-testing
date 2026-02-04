@@ -240,7 +240,10 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       </div>
 
       {/* Content Overlay */}
-      <div className="absolute bottom-0 left-0 right-0 swift-ui-card-content" style={{ zIndex: 40 }}>
+      <div
+        className="absolute left-0 right-0 bottom-0 w-full swift-ui-card-content !p-0 !m-0"
+        style={{ zIndex: 40 }}
+      >
       <div
           className="absolute inset-0"
         style={{

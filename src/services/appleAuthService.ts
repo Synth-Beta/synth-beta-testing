@@ -15,6 +15,179 @@ interface AppleSignInResult {
   session?: any;
 }
 
+type AppleNativeCredential = {
+  /** Full name from ASAuthorizationAppleIDCredential (only present first consent) */
+  fullName?: string;
+  /** Email from ASAuthorizationAppleIDCredential (only present first consent) */
+  email?: string;
+  /** Nonce used by the native sign-in flow (optional) */
+  nonce?: string;
+};
+
+type AppleIdTokenClaims = {
+  sub?: string;
+  email?: string;
+  email_verified?: string | boolean;
+  iss?: string;
+  aud?: string;
+  exp?: number;
+  iat?: number;
+};
+
+function safeAtobBase64Url(input: string): string {
+  // Convert base64url -> base64
+  const b64 = input.replace(/-/g, '+').replace(/_/g, '/');
+  // Add required padding
+  const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+  return atob(b64 + pad);
+}
+
+function parseAppleIdTokenClaims(identityToken: string): AppleIdTokenClaims | null {
+  try {
+    const parts = identityToken.split('.');
+    if (parts.length < 2) return null;
+    const payload = safeAtobBase64Url(parts[1]);
+    return JSON.parse(payload) as AppleIdTokenClaims;
+  } catch {
+    return null;
+  }
+}
+
+function buildFallbackUsernameSeed(nameOrEmailPrefix: string): string {
+  const base = (nameOrEmailPrefix || 'user')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '');
+
+  const ensured = base.length >= 3 ? base : `${base}user`.slice(0, 25);
+  return ensured.slice(0, 25) || 'user';
+}
+
+async function generateUsernameForNewUser(baseName: string, userId: string): Promise<string> {
+  // Prefer DB function (guarantees uniqueness + matches server rules)
+  try {
+    const { data, error } = await supabase.rpc('generate_available_username', {
+      base_name: baseName,
+      exclude_user_id: userId,
+    });
+    if (!error && typeof data === 'string' && data.trim().length >= 3) {
+      return data.trim();
+    }
+  } catch {
+    // Ignore and fall back below
+  }
+
+  // Fallback: generate a reasonable username client-side
+  const seed = buildFallbackUsernameSeed(baseName);
+  const suffix = Math.random().toString(36).slice(2, 8);
+  const candidate = `${seed}${suffix}`.slice(0, 30);
+  return candidate.length >= 3 ? candidate : `user${suffix}`;
+}
+
+async function ensurePublicUsersRowAfterAppleAuth(params: {
+  userId: string;
+  identityToken: string;
+  nativeCredential?: AppleNativeCredential;
+  authUser?: any;
+}): Promise<void> {
+  const now = new Date().toISOString();
+  const claims = parseAppleIdTokenClaims(params.identityToken);
+
+  const nativeFullName = params.nativeCredential?.fullName?.trim() || '';
+  const nativeEmail = params.nativeCredential?.email?.trim() || '';
+
+  const metaName =
+    params.authUser?.user_metadata?.full_name ||
+    params.authUser?.user_metadata?.name ||
+    params.authUser?.user_metadata?.fullName ||
+    '';
+
+  const emailFromClaims = (claims?.email || '').trim();
+  const preferredEmail = nativeEmail || emailFromClaims || params.authUser?.email || '';
+
+  const emailPrefix = preferredEmail ? preferredEmail.split('@')[0] : '';
+
+  const displayName =
+    nativeFullName ||
+    (typeof metaName === 'string' ? metaName.trim() : '') ||
+    (emailPrefix ? emailPrefix : '') ||
+    'User';
+
+  const appleUserId = (claims?.sub || '').trim();
+
+  // 1) Create a minimal users row ASAP (idempotent). Username is required by DB.
+  const username = await generateUsernameForNewUser(displayName, params.userId);
+
+  const insertPayload: Record<string, any> = {
+    user_id: params.userId,
+    name: displayName,
+    username,
+    bio: 'Music lover looking to connect at events!',
+    moderation_status: 'good_standing',
+    is_public_profile: true,
+    created_at: now,
+    updated_at: now,
+  };
+
+  // Optional Apple identity metadata columns (only set if we have values)
+  if (preferredEmail) insertPayload.email = preferredEmail;
+  if (appleUserId) insertPayload.apple_user_id = appleUserId;
+
+  // UPSERT to ensure row exists (do not overwrite existing row on conflict)
+  const { error: upsertError } = await supabase
+    .from('users')
+    .upsert(insertPayload, { onConflict: 'user_id', ignoreDuplicates: true });
+
+  if (upsertError) {
+    console.warn('Apple Sign In: could not upsert minimal users row:', upsertError);
+    // Do not block login; onboarding/profile can still try later.
+    return;
+  }
+
+  // 2) If the row already existed, only fill missing Apple identity fields (do not clobber existing data)
+  try {
+    const { data: existing, error: existingError } = await supabase
+      .from('users')
+      .select('user_id,name,email,apple_user_id')
+      .eq('user_id', params.userId)
+      .maybeSingle();
+
+    if (existingError) {
+      console.warn('Apple Sign In: could not read existing users row:', existingError);
+      return;
+    }
+
+    const updatePayload: Record<string, any> = { updated_at: now };
+
+    if (preferredEmail && !existing?.email) updatePayload.email = preferredEmail;
+    if (appleUserId && !existing?.apple_user_id) updatePayload.apple_user_id = appleUserId;
+
+    // Only set name from native credential when it is actually provided (first consent)
+    // and existing name is missing/placeholder.
+    if (
+      nativeFullName &&
+      (!existing?.name ||
+        String(existing.name).trim() === '' ||
+        ['user', 'new user'].includes(String(existing.name).trim().toLowerCase()))
+    ) {
+      updatePayload.name = nativeFullName;
+    }
+
+    if (Object.keys(updatePayload).length > 1) {
+      const { error: updateError } = await supabase
+        .from('users')
+        .update(updatePayload)
+        .eq('user_id', params.userId);
+      if (updateError) {
+        console.warn('Apple Sign In: could not update users row with Apple metadata:', updateError);
+      }
+    }
+  } catch (e) {
+    console.warn('Apple Sign In: unexpected error ensuring users row:', e);
+  }
+}
+
 /**
  * Listens for Apple Sign In token from iOS native layer
  * and authenticates with Supabase
@@ -34,7 +207,13 @@ export async function handleAppleSignInFromNative(): Promise<AppleSignInResult> 
     // Use capture: true to ensure these fire before any persistent listeners
     const tokenListener = (event: Event) => {
       const customEvent = event as CustomEvent;
-      const token = customEvent.detail?.token || (customEvent as any).token;
+      const detail = (customEvent as any).detail || {};
+      const token = detail?.token || (customEvent as any).token;
+      const nativeCredential: AppleNativeCredential = {
+        fullName: detail?.fullName || detail?.full_name || detail?.name,
+        email: detail?.email,
+        nonce: detail?.nonce,
+      };
       
       if (token) {
         console.log('✅ Apple Sign In: Identity token received from iOS native layer');
@@ -47,7 +226,7 @@ export async function handleAppleSignInFromNative(): Promise<AppleSignInResult> 
         window.removeEventListener('AppleSignInError', errorListener, true);
         
         // Authenticate with Supabase
-        authenticateWithSupabase(token)
+        authenticateWithSupabase(token, nativeCredential)
           .then((result) => resolve(result))
           .catch((error) => {
             console.error('❌ Apple Sign In: Exception during authentication:', error);
@@ -134,7 +313,10 @@ function triggerNativeAppleSignIn(): void {
 /**
  * Authenticates with Supabase using Apple identity token
  */
-async function authenticateWithSupabase(identityToken: string): Promise<AppleSignInResult> {
+async function authenticateWithSupabase(
+  identityToken: string,
+  nativeCredential?: AppleNativeCredential
+): Promise<AppleSignInResult> {
   try {
     // Validate token is received
     if (!identityToken || identityToken.trim() === '') {
@@ -157,7 +339,8 @@ async function authenticateWithSupabase(identityToken: string): Promise<AppleSig
     
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: 'apple',
-      token: identityToken
+      token: identityToken,
+      ...(nativeCredential?.nonce ? { nonce: nativeCredential.nonce } : {}),
     });
 
     if (error) {
@@ -228,6 +411,20 @@ async function authenticateWithSupabase(identityToken: string): Promise<AppleSig
     if (import.meta.env.DEV) {
       console.log('✅ Apple Sign In: Successfully authenticated with Supabase');
     }
+
+    // Immediately ensure a public.users row exists (prevents ProfileView race + ensures onboarding can update).
+    try {
+      const authUser = data.user ?? (await supabase.auth.getUser()).data.user;
+      await ensurePublicUsersRowAfterAppleAuth({
+        userId: data.session.user.id,
+        identityToken,
+        nativeCredential,
+        authUser,
+      });
+    } catch (e) {
+      console.warn('Apple Sign In: could not ensure public.users row (continuing):', e);
+    }
+
     return {
       success: true,
       session: data.session

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera, X, Loader2, Image as ImageIcon, Video, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -59,6 +59,65 @@ async function getCroppedBlob(
   return blob;
 }
 
+async function createImageFromFetch(url: string): Promise<{ image: HTMLImageElement; objectUrl: string }> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch image (${res.status})`);
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const image = await createImage(objectUrl);
+    return { image, objectUrl };
+  } catch (e) {
+    URL.revokeObjectURL(objectUrl);
+    throw e;
+  }
+}
+
+async function getCroppedScaledBlob(
+  imageSrc: string,
+  croppedAreaPixels: Area,
+  output: { width: number; height: number },
+  options: { mimeType?: string; quality?: number } = {}
+): Promise<Blob> {
+  const { image, objectUrl } = await createImageFromFetch(imageSrc);
+  try {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Failed to create canvas context');
+
+    canvas.width = Math.round(output.width);
+    canvas.height = Math.round(output.height);
+
+    ctx.drawImage(
+      image,
+      Math.round(croppedAreaPixels.x),
+      Math.round(croppedAreaPixels.y),
+      Math.round(croppedAreaPixels.width),
+      Math.round(croppedAreaPixels.height),
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    const mimeType = options.mimeType ?? 'image/jpeg';
+    const quality = options.quality ?? 0.85;
+
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (b) => {
+          if (b) resolve(b);
+          else reject(new Error('Failed to generate thumbnail'));
+        },
+        mimeType,
+        quality
+      );
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export interface PhotoUploadProps {
   value: string[];
   onChange: (urls: string[]) => void;
@@ -70,24 +129,86 @@ export interface PhotoUploadProps {
   helperText?: string;
   className?: string;
   disabled?: boolean;
+  thumbnailIndex?: number;
+  thumbnailCrop?: { xPct: number; yPct: number; zoom: number } | null;
+  onThumbnailChange?: (idx: number, crop: { xPct: number; yPct: number; zoom: number } | null) => void;
+  onThumbnailBlobChange?: (blob: Blob | null) => void;
+  enableReviewThumbnail?: boolean;
 }
 
-export function PhotoUpload({
-  value = [],
-  onChange,
-  userId,
-  bucket,
-  maxPhotos = 5,
-  maxSizeMB = 5,
-  label = 'Photos',
-  helperText,
-  className,
-  disabled = false,
-}: PhotoUploadProps) {
+export function PhotoUpload(props: PhotoUploadProps) {
+  const {
+    value = [],
+    onChange,
+    userId,
+    bucket,
+    maxPhotos = 5,
+    maxSizeMB = 5,
+    label = 'Photos',
+    helperText,
+    className,
+    disabled = false,
+  } = props;
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const enableReviewThumbnail = props.enableReviewThumbnail === true;
+  const thumbnailIndex = props.thumbnailIndex ?? 0;
+  const thumbnailCrop = props.thumbnailCrop ?? null;
+
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+
+  const [isThumbnailCropOpen, setIsThumbnailCropOpen] = useState(false);
+  const [thumbnailCropIndex, setThumbnailCropIndex] = useState<number>(0);
+  const [thumbCrop, setThumbCrop] = useState({ x: 0, y: 0 });
+  const [thumbZoom, setThumbZoom] = useState(1);
+  const [thumbCroppedAreaPct, setThumbCroppedAreaPct] = useState<Area | null>(null);
+  const [thumbCroppedAreaPixels, setThumbCroppedAreaPixels] = useState<Area | null>(null);
+  const [generatingThumb, setGeneratingThumb] = useState(false);
+
+  const prevValueLengthRef = useRef<number>(value.length);
+
+  const openPreview = (index: number) => {
+    if (!enableReviewThumbnail) return;
+    setPreviewIndex(index);
+    setIsPreviewOpen(true);
+  };
+
+  const closePreview = () => {
+    setIsPreviewOpen(false);
+    setPreviewIndex(null);
+  };
+
+  const openThumbnailCrop = (index: number) => {
+    if (!enableReviewThumbnail) return;
+    setThumbnailCropIndex(index);
+    setThumbCrop({ x: 0, y: 0 });
+    setThumbZoom(index === thumbnailIndex && thumbnailCrop?.zoom ? thumbnailCrop.zoom : 1);
+    setThumbCroppedAreaPct(null);
+    setThumbCroppedAreaPixels(null);
+    setIsThumbnailCropOpen(true);
+  };
+
+  const closeThumbnailCrop = () => {
+    setIsThumbnailCropOpen(false);
+    setThumbCroppedAreaPct(null);
+    setThumbCroppedAreaPixels(null);
+  };
+
+  useEffect(() => {
+    const prevLen = prevValueLengthRef.current;
+    const nextLen = value.length;
+    prevValueLengthRef.current = nextLen;
+
+    if (!enableReviewThumbnail) return;
+    // Auto-open crop ONLY when user adds their first photo
+    if (prevLen === 0 && nextLen === 1) {
+      openThumbnailCrop(0);
+    }
+  }, [value.length, enableReviewThumbnail]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -197,6 +318,18 @@ export function PhotoUpload({
           <div
             key={url}
             className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group"
+            onClick={() => openPreview(index)}
+            role={enableReviewThumbnail ? 'button' : undefined}
+            tabIndex={enableReviewThumbnail ? 0 : undefined}
+            onKeyDown={(e) => {
+              if (!enableReviewThumbnail) return;
+              if (e.key === 'Enter' || e.key === ' ') openPreview(index);
+            }}
+            style={
+              enableReviewThumbnail && index === thumbnailIndex
+                ? { boxShadow: '0 0 0 2px var(--brand-pink-500)' }
+                : undefined
+            }
           >
             <img
               src={url}
@@ -207,6 +340,8 @@ export function PhotoUpload({
               type="button"
               onClick={() => handleRemove(url, index)}
               disabled={disabled || uploading}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClickCapture={(e) => e.stopPropagation()}
               className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
             >
               <X className="w-4 h-4" />
@@ -259,6 +394,170 @@ export function PhotoUpload({
       <p className="text-xs text-muted-foreground">
         {value.length} / {maxPhotos} photos • Max {maxSizeMB}MB per photo
       </p>
+
+      {/* Preview Modal (review thumbnail only) */}
+      {enableReviewThumbnail && previewIndex !== null && (
+        <Dialog
+          open={isPreviewOpen}
+          onOpenChange={(open) => {
+            if (!open) closePreview();
+            else setIsPreviewOpen(true);
+          }}
+        >
+          <DialogContent className="max-w-3xl p-0 overflow-hidden">
+            <div className="relative bg-black">
+              <button
+                type="button"
+                onClick={closePreview}
+                className="absolute top-3 right-3 z-10 rounded-full bg-black/60 text-white p-2 hover:bg-black/70"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <img
+                src={value[previewIndex]}
+                alt={`Photo ${previewIndex + 1}`}
+                className="block w-full max-h-[70vh] object-contain"
+              />
+            </div>
+
+            <div className="p-5">
+              <Button
+                type="button"
+                className="w-full mt-6"
+                onClick={() => {
+                  const idx = previewIndex;
+                  closePreview();
+                  openThumbnailCrop(idx);
+                }}
+              >
+                {previewIndex === thumbnailIndex ? 'Edit Thumbnail' : 'Select as Thumbnail'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Thumbnail Crop Modal (review thumbnail only) */}
+      {enableReviewThumbnail && (
+        <Dialog
+          open={isThumbnailCropOpen}
+          onOpenChange={(open) => {
+            if (!open) closeThumbnailCrop();
+            else setIsThumbnailCropOpen(true);
+          }}
+        >
+          <DialogContent
+            hideCloseButton
+            className="rounded-none border-0"
+            style={{
+              left: 0,
+              top: 0,
+              transform: 'none',
+              width: '100vw',
+              height: '100vh',
+              maxWidth: '100vw',
+              maxHeight: '100vh',
+              borderRadius: 0,
+            }}
+          >
+            <div className="flex flex-col h-full w-full">
+              <div className="flex items-center justify-between px-5 py-4 bg-background border-b">
+                <div className="text-sm font-medium">Crop thumbnail (16:9)</div>
+                <button
+                  type="button"
+                  onClick={closeThumbnailCrop}
+                  className="rounded-full p-2 hover:bg-muted"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 relative bg-black">
+                {value[thumbnailCropIndex] && (
+                  <Cropper
+                    image={value[thumbnailCropIndex]}
+                    crop={thumbCrop}
+                    zoom={thumbZoom}
+                    aspect={16 / 9}
+                    showGrid={false}
+                    onCropChange={setThumbCrop}
+                    onZoomChange={setThumbZoom}
+                    onCropComplete={(areaPct, areaPixels) => {
+                      setThumbCroppedAreaPct(areaPct);
+                      setThumbCroppedAreaPixels(areaPixels);
+                    }}
+                  />
+                )}
+              </div>
+
+              <div className="px-5 py-4 bg-background">
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Zoom</div>
+                  <Slider
+                    value={[thumbZoom]}
+                    min={1}
+                    max={3}
+                    step={0.05}
+                    onValueChange={(v) => setThumbZoom(v[0] ?? 1)}
+                    trackClassName="h-2"
+                  />
+                </div>
+              </div>
+
+              <div className="px-5 pb-6 bg-background">
+                <div className="flex items-center justify-center gap-1.5">
+                  <Button type="button" variant="secondary" onClick={closeThumbnailCrop}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={!thumbCroppedAreaPct || !thumbCroppedAreaPixels || generatingThumb}
+                    onClick={async () => {
+                      if (!thumbCroppedAreaPct || !thumbCroppedAreaPixels) return;
+
+                      setGeneratingThumb(true);
+                      try {
+                        const xPct = Math.max(0, Math.min(100, thumbCroppedAreaPct.x + thumbCroppedAreaPct.width / 2));
+                        const yPct = Math.max(0, Math.min(100, thumbCroppedAreaPct.y + thumbCroppedAreaPct.height / 2));
+                        const crop = {
+                          xPct: Math.round(xPct * 1000) / 1000,
+                          yPct: Math.round(yPct * 1000) / 1000,
+                          zoom: Math.round(thumbZoom * 1000) / 1000,
+                        };
+
+                        // Generate a client-side cropped thumbnail image (non-destructive to originals)
+                        const thumbBlob = await getCroppedScaledBlob(
+                          value[thumbnailCropIndex],
+                          thumbCroppedAreaPixels,
+                          { width: 1280, height: 720 },
+                          { mimeType: 'image/jpeg', quality: 0.85 }
+                        );
+
+                        props.onThumbnailChange?.(thumbnailCropIndex, crop);
+                        props.onThumbnailBlobChange?.(thumbBlob);
+                        closeThumbnailCrop();
+                      } finally {
+                        setGeneratingThumb(false);
+                      }
+                    }}
+                  >
+                    {generatingThumb ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
@@ -623,7 +922,7 @@ export function SinglePhotoUpload({
                   max={3}
                   step={0.05}
                   onValueChange={(v) => setZoom(v[0] ?? 1)}
-                  trackClassName="h-4"
+                  trackClassName="h-2"
                 />
               </div>
             </div>

@@ -1935,7 +1935,7 @@ export const UnifiedFeed = ({
   );
 
   const renderEventCards = () => (
-    <div className="space-y-4">
+    <div className="space-y-[60px]">
       {processedFeedItems
         .filter((item) => item.type === 'event')
         .map((item, index) => (
@@ -2483,7 +2483,7 @@ export const UnifiedFeed = ({
           >
 
             {/* Events Feed Items */}
-            <div className="space-y-4">
+            <div className="space-y-[60px]">
               {processedFeedItems
                 .filter(item => item.type === 'event')
                 .map((item, index) => (
@@ -2750,7 +2750,7 @@ export const UnifiedFeed = ({
                     </div>
                   </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-[60px]">
                 {(() => {
                   const reviewItems = feedItems.filter(item => item.type === 'review' && !(item as any).deleted_at && !(item as any).is_deleted);
                   const firstThreeReviews = reviewItems.slice(0, 3);

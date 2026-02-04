@@ -462,7 +462,10 @@ export function ReviewDetailView({
     },
   ].filter(cat => cat.rating > 0);
 
-  const mainImage = reviewData.photos && reviewData.photos.length > 0 ? reviewData.photos[0] : null;
+  const fallbackPhotoUrl = reviewData.photos && reviewData.photos.length > 0 ? reviewData.photos[0] : null;
+  const mainImage = fallbackPhotoUrl
+    ? supabase.storage.from('review-photos').getPublicUrl(`${reviewData.id}/thumbnail.jpg`).data.publicUrl
+    : null;
 
   const openArtistDetail = () => {
     if (!reviewData.artist_id) return;
@@ -849,7 +852,13 @@ export function ReviewDetailView({
                 alt="Review"
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
+                  const target = e.currentTarget;
+                  // Prefer `${reviewId}/thumbnail.jpg` if present; otherwise fall back to first uploaded photo.
+                  if (fallbackPhotoUrl && target.src.includes('/thumbnail.jpg')) {
+                    target.src = fallbackPhotoUrl;
+                    return;
+                  }
+                  target.style.display = 'none';
                 }}
               />
             </div>

@@ -43,6 +43,8 @@ export interface ReviewFormData {
   reviewText: string;
   photos: string[]; // Photo URLs uploaded to storage
   videos: string[]; // Video URLs uploaded to storage
+  thumbnailIndex: number;
+  thumbnailCrop: { xPct: number; yPct: number; zoom: number } | null;
   attendees: Array<{ type: 'user'; user_id: string; name: string; avatar_url?: string } | { type: 'phone'; phone: string; name?: string }>; // People who attended with the reviewer
   metOnSynth: boolean; // Track if users met/planned on Synth (for admin dashboard)
   
@@ -102,6 +104,8 @@ const initialFormData: ReviewFormData = {
   reviewText: '',
   photos: [],
   videos: [],
+  thumbnailIndex: 0,
+  thumbnailCrop: null,
   attendees: [],
   metOnSynth: false,
   isPublic: true,

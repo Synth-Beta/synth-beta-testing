@@ -183,7 +183,7 @@ export const DemoProfilePage: React.FC<DemoProfilePageProps> = ({
           </TabsContent>
 
           {/* Interested Events Tab - EXACT same as production */}
-          <TabsContent value="interested" className="mt-4 w-full max-w-full overflow-x-hidden">
+          <TabsContent value="interested" className="mt-4 pb-8 w-full max-w-full overflow-x-hidden">
             {/* Toggle between Upcoming and Past - EXACT same as production */}
             {DEMO_INTERESTED_EVENTS.length > 0 && (
               <div className="flex justify-center mb-4 w-full max-w-full">

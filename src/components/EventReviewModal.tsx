@@ -31,7 +31,14 @@ export function EventReviewModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent
+        style={{
+          top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+          transform: 'translate(-50%, 0)',
+          maxHeight:
+            'calc(100dvh - (env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + 24px))',
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{eventTitle}</DialogTitle>
         </DialogHeader>

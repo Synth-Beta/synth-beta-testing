@@ -3,14 +3,21 @@ import AuthenticationServices
 import Capacitor
 
 @available(iOS 13.0, *)
+struct AppleSignInCredential {
+    let identityToken: String
+    let email: String?
+    let fullName: String?
+}
+
+@available(iOS 13.0, *)
 class AppleSignInHandler: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
     
-    var completionHandler: ((Result<String, Error>) -> Void)?
+    var completionHandler: ((Result<AppleSignInCredential, Error>) -> Void)?
     
     // MARK: - Public Methods
     
     /// Initiates Apple Sign In flow
-    func signIn(completion: @escaping (Result<String, Error>) -> Void) {
+    func signIn(completion: @escaping (Result<AppleSignInCredential, Error>) -> Void) {
         self.completionHandler = completion
         
         let appleIDProvider = ASAuthorizationAppleIDProvider()
@@ -34,8 +41,25 @@ class AppleSignInHandler: NSObject, ASAuthorizationControllerDelegate, ASAuthori
                 return
             }
             
-            // Success - return the identity token string
-            completionHandler?(.success(identityTokenString))
+            // Apple only returns email/fullName the first time a user authorizes.
+            let email = appleIDCredential.email
+            
+            var fullNameString: String? = nil
+            if let nameComponents = appleIDCredential.fullName {
+                let formatter = PersonNameComponentsFormatter()
+                formatter.style = .default
+                let formatted = formatter.string(from: nameComponents).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !formatted.isEmpty {
+                    fullNameString = formatted
+                }
+            }
+            
+            // Success - return token + any optional profile fields
+            completionHandler?(.success(AppleSignInCredential(
+                identityToken: identityTokenString,
+                email: email,
+                fullName: fullNameString
+            )))
         } else {
             let error = NSError(domain: "AppleSignInHandler", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid authorization credential"])
             completionHandler?(.failure(error))
