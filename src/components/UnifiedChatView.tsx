@@ -2039,7 +2039,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
               <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>
             </DropdownMenuItem>
             
-            {linkedEvent && (
+            {selectedChat.is_group_chat && linkedEvent && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleViewEvent}>

@@ -68,6 +68,7 @@ export class OnboardingService {
 
       // Build update object with only fields that exist
       const updateData: any = {
+        user_id: userId,
         updated_at: new Date().toISOString(),
       };
 
@@ -111,8 +112,7 @@ export class OnboardingService {
 
       const { error } = await supabase
         .from('users')
-        .update(updateData)
-        .eq('user_id', userId);
+        .upsert(updateData, { onConflict: 'user_id' });
 
       if (error) {
         // Handle specific column errors gracefully
@@ -122,8 +122,7 @@ export class OnboardingService {
           const { username, location_city, ...updateWithoutOptional } = updateData;
           const { error: retryError } = await supabase
             .from('users')
-            .update(updateWithoutOptional)
-            .eq('user_id', userId);
+            .upsert(updateWithoutOptional, { onConflict: 'user_id' });
           
           if (retryError) {
             // If username column exists but there's a unique constraint violation

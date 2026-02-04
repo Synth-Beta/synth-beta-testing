@@ -58,6 +58,7 @@ import { MobileHeader } from '@/components/Header/MobileHeader';
 import instagramLogo from '@/assets/icons/Instagram_Logo.svg';
 import appleMusicLogo from '@/assets/icons/Apple-Music-Logo.svg';
 import spotifyLogo from '@/assets/icons/Spotify-Logo.svg';
+import { OnboardingService } from '@/services/onboardingService';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -426,67 +427,33 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
 
-      console.log('No profile found for user:', currentUserId);
-      console.log('Creating default profile for user:', currentUserId);
-      
-      // Get user metadata from auth
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      const userName = authUser?.user_metadata?.name || authUser?.email?.split('@')[0] || 'New User';
-      
-      console.log('Creating profile with name:', userName);
-      
-      const { data: newProfile, error: insertError } = await supabase
-        .from('users')
-        .insert({
-          user_id: currentUserId,
-          name: userName,
-          bio: 'Music lover looking to connect at events!',
-          instagram_handle: null,
-          music_streaming_profile: null
-        })
-        .select()
-        .single();
-      
-      console.log('Profile creation result:', { newProfile, insertError });
-      
-      if (insertError) {
-        console.error('Error creating profile:', insertError);
-        console.error('Insert error details:', insertError.details);
-        console.error('Insert error hint:', insertError.hint);
-        
-        // If we can't create a profile, show a fallback
-        setProfile({
-          id: 'temp',
-          user_id: currentUserId,
-          name: userName,
-          username: null,
-          avatar_url: null,
-          bio: 'Music lover looking to connect at events!',
-          instagram_handle: null,
-          music_streaming_profile: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-      } else if (newProfile) {
-        console.log('Profile created successfully:', newProfile);
-        setProfile(newProfile as UserProfile);
+      // If we're viewing our own profile and the users row doesn't exist yet,
+      // try to create it (e.g., Apple sign-in race or trigger delay), then refetch.
+      if (isViewingOwnProfile && targetUserId === currentUserId) {
+        console.log('No profile found for current user. Ensuring public.users row exists, then retrying...');
+        await OnboardingService.ensureUserExists(currentUserId);
+
+        const { data: createdAfterEnsure, error: createdAfterEnsureError } = await fetchProfileRecord('user_id');
+        if (createdAfterEnsureError && createdAfterEnsureError.code !== 'PGRST116') {
+          throw createdAfterEnsureError;
+        }
+        if (createdAfterEnsure) {
+          console.log('Profile found after ensureUserExists:', createdAfterEnsure);
+          setProfile(createdAfterEnsure as UserProfile);
+          return;
+        }
       }
+
+      // For other users (or if ensure failed), do not create placeholder rows.
+      throw new Error(`Profile not found for user ${targetUserId}`);
     } catch (error) {
       console.error('Error fetching profile:', error);
-      // Show a fallback profile instead of error
-      setProfile({
-        id: 'temp',
-        user_id: currentUserId,
-        name: 'New User',
-        username: null,
-        avatar_url: null,
-        bio: null,
-        instagram_handle: null,
-        music_streaming_profile: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+      setProfile(null);
+      toast({
+        title: 'Profile not found',
+        description: 'Unable to load your profile right now. Please try again.',
+        variant: 'destructive',
       });
-      // Don't set loading to false here - let the main fetchData handle it
     }
   };
 
@@ -1693,12 +1660,12 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
 
   // Session expiration is handled by MainApp, so we don't need to handle it here
 
-  // Show loading screen while loading or if profile hasn't loaded yet
-  if (loading || !profile) {
+  // Show loading screen while loading
+  if (loading) {
     return <SynthLoadingScreen text="Loading profile..." />;
   }
 
-  // If loading is complete but no profile, show error (shouldn't happen with current logic)
+  // If loading is complete but no profile, show error
   if (!profile) {
     console.log('❌ ProfileView: No profile data available after loading');
     console.log('❌ ProfileView: Loading state:', loading);
@@ -2950,7 +2917,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           </TabsContent>
 
             {canViewInterested && (
-            <TabsContent value="interested" className="mt-4 w-full max-w-full overflow-x-hidden">
+            <TabsContent value="interested" className="mt-4 pb-8 w-full max-w-full overflow-x-hidden">
               {/* Toggle between Upcoming and Past */}
               {userEvents.length > 0 && (
                 <div className="flex justify-center mb-4 w-full max-w-full">

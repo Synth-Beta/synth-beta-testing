@@ -1461,6 +1461,11 @@
     margin-bottom: 0;
   }
 
+  /* Feed vertical rhythm (wrapper-level spacing between cards) */
+  .swift-ui-feed-item:not(:last-child) {
+    margin-bottom: 60px;
+  }
+
   .swift-ui-feed::before,
   .swift-ui-feed::after {
     content: '';

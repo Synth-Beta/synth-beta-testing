@@ -583,7 +583,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
           overflowY: 'auto',
         }}
       >
-        <div className="space-y-3 px-2">
+        <div className="px-2">
           {(() => {
             const insertAt = insertSectionAfterIndex != null && middleSection != null ? insertSectionAfterIndex : -1;
             const before = insertAt >= 0 ? displayedEvents.slice(0, insertAt) : displayedEvents;

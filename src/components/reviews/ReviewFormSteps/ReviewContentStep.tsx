@@ -15,10 +15,11 @@ interface ReviewContentStepProps {
   formData: ReviewFormData;
   errors: Record<string, string>;
   onUpdateFormData: (updates: Partial<ReviewFormData>) => void;
+  onThumbnailBlobChange?: (blob: Blob | null) => void;
   maxCharacters?: number; // Allow different max characters based on flow
 }
 
-export function ReviewContentStep({ formData, errors, onUpdateFormData, maxCharacters = 500 }: ReviewContentStepProps) {
+export function ReviewContentStep({ formData, errors, onUpdateFormData, onThumbnailBlobChange, maxCharacters = 500 }: ReviewContentStepProps) {
   const { user } = useAuth();
 
   const characterCount = formData.reviewText.length;
@@ -80,6 +81,13 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData, maxChara
         <PhotoUpload
           value={formData.photos || []}
           onChange={(urls) => onUpdateFormData({ photos: urls })}
+          thumbnailIndex={formData.thumbnailIndex}
+          thumbnailCrop={formData.thumbnailCrop}
+          onThumbnailChange={(idx, crop) =>
+            onUpdateFormData({ thumbnailIndex: idx, thumbnailCrop: crop })
+          }
+          onThumbnailBlobChange={onThumbnailBlobChange}
+          enableReviewThumbnail
           userId={user.id}
           bucket="review-photos"
           maxPhotos={5}

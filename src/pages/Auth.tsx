@@ -367,6 +367,26 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     }
   };
 
+  const AppleAuthButton = () => (
+    <Button
+      onClick={handleAppleSignIn}
+      disabled={!isIOS || appleSignInLoading || loading}
+      className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+    >
+      {appleSignInLoading ? (
+        'Signing in...'
+      ) : (
+        <>
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+          </svg>
+          Continue with Apple
+        </>
+      )}
+    </Button>
+  );
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{
       background: 'linear-gradient(45deg, #fdf2f8 0%, #ffffff 25%, #fce7f3 50%, #ffffff 75%, #fdf2f8 100%)',
@@ -409,155 +429,141 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
             </TabsList>
             
             <TabsContent value="signin" className="mt-6">
-              <form onSubmit={handleSignIn} className="space-y-6">
-                <div>
-                  <Input
-                    id="signin-email"
-                    name="signinEmail"
-                    type="email"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
-                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                  />
-                </div>
-                <div>
-                  <Input
-                    id="signin-password"
-                    name="signinPassword"
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
-                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleForgotPassword}
-                    disabled={isResettingPassword}
-                    className="text-sm text-[#FF3399] hover:text-[#E6007A] transition-colors disabled:opacity-50"
+              <div className="space-y-4">
+                <AppleAuthButton />
+                {!isIOS && (
+                  <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    Apple Sign In is available on iOS devices.
+                  </p>
+                )}
+              </div>
+
+              {/* Keep existing email/password auth logic intact, but hide the UI */}
+              <div className="hidden" aria-hidden="true">
+                <form onSubmit={handleSignIn} className="space-y-6">
+                  <div>
+                    <Input
+                      id="signin-email"
+                      name="signinEmail"
+                      type="email"
+                      placeholder="Email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
+                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      id="signin-password"
+                      name="signinPassword"
+                      type="password"
+                      placeholder="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
+                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      disabled={isResettingPassword}
+                      className="text-sm text-[#FF3399] hover:text-[#E6007A] transition-colors disabled:opacity-50"
+                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                    >
+                      {isResettingPassword ? 'Sending...' : 'Forgot password?'}
+                    </button>
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-[#FF3399] hover:bg-[#E6007A] text-white font-semibold py-3 px-6 rounded-lg transition-all"
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                   >
-                    {isResettingPassword ? 'Sending...' : 'Forgot password?'}
-                  </button>
-                </div>
-                <Button 
-                  type="submit" 
-                  disabled={loading} 
-                  className="w-full bg-[#FF3399] hover:bg-[#E6007A] text-white font-semibold py-3 px-6 rounded-lg transition-all"
-                  style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                >
-                  {loading ? 'Signing in...' : 'Sign In'}
-                </Button>
-                <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                  Can't sign in? Make sure you've clicked the verification link we sent to your email.
-                </p>
-              </form>
+                    {loading ? 'Signing in...' : 'Sign In'}
+                  </Button>
+                  <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    Can't sign in? Make sure you've clicked the verification link we sent to your email.
+                  </p>
+                </form>
+              </div>
             </TabsContent>
             
             <TabsContent value="signup" className="mt-6">
-              <form onSubmit={handleSignUp} className="space-y-6">
-                <p
-                  className="text-body font-bold text-left"
-                >
+              <div className="space-y-4">
+                <p className="text-body font-bold text-left">
                   Sign up with email is temporarily unavailable. Please sign up with Apple to continue.
                 </p>
-                <div>
-                  <Input
-                    id="signup-name"
-                    name="signupName"
-                    type="text"
-                    placeholder="Your name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    disabled={isEmailSignUpTemporarilyUnavailable}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
+                <AppleAuthButton />
+                {!isIOS && (
+                  <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    Apple Sign In is available on iOS devices.
+                  </p>
+                )}
+              </div>
+
+              {/* Keep existing email/password + name auth logic intact, but hide the UI */}
+              <div className="hidden" aria-hidden="true">
+                <form onSubmit={handleSignUp} className="space-y-6">
+                  <div>
+                    <Input
+                      id="signup-name"
+                      name="signupName"
+                      type="text"
+                      placeholder="Your name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
+                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      id="signup-email"
+                      name="signupEmail"
+                      type="email"
+                      placeholder="Email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
+                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      id="signup-password"
+                      name="signupPassword"
+                      type="password"
+                      placeholder="Password (min 6 characters)"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
+                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                    />
+                  </div>
+                  <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    By signing up, you'll need to verify your email before you can sign in.
+                  </p>
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-[#FF3399] hover:bg-[#E6007A] text-white font-semibold py-3 px-6 rounded-lg transition-all"
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                  />
-                </div>
-                <div>
-                  <Input
-                    id="signup-email"
-                    name="signupEmail"
-                    type="email"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    disabled={isEmailSignUpTemporarilyUnavailable}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
-                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                  />
-                </div>
-                <div>
-                  <Input
-                    id="signup-password"
-                    name="signupPassword"
-                    type="password"
-                    placeholder="Password (min 6 characters)"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    disabled={isEmailSignUpTemporarilyUnavailable}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
-                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                  />
-                </div>
-                <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                  By signing up, you'll need to verify your email before you can sign in.
-                </p>
-                <Button 
-                  type="submit" 
-                  disabled={loading || isEmailSignUpTemporarilyUnavailable} 
-                  className="w-full bg-[#FF3399] hover:bg-[#E6007A] text-white font-semibold py-3 px-6 rounded-lg transition-all disabled:opacity-100 disabled:bg-[#FF3399]/60 disabled:text-white disabled:cursor-not-allowed disabled:hover:bg-[#FF3399]/60"
-                  style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                >
-                  {loading ? 'Creating account...' : 'Sign Up'}
-                </Button>
-              </form>
+                  >
+                    {loading ? 'Creating account...' : 'Sign Up'}
+                  </Button>
+                </form>
+              </div>
             </TabsContent>
           </Tabs>
-          
-          {/* Apple Sign In Button - Only show on iOS */}
-          {isIOS && (
-            <div className="mt-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-gray-300" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white/90 text-gray-500" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                    Or continue with
-                  </span>
-                </div>
-              </div>
-              <Button
-                onClick={handleAppleSignIn}
-                disabled={appleSignInLoading || loading}
-                className="w-full mt-4 bg-black hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2"
-                style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-              >
-                {appleSignInLoading ? (
-                  'Signing in...'
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                    </svg>
-                    {activeTab === 'signup' ? 'Sign up with Apple' : 'Sign in with Apple'}
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

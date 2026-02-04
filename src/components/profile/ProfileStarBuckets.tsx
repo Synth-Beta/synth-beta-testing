@@ -46,13 +46,16 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
   const artistId = event?.artist_id || review.artist_id || jambaseEvent?.artist_id || null;
   
   const hasUserImage = Array.isArray(review.photos) && review.photos.length > 0;
-  const primaryImage = hasUserImage ? review.photos[0] : undefined;
+  const fallbackPhotoUrl = hasUserImage ? review.photos[0] : undefined;
+  const reviewThumbnailUrl = hasUserImage
+    ? supabase.storage.from('review-photos').getPublicUrl(`${review.id}/thumbnail.jpg`).data.publicUrl
+    : undefined;
   
   // Fetch artist image if no user image
   const [artistImageUrl, setArtistImageUrl] = useState<string | null>(null);
   
   useEffect(() => {
-    if (!primaryImage && artistId) {
+    if (!hasUserImage && artistId) {
       // Fetch artist image_url from artists table
       supabase
         .from('artists')
@@ -65,11 +68,11 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
           }
         });
     }
-  }, [primaryImage, artistId]);
+  }, [hasUserImage, artistId]);
   
   // Determine image source: user photo > artist image > fallback
   const imageKey = `${review.id}-${artistName}-${venueName}-${dateStr || ''}`;
-  const imageSrc = primaryImage || artistImageUrl || getFallbackEventImage(imageKey);
+  const imageSrc = (hasUserImage ? reviewThumbnailUrl : undefined) || artistImageUrl || getFallbackEventImage(imageKey);
 
   return (
     <button
@@ -98,6 +101,13 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
           alt={`${artistName} at ${venueName}`}
           className={`w-full h-full object-cover transition-transform duration-500 ${hasUserImage ? '' : 'scale-105'}`}
           loading="lazy"
+          onError={(e) => {
+            const target = e.currentTarget;
+            // Prefer `${reviewId}/thumbnail.jpg` if present; otherwise fall back to first uploaded photo.
+            if (fallbackPhotoUrl && target.src.includes('/thumbnail.jpg')) {
+              target.src = fallbackPhotoUrl;
+            }
+          }}
         />
         <div
           className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"

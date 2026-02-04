@@ -127,8 +127,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
     <div
       className="mb-6 flex flex-col items-center"
       style={{
-        /* Push section below the app header (68px) + safe area so "Who you should know" is never covered */
-        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 72px)',
+        marginTop: 12,
       }}
     >
       {/* Section title - now starts beneath the header */}
@@ -182,7 +181,15 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
               </p>
 
               {/* Connection info */}
-              <div className="text-xs text-synth-black/60 text-center space-y-0.5">
+              <div
+                className="text-center space-y-0.5"
+                style={{
+                  fontSize: 'var(--typography-meta-size)',
+                  fontWeight: 'var(--typography-meta-weight)',
+                  lineHeight: 'var(--typography-meta-line-height)',
+                  color: 'var(--neutral-600)',
+                }}
+              >
                 {suggestion.mutual_friends_count > 0 && (
                   <p>{suggestion.mutual_friends_count} mutual friend{suggestion.mutual_friends_count !== 1 ? 's' : ''}</p>
                 )}

@@ -377,7 +377,10 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
   }
 
   return (
-    <div className="p-4 bg-gray-50">
+    <div
+      className="p-4 bg-gray-50"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+    >
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">

@@ -117,10 +117,12 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   const [isReviewSubmitted, setIsReviewSubmitted] = useState(false); // Track if review has been submitted
+  const [pendingReviewThumbnailBlob, setPendingReviewThumbnailBlob] = useState<Blob | null>(null);
   
   // Reset submission state when event changes (form is reused for different event)
   useEffect(() => {
     setIsReviewSubmitted(false);
+    setPendingReviewThumbnailBlob(null);
   }, [event?.id]);
   const isValidUUID = (value?: string | null) => {
     if (!value) return false;
@@ -1029,6 +1031,29 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       };
       
       const review = await ReviewService.setEventReview(userId, undefined, reviewDataWithEventDate, safeVenueId, safeArtistId);
+
+      // Upload client-generated review thumbnail to storage (no DB fields).
+      // Path: `${reviewId}/thumbnail.jpg` in bucket `review-photos`.
+      if (pendingReviewThumbnailBlob && review?.id && Array.isArray(formData.photos) && formData.photos.length > 0) {
+        try {
+          const fileType = pendingReviewThumbnailBlob.type || 'image/jpeg';
+          const thumbFile = new File([pendingReviewThumbnailBlob], 'thumbnail.jpg', { type: fileType });
+          const uploadPath = `${review.id}/thumbnail.jpg`;
+
+          const { error: thumbError } = await supabase.storage.from('review-photos').upload(uploadPath, thumbFile, {
+            cacheControl: '3600',
+            upsert: true,
+            contentType: fileType,
+          } as any);
+
+          if (thumbError) {
+            console.warn('⚠️ EventReviewForm: Thumbnail upload failed:', thumbError);
+          }
+        } catch (thumbUploadError) {
+          console.warn('⚠️ EventReviewForm: Thumbnail upload threw exception:', thumbUploadError);
+        }
+      }
+      setPendingReviewThumbnailBlob(null);
       
       // Clear localStorage draft after successful submission (use draft key based on artist+venue)
       const draftKey = safeArtistId && safeVenueId ? `artist_${safeArtistId}_venue_${safeVenueId}` : 'new';
@@ -1225,6 +1250,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     setSubmittedReview(null);
     resetForm();
     setIsReviewSubmitted(false); // Reset submission state for next review
+    setPendingReviewThumbnailBlob(null);
     
     // NOW call the onSubmitted callback (which triggers refresh and closes modal)
     // This was deferred for new reviews to avoid unmounting before ranking modal could show
@@ -1555,6 +1581,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                 formData={formData} 
                 errors={errors} 
                 onUpdateFormData={updateFormData}
+                onThumbnailBlobChange={setPendingReviewThumbnailBlob}
                 maxCharacters={400}
               />
               {/* Add setlist section */}
@@ -1679,6 +1706,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                 formData={formData} 
                 errors={errors} 
                 onUpdateFormData={updateFormData}
+                onThumbnailBlobChange={setPendingReviewThumbnailBlob}
                 maxCharacters={500}
               />
               {/* Add setlist section */}
